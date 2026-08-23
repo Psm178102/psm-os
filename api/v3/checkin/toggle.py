@@ -4,7 +4,7 @@ import json, os, sys
 from datetime import datetime, timezone, date
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, audit, hoje_brt  # type: ignore
 
 
 class handler(BaseHTTPRequestHandler):
@@ -25,7 +25,8 @@ class handler(BaseHTTPRequestHandler):
         except: body = {}
         sb = supabase_client()
         if not sb: return self._send(503, {"ok": False, "error": "backend"})
-        today_start = date.today().isoformat() + "T00:00:00+00:00"
+        # v86.68: "dia" em BRT — 00:00 BRT = 03:00Z (antes usava date.today() UTC e virava o dia às 21h)
+        today_start = hoje_brt().isoformat() + "T03:00:00+00:00"
         try:
             last = sb.table("check_ins").select("tipo,ts").eq("user_id", user["id"]).gte("ts", today_start).order("ts", desc=True).limit(1).execute().data or []
             next_tipo = "out" if (last and last[0]["tipo"] == "in") else "in"

@@ -5,18 +5,28 @@ from collections import defaultdict
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "oo"))
 from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
+try:
+    from _oo_lib import PIPELINE_PESOS  # type: ignore
+except Exception:   # fallback = mesma tabela (mantém o serviço de pé se o import falhar)
+    PIPELINE_PESOS = {"contato": 0.1, "qualificado": 0.2, "agendado": 0.3, "visita": 0.5,
+                      "proposta": 0.6, "pasta": 0.8, "contrato": 0.9}
 
 
-# Pesos heurísticos por palavra-chave no nome do stage
+# v86.65: pesos vêm da tabela ÚNICA PIPELINE_PESOS (api/v3/oo/_oo_lib.py) — a
+# mesma do 1:1 (corretor.py). Palavra-chave no nome do stage → chave da tabela.
 STAGE_WEIGHTS = [
     ("ganho",    1.0), ("won",       1.0), ("fechado",  1.0),
-    ("proposta", 0.7), ("negociaca", 0.7), ("contrato", 0.9),
-    ("qualific", 0.4),
-    ("agendad",  0.3), ("visita",    0.3),
-    ("contato",  0.15),
-    ("primeiro", 0.1), ("lead",      0.1), ("inicio",   0.1),
     ("perd",     0.0), ("lost",      0.0), ("cancel",   0.0),
+    ("contrato", PIPELINE_PESOS["contrato"]),
+    ("pasta",    PIPELINE_PESOS["pasta"]), ("dossi", PIPELINE_PESOS["pasta"]),
+    ("proposta", PIPELINE_PESOS["proposta"]), ("negocia", PIPELINE_PESOS["proposta"]), ("aprova", PIPELINE_PESOS["proposta"]),
+    ("agendad",  PIPELINE_PESOS["agendado"]), ("agendamento", PIPELINE_PESOS["agendado"]),   # antes de "visita": VISITA AGENDADA = agendado
+    ("visita",   PIPELINE_PESOS["visita"]),
+    ("qualific", PIPELINE_PESOS["qualificado"]),
+    ("contato",  PIPELINE_PESOS["contato"]),
+    ("primeiro", PIPELINE_PESOS["contato"]), ("lead", PIPELINE_PESOS["contato"]), ("inicio", PIPELINE_PESOS["contato"]),
 ]
 
 

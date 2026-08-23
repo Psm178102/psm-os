@@ -4,7 +4,7 @@ import json, os, sys, urllib.parse
 from datetime import datetime, timezone, date, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, hoje_brt  # type: ignore
 
 
 class handler(BaseHTTPRequestHandler):
@@ -32,7 +32,7 @@ class handler(BaseHTTPRequestHandler):
         try:
             rows = sb.table("check_ins").select("*").eq("user_id", target_uid).gte("ts", since).order("ts", desc=True).limit(200).execute().data or []
             # Hoje: status
-            today_start = date.today().isoformat() + "T00:00:00+00:00"
+            today_start = hoje_brt().isoformat() + "T03:00:00+00:00"  # v86.68: dia BRT (00:00 BRT = 03:00Z)
             today_rows = [r for r in rows if r["ts"] >= today_start]
             today_in_count  = sum(1 for r in today_rows if r["tipo"] == "in")
             today_out_count = sum(1 for r in today_rows if r["tipo"] == "out")

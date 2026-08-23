@@ -12,7 +12,7 @@ import json, os, sys, re, urllib.request
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import require_user, AuthError, audit, supabase_client  # type: ignore
+from _auth_lib import require_user, AuthError, audit, supabase_client, hoje_brt  # type: ignore
 
 PROMPT = (
     "Esta imagem é uma captura de tela da Biblioteca de Anúncios do Meta (Facebook/Instagram Ad Library) "
@@ -68,7 +68,7 @@ def _dias_medio(datas):
     """Média de dias ativos a partir das datas de início (AAAA-MM-DD), vs hoje."""
     if not datas:
         return None
-    hoje = datetime.now(timezone.utc).date()
+    hoje = hoje_brt()  # v86.68: hoje BRT
     difs = []
     for d in datas:
         try:

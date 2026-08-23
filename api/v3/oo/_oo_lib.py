@@ -12,6 +12,22 @@ import re
 import json
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta, date
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+try:
+    from _auth_lib import hoje_brt, agora_brt  # type: ignore
+except Exception:  # fallback local (fuso do negócio = UTC-3)
+    def agora_brt():
+        return datetime.now(timezone.utc) - timedelta(hours=3)
+
+    def hoje_brt():
+        return agora_brt().date()
+
+# ⚖️ v86.65: tabela ÚNICA de pesos do pipeline (probabilidade de fechar por
+# marco) — usada no forecast/summary e no 1:1 (corretor.py). Antes cada um
+# tinha a sua e os números divergiam.
+PIPELINE_PESOS = {"contato": 0.1, "qualificado": 0.2, "agendado": 0.3, "visita": 0.5,
+                  "proposta": 0.6, "pasta": 0.8, "contrato": 0.9}
 
 # ─── Helpers de parsing ──────────────────────────────────────────────────────
 def parse_dt(s):
@@ -106,10 +122,13 @@ MILESTONES = [
 # regex por marco (do mais avançado pro mais básico — primeiro match vence)
 _MS_RE = [
     (5, re.compile(r"pasta|lan[çc]ament", re.I)),
-    (4, re.compile(r"proposta|aprova", re.I)),
-    (3, re.compile(r"realizad", re.I)),                       # VISITA REALIZADA
-    (2, re.compile(r"agendad|agendar", re.I)),               # VISITA AGENDADA
-    (1, re.compile(r"cont|qualific|atend|tent|oport|negocia", re.I)),
+    (4, re.compile(r"proposta|negocia|aprova", re.I)),
+    # v86.65: alinhado com _MARCO_RD do simulador — marco 3 EXIGE "visita"
+    # (senão "CONTATO REALIZADO" virava visita) e marco 1 usa "contato" inteiro
+    # ("cont" pegava CONTRATO); "negocia" é proposta (4), não contato.
+    (3, re.compile(r"visita.*realizad|realizad.*visita", re.I)),   # VISITA REALIZADA
+    (2, re.compile(r"agendad|agendar|agendamento", re.I)),         # VISITA AGENDADA
+    (1, re.compile(r"contato|qualific|atend|tentativ|oport", re.I)),
 ]
 
 
@@ -136,7 +155,7 @@ def deal_max_milestone(deal, events):
 
 # ─── Janela de período ──────────────────────────────────────────────────────
 def window(params, today=None):
-    today = today or datetime.now(timezone.utc).date()
+    today = today or hoje_brt()
     since = params.get("since")
     until = params.get("until")
     if since and until:
@@ -788,7 +807,9 @@ def broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, det
     # ── 📈 PROJEÇÃO (extrapola pelo ritmo até o FIM do mês corrente; senão só realizado) ──
     # Bug corrigido: pra "mês atual" o window usa until=hoje → pace dava 100% e a
     # "projeção" virava o próprio realizado. Agora projeta até o último dia do mês.
-    in_curr_month = (until_d == today and since_d.day == 1 and since_d.month == today.month and since_d.year == today.year)
+    # v86.65: a página OO manda until = ÚLTIMO dia do mês (não hoje) — projeta
+    # sempre que a janela começa no dia 1 do mês corrente e alcança hoje.
+    in_curr_month = (since_d.day == 1 and (since_d.year, since_d.month) == (today.year, today.month) and until_d >= today)
     if in_curr_month:
         _nxt = date(today.year + 1, 1, 1) if today.month == 12 else date(today.year, today.month + 1, 1)
         ptot = (_nxt - timedelta(days=1)).day

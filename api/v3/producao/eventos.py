@@ -18,7 +18,7 @@ import json, os, sys
 from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError, audit, notify_all  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, audit, notify_all, hoje_brt  # type: ignore
 from _fisc_lib import (TIPOS_POR_COLAB, get_cfg, colaborador_do_user,  # type: ignore
                        user_ids_por_match, gestores_ids, premio_faixa)
 
@@ -93,7 +93,7 @@ class handler(BaseHTTPRequestHandler):
             # registrado na Fiscalização NUNCA entrava na carteira e o erro ficava escondido
             # em meta.carteira_erro. Mesmo formato do locacoes/upsert. Data em BRT, não UTC.
             import uuid as _uuid
-            _ini = (datetime.now(timezone.utc) - timedelta(hours=3)).date()
+            _ini = hoje_brt()  # v86.68: helper único (mesma conta BRT de antes)
             try:
                 _meses = int(meta.get("prazo_meses") or 30)
             except Exception:

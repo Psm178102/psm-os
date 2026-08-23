@@ -517,3 +517,11 @@ def can_route(sb, actor, routes, group, default_lvl=2):
     if isinstance(rp, dict) and isinstance(rp.get(role), list):
         return any(r in rp[role] for r in routes)
     return lvl >= default_lvl
+
+
+# ── v86.68: "hoje" do negócio (Brasil, UTC-3) — fonte única pra todo o backend ──
+from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+def agora_brt():
+    return _dt.now(_tz.utc) - _td(hours=3)
+def hoje_brt():
+    return agora_brt().date()

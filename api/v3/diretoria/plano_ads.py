@@ -103,10 +103,15 @@ class handler(BaseHTTPRequestHandler):
 
         # contribuição por frente (mesma régua do Real vs Plano)
         vgv = real.get("vgv") or {}
+        # v86.70: margem única (viab.margem_pct via plano_resgate._real → real["margens"]); constantes = fallback rotulado
+        mg = real.get("margens") or {}
+        m_conq = float(mg.get("conquista_pct") or cts.get("margem_conquista_pct", 1.85))
+        m_prop = float(mg.get("proprio_pct") or cts.get("margem_proprio_pct", 3.6))
+        margens_fonte = mg.get("fonte") or "fallback"
         contrib_frente = {
-            "conquista": vgv.get("conquista", 0) * float(cts.get("margem_conquista_pct", 1.85)) / 100,
-            "map": vgv.get("map", 0) * float(cts.get("margem_proprio_pct", 3.6)) / 100,
-            "terceiros": vgv.get("terceiros", 0) * float(cts.get("margem_proprio_pct", 3.6)) / 100,
+            "conquista": vgv.get("conquista", 0) * m_conq / 100,
+            "map": vgv.get("map", 0) * m_prop / 100,
+            "terceiros": vgv.get("terceiros", 0) * m_prop / 100,
             "locacoes": 0.0,
         }
         frentes = []
@@ -118,7 +123,7 @@ class handler(BaseHTTPRequestHandler):
                             "farol": _farol(roas)})
         contrib_total = float(real.get("contribuicao") or 0)
         roas_global = (contrib_total / spend_total) if spend_total > 0 else None
-        return self._send(200, {"ok": True, "mes": real.get("mes_id"),
+        return self._send(200, {"ok": True, "mes": real.get("mes_id"), "margens_fonte": margens_fonte,
                                 "global": {"spend": round(spend_total, 2),
                                            "contribuicao": round(contrib_total, 2),
                                            "roas": round(roas_global, 2) if roas_global is not None else None,

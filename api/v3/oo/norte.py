@@ -26,6 +26,7 @@ from datetime import datetime, timezone, date
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, supabase_client, audit  # type: ignore
+from _auth_lib import hoje_brt  # type: ignore
 from _oo_lib import window, months_in_range, MILESTONES, broker_metrics, parse_dt  # type: ignore
 
 # Canais padrão (taxas base da planilha PSM IMÓVEIS) — o gestor ajusta tudo.
@@ -213,7 +214,7 @@ class handler(BaseHTTPRequestHandler):
         if not sb:
             return self._send(503, {"ok": False, "error": "backend indisponível"})
 
-        today = datetime.now(timezone.utc).date()
+        today = hoje_brt()
         since_d, until_d = window(params, today)
         fracs = month_fracs(since_d, until_d)
 

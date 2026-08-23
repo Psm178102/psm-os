@@ -11,10 +11,30 @@ import json
 import os
 import sys
 import urllib.parse
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError, frente_of  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, frente_of, agora_brt  # type: ignore
+
+BRT = timezone(timedelta(hours=-3))
+
+
+def _deals_win(sb, start_iso, end_iso, cols="amount,closed_at"):
+    """Deals ganhos no intervalo, PAGINADOS (PostgREST corta em 1000 sem range). v86.70"""
+    out, pg = [], 0
+    while True:
+        rows = (sb.table("deals").select("id," + cols).eq("win", True)
+                .gte("closed_at", start_iso).lt("closed_at", end_iso)
+                .order("id").range(pg * 1000, pg * 1000 + 999).execute().data or [])
+        out.extend(rows)
+        if len(rows) < 1000 or pg >= 30:
+            break
+        pg += 1
+    return out
+
+
+def _brt(iso):
+    return datetime.fromisoformat(str(iso).replace("Z", "+00:00")).astimezone(BRT)
 
 
 class handler(BaseHTTPRequestHandler):
@@ -36,7 +56,7 @@ class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         try:
-            user = require_user(self, min_lvl=8)
+            user = require_user(self, min_lvl=7)   # v86.70: menu libera gerente (7); matriz decide abaixo
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
 
@@ -45,7 +65,7 @@ class handler(BaseHTTPRequestHandler):
             params = dict(urllib.parse.parse_qsl(url.query))
         except Exception:
             params = {}
-        now = datetime.now(timezone.utc)
+        now = agora_brt()   # v86.70: mês/ano do negócio em BRT
         try: ano = int(params.get("ano") or now.year)
         except: ano = now.year
         mes_atual = now.month
@@ -56,6 +76,12 @@ class handler(BaseHTTPRequestHandler):
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend indisponível"})
+        try:
+            from viab import can_route
+            if not can_route(sb, user, "/diretoria"):
+                return self._send(403, {"ok": False, "error": "sem permissão — ajustável na matriz (Configurações → Permissões)"})
+        except ImportError:
+            pass
 
         kpis = {}
         errors = []
@@ -88,10 +114,9 @@ class handler(BaseHTTPRequestHandler):
 
         # 3. Deals ganhos do ano (Postgres)
         try:
-            start = f"{ano}-01-01T00:00:00+00:00"
-            end   = f"{ano+1}-01-01T00:00:00+00:00"
-            dq = sb.table("deals").select("amount,closed_at") \
-                .eq("win", True).gte("closed_at", start).lt("closed_at", end).execute().data or []
+            start = f"{ano}-01-01T03:00:00+00:00"     # 1º/jan 00:00 BRT
+            end   = f"{ano+1}-01-01T03:00:00+00:00"
+            dq = _deals_win(sb, start, end)
             kpis["atingido_vgv_ano"] = sum(float(d.get("amount") or 0) for d in dq)
             kpis["atingido_vendas_ano"] = len(dq)
             # Mês atual + série mensal real (12 meses) p/ sparklines/gráfico premium
@@ -102,7 +127,7 @@ class handler(BaseHTTPRequestHandler):
                 ca = d.get("closed_at")
                 if not ca: continue
                 try:
-                    dt = datetime.fromisoformat(str(ca).replace("Z", "+00:00"))
+                    dt = _brt(ca)
                     amt = float(d.get("amount") or 0)
                     if 1 <= dt.month <= 12:
                         vgv_mes[dt.month - 1] += amt
@@ -136,9 +161,9 @@ class handler(BaseHTTPRequestHandler):
 
         # 5. Eventos hoje + próximos 7 dias
         try:
-            today_iso = date.today().isoformat()
+            today_iso = now.date().isoformat()
             from datetime import timedelta
-            in7 = (date.today() + timedelta(days=7)).isoformat()
+            in7 = (now.date() + timedelta(days=7)).isoformat()
             eq = sb.table("eventos").select("id,tipo,status").gte("data", today_iso).lte("data", in7).execute().data or []
             kpis["eventos_proxima_semana"] = len(eq)
             kpis["eventos_hoje"] = len([e for e in eq if eq])  # simplificado
@@ -149,7 +174,7 @@ class handler(BaseHTTPRequestHandler):
         # 6. Audit últimas 24h
         try:
             from datetime import timedelta
-            since_24h = (now - timedelta(hours=24)).isoformat()
+            since_24h = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
             aq = []
             _pg = 0
             while True:
@@ -173,7 +198,7 @@ class handler(BaseHTTPRequestHandler):
         # 7. Recados ativos
         try:
             rq = sb.table("recados").select("id,prioridade,data_fim") \
-                .or_(f"data_fim.is.null,data_fim.gte.{now.isoformat()}") \
+                .or_(f"data_fim.is.null,data_fim.gte.{datetime.now(timezone.utc).isoformat()}") \
                 .execute().data or []
             kpis["recados_ativos"] = len(rq)
             kpis["recados_criticos"] = len([r for r in rq if (r.get("prioridade") or "") == "critica"])
@@ -188,59 +213,72 @@ class handler(BaseHTTPRequestHandler):
             # Viabilidade (shared_kv 'viab_custos_orcado'), os MESMOS números que o
             # sócio edita em Métricas de Viabilidade. exec_premissas vira só fallback
             # manual; o default antigo (70k) é o último recurso.
-            COMISSAO_PCT, CUSTO_VAR_PCT, CUSTO_FIXO_MENSAL = 0.04, 0.0145, 70000.0
-            fonte_premissas = "default"
+            # v86.70 — premissas vêm da Viabilidade (viab.py): custo fixo = custo_fixo_mes
+            # (fixo+extra+parcelado do mês), comissão/variável/margem = margem_pct.
+            # Sem fallback hardcoded: faltando premissa, `aviso` no payload e fonte rotulada.
+            COMISSAO_PCT, CUSTO_VAR_PCT, CUSTO_FIXO_MENSAL = None, None, None
+            fonte_premissas, aviso_premissas = "viabilidade", None
+            MARGEM_PCT = None
             try:
-                cfg = sb.table("shared_kv").select("value").eq("key", "exec_premissas").limit(1).execute().data or []
-                if cfg and isinstance(cfg[0].get("value"), dict):
-                    v = cfg[0]["value"]
-                    COMISSAO_PCT = float(v.get("comissao_pct") or COMISSAO_PCT)
-                    CUSTO_VAR_PCT = float(v.get("custo_var_pct") or CUSTO_VAR_PCT)
-                    if v.get("custo_fixo_mensal") not in (None, ""):
-                        CUSTO_FIXO_MENSAL = float(v["custo_fixo_mensal"])
-                        fonte_premissas = "exec_premissas"
-            except Exception:
-                pass
-            try:
-                vc = sb.table("shared_kv").select("value").eq("key", "viab_custos_orcado").limit(1).execute().data or []
-                itens = (((vc[0].get("value") or {}).get(str(ano)) or {}).get("itens") or []) if vc else []
+                from viab import custo_fixo_mes, margem_pct, orc_for, read_kv as _rkv, DEFAULTS as _VDEF
+                itens = ((_rkv(sb, "viab_custos_orcado").get(str(ano)) or {}).get("itens") or [])
                 if itens:
-                    fixo = 0.0; var_pct = 0.0
-                    for it in itens:
-                        val = float(it.get("valor") or 0)
-                        cl = it.get("classe") or "fixo"
-                        if cl == "fixo":
-                            fixo += val
-                        elif cl == "extra":
-                            meses_it = it.get("meses") or []
-                            fixo += val * ((len(meses_it) if meses_it else 12) / 12.0)
-                        elif cl == "variavel":
-                            var_pct += val   # % sobre o VGV
-                    if fixo > 0:
-                        CUSTO_FIXO_MENSAL = round(fixo, 2)
-                        fonte_premissas = "viab_custos_orcado"
-                    if var_pct > 0:
-                        CUSTO_VAR_PCT = round(var_pct / 100.0, 6)
-            except Exception:
-                pass
+                    CUSTO_FIXO_MENSAL = custo_fixo_mes(itens, mes_atual)
+                    var_pct = sum(float(it.get("valor") or 0) for it in itens
+                                  if (it.get("classe") or "fixo") == "variavel")
+                    CUSTO_VAR_PCT = round(var_pct / 100.0, 6)
+                else:
+                    aviso_premissas = "Custos detalhados da Viabilidade não preenchidos pro ano — custo fixo/variável indisponíveis"
+                orc_c = orc_for(_rkv(sb, "viab_orcamento"), ano, "conquista", mes_atual)
+                COMISSAO_PCT = float(orc_c.get("com_bruta_pct") or _VDEF["conquista"]["com_bruta_pct"]) / 100.0
+                MARGEM_PCT = margem_pct("conquista", orc_c) / 100.0
+                if CUSTO_VAR_PCT is None:
+                    CUSTO_VAR_PCT = 0.0
+            except Exception as _e:
+                fonte_premissas = "indisponivel"
+                aviso_premissas = f"Viabilidade indisponível: {str(_e)[:120]}"
+            # override manual (exec_premissas) só pra custo fixo quando a Viabilidade não tem itens
+            if CUSTO_FIXO_MENSAL is None:
+                try:
+                    cfg = sb.table("shared_kv").select("value").eq("key", "exec_premissas").limit(1).execute().data or []
+                    if cfg and isinstance(cfg[0].get("value"), dict) and cfg[0]["value"].get("custo_fixo_mensal") not in (None, ""):
+                        CUSTO_FIXO_MENSAL = float(cfg[0]["value"]["custo_fixo_mensal"])
+                        fonte_premissas = "exec_premissas"
+                except Exception:
+                    pass
+            if COMISSAO_PCT is None:
+                COMISSAO_PCT = 0.04          # regra da casa: tudo a 4% (fallback rotulado)
+                fonte_premissas = "fallback"
+            if CUSTO_VAR_PCT is None:
+                CUSTO_VAR_PCT = 0.0
             v_ano = kpis.get("atingido_vendas_ano") or 0
             vgv_ano = kpis.get("atingido_vgv_ano") or 0
             v_mes = kpis.get("atingido_vendas_mes") or 0
             ticket = (vgv_ano / v_ano) if v_ano else 0.0
             receita_venda = ticket * COMISSAO_PCT                 # comissão bruta PSM por venda (4% VGV)
-            custo_var_venda = ticket * CUSTO_VAR_PCT              # custo variável por venda (1,45% VGV)
+            custo_var_venda = ticket * CUSTO_VAR_PCT              # custo variável por venda (% VGV da Viabilidade)
             kpis["ticket_medio"] = round(ticket, 2)
             kpis["comissao_venda"] = round(receita_venda, 2)
-            kpis["margem_contrib_venda"] = round(receita_venda - custo_var_venda, 2)  # comissão − custo variável
+            # margem única (viab.margem_pct: bruta − corretor − gerente − imposto) − variável
+            margem_venda = (ticket * MARGEM_PCT - custo_var_venda) if MARGEM_PCT is not None else (receita_venda - custo_var_venda)
+            kpis["margem_contrib_venda"] = round(margem_venda, 2)
+            kpis["margem_pct"] = round(MARGEM_PCT * 100, 4) if MARGEM_PCT is not None else None
+            if CUSTO_FIXO_MENSAL and MARGEM_PCT:
+                try:
+                    from viab import break_even
+                    kpis["break_even"] = break_even(CUSTO_FIXO_MENSAL, {"conquista": MARGEM_PCT * 100 - CUSTO_VAR_PCT * 100})
+                except Exception:
+                    pass
             kpis["ltv"] = round(receita_venda, 2)                 # valor (comissão) médio por cliente
-            kpis["custo_fixo_mensal"] = CUSTO_FIXO_MENSAL
+            kpis["custo_fixo_mensal"] = CUSTO_FIXO_MENSAL   # None = sem premissa (ver exec_premissas.aviso)
             kpis["custo_fixo_por_venda"] = round(CUSTO_FIXO_MENSAL / v_mes, 2) if (CUSTO_FIXO_MENSAL and v_mes) else None
             ut = kpis.get("users_total") or 0
             ua = kpis.get("users_ativos") or 0
             kpis["users_inativos"] = ut - ua
             kpis["turnover_pct"] = round((ut - ua) / ut * 100, 2) if ut else None
             kpis["exec_premissas"] = {"comissao_pct": COMISSAO_PCT, "custo_var_pct": CUSTO_VAR_PCT,
-                                       "custo_fixo_mensal": CUSTO_FIXO_MENSAL, "fonte": fonte_premissas}
+                                       "custo_fixo_mensal": CUSTO_FIXO_MENSAL, "fonte": fonte_premissas,
+                                       "aviso": aviso_premissas}
         except Exception as e:
             errors.append(f"exec_metrics: {e}")
 
@@ -279,7 +317,7 @@ class handler(BaseHTTPRequestHandler):
     def _exec_block(self, sb, ano, mes_atual, periodo, frente_sel, uq):
         from datetime import datetime as _dt
         FR = self.FRENTES
-        cur_month = mes_atual if ano == datetime.now(timezone.utc).year else 12
+        cur_month = mes_atual if ano == agora_brt().year else 12
 
         def months_of(code):
             if code == "ytd": return list(range(1, cur_month + 1))
@@ -291,9 +329,8 @@ class handler(BaseHTTPRequestHandler):
         pmonths = months_of(periodo)
 
         # deals ganhos de 2 anos (ano-1 e ano) com frente + dono, p/ comparativos reais
-        dd = sb.table("deals").select("amount,closed_at,pipeline_name,user_email,user_id") \
-            .eq("win", True).gte("closed_at", f"{ano-1}-01-01T00:00:00+00:00") \
-            .lt("closed_at", f"{ano+1}-01-01T00:00:00+00:00").execute().data or []
+        dd = _deals_win(sb, f"{ano-1}-01-01T03:00:00+00:00", f"{ano+1}-01-01T03:00:00+00:00",
+                        cols="amount,closed_at,pipeline_name,user_email,user_id")
 
         # arrays de 24 meses: idx 0..11 = ano-1, 12..23 = ano
         vgv24 = [0.0] * 24; ven24 = [0] * 24
@@ -301,7 +338,7 @@ class handler(BaseHTTPRequestHandler):
         ven24f = {c: [0] * 24 for c, _, _ in FR}
         rank = {}
         for d in dd:
-            try: dt = _dt.fromisoformat(str(d.get("closed_at")).replace("Z", "+00:00"))
+            try: dt = _brt(d.get("closed_at"))
             except Exception: continue
             base = 0 if dt.year == ano - 1 else 12 if dt.year == ano else None
             if base is None or not (1 <= dt.month <= 12): continue

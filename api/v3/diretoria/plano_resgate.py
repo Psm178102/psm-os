@@ -225,10 +225,38 @@ def _kv_get(sb):
         return None
 
 
+def _can_route(sb, actor, route):
+    """Gate por matriz (v86.70): sócio/diretor sempre; papel com override na matriz → ela manda;
+    sem override → lvl>=7 (diretoria)."""
+    try:
+        from viab import can_route
+        return can_route(sb, actor, route)
+    except Exception:
+        return (actor.get("lvl") or 0) >= 7
+
+
 def _kv_set(sb, plano):
     sb.table("shared_kv").upsert({"key": KV_KEY, "value": plano,
                                   "updated_at": datetime.now(timezone.utc).isoformat()},
                                  on_conflict="key").execute()
+
+
+def _margens(sb, c, ano, mes):
+    """v86.70 — margem ÚNICA vinda da Viabilidade (viab.margem_pct com as premissas do orçado).
+    Conquista = 4% − corretor − gerente − imposto; Próprio (Paulo/Isa, MAP/Terceiros) = 4% − imposto
+    (sem corretor). As constantes do plano (1,85 / 3,6) ficam só como fallback rotulado."""
+    try:
+        from viab import margem_pct as _mp, orc_for as _of, read_kv as _rkv
+        orc = _rkv(sb, "viab_orcamento")
+        conq = _mp("conquista", _of(orc, ano, "conquista", mes))
+        base_map = dict(_of(orc, ano, "map", mes))
+        base_map.update({"com_corretor_pct": 0, "com_senior_pct": 0, "com_gerente_pct": 0})
+        prop = _mp("map", base_map)
+        if conq > 0 and prop > 0:
+            return conq, prop, "viabilidade"
+    except Exception:
+        pass
+    return float(c.get("margem_conquista_pct", 1.85)), float(c.get("margem_proprio_pct", 3.6)), "fallback"
 
 
 def _real(sb, plano):
@@ -240,8 +268,14 @@ def _real(sb, plano):
            "locacao": {}, "fiscalizacao": {}}
     # VGV vendido (win) do mês por frente — mesmo critério do Metas/Atingimento
     try:
-        dd = sb.table("deals").select("amount,closed_at,pipeline_name").eq("win", True) \
-            .gte("closed_at", mes_ini).limit(5000).execute().data or []
+        dd, pg = [], 0
+        while True:
+            rows = (sb.table("deals").select("id,amount,closed_at,pipeline_name").eq("win", True)
+                    .gte("closed_at", mes_ini).order("id").range(pg * 1000, pg * 1000 + 999).execute().data or [])
+            dd.extend(rows)
+            if len(rows) < 1000 or pg >= 10:
+                break
+            pg += 1
         for d in dd:
             fr = frente_of(d.get("pipeline_name"))
             try:
@@ -255,8 +289,9 @@ def _real(sb, plano):
     c = (plano.get("constantes") or {})
     vgv_conq = out["vgv"].get("conquista", 0)
     vgv_proprio = out["vgv"].get("map", 0) + out["vgv"].get("terceiros", 0)
-    out["contribuicao"] = round(vgv_conq * float(c.get("margem_conquista_pct", 1.85)) / 100
-                                + vgv_proprio * float(c.get("margem_proprio_pct", 3.6)) / 100, 2)
+    m_conq, m_prop, m_fonte = _margens(sb, c, now.year, now.month)
+    out["margens"] = {"conquista_pct": m_conq, "proprio_pct": m_prop, "fonte": m_fonte}
+    out["contribuicao"] = round(vgv_conq * m_conq / 100 + vgv_proprio * m_prop / 100, 2)
     # Locação: contratos na carteira + fechados no mês (eventos do painel)
     try:
         rows = sb.table("locacoes").select("id,status").limit(1000).execute().data or []
@@ -304,11 +339,11 @@ def _real(sb, plano):
         import calendar as _cal
         dias_mes = _cal.monthrange(now.year, now.month)[1]
         frac = max(now.day / dias_mes, 1e-6)
-        contrib_conq_real = vgv_conq * float(c.get("margem_conquista_pct", 1.85)) / 100
+        contrib_conq_real = vgv_conq * m_conq / 100
         contrib_conq_proj = contrib_conq_real / frac
         proprio_ja = vgv_proprio
         falta_contrib = max(0.0, conta_cheia - contrib_conq_proj)
-        proprio_nec_total = falta_contrib / (float(c.get("margem_proprio_pct", 3.6)) / 100)
+        proprio_nec_total = falta_contrib / (m_prop / 100)
         falta_proprio = max(0.0, proprio_nec_total - proprio_ja)
         semanas_rest = max(1.0, (dias_mes - now.day + 1) / 7.0)
         out["amortecedor"] = {
@@ -358,12 +393,14 @@ class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         try:
-            require_user(self, min_lvl=8)
+            actor = require_user(self, min_lvl=7)   # v86.70: menu libera gerente; matriz decide
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
+        if not _can_route(sb, actor, "/plano-resgate"):
+            return self._send(403, {"ok": False, "error": "sem permissão — ajustável na matriz (Configurações → Permissões)"})
         plano = _kv_get(sb)
         if plano is None:
             plano = json.loads(json.dumps(SEED))
@@ -383,7 +420,7 @@ class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         try:
-            actor = require_user(self, min_lvl=8)
+            actor = require_user(self, min_lvl=7)   # v86.70: matriz decide (_can_route)
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
         try:

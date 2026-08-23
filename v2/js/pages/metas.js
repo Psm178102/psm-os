@@ -64,7 +64,10 @@ function forecastPanel(d, grid) {
   const diaAtual = corrente ? now.getDate() : 31;
   const diasMes = new Date(_ano, mesAtual, 0).getDate();
   const fracao = Math.min(1, ((mesAtual - 1) + diaAtual / diasMes) / 12);
-  const metaProRata = metaAno * fracao;
+  // v86.65: pro-rata = metas dos meses JÁ decorridos + fração do mês atual
+  // (não metaAno × fração do ano — distorcia quando as metas variam por mês)
+  const mesesFechados = ALL.filter(mi => mi < mesAtual - 1);
+  const metaProRata = sumKey(grid, mesesFechados, 'meta_vgv') + sumKey(grid, [mesAtual - 1], 'meta_vgv') * Math.min(1, diaAtual / diasMes);
   const ritmoPct = metaProRata > 0 ? atingido / metaProRata * 100 : (atingido > 0 ? 999 : 0);
   const forecast = fracao > 0 ? atingido / fracao : atingido;
   const gap = forecast - metaAno;

@@ -18,10 +18,21 @@ Auth: lvl>=7 (ferramenta da diretoria).
 """
 from http.server import BaseHTTPRequestHandler
 import json, os, re, sys, urllib.parse
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError, audit, frente_of  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, audit, frente_of, agora_brt  # type: ignore
+
+
+def _dia_brt(ts):
+    """Dia (YYYY-MM-DD) em BRT de um ISO UTC gravado em estado[...]["ts"]."""
+    try:
+        d = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+        if d.tzinfo is not None:
+            d = d.astimezone(timezone.utc)
+        return (d - timedelta(hours=3)).strftime("%Y-%m-%d")
+    except Exception:
+        return ""
 
 KV_STATE = "ponte_estado"
 STATUS = ["contatado", "proposta", "negociando", "fechou_rd", "perdeu", "futuro"]
@@ -133,18 +144,18 @@ class handler(BaseHTTPRequestHandler):
         view = (qs.get("view") or "fila").lower()
         base = _base(sb)
         estado = _kv(sb, KV_STATE, {})
-        hoje = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        hoje = agora_brt().strftime("%Y-%m-%d")   # v86.65: dia do negócio (UTC-3)
         fila, stats = [], {"hoje": 0, "fechou_rd": 0, "negociando": 0, "proposta": 0}
         for it in base:
             st = estado.get(it["deal_id"]) or {}
             it["st"] = st.get("st")
             it["nota"] = st.get("nota")
-            if st.get("ts", "").startswith(hoje):
+            if _dia_brt(st.get("ts", "")) == hoje:
                 stats["hoje"] += 1
             if st.get("st") in stats:
                 stats[st["st"]] = stats.get(st["st"], 0) + 1
             # fila do dia: não tratado hoje e não morto (perdeu/fechou saem; futuro volta depois)
-            tratado_hoje = st.get("ts", "").startswith(hoje)
+            tratado_hoje = _dia_brt(st.get("ts", "")) == hoje
             if view == "todos":
                 fila.append(it)
             elif st.get("st") not in ("perdeu", "fechou_rd", "futuro") and not tratado_hoje:

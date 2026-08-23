@@ -3,7 +3,7 @@
    Porta de entrada: KPIs reais de vendas/meta/pipeline + ranking de vendas do
    mês (dado real do RD via OO) + comissões. Sem ruído de sistema/dev.
 ============================================================================ */
-import { api } from '../api.js';
+import { api, hojeISO } from '../api.js';
 import { auth } from '../auth.js';
 import { pageAgenda } from './agenda.js';
 
@@ -235,12 +235,12 @@ export async function pageDashboard(ctx, root) {
   }
 }
 
-function _todayBRT() { return new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10); }
+function _todayBRT() { return hojeISO(); } // v86.68: hoje local (BRT)
 
 /* ═══ PLANO DO MÊS — cockpit pessoal (metas + produtividade + planner + 4W) ═══ */
 const ORIG_COR = { 'Tarefa': '#2563eb', 'Agenda': '#0891b2', 'Academy': '#7c3aed', 'Projeto': '#f59e0b', 'Captação': '#16a34a', 'One-on-One': '#d6249f', 'Plantão': '#64748b', 'Criativo': '#db2777', 'Conteúdo': '#9333ea' };
 const corOrigem = o => ORIG_COR[o] || '#64748b';
-const _ymOffset = off => { const n = new Date(Date.now() - 3 * 3600 * 1000); return new Date(n.getFullYear(), n.getMonth() + off, 1); };
+const _ymOffset = off => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth() + off, 1); }; // v86.68: local (o -3h dobrava o fuso no Brasil)
 
 const PLANNER_CSS = `<style>
 /* cabeçalho de card do cockpit */
@@ -412,9 +412,8 @@ function kanbanPend() {
   const pend = pendFiltradas();
   if (!pend.length) return _vazio;
   const hoje = _todayBRT();
-  const d7 = new Date(Date.now() - 3 * 3600 * 1000); d7.setDate(d7.getDate() + 7);
-  const sem = d7.toISOString().slice(0, 10);
-  const fm = _ymOffset(0); const mfim = new Date(fm.getFullYear(), fm.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const sem = hojeISO(Date.now() + 7 * 86400000); // v86.68: local
+  const fm = _ymOffset(0); const mfim = hojeISO(new Date(fm.getFullYear(), fm.getMonth() + 1, 0)); // v86.68: último dia do mês local (antes virava dia anterior em UTC)
   const cols = [
     { id: 'atr', lbl: '🔴 Atrasados', cor: '#dc2626', t: d => d && d < hoje },
     { id: 'hoje', lbl: '☀️ Hoje', cor: '#16a34a', t: d => d === hoje },

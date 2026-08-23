@@ -36,47 +36,11 @@ from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
 
 
 # ─── Período (alinhado aos presets do Meta) ────────────────────────────────
+from _window_lib import window as _shared_window, WindowError  # type: ignore
+
+
 def _window(params):
-    """Retorna (since_date, until_date) como date, a partir de date_preset ou since/until."""
-    today = date.today()
-    if params.get("since") and params.get("until"):
-        try:
-            s = datetime.fromisoformat(params["since"]).date()
-            u = datetime.fromisoformat(params["until"]).date()
-            return s, u
-        except Exception:
-            pass
-    preset = (params.get("date_preset") or "last_30d").strip()
-    if preset == "today":
-        return today, today
-    if preset == "yesterday":
-        y = today - timedelta(days=1)
-        return y, y
-    if preset == "last_7d":
-        return today - timedelta(days=7), today
-    if preset == "last_14d":
-        return today - timedelta(days=14), today
-    if preset == "last_30d":
-        return today - timedelta(days=30), today
-    if preset == "this_month":
-        return today.replace(day=1), today
-    if preset == "last_month":
-        first_this = today.replace(day=1)
-        last_prev = first_this - timedelta(days=1)
-        return last_prev.replace(day=1), last_prev
-    if preset == "last_90d":
-        return today - timedelta(days=90), today
-    if preset == "this_year":
-        return today.replace(month=1, day=1), today
-    if preset == "last_year":
-        return date(today.year - 1, 1, 1), date(today.year - 1, 12, 31)
-    if preset.startswith("year_"):
-        try:
-            yy = int(preset.split("_", 1)[1])
-            return date(yy, 1, 1), (today if yy == today.year else date(yy, 12, 31))
-        except Exception:
-            pass
-    return today - timedelta(days=30), today
+    return _shared_window(params, default="last_30d")
 
 
 # ─── Classificação de marca por pipeline ───────────────────────────────────
@@ -217,12 +181,18 @@ CHANNEL_LABEL = {
     "nao_atribuido": "Não atribuído (sem origem no RD)",
 }
 PAID_CHANNELS = ("meta", "google")
+# ORDEM IMPORTA: orgânico/específico ("google meu negócio", GMN, Maps) vem
+# ANTES de "google" genérico, senão GMN cai em Google Ads (pago) por engano.
+# "whats" é ambíguo: campanha Meta de mensagens (facebook/instagram/meta/
+# whatsapp ads) é PAGA; WhatsApp avulso é orgânico.
+_META_WHATS_RE = re.compile(r"meta|facebook|instagram|whatsapp ?ads|\bfb\b|\big\b", re.I)
 _CH_PATTERNS = [
+    ("organico",  re.compile(r"google meu neg|\bgmn\b|\bmaps\b|google business|perfil da empresa", re.I)),
     ("meta",      re.compile(r"facebook|instagram|\bfb\b|\big\b|\bmeta\b|lead ?ads|fanpage", re.I)),
     ("google",    re.compile(r"google|adwords|youtube|\bgads\b|rede de pesquisa|\bsearch\b|display", re.I)),
     ("portal",    re.compile(r"zap|viva ?real|\bolx\b|imovelweb|im[óo]vel ?web|chaves ?na ?m[ãa]o|quintoandar|\bloft\b|portal", re.I)),
     ("indicacao", re.compile(r"indica|referr|amig|parceir|cliente antig", re.I)),
-    ("organico",  re.compile(r"org[âa]nic|\bsite\b|google meu neg|\bgmn\b|\bmaps\b|whats", re.I)),
+    ("organico",  re.compile(r"org[âa]nic|\bsite\b|whats", re.I)),
     ("direto",    re.compile(r"direto|telefone|balc[ãa]o|passante|walk|placa|fachada", re.I)),
 ]
 
@@ -232,6 +202,8 @@ def _channel(src):
         return "nao_atribuido"
     for key, rx in _CH_PATTERNS:
         if rx.search(src):
+            if key == "organico" and re.search(r"whats", src, re.I) and _META_WHATS_RE.search(src):
+                return "meta"   # campanha de mensagens da Meta = pago
             return key
     return "outro"
 
@@ -252,6 +224,7 @@ def _fetch_period_deals(sb, since_d, until_d):
         try:
             q = (sb.table("deals").select(cols)
                  .or_(f"created_at_rd.gte.{since_iso},closed_at.gte.{since_iso}")
+                 .order("id")   # v86.68: range sem ordem estável repete/pula linhas entre páginas
                  .range(page * size, page * size + size - 1))
             rows = q.execute().data or []
         except Exception as e:
@@ -434,9 +407,13 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             params = {}
 
-        since_d, until_d = _window(params)
-        since_dt = datetime(since_d.year, since_d.month, since_d.day, tzinfo=timezone.utc)
-        until_dt = datetime(until_d.year, until_d.month, until_d.day, 23, 59, 59, tzinfo=timezone.utc)
+        try:
+            since_d, until_d = _window(params)
+        except WindowError as e:
+            return self._send(400, {"ok": False, "error": str(e)})
+        # limites do dia em BRT (UTC-3): 00:00 BRT = 03:00Z
+        since_dt = datetime(since_d.year, since_d.month, since_d.day, 3, tzinfo=timezone.utc)
+        until_dt = datetime(until_d.year, until_d.month, until_d.day, 2, 59, 59, tzinfo=timezone.utc) + timedelta(days=1)
         # Filtro de marca (brand_keys, ex.: imoveis,conquista) — espelha a seleção
         # de conta(s) Meta na toolbar. Vazio = todas. O lead do RD não carrega a
         # conta de anúncio, então a conta resolve até a marca/funil.

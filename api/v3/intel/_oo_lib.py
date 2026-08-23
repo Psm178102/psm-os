@@ -135,7 +135,7 @@ def deal_max_milestone(deal, events):
 
 # ─── Janela de período ──────────────────────────────────────────────────────
 def window(params, today=None):
-    today = today or datetime.now(timezone.utc).date()
+    today = today or (datetime.now(timezone.utc) - timedelta(hours=3)).date()  # v86.68: hoje BRT (lib sem _auth_lib)
     since = params.get("since")
     until = params.get("until")
     if since and until:
@@ -152,15 +152,22 @@ def window(params, today=None):
     return today - timedelta(days=days - 1), today
 
 
-def read_meta_spend(sb, preset=None):
+MONTHLY_PRESETS = ("this_month", "last_30d")
+
+
+def read_meta_spend(sb, preset=None, return_preset=False):
     """Gasto MENSAL em ads (Meta) — base estável pro CPL (R$/lead). Lê o cache
     meta_ads_cache UM payload por vez (cada payload é grande — não dá pra puxar
-    vários de uma vez, estoura a função). Tenta os presets mensais em ordem,
-    retorna o 1º com spend>0; senão None. CPL é uma TAXA, então gasto mensal é
-    coerente em qualquer período do One-on-One."""
-    for p in [preset, "last_30d", "this_month", "last_month", "last_14d", "last_7d", "yesterday"]:
-        if not p:
+    vários de uma vez, estoura a função). Só aceita presets MENSAIS
+    (this_month / last_30d) — nunca cai calado em last_7d/yesterday, que
+    distorceria o CPL. Retorna o 1º com spend>0; senão None.
+    return_preset=True devolve (spend, preset_used)."""
+    cands = [p for p in [preset] + list(MONTHLY_PRESETS) if p and p in MONTHLY_PRESETS]
+    seen = set()
+    for p in cands:
+        if p in seen:
             continue
+        seen.add(p)
         try:
             rows = (sb.table("meta_ads_cache").select("payload")
                     .eq("date_preset", p).order("refreshed_at", desc=True)
@@ -175,8 +182,8 @@ def read_meta_spend(sb, preset=None):
         except Exception:
             s = 0.0
         if s > 0:
-            return s
-    return None
+            return (s, p) if return_preset else s
+    return (None, None) if return_preset else None
 
 
 META_FIELDS = ("meta_vgv", "meta_vendas", "meta_visitas", "meta_pastas", "meta_propostas", "meta_agendamentos")

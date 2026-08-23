@@ -25,10 +25,10 @@ POST (lvl>=7) action:
 """
 from http.server import BaseHTTPRequestHandler
 import json, os, sys, urllib.parse
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError, audit, frente_of  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, audit, frente_of, agora_brt  # type: ignore
 
 # ── linhas (mesmas ids da tela de viabilidade) + defaults de premissa ──
 LINHAS = [
@@ -38,6 +38,7 @@ LINHAS = [
     {"id": "locacoes",  "nome": "PSM Locações",  "icon": "🔑", "cor": "#d97706"},
 ]
 LINHA_IDS = [l["id"] for l in LINHAS]
+BRT = timezone(timedelta(hours=-3))
 # premissas reais confirmadas pelo Paulo (jul/2026): com_senior_pct = override do
 # GERENTE (% do VGV da equipe). Conquista: bruta 4% (maioria; exceções 3–3,5%),
 # corretor 1,4–1,8% por origem (efetivo ~1,5%), gerente 0,25%. MAP: bruta 4%,
@@ -46,8 +47,10 @@ LINHA_IDS = [l["id"] for l in LINHAS]
 DEFAULTS = {
     "map":       {"vgv": 0, "vendas": 0, "com_bruta_pct": 4.0,   "com_corretor_pct": 2.0,  "com_senior_pct": 0.0, "com_gerente_pct": 0.0,  "aliquota_pct": 8.0, "custo_fixo": 0, "verba_mkt": 0},
     "conquista": {"vgv": 0, "vendas": 0, "com_bruta_pct": 4.0,   "com_corretor_pct": 1.5,  "com_senior_pct": 0.0, "com_gerente_pct": 0.25, "aliquota_pct": 8.0, "custo_fixo": 0, "verba_mkt": 0},
-    "terceiros": {"vgv": 0, "vendas": 0, "com_bruta_pct": 6.0,   "com_corretor_pct": 3.0,  "com_senior_pct": 1.0, "com_gerente_pct": 0.0,  "aliquota_pct": 8.0, "custo_fixo": 0, "verba_mkt": 0},
-    "locacoes":  {"vgv": 0, "vendas": 0, "com_bruta_pct": 100.0, "com_corretor_pct": 30.0, "com_senior_pct": 0.0, "com_gerente_pct": 0.0,  "aliquota_pct": 8.0, "custo_fixo": 0, "verba_mkt": 0},
+    # v86.70 — regras da casa: TUDO a 4% (5% é bônus); Terceiros = 4% bruta, corretor 2%.
+    "terceiros": {"vgv": 0, "vendas": 0, "com_bruta_pct": 4.0,   "com_corretor_pct": 2.0,  "com_senior_pct": 0.0, "com_gerente_pct": 0.0,  "aliquota_pct": 8.0, "custo_fixo": 0, "verba_mkt": 0},
+    # Locação = 1º aluguel (100%) dividido 40 corretor / 10 captador (com_senior_pct) / 50 imob + adm 10%/mês.
+    "locacoes":  {"vgv": 0, "vendas": 0, "com_bruta_pct": 100.0, "com_corretor_pct": 40.0, "com_senior_pct": 10.0, "com_gerente_pct": 0.0,  "aliquota_pct": 8.0, "custo_fixo": 0, "verba_mkt": 0, "adm_pct": 10.0},
 }
 NUM_FIELDS = ["vgv", "vendas", "com_bruta_pct", "com_corretor_pct", "com_senior_pct", "com_gerente_pct", "aliquota_pct", "custo_fixo", "verba_mkt"]
 
@@ -180,6 +183,19 @@ def read_kv(sb, key):
         return {}
 
 
+def can_route(sb, actor, route, default_lvl=7):
+    """Gate genérico por matriz (v86.70): lvl>=10 sempre; papel com override explícito em
+    role_perms → respeita; sem override → lvl >= default_lvl (grupo diretoria = 7)."""
+    lvl = actor.get("lvl") or 0
+    if lvl >= 10:
+        return True
+    role = (actor.get("role") or "").strip()
+    rp = read_kv(sb, "role_perms")
+    if isinstance(rp, dict) and role in rp:
+        return route in (rp.get(role) or [])
+    return lvl >= default_lvl
+
+
 def can_viab(sb, actor):
     """Acesso à Viabilidade é PERSONALIZÁVEL na matriz de permissões (v82.7):
     • sócio/diretor (lvl>=10) sempre;
@@ -214,6 +230,50 @@ def orc_for(orcamento, ano, linha, mes):
                 try: base[k] = float(cell[k])
                 except Exception: pass
     return base
+
+
+# ═══ v86.70 — MARGEM ÚNICA (fonte única pra Plano de Resgate, Plano Ads, Dashboard) ═══
+# Margem líquida da PSM sobre o VGV = bruta − corretor − gerente/captador − variável − imposto.
+# Mesma conta do orçado (snapshot_linha), sem custo fixo — o fixo entra no break-even.
+def margem_pct(linha, premissas=None):
+    """% do VGV que sobra pra PSM numa linha. `premissas` = dict no formato de DEFAULTS/orc_for."""
+    orc = dict(DEFAULTS.get(linha, DEFAULTS["map"]))
+    if isinstance(premissas, dict):
+        for k in NUM_FIELDS:
+            if premissas.get(k) not in (None, ""):
+                try: orc[k] = float(premissas[k])
+                except Exception: pass
+    bruta = float(orc.get("com_bruta_pct") or 0)
+    variavel = bruta * float(orc.get("aliquota_pct") or 0) / 100.0   # imposto incide sobre a receita
+    m = bruta - float(orc.get("com_corretor_pct") or 0) - float(orc.get("com_senior_pct") or 0) \
+        - float(orc.get("com_gerente_pct") or 0) - variavel
+    return round(max(0.0, m), 4)
+
+
+def margens_ano(orcamento, ano, mes=None):
+    """{linha: margem_pct} com as premissas do orçamento do ano (mês opcional; default = 1º mês com dado)."""
+    out = {}
+    for i in LINHA_IDS:
+        out[i] = margem_pct(i, orc_for(orcamento, ano, i, mes or 1))
+    return out
+
+
+def break_even(custo_mes, margens, mix=None):
+    """VGV mensal necessário pra cobrir `custo_mes` dado {linha: margem_pct}.
+    `mix` = {linha: fração do VGV} (default: igual entre linhas c/ margem > 0).
+    Devolve {vgv_total, por_linha{linha: vgv}, margem_mix_pct}."""
+    custo = float(custo_mes or 0)
+    ms = {k: float(v or 0) for k, v in (margens or {}).items() if float(v or 0) > 0}
+    if not ms or custo <= 0:
+        return {"vgv_total": 0.0, "por_linha": {}, "margem_mix_pct": 0.0}
+    if not mix:
+        mix = {k: 1.0 / len(ms) for k in ms}
+    tot = sum(float(mix.get(k) or 0) for k in ms) or 1.0
+    margem_mix = sum(ms[k] * float(mix.get(k) or 0) / tot for k in ms)
+    vgv = custo / (margem_mix / 100.0) if margem_mix > 0 else 0.0
+    return {"vgv_total": round(vgv, 2),
+            "por_linha": {k: round(vgv * float(mix.get(k) or 0) / tot, 2) for k in ms},
+            "margem_mix_pct": round(margem_mix, 4)}
 
 
 def custo_real_linha(custos_real, ano, mes):
@@ -255,11 +315,19 @@ def realizado_ano(sb, ano):
     """VGV/vendas REAIS do CRM por linha × mês (1..12) — deals ganhos do ano."""
     real = {i: {str(m): {"vgv": 0.0, "vendas": 0} for m in range(1, 13)} for i in LINHA_IDS}
     try:
-        dd = sb.table("deals").select("amount,closed_at,pipeline_name").eq("win", True) \
-            .gte("closed_at", f"{ano}-01-01T00:00:00+00:00") \
-            .lt("closed_at", f"{ano+1}-01-01T00:00:00+00:00").execute().data or []
+        # v86.70: ano em BRT (1º/jan 00:00 BRT = 03:00Z) + paginação (PostgREST corta em 1000)
+        dd, pg = [], 0
+        while True:
+            rows = (sb.table("deals").select("id,amount,closed_at,pipeline_name").eq("win", True)
+                    .gte("closed_at", f"{ano}-01-01T03:00:00+00:00")
+                    .lt("closed_at", f"{ano+1}-01-01T03:00:00+00:00")
+                    .order("id").range(pg * 1000, pg * 1000 + 999).execute().data or [])
+            dd.extend(rows)
+            if len(rows) < 1000 or pg >= 30:
+                break
+            pg += 1
         for d in dd:
-            try: dt = datetime.fromisoformat(str(d.get("closed_at")).replace("Z", "+00:00"))
+            try: dt = datetime.fromisoformat(str(d.get("closed_at")).replace("Z", "+00:00")).astimezone(BRT)
             except Exception: continue
             ln = _frente_of(d.get("pipeline_name"))
             if ln not in real or not (1 <= dt.month <= 12): continue
@@ -278,12 +346,12 @@ def leads_ano(sb, ano):
         pg = 0
         while True:
             rows = (sb.table("deals").select("created_at_rd,pipeline_name")
-                    .gte("created_at_rd", f"{ano}-01-01T00:00:00+00:00")
-                    .lt("created_at_rd", f"{ano+1}-01-01T00:00:00+00:00")
+                    .gte("created_at_rd", f"{ano}-01-01T03:00:00+00:00")
+                    .lt("created_at_rd", f"{ano+1}-01-01T03:00:00+00:00")
                     .order("id").range(pg * 1000, pg * 1000 + 999).execute().data or [])
             for d in rows:
                 try:
-                    dt = datetime.fromisoformat(str(d.get("created_at_rd")).replace("Z", "+00:00"))
+                    dt = datetime.fromisoformat(str(d.get("created_at_rd")).replace("Z", "+00:00")).astimezone(BRT)
                 except Exception:
                     continue
                 ln = _frente_of(d.get("pipeline_name"))
@@ -330,7 +398,19 @@ def compute_snapshot(sb, ano, mes, fontes=None):
     if fontes is None:
         fontes = fontes_auto_ano(sb, ano)
     fa = fontes.get(str(mes)) or {"meta_mkt": 0.0, "nibo_fixo": 0.0}
-    auto_each = (float(fa.get("meta_mkt") or 0) + float(fa.get("nibo_fixo") or 0)) / len(LINHA_IDS)
+    auto_total = float(fa.get("meta_mkt") or 0) + float(fa.get("nibo_fixo") or 0)
+    # v86.70: rateia o custo automático (Meta) pela alocação de tráfego por marca
+    # (viab_custos_orcado → aloc). Sem alocação no mês → divide igual (fallback).
+    auto_por = {i: auto_total / len(LINHA_IDS) for i in LINHA_IDS}
+    try:
+        itens = ((read_kv(sb, "viab_custos_orcado").get(str(ano)) or {}).get("itens") or [])
+        tr = trafego_por_marca(itens, LINHA_IDS)
+        pesos = {i: float((tr["por_marca"].get(i) or {}).get(mes) or 0) for i in LINHA_IDS}
+        tot = sum(pesos.values())
+        if tot > 0:
+            auto_por = {i: auto_total * pesos[i] / tot for i in LINHA_IDS}
+    except Exception:
+        pass
     por_linha = {}
     cons = {"vgv": 0.0, "vendas": 0, "receita": 0.0, "com_corretor": 0.0, "com_senior": 0.0,
             "imposto": 0.0, "custo": 0.0, "lucro": 0.0}
@@ -338,7 +418,7 @@ def compute_snapshot(sb, ano, mes, fontes=None):
         cell = real[i][str(mes)]
         orc = orc_for(orcamento, ano, i, mes)
         orc_real = dict(orc); orc_real["verba_mkt"] = 0.0   # mkt real vem das fontes, não da premissa
-        s = snapshot_linha(cell["vgv"], cell["vendas"], orc_real, custos.get(i, 0.0) + auto_each)
+        s = snapshot_linha(cell["vgv"], cell["vendas"], orc_real, custos.get(i, 0.0) + auto_por.get(i, 0.0))
         por_linha[i] = s
         for k in ("vgv", "vendas", "receita", "com_corretor", "com_senior", "imposto", "custo", "lucro"):
             cons[k] += s[k]
@@ -380,7 +460,7 @@ class handler(BaseHTTPRequestHandler):
         if not sb: return self._send(503, {"ok": False, "error": "backend"})
         # Cron do Vercel (dia 1º): fecha o mês anterior automaticamente.
         if self._cron_ok():
-            now = datetime.now(timezone.utc)
+            now = agora_brt()
             ano = now.year if now.month > 1 else now.year - 1
             mes = now.month - 1 if now.month > 1 else 12
             try:
@@ -389,7 +469,7 @@ class handler(BaseHTTPRequestHandler):
             except Exception as e:
                 return self._send(500, {"ok": False, "cron": True, "error": str(e)})
         try:
-            actor = require_user(self, min_lvl=8)
+            actor = require_user(self, min_lvl=7)   # v86.70: menu libera gerente (7); matriz decide (can_viab)
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
         if not can_viab(sb, actor):
@@ -398,11 +478,12 @@ class handler(BaseHTTPRequestHandler):
             qs = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
         except Exception:
             qs = {}
-        try: ano = int(qs.get("ano") or datetime.now(timezone.utc).year)
-        except Exception: ano = datetime.now(timezone.utc).year
+        _hoje = agora_brt()
+        try: ano = int(qs.get("ano") or _hoje.year)
+        except Exception: ano = _hoje.year
         orcamento = read_kv(sb, "viab_orcamento")
         _itens_ano = ((read_kv(sb, "viab_custos_orcado").get(str(ano)) or {}).get("itens") or [])
-        _mes_ref = datetime.now(timezone.utc).month if ano == datetime.now(timezone.utc).year else 12
+        _mes_ref = _hoje.month if ano == _hoje.year else 12
         return self._send(200, {
             "ok": True, "ano": ano, "linhas": LINHAS, "defaults": DEFAULTS,
             "orcamento": orcamento.get(str(ano), {}),
@@ -420,13 +501,16 @@ class handler(BaseHTTPRequestHandler):
             "perfil_gasto": perfil_gasto(_itens_ano, _mes_ref),
             "trafego": trafego_por_marca(_itens_ano, LINHA_IDS),
             "mes_ref": _mes_ref,
+            # v86.70 — margem única + tickets do orçado (o front lê daqui; fallback rotulado se faltar)
+            "margens": margens_ano(orcamento, ano, _mes_ref),
+            "tickets": {i: (lambda o: round(o["vgv"] / o["vendas"], 2) if o.get("vendas") else None)(orc_for(orcamento, ano, i, _mes_ref)) for i in LINHA_IDS},
             "changelog": (read_kv(sb, "viab_custos_changelog").get("entradas") or [])[:20],
             "cenarios": read_kv(sb, "viab_cenarios"),   # cenários do Simulador/Break-even compartilhados (fim do localStorage). v83.8
         })
 
     def do_POST(self):
         try:
-            actor = require_user(self, min_lvl=8)
+            actor = require_user(self, min_lvl=7)   # v86.70: matriz (can_viab) decide
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
         sb0 = supabase_client()
@@ -441,8 +525,8 @@ class handler(BaseHTTPRequestHandler):
         sb = supabase_client()
         if not sb: return self._send(503, {"ok": False, "error": "backend"})
         action = (body.get("action") or "").strip()
-        try: ano = int(body.get("ano") or datetime.now(timezone.utc).year)
-        except Exception: ano = datetime.now(timezone.utc).year
+        try: ano = int(body.get("ano") or agora_brt().year)
+        except Exception: ano = agora_brt().year
 
         if action == "set_orcamento":
             linha = (body.get("linha") or "").strip().lower()
@@ -609,7 +693,7 @@ class handler(BaseHTTPRequestHandler):
                   before=antes_cell, after=cell)
             # ── v85.2 CHANGELOG: quem/quando/antes→depois + efeito no ano e no mês ──
             try:
-                agora = datetime.now(timezone.utc)
+                agora = agora_brt()
                 mes_corr = agora.month
                 itens_a = {i.get("id"): i for i in (antes_cell.get("itens") or [])}
                 itens_d = {i.get("id"): i for i in clean}

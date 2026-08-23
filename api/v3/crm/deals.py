@@ -60,9 +60,9 @@ def _rd_get(endpoint: str, params: dict, token: str):
         if page >= 50:  # safety
             break
         if len(all_deals) >= (params.get("max_total") or 1000):
-            break
+            return {"deals": all_deals, "truncado": True}   # v86.65: bateu o teto — avisa o front
         page += 1
-    return {"deals": all_deals}
+    return {"deals": all_deals, "truncado": False}
 
 
 def _scope_filter(deals, user, sb):
@@ -78,7 +78,7 @@ def _scope_filter(deals, user, sb):
         if not team or not sb:
             return [], "team_empty"
         try:
-            team_users = sb.table("users").select("email").eq("team", team).execute().data or []
+            team_users = sb.table("users").select("email").ilike("team", team).execute().data or []   # v86.65: case-insensitive
             emails = {(u.get("email") or "").lower() for u in team_users if u.get("email")}
         except Exception:
             emails = set()
@@ -207,7 +207,7 @@ class handler(BaseHTTPRequestHandler):
         if params.get("win") == "true":  rd_params["win"] = "true"
         if params.get("win") == "false": rd_params["win"] = "false"
         if params.get("owner_email"):  rd_params["user_email"] = params["owner_email"]
-        rd_params["max_total"] = 600
+        rd_params["max_total"] = 5000   # v86.65: era 600 — cortava a base e o resumo mentia
 
         result = _rd_get("deals", rd_params, rd_token)
         if result.get("error"):
@@ -220,6 +220,7 @@ class handler(BaseHTTPRequestHandler):
         payload = {
             "ok": True,
             "raw_count": len(raw_deals),
+            "truncado": bool(result.get("truncado")),   # v86.65: bateu max_total — lista parcial
             "raw_deals": raw_deals,   # cached internamente, não enviado direto
             "deals": scoped[:limit_response],
             "summary": _summary(scoped),

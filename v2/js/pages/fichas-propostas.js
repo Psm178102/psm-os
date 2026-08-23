@@ -1,5 +1,5 @@
 /* PSM-OS v2 — Fichas/Propostas (Sprint 8.7 + 9.4 modelo/WhatsApp/imprimir) */
-import { api, selectableUsers } from '../api.js';
+import { api, selectableUsers, hojeISO } from '../api.js';
 import { auth } from '../auth.js';
 import { getLinks, saveLinks, canEditLinks, promptLink, driveDownload, triggerDownload } from '../links.js';
 
@@ -65,7 +65,7 @@ function render() {
     </div>
   `;
   document.getElementById('fic-new').addEventListener('click', () => {
-    _editing = { status: 'em_analise', data_envio: new Date().toISOString().slice(0, 10) };
+    _editing = { status: 'em_analise', data_envio: hojeISO() }; // v86.68
     showForm();
   });
   _root.querySelectorAll('[data-filter]').forEach(b => b.addEventListener('click', () => {

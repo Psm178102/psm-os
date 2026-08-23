@@ -122,7 +122,9 @@ class handler(BaseHTTPRequestHandler):
         cont = contadores(eventos, cfg, now)
 
         # alertas com dedupe — o pulso é quem pega o "cruzou 48h" no ato
-        disparos = checar_alertas(sb, cfg, eventos, notify_all, enviar=True)
+        # v86.70: o GET só LISTA os alertas — quem envia push é o cron (alertas_cron.py),
+        # senão cada pulso de cada gestor re-disparava notificação.
+        disparos = checar_alertas(sb, cfg, eventos, notify_all, enviar=False)
 
         cards = []
         for key, c in (cfg.get("colaboradores") or {}).items():
@@ -150,7 +152,7 @@ class handler(BaseHTTPRequestHandler):
                         feito_mes[frente] = (ct.get(frente) or {}).get("mes", 0)
                 pcts = [min(1.0, feito_mes[f] / m) for f, m in metas_mes.items() if m > 0]
                 composto = (sum(pcts) / len(pcts)) if pcts else 0
-                frac_mes = now.day / 30.0
+                frac_mes = _frac_dias_uteis(now)   # dias úteis decorridos ÷ dias úteis do mês
                 cor, pct = semaforo_pct(composto, frac_mes, cfg)
                 card.update({"rampa": rampa, "placar_mes": {"metas": metas_mes, "feito": feito_mes},
                              "semaforo": cor, "pct": pct})
@@ -178,7 +180,8 @@ class handler(BaseHTTPRequestHandler):
                 if key == "mariane":
                     nps_cfg = c.get("nps") or {}
                     notas = [float(e.get("valor") or 0) for e in eventos
-                             if e["colaborador"] == key and e["tipo"] == "nps_coletado"]
+                             if e["colaborador"] == key and e["tipo"] == "nps_coletado"
+                             and (_ts(e) or mes_ini) >= mes_ini]   # só o mês (a busca traz 15d antes)
                     prom = sum(1 for n in notas if n >= float(nps_cfg.get("promotor_min", 9)))
                     detr = sum(1 for n in notas if n <= float(nps_cfg.get("detrator_max", 6)))
                     score = round(100 * (prom - detr) / len(notas)) if notas else None
@@ -213,6 +216,17 @@ class handler(BaseHTTPRequestHandler):
         return self._send(200, {"ok": True, "cards": cards, "sou": me, "gestor": gestor,
                                 "lembrete_reativacao": cfg.get("lembrete_reativacao") or [],
                                 "agora_brt": now.isoformat(), "alertas_disparados": disparos})
+
+
+def _frac_dias_uteis(now):
+    """Fração do mês decorrida em DIAS ÚTEIS (seg–sex), incluindo hoje se for útil."""
+    import calendar
+    ndias = calendar.monthrange(now.year, now.month)[1]
+    uteis = [d for d in range(1, ndias + 1) if now.replace(day=d).weekday() < 5]
+    if not uteis:
+        return 1.0
+    passados = sum(1 for d in uteis if d <= now.day)
+    return min(1.0, passados / len(uteis))
 
 
 def eventos_colab(eventos, key):

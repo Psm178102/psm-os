@@ -3,11 +3,17 @@ import os, re, json, urllib.request
 
 
 def normalize_phone(raw):
+    """Só dígitos, formato wa.me (55DDDNÚMERO). None se inválido.
+    v86.68: MESMA regra de leads/_lp_lib.norm_phone (tira 0 de tronco, exige
+    ≥10 dígitos, teto 15) — antes "0 17 9xxxx" virava 55017... e nunca casava."""
     dig = re.sub(r"\D", "", str(raw or ""))
-    if not dig:
+    dig = dig.lstrip("0")
+    if len(dig) < 10:
         return None
-    if len(dig) <= 11 and not dig.startswith("55"):
+    if not dig.startswith("55"):
         dig = "55" + dig
+    if len(dig) > 15:
+        return None
     return dig
 
 

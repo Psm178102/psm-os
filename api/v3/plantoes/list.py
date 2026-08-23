@@ -4,7 +4,7 @@ import json, os, sys, urllib.parse
 from datetime import date, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, hoje_brt  # type: ignore
 
 
 class handler(BaseHTTPRequestHandler):
@@ -22,7 +22,7 @@ class handler(BaseHTTPRequestHandler):
         try:
             params = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
         except: params = {}
-        today = date.today()
+        today = hoje_brt()  # v86.68: hoje do negócio (BRT), não UTC
         since = params.get("since") or (today - timedelta(days=15)).isoformat()
         until = params.get("until") or (today + timedelta(days=60)).isoformat()
         sb = supabase_client()

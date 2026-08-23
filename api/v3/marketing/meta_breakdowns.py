@@ -36,9 +36,9 @@ ALLOWED_BREAKDOWNS = {
     "hourly_stats_aggregated_by_advertiser_time_zone",
 }
 # Mesmo conjunto de actions que o /api/meta-ads conta como "resultado" (lead).
+# v86.68: first_reply é subconjunto de conversation_started → contava mensagem 2×.
 _LEAD_ACTIONS = {
     "onsite_conversion.messaging_conversation_started_7d",
-    "onsite_conversion.messaging_first_reply",
     "lead",
     "offsite_conversion.fb_pixel_lead",
 }

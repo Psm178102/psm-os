@@ -400,3 +400,11 @@ def notify_all(user_ids, tipo, title, body=None, link=None, target_type=None, ta
     except Exception:
         pass
     return n
+
+
+# ── v86.68: "hoje" do negócio (Brasil, UTC-3) — fonte única pra todo o backend ──
+from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+def agora_brt():
+    return _dt.now(_tz.utc) - _td(hours=3)
+def hoje_brt():
+    return agora_brt().date()

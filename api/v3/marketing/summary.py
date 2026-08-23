@@ -19,7 +19,8 @@ import urllib.request
 import urllib.error
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
+from _auth_lib import require_user, AuthError, supabase_client, agora_brt  # type: ignore
+from datetime import timedelta
 from _meta_cache_lib import build_cache_key, read_cache, write_cache, fetch_live, is_cacheable  # type: ignore
 
 # Quão velho o cache pode estar e ainda ser servido. O cron aquece a cada ~10min;
@@ -83,8 +84,14 @@ class handler(BaseHTTPRequestHandler):
                 if stale:
                     stale["v3_scope"] = "team" if (user.get("lvl") or 0) >= 5 else "self"
                     stale["v3_user_lvl"] = user.get("lvl")
+                    # v86.68: diz DESDE QUANDO o dado está parado (BRT) — o front
+                    # mostra "dado de DD/MM HH:MM (desatualizado)".
+                    _since_dt = agora_brt() - timedelta(seconds=int(age_s or 0))
                     stale["cache"] = {"hit": True, "age_s": age_s, "source": csource,
-                                      "shared": True, "stale": True}
+                                      "shared": True, "stale": True,
+                                      "stale_since": _since_dt.strftime("%Y-%m-%dT%H:%M:%S-03:00"),
+                                      "stale_since_br": _since_dt.strftime("%d/%m %H:%M"),
+                                      "live_error": err or "payload inválido"}
                     return self._send(200, stale)
             return self._send(502, {"ok": False, "error": err or "meta-ads payload inválido"})
 

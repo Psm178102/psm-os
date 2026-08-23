@@ -133,3 +133,20 @@ export function selectableUsers(users, ...keep) {
   return (users || []).filter(u =>
     k.has(String(u.id)) || ((u.status || 'ativo') === 'ativo' && !u.hide_from_ranking));
 }
+
+/**
+ * v86.68 — "hoje" do negócio no front: data LOCAL do navegador (Brasil, UTC-3) em YYYY-MM-DD.
+ * Nunca use `new Date().toISOString().slice(0,10)` pra isso: à noite (21h–00h BRT) o ISO já é amanhã em UTC.
+ */
+export function hojeISO(d) {
+  const x = d ? new Date(d) : new Date();
+  const p = n => String(n).padStart(2, '0');
+  return `${x.getFullYear()}-${p(x.getMonth() + 1)}-${p(x.getDate())}`;
+}
+
+/** Formata YYYY-MM-DD → DD/MM/YYYY sem passar por Date (evita `new Date('2026-08-23')` virar 22/08 em UTC-3). */
+export function fmtDataBR(iso) {
+  if (!iso) return '—';
+  const [y, m, d] = String(iso).slice(0, 10).split('-');
+  return d && m && y ? `${d}/${m}/${y}` : String(iso);
+}

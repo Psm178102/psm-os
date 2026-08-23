@@ -17,10 +17,11 @@ from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
+from _auth_lib import hoje_brt  # type: ignore
 from _oo_lib import (  # type: ignore
     window, months_in_range, broker_metrics, parse_dt, build_stage_maps, read_meta_spend, meta_for_period,
     read_meta_accounts, match_team_account, read_team_account_override,
-    read_meta_campaigns, compute_ads_invest, read_custos_corretor,
+    read_meta_campaigns, compute_ads_invest, read_custos_corretor, PIPELINE_PESOS,
 )
 
 
@@ -42,8 +43,10 @@ def _events_for(sb, deal_ids):
     return out
 
 
-def _deals_for(sb, ids, emails, cols):
-    """Deals de um conjunto de donos (por user_id OU user_email)."""
+def _deals_for(sb, ids, emails, cols, since_iso=None):
+    """Deals de um conjunto de donos (por user_id OU user_email).
+    v86.65: `since_iso` aplica o MESMO critério do overview — deal criado OU
+    fechado a partir da janela (antes vinha todo deal aberto de sempre)."""
     out, seen = [], set()
     ids = [x for x in (ids or []) if x]
     emails = [e for e in (emails or []) if e]
@@ -55,7 +58,10 @@ def _deals_for(sb, ids, emails, cols):
             pg = 0
             while True:
                 try:
-                    ch = sb.table("deals").select(cols).in_(fld, chunk).order("id").range(pg * 1000, pg * 1000 + 999).execute().data or []
+                    qy = sb.table("deals").select(cols).in_(fld, chunk)
+                    if since_iso:
+                        qy = qy.or_(f"created_at_rd.gte.{since_iso},closed_at.gte.{since_iso}")
+                    ch = qy.order("id").range(pg * 1000, pg * 1000 + 999).execute().data or []
                 except Exception:
                     ch = []
                 rows.extend(ch)
@@ -118,12 +124,18 @@ class handler(BaseHTTPRequestHandler):
         if not is_self and lvl < 5:
             return self._send(403, {"ok": False, "error": "sem permissão — corretor vê só o próprio 1:1"})
         self_view = is_self and lvl < 5   # corretor olhando o PRÓPRIO cockpit
+        # 🔒 v86.65 (decisão do Paulo): líder/gerente (lvl 5–9) só abre 1:1 de
+        # corretor da PRÓPRIA equipe; lvl>=10 livre. Checado logo após carregar o alvo.
+        def _team_ok(alvo):
+            if is_self or lvl >= 10:
+                return True
+            return (alvo.get("team") or "").strip().lower() == (user.get("team") or "").strip().lower()
 
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend indisponível"})
 
-        today = datetime.now(timezone.utc).date()
+        today = hoje_brt()
         since_d, until_d = window(params, today)
 
         # Corretor
@@ -134,6 +146,8 @@ class handler(BaseHTTPRequestHandler):
         if not urows:
             return self._send(404, {"ok": False, "error": "corretor não encontrado"})
         u = urows[0]
+        if not _team_ok(u):
+            return self._send(403, {"ok": False, "error": "sem permissão — gestor vê só a própria equipe"})
         email = (u.get("email") or "").lower()
 
         cols = "id,name,amount,win,closed_at,created_at_rd,updated_at_rd,stage_id,stage_name,pipeline_id,pipeline_name,user_id,user_email,rd_raw"
@@ -154,7 +168,7 @@ class handler(BaseHTTPRequestHandler):
             all_metas = []
 
         # Deals do corretor (individual)
-        deals = _deals_for(sb, [cid], [email], cols)
+        deals = _deals_for(sb, [cid], [email], cols, since_iso=since_d.isoformat())
         events_by_deal = _events_for(sb, [d.get("id") for d in deals])
         meta_sum = meta_for_period(all_metas, cid, since_d, until_d)
         metrics = broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, detail=True, stage_maps=stage_maps)
@@ -222,7 +236,7 @@ class handler(BaseHTTPRequestHandler):
                     members = []
                 mids = [m.get("id") for m in members]
                 memails = [(m.get("email") or "").lower() for m in members]
-                tdeals = _deals_for(sb, mids, memails, cols)
+                tdeals = _deals_for(sb, mids, memails, cols, since_iso=since_d.isoformat())
                 tevents = _events_for(sb, [d.get("id") for d in tdeals])
                 tmeta = {"meta_vgv": 0, "meta_vendas": 0, "meta_visitas": 0, "meta_pastas": 0, "meta_propostas": 0, "meta_agendamentos": 0}
                 for mid in mids:
@@ -237,17 +251,20 @@ class handler(BaseHTTPRequestHandler):
                 tmetrics["custo_fixo"] = _cf_team
                 tmetrics["custo_total"] = round((tmetrics["ads_invest"]["invest"] or 0) + _cf_team, 2)
                 # 🔮 Previsão por PIPELINE (deals abertos ponderados pela etapa) vs meta
+                # v86.65: pesos vêm da tabela ÚNICA PIPELINE_PESOS (_oo_lib) — a
+                # mesma do forecast/summary
                 def _wstage(name):
                     n = (name or "").lower()
-                    for kw, w in (("contrato", 0.9), ("pasta", 0.8), ("propost", 0.7), ("negocia", 0.7),
-                                  ("aprova", 0.7), ("visita", 0.5), ("qualific", 0.4), ("agenda", 0.3), ("contato", 0.15)):
+                    for kw, key in (("contrato", "contrato"), ("pasta", "pasta"), ("propost", "proposta"),
+                                    ("negocia", "proposta"), ("aprova", "proposta"), ("agenda", "agendado"),
+                                    ("visita", "visita"), ("qualific", "qualificado"), ("contato", "contato")):
                         if kw in n:
-                            return w
-                    return 0.1
+                            return PIPELINE_PESOS[key]
+                    return PIPELINE_PESOS["contato"]
                 _open = [d for d in tdeals if d.get("win") is None]
                 _pb = sum(float(d.get("amount") or 0) for d in _open)
                 _pp = sum(float(d.get("amount") or 0) * _wstage(d.get("stage_name")) for d in _open)
-                _comp = sum(float(d.get("amount") or 0) for d in _open if _wstage(d.get("stage_name")) >= 0.7)
+                _comp = sum(float(d.get("amount") or 0) for d in _open if _wstage(d.get("stage_name")) >= PIPELINE_PESOS["proposta"])
                 _ja = tmetrics["kpis"]["vgv"] or 0
                 _metav = tmeta.get("meta_vgv") or 0
                 # PREVISTO realista do mês = já vendido + o que está QUASE fechando (proposta/pasta/contrato).

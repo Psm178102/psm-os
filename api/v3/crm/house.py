@@ -131,7 +131,7 @@ def _scope(sb, user):
         if not team:
             return set(), "team_empty"
         try:
-            rows = sb.table("users").select("email").eq("team", team).execute().data or []
+            rows = sb.table("users").select("email").ilike("team", team).execute().data or []   # v86.65: case-insensitive
             return {(u.get("email") or "").lower() for u in rows if u.get("email")}, "team"
         except Exception:
             return set(), "team_err"
@@ -240,16 +240,22 @@ class handler(BaseHTTPRequestHandler):
                      or next((p for p in pipelines if "map" in nm(p)), None))
             pid = (map_p or pipelines[0])["id"]
 
-        # deals abertos do funil, do ESPELHO
+        # deals abertos do funil, do ESPELHO — v86.65: escopo filtrado NA QUERY
+        # (antes cortava em MAX_DEALS e só depois filtrava por e-mail → corretor
+        # com deal antigo ficava de fora)
+        emails, scope = _scope(sb, user)
         try:
-            deals = (sb.table("deals").select(DEAL_COLS)
-                     .eq("pipeline_id", pid).is_("win", "null")
-                     .order("updated_at_rd", desc=True)
+            qd = (sb.table("deals").select(DEAL_COLS)
+                  .eq("pipeline_id", pid).is_("win", "null"))
+            if emails is not None:
+                if not emails:
+                    qd = qd.in_("user_email", ["__nenhum__"])
+                else:
+                    qd = qd.in_("user_email", sorted(emails))
+            deals = (qd.order("updated_at_rd", desc=True)
                      .limit(MAX_DEALS).execute().data or [])
         except Exception as e:
             return self._send(500, {"ok": False, "error": f"espelho deals: {e}"})
-
-        emails, scope = _scope(sb, user)
         if emails is not None:
             deals = [d for d in deals if (d.get("user_email") or "").lower() in emails]
 

@@ -91,8 +91,20 @@ class handler(BaseHTTPRequestHandler):
         # opt-outs
         optouts = set()
         try:
-            for o in (sb.table("wa_optout").select("phone").execute().data or []):
-                optouts.add(o.get("phone"))
+            # v86.68: paginado (PostgREST devolve no máx. 1000/linhas por chamada —
+            # opt-out nº 1001 voltava a receber mensagem)
+            _pg, _sz = 0, 1000
+            while True:
+                _rows = (sb.table("wa_optout").select("phone").order("phone")
+                         .range(_pg * _sz, _pg * _sz + _sz - 1).execute().data or [])
+                for o in _rows:
+                    optouts.add(o.get("phone"))
+                    _n = normalize_phone(o.get("phone"))
+                    if _n:
+                        optouts.add(_n)
+                if len(_rows) < _sz or _pg >= 50:
+                    break
+                _pg += 1
         except Exception:
             pass
 

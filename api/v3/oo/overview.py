@@ -17,6 +17,7 @@ from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
+from _auth_lib import hoje_brt  # type: ignore
 from _oo_lib import (window, months_in_range, broker_metrics, read_meta_spend, meta_for_period,  # type: ignore
                      read_meta_accounts, match_team_account, read_team_account_override,
                      read_meta_campaigns, compute_ads_invest)
@@ -115,6 +116,7 @@ class handler(BaseHTTPRequestHandler):
             try:
                 rows = (sb.table("deals").select(cols)
                         .or_(f"created_at_rd.gte.{since_iso},closed_at.gte.{since_iso}")
+                        .order("id")
                         .range(page * size, page * size + size - 1).execute().data or [])
             except Exception:
                 break
@@ -148,7 +150,7 @@ class handler(BaseHTTPRequestHandler):
                 cached["cached"] = True
                 return self._send(200, cached)
 
-        today = datetime.now(timezone.utc).date()
+        today = hoje_brt()
         since_d, until_d = window(params, today)
 
         # Usuários que carregam funil (corretor/líder), ativos

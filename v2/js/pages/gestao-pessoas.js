@@ -1,5 +1,5 @@
 /* PSM-OS v2 — Gestão de Pessoas (Sprint 8.1) */
-import { api } from '../api.js';
+import { api, hojeISO } from '../api.js';
 import { auth } from '../auth.js';
 import { pageTalentos } from './talentos.js';
 import { renderAvaliacoes } from './avaliacoes.js';
@@ -82,7 +82,7 @@ const TR_MODAL = ['presencial', 'online', 'gravado'];
 const TR_STATUS = { planejado: { l: 'Planejado', c: '#64748b' }, ativo: { l: 'Ativo', c: '#0ea5e9' }, concluido: { l: 'Concluído', c: '#16a34a' }, arquivado: { l: 'Arquivado', c: '#94a3b8' } };
 const PART_STATUS = { nao_iniciado: { l: 'Não iniciado', c: '#94a3b8' }, em_andamento: { l: 'Em andamento', c: '#f59e0b' }, concluido: { l: 'Concluído', c: '#16a34a' } };
 const MAT_ICO = { link: '🔗', video: '🎬', pdf: '📄', imagem: '🖼', slide: '📊' };
-const _hojeTr = () => new Date().toISOString().slice(0, 10);
+const _hojeTr = () => hojeISO(); // v86.68: hoje local (BRT)
 const _fmtTr = d => d ? String(d).slice(0, 10).split('-').reverse().join('/') : '—';
 const trProg = t => { const ps = t.participantes || []; const done = ps.filter(p => p.status === 'concluido').length; return { done, total: ps.length, pct: ps.length ? Math.round(done / ps.length * 100) : 0 }; };
 const trAtrasado = t => t.prazo && t.status !== 'concluido' && t.status !== 'arquivado' && String(t.prazo).slice(0, 10) < _hojeTr();

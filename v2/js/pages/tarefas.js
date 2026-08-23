@@ -2,7 +2,7 @@
    PSM-OS v2 — Tarefas Diretoria
    Sprint 7.6
 ============================================================================ */
-import { api, selectableUsers } from '../api.js';
+import { api, selectableUsers, hojeISO, fmtDataBR } from '../api.js';
 import { auth } from '../auth.js';
 import { mountComments } from '../comments.js';
 import { pageAgenda } from './agenda.js';
@@ -128,14 +128,14 @@ const ORIGENS = ['Tarefa', 'Agenda', 'Academy', 'Projeto', 'Captação', 'One-on
 
 function renderCentral() {
   const me = auth.user();
-  const hoje = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10);
+  const hoje = hojeISO(); // v86.68: hoje local (BRT)
   let list = _feed.slice();
   if (!_cDone) list = list.filter(i => !i.done);
   if (_cOrigem) list = list.filter(i => i.origem === _cOrigem);
 
   // grupos por urgência
   const G = { atrasado: [], hoje: [], semana: [], depois: [], semdata: [] };
-  const sem = new Date(Date.now() + (7 - 3 / 24) * 86400000).toISOString().slice(0, 10);
+  const sem = hojeISO(Date.now() + 7 * 86400000); // v86.68
   list.forEach(i => {
     if (!i.data) return G.semdata.push(i);
     if (i.data < hoje) return G.atrasado.push(i);
@@ -201,7 +201,7 @@ function renderCentral() {
 }
 
 function centralRow(i) {
-  const hoje = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10);
+  const hoje = hojeISO(); // v86.68: hoje local (BRT)
   const dataTxt = i.data ? i.data.split('-').reverse().join('/') : '';
   const overdue = i.data && !i.done && i.data < hoje;
   const cor = i.done ? '#16a34a' : overdue ? '#dc2626' : '#94a3b8';
@@ -324,8 +324,9 @@ function taskRow(t, isSocio, myId) {
   const isMine = t.responsavel === myId || t.criado_por === myId;
   const canEdit = isSocio || isMine;
   const prior = PRIORIDADE.find(p => p.id === t.prioridade) || PRIORIDADE[1];
-  const prazoTxt = t.prazo ? new Date(t.prazo).toLocaleDateString('pt-BR') : null;
-  const overdue = t.prazo && t.status !== 'concluida' && t.status !== 'cancelada' && new Date(t.prazo) < new Date();
+  // v86.68: prazo é YYYY-MM-DD — new Date('YYYY-MM-DD') vira UTC 00:00 = dia anterior no Brasil
+  const prazoTxt = t.prazo ? fmtDataBR(t.prazo) : null;
+  const overdue = t.prazo && t.status !== 'concluida' && t.status !== 'cancelada' && String(t.prazo).slice(0, 10) < hojeISO();
   const histLen = Array.isArray(t.historico) ? t.historico.length : 0;
 
   return `

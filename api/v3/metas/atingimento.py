@@ -20,7 +20,7 @@ import urllib.parse
 import urllib.request
 import urllib.error
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
@@ -58,6 +58,20 @@ def _status(pct):
     if pct < 90:    return "atencao"
     if pct < 110:   return "bom"
     return "estourou"
+
+
+def _amount(d):
+    """Valor do deal: `amount` com fallback em rd_raw.amount_total (mesma
+    régua de amount() em api/v3/oo/_oo_lib.py)."""
+    for v in (d.get("amount"), d.get("amt_total"), (d.get("rd_raw") or {}).get("amount_total") if isinstance(d.get("rd_raw"), dict) else None):
+        try:
+            if v not in (None, ""):
+                f = float(v)
+                if f > 0:
+                    return f
+        except (TypeError, ValueError):
+            pass
+    return 0.0
 
 
 class handler(BaseHTTPRequestHandler):
@@ -113,11 +127,13 @@ class handler(BaseHTTPRequestHandler):
             users = [u for u in all_users if (u.get("status") or "ativo") == "ativo"]
             lvl = user.get("lvl") or 0
             scope = "all"
-            if lvl < 7:
+            # v86.65 (decisão do Paulo): gerente/líder lvl<10 vê SÓ a própria
+            # equipe (gerente lvl 7 via tudo); "líder" com acento também conta.
+            if lvl < 10:
                 role = (user.get("role") or "").lower()
-                if role == "lider":
-                    team = (user.get("team") or "").lower()
-                    users = [u for u in users if (u.get("team") or "").lower() == team]
+                if lvl >= 5 or role in ("lider", "líder", "gerente"):
+                    team = (user.get("team") or "").strip().lower()
+                    users = [u for u in users if (u.get("team") or "").strip().lower() == team]
                     scope = "team"
                 else:
                     users = [u for u in users if u.get("id") == user["id"]]
@@ -140,23 +156,35 @@ class handler(BaseHTTPRequestHandler):
 
         if not force_rd:
             try:
-                # Query: deals win=true do ano (closed_at)
-                start = f"{ano}-01-01T00:00:00+00:00"
-                end   = f"{ano + 1}-01-01T00:00:00+00:00"
-                deals_rows = sb.table("deals").select("user_id,closed_at,amount,synced_at") \
-                    .eq("win", True).gte("closed_at", start).lt("closed_at", end).execute().data or []
+                # Query: deals win=true do ano (closed_at) — fronteira de ano em BRT
+                # (UTC-3): 1º/jan 00:00 BRT = 03:00 UTC
+                start = f"{ano}-01-01T03:00:00+00:00"
+                end   = f"{ano + 1}-01-01T03:00:00+00:00"
+                email2uid = {(u.get("email") or "").lower(): u.get("id") for u in all_users if u.get("email")}
+                deals_rows, pg = [], 0
+                while True:
+                    ch = sb.table("deals").select("user_id,user_email,closed_at,amount,synced_at,amt_total:rd_raw->amount_total") \
+                        .eq("win", True).gte("closed_at", start).lt("closed_at", end) \
+                        .order("id").range(pg * 1000, pg * 1000 + 999).execute().data or []
+                    deals_rows.extend(ch)
+                    if len(ch) < 1000 or pg >= 10:
+                        break
+                    pg += 1
                 if deals_rows:
                     for d in deals_rows:
-                        uid = d.get("user_id")
+                        # v86.65: deal sem user_id resolve pelo e-mail do dono
+                        uid = d.get("user_id") or email2uid.get((d.get("user_email") or "").lower())
                         if not uid: continue
                         ca = d.get("closed_at")
                         if not ca: continue
                         try:
                             dt = datetime.fromisoformat(str(ca).replace("Z", "+00:00"))
-                            mes = dt.month
+                            if dt.tzinfo is not None:
+                                dt = dt.astimezone(timezone.utc)
+                            mes = (dt - timedelta(hours=3)).month   # mês em BRT
                         except Exception:
                             continue
-                        atingido_idx[(uid, mes)]["vgv"] += float(d.get("amount") or 0)
+                        atingido_idx[(uid, mes)]["vgv"] += _amount(d)
                         atingido_idx[(uid, mes)]["count"] += 1
                         # Track latest synced_at
                         sy = d.get("synced_at")
@@ -186,6 +214,9 @@ class handler(BaseHTTPRequestHandler):
                         if not ca: continue
                         try:
                             dt = datetime.fromisoformat(str(ca).replace("Z", "+00:00"))
+                            if dt.tzinfo is not None:
+                                dt = dt.astimezone(timezone.utc)
+                            dt = dt - timedelta(hours=3)   # BRT
                             if dt.year != ano: continue
                             mes = dt.month
                         except Exception:

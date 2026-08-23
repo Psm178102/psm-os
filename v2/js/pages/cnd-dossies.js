@@ -12,7 +12,7 @@
    marcam status (aguardando/emitida/não emitida/bloqueada), o resultado
    (POSITIVA/NEGATIVA) e anexam a pasta do Drive. Tudo notifica os envolvidos.
    Backend: /api/v3/juridico/dossies */
-import { api } from '../api.js';
+import { api, hojeISO } from '../api.js';
 import { auth } from '../auth.js';
 
 let _host = null, _d = null, _busy = false, _sel = null, _form = null;
@@ -21,7 +21,7 @@ let _talentos = null;   // candidatos do ATS (carregados sob demanda)
 let _abrirId = null;    // deep link #/cnds?dossie=<id>
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const hojeStr = () => new Date().toISOString().substring(0, 10);
+const hojeStr = () => hojeISO(); // v86.68: hoje local (BRT)
 
 /* status da EMISSÃO (o caminho até ter o papel na mão) */
 const ST_CERT = {

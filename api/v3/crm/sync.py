@@ -140,7 +140,9 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             body = {}
 
-        max_pages = min(50, int(body.get("max_pages") or 30))
+        # v86.65: varre até a página vir curta (<200); teto de SEGURANÇA 200 páginas
+        # (era 30×200 = 6.000 deals — funil maior ficava truncado em silêncio)
+        max_pages = min(200, int(body.get("max_pages") or 200))
         params = {}
         if body.get("pipeline_id"): params["deal_pipeline_id"] = body["pipeline_id"]
         if body.get("win") in (True, "true", "false", False):
@@ -174,12 +176,14 @@ class handler(BaseHTTPRequestHandler):
         errors = []
         pages_done = 0
         pipes_done = 0
+        truncado = []   # funis que bateram o teto de páginas
 
         for pid, pname in pipelines:
             pparams = dict(params)
             if pid:
                 pparams["deal_pipeline_id"] = pid
             pipes_done += 1
+            page = 0
             for page in range(1, max_pages + 1):
                 try:
                     data = _rd_page(token, pparams, page)
@@ -214,6 +218,8 @@ class handler(BaseHTTPRequestHandler):
                     rows_buffer = []
                 if len(deals) < 200:
                     break
+            else:
+                truncado.append(pname or pid or "-")   # saiu pelo teto, não pela página curta
 
         if rows_buffer:
             try:
@@ -232,6 +238,7 @@ class handler(BaseHTTPRequestHandler):
             "upserted": upserted,
             "pages_done": pages_done,
             "pipes_done": pipes_done,
+            "truncado": truncado,
             "errors": errors,
             "duration_s": round(duration, 2),
             "synced_at": datetime.now(timezone.utc).isoformat(),

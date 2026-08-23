@@ -13,7 +13,7 @@ import sys
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import require_user, AuthError, supabase_client, audit  # type: ignore
+from _auth_lib import require_user, AuthError, supabase_client, audit, hoje_brt  # type: ignore
 from _briefing_lib import compile_facts, generate_and_store  # type: ignore
 
 
@@ -47,7 +47,7 @@ class handler(BaseHTTPRequestHandler):
                          .order("created_at", desc=True).limit(12).execute().data or [])
         except Exception:
             pending = True
-        today = datetime.now(timezone.utc).date()
+        today = hoje_brt()  # v86.68: hoje BRT
         try:
             facts = compile_facts(sb, today)
         except Exception as e:

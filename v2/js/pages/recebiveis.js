@@ -1,7 +1,7 @@
 /* PSM-OS v2 — 💰 Radar de Recebíveis (aba da Estratégia). v84.83
    Visibilidade do que trava cada comissão: esteira pós-venda, bloqueios,
    botões de 1 clique e alertas. Volume pequeno (20–40/mês) → lista simples. */
-import { api } from '../api.js';
+import { api, hojeISO } from '../api.js';
 import { auth } from '../auth.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -33,7 +33,7 @@ export async function renderRecebiveis(container) {
 }
 
 const nome = id => (_users.find(u => u.id === id) || {}).name || (id || '—');
-const hoje = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+const hoje = () => hojeISO(); // v86.68: hoje local (BRT)
 
 function diasAte(r) {
   if (!r.data_prevista) return null;

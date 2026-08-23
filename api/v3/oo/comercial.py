@@ -9,9 +9,11 @@ FONTES (decisão do Paulo, 14/ago):
   • Conquista → esteira do PSM HUB (vendas/VGV oficiais da equipe) com o RD CRM
     como base do funil (leads/agendamentos/visitas/pastas por evento real).
   • MAP → funil RD MAP espelhado (mesma régua do simulador do 1:1).
-  • "Qualificado" começa no AGENDAMENTO (funil de custo: lead → agendamento →
-    visita → pasta → venda). CAC nos DOIS níveis: mídia e completo (mídia +
-    custo fixo orçado da linha).
+  • "Qualificado" = 1º marco de contato ok/qualificação (constante única
+    MARCO_QUALIF = 1, decisão do Paulo 23/ago — vale pra custo, esteira,
+    produtividade e métricas). Funil de custo: lead → qualificado →
+    agendamento → visita → pasta → venda. CAC nos DOIS níveis: mídia e
+    completo (mídia + custo fixo orçado da linha).
   • Fontes analisadas por SAFRA de lead (coorte criada na janela, seguida até
     hoje) — visão instantânea mente com jornada de meses.
 
@@ -41,6 +43,11 @@ import _psmhub_lib as hub  # type: ignore
 TEAMS = [("conquista", "🏠 Conquista"), ("map", "🏢 MAP"),
          ("terceiros", "🤝 Terceiros"), ("locacao", "🔑 Locação")]
 LINHA_DA_EQUIPE = {"conquista": "conquista", "map": "map", "terceiros": "terceiros", "locacao": "locacoes"}
+# 🎯 "QUALIFICADO" = 1º marco (contato ok / qualificação). Constante ÚNICA
+# usada em custo_qualif, esteira (qualif), produtividade (atend) e métricas —
+# antes a esteira usava marco 2 (agendamento) e o resto marco 1, e os números
+# não batiam entre as abas.
+MARCO_QUALIF = 1
 MIN_LEADS_RANK = 30   # amostra mínima pra fonte entrar no pódio
 MIN_VENDAS_RANK = 3
 
@@ -49,7 +56,7 @@ MIN_VENDAS_RANK = 3
 CANAL_MERGE = {"nao_atribuido": "trafego_imob", "outro": "trafego_imob", "meta": "trafego_imob"}
 CANAL_LBL = {**CHANNEL_LABEL, "trafego_imob": "Tráfego pago Imob"}
 CANAIS_PAGOS = ("trafego_imob", "google")   # v86.38: régua única de "venda de origem paga"
-CACHE_VER = "gc22"   # v86.39: bump aqui invalida página E cron juntos
+CACHE_VER = "gc23"   # v86.39: bump aqui invalida página E cron juntos
 
 FUNIS_RD = {"conquista": "funil conquista", "map": "funil map",
             "terceiros": "funil terceiros", "locacao": "funil de locacao"}
@@ -157,7 +164,22 @@ def _num(v, d=0.0):
 
 
 def _hoje():
-    return (datetime.now(timezone.utc) - timedelta(hours=3)).date()
+    try:
+        from _auth_lib import hoje_brt  # type: ignore
+        return hoje_brt()
+    except Exception:
+        return (datetime.now(timezone.utc) - timedelta(hours=3)).date()
+
+
+def _d_brt(dt):
+    """Dia em BRT (UTC-3) de um datetime UTC — TODA comparação de dia do
+    arquivo (created/closed/t_marco × mes_ini/c_ini/hoje) passa por aqui.
+    Sem isso, venda fechada às 22h BRT do dia 31 caía no mês seguinte."""
+    if dt is None:
+        return None
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc)
+    return (dt - timedelta(hours=3)).date()
 
 
 # ─── marcos por etapa REAL de cada funil (mesma régua do simulador) ─────────
@@ -332,8 +354,9 @@ class handler(BaseHTTPRequestHandler):
     # ═══════════════ o cálculo pesado (1× por janela a cada 10min) ═══════════════
     def _compute(self, sb, since_d, until_d, hoje, spend_preset="last_30d"):
         avisos = []
-        since_dt = datetime(since_d.year, since_d.month, since_d.day, tzinfo=timezone.utc)
-        until_dt = datetime(until_d.year, until_d.month, until_d.day, 23, 59, 59, tzinfo=timezone.utc)
+        # janela em BRT (UTC-3): meia-noite BRT = 03:00 UTC
+        since_dt = datetime(since_d.year, since_d.month, since_d.day, tzinfo=timezone.utc) + timedelta(hours=3)
+        until_dt = datetime(until_d.year, until_d.month, until_d.day, 23, 59, 59, tzinfo=timezone.utc) + timedelta(hours=3)
         mes_ini = date(hoje.year, hoje.month, 1)
 
         users = {str(u["id"]): u for u in (sb.table("users").select("id,name,email,role,team,status").execute().data or []) if u.get("id")}
@@ -369,13 +392,25 @@ class handler(BaseHTTPRequestHandler):
             if len(ch) < 1000 or pg >= 25:
                 break
             pg += 1
-        # vendas do mês corrente (podem ter sido criadas antes da safra)
-        wins_mes = (sb.table("deals").select(cols).eq("win", True)
-                    .gte("closed_at", f"{mes_ini}T00:00:00+00:00").limit(1000).execute().data or [])
+        # vendas FECHADAS desde min(since, 1º de janeiro) — podem ter sido criadas
+        # antes da safra. (v86.65: antes só trazia o MÊS corrente, e o forecast
+        # semana/tri/semestre/ano, a esteira, "dias desde a última venda" e o
+        # turnover liam de `eds` — venda de meses anteriores sumia.)
+        wins_ini = min(since_d, date(hoje.year, 1, 1))
+        # closed_at é UTC: recua 3h pra não perder venda fechada às 22h BRT do dia anterior
         vistos = {str(d.get("id")) for d in deals}
-        for d in wins_mes:
-            if str(d.get("id")) not in vistos:
-                deals.append(d)
+        pg = 0
+        while True:
+            chw = (sb.table("deals").select(cols).eq("win", True)
+                   .gte("closed_at", f"{wins_ini}T03:00:00+00:00").order("id")
+                   .range(pg * 1000, pg * 1000 + 999).execute().data or [])
+            for d in chw:
+                if str(d.get("id")) not in vistos:
+                    vistos.add(str(d.get("id")))
+                    deals.append(d)
+            if len(chw) < 1000 or pg >= 10:
+                break
+            pg += 1
 
         # eventos (marcos + tempos) — em blocos
         ev_map = {}
@@ -489,7 +524,7 @@ class handler(BaseHTTPRequestHandler):
             c = por_corr.setdefault((e["uid"], e["team"]), {"nome": e["nome"], "team": e["team"], "leads": 0, "atend": 0,
                                                             "agend": 0, "visita": 0, "pasta": 0, "venda": 0, "vgv": 0.0})
             c["leads"] += 1
-            if e["marco"] >= 1: c["atend"] += 1
+            if e["marco"] >= MARCO_QUALIF: c["atend"] += 1
             if e["marco"] >= 2: c["agend"] += 1
             if e["marco"] >= 3: c["visita"] += 1
             if e["marco"] >= 5: c["pasta"] += 1
@@ -570,7 +605,7 @@ class handler(BaseHTTPRequestHandler):
         def _no_per(dt):
             return bool(dt and since_dt <= dt <= until_dt)
 
-        ETAPAS_ESTEIRA = (("prospec", None), ("qualif", 2), ("visita", 3),
+        ETAPAS_ESTEIRA = (("prospec", None), ("qualif", MARCO_QUALIF), ("visita", 3),
                           ("proposta", 4), ("pasta", 5))
 
         def _linha_esteira(nome, team, uid=None):
@@ -601,7 +636,9 @@ class handler(BaseHTTPRequestHandler):
                     "por_venda": {"prospec": por(c["prospec"]), "qualif": por(c["qualif"]),
                                   "visita": por(c["visita"]), "proposta": por(c["proposta"]),
                                   "pasta": por(c["pasta"])},
-                    "conv": {"prospec_qualif": pc(c["qualif"], c["prospec"]),
+                    # razão de FLUXO entre etapas (contagens independentes no
+                    # período — pode passar de 100%); NÃO é conversão de coorte
+                    "razao_fluxo": {"prospec_qualif": pc(c["qualif"], c["prospec"]),
                              "qualif_visita": pc(c["visita"], c["qualif"]),
                              "visita_pasta": pc(c["pasta"], c["visita"]),
                              "pasta_venda": pc(c["venda"], c["pasta"]),
@@ -667,14 +704,14 @@ class handler(BaseHTTPRequestHandler):
             except Exception:
                 return 0.0
         custos = []
-        _in = lambda dt: dt is not None and c_ini <= dt.date() <= c_fim
+        _in = lambda dt: dt is not None and c_ini <= _d_brt(dt) <= c_fim
         mes_pool = [e for e in eds if e["created"] and _in(e["created"])]
         for tk, lbl in TEAMS:
             acc = match_team_account((_ma or {}).get("accounts") or [], tk, _ovr) if _ma else None
             spend = _num(acc.get("spend")) if acc else 0.0
             pool = [e for e in mes_pool if e["team"] == tk]
             leads = len(pool)
-            qualif = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(1) and _in(e["t_marco"][1]))
+            qualif = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(MARCO_QUALIF) and _in(e["t_marco"][MARCO_QUALIF]))
             proposta = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(4) and _in(e["t_marco"][4]))
             agend = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(2) and _in(e["t_marco"][2]))
             visita = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(3) and _in(e["t_marco"][3]))
@@ -741,15 +778,28 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             avisos.append("tabela metas indisponível — metas zeradas na Visão")
 
-        reais_mes_uid = {}
+        # 👥 v86.65: membro da equipe = cadastro na equipe OU deal vivendo no
+        # funil da equipe (team_do_deal) — união. Yara (MAP + Terceiros) aparece
+        # nas duas, com os números de cada uma.
+        uids_por_team_deal = {}
         for e in eds:
-            if e["win"] and e["closed"] and e["closed"].date() >= mes_ini and e["uid"]:
-                r = reais_mes_uid.setdefault(e["uid"], {"v": 0, "vgv": 0.0})
+            if e["uid"]:
+                uids_por_team_deal.setdefault(e["team"], set()).add(e["uid"])
+        for d in abertos:
+            _u = str(d.get("user_id") or "") or email2uid.get((d.get("user_email") or "").lower(), "")
+            if _u in users:
+                uids_por_team_deal.setdefault(team_do_deal(d.get("pipeline_id"), _u), set()).add(_u)
+        reais_mes_uid_tk = {}
+        for e in eds:
+            if e["win"] and e["closed"] and _d_brt(e["closed"]) >= mes_ini and e["uid"]:
+                r = reais_mes_uid_tk.setdefault((e["uid"], e["team"]), {"v": 0, "vgv": 0.0})
                 r["v"] += 1
                 r["vgv"] += e["vgv"]
         for tk, lbl in TEAMS:
-            membros = [uid for uid, u in users.items()
-                       if team_de(uid, u.get("team")) == tk and (u.get("status") or "ativo") == "ativo"]
+            membros = sorted({uid for uid, u in users.items()
+                              if team_de(uid, u.get("team")) == tk and (u.get("status") or "ativo") == "ativo"}
+                             | {uid for uid in uids_por_team_deal.get(tk, set())
+                                if (users.get(uid, {}).get("status") or "ativo") == "ativo"})
             meta_v = meta_vgv = proj_v = 0.0
             com_meta = 0
             por_corr_v = []
@@ -768,13 +818,14 @@ class handler(BaseHTTPRequestHandler):
                     for cn in (cfg.get("canais") or []):
                         pu += (at * _num(cn.get("mix")) / 100.0) * (_num(cn.get("taxa_base")) * _num(cn.get("energia")) / 100.0) / 100.0
                     proj_v += pu
-                ru = reais_mes_uid.get(uid) or {}
+                # real do corretor NESTA equipe (funil do deal), não o total dele
+                ru = reais_mes_uid_tk.get((uid, tk)) or {}
                 if mv or mvgv or cfg or ru.get("v"):
                     por_corr_v.append({"nome": (users.get(uid) or {}).get("name") or "?",
                                        "real": ru.get("v") or 0, "vgv": round(ru.get("vgv") or 0, 2),
                                        "meta": round(mv, 1), "meta_vgv": round(mvgv, 2), "proj": round(pu, 2)})
             por_corr_v.sort(key=lambda x: (-x["real"], -x["proj"]))
-            reais = [e for e in eds if e["team"] == tk and e["win"] and e["closed"] and e["closed"].date() >= mes_ini]
+            reais = [e for e in eds if e["team"] == tk and e["win"] and e["closed"] and _d_brt(e["closed"]) >= mes_ini]
             rv, rvgv = len(reais), round(sum(e["vgv"] for e in reais), 2)
             # projeção por ritmo: vendas até hoje ÷ dias corridos × dias do mês
             run_rate = round(rv / max(1, hoje.day) * dias_mes, 2)
@@ -874,7 +925,7 @@ class handler(BaseHTTPRequestHandler):
         metricas = {}
         for tk, _l in TEAMS:
             pool = [e for e in na_janela if e["team"] == tk]
-            n = {"leads": len(pool), "qualif": sum(1 for e in pool if e["marco"] >= 1),
+            n = {"leads": len(pool), "qualif": sum(1 for e in pool if e["marco"] >= MARCO_QUALIF),
                  "agend": sum(1 for e in pool if e["marco"] >= 2), "visita": sum(1 for e in pool if e["marco"] >= 3),
                  "proposta": sum(1 for e in pool if e["marco"] >= 4), "pasta": sum(1 for e in pool if e["marco"] >= 5),
                  "venda": sum(1 for e in pool if e["win"])}
@@ -911,7 +962,7 @@ class handler(BaseHTTPRequestHandler):
                 "por_venda": {"prospeccoes": rz(n["leads"]), "qualificacoes": rz(n["qualif"]), "agendamentos": rz(n["agend"]),
                               "visitas": rz(n["visita"]), "propostas": rz(n["proposta"]), "pastas": rz(n["pasta"]),
                               "dias_por_venda": round(janela_dias / v, 1) if v else None,
-                              "dias_desde_ultima_venda": (hoje - max(wins_all).date()).days if wins_all else None},
+                              "dias_desde_ultima_venda": (hoje - _d_brt(max(wins_all))).days if wins_all else None},
                 "pastas": {"total": len(pf), "viraram_venda": len(p_venc), "perdidas": len(p_perd), "reprovadas": len(p_repr),
                            "em_analise": len(pf) - len(p_venc) - len(p_perd),
                            "pct_venda": pc(len(p_venc), len(pf)), "pct_reprovadas": pc(len(p_repr), len(pf)),
@@ -961,12 +1012,13 @@ class handler(BaseHTTPRequestHandler):
                 cm = canais_m.setdefault(ck, {"leads": 0, "vendas": 0, "vgv": 0.0})
                 cr = parse_dt(d.get("created_at_rd"))
                 cl = parse_dt(d.get("closed_at"))
-                if cr and cr.year == hoje.year and cr.month == m:
+                cr_b, cl_b = _d_brt(cr), _d_brt(cl)
+                if cr_b and cr_b.year == hoje.year and cr_b.month == m:
                     tot["leads"] += 1
                     cm["leads"] += 1
                     if tk in eqm:
                         eqm[tk]["leads"] += 1
-                if d.get("win") is True and cl and cl.year == hoje.year and cl.month == m:
+                if d.get("win") is True and cl_b and cl_b.year == hoje.year and cl_b.month == m:
                     v = amount(d)
                     tot["vendas"] += 1
                     tot["vgv"] += v
@@ -1097,7 +1149,7 @@ class handler(BaseHTTPRequestHandler):
             hz = {}
             for hk, hl, ini_p, dias_h, meses_cheios in HORIZ:
                 real_p = sum(1 for e in eds if e["team"] == tk and e["win"] and e["closed"]
-                             and e["closed"].date() >= ini_p)
+                             and _d_brt(e["closed"]) >= ini_p)
                 if hk in ("semana", "mes"):
                     extra = pastas_curto if (med_pv is not None and dias_h is not None and med_pv <= dias_h) else 0.0
                 elif hk == "tri":
@@ -1208,7 +1260,7 @@ class handler(BaseHTTPRequestHandler):
         # (proxy declarado; não há data de admissão estruturada).
         hist_all, pg = [], 0
         while True:
-            chh = (sb.table("deals").select("user_id,user_email,win,closed_at,created_at_rd")
+            chh = (sb.table("deals").select("user_id,user_email,win,closed_at,created_at_rd,pipeline_id")
                    .order("id").range(pg * 1000, pg * 1000 + 999).execute().data or [])
             hist_all.extend(chh)
             if len(chh) < 1000 or pg >= 60:
@@ -1229,6 +1281,11 @@ class handler(BaseHTTPRequestHandler):
                         r_["last_act"] = t_
             if d.get("win") is True and cl_:
                 r_["wins"].append(cl_)
+            # v86.65: equipe = funil do deal (team_do_deal) — vitórias por (uid, equipe)
+            _tkd = team_do_deal(d.get("pipeline_id"), du)
+            r_.setdefault("teams", set()).add(_tkd)
+            if d.get("win") is True and cl_:
+                r_.setdefault("wins_tk", {}).setdefault(_tkd, []).append(cl_)
         ritmo_corr = []
         for uid, r_ in por_uid_hist.items():
             u = users.get(uid) or {}
@@ -1237,21 +1294,23 @@ class handler(BaseHTTPRequestHandler):
                 continue
             if (u.get("status") or "ativo") != "ativo":
                 continue          # desligado vive no turnover, não aqui
-            tku = team_de(uid, u.get("team"))
-            if tku == "outros":
-                continue
-            wins = sorted(r_["wins"])
-            fa = r_["first_act"]
-            tempo_casa = (hoje - fa.date()).days if fa else None
-            d1 = (wins[0] - fa).days if wins and fa else None
-            intervalo = round((wins[-1] - wins[0]).days / (len(wins) - 1), 1) if len(wins) >= 2 else None
-            ritmo_corr.append({"uid": uid, "nome": u.get("name") or uid, "team": tku,
-                               "tempo_casa_d": tempo_casa,
-                               "dias_ate_1a_venda": d1,
-                               "vendas_total": len(wins),
-                               "intervalo_medio_d": intervalo,
-                               "dias_por_venda": round(tempo_casa / len(wins), 1) if wins and tempo_casa else None,
-                               "dias_desde_ultima_venda": (hoje - wins[-1].date()).days if wins else None})
+            # membro = cadastro OU deal no funil da equipe (união); 1 linha por equipe
+            teams_u = {team_de(uid, u.get("team"))} | set(r_.get("teams") or ())
+            for tku in sorted(teams_u):
+                if tku == "outros":
+                    continue
+                wins = sorted((r_.get("wins_tk") or {}).get(tku) or [])
+                fa = r_["first_act"]
+                tempo_casa = (hoje - _d_brt(fa)).days if fa else None
+                d1 = (wins[0] - fa).days if wins and fa else None
+                intervalo = round((wins[-1] - wins[0]).days / (len(wins) - 1), 1) if len(wins) >= 2 else None
+                ritmo_corr.append({"uid": uid, "nome": u.get("name") or uid, "team": tku,
+                                   "tempo_casa_d": tempo_casa,
+                                   "dias_ate_1a_venda": d1,
+                                   "vendas_total": len(wins),
+                                   "intervalo_medio_d": intervalo,
+                                   "dias_por_venda": round(tempo_casa / len(wins), 1) if wins and tempo_casa else None,
+                                   "dias_desde_ultima_venda": (hoje - _d_brt(wins[-1])).days if wins else None})
         ritmo_corr.sort(key=lambda x: (x["team"], x["dias_ate_1a_venda"] if x["dias_ate_1a_venda"] is not None else 10 ** 6))
         ritmo_eq = {}
         for tk, _l in TEAMS:
@@ -1291,8 +1350,8 @@ class handler(BaseHTTPRequestHandler):
                 continue
             wins = sorted(reg.get("wins") or [])
             saidas.append({"nome": u.get("name") or uid, "team": team_key(u.get("team")),
-                           "ultima_atividade": ult.date().isoformat(),
-                           "tempo_casa_d": (ult.date() - fa.date()).days if fa else None,
+                           "ultima_atividade": _d_brt(ult).isoformat(),
+                           "tempo_casa_d": (_d_brt(ult) - _d_brt(fa)).days if fa else None,
                            "vendas_na_passagem": len(wins),
                            "dias_ate_1a_venda": (wins[0] - fa).days if wins and fa else None})
         saidas.sort(key=lambda x: x["ultima_atividade"])
@@ -1309,7 +1368,7 @@ class handler(BaseHTTPRequestHandler):
             u = users.get(uid) or {}
             if (u.get("status") or "ativo") != "ativo" or not (u.get("role") or "").lower().startswith("corretor"):
                 continue
-            vendas_90 = sum(1 for e in eds if e["uid"] == uid and e["win"] and e["closed"] and (hoje - e["closed"].date()).days <= 90)
+            vendas_90 = sum(1 for e in eds if e["uid"] == uid and e["win"] and e["closed"] and (hoje - _d_brt(e["closed"])).days <= 90)
             leads_j = sum(1 for e in na_janela if e["uid"] == uid)
             if vendas_90 == 0 and leads_j >= 20:
                 risco.append({"nome": u.get("name") or uid, "team": team_de(uid, u.get("team")),

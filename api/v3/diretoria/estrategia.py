@@ -12,7 +12,16 @@ import urllib.parse
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, audit, agora_brt  # type: ignore
+
+
+def _can_route(sb, actor, route="/estrategia"):
+    """Gate por matriz (v86.70): sócio sempre; override do papel na matriz manda; senão lvl>=7."""
+    try:
+        from viab import can_route
+        return can_route(sb, actor, route)
+    except Exception:
+        return (actor.get("lvl") or 0) >= 7
 
 
 ALLOWED_TIPO = {"visao", "missao", "objetivo", "okr", "iniciativa"}
@@ -38,7 +47,7 @@ class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         try:
-            user = require_user(self, min_lvl=8)
+            user = require_user(self, min_lvl=7)   # v86.70: menu libera gerente; matriz decide
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
 
@@ -47,12 +56,14 @@ class handler(BaseHTTPRequestHandler):
             params = dict(urllib.parse.parse_qsl(url.query))
         except Exception:
             params = {}
-        try: ano = int(params.get("ano") or datetime.now().year)
-        except: ano = datetime.now().year
+        try: ano = int(params.get("ano") or agora_brt().year)
+        except: ano = agora_brt().year
 
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend indisponível"})
+        if not _can_route(sb, user):
+            return self._send(403, {"ok": False, "error": "sem permissão — ajustável na matriz (Configurações → Permissões)"})
 
         try:
             rows = sb.table("estrategia").select("*").eq("ano", ano) \
@@ -76,7 +87,7 @@ class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         try:
-            actor = require_user(self, min_lvl=8)
+            actor = require_user(self, min_lvl=7)   # v86.70: matriz decide
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
 
@@ -90,6 +101,8 @@ class handler(BaseHTTPRequestHandler):
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend indisponível"})
+        if not _can_route(sb, actor):
+            return self._send(403, {"ok": False, "error": "sem permissão — ajustável na matriz (Configurações → Permissões)"})
 
         item_id = body.get("id")
 
@@ -134,7 +147,7 @@ class handler(BaseHTTPRequestHandler):
             return self._send(400, {"ok": False, "error": "titulo e tipo obrigatórios"})
 
         try:
-            ano = int(body.get("ano") or datetime.now().year)
+            ano = int(body.get("ano") or agora_brt().year)
         except Exception:
             return self._send(400, {"ok": False, "error": "ano inválido"})
 

@@ -152,7 +152,8 @@ class handler(BaseHTTPRequestHandler):
         errors = []
         pages_done = 0
         pipes_done = 0
-        max_pages = 30
+        max_pages = 200   # v86.65: teto de SEGURANÇA — varre até a página vir curta (<200)
+        truncado = []     # funis que bateram o teto
 
         # Varredura POR FUNIL (a listagem do RD não retorna o funil por deal) —
         # carimba pipeline_name pra classificação de marca funcionar no sistema.
@@ -188,6 +189,8 @@ class handler(BaseHTTPRequestHandler):
                         errors.append(f"upsert: {e}")
                     rows_buffer = []
                 if len(deals) < 200: break
+            else:
+                truncado.append(pname or pid or "-")
 
         if rows_buffer:
             try:
@@ -220,6 +223,7 @@ class handler(BaseHTTPRequestHandler):
             "total_fetched": total_fetched,
             "upserted": upserted,
             "pages_done": pages_done,
+            "truncado": truncado,
             "pipes_done": pipes_done,
             "errors": errors,
             "captar_import": captar,

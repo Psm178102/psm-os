@@ -202,7 +202,7 @@ function bind(scope) {
     const f = dt => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
     const ini = {
       semana: () => new Date(h.getTime() - ((h.getDay() + 6) % 7) * 86400000),
-      quinzena: () => new Date(h.getTime() - 14 * 86400000),
+      quinzena: () => new Date(h.getTime() - 13 * 86400000),   // 14 dias (hoje−13) = last_14d
       mes: () => new Date(h.getFullYear(), h.getMonth(), 1),
       '90d': () => new Date(h.getTime() - 89 * 86400000),
       tri: () => new Date(h.getFullYear(), Math.floor(h.getMonth() / 3) * 3, 1),
@@ -338,7 +338,7 @@ function resumoTab() {
   else if (_tab === 'funil') {
     g.funis_rd = Object.fromEntries(Object.entries(d.funil_rd || {}).map(([t, f]) => [tLbl(t), { pipeline: f.pipeline, lanes: (f.lanes || []).map(l => ({ etapa: l.nome, abertos: l.abertos, alcancaram: l.alcancaram, passagem_pct: l.passagem_pct })) }]));
     g.fontes = ((d.fontes || {}).geral || []).slice(0, 10).map(f => ({ fonte: f.label, leads: f.leads, vendas: f.venda, pc_visita: f.pc_visita, pc_venda: f.pc_venda }));
-    g.esteira_equipes = Object.values((d.esteira || {}).equipes || {}).map(c => ({ equipe: tLbl(c.team), prospeccoes: c.prospec, qualificados: c.qualif, visitas: c.visita, pastas: c.pasta, vendas: c.venda, conversoes_pct: c.conv }));
+    g.esteira_equipes = Object.values((d.esteira || {}).equipes || {}).map(c => ({ equipe: tLbl(c.team), prospeccoes: c.prospec, qualificados: c.qualif, visitas: c.visita, pastas: c.pasta, vendas: c.venda, razao_fluxo_pct: c.razao_fluxo || c.conv }));
     g.velocidade_contato = d.resposta || {};
   } else if (_tab === 'midia') {
     g.unit_economics = ((d.custos || {}).equipes || []).map(c => ({ equipe: c.label, spend: c.spend, leads: c.leads, custo_lead: c.custo_lead, custo_visita: c.custo_visita, cac_midia: c.cac_midia, cac_marketing: c.cac_marketing, roas: c.roas, vendas: c.vendas, vendas_pagas: c.vendas_pagas }));
@@ -841,7 +841,7 @@ function tabEsteira() {
 
   const linha = (c, ehEquipe) => {
     const st = ehEquipe ? 'font-weight:800;background:var(--bg-3)' : '';
-    const p = c.por_venda || {}, cv = c.conv || {};
+    const p = c.por_venda || {}, cv = c.razao_fluxo || c.conv || {};
     return `<tr style="${st}">
       <td style="font-size:12.5px;padding:5px 8px 5px 0;white-space:nowrap">${ehEquipe ? '' : '　'}${esc(c.nome)}${ehEquipe ? '' : ` <span class="tiny muted">${(TEAM_LBL[c.team] || c.team || '').replace(/^..\s/, '')}</span>`}</td>
       <td style="text-align:right;font-size:12px">${fN(c.prospec)}</td>
@@ -878,7 +878,7 @@ function tabEsteira() {
         <tr style="text-align:right">
           <th style="text-align:left" rowspan="2">Corretor / Equipe</th>
           <th colspan="5" style="text-align:center;padding-bottom:2px">ETAPAS NO PERÍODO</th>
-          <th colspan="4" style="text-align:center;padding-bottom:2px">CONVERSÃO ENTRE ETAPAS</th>
+          <th colspan="4" style="text-align:center;padding-bottom:2px" title="fluxo do período — pode passar de 100%">RAZÃO ENTRE ETAPAS (fluxo)</th>
           <th colspan="3" style="text-align:center;padding-bottom:2px">QUANTOS PARA 1 VENDA</th>
           <th rowspan="2">Ticket</th>
         </tr>

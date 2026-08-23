@@ -49,11 +49,33 @@ function fetchWithTimeout(url, ms) {
   });
 }
 
+// v86.68: segue paging.next até esgotar (era 1 página de 100 — campanhas/insights
+// além da 100ª sumiam calado). Teto de segurança de 20 páginas.
+async function fetchAllPages(url, maxPages) {
+  var out = [];
+  var next = url;
+  var n = 0;
+  while (next && n < (maxPages || 20)) {
+    var r = await fetchWithTimeout(next);
+    var j = await r.json();
+    if (j.error) return { error: j.error, data: out };
+    out = out.concat(j.data || []);
+    next = (j.paging && j.paging.next) || null;
+    n++;
+  }
+  return { data: out, truncated: !!next };
+}
+
 // Processa UMA conta: 3 fetches em paralelo (campaigns + insights + acctInsights)
-async function processAccount(actId, actLabel, actToken, dateParams) {
+// includeArchived: campanhas ARCHIVED entram (histórico — last_month/this_year/
+// time_range custom); com preset corrente também, se possível (spend some em
+// campanhas arquivadas se o período as toca).
+async function processAccount(actId, actLabel, actToken, dateParams, includeArchived) {
+  var statuses = ['ACTIVE', 'PAUSED', 'CAMPAIGN_PAUSED'];
+  if (includeArchived !== false) statuses.push('ARCHIVED');
   var campaignsUrl = GRAPH_API + '/' + actId + '/campaigns'
     + '?fields=name,status,objective,effective_status'
-    + '&effective_status=["ACTIVE","PAUSED","CAMPAIGN_PAUSED"]'
+    + '&effective_status=' + encodeURIComponent(JSON.stringify(statuses))
     + '&limit=100'
     + '&access_token=' + actToken;
 
@@ -78,8 +100,8 @@ async function processAccount(actId, actLabel, actToken, dateParams) {
 
   // PARALELIZACAO: 3 fetches simultaneos (era serializado, 3x mais lento)
   var results = await Promise.all([
-    fetchWithTimeout(campaignsUrl).then(function(r){ return r.json(); }),
-    fetchWithTimeout(insightsUrl).then(function(r){ return r.json(); }),
+    fetchAllPages(campaignsUrl, 20),
+    fetchAllPages(insightsUrl, 20),
     fetchWithTimeout(acctInsUrl).then(function(r){ return r.json(); })
   ]);
 
@@ -111,9 +133,9 @@ async function processAccount(actId, actLabel, actToken, dateParams) {
   // Calcular results/cpl agregados da conta — MENSAGENS separadas de LEADS
   var acctActions = acctIns.actions || [];
   var acctMessages = 0, acctLeads = 0;
+  // v86.68: conta SÓ conversation_started_7d (first_reply é subconjunto → somava 2×)
   acctActions.forEach(function(a){
-    if (a.action_type === 'onsite_conversion.messaging_conversation_started_7d' ||
-        a.action_type === 'onsite_conversion.messaging_first_reply') {
+    if (a.action_type === 'onsite_conversion.messaging_conversation_started_7d') {
       acctMessages += parseInt(a.value || 0);
     } else if (a.action_type === 'lead' ||
         a.action_type === 'offsite_conversion.fb_pixel_lead') {
@@ -162,8 +184,7 @@ async function processAccount(actId, actLabel, actToken, dateParams) {
     var purchases = 0;
     var actions = ins.actions || [];
     actions.forEach(function(a) {
-      if (a.action_type === 'onsite_conversion.messaging_conversation_started_7d' ||
-          a.action_type === 'onsite_conversion.messaging_first_reply') {
+      if (a.action_type === 'onsite_conversion.messaging_conversation_started_7d') {
         messages += parseInt(a.value || 0);
         results += parseInt(a.value || 0);
         tipo = 'whatsapp';
@@ -212,23 +233,10 @@ async function processAccount(actId, actLabel, actToken, dateParams) {
     });
     var roas = (spend > 0 && purchaseValue > 0) ? (purchaseValue / spend) : 0;
 
-    // CPL — prefer Meta cost_per_action_type; fallback spend/results
-    var cpr = 0;
-    var costPerConversation = 0;
-    var costActions = ins.cost_per_action_type || [];
-    costActions.forEach(function(ca) {
-      if (ca.action_type === 'onsite_conversion.messaging_conversation_started_7d' ||
-          ca.action_type === 'lead' ||
-          ca.action_type === 'offsite_conversion.fb_pixel_lead' ||
-          ca.action_type === 'onsite_conversion.messaging_first_reply') {
-        cpr = parseFloat(ca.value || 0);
-      }
-      // v75.9: custo por conversa especificamente WhatsApp
-      if (ca.action_type === 'onsite_conversion.messaging_conversation_started_7d') {
-        costPerConversation = parseFloat(ca.value || 0);
-      }
-    });
-    if (cpr === 0 && results > 0 && spend > 0) cpr = spend / results;
+    // v86.68: CPR = spend/results SEMPRE (cost_per_action_type pegava o custo do
+    // último tipo iterado — msg OU lead — e não o custo por resultado total).
+    var cpr = (results > 0 && spend > 0) ? (spend / results) : 0;
+    var costPerConversation = (messages > 0 && spend > 0) ? (spend / messages) : 0;
 
     // v75.12: Video — sem video_3_sec_watched_actions (field nao existe na API).
     // Thumbstop agora deriva de actions[action_type=video_view] (ThruPlay) que tem semantica equivalente.
@@ -486,13 +494,14 @@ module.exports = async function handler(req, res) {
   var dateParams = (sinceDate && untilDate)
     ? '&time_range={"since":"' + sinceDate + '","until":"' + untilDate + '"}'
     : '&date_preset=' + datePreset;
+  var periodInfo = presetWindowBRT(datePreset, sinceDate, untilDate);
 
   try {
     // v75.11: resilience — uma conta com erro nao quebra todas. Usa Promise.allSettled.
     var perAccountSettled = await Promise.allSettled(accountIds.map(function(actId, i){
       var actLabel = accountLabels[i] || actId;
       var actToken = (accountTokens[i] && accountTokens[i].length > 0) ? accountTokens[i] : token;
-      return processAccount(actId, actLabel, actToken, dateParams);
+      return processAccount(actId, actLabel, actToken, dateParams, true);
     }));
 
     var accountSpend = [];
@@ -513,27 +522,17 @@ module.exports = async function handler(req, res) {
           label: actLabel,
           error: errMsg
         });
-        // Insere placeholder zerado pra conta aparecer no UI com indicador de erro
-        accountSpend.push({
-          id: actId,
-          label: actLabel,
-          spend: 0, impressions: 0, reach: 0, frequency: 0, clicks: 0,
-          results: 0, cpr: 0, ctr: 0, cpm: 0, cpc: 0,
-          purchaseValue: 0, roas: 0,
-          _error: errMsg
-        });
+        // v86.68: conta com erro NÃO entra em `accounts` (entrava como R$0 e
+        // contaminava totais/médias). Vai em accounts_error pro UI sinalizar.
       }
     });
-
-    var today = new Date();
-    var thirtyAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-    var period = (sinceDate || formatDate(thirtyAgo)) + ' - ' + (untilDate || formatDate(today));
 
     var payload = {
       success: accountErrors.length === 0,
       partial: accountErrors.length > 0 && accountErrors.length < accountIds.length,
-      period: period,
-      accounts: accountSpend,
+      period: periodInfo,                 // {preset, since, until, label} em BRT
+      accounts: accountSpend,             // só contas que responderam
+      accounts_error: accountErrors.map(function(e){ return { id: e.id, label: e.label, _error: e.error }; }),
       campaigns: allCampaigns,
       errors: accountErrors,  // v75.11: lista de erros por conta (nao bloqueia o response)
       fetchedAt: new Date().toISOString()
@@ -551,8 +550,42 @@ module.exports = async function handler(req, res) {
 };
 
 function formatDate(d) {
-  var dd = String(d.getDate()).padStart(2, '0');
-  var mm = String(d.getMonth() + 1).padStart(2, '0');
-  var yy = d.getFullYear();
+  var dd = String(d.getUTCDate()).padStart(2, '0');
+  var mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+  var yy = d.getUTCFullYear();
   return dd + '/' + mm + '/' + yy;
+}
+
+// v86.68: janela real do preset em BRT (UTC-3), mesma semântica da Meta
+// (last_Nd = N dias fechados SEM hoje). Datas como Date em UTC "deslocadas".
+function presetWindowBRT(preset, since, until) {
+  var iso = function(d){ return d.toISOString().slice(0, 10); };
+  var nowBRT = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  var today = new Date(Date.UTC(nowBRT.getUTCFullYear(), nowBRT.getUTCMonth(), nowBRT.getUTCDate()));
+  var addDays = function(d, n){ return new Date(d.getTime() + n * 86400000); };
+  var s, u;
+  if (since && until) {
+    s = new Date(since + 'T00:00:00Z'); u = new Date(until + 'T00:00:00Z');
+    preset = 'custom';
+  } else {
+    var lastN = { last_7d: 7, last_14d: 14, last_30d: 30, last_90d: 90 };
+    if (preset === 'today') { s = today; u = today; }
+    else if (preset === 'yesterday') { s = addDays(today, -1); u = s; }
+    else if (lastN[preset]) { u = addDays(today, -1); s = addDays(u, -(lastN[preset] - 1)); }
+    else if (preset === 'this_month') { s = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1)); u = today; }
+    else if (preset === 'last_month') {
+      var firstThis = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+      u = addDays(firstThis, -1); s = new Date(Date.UTC(u.getUTCFullYear(), u.getUTCMonth(), 1));
+    }
+    else if (preset === 'this_year') { s = new Date(Date.UTC(today.getUTCFullYear(), 0, 1)); u = today; }
+    else if (preset === 'last_year') { s = new Date(Date.UTC(today.getUTCFullYear() - 1, 0, 1)); u = new Date(Date.UTC(today.getUTCFullYear() - 1, 11, 31)); }
+    else { u = addDays(today, -1); s = addDays(u, -29); preset = preset || 'last_30d'; }
+  }
+  var valid = s && u && !isNaN(s.getTime()) && !isNaN(u.getTime());
+  return {
+    preset: preset,
+    since: valid ? iso(s) : (since || null),
+    until: valid ? iso(u) : (until || null),
+    label: valid ? (formatDate(s) + ' - ' + formatDate(u)) : ''
+  };
 }

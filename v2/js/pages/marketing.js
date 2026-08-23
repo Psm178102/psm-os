@@ -11,7 +11,7 @@
    Meta: /api/v3/marketing/summary · CRM: /api/v3/marketing/crm_metrics (tabela deals).
    Sprint 9.10 (v76.7).
 ============================================================================ */
-import { api } from '../api.js';
+import { api, fmtDataBR } from '../api.js';
 import { auth } from '../auth.js';
 import { router } from '../router.js';
 
@@ -100,14 +100,19 @@ function startAuto() {
   }, 60000);
 }
 
+// v86.68: query-string do período — fonte única (reload, breakdown, série…)
+function periodQuery() {
+  return (_since && _until)
+    ? ('?since=' + encodeURIComponent(_since) + '&until=' + encodeURIComponent(_until))
+    : ('?date_preset=' + encodeURIComponent(_preset));
+}
+
 async function reload(silent) {
   if (!_root) return;
   _busy = true;
   if (!silent) _root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando Meta Ads + CRM…</div></div>';
   try {
-    let qp = (_since && _until)
-      ? ('?since=' + encodeURIComponent(_since) + '&until=' + encodeURIComponent(_until))
-      : ('?date_preset=' + encodeURIComponent(_preset));
+    let qp = periodQuery();
     if (_nocacheOnce) { qp += '&nocache=1'; _nocacheOnce = false; }
     // Filtro de conta(s) Meta → marca(s): o CRM/Leads do RD respeitam a seleção
     // da toolbar (a conta resolve até a marca, pois o lead RD não traz a conta).
@@ -140,8 +145,9 @@ async function loadBreakdown(sel) {
   _bdSel = sel || _bdSel;
   _bdBusy = true; render();
   try {
-    _bd = await api.request('/api/v3/marketing/meta_breakdowns?breakdown='
-      + encodeURIComponent(_bdSel) + '&date_preset=' + encodeURIComponent(_preset));
+    // v86.68: respeita since/until custom (antes ignorava e mandava só o preset)
+    _bd = await api.request('/api/v3/marketing/meta_breakdowns' + periodQuery()
+      + '&breakdown=' + encodeURIComponent(_bdSel));
   } catch (e) {
     _bd = { ok: false, error: e.message };
   } finally {
@@ -308,6 +314,22 @@ function computeAlerts(campaigns) {
 // outbound CTR (cliques de link / impressões) — clique de intenção real
 function outboundCtr(c) { return (c.impressions || 0) > 0 ? ((c.inlineLinkClicks || 0) / c.impressions) * 100 : 0; }
 
+// v86.68: /api/meta-ads devolve period como {preset, since, until, label} (BRT)
+function periodLabel(p) {
+  if (!p) return _preset;
+  if (typeof p === 'string') return p;
+  if (p.label) return p.label;
+  if (p.since && p.until) return fmtDataBR(p.since) + ' - ' + fmtDataBR(p.until);
+  return p.preset || _preset;
+}
+// v86.68: cache vencido servido como fallback → avisa DESDE QUANDO
+function staleBadge(d) {
+  const c = d && d.cache;
+  if (!c || !c.stale) return '';
+  const when = c.stale_since_br || (c.stale_since ? new Date(c.stale_since).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '');
+  return ` · <span style="color:#dc2626;font-weight:700" title="${escapeHtml(c.live_error || 'Meta API indisponível')}">⚠️ dado de ${escapeHtml(when)} (desatualizado)</span>`;
+}
+
 function render() {
   const d = _data || {};
   if (d.error) { _root.innerHTML = `<div class="alert alert-err">${escapeHtml(d.error)}</div>`; return; }
@@ -319,8 +341,9 @@ function render() {
         <div style="flex:1;min-width:240px">
           <h2 class="card-title">📢 Cockpit de Tráfego · Meta Ads × CRM</h2>
           <p class="card-sub">
-            ${accounts.length} conta(s) · período <strong>${escapeHtml(d.period || _preset)}</strong> ·
+            ${accounts.length} conta(s) · período <strong>${escapeHtml(periodLabel(d.period))}</strong> ·
             atualizado ${d.fetchedAt ? new Date(d.fetchedAt).toLocaleTimeString('pt-BR') : 'agora'}
+            ${staleBadge(d)}
             ${d.partial ? ' · <span style="color:#d97706">⚠️ parcial</span>' : ''}
             ${_crm ? ` · <span style="color:#16a34a">CRM ✓ ${_crm.deals_scanned} deals</span>` : ' · <span style="color:#d97706">CRM ⚠️</span>'}
             ${_crm && _crm.truncated ? ' · <span style="color:#d97706" title="Mais deals do que o teto desta janela — aumente o recorte ou reduza o período">⚠️ amostra truncada</span>' : ''}
@@ -338,7 +361,7 @@ function render() {
 
       ${filterBar()}
 
-      ${(d.errors && d.errors.length) ? `<div class="alert alert-warn mt-2">⚠️ ${d.errors.length} conta(s) com erro: ${escapeHtml(d.errors.map(e => e.label + ' — ' + e.error).join(' · '))}</div>` : ''}
+      ${(d.errors && d.errors.length) ? `<div class="alert alert-warn mt-2">⚠️ ${d.errors.length} conta(s) com erro (fora dos totais): ${escapeHtml(d.errors.map(e => e.label + ' — ' + e.error).join(' · '))}</div>` : ''}
 
       <!-- Abas -->
       <div class="flex gap-2 mt-3" style="flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:0">
@@ -480,7 +503,7 @@ function renderTV() {
   ov.innerHTML = `
     <div style="position:sticky;top:0;z-index:5;background:rgba(11,18,32,0.94);backdrop-filter:blur(6px);border-bottom:1px solid rgba(255,255,255,0.08);padding:12px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <div style="font-size:19px;font-weight:900;color:#fff;white-space:nowrap">📺 PSM · Meta Ads</div>
-      <div style="font-size:12px;color:#94a3b8;white-space:nowrap">${nAcc} conta(s) · ${escapeHtml(d.period || _preset)}${d.partial ? ' · ⚠️ parcial' : ''}</div>
+      <div style="font-size:12px;color:#94a3b8;white-space:nowrap">${nAcc} conta(s) · ${escapeHtml(periodLabel(d.period))}${d.partial ? ' · ⚠️ parcial' : ''}</div>
       <div id="tv-age" style="font-size:12px;white-space:nowrap"></div>
       <div style="flex:1;min-width:10px"></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:center">${dots}</div>
@@ -654,7 +677,7 @@ function execHero(t, accounts) {
     <div class="flex" style="justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
       <div>
         <div style="font-size:17px;font-weight:800;color:#fff">∞ Relatório Meta Ads · PSM</div>
-        <div style="font-size:11px;color:#94a3b8">${accounts.length} conta(s) · ${escapeHtml(d.period || _preset)}${_ts && _ts.prev && _ts.prev.since ? ' · vs ' + _ts.prev.since.slice(5) + '–' + (_ts.prev.until || '').slice(5) : ''}</div>
+        <div style="font-size:11px;color:#94a3b8">${accounts.length} conta(s) · ${escapeHtml(periodLabel(d.period))}${_ts && _ts.prev && _ts.prev.since ? ' · vs ' + _ts.prev.since.slice(5) + '–' + (_ts.prev.until || '').slice(5) : ''}</div>
       </div>
     </div>
 
@@ -1198,6 +1221,10 @@ function tabTrafego() {
               <td style="text-align:right;padding:5px 8px">${a.frequency ? a.frequency.toFixed(2) : '—'}</td>
               <td style="text-align:right;padding:5px 8px">${a.roas ? a.roas.toFixed(2) + 'x' : '—'}</td>
             </tr>`).join('')}
+            ${(d.accounts_error || []).map(a => `<tr style="border-bottom:1px solid var(--border);opacity:.7">
+              <td style="padding:5px 10px;font-weight:600">${escapeHtml(a.label || a.id)} <span class="tiny" style="color:#dc2626" title="${escapeHtml(a._error || '')}">⚠️ erro — fora dos totais</span></td>
+              <td colspan="6" style="padding:5px 8px;color:#dc2626;font-size:11px">${escapeHtml(a._error || 'falha na Meta API')}</td>
+            </tr>`).join('')}
           </tbody></table></div>
       </div>` : ''}
 
@@ -1610,7 +1637,9 @@ function produtoEficienciaPanel() {
     const visitas = c?.leads_visita || 0;
     const vendas = c?.vendas || 0;
     const vgv = c?.vgv || 0;
-    const comissao = vgv * OO_COMISSAO_PCT;
+    // ROAS honesto: só VGV atribuído a canal PAGO (vgv_pago do crm_metrics), não o VGV total da marca
+    const vgvPago = Number(c?.vgv_pago ?? c?.vgv_paid ?? 0) || 0;
+    const comissao = vgvPago * OO_COMISSAO_PCT;
     const cpl = leads ? spend / leads : 0;
     const cpql = qual ? spend / qual : 0;
     const cpar = visitas ? spend / visitas : 0;
@@ -1628,7 +1657,7 @@ function produtoEficienciaPanel() {
       ${cell(cpar ? 'R$ ' + money(cpar) : '—', '#f472b6')}
       ${cell(fmtNum(vendas), '#4ade80')}
       ${cell('R$ ' + moneyShort(vgv), '#f1f5f9')}
-      ${cell(roas ? roas.toFixed(2) + 'x' : '—', roas >= 1 ? '#4ade80' : '#fb923c')}
+      ${cell(roas ? roas.toFixed(2) + 'x' : '—', roas >= 1 ? '#4ade80' : '#fb923c').replace('<td ', `<td title="VGV pago R$ ${moneyShort(vgvPago)} × ${pct2(OO_COMISSAO_PCT*100)}" `)}
     </tr>`;
   }).filter(Boolean).join('');
   if (!rows) return '';
@@ -1643,9 +1672,9 @@ function produtoEficienciaPanel() {
         <th style="text-align:right;padding:6px 8px">Visitas</th>
         <th style="text-align:right;padding:6px 8px" title="Custo por Visita Realizada (CPAR)">Custo/Visita</th>
         <th style="text-align:right;padding:6px 8px">Vendas</th><th style="text-align:right;padding:6px 8px">VGV</th>
-        <th style="text-align:right;padding:6px 8px" title="Retorno: comissão (VGV×4%) ÷ investido">ROAS</th>
+        <th style="text-align:right;padding:6px 8px" title="Retorno: comissão (VGV atribuído a mídia paga × 4%) ÷ investido">ROAS</th>
       </tr></thead><tbody>${rows}</tbody></table></div>
-    <div style="font-size:11px;color:#64748b;margin-top:8px">CPQL usa lead qualificado = lead que foi contatado/avançou no funil. ROAS = VGV ganho × <b>${pct2(OO_COMISSAO_PCT*100)}</b> de comissão ÷ investido no Meta. Investido por produto = soma das contas Meta da marca.</div>`);
+    <div style="font-size:11px;color:#64748b;margin-top:8px">CPQL usa lead qualificado = lead que foi contatado/avançou no funil. ROAS = VGV <b>atribuído a mídia paga</b> × <b>${pct2(OO_COMISSAO_PCT*100)}</b> de comissão ÷ investido no Meta. Investido por produto = soma das contas Meta da marca.</div>`);
 }
 
 // ─── Ciclo de vendas por formato de criativo (#5 — Lead Ads × CRM) ───────────

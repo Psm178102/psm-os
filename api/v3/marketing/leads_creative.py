@@ -33,20 +33,11 @@ def _parse(s):
         return None
 
 
+from _window_lib import window as _shared_window, WindowError  # type: ignore
+
+
 def _window(p):
-    today = datetime.now(timezone.utc).date()
-    if p.get("since") and p.get("until"):
-        try:
-            return date.fromisoformat(p["since"]), date.fromisoformat(p["until"])
-        except Exception:
-            pass
-    preset = p.get("date_preset") or "last_90d"
-    if preset == "this_month":
-        return today.replace(day=1), today
-    if preset == "this_year":
-        return today.replace(month=1, day=1), today
-    days = {"last_7d": 7, "last_14d": 14, "last_30d": 30, "last_90d": 90}.get(preset, 90)
-    return today - timedelta(days=days - 1), today
+    return _shared_window(p, default="last_90d")
 
 
 def _median(v):
@@ -77,13 +68,16 @@ class handler(BaseHTTPRequestHandler):
             params = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
         except Exception:
             params = {}
-        since_d, until_d = _window(params)
+        try:
+            since_d, until_d = _window(params)
+        except WindowError as e:
+            return self._send(400, {"ok": False, "error": str(e)})
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
 
-        since_iso = since_d.isoformat() + "T00:00:00+00:00"
-        until_iso = (until_d + timedelta(days=1)).isoformat() + "T00:00:00+00:00"
+        since_iso = since_d.isoformat() + "T03:00:00+00:00"   # dia BRT
+        until_iso = (until_d + timedelta(days=1)).isoformat() + "T03:00:00+00:00"
         try:
             leads = (sb.table("meta_leads").select("leadgen_id,creative_type,created_time,matched_deal_id")
                      .gte("created_time", since_iso).lt("created_time", until_iso)

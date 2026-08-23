@@ -32,6 +32,7 @@ from datetime import datetime, timezone, timedelta, date
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, supabase_client, audit, notify_all, lvl_of  # type: ignore
+from _auth_lib import hoje_brt  # type: ignore
 import re
 
 from _oo_lib import (  # type: ignore
@@ -509,7 +510,7 @@ def _fetch_events(sb, deal_ids):
 def calibrar(sb, uid, u, cfg, dias=90):
     """Estado calibrado: funil 90d por marco (cumulativo), taxa real×piso×usada,
     canais reais (share + taxa relativa), ticket 90d dele e da equipe, média 6m."""
-    today = datetime.now(timezone.utc).date()
+    today = hoje_brt()
     since_d = today - timedelta(days=dias - 1)
     since_dt = datetime(since_d.year, since_d.month, since_d.day, tzinfo=timezone.utc)
     until_dt = datetime(today.year, today.month, today.day, 23, 59, 59, tzinfo=timezone.utc)
@@ -1020,7 +1021,7 @@ class handler(BaseHTTPRequestHandler):
             if cfg.get("motor_shadow"):
                 return self._send(200, {"ok": True, "proposta": None})  # sombra: invisível
             uid = str(user.get("id"))
-            today = datetime.now(timezone.utc).date()
+            today = hoje_brt()
             achada = None
             for q in (quarter_of(today), next_quarter(today)):
                 v, _ok = _kv_read(sb, _kv_meta_key(uid, q))
@@ -1055,7 +1056,7 @@ class handler(BaseHTTPRequestHandler):
         estado["gargalo"] = gargalo(estado, cfg, cen)
 
         cen_salvo, _ok1 = _kv_read(sb, _kv_cen_key(uid))
-        today = datetime.now(timezone.utc).date()
+        today = hoje_brt()
         propostas = {}
         for q in (quarter_of(today), next_quarter(today)):
             v, _ok2 = _kv_read(sb, _kv_meta_key(uid, q))
@@ -1154,7 +1155,7 @@ class handler(BaseHTTPRequestHandler):
             uid = body.get("user_id")
             estado = body.get("estado") or {}
             cenario = body.get("cenario") or {}
-            q = body.get("quarter") or next_quarter(datetime.now(timezone.utc).date())
+            q = body.get("quarter") or next_quarter(hoje_brt())
             if not uid or not estado.get("taxas_usadas"):
                 return self._send(400, {"ok": False, "error": "user_id e estado obrigatórios"})
             if not quarter_months(q):

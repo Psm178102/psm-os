@@ -45,22 +45,17 @@ REQUIRED_ENV = [
     "GOOGLE_ADS_REFRESH_TOKEN", "GOOGLE_ADS_CUSTOMER_ID",
 ]
 
-_PRESET_GAQL = {
-    "today": "TODAY", "yesterday": "YESTERDAY", "last_7d": "LAST_7_DAYS",
-    "last_14d": "LAST_14_DAYS", "last_30d": "LAST_30_DAYS",
-    "this_month": "THIS_MONTH", "last_month": "LAST_MONTH",
-}
+from _window_lib import window as _shared_window, WindowError  # type: ignore
 
 
 def _missing_env():
     return [k for k in REQUIRED_ENV if not os.environ.get(k)]
 
 
-def _date_clause(preset, since, until):
-    if since and until:
-        # GAQL aceita BETWEEN com datas YYYY-MM-DD
-        return "segments.date BETWEEN '%s' AND '%s'" % (since, until)
-    return "segments.date DURING %s" % _PRESET_GAQL.get(preset or "last_30d", "LAST_30_DAYS")
+def _date_clause(since_d, until_d):
+    # Sempre BETWEEN com datas explícitas calculadas em BRT pela _window_lib
+    # (mesma semântica da Meta: last_7d = 7 dias fechados SEM hoje).
+    return "segments.date BETWEEN '%s' AND '%s'" % (since_d.isoformat(), until_d.isoformat())
 
 
 def _oauth_access_token(timeout=20):
@@ -137,8 +132,12 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             params = {}
         preset = params.get("date_preset") or ("" if (params.get("since") and params.get("until")) else "last_30d")
-        since = params.get("since") or ""
-        until = params.get("until") or ""
+        try:
+            since_d, until_d = _shared_window(params, default="last_30d")
+        except WindowError as e:
+            return self._send(400, {"ok": False, "error": str(e)})
+        since = since_d.isoformat()
+        until = until_d.isoformat()
         nocache = bool(params.get("nocache"))
         key = "google:" + build_cache_key(preset, since, until)
 
@@ -152,7 +151,7 @@ class handler(BaseHTTPRequestHandler):
         query = (
             "SELECT campaign.id, campaign.name, metrics.cost_micros, "
             "metrics.impressions, metrics.clicks, metrics.conversions "
-            "FROM campaign WHERE " + _date_clause(preset, since, until)
+            "FROM campaign WHERE " + _date_clause(since_d, until_d)
         )
         try:
             chunks = _gaql(query)

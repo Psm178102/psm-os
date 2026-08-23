@@ -1,5 +1,5 @@
 /* PSM-OS v2 — Check-in / out (Sprint 7.23) */
-import { api } from '../api.js';
+import { api, hojeISO } from '../api.js';
 import { auth } from '../auth.js';
 
 let _root = null, _data = null;
@@ -25,7 +25,7 @@ function render() {
   // Agrupa histórico por dia
   const byDate = {};
   hist.forEach(h => {
-    const d = h.ts.substring(0, 10);
+    const d = hojeISO(h.ts); // v86.68: dia LOCAL (BRT), não o dia UTC do timestamp
     (byDate[d] = byDate[d] || []).push(h);
   });
   const days = Object.keys(byDate).sort().reverse().slice(0, 30);

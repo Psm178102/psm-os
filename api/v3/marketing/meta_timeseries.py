@@ -25,9 +25,9 @@ from _meta_cache_lib import build_cache_key, read_cache, write_cache  # type: ig
 
 GRAPH_API = "https://graph.facebook.com/v21.0"
 CACHE_MAX_AGE_S = 30 * 60
+# v86.68: só conversation_started_7d (first_reply é subconjunto → somava 2×)
 _MSG_ACTIONS = {
     "onsite_conversion.messaging_conversation_started_7d",
-    "onsite_conversion.messaging_first_reply",
 }
 _LEAD_ONLY = {"lead", "offsite_conversion.fb_pixel_lead"}
 _LEAD_ACTIONS = _MSG_ACTIONS | _LEAD_ONLY  # retrocompat (results = mensagens + leads)
@@ -195,10 +195,14 @@ class handler(BaseHTTPRequestHandler):
                 p_since = p_until - _td(days=ndays - 1)
                 ps, pu = p_since.isoformat(), p_until.isoformat()
                 pv = {"spend": 0.0, "results": 0, "messages": 0, "leads": 0, "impressions": 0, "clicks": 0, "reach": 0}
+                prev_failed = []
                 for act_id, act_token in pairs:
                     try:
                         r = _fetch_account_total(act_id, act_token, ps, pu)
-                    except Exception:
+                    except Exception as _e:
+                        # v86.68: conta que falhou no período anterior → prev.partial,
+                        # e NÃO calcula delta (comparação seria contra base incompleta)
+                        prev_failed.append({"id": act_id, "error": str(_e)})
                         continue
                     acts = r.get("actions")
                     pv["spend"] += float(r.get("spend") or 0)
@@ -211,10 +215,12 @@ class handler(BaseHTTPRequestHandler):
                 pv["spend"] = round(pv["spend"], 2)
                 pv["cpl"] = round(pv["spend"] / pv["results"], 2) if pv["results"] > 0 else 0
                 pv["ctr"] = round(pv["clicks"] / pv["impressions"] * 100, 2) if pv["impressions"] > 0 else 0
-                prev = {"since": ps, "until": pu, **pv}
-                for k in ("spend", "results", "messages", "leads", "impressions", "clicks", "reach", "cpl", "ctr"):
-                    base = pv.get(k) or 0
-                    delta[k] = round((tot.get(k, 0) - base) / base * 100, 1) if base else None
+                prev = {"since": ps, "until": pu, **pv,
+                        "partial": bool(prev_failed), "accounts_error": prev_failed}
+                if not prev_failed:
+                    for k in ("spend", "results", "messages", "leads", "impressions", "clicks", "reach", "cpl", "ctr"):
+                        base = pv.get(k) or 0
+                        delta[k] = round((tot.get(k, 0) - base) / base * 100, 1) if base else None
             except Exception:
                 prev, delta = {}, {}
 

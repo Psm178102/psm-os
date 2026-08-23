@@ -19,10 +19,10 @@ POST set_cfg | set_origem {deal_id, origem} | set_estagiario {user_id, on}
 """
 from http.server import BaseHTTPRequestHandler
 import json, os, sys, urllib.parse
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError, audit, frente_of  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, audit, frente_of, agora_brt  # type: ignore
 from _fisc_lib import _kv, _kv_ok, _kv_set, get_cfg as fisc_cfg, premio_faixa  # type: ignore
 
 CFG_KEY = "comissao_cfg"
@@ -101,15 +101,19 @@ def _faixa_rate(faixas, count):
     return float(faixas[-1][1]) if faixas else 0.0
 
 
+BRT = timezone(timedelta(hours=-3))
+
+
 def _mes_range(mes):
-    """'YYYY-MM' → (ini_iso, fim_iso, rótulo). Default = mês corrente."""
+    """'YYYY-MM' → (ini_iso, fim_iso, rótulo). Default = mês corrente (BRT).
+    Competência em horário de Brasília: 1º do mês 00:00 BRT = 03:00Z."""
     if not mes:
-        hoje = datetime.now(timezone.utc)
+        hoje = agora_brt()
         y, m = hoje.year, hoje.month
     else:
         y, m = int(mes[:4]), int(mes[5:7])
-    ini = datetime(y, m, 1, tzinfo=timezone.utc)
-    fim = datetime(y + (1 if m == 12 else 0), (1 if m == 12 else m + 1), 1, tzinfo=timezone.utc)
+    ini = datetime(y, m, 1, tzinfo=BRT).astimezone(timezone.utc)
+    fim = datetime(y + (1 if m == 12 else 0), (1 if m == 12 else m + 1), 1, tzinfo=BRT).astimezone(timezone.utc)
     return ini.isoformat(), fim.isoformat(), f"{y:04d}-{m:02d}"
 
 
@@ -120,10 +124,10 @@ def _inativo(cid, inativos):
 
 
 def _ano_range(mes):
-    """'YYYY-MM' → (ini_iso, fim_iso) do ANO — base do acumulado que promove a sênior."""
-    y = int(mes[:4]) if mes else datetime.now(timezone.utc).year
-    return (datetime(y, 1, 1, tzinfo=timezone.utc).isoformat(),
-            datetime(y + 1, 1, 1, tzinfo=timezone.utc).isoformat())
+    """'YYYY-MM' → (ini_iso, fim_iso) do ANO (BRT) — base do acumulado que promove a sênior."""
+    y = int(mes[:4]) if mes else agora_brt().year
+    return (datetime(y, 1, 1, tzinfo=BRT).astimezone(timezone.utc).isoformat(),
+            datetime(y + 1, 1, 1, tzinfo=BRT).astimezone(timezone.utc).isoformat())
 
 
 def _source_name(raw):
@@ -274,16 +278,22 @@ def calcular(sb, mes=None):
             nivel, taxa, origem_lbl = o.get("nivel"), float(o.get("taxa") or 0), o.get("rotulo")
         else:
             nivel, taxa, origem_lbl = None, 0.0, "⚠️ origem indefinida"
-        desconto = 0.0
+        desconto, premio_pendente = 0.0, False
         ind = ind_por_deal.get(did)
         if ind:
             p = premio_faixa(faixas_v, vgv)
-            desconto = float(p or 0)
+            if p is None:
+                # acima da última faixa (R$1M+): prêmio é personalizável — NÃO é zero.
+                # Não desconta até o sócio definir; sinaliza na linha.
+                premio_pendente = True
+            else:
+                desconto = float(p)
         c = por_corretor.setdefault(cid, {"corretor_id": cid, "corretor_nome": d.get("user_email") or cid,
                                           "vendas": [], "vgv_total": 0.0, "vgv_n2n3": 0.0})
         c["vendas"].append({"deal_id": did, "cliente": d.get("name"), "vgv": vgv,
                             "origem": origem, "origem_lbl": origem_lbl, "nivel": nivel,
                             "taxa": taxa, "desconto_indicacao": desconto,
+                            "premio_pendente": premio_pendente,
                             "fonte_rd": src, "definida": bool(nivel)})
         c["vgv_total"] += vgv
         if nivel in (acel.get("niveis") or [2, 3]):
@@ -297,7 +307,7 @@ def calcular(sb, mes=None):
         nomes.update({(u.get("email") or "").lower(): u.get("name") for u in us if u.get("email")})
         # quem saiu da PSM não entra na tela de comissão (nem na régua do Sênior)
         for u in us:
-            if (u.get("status") or "").lower() != "ativo":
+            if (u.get("status") or "ativo").lower() != "ativo":
                 inativos.add(str(u["id"]))
                 if u.get("email"):
                     inativos.add((u["email"] or "").lower())
@@ -337,12 +347,29 @@ def calcular(sb, mes=None):
     mar = {"faixas": faixas, "teto": teto, "fechadas": [], "total": 0.0, "qtd": 0,
            "rate": 0.0, "no_teto": False}
     try:
-        inds = sb.table("indicacoes").select("id,indicador_nome,indicado_nome,deal_id,valor_negocio,status,atualizado_em,origem") \
-            .in_("origem", list(op_origens)).in_("status", ["vendida", "premio_aprovado", "premio_pago"]) \
-            .gte("atualizado_em", ini).lt("atualizado_em", fim).limit(500).execute().data or []
-        for r in inds:
+        # Competência = mês do FECHAMENTO: closed_at do deal vinculado > vendida_em > atualizado_em (último recurso)
+        todas = _page(lambda: sb.table("indicacoes").select("*")
+                      .in_("origem", list(op_origens)).in_("status", ["vendida", "premio_aprovado", "premio_pago"])
+                      .order("id"), cap=6000)
+        closed = {}
+        dids = [str(r["deal_id"]) for r in todas if r.get("deal_id")]
+        for i in range(0, len(dids), 200):
+            for d in (sb.table("deals").select("id,closed_at").in_("id", dids[i:i + 200]).execute().data or []):
+                if d.get("closed_at"):
+                    closed[str(d["id"])] = d["closed_at"]
+        inds = []
+        for r in todas:
+            if closed.get(str(r.get("deal_id") or "")):
+                dt, base = closed[str(r["deal_id"])], "closed_at"
+            elif r.get("vendida_em"):
+                dt, base = r["vendida_em"], "vendida_em"
+            else:
+                dt, base = r.get("atualizado_em"), "atualizado_em"
+            if not dt or not (ini <= str(dt) < fim):
+                continue
+            inds.append(r)
             mar["fechadas"].append({"indicador": r.get("indicador_nome"), "indicado": r.get("indicado_nome"),
-                                    "vgv": r.get("valor_negocio")})
+                                    "vgv": r.get("valor_negocio"), "data": dt, "data_base": base})
         n = len(inds)
         rate = _faixa_rate(faixas, n) if n else 0.0
         bruto = n * rate

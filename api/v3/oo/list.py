@@ -16,11 +16,15 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Methods", "GET,OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization"); self.end_headers()
     def do_GET(self):
-        try: user = require_user(self, min_lvl=5)   # v83.9: alinhado à página One-on-One (dado de gestor; antes lvl 0 expunha performance)
+        try: user = require_user(self, min_lvl=0)
         except AuthError as e: return self._send(e.status, {"ok": False, "error": e.message})
         try:
             params = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
         except: params = {}
+        # v86.65: lvl<5 só entra pra ver o PRÓPRIO histórico (corretor_id == user.id);
+        # gestão (lvl>=5) segue como antes (v83.9)
+        if (user.get("lvl") or 0) < 5 and str(params.get("corretor_id") or "") != str(user.get("id")):
+            return self._send(403, {"ok": False, "error": "corretor vê só o próprio histórico de 1:1"})
         sb = supabase_client()
         if not sb: return self._send(503, {"ok": False, "error": "backend"})
         try:

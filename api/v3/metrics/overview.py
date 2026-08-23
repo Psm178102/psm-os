@@ -108,22 +108,26 @@ def _users_summary(sb, scope, user):
 def _commissions_summary(sb, scope, user):
     # PAGINA (PostgREST trava em ~1000/resposta) — valores de comissão somados aqui
     # aparecem no Dashboard de Início; sem paginar, somariam errado se houver +1000 comissões.
+    # v86.65: escopo filtrado NO BANCO (.eq/.in_) em vez de paginar tudo e filtrar em Python
+    team_ids = None
+    if scope == "team":
+        team = (user.get("team") or "").strip().lower()
+        team_ids = sorted({u["id"] for u in (sb.table("users").select("id").ilike("team", team).execute().data or [])})
+        if not team_ids:
+            return {"count": 0, "pendentes": 0, "pagas": 0, "valor_total": 0.0, "valor_pendente": 0.0}
     rows = []
     _pg = 0
     while True:
-        _ch = sb.table("commissions").select("id,corretor_id,valor,status,data,data_pagamento") \
-            .order("id").range(_pg * 1000, _pg * 1000 + 999).execute().data or []
+        q = sb.table("commissions").select("id,corretor_id,valor,status,data,data_pagamento")
+        if scope == "self":
+            q = q.eq("corretor_id", user["id"])
+        elif scope == "team":
+            q = q.in_("corretor_id", team_ids)
+        _ch = q.order("id").range(_pg * 1000, _pg * 1000 + 999).execute().data or []
         rows.extend(_ch)
         if len(_ch) < 1000 or _pg >= 50:
             break
         _pg += 1
-    if scope == "team":
-        # Filtra os do time — precisamos saber os user_ids do time
-        team = (user.get("team") or "").lower()
-        team_ids = {u["id"] for u in (sb.table("users").select("id").eq("team", team).execute().data or [])}
-        rows = [r for r in rows if r.get("corretor_id") in team_ids]
-    if scope == "self":
-        rows = [r for r in rows if r.get("corretor_id") == user["id"]]
 
     count = len(rows)
     pendentes = sum(1 for r in rows if (r.get("status") or "").lower() in ("pendente", "aberto", "previsto"))
@@ -198,8 +202,10 @@ def _sales_summary(sb, scope, user):
     """
     now = datetime.now(timezone.utc)
     iso_30d = (now - timedelta(days=30)).isoformat()
-    inicio_mes = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
-    inicio_ano = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
+    # v86.65: fronteira de mês/ano em BRT (UTC-3) — 1º dia 00:00 BRT = 03:00 UTC
+    agora_b = now - timedelta(hours=3)
+    inicio_mes = (agora_b.replace(day=1, hour=0, minute=0, second=0, microsecond=0) + timedelta(hours=3)).isoformat()
+    inicio_ano = (agora_b.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0) + timedelta(hours=3)).isoformat()
 
     # Lê TODOS os deals PAGINANDO. Antes usava .limit(5000), mas o PostgREST do Supabase
     # trava em ~1000 linhas/resposta — pegava só os 1000 primeiros deals (quase todos abertos)
@@ -207,21 +213,35 @@ def _sales_summary(sb, scope, user):
     # ficando consistente com /metas/atingimento (mesma tabela deals, win=true).
     rows = []
     page = 0
+    team_ids = None
+
+    def _amt(r):
+        """amount com fallback em rd_raw.amount_total (v86.65)."""
+        for v in (r.get("amount"), r.get("amt_total")):
+            try:
+                if v not in (None, "") and float(v) > 0:
+                    return float(v)
+            except (TypeError, ValueError):
+                pass
+        return 0.0
     while True:
-        q = sb.table("deals").select("id,amount,closed_at,created_at_rd,updated_at_rd,user_id,user_email,win,pipeline_name") \
+        q = sb.table("deals").select("id,amount,closed_at,created_at_rd,updated_at_rd,user_id,user_email,win,pipeline_name,amt_total:rd_raw->amount_total") \
             .order("id").range(page * 1000, page * 1000 + 999)
         if scope == "self":
             q = q.eq("user_id", user["id"])
+        elif scope == "team":
+            # v86.65: filtra a equipe NO BANCO
+            if team_ids is None:
+                team = (user.get("team") or "").strip().lower()
+                team_ids = sorted({u["id"] for u in (sb.table("users").select("id").ilike("team", team).execute().data or [])})
+            if not team_ids:
+                break
+            q = q.in_("user_id", team_ids)
         chunk = q.execute().data or []
         rows.extend(chunk)
         if len(chunk) < 1000 or page >= 50:
             break
         page += 1
-
-    if scope == "team":
-        team = (user.get("team") or "").lower()
-        team_ids = {u["id"] for u in (sb.table("users").select("id").eq("team", team).execute().data or [])}
-        rows = [r for r in rows if r.get("user_id") in team_ids]
 
     wins = [r for r in rows if r.get("win") is True]
     perdidos = [r for r in rows if r.get("win") is False]
@@ -237,7 +257,7 @@ def _sales_summary(sb, scope, user):
         fr = frente_of(r.get("pipeline_name"))
         b = frentes_pipe.setdefault(fr, {"n": 0, "vgv": 0.0, "sem_valor": 0})
         b["n"] += 1
-        v = float(r.get("amount") or 0)
+        v = _amt(r)
         b["vgv"] += v
         if v <= 0:
             b["sem_valor"] += 1
@@ -247,7 +267,7 @@ def _sales_summary(sb, scope, user):
         return bool(d) and d >= iso_start
 
     def sum_vgv(arr):
-        return sum(float(r.get("amount") or 0) for r in arr)
+        return sum(_amt(r) for r in arr)
 
     wins_30d = [r for r in wins if in_period(r, iso_30d)]
     wins_mes = [r for r in wins if in_period(r, inicio_mes)]

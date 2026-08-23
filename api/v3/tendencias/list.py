@@ -9,7 +9,7 @@ import json, os, sys, urllib.parse
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, audit, hoje_brt  # type: ignore
 
 
 class handler(BaseHTTPRequestHandler):
@@ -54,7 +54,7 @@ class handler(BaseHTTPRequestHandler):
             "direcao": body.get("direcao") or "estavel",
             "impacto": body.get("impacto") or "medio",
             "descricao": (body.get("descricao") or "").strip() or None,
-            "data": body.get("data") or datetime.now(timezone.utc).date().isoformat(),
+            "data": body.get("data") or hoje_brt().isoformat(),  # v86.68: dia BRT
             "criado_por": actor.get("id"),
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }

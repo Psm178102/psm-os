@@ -24,7 +24,7 @@ import json, os, re, sys, urllib.parse
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError, audit, frente_of  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, audit, frente_of, agora_brt  # type: ignore
 
 KV_STATE = "reativacao_map"
 KV_CFG = "reativacao_cfg"
@@ -210,7 +210,8 @@ class handler(BaseHTTPRequestHandler):
                 nome = (actor.get("name") or actor.get("email") or "").lower()
                 colab = "leire" if "leire" in nome else ("mariane" if "mariane" in nome else None)
                 if colab:
-                    hoje_utc = datetime.now(timezone.utc).strftime("%Y-%m-%dT00:00:00+00:00")
+                    # v86.65: início do dia BRT (00:00 UTC-3 = 03:00 UTC)
+                    hoje_utc = agora_brt().strftime("%Y-%m-%dT03:00:00+00:00")
                     ja = sb.table("producao_eventos").select("id").eq("tipo", "reativacao_tocada") \
                         .eq("ref_id", deal_id).gte("ts", hoje_utc).limit(1).execute().data or []
                     if not ja:

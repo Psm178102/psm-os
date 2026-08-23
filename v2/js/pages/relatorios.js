@@ -1,5 +1,5 @@
 /* PSM-OS v2 — Relatórios Print/PDF (Sprint 7.27) */
-import { api } from '../api.js';
+import { api, hojeISO } from '../api.js';
 import { auth } from '../auth.js';
 
 let _root = null;
@@ -171,7 +171,7 @@ async function loadRankingGeral(out) {
 }
 
 async function loadCaptacoes(out) {
-  const since = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+  const since = hojeISO(Date.now() - 90 * 86400000); // v86.68
   const r = await api.request('/api/v3/captacoes/list?since=' + since);
   const items = (r.ranking || []).slice(0, 30);
   out.innerHTML = `
@@ -244,8 +244,9 @@ async function loadMetasStatus(out) {
 
 async function loadPlantoesMes(out) {
   const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
-  const end = new Date(now.getFullYear(), now.getMonth()+1, 0).toISOString().slice(0,10);
+  // v86.68: hojeISO (local) — toISOString em meia-noite local virava o dia anterior (UTC)
+  const start = hojeISO(new Date(now.getFullYear(), now.getMonth(), 1));
+  const end = hojeISO(new Date(now.getFullYear(), now.getMonth()+1, 0));
   const [r, u] = await Promise.all([
     api.request(`/api/v3/plantoes/list?since=${start}&until=${end}`),
     api.request('/api/v3/users/list').catch(() => ({ users: [] })),

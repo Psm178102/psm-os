@@ -20,6 +20,7 @@ TIPOS_POR_COLAB = {
     "mariane": ["abordagem_indicacao", "indicacao_qualificada", "nps_coletado",
                 "venda_atribuida_indicacao"],
     "guilherme": ["captacao_fechada", "contrato_locacao", "conteudo_entregue"],
+    "rafaela": ["conversa_rede", "reuniao_qualificada_agendada", "proposta_coconduzida", "vgv_proprio_rafaela"],   # piloto MAP v2.3
 }
 
 DEFAULT_CFG = {
@@ -56,6 +57,15 @@ DEFAULT_CFG = {
                 "art_map":          {"m1": 6, "m2": 6, "m3": 5, "final": 4},
             },
         },
+        "rafaela": {
+            "nome": "Rafaela", "user_match": "rafaela", "motor": "reuniao_qualificada_agendada",
+            "rotulo": "Piloto MAP · 90 dias", "metas_mes": {"conversa_rede": 45, "reuniao_qualificada_agendada": 7,
+                                                            "proposta_coconduzida": 3, "vgv_proprio_rafaela": 1},
+            "gates": [
+                {"dias": 30, "ate": "2026-09-02", "criterio": "Ritmo provado: 40–50 conversas de rede + 6–8 reuniões qualificadas agendadas"},
+                {"dias": 60, "ate": "2026-10-02", "criterio": "≥3 propostas co-conduzidas com Paulo/Isa"},
+                {"dias": 90, "ate": "2026-11-01", "criterio": "1º VGV próprio (R$ 300–500k) → efetivação; senão, decisão honesta"},
+            ]},
     },
     "horarios": {"manha_ini": 8, "manha_fim": 12, "dia_fim": 18},
     "semaforo": {"verde_pct": 80, "amarelo_pct": 50},
@@ -106,24 +116,47 @@ def get_cfg(sb, seed=True):
     return _merge(DEFAULT_CFG, saved or {})
 
 
+def _ids_do_user(u):
+    """Identificadores COMPLETOS de um user (id, login, e-mail, parte local do e-mail) — em minúsculas.
+    v86.70: nunca substring de nome ("ana" batia em "Mariane", "Ariane"...)."""
+    out = set()
+    for k in ("id", "login", "email"):
+        v = str(u.get(k) or "").strip().lower()
+        if v:
+            out.add(v)
+            if k == "email" and "@" in v:
+                out.add(v.split("@", 1)[0])
+    return out
+
+
+def _match_user(u, match, user_id=None):
+    if user_id and str(u.get("id") or "") == str(user_id):
+        return True
+    m = str(match or "").strip().lower()
+    return bool(m) and m in _ids_do_user(u)
+
+
 def colaborador_do_user(cfg, user):
-    """Chave ('leire'…) do user logado, batendo user_match em name/login/email."""
-    alvo = " ".join(str(user.get(k) or "") for k in ("name", "login", "email")).lower()
+    """Chave ('leire'…) do user logado. Prefere `user_id` configurado no colaborador;
+    senão igualdade de login/e-mail completo com user_match (nunca substring de nome)."""
     for key, c in (cfg.get("colaboradores") or {}).items():
-        if (c.get("user_match") or key) in alvo:
+        if c.get("user_id") and str(user.get("id") or "") == str(c["user_id"]):
+            return key
+    for key, c in (cfg.get("colaboradores") or {}).items():
+        if not c.get("user_id") and _match_user(user, c.get("user_match") or key):
             return key
     return None
 
 
-def user_ids_por_match(sb, match):
-    """ids de users ativos cujo name/login/email contém o match (pra notify)."""
+def user_ids_por_match(sb, match, user_id=None):
+    """ids de users ativos cujo id/login/e-mail é IGUAL ao match (pra notify).
+    `user_id` (quando configurado no colaborador) tem prioridade."""
     try:
         rows = sb.table("users").select("id,name,login,email,status").execute().data or []
     except Exception:
         return []
-    m = (match or "").lower()
     return [r["id"] for r in rows
-            if m and m in " ".join(str(r.get(k) or "") for k in ("name", "login", "email")).lower()
+            if _match_user(r, match, user_id)
             and (r.get("status") or "ativo") == "ativo"]   # v86.45: pausado (licença) também fora
 
 
@@ -191,6 +224,8 @@ def contadores(eventos, cfg, now=None):
 def esperado_agora(metas_motor, cfg, now=None):
     """Meta proporcional ao horário: manhã até manha_fim, dia inteiro até dia_fim."""
     now = now or agora_brt()
+    if now.weekday() >= 5:   # sábado/domingo: nada esperado
+        return 0.0
     h = (cfg.get("horarios") or {})
     ini, meio, fim = int(h.get("manha_ini", 8)), int(h.get("manha_fim", 12)), int(h.get("dia_fim", 18))
     m_manha = float(metas_motor.get("manha") or 0)
@@ -321,7 +356,7 @@ def checar_alertas(sb, cfg, eventos, notify_all, enviar=True):
     # Leire: doc >48h e ticket locação >24h (dispara NO ATO de cruzar, via pulso)
     lc = colabs.get("leire") or {}
     sla = lc.get("sla_horas") or {}
-    lids = user_ids_por_match(sb, lc.get("user_match") or "leire")
+    lids = user_ids_por_match(sb, lc.get("user_match") or "leire", lc.get("user_id"))
     # v86.42 (pedido do Paulo 18/ago): responsável DESLIGADO/sem usuário ativo →
     # o bloco inteiro cala (nem o colaborador nem a gestão recebem pendência órfã)
     if lids:

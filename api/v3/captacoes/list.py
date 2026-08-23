@@ -7,7 +7,7 @@ from collections import defaultdict
 from datetime import date, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, hoje_brt  # type: ignore
 
 
 class handler(BaseHTTPRequestHandler):
@@ -25,7 +25,7 @@ class handler(BaseHTTPRequestHandler):
         try:
             params = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
         except: params = {}
-        since = params.get("since") or (date.today() - timedelta(days=90)).isoformat()
+        since = params.get("since") or (hoje_brt() - timedelta(days=90)).isoformat()  # v86.68
         sb = supabase_client()
         if not sb: return self._send(503, {"ok": False, "error": "backend"})
         try:

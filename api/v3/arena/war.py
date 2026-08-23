@@ -37,7 +37,8 @@ def _build(sb):
     now = datetime.now(timezone.utc)
     brt = now + BRT
     y, m, dia = brt.year, brt.month, brt.day
-    inicio_mes = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
+    # v86.68: 1º do mês em BRT convertido pra UTC (00:00 BRT = 03:00Z); antes misturava mês BRT c/ início UTC
+    inicio_mes = (datetime(y, m, 1, tzinfo=timezone.utc) - BRT).isoformat()
 
     users = {}
     for u in (sb.table("users").select("id,name,ini,color,team,role,status,hide_from_ranking").execute().data or []):

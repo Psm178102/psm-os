@@ -1,5 +1,5 @@
 /* PSM-OS v2 — One-on-One · Cockpit de Gestão Individual do Corretor */
-import { api, selectableUsers } from '../api.js';
+import { api, selectableUsers, hojeISO } from '../api.js';
 import { auth } from '../auth.js';
 
 let _root = null;
@@ -156,7 +156,7 @@ async function loadDetail() {
   try {
     const [d, m, u, n] = await Promise.all([
       api.request('/api/v3/oo/corretor?corretor_id=' + encodeURIComponent(_selId) + '&' + ooQP()),
-      api.request('/api/v3/oo/list?corretor_id=' + encodeURIComponent(_selId)).catch(() => ({ items: [] })),
+      api.request('/api/v3/oo/list?corretor_id=' + encodeURIComponent(_selId)),   // v86.65: erro sobe (antes engolia e mostrava histórico vazio)
       _users.length ? Promise.resolve({ users: _users }) : api.request('/api/v3/users/list').catch(() => ({ users: [] })),
       api.request('/api/v3/oo/norte?corretor_id=' + encodeURIComponent(_selId) + '&' + ooQP()).catch(() => null),
     ]);
@@ -740,7 +740,7 @@ function openMeeting(iid) {
     <div class="card" style="margin:0;max-width:540px;width:100%;max-height:90vh;overflow-y:auto">
       <h3 class="card-title">${i ? '✏️ Editar' : '➕ Nova'} reunião 1:1 — ${escapeHtml(_det.corretor.name)}</h3>
       <div class="flex gap-2" style="flex-wrap:wrap">
-        <div class="field" style="flex:1;min-width:140px"><label>Data *</label><input id="oo-data" type="date" class="input" value="${i?.data || new Date().toISOString().slice(0,10)}"></div>
+        <div class="field" style="flex:1;min-width:140px"><label>Data *</label><input id="oo-data" type="date" class="input" value="${i?.data || hojeISO()}"></div>
         <div class="field" style="flex:1;min-width:160px"><label>Líder/Gestor</label>
           <select id="oo-lider" class="select">${selectableUsers(_users.filter(u => ['lider','gerente','socio','diretor'].includes((u.role||'').toLowerCase())), i?.lider_id, auth.user()?.id).map(u => `<option value="${escapeHtml(u.id)}"${(i?.lider_id||auth.user()?.id)===u.id?' selected':''}>${escapeHtml(u.name)}</option>`).join('')}</select>
         </div>

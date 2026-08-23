@@ -18,7 +18,7 @@ from _brain_lib import loss_clusters  # type: ignore
 PUBLIC_BASE = (os.environ.get("PUBLIC_BASE_URL") or "https://www.housepsm.com.br").rstrip("/")
 # v84.4 — dossiê rico + frente_of (fonte única)
 from _dossie_lib import compile_dossie  # type: ignore
-from _auth_lib import frente_of  # type: ignore
+from _auth_lib import frente_of, hoje_brt  # type: ignore
 
 
 def _fetch_closed(sb, since_iso):
@@ -71,8 +71,9 @@ def compile_facts(sb, today):
     }
 
     # ── Mídia (Meta) ──
+    spend_preset = None
     try:
-        spend = read_meta_spend(sb)
+        spend, spend_preset = read_meta_spend(sb, return_preset=True)
     except Exception:
         spend = None
     leads_30d = None
@@ -84,8 +85,10 @@ def compile_facts(sb, today):
         pass
     facts["ads"] = {
         "meta_spend_mensal": round(spend, 2) if spend else None,
+        "meta_spend_preset": spend_preset,
         "leads_30d": leads_30d,
         "cpl": round(spend / leads_30d, 2) if (spend and leads_30d) else None,
+        "cpl_base": f"gasto {spend_preset} / leads 30d" if (spend and leads_30d) else None,
     }
 
     # ── Concorrência (Biblioteca de Anúncios) ──
@@ -162,7 +165,7 @@ def _ai_text(prompt, max_tokens=4000):
 def generate_and_store(sb, actor_id=None):
     """Compila → gera com IA → tenta salvar. Retorna o briefing mesmo se a
     tabela war_briefings ainda não existir (saved=False)."""
-    today = datetime.now(timezone.utc).date()
+    today = hoje_brt()  # v86.68: hoje BRT
     facts = compile_facts(sb, today)
     try:
         facts["dossie"] = compile_dossie(sb, frente_of)   # contexto COMPLETO (v84.4)

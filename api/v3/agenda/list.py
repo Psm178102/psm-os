@@ -16,7 +16,7 @@ from datetime import date, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "zoho"))
-from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, hoje_brt  # type: ignore
 
 _SYNC_THROTTLE_S = 20
 
@@ -93,7 +93,7 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             params = {}
 
-        today = date.today()
+        today = hoje_brt()  # v86.68: hoje do negócio (BRT), não UTC
         since = params.get("since") or today.isoformat()
         until = params.get("until") or (today + timedelta(days=30)).isoformat()
 

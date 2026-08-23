@@ -108,18 +108,11 @@ def _scan(obj, keyset, depth=0):
     return None
 
 
+from _window_lib import window as _shared_window, WindowError  # type: ignore
+
+
 def _window(params):
-    preset = params.get("date_preset") or ("" if (params.get("since") and params.get("until")) else "last_30d")
-    since = params.get("since")
-    until = params.get("until")
-    today = datetime.now(timezone.utc).date()
-    if since and until:
-        try:
-            return date.fromisoformat(since), date.fromisoformat(until)
-        except Exception:
-            pass
-    days = {"last_7d": 7, "last_14d": 14, "last_30d": 30, "last_90d": 90, "this_month": today.day}.get(preset, 30)
-    return today - timedelta(days=days - 1), today
+    return _shared_window(params, default="last_30d")
 
 
 class handler(BaseHTTPRequestHandler):
@@ -149,9 +142,13 @@ class handler(BaseHTTPRequestHandler):
             params = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
         except Exception:
             params = {}
-        since_d, until_d = _window(params)
-        since_iso = since_d.isoformat() + "T00:00:00+00:00"
-        until_iso = (until_d + timedelta(days=1)).isoformat() + "T00:00:00+00:00"
+        try:
+            since_d, until_d = _window(params)
+        except WindowError as e:
+            return self._send(400, {"ok": False, "error": str(e)})
+        # dia BRT = 03:00Z .. 03:00Z do dia seguinte
+        since_iso = since_d.isoformat() + "T03:00:00+00:00"
+        until_iso = (until_d + timedelta(days=1)).isoformat() + "T03:00:00+00:00"
         # Filtro de marca (brand_keys, ex.: imoveis,conquista). Vazio = todas.
         # Mapeia a seleção de conta(s) Meta → marca (1 conta resolve até a marca,
         # pois o lead do RD não carrega a conta de anúncio, só o funil/marca).

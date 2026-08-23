@@ -1,5 +1,5 @@
 /* PSM-OS v2 — Premiações (Sprint 8.1) */
-import { api } from '../api.js';
+import { api, hojeISO } from '../api.js';
 import { auth } from '../auth.js';
 
 let _root = null;
@@ -130,7 +130,7 @@ function renderList() {
   const body = document.getElementById('prem-body');
   if (!body) return;
   const isSocio = (auth.user()?.lvl || 0) >= 7;
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = hojeISO(); // v86.68: hoje local (BRT)
   const ativas = _items.filter(p => p.fim >= hoje && p.inicio <= hoje);
   const futuras = _items.filter(p => p.inicio > hoje);
   const encerradas = _items.filter(p => p.fim < hoje);
