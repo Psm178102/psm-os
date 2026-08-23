@@ -155,7 +155,8 @@ function pageHTML() {
     <div class="gc-top">
       <h2 class="card-title" style="margin:0">📊 Gestão Comercial</h2>
       <span class="tiny muted">${d.janela.since} → ${d.janela.until} · ${fN(d.coorte_n)} leads · origem ${d.cobertura_origem_pct != null ? fN(d.cobertura_origem_pct) + '%' : '—'}</span>
-      <span style="flex:1"></span>
+    </div>
+    <div class="gc-top" style="margin-top:8px">
       <select class="select" id="gc-preset" style="width:auto;padding:4px 8px;font-size:12px">
         <option value="">Período…</option><option value="semana">Semana atual</option><option value="quinzena">Quinzena (15d)</option>
         <option value="mes">Mês atual</option><option value="90d">Últimos 90d</option><option value="tri">Trimestre atual</option>
@@ -216,10 +217,19 @@ function postRender() { initCharts(); srPerformance(); }
 
 /* ═══════════ 🧭 COCKPIT — "Como está nosso mês?" ═══════════ */
 function statusOf(v) {
-  const meta = v.meta_vendas || 0, real = v.real_vendas || 0;
+  let meta = v.meta_vendas || 0, real = v.real_vendas || 0;
+  let pr = v.proj_ritmo;
+  if (!meta && v.meta_vgv) {   // v86.62: sem meta de VENDAS cadastrada → julga pelo VGV (ritmo do VGV pelo dia do mês)
+    const h = new Date(), pm = h.getDate() / new Date(h.getFullYear(), h.getMonth() + 1, 0).getDate();
+    meta = v.meta_vgv; real = v.real_vgv || 0; pr = pm > 0 ? real / pm : real;
+    if (real >= meta) return { k: 'ok', c: 'var(--gc-ok)', lbl: 'meta VGV batida' };
+    if (pr >= meta) return { k: 'ok', c: 'var(--gc-ok)', lbl: 'no ritmo (VGV)' };
+    if (pr >= meta * 0.7) return { k: 'warn', c: 'var(--gc-warn)', lbl: 'atrás do ritmo (VGV)' };
+    return { k: 'err', c: 'var(--gc-err)', lbl: 'fora do ritmo (VGV)' };
+  }
   if (!meta) return { k: 'none', c: 'var(--ink-muted)', lbl: 'sem meta' };
   if (real >= meta) return { k: 'ok', c: 'var(--gc-ok)', lbl: 'meta batida' };
-  const p = v.proj_ritmo != null ? v.proj_ritmo : real;
+  const p = pr != null ? pr : real;
   if (p >= meta) return { k: 'ok', c: 'var(--gc-ok)', lbl: 'no ritmo' };
   if (p >= meta * 0.7) return { k: 'warn', c: 'var(--gc-warn)', lbl: 'atrás do ritmo' };
   return { k: 'err', c: 'var(--gc-err)', lbl: 'fora do ritmo' };
@@ -237,7 +247,7 @@ function cockpit() {
   const real = sum('real_vendas'), meta = sum('meta_vendas'), vgv = sum('real_vgv'), vgvMeta = sum('meta_vgv');
   const projR = vis.some(x => x.proj_ritmo != null) ? vis.reduce((a, x) => a + (Number(x.proj_ritmo) || 0), 0) : null;
   const projN = vis.some(x => x.proj_vendas) ? sum('proj_vendas') : null;
-  const agg = { real_vendas: real, meta_vendas: meta, proj_ritmo: projR };
+  const agg = { real_vendas: real, meta_vendas: meta, proj_ritmo: projR, meta_vgv: vgvMeta, real_vgv: vgv };
   const st = statusOf(agg);
   const pct = meta ? Math.min(100, real / meta * 100) : 0;
   const cus = (v.custos || {}).equipes || [];
@@ -290,16 +300,17 @@ function cockpit() {
 }
 
 /* ═══════════ 🧠 SR. PERFORMANCE — 1 análise por aba (v86.61) ═══════════ */
-let _srCache = {};
+let _srCache = {}, _srKey = '';
 function scopeEl() { return (_tv ? document.getElementById('gc-tv-ov') : _root) || document; }
 function srPerformance() {
   const resumo = resumoTab();
   const key = _tab + ':' + (_team || 'all') + ':' + _since + ':' + _until + ':' + _spendPreset;
-  const fill = an => scopeEl().querySelectorAll('.gc-sr-txt').forEach(tx => { tx.textContent = an.geral || 'sem análise pra este recorte.'; tx.style.opacity = '1'; });
+  _srKey = key;
+  const fill = an => { if (_srKey !== key) return; scopeEl().querySelectorAll('.gc-sr-txt').forEach(tx => { tx.textContent = an.geral || 'sem análise pra este recorte.'; tx.style.opacity = '1'; }); };
   if (_srCache[key]) return fill(_srCache[key]);
   api.request('/api/v3/oo/comercial_analise', { method: 'POST', body: { tab: _tab, janela: _d.janela, resumo } })
     .then(r => { _srCache[key] = r.analises || {}; fill(_srCache[key]); })
-    .catch(e => scopeEl().querySelectorAll('.gc-sr-txt').forEach(t => {
+    .catch(e => _srKey === key && scopeEl().querySelectorAll('.gc-sr-txt').forEach(t => {
       const m = e.message || 'erro';
       t.textContent = (/cota/i.test(m) ? '⚠️ ' : 'análise indisponível agora: ') + m; t.style.opacity = '1';
     }));
@@ -835,9 +846,9 @@ function tabProd() {
   }).join('');
   const rows = (p.corretores || []).map(cr => {
     const chips = (cr.canais || []).filter(c => c.vendas > 0).map(c =>
-      `<span style="display:inline-block;background:var(--bg-2);border:1px solid var(--border);border-radius:999px;padding:1px 8px;font-size:10.5px;margin:1px">${esc(c.label)}: <b>${fN(c.share_vendas_pct)}%</b> das vendas · conv ${c.conv_pct != null ? fN(c.conv_pct) + '%' : '—'}</span>`).join('');
+      `<span style="display:inline-block;white-space:nowrap;background:var(--bg-2);border:1px solid var(--border);border-radius:999px;padding:1px 8px;font-size:10.5px;margin:1px">${esc(c.label)}: <b>${fN(c.share_vendas_pct)}%</b> das vendas · conv ${c.conv_pct != null ? fN(c.conv_pct) + '%' : '—'}</span>`).join('');
     return `<tr>
-      <td style="font-size:12px;padding:4px 8px 4px 0">${esc(cr.nome)} <span class="tiny muted">${(TEAM_LBL[cr.team] || cr.team || '').replace(/^..\s/, '')}</span>
+      <td style="font-size:12px;padding:4px 8px 4px 0;min-width:300px;white-space:nowrap">${esc(cr.nome)} <span class="tiny muted">${(TEAM_LBL[cr.team] || cr.team || '').replace(/^..\s/, '')}</span>
         ${chips ? `<div style="margin-top:2px">${chips}</div>` : ''}</td>
       <td style="font-size:11.5px;font-weight:800;color:var(--gc-ok);white-space:nowrap">${cr.top_canal ? '🏆 ' + esc(cr.top_canal) : '—'}</td>
       <td style="text-align:right;font-size:12px">${fN(cr.leads)}</td>
