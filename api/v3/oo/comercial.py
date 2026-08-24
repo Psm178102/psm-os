@@ -56,7 +56,7 @@ MIN_VENDAS_RANK = 3
 CANAL_MERGE = {"nao_atribuido": "trafego_imob", "outro": "trafego_imob", "meta": "trafego_imob"}
 CANAL_LBL = {**CHANNEL_LABEL, "trafego_imob": "Tráfego pago Imob"}
 CANAIS_PAGOS = ("trafego_imob", "google")   # v86.38: régua única de "venda de origem paga"
-CACHE_VER = "gc23"   # v86.39: bump aqui invalida página E cron juntos
+CACHE_VER = "gc24b"   # v86.39: bump aqui invalida página E cron juntos
 
 FUNIS_RD = {"conquista": "funil conquista", "map": "funil map",
             "terceiros": "funil terceiros", "locacao": "funil de locacao"}
@@ -769,12 +769,26 @@ class handler(BaseHTTPRequestHandler):
         dias_mes = _cal.monthrange(hoje.year, hoje.month)[1]
         visao = []
         ym = f"{hoje.year:04d}-{hoje.month:02d}"
-        # 🎯 metas OFICIAIS do painel Metas (decisão do Paulo 15/ago: metas vêm de lá;
-        # o Norte segue alimentando só a PROJEÇÃO)
+        # v86.69: a VISÃO passa a seguir o PERÍODO escolhido (antes travava no mês
+        # corrente e o filtro "não puxava" real/VGV). meses_janela = todos os meses
+        # tocados por [since, until]; janela_eh_mes = janela é exatamente o mês
+        # corrente até hoje (só aí meta/projeção do mês fazem sentido 1:1).
+        meses_janela = []
+        _cy, _cm = since_d.year, since_d.month
+        while (_cy, _cm) <= (until_d.year, until_d.month):
+            meses_janela.append((_cy, _cm))
+            _cm = 1 if _cm == 12 else _cm + 1
+            if _cm == 1:
+                _cy += 1
+        janela_eh_mes = ((since_d.year, since_d.month) == (hoje.year, hoje.month)
+                         and since_d.day == 1 and until_d >= hoje)
+        # 🎯 metas OFICIAIS do painel Metas (decisão do Paulo 15/ago); indexadas por
+        # (corretor, ano, mês) pra somar os meses da janela.
         metas_idx = {}
         try:
-            for m_ in (sb.table("metas").select("corretor_id,ano,mes,meta_vgv,meta_vendas").eq("ano", hoje.year).execute().data or []):
-                metas_idx[(str(m_.get("corretor_id")), int(m_.get("mes") or 0))] = m_
+            anos = sorted({y for y, _m in meses_janela} | {hoje.year})
+            for m_ in (sb.table("metas").select("corretor_id,ano,mes,meta_vgv,meta_vendas").in_("ano", anos).execute().data or []):
+                metas_idx[(str(m_.get("corretor_id")), int(m_.get("ano") or 0), int(m_.get("mes") or 0))] = m_
         except Exception:
             avisos.append("tabela metas indisponível — metas zeradas na Visão")
 
@@ -789,9 +803,10 @@ class handler(BaseHTTPRequestHandler):
             _u = str(d.get("user_id") or "") or email2uid.get((d.get("user_email") or "").lower(), "")
             if _u in users:
                 uids_por_team_deal.setdefault(team_do_deal(d.get("pipeline_id"), _u), set()).add(_u)
+        # real por (corretor, equipe) DENTRO DA JANELA (v86.69: era >= mes_ini fixo)
         reais_mes_uid_tk = {}
         for e in eds:
-            if e["win"] and e["closed"] and _d_brt(e["closed"]) >= mes_ini and e["uid"]:
+            if e["win"] and e["closed"] and since_d <= _d_brt(e["closed"]) <= until_d and e["uid"]:
                 r = reais_mes_uid_tk.setdefault((e["uid"], e["team"]), {"v": 0, "vgv": 0.0})
                 r["v"] += 1
                 r["vgv"] += e["vgv"]
@@ -804,20 +819,22 @@ class handler(BaseHTTPRequestHandler):
             com_meta = 0
             por_corr_v = []
             for uid in membros:
-                mrow = metas_idx.get((uid, hoje.month)) or {}
-                mv = _num(mrow.get("meta_vendas"))
-                mvgv = _num(mrow.get("meta_vgv"))
+                # meta = soma dos meses da janela (mês único → aquele mês; período → todos)
+                mv = sum(_num((metas_idx.get((uid, _y, _m)) or {}).get("meta_vendas")) for _y, _m in meses_janela)
+                mvgv = sum(_num((metas_idx.get((uid, _y, _m)) or {}).get("meta_vgv")) for _y, _m in meses_janela)
                 if mv or mvgv:
                     com_meta += 1
                 meta_v += mv
                 meta_vgv += mvgv
                 pu = 0.0
-                cfg, _okc = _kv_read(sb, f"oo_norte:{uid}:{ym}")
-                if cfg:
-                    at = _num(cfg.get("atendimentos_mes"))
-                    for cn in (cfg.get("canais") or []):
-                        pu += (at * _num(cn.get("mix")) / 100.0) * (_num(cn.get("taxa_base")) * _num(cn.get("energia")) / 100.0) / 100.0
-                    proj_v += pu
+                # projeção (Norte) só faz sentido pro mês corrente
+                if janela_eh_mes:
+                    cfg, _okc = _kv_read(sb, f"oo_norte:{uid}:{ym}")
+                    if cfg:
+                        at = _num(cfg.get("atendimentos_mes"))
+                        for cn in (cfg.get("canais") or []):
+                            pu += (at * _num(cn.get("mix")) / 100.0) * (_num(cn.get("taxa_base")) * _num(cn.get("energia")) / 100.0) / 100.0
+                        proj_v += pu
                 # real do corretor NESTA equipe (funil do deal), não o total dele
                 ru = reais_mes_uid_tk.get((uid, tk)) or {}
                 if mv or mvgv or cfg or ru.get("v"):
@@ -825,10 +842,10 @@ class handler(BaseHTTPRequestHandler):
                                        "real": ru.get("v") or 0, "vgv": round(ru.get("vgv") or 0, 2),
                                        "meta": round(mv, 1), "meta_vgv": round(mvgv, 2), "proj": round(pu, 2)})
             por_corr_v.sort(key=lambda x: (-x["real"], -x["proj"]))
-            reais = [e for e in eds if e["team"] == tk and e["win"] and e["closed"] and _d_brt(e["closed"]) >= mes_ini]
+            reais = [e for e in eds if e["team"] == tk and e["win"] and e["closed"] and since_d <= _d_brt(e["closed"]) <= until_d]
             rv, rvgv = len(reais), round(sum(e["vgv"] for e in reais), 2)
-            # projeção por ritmo: vendas até hoje ÷ dias corridos × dias do mês
-            run_rate = round(rv / max(1, hoje.day) * dias_mes, 2)
+            # projeção por ritmo: só pro mês corrente (vendas até hoje ÷ dias corridos × dias do mês)
+            run_rate = round(rv / max(1, hoje.day) * dias_mes, 2) if janela_eh_mes else None
             # pipeline de AGORA: abertos parados em proposta/pasta (marco da etapa atual)
             prop_ab = pasta_ab = vis_ab = 0
             for d in abertos:
@@ -1425,7 +1442,7 @@ class handler(BaseHTTPRequestHandler):
             if rz.get("sem_contato"):
                 _al(_tk, "sem_contato", "leads SEM 1º contato", rz["sem_contato"], acfg["max_sem_contato"], "max", "num")
         for v in visao:
-            if (v.get("meta_vendas") or 0) > 0 and hoje.day >= 5:   # 5 dias de mês pra fazer sentido
+            if janela_eh_mes and (v.get("meta_vendas") or 0) > 0 and hoje.day >= 5:   # ritmo só no mês corrente
                 esperado = v["meta_vendas"] * (hoje.day / dias_mes)
                 if esperado > 0:
                     _al(v["team"], "ritmo_meta", "% do ritmo esperado da meta do mês",
@@ -1492,6 +1509,7 @@ class handler(BaseHTTPRequestHandler):
         cobertura = round(sum(1 for e in na_janela if e["atribuido"]) / len(na_janela) * 100, 1) if na_janela else None
 
         return {"visao": visao, "hub_conquista": hub_x, "fontes": fontes,
+                "janela_eh_mes": janela_eh_mes, "meses_janela": ["%04d-%02d" % (y, m) for y, m in meses_janela],
                 "historico": hist, "funil_rd": funil_rd, "campanhas": campanhas,
                 "forecast": forecast, "resposta": resposta, "metricas": metricas,
                 "custos": {"mes": ym, "janela_custo": {"ini": c_ini.isoformat(), "fim": c_fim.isoformat(), "preset": c_preset_usado, "segue_periodo": c_preset != "this_month" or since_d == mes_ini}, "equipes": custos, "payback_midia": payback,

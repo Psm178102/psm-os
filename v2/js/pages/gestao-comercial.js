@@ -89,9 +89,12 @@ export async function pageGestaoComercial(ctx, root) {
   if ((auth.user()?.lvl || 0) < 5) { root.innerHTML = '<div class="alert alert-warn">🔒 Gestão Comercial é para gestores, gerentes e sócios.</div>'; return; }
   ensureCss();
   if (!_until) {
+    // v86.69: abre no MÊS ATUAL (não mais 90d) — o cockpit "como está nosso mês?" e a
+    // meta batem de primeira; o filtro de período recorta TUDO, inclusive as vendas/VGV.
     const h = new Date();
     const f = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    _until = f(h); _since = f(new Date(h.getTime() - 89 * 86400000));
+    _until = f(h); _since = f(new Date(h.getFullYear(), h.getMonth(), 1));
+    _spendPreset = 'this_month';
   }
   await load();
 }
@@ -264,17 +267,24 @@ function cockpit() {
   const cacSt = cac == null ? 'none' : cfg.max_cac_midia && cac > cfg.max_cac_midia ? 'err' : 'ok';
   const cor = k => ({ ok: 'var(--gc-ok)', warn: 'var(--gc-warn)', err: 'var(--gc-err)', none: 'var(--border-2)' }[k]);
   const ticket = real ? vgv / real : 0;
-  const kpis = `
-    <div class="gc-kpi" style="--kc:${st.c}"><div class="l">Vendas do mês</div>
-      <div class="v">${fN(real)}${meta ? ` <small>/ ${fN(meta)}</small>` : ''}</div>
-      <div class="s"><span style="color:${st.c};font-weight:800">● ${st.lbl}</span>${meta ? ` · ${fN(pct)}% da meta · faltam ${fN(Math.max(0, meta - real))}` : (vgvMeta ? ' · meta de <b>quantidade</b> não cadastrada no 🎯 Metas — julgando pelo VGV' : '')}</div>
-      <div class="gc-bar"><i style="width:${pct}%"></i></div></div>
-    <div class="gc-kpi" style="--kc:var(--gc-acc)"><div class="l">Projeção do mês</div>
+  const ehMes = _d.janela_eh_mes !== false;   // janela = mês corrente até hoje?
+  const per = ehMes ? 'do mês' : 'no período';
+  const projCard = ehMes
+    ? `<div class="gc-kpi" style="--kc:var(--gc-acc)"><div class="l">Projeção do mês</div>
       <div class="v acc">${projR != null ? fN(Math.round(projR * 10) / 10) : '—'}${meta ? ` <small>/ ${fN(meta)}</small>` : ''}</div>
-      <div class="s">pelo ritmo (dia ${dia} de ${diasMes} · ${fN(Math.round(pctMes * 100))}% do mês)${projN != null ? ` · Norte ${fN(projN)}` : ''}</div></div>
-    <div class="gc-kpi" style="--kc:${vgvMeta ? (vgv >= vgvMeta ? 'var(--gc-ok)' : vgv >= vgvMeta * pctMes * 0.9 ? 'var(--gc-ok)' : vgv >= vgvMeta * pctMes * 0.6 ? 'var(--gc-warn)' : 'var(--gc-err)') : 'var(--border-2)'}"><div class="l">VGV do mês</div>
+      <div class="s">pelo ritmo (dia ${dia} de ${diasMes} · ${fN(Math.round(pctMes * 100))}% do mês)${projN != null ? ` · Norte ${fN(projN)}` : ''}</div></div>`
+    : `<div class="gc-kpi" style="--kc:var(--border-2)"><div class="l">Projeção</div>
+      <div class="v" style="opacity:.5">—</div>
+      <div class="s">projeção só no mês corrente · aqui é o real do período escolhido</div></div>`;
+  const kpis = `
+    <div class="gc-kpi" style="--kc:${st.c}"><div class="l">Vendas ${per}</div>
+      <div class="v">${fN(real)}${meta ? ` <small>/ ${fN(meta)}</small>` : ''}</div>
+      <div class="s"><span style="color:${st.c};font-weight:800">● ${st.lbl}</span>${meta ? ` · ${fN(pct)}% da meta${ehMes ? ` · faltam ${fN(Math.max(0, meta - real))}` : ''}` : (vgvMeta ? ' · meta de <b>quantidade</b> não cadastrada no 🎯 Metas — julgando pelo VGV' : '')}</div>
+      <div class="gc-bar"><i style="width:${pct}%"></i></div></div>
+    ${projCard}
+    <div class="gc-kpi" style="--kc:${vgvMeta ? (vgv >= vgvMeta ? 'var(--gc-ok)' : vgv >= vgvMeta * (ehMes ? pctMes : 1) * 0.9 ? 'var(--gc-ok)' : vgv >= vgvMeta * (ehMes ? pctMes : 1) * 0.6 ? 'var(--gc-warn)' : 'var(--gc-err)') : 'var(--border-2)'}"><div class="l">VGV ${per}</div>
       <div class="v">R$ ${kR$(vgv)}${vgvMeta ? ` <small>/ ${kR$(vgvMeta)}</small>` : ''}</div>
-      <div class="s">${real ? `ticket R$ ${kR$(ticket)}` : 'sem venda ainda'}${vgvMeta ? ` · ${fN(vgv / vgvMeta * 100)}% da meta` : ''}</div></div>
+      <div class="s">${real ? `ticket R$ ${kR$(ticket)}` : 'sem venda'}${vgvMeta ? ` · ${fN(vgv / vgvMeta * 100)}% da meta` : ''}</div></div>
     <div class="gc-kpi" style="--kc:${cor(cacSt)}"><div class="l">CAC mídia</div>
       <div class="v ${cacSt === 'err' ? 'err' : ''}">${cac != null ? 'R$ ' + kR$(cac) : '—'}</div>
       <div class="s">R$ ${kR$(spend)} spend · ${fN(vPagas)} venda(s) de tráfego${cfg.max_cac_midia ? ` · régua ≤ ${kR$(cfg.max_cac_midia)}` : ''}</div></div>`;
@@ -300,7 +310,11 @@ function cockpit() {
       <span>${esc(a.label)}: <b class="v">${fN(a.valor)}</b> <span class="tiny muted">(${a.acima ? '▲' : '▼'} ${fN(Math.abs(a.delta_pct))}% ${a.acima ? 'acima' : 'abaixo'} da régua ${fN(a.limite)})</span></span>
       <button class="btn btn-ghost btn-sm act" data-goto="${tab}">→ ${txt}</button></div>`; }).join('')}</div>` : '';
   const hub = v.hub_conquista;
-  return `<div class="gc-q"><h3>Como está nosso mês?</h3><span class="tiny muted">${MESES_NOME[hoje.getMonth()]} · ${_team ? tLbl(_team) : 'todas as equipes'} · <b>mês corrente</b> (o período lá de cima recorta funil, fontes, custo e pessoas — não o mês)</span></div>
+  const titulo = ehMes ? 'Como está nosso mês?' : 'Como está o período?';
+  const subt = ehMes
+    ? `${MESES_NOME[hoje.getMonth()]} · ${_team ? tLbl(_team) : 'todas as equipes'} · <b>mês corrente</b>`
+    : `${_d.janela.since} → ${_d.janela.until} · ${_team ? tLbl(_team) : 'todas as equipes'} · <b>período selecionado</b> (meta = soma dos meses da janela)`;
+  return `<div class="gc-q"><h3>${titulo}</h3><span class="tiny muted">${subt}</span></div>
     <div class="gc-kpis">${kpis}</div>${cards}${alerts}
     ${hub && hub.vendas != null && hub.vendas !== real && _team !== null && _team !== 'conquista' ? '' : (hub && hub.vendas != null ? `<div class="tiny muted" style="margin-top:8px">🌉 PSM HUB (esteira Conquista) marca ${fN(hub.vendas)} venda(s) · R$ ${kR$(hub.vgv)} no mês — divergência com o RD = lançamento pendente num dos dois.</div>` : '')}
     <div class="gc-sr"><b>🧠 Sr. Performance:</b> <span class="gc-sr-txt" style="opacity:.7">analisando os números…</span></div>`;
@@ -379,7 +393,7 @@ function tabMeta() {
           return `<tr><td>${esc(c.nome)}</td><td style="text-align:right;font-weight:800">${fN(c.real)}</td><td style="text-align:right">${c.meta ? fN(c.meta) : '—'}</td>
             <td style="text-align:right" class="acc">${c.proj ? fN(c.proj) : '—'}</td><td style="text-align:right">R$ ${kR$(c.vgv)}</td>
             <td style="text-align:right;font-weight:800;color:${cc}">${pct != null ? fN(pct) + '%' : '—'}</td></tr>`; }).join('')}</tbody></table></div></details>`).join('');
-  return pan('🎯 Mês corrente — real × meta × projeção, por equipe', `
+  return pan(_d.janela_eh_mes !== false ? '🎯 Mês corrente — real × meta × projeção, por equipe' : `🎯 Período ${_d.janela.since} → ${_d.janela.until} — real × meta (soma dos meses) por equipe`, `
     <div style="overflow-x:auto"><table>
       <thead><tr style="text-align:right"><th style="text-align:left">Equipe</th><th>Real</th><th>Meta</th><th>% meta</th><th>Faltam</th><th>Proj. ritmo</th><th>Proj. Norte</th><th>Faixa normal</th><th>VGV real / meta</th><th>Ticket</th></tr></thead>
       <tbody>${rows || '<tr><td colspan="10" class="tiny muted">sem equipe no recorte</td></tr>'}</tbody></table></div>
