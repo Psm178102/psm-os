@@ -56,7 +56,7 @@ MIN_VENDAS_RANK = 3
 CANAL_MERGE = {"nao_atribuido": "trafego_imob", "outro": "trafego_imob", "meta": "trafego_imob"}
 CANAL_LBL = {**CHANNEL_LABEL, "trafego_imob": "Tráfego pago Imob"}
 CANAIS_PAGOS = ("trafego_imob", "google")   # v86.38: régua única de "venda de origem paga"
-CACHE_VER = "gc25"   # v86.39: bump aqui invalida página E cron juntos
+CACHE_VER = "gc26"   # v86.39: bump aqui invalida página E cron juntos
 
 FUNIS_RD = {"conquista": "funil conquista", "map": "funil map",
             "terceiros": "funil terceiros", "locacao": "funil de locacao"}
@@ -881,6 +881,22 @@ class handler(BaseHTTPRequestHandler):
                           "corretores_com_meta": com_meta, "por_corretor": por_corr_v[:15],
                           "poisson": pois_faixa(meta_v) if meta_v > 0 else None})
 
+        # v86.72: vendas FORA dos 4 funis (team "outros") não podem sumir do total —
+        # entram como linha própria na Visão quando existem na janela.
+        _outros = [e for e in eds if e["team"] == "outros" and e["win"] and e["closed"]
+                   and since_d <= _d_brt(e["closed"]) <= until_d]
+        if _outros:
+            _ov = round(sum(e["vgv"] for e in _outros), 2)
+            visao.append({"team": "outros", "label": "— Outros (fora dos 4 funis)",
+                          "real_vendas": len(_outros), "real_vgv": _ov,
+                          "real_ticket": round(_ov / len(_outros), 2),
+                          "meta_vendas": 0, "meta_vgv": 0, "proj_vendas": 0, "proj_ritmo": None,
+                          "pipeline_agora": {"visitas": 0, "propostas": 0, "pastas": 0},
+                          "corretores_com_meta": 0,
+                          "por_corretor": [{"nome": e["nome"], "real": 1, "vgv": round(e["vgv"], 2),
+                                            "meta": 0, "meta_vgv": 0, "proj": 0} for e in _outros[:15]],
+                          "poisson": None})
+
         # Conquista: vendas oficiais da esteira do HUB (cruzamento RD × HUB)
         hub_x, hub_err = None, None
         est, hub_err = hub_esteira_mes(sb, hoje.year, hoje.month)
@@ -1033,6 +1049,7 @@ class handler(BaseHTTPRequestHandler):
         hist = []
         for m in range(1, hoje.month + 1):
             eqm = {tk: {"leads": 0, "vendas": 0, "vgv": 0.0, "vendas_pagas": 0} for tk, _l in TEAMS}
+            eqm["outros"] = {"leads": 0, "vendas": 0, "vgv": 0.0, "vendas_pagas": 0}   # v86.72: fora dos 4 funis visível
             tot = {"leads": 0, "vendas": 0, "vgv": 0.0}
             canais_m = {}
             for d in hist_deals:

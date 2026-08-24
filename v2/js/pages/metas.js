@@ -163,6 +163,7 @@ function render() {
             ${teamNames.map(t => teamBlock(t, teams[t], per, editable)).join('')}
           </tbody>
           <tfoot>
+            ${foraGridRow(per)}
             ${grandTotalRow(grid, per)}
           </tfoot>
         </table>
@@ -218,6 +219,28 @@ function brokerRow(g, per, editable) {
       </td>
       ${cells}
       <td data-rt="${esc(u.id)}" style="text-align:right;padding:5px 8px;font-weight:800;background:var(--bg-2);border-left:2px solid var(--border)">${fmtVal(yearSum([g]), k.money)}</td>
+    </tr>`;
+}
+
+
+/* v86.72: linha do ATINGIDO de quem está FORA do grid (desligados + deals sem corretor
+   casado) — sem ela a soma das linhas não fechava com o total (26 × 45 vendas no ano). */
+function foraGridRow(per) {
+  const fg = (_data && _data.fora_do_grid_mensal) || null;
+  if (!fg || !Object.keys(fg).length) return '';
+  const k = mc();
+  if (k.key !== 'meta_vgv' && k.key !== 'meta_vendas') return '';
+  const campo = k.key === 'meta_vgv' ? 'vgv' : 'vendas';
+  const cells = per.buckets.map(b => {
+    const val = b.months.reduce((a, mi) => a + (Number((fg[String(mi + 1)] || {})[campo]) || 0), 0);
+    return `<td style="text-align:right;padding:6px 8px;color:var(--ink-muted)">${val ? '↑ ' + fmtVal(val, k.money) : '<span class="muted">—</span>'}</td>`;
+  }).join('');
+  const total = Object.values(fg).reduce((a, v) => a + (Number(v[campo]) || 0), 0);
+  return `
+    <tr style="border-top:2px dashed var(--border);background:var(--bg-2)">
+      <td style="padding:6px 10px;position:sticky;left:0;background:var(--bg-2);z-index:1;font-weight:700;color:var(--ink-muted)">🚪 Fora do grid <span class="tiny" style="font-weight:400">(desligados + sem corretor no RD) — atingido real</span></td>
+      ${cells}
+      <td style="text-align:right;padding:6px 8px;font-weight:800;color:var(--ink-muted);border-left:2px solid var(--border)">↑ ${fmtVal(total, k.money)}</td>
     </tr>`;
 }
 

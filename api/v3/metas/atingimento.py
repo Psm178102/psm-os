@@ -173,8 +173,9 @@ class handler(BaseHTTPRequestHandler):
                 if deals_rows:
                     for d in deals_rows:
                         # v86.65: deal sem user_id resolve pelo e-mail do dono
-                        uid = d.get("user_id") or email2uid.get((d.get("user_email") or "").lower())
-                        if not uid: continue
+                        # v86.72: sem corretor casado NÃO some mais — vira o bucket
+                        # "__sem_corretor" (era `continue`, e a venda não contava em lugar nenhum)
+                        uid = d.get("user_id") or email2uid.get((d.get("user_email") or "").lower()) or "__sem_corretor"
                         ca = d.get("closed_at")
                         if not ca: continue
                         try:
@@ -280,9 +281,20 @@ class handler(BaseHTTPRequestHandler):
                 return (u.get("team") or "").lower() == (user.get("team") or "").lower()
             return uid == user["id"]
         extra_corretores = []
+        fora_grid_mensal = {}   # v86.72: {mes: {vendas, vgv}} — desligados + sem corretor, pro grid da tela FECHAR com o total
         for uid in {k[0] for k in atingido_idx.keys()}:
-            if not uid or uid in grid_ids or not _in_scope(uid):
+            if not uid or uid in grid_ids:
                 continue
+            if uid != "__sem_corretor" and not _in_scope(uid):
+                continue
+            if uid == "__sem_corretor" and scope != "all":
+                continue
+            for m in range(1, 13):
+                a = atingido_idx.get((uid, m))
+                if a and (a["count"] or a["vgv"]):
+                    fg = fora_grid_mensal.setdefault(m, {"vendas": 0, "vgv": 0.0})
+                    fg["vendas"] += a["count"]
+                    fg["vgv"] += a["vgv"]
             av = sum(atingido_idx[(uid, m)]["vgv"] for m in range(1, 13) if (uid, m) in atingido_idx)
             ac = sum(atingido_idx[(uid, m)]["count"] for m in range(1, 13) if (uid, m) in atingido_idx)
             if av == 0 and ac == 0:
@@ -291,7 +303,7 @@ class handler(BaseHTTPRequestHandler):
             tot_atingido += av
             tot_count += ac
             extra_corretores.append({
-                "id": uid, "name": u.get("name") or "(corretor que saiu)",
+                "id": uid, "name": "(sem corretor casado no RD)" if uid == "__sem_corretor" else (u.get("name") or "(corretor que saiu)"),
                 "team": u.get("team") or u.get("equipe") or u.get("frente"),
                 "role": u.get("role"), "vgv_atingido": av, "meta_vgv": 0.0,
                 "vendas": ac, "pct": None, "inativo": True,
@@ -323,6 +335,10 @@ class handler(BaseHTTPRequestHandler):
             # aliases de topo (metricas-viab lê total_vgv/total_vendas)
             "total_vgv": tot_atingido,
             "total_vendas": tot_count,
+            # v86.72: por mês, vendas/VGV de quem está FORA do grid (desligados + sem
+            # corretor casado) — a tela soma isso numa linha própria e o grid FECHA com o total
+            "fora_do_grid_mensal": {str(m): {"vendas": v["vendas"], "vgv": round(v["vgv"], 2)}
+                                    for m, v in sorted(fora_grid_mensal.items())},
             "por_corretor": por_corretor,
             "grid": grid,
             "rd_error": rd_error,
