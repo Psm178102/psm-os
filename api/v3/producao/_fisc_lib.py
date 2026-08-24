@@ -24,17 +24,10 @@ TIPOS_POR_COLAB = {
 }
 
 DEFAULT_CFG = {
+    # v86.77: Leire e Guilherme saíram da empresa (confirmado pelo Paulo em 24/ago;
+    # cadastro inativado por ele em 11/ago e 31/jul). Removidos do painel pra o
+    # semáforo parar de cobrar produção de quem não opera mais.
     "colaboradores": {
-        "leire": {
-            "nome": "Leire", "user_match": "leire", "motor": "reativacao_tocada",
-            "metas": {
-                "reativacao_tocada":  {"manha": 25, "tarde": 15, "dia": 40, "semana": 200, "mes": 880},
-                "captacao_sinais":    {"tarde": 15, "dia": 15, "semana": 75, "mes": 330},
-                "captacao_fechada":   {"semana": 4, "mes": 16},
-                "avaliacao_agendada": {"semana": 5, "mes": 20},
-            },
-            "sla_horas": {"doc": 48, "ticket_locacao": 24},
-        },
         "mariane": {
             "nome": "Mariane", "user_match": "mariane", "motor": "abordagem_indicacao",
             "metas": {
@@ -44,18 +37,6 @@ DEFAULT_CFG = {
             },
             "nps": {"cobertura_pct": 100, "score_min": 70, "visita_sem_nps_horas": 48,
                     "detrator_max": 6, "promotor_min": 9},
-        },
-        "guilherme": {
-            "nome": "Guilherme", "user_match": "guilherme", "motor": "mes_composto",
-            "rampa_inicio": "2026-07",
-            "metas_rampa": {
-                "captacao_fechada": {"m1": 2, "m2": 3, "m3": 4, "final": 5},
-                "contrato_locacao": {"m1": 1, "m2": 1, "m3": 2, "final": 4},
-                "video_conquista":  {"m1": 8, "m2": 8, "m3": 6, "final": 4},
-                "video_map":        {"m1": 4, "m2": 4, "m3": 3, "final": 2},
-                "art_conquista":    {"m1": 12, "m2": 12, "m3": 9, "final": 6},
-                "art_map":          {"m1": 6, "m2": 6, "m3": 5, "final": 4},
-            },
         },
         "rafaela": {
             "nome": "Rafaela", "user_match": "rafaela", "motor": "reuniao_qualificada_agendada",
