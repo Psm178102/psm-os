@@ -490,8 +490,8 @@ function tabMetricas() {
     const semMidia = !(c.conta || c.spend > 0);
     const a = mid => aIdx[tk + ':' + mid] ? 'err' : '';
     const custos = semMidia ? `<div class="tiny muted" style="margin-top:4px">sem conta Meta própria — custos de mídia não se aplicam (CAC vive no marketing/completo)</div>` : grupo(`💵 Custos — spend R$ ${kR$(c.spend)} (${jc.ini || ''} → ${jc.fim || ''})`, [
-      tile('CPL · custo por lead', R$(c.custo_lead), N(c.leads) + ' leads no período', a('custo_lead')),
-      tile('CPQL · por qualificado', R$(c.custo_qualif), N(c.qualif) + ' qualificados (contato ok)'),
+      tile('CPL · custo por lead', R$(c.custo_lead), N(c.leads) + ' leads NOVOS no período', a('custo_lead')),
+      tile('CPQL · por qualificado', R$(c.custo_qualif), N(c.qualif) + ' qualificações no período — inclui leads antigos reativados (por isso pode passar de leads novos)'),
       tile('CPAG · por agendamento', R$(c.custo_agend), N(c.agend) + ' agendamentos', a('custo_agend')),
       tile('CPV · por visita', R$(c.custo_visita), N(c.visita) + ' visitas', a('custo_visita')),
       tile('CPP · por proposta', R$(c.custo_proposta), N(c.proposta) + ' propostas'),
