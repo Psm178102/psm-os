@@ -426,7 +426,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '86.74';
+const APP_VERSION = '86.75';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -803,10 +803,14 @@ const APP_VERSION = '86.74';
   // ⚡ Checa versão a cada 20s: assim que um deploy sai, TODOS os logins detectam e
   // são FORÇADOS a recarregar juntos — sem depender de foco/navegação/clique. v81.33
   setInterval(() => { if (!_verWarned) checkVersion(); }, 20000);
-  // ⚡ PERMISSÕES EM TEMPO REAL (v81.58): a cada 15s re-busca a matriz por papel e,
-  // se a permissão EFETIVA deste login mudou (o sócio liberou/tirou uma aba), recarrega
-  // com o menu certo — MESMO parado na tela, sem trocar de aba nem recarregar na mão.
-  setInterval(() => { try { window.__psmApplyPerms(); } catch (_) {} }, 15000);
+  // ⚡ PERMISSÕES EM TEMPO REAL (v81.58): quando o sócio libera/tira uma aba, este login
+  // recarrega com o menu certo mesmo parado na tela.
+  // v86.75 — a propagação NÃO depende mais deste relógio: o broadcast (realtime.js) e o
+  // pulso disparam applyPerms na hora (<1s) e o foco na aba força de novo. O poll cego
+  // fazia 5 requests ao Supabase a cada 15s POR ABA (≈20/min só nisso) e era o maior
+  // consumidor de egress ocioso — com a cota do Free estourada em ago/2026, virou rede
+  // de segurança a cada 90s. Propagação real segue instantânea.
+  setInterval(() => { try { window.__psmApplyPerms(); } catch (_) {} }, 90000);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) return;
     if (!_verWarned) checkVersion();
