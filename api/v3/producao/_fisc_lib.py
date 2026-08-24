@@ -152,8 +152,12 @@ def user_ids_por_match(sb, match, user_id=None):
     """ids de users ativos cujo id/login/e-mail é IGUAL ao match (pra notify).
     `user_id` (quando configurado no colaborador) tem prioridade."""
     try:
-        rows = sb.table("users").select("id,name,login,email,status").execute().data or []
-    except Exception:
+        # v86.76: a coluna `login` NAO existe na tabela users (verificado no banco 24/ago).
+        # Pedi-la fazia o PostgREST devolver erro -> except -> [] -> NENHUM colaborador era
+        # encontrado e TODOS os alertas da Fiscalizacao ficavam calados em silencio.
+        rows = sb.table("users").select("id,name,email,status").execute().data or []
+    except Exception as e:
+        print(f"[fisc] user_ids_por_match FALHOU: {e} — alertas nao serao enviados")   # v86.76: nunca mais em silencio
         return []
     return [r["id"] for r in rows
             if _match_user(r, match, user_id)

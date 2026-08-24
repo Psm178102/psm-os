@@ -254,11 +254,13 @@ def _sincronizar(sb, user):
 
 def _responsavel_ids(sb, match):
     try:
-        rows = sb.table("users").select("id,name,login,email").limit(500).execute().data or []
+        # v86.76: sem a coluna `login` (nao existe) — antes o erro zerava a lista em silencio
+        rows = sb.table("users").select("id,name,email").limit(500).execute().data or []
         m = (match or "").lower()
         return [str(r["id"]) for r in rows
-                if m and m in " ".join(str(r.get(k) or "") for k in ("name", "login", "email")).lower()]
-    except Exception:
+                if m and m in " ".join(str(r.get(k) or "") for k in ("name", "email")).lower()]
+    except Exception as e:
+        print(f"[kanban] _responsavel_ids FALHOU: {e} — ninguem sera atribuido/notificado")   # v86.76
         return []
 
 
