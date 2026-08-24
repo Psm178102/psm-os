@@ -490,16 +490,16 @@ function tabMetricas() {
     const semMidia = !(c.conta || c.spend > 0);
     const a = mid => aIdx[tk + ':' + mid] ? 'err' : '';
     const custos = semMidia ? `<div class="tiny muted" style="margin-top:4px">sem conta Meta própria — custos de mídia não se aplicam (CAC vive no marketing/completo)</div>` : grupo(`💵 Custos — spend R$ ${kR$(c.spend)} (${jc.ini || ''} → ${jc.fim || ''})`, [
-      tile('CPL · custo por lead', R$(c.custo_lead), N(n.leads) + ' leads na safra', a('custo_lead')),
-      tile('CPQL · por qualificado', R$(c.custo_qualif), 'marco: contato ok / qualificação'),
-      tile('CPAG · por agendamento', R$(c.custo_agend), '', a('custo_agend')),
-      tile('CPV · por visita', R$(c.custo_visita), '', a('custo_visita')),
-      tile('CPP · por proposta', R$(c.custo_proposta), ''),
-      tile('CPP · por pasta', R$(c.custo_pasta), '', a('custo_pasta')),
-      tile('CPA · por aquisição', R$(c.cpa), 'spend ÷ TODAS as vendas'),
-      tile('CAC mídia', R$(c.cac_midia), 'spend ÷ vendas de tráfego', a('cac_midia')),
+      tile('CPL · custo por lead', R$(c.custo_lead), N(c.leads) + ' leads no período', a('custo_lead')),
+      tile('CPQL · por qualificado', R$(c.custo_qualif), N(c.qualif) + ' qualificados (contato ok)'),
+      tile('CPAG · por agendamento', R$(c.custo_agend), N(c.agend) + ' agendamentos', a('custo_agend')),
+      tile('CPV · por visita', R$(c.custo_visita), N(c.visita) + ' visitas', a('custo_visita')),
+      tile('CPP · por proposta', R$(c.custo_proposta), N(c.proposta) + ' propostas'),
+      tile('CPP · por pasta', R$(c.custo_pasta), `${N(c.pasta)} pastas${c.pasta ? ` · ${fN(Math.round((c.vendas || 0) / c.pasta * 100))}% viraram venda` : ''}`, a('custo_pasta')),
+      tile('CPA · por aquisição', R$(c.cpa), `${N(c.vendas)} venda(s) — spend ÷ TODAS`),
+      tile('CAC mídia', R$(c.cac_midia), N(c.vendas_pagas) + ' venda(s) de tráfego', a('cac_midia')),
       tile('CAC completo', R$(c.cac_completo), '+ fixo da linha + premiação'),
-    ].join(''));
+    ].join('')) + (c.pasta && c.pasta === (c.vendas || 0) ? `<div class="tiny muted" style="margin-top:4px">ℹ️ neste período <b>todas as ${fN(c.pasta)} pasta(s) viraram venda</b> — por isso o custo por pasta ficou igual ao custo por venda. Amplie o período (ex.: 90 dias) pra ver pastas que ainda não fecharam.</div>` : '');
     const razoes = grupo(`🔢 Quantos pra 1 venda — safra da janela (${N(n.venda)} venda${n.venda === 1 ? '' : 's'})`, [
       tile('Prospecções → 1 venda', N(pv.prospeccoes), N(n.leads) + ' leads'),
       tile('Qualificações → 1 venda', N(pv.qualificacoes), N(n.qualif) + ' qualificados'),

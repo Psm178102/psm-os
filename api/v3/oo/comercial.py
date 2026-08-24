@@ -56,7 +56,7 @@ MIN_VENDAS_RANK = 3
 CANAL_MERGE = {"nao_atribuido": "trafego_imob", "outro": "trafego_imob", "meta": "trafego_imob"}
 CANAL_LBL = {**CHANNEL_LABEL, "trafego_imob": "Tráfego pago Imob"}
 CANAIS_PAGOS = ("trafego_imob", "google")   # v86.38: régua única de "venda de origem paga"
-CACHE_VER = "gc24c"   # v86.39: bump aqui invalida página E cron juntos
+CACHE_VER = "gc25"   # v86.39: bump aqui invalida página E cron juntos
 
 FUNIS_RD = {"conquista": "funil conquista", "map": "funil map",
             "terceiros": "funil terceiros", "locacao": "funil de locacao"}
@@ -711,13 +711,26 @@ class handler(BaseHTTPRequestHandler):
             spend = _num(acc.get("spend")) if acc else 0.0
             pool = [e for e in mes_pool if e["team"] == tk]
             leads = len(pool)
-            qualif = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(MARCO_QUALIF) and _in(e["t_marco"][MARCO_QUALIF]))
-            proposta = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(4) and _in(e["t_marco"][4]))
-            agend = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(2) and _in(e["t_marco"][2]))
-            visita = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(3) and _in(e["t_marco"][3]))
-            pasta = sum(1 for e in eds if e["team"] == tk and e["t_marco"].get(5) and _in(e["t_marco"][5]))
             wins_tk = [e for e in eds if e["team"] == tk and e["win"] and e["closed"] and _in(e["closed"])]
             vendas = len(wins_tk)
+            # v86.71 (pedido do Paulo 24/ago): funil de custo MONOTÔNICO — cada deal
+            # conta pra TODAS as etapas até a mais avançada que alcançou na janela, e
+            # venda no período implica ter passado pela pasta. Assim leads ≥ qualif ≥
+            # agend ≥ visita ≥ proposta ≥ pasta ≥ vendas SEMPRE (antes proposta podia
+            # passar visita e a pasta batia com a venda por contar só o marco-5 solto).
+            _wins_ids = {id(e) for e in wins_tk}
+            def _reach(e):
+                ks = [k for k in (MARCO_QUALIF, 2, 3, 4, 5) if e["t_marco"].get(k) and _in(e["t_marco"][k])]
+                mx = max(ks) if ks else 0
+                if id(e) in _wins_ids:
+                    mx = max(mx, 5)   # vendeu no período ⇒ passou pela pasta
+                return mx
+            _eq = [e for e in eds if e["team"] == tk]
+            qualif   = sum(1 for e in _eq if _reach(e) >= MARCO_QUALIF)
+            agend    = sum(1 for e in _eq if _reach(e) >= 2)
+            visita   = sum(1 for e in _eq if _reach(e) >= 3)
+            proposta = sum(1 for e in _eq if _reach(e) >= 4)
+            pasta    = sum(1 for e in _eq if _reach(e) >= 5)
             vgv = sum(e["vgv"] for e in wins_tk)
             # 🎯 v86.34 (achado do Paulo 17/ago): CAC MÍDIA divide o spend SÓ pelas
             # vendas de origem PAGA (tráfego/google) — venda de indicação/orgânico
