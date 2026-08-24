@@ -26,7 +26,8 @@
 --   4. deleção de órfãos restrita à janela com folga de 2 dias nas bordas
 --   5. fail-safe: sem índice confiável, o sync NÃO insere nada
 --
--- PENDENTE (precisa de decisão): a limpeza das ~720 mil duplicatas já gravadas.
+-- ✅ RESOLVIDO em 24/ago/2026 — ver db_migrations_zoho_limpeza_v86_76.sql
+-- (era) PENDENTE (precisa de decisão): a limpeza das ~720 mil duplicatas já gravadas.
 -- Enquanto elas existirem, o banco segue em 372 MB (limite Free: 500 MB). O
 -- índice único (owner_id, zoho_uid) — a trava definitiva — só pode ser criado
 -- DEPOIS dessa limpeza, senão falha por violação.
