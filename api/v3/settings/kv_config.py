@@ -18,6 +18,11 @@ from _auth_lib import supabase_client, require_user, AuthError, audit  # type: i
 ALLOWED = {
     "oo_meta_team_account":  "Mapa equipe → account_id do Meta (override do One-on-One)",
     "custos_fixos_corretor": "Custo fixo mensal por equipe/corretor (CPL do 1:1)",
+    # v86.74: faixas do MCMV saíram do código (estavam fixas em 2024) — o sócio
+    # atualiza aqui quando o programa muda. Formato:
+    # {"ano": 2026, "faixas": [{"nome","rendaMax","jurosRef","subsidioRef","cor","nota"}, ...],
+    #  "acima": {"nome","jurosRef","subsidioRef","cor","nota"}}
+    "sim_conquista_faixas":  "Faixas MCMV do Simulador Conquista (renda máx, juros, subsídio)",
 }
 MAX_BYTES = 60_000
 

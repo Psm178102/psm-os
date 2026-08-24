@@ -17,7 +17,9 @@ GET  (qualquer autenticado): {ok, items:[...], can_manage}
 POST (lvl>=10): action add|update|delete. Audita (sem logar a senha).
 
 ⚠️ Segurança: armazenado no banco (Supabase, criptografado em repouso) com acesso só
-via service-role do backend + filtro por viewers aqui. Não há cripto app-level (sem lib).
+via service-role do backend + filtro por viewers aqui. v86.74: a SENHA também é cifrada
+na aplicação (Fernet) quando a env VAULT_KEY está configurada — sem ela, segue em texto
+puro como antes (retrocompatível; migra sozinho no próximo save do sócio).
 """
 from http.server import BaseHTTPRequestHandler
 import json, os, sys, uuid
@@ -34,14 +36,64 @@ DEFAULT_CATS = ["Incorporadora", "Redes Sociais", "Portais Imobiliários",
                 "Aplicativos", "Sistemas", "E-mail", "Assinaturas", "Bancos & Financeiro", "Outros"]
 
 
+# ── v86.74: cifra da SENHA em repouso (Fernet). A chave vem da env VAULT_KEY
+# (qualquer frase — deriva-se a chave Fernet por SHA-256). RETROCOMPATÍVEL:
+#   • sem VAULT_KEY → comportamento idêntico ao de hoje (texto puro), nada quebra;
+#   • com VAULT_KEY → grava "enc:v1:<token>"; na leitura, valor sem o prefixo é
+#     tratado como legado em texto puro (migra sozinho no próximo save do sócio).
+_ENC_PREFIX = "enc:v1:"
+
+
+def _fernet():
+    key = (os.environ.get("VAULT_KEY") or "").strip()
+    if not key:
+        return None
+    try:
+        import base64
+        import hashlib
+        from cryptography.fernet import Fernet  # já instalada (via pywebpush)
+        return Fernet(base64.urlsafe_b64encode(hashlib.sha256(key.encode()).digest()))
+    except Exception as e:
+        print(f"[vault] VAULT_KEY presente mas cifra indisponível: {e}")
+        return None
+
+
+def _enc(senha):
+    s = str(senha or "")
+    if not s or s.startswith(_ENC_PREFIX):
+        return s
+    f = _fernet()
+    if not f:
+        return s
+    try:
+        return _ENC_PREFIX + f.encrypt(s.encode()).decode()
+    except Exception:
+        return s
+
+
+def _dec(senha):
+    s = str(senha or "")
+    if not s.startswith(_ENC_PREFIX):
+        return s          # legado em texto puro
+    f = _fernet()
+    if not f:
+        return ""         # cifrada e sem chave → não devolve lixo
+    try:
+        return f.decrypt(s[len(_ENC_PREFIX):].encode()).decode()
+    except Exception:
+        return ""
+
+
 def _read(sb):
     try:
         rows = sb.table("shared_kv").select("value").eq("key", KV_KEY).limit(1).execute().data or []
         val = rows[0]["value"] if rows else {}
         if isinstance(val, str):
             val = json.loads(val)
-    except Exception:
-        val = {}
+    except Exception as _e:
+        # v86.74: leitura FALHOU ≠ cofre vazio — antes virava [] e o próximo save
+        # regravava o blob sem as credenciais (apagava o cofre inteiro).
+        raise RuntimeError("leitura do cofre falhou (" + str(_e)[:80] + ") — nada foi gravado")
     items = (val or {}).get("items") if isinstance(val, dict) else None
     return items if isinstance(items, list) else []
 
@@ -86,7 +138,7 @@ def _clean(d):
         "categoria": str(d.get("categoria") or "").strip()[:60],
         "url": str(d.get("url") or "").strip()[:500],
         "login": str(d.get("login") or "").strip()[:200],
-        "senha": str(d.get("senha") or "")[:300],
+        "senha": _enc(str(d.get("senha") or "")[:300]),   # v86.74: cifra em repouso quando VAULT_KEY existe
         "obs": str(d.get("obs") or "").strip()[:500],
         "viewers": [str(v) for v in (d.get("viewers") or []) if str(v).strip()][:80],
     }
@@ -111,7 +163,10 @@ class handler(BaseHTTPRequestHandler):
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
-        items = _read(sb)
+        try:
+            items = _read(sb)
+        except RuntimeError as _re:
+            return self._send(503, {"ok": False, "error": str(_re)})
         uid = user.get("id")
         manage = (user.get("lvl") or 0) >= 10
         if manage:
@@ -119,7 +174,10 @@ class handler(BaseHTTPRequestHandler):
         else:
             # só as credenciais liberadas pra ESTE usuário (as outras nem saem do servidor)
             out = [it for it in items if uid in (it.get("viewers") or [])]
-        return self._send(200, {"ok": True, "items": out, "categories": _read_cats(sb), "can_manage": manage})
+        # v86.74: entrega a senha em claro só pra quem já passou pelo filtro acima
+        out = [{**it, "senha": _dec(it.get("senha"))} for it in out]
+        return self._send(200, {"ok": True, "items": out, "categories": _read_cats(sb),
+                                "can_manage": manage, "cifrado": _fernet() is not None})
 
     def do_POST(self):
         try:
@@ -135,7 +193,10 @@ class handler(BaseHTTPRequestHandler):
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
 
-        items = _read(sb)
+        try:
+            items = _read(sb)
+        except RuntimeError as _re:
+            return self._send(503, {"ok": False, "error": str(_re)})
         action = (body.get("action") or "").strip()
 
         # ── Gestão de CATEGORIAS (só o sócio) ──────────────────────────────

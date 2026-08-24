@@ -10,16 +10,51 @@
    100% frontend, sem backend. Gated em sócio por enquanto (ROUTE_MIN_LVL=10).
 ============================================================================ */
 import { renderSemPerderFoco } from '../sim-foco.js';
+import { api } from '../api.js';
 
 // ⚠️ REFERÊNCIA MCMV urbano 2024 — confira sempre os valores vigentes (mudam por ano/região).
 //    rendaMax = teto de renda mensal da faixa | jurosRef = juros a.a. típicos | subsidioRef = subsídio máx estimado
-const FAIXAS = [
+let FAIXAS = [
   { nome: 'Faixa 1', rendaMax: 2640,  jurosRef: 4.75,  subsidioRef: 55000, cor: '#16a34a', nota: 'Maior subsídio + menores juros' },
   { nome: 'Faixa 2', rendaMax: 4400,  jurosRef: 6.50,  subsidioRef: 29000, cor: '#0ea5e9', nota: 'Subsídio decresce conforme a renda' },
   { nome: 'Faixa 3', rendaMax: 8000,  jurosRef: 8.16,  subsidioRef: 0,     cor: '#f59e0b', nota: 'Sem subsídio direto; juros reduzidos' },
   { nome: 'Faixa 4 · Classe Média', rendaMax: 12000, jurosRef: 10.0, subsidioRef: 0, cor: '#8b5cf6', nota: 'Imóvel até ~R$500k (piloto MCMV classe média)' },
 ];
-const ACIMA = { nome: 'Acima do MCMV', jurosRef: 11.0, subsidioRef: 0, cor: '#64748b', nota: 'Financiamento SBPE / mercado' };
+let ACIMA = { nome: 'Acima do MCMV', jurosRef: 11.0, subsidioRef: 0, cor: '#64748b', nota: 'Financiamento SBPE / mercado' };
+
+// v86.74: as faixas saíram do CÓDIGO (estavam congeladas em 2024, e em 2026 fazem o
+// corretor cotar errado). Agora vêm do shared_kv 'sim_conquista_faixas' (o sócio edita
+// em Configurações → configs avançadas). Sem config salva, cai no padrão abaixo e a
+// tela AVISA que a referência está velha — nada quebra, mas ninguém cota no escuro.
+let FONTE_FAIXAS = { origem: 'padrao', ano: 2024 };
+
+async function carregaFaixas() {
+  try {
+    const r = await api.request('/api/v3/settings/kv_config?key=sim_conquista_faixas');
+    const v = r && r.value;
+    const fx = v && Array.isArray(v.faixas) ? v.faixas.filter(f => f && Number(f.rendaMax) > 0) : null;
+    if (fx && fx.length) {
+      FAIXAS = fx.map(f => ({ nome: String(f.nome || 'Faixa'), rendaMax: Number(f.rendaMax) || 0,
+                              jurosRef: Number(f.jurosRef) || 0, subsidioRef: Number(f.subsidioRef) || 0,
+                              cor: f.cor || '#64748b', nota: String(f.nota || '') }))
+                   .sort((a, b) => a.rendaMax - b.rendaMax);
+      if (v.acima && Number(v.acima.jurosRef) > 0) ACIMA = { ...ACIMA, ...v.acima };
+      FONTE_FAIXAS = { origem: 'config', ano: Number(v.ano) || null };
+    }
+  } catch (_) { /* sem permissão ou sem config → mantém o padrão */ }
+}
+
+function avisoFaixas() {
+  const anoAtual = new Date().getFullYear();
+  if (FONTE_FAIXAS.origem === 'config') {
+    const velha = FONTE_FAIXAS.ano && FONTE_FAIXAS.ano < anoAtual;
+    return `<div class="tiny" style="margin-top:6px;padding:7px 11px;border-radius:8px;background:${velha ? 'rgba(245,158,11,.12)' : 'rgba(34,197,94,.12)'};border:1px solid ${velha ? 'rgba(245,158,11,.45)' : 'rgba(34,197,94,.35)'}">
+      ${velha ? '⚠️' : '✅'} Faixas configuradas${FONTE_FAIXAS.ano ? ` — referência <b>${FONTE_FAIXAS.ano}</b>` : ''}${velha ? ' (anterior a ' + anoAtual + ' — vale revisar)' : ''}.</div>`;
+  }
+  return `<div class="tiny" style="margin-top:6px;padding:7px 11px;border-radius:8px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.45)">
+    ⚠️ <b>Usando a referência MCMV de 2024</b> (padrão do sistema) — confirme os valores vigentes de ${anoAtual} antes de cotar.
+    O sócio atualiza em <b>Configurações → configs avançadas</b> (chave <code>sim_conquista_faixas</code>).</div>`;
+}
 
 const BRL = v => (isFinite(v) ? v : 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
@@ -41,8 +76,9 @@ function calc(renda, entrada, prazoAnos, taxaAA, compromPct) {
 }
 
 let _root = null;
-export function pageSimConquista(ctx, root) {
+export async function pageSimConquista(ctx, root) {
   _root = root;
+  await carregaFaixas();   // v86.74: faixas vigentes antes de desenhar
   root.innerHTML = `
     <style>
       .sc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
@@ -53,6 +89,7 @@ export function pageSimConquista(ctx, root) {
     <div style="margin-bottom:14px">
       <div style="font-size:21px;font-weight:800">🏠 Simulador Conquista — Faixa de Renda</div>
       <div class="tiny muted">Renda do cliente → faixa MCMV, valor máximo de imóvel, parcela, financiamento e subsídio. Conduz a captação por faixa na hora.</div>
+      ${avisoFaixas()}
     </div>
 
     <div class="card" style="padding:16px;margin-bottom:14px">

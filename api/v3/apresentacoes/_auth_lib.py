@@ -92,6 +92,37 @@ ROLE_LVL = {
 
 
 _CUSTOM_LVL = {"d": None, "t": 0.0}
+_LVL_OVERRIDES = {"d": None, "t": 0.0}
+
+
+def _lvl_overrides():
+    """Overrides de nível dos papéis FIXOS, editáveis pelo sócio na Central de
+    Permissões (shared_kv 'role_lvl_overrides' = {role: lvl}). Cache 60s. v83.9.
+    'socio' e 'diretor' nunca são rebaixados aqui (proteção anti-lockout)."""
+    if _LVL_OVERRIDES["d"] is not None and (time.time() - _LVL_OVERRIDES["t"]) < 60:
+        return _LVL_OVERRIDES["d"]
+    out = {}
+    try:
+        import json as _json
+        sb = supabase_client()
+        if sb:
+            rows = sb.table("shared_kv").select("value").eq("key", "role_lvl_overrides").limit(1).execute().data or []
+            val = rows[0]["value"] if rows else {}
+            if isinstance(val, str):
+                val = _json.loads(val)
+            for k, v in (val or {}).items():
+                r = str(k).strip().lower()
+                if r in ("socio", "diretor"):
+                    continue
+                try:
+                    out[r] = max(1, min(10, int(v)))
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    _LVL_OVERRIDES["d"] = out
+    _LVL_OVERRIDES["t"] = time.time()
+    return out
 
 
 def _custom_levels():
@@ -121,10 +152,61 @@ def _custom_levels():
     return out
 
 
+_FRENTES_CFG = {"d": None, "t": 0.0}
+_FRENTES_DEFAULT = [
+    {"id": "map", "funis": ["MAP"], "ativa": True},
+    {"id": "conquista", "funis": ["CONQUISTA"], "ativa": True},
+    {"id": "terceiros", "funis": ["TERCEIRO"], "ativa": True},
+    {"id": "locacoes", "funis": ["LOCA"], "ativa": True},
+]
+
+
+def frentes_config():
+    """FONTE ÚNICA das frentes (shared_kv 'frentes_config', cache 60s) — mata o
+    mapeamento funil→frente duplicado em 20+ backends (auditoria A1). v84.0"""
+    if _FRENTES_CFG["d"] is not None and (time.time() - _FRENTES_CFG["t"]) < 60:
+        return _FRENTES_CFG["d"]
+    out = [dict(f) for f in _FRENTES_DEFAULT]
+    try:
+        import json as _json
+        sb = supabase_client()
+        if sb:
+            rows = sb.table("shared_kv").select("value").eq("key", "frentes_config").limit(1).execute().data or []
+            val = rows[0]["value"] if rows else []
+            if isinstance(val, str):
+                val = _json.loads(val)
+            saved = {f.get("id"): f for f in val if isinstance(f, dict)} if isinstance(val, list) else {}
+            for f in out:
+                s = saved.get(f["id"]) or {}
+                if isinstance(s.get("funis"), list) and s["funis"]:
+                    f["funis"] = [str(x) for x in s["funis"]][:10]
+                if isinstance(s.get("ativa"), bool):
+                    f["ativa"] = s["ativa"]
+    except Exception:
+        pass
+    _FRENTES_CFG["d"] = out
+    _FRENTES_CFG["t"] = time.time()
+    return out
+
+
+def frente_of(pipeline_name: str) -> str:
+    """Frente (map|conquista|terceiros|locacoes|outros) de um pipeline do RD,
+    pela config editável do sócio. Substitui os if/elif hardcoded. v84.0"""
+    p = (pipeline_name or "").upper()
+    for f in frentes_config():
+        for needle in (f.get("funis") or []):
+            if str(needle).upper() in p:
+                return f["id"]
+    return "outros"
+
+
 def lvl_of(role: str) -> int:
-    """Nível do papel. Fixos no ROLE_LVL; papéis CUSTOM vêm do shared_kv
-    'custom_roles' (cache 60s). Default 2 (corretor)."""
+    """Nível do papel. Ordem: override do sócio (shared_kv 'role_lvl_overrides')
+    > ROLE_LVL fixo > papéis CUSTOM ('custom_roles'). Default 2 (corretor). v83.9"""
     r = (role or "").strip().lower()
+    ov = _lvl_overrides()
+    if r in ov:
+        return ov[r]
     if r in ROLE_LVL:
         return ROLE_LVL[r]
     return _custom_levels().get(r, 2)
@@ -212,9 +294,13 @@ def current_user(handler) -> Optional[dict]:
     if not sb:
         return None
     try:
-        res = sb.table("users").select(
-            "id,name,email,role,team,ini,color,rd_id,meta_id,status,hide_from_ranking,last_login_at"
-        ).eq("id", claims.get("sub")).limit(1).execute()
+        base_cols = "id,name,email,role,team,ini,color,rd_id,meta_id,status,hide_from_ranking,last_login_at"
+        try:
+            # menu_groups = override de menu por usuário (lista branca de grupos); v77.53
+            res = sb.table("users").select(base_cols + ",menu_groups").eq("id", claims.get("sub")).limit(1).execute()
+        except Exception:
+            # coluna ainda não migrada em algum ambiente → não quebra o login
+            res = sb.table("users").select(base_cols).eq("id", claims.get("sub")).limit(1).execute()
         rows = res.data or []
         if not rows:
             return None
@@ -400,6 +486,37 @@ def notify_all(user_ids, tipo, title, body=None, link=None, target_type=None, ta
     except Exception:
         pass
     return n
+
+
+# ── v86.67: permissão de ROTA no backend, espelhando o canSee do front ────────────
+# (achado do diagnóstico 23/ago: RH/CS/secretaria/leads exigiam só lvl 2 no backend e a
+#  matriz por papel valia apenas pro menu). Regra igual ao front:
+#   sócio → sempre; usuário com override individual (menu_groups lista) → grupo liberado;
+#   papel customizado na matriz (role_perms) → só se alguma rota do grupo está na lista;
+#   senão → default por nível (ROUTE_MIN_LVL do front).
+def can_route(sb, actor, routes, group, default_lvl=2):
+    try:
+        lvl = int(actor.get("lvl") or 0)
+    except Exception:
+        lvl = 0
+    if lvl >= 10:
+        return True
+    role = (actor.get("role") or "corretor").strip().lower()
+    routes = list(routes or [])
+    mg = actor.get("menu_groups")
+    if isinstance(mg, list):
+        return group in mg or any(r in mg for r in routes)
+    try:
+        rows = sb.table("shared_kv").select("value").eq("key", "role_perms").limit(1).execute().data or []
+        rp = rows[0]["value"] if rows else {}
+        if isinstance(rp, str):
+            import json as _j
+            rp = _j.loads(rp)
+    except Exception:
+        rp = {}
+    if isinstance(rp, dict) and isinstance(rp.get(role), list):
+        return any(r in rp[role] for r in routes)
+    return lvl >= default_lvl
 
 
 # ── v86.68: "hoje" do negócio (Brasil, UTC-3) — fonte única pra todo o backend ──
