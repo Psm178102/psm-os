@@ -918,7 +918,12 @@ function tabProd() {
     return `<tr style="font-weight:700;background:var(--bg-3)">
       <td style="font-size:12.5px;padding:5px 8px 5px 0">${TEAM_LBL[t] || t}</td>
       <td></td>
-      <td style="text-align:right">${fN(e.leads)}</td><td style="text-align:right">${fN(e.venda)}</td>
+      <td style="text-align:right">${fN(e.leads)}</td>
+      <td style="text-align:right">${fN(e.atend)}</td>
+      <td style="text-align:right">${fN(e.agend)}</td>
+      <td style="text-align:right">${fN(e.visita)}</td>
+      <td style="text-align:right">${fN(e.pasta)}</td>
+      <td style="text-align:right">${fN(e.venda)}</td>
       <td style="text-align:right">${e.leads_por_venda ?? '—'}</td><td style="text-align:right">${e.atend_por_venda ?? '—'}</td>
       <td style="text-align:right">${e.visitas_por_venda ?? '—'}</td><td style="text-align:right">${e.pastas_por_venda ?? '—'}</td>
       <td style="text-align:right">${e.dias_por_venda != null ? fN(e.dias_por_venda) + 'd' : '—'}</td>
@@ -933,6 +938,10 @@ function tabProd() {
         ${chips ? `<div style="margin-top:2px">${chips}</div>` : ''}</td>
       <td style="font-size:11.5px;font-weight:800;color:var(--gc-ok);white-space:nowrap">${cr.top_canal ? '🏆 ' + esc(cr.top_canal) : '—'}</td>
       <td style="text-align:right;font-size:12px">${fN(cr.leads)}</td>
+      <td style="text-align:right;font-size:12px">${fN(cr.atend)}</td>
+      <td style="text-align:right;font-size:12px">${fN(cr.agend)}</td>
+      <td style="text-align:right;font-size:12px;font-weight:700">${fN(cr.visita)}</td>
+      <td style="text-align:right;font-size:12px">${fN(cr.pasta)}</td>
       <td style="text-align:right;font-weight:800;font-size:12px">${fN(cr.venda)}</td>
       <td style="text-align:right;font-size:12px">${cr.leads_por_venda ?? '—'}</td>
       <td style="text-align:right;font-size:12px">${cr.atend_por_venda ?? '—'}</td>
@@ -946,7 +955,7 @@ function tabProd() {
   }).join('');
   return pan(`📊 Quantos X pra 1 venda — equipe e corretor (safra da janela)${p.restrito_a ? ` · <span class="tiny" style="color:var(--gc-warn)">visão restrita à sua equipe (${p.restrito_a})</span>` : ''}`, `
     <div style="overflow-x:auto"><table>
-      <thead><tr style="text-align:right"><th style="text-align:left">Corretor / Equipe</th><th style="text-align:left">Canal 🏆 (converte melhor)</th><th>Leads</th><th>Vendas</th><th>Leads/venda</th><th>Atend./venda</th><th>Visitas/venda</th><th>Pastas/venda</th><th>Dias p/ venda</th><th>1º contato</th><th>Ticket</th><th>VGV</th></tr></thead>
+      <thead><tr style="text-align:right"><th style="text-align:left">Corretor / Equipe</th><th style="text-align:left">Canal 🏆 (converte melhor)</th><th>Leads</th><th title="passaram pela lane CTT OK/Qualificação">Qualif.</th><th>Agend.</th><th>Visitas</th><th>Pastas</th><th>Vendas</th><th>Leads/venda</th><th>Atend./venda</th><th>Visitas/venda</th><th>Pastas/venda</th><th>Dias p/ venda</th><th>1º contato</th><th>Ticket</th><th>VGV</th></tr></thead>
       <tbody>${eqRows}${rows}</tbody></table></div>
     <div class="tiny muted gc-nota" style="margin-top:6px">Razões calculadas na safra da janela (lead nascido nela). Corretor sem venda na safra mostra — (sem denominador não há razão honesta).</div>`, 'produtividade')
     + histTable('Produção — mês a mês', [

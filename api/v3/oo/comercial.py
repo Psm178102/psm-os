@@ -9,9 +9,9 @@ FONTES (decisão do Paulo, 14/ago):
   • Conquista → esteira do PSM HUB (vendas/VGV oficiais da equipe) com o RD CRM
     como base do funil (leads/agendamentos/visitas/pastas por evento real).
   • MAP → funil RD MAP espelhado (mesma régua do simulador do 1:1).
-  • "Qualificado" = 1º marco de contato ok/qualificação (constante única
-    MARCO_QUALIF = 1, decisão do Paulo 23/ago — vale pra custo, esteira,
-    produtividade e métricas). Funil de custo: lead → qualificado →
+  • "Qualificado" = passou pela lane REAL de qualificação do RD (CTT OK /
+    QUALIFICAÇÃO) — v86.81. Entrar no funil ("novo atendimento", "tentativa de
+    contato") NÃO é qualificação: antes contava e por isso CPL == CPQL. Funil de custo: lead → qualificado →
     agendamento → visita → pasta → venda. CAC nos DOIS níveis: mídia e
     completo (mídia + custo fixo orçado da linha).
   • Fontes analisadas por SAFRA de lead (coorte criada na janela, seguida até
@@ -23,6 +23,7 @@ própria equipe. Cache compartilhado 10min por janela (cálculo pesado).
 from http.server import BaseHTTPRequestHandler
 import json
 import math
+import re
 import os
 import sys
 import urllib.parse
@@ -47,7 +48,10 @@ LINHA_DA_EQUIPE = {"conquista": "conquista", "map": "map", "terceiros": "terceir
 # usada em custo_qualif, esteira (qualif), produtividade (atend) e métricas —
 # antes a esteira usava marco 2 (agendamento) e o resto marco 1, e os números
 # não batiam entre as abas.
-MARCO_QUALIF = 1
+MARCO_QUALIF = 1   # legado: marco de "contato" (entrada). NÃO use pra qualificação.
+# v86.81 (achado do Paulo 25/ago: "CPL 12 e CPQL 12 — todos que entraram são
+# qualificados então?"): qualificação de verdade é a LANE CTT OK/QUALIFICAÇÃO.
+_QUALIF_RE = re.compile(r"qualific|ctt\s*ok|contato\s*ok", re.I)
 MIN_LEADS_RANK = 30   # amostra mínima pra fonte entrar no pódio
 MIN_VENDAS_RANK = 3
 
@@ -56,7 +60,7 @@ MIN_VENDAS_RANK = 3
 CANAL_MERGE = {"nao_atribuido": "trafego_imob", "outro": "trafego_imob", "meta": "trafego_imob"}
 CANAL_LBL = {**CHANNEL_LABEL, "trafego_imob": "Tráfego pago Imob"}
 CANAIS_PAGOS = ("trafego_imob", "google")   # v86.38: régua única de "venda de origem paga"
-CACHE_VER = "gc26"   # v86.39: bump aqui invalida página E cron juntos
+CACHE_VER = "gc27"   # v86.39: bump aqui invalida página E cron juntos
 
 FUNIS_RD = {"conquista": "funil conquista", "map": "funil map",
             "terceiros": "funil terceiros", "locacao": "funil de locacao"}
@@ -190,8 +194,17 @@ def mapa_marcos(sb):
         stages_rows = sb.table("rd_stages").select("*").execute().data or []
         pipes_rows = sb.table("rd_pipelines").select("*").execute().data or []
     except Exception:
-        return {}, {}, {}, {}, {}
+        return {}, {}, {}, {}, {}, set()
     pos_by_id, by_pipe, pipe_names = build_stage_maps(stages_rows, pipes_rows)
+    # v86.81 (achado do Paulo 25/ago: "CPL 12 e CPQL 12 — todos que entraram são
+    # qualificados então?"). O marco 1 casa `contato|qualific|atend|tentativ|oport`,
+    # ou seja pega a lane de ENTRADA ("NOVO ATENDIMENTO") — por isso TODO lead virava
+    # "qualificado" e CPQL == CPL. Qualificação de verdade é a lane CTT OK/QUALIFICAÇÃO.
+    qualif_pos = set()
+    for pid, stages in by_pipe.items():
+        for pos, nm in stages:
+            if _QUALIF_RE.search(nm or ""):
+                qualif_pos.add((str(pid), pos))
     marco_sid, marco_pos = {}, {}
     for pid, stages in by_pipe.items():
         if len(stages) < 2:
@@ -207,7 +220,7 @@ def mapa_marcos(sb):
             marco_pos[(str(pid), pos)] = 0
     for sid, (pid, pos) in pos_by_id.items():
         marco_sid[str(sid)] = marco_pos.get((str(pid), pos), None)
-    return marco_sid, marco_pos, by_pipe, pos_by_id, pipe_names
+    return marco_sid, marco_pos, by_pipe, pos_by_id, pipe_names, qualif_pos
 
 
 def marco_do_deal(d, evs, marco_sid, marco_pos):
@@ -361,7 +374,7 @@ class handler(BaseHTTPRequestHandler):
 
         users = {str(u["id"]): u for u in (sb.table("users").select("id,name,email,role,team,status").execute().data or []) if u.get("id")}
         email2uid = {(u.get("email") or "").lower(): uid for uid, u in users.items() if u.get("email")}
-        marco_sid, marco_pos, by_pipe, pos_by_id, pipe_names = mapa_marcos(sb)
+        marco_sid, marco_pos, by_pipe, pos_by_id, pipe_names, qualif_pos = mapa_marcos(sb)
 
         # 🧭 v86.34 (achado do Paulo 17/ago): a equipe do deal é o FUNIL onde ele
         # vive (MAP e Locação têm funil próprio no RD e estavam zerando na Visão
@@ -440,10 +453,14 @@ class handler(BaseHTTPRequestHandler):
             pid = str(d.get("pipeline_id") or "")
             # 1ª vez em cada marco (tempos): pelo occurred_at dos eventos
             t_marco = {}
+            t_qualif = None   # v86.81: 1ª vez na lane de qualificação REAL (CTT OK)
             for ev in evs:
                 m = marco_pos.get((pid, ev[0])) if isinstance(ev[0], int) else None
                 if m is not None and ev[2] and (m not in t_marco or ev[2] < t_marco[m]):
                     t_marco[m] = ev[2]
+                if isinstance(ev[0], int) and ev[2] and (pid, ev[0]) in qualif_pos:
+                    if t_qualif is None or ev[2] < t_qualif:
+                        t_qualif = ev[2]
             eds.append({
                 "created": parse_dt(d.get("created_at_rd")),
                 "closed": parse_dt(d.get("closed_at")),
@@ -457,7 +474,7 @@ class handler(BaseHTTPRequestHandler):
                 "team": team_do_deal(pid, uid),
                 "uid": uid, "nome": u.get("name") or d.get("user_email") or "?",
                 "marco": marco_do_deal(d, evs, marco_sid, marco_pos),
-                "t_marco": t_marco,
+                "t_marco": t_marco, "t_qualif": t_qualif,
             })
 
         na_janela = [e for e in eds if e["created"] and since_dt <= e["created"] <= until_dt]
@@ -524,7 +541,7 @@ class handler(BaseHTTPRequestHandler):
             c = por_corr.setdefault((e["uid"], e["team"]), {"nome": e["nome"], "team": e["team"], "leads": 0, "atend": 0,
                                                             "agend": 0, "visita": 0, "pasta": 0, "venda": 0, "vgv": 0.0})
             c["leads"] += 1
-            if e["marco"] >= MARCO_QUALIF: c["atend"] += 1
+            if e.get("t_qualif"): c["atend"] += 1   # v86.81: qualificação real, não entrada
             if e["marco"] >= 2: c["agend"] += 1
             if e["marco"] >= 3: c["visita"] += 1
             if e["marco"] >= 5: c["pasta"] += 1
@@ -605,8 +622,8 @@ class handler(BaseHTTPRequestHandler):
         def _no_per(dt):
             return bool(dt and since_dt <= dt <= until_dt)
 
-        ETAPAS_ESTEIRA = (("prospec", None), ("qualif", MARCO_QUALIF), ("visita", 3),
-                          ("proposta", 4), ("pasta", 5))
+        # v86.81: "qualif" = lane REAL de qualificação (t_qualif), não o marco 1 de entrada
+        ETAPAS_ESTEIRA = (("prospec", None), ("visita", 3), ("proposta", 4), ("pasta", 5))
 
         def _linha_esteira(nome, team, uid=None):
             return {"uid": uid, "nome": nome, "team": team, "prospec": 0, "qualif": 0,
@@ -620,6 +637,8 @@ class handler(BaseHTTPRequestHandler):
             for chave, marco in ETAPAS_ESTEIRA:
                 if marco is not None and _no_per(tm.get(marco)):
                     c[chave] += 1
+            if _no_per(e.get("t_qualif")):
+                c["qualif"] += 1
             if e["win"] and _no_per(e["closed"]):
                 c["venda"] += 1
                 c["vgv"] += e["vgv"]
@@ -718,15 +737,16 @@ class handler(BaseHTTPRequestHandler):
             # venda no período implica ter passado pela pasta. Assim leads ≥ qualif ≥
             # agend ≥ visita ≥ proposta ≥ pasta ≥ vendas SEMPRE (antes proposta podia
             # passar visita e a pasta batia com a venda por contar só o marco-5 solto).
-            _wins_ids = {id(e) for e in wins_tk}
+            # v86.81: NÃO fabrica mais pasta a partir da venda. Antes, "vendeu ⇒ passou
+            # pela pasta" forçava pasta >= vendas e, com volume baixo, dava pasta == vendas
+            # (a leitura falsa de "100% das pastas viram venda" que o Paulo apontou).
+            # Agora cada etapa conta só o que REALMENTE aconteceu na janela.
             def _reach(e):
-                ks = [k for k in (MARCO_QUALIF, 2, 3, 4, 5) if e["t_marco"].get(k) and _in(e["t_marco"][k])]
-                mx = max(ks) if ks else 0
-                if id(e) in _wins_ids:
-                    mx = max(mx, 5)   # vendeu no período ⇒ passou pela pasta
-                return mx
+                ks = [k for k in (2, 3, 4, 5) if e["t_marco"].get(k) and _in(e["t_marco"][k])]
+                return max(ks) if ks else 0
             _eq = [e for e in eds if e["team"] == tk]
-            qualif   = sum(1 for e in _eq if _reach(e) >= MARCO_QUALIF)
+            # qualificado = passou pela lane CTT OK/QUALIFICAÇÃO (não é "entrou no funil")
+            qualif   = sum(1 for e in _eq if e.get("t_qualif") and _in(e["t_qualif"]))
             agend    = sum(1 for e in _eq if _reach(e) >= 2)
             visita   = sum(1 for e in _eq if _reach(e) >= 3)
             proposta = sum(1 for e in _eq if _reach(e) >= 4)
@@ -972,7 +992,7 @@ class handler(BaseHTTPRequestHandler):
         metricas = {}
         for tk, _l in TEAMS:
             pool = [e for e in na_janela if e["team"] == tk]
-            n = {"leads": len(pool), "qualif": sum(1 for e in pool if e["marco"] >= MARCO_QUALIF),
+            n = {"leads": len(pool), "qualif": sum(1 for e in pool if e.get("t_qualif")),
                  "agend": sum(1 for e in pool if e["marco"] >= 2), "visita": sum(1 for e in pool if e["marco"] >= 3),
                  "proposta": sum(1 for e in pool if e["marco"] >= 4), "pasta": sum(1 for e in pool if e["marco"] >= 5),
                  "venda": sum(1 for e in pool if e["win"])}
