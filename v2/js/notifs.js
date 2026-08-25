@@ -119,7 +119,7 @@ function renderDrawer() {
 function notifRow(n) {
   const ico = TIPO_ICO[n.tipo] || '🔔';
   const ts = relTime(n.created_at);
-  const unreadStyle = !n.lida ? 'background:#dbeafe;border-left:3px solid #2563eb' : 'background:var(--bg-3);border-left:3px solid transparent';
+  const unreadStyle = !n.lida ? 'background:rgba(37,99,235,.14);border-left:3px solid var(--info)' : 'background:var(--bg-3);border-left:3px solid transparent';
   return `
     <div data-notif="${n.id}" style="${unreadStyle};margin-bottom:6px;padding:10px 12px;border-radius:var(--r-sm);cursor:pointer;font-size:12.5px">
       <div style="display:flex;gap:8px;align-items:flex-start">

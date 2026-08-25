@@ -151,16 +151,17 @@ function propostaTableHTML(c) {
 
 // CSS fiel à planilha — o MESMO na tela e na via de impressão/compartilhamento
 const PP_CSS = `
-  .pp-table{border-collapse:collapse;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:var(--ink);width:100%;max-width:980px;background:var(--bg-2)}
+  .pp-table{border-collapse:collapse;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#1a1a1a;width:100%;max-width:980px;background:#fff}
+  /* v86.85: a planilha é uma FOLHA impressa fiel — fica clara nos 2 temas, com tinta escura própria (antes herdava a letra creme do escuro sobre verde/amarelo claro) */
   .pp-table .pp-c,.pp-table .pp-h{border:1px solid #000;padding:2px 6px;height:19px}
-  .pp-titulo{background:#ffff00;color:var(--ink);font-weight:800;font-size:21px;border:1.5px solid #000;text-align:center;padding:6px}
-  .pp-h{background:var(--bg-2);font-weight:700;text-align:center;font-size:11.5px}
+  .pp-titulo{background:#ffff00;color:#1a1a1a;font-weight:800;font-size:21px;border:1.5px solid #000;text-align:center;padding:6px}
+  .pp-h{background:#f3f3f3;font-weight:700;text-align:center;font-size:11.5px}
   .pp-n{width:44px;text-align:center;font-weight:700}
   .pp-data{width:74px;text-align:center;font-weight:700}
   .pp-money{min-width:108px;text-align:right;white-space:nowrap}
   .pp-money .pp-rs{float:left;padding-right:8px}
   .pp-r td{background:#dde8d0}
-  .pp-ato td{background:var(--bg-2);font-weight:700}
+  .pp-ato td{background:#e9e9e9;font-weight:700}
   .pp-verde .pp-n{background:#d9ead3;color:#38761d}
   .pp-verm .pp-n{background:#f4cccc;color:#cc0000}
   .pp-verm td:not(.pp-n){color:#333}

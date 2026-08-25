@@ -57,6 +57,12 @@
   --muted:          var(--ink-muted);
   --bd:             var(--border);
   --tx:             var(--ink);
+  /* v86.85 (Paulo 25/ago: cards brancos com letra clara no kanban de Tarefas).
+     --bg-1 é usado 61× no app como "fundo de card" e NUNCA foi definido — todo
+     uso caía no fallback #fff, um branco FIXO que no tema escuro recebia a
+     letra clara por cima (título ilegível). O alias resolve pro card do tema
+     (branco no claro, #131826 no escuro) em todos os 61 pontos de uma vez. */
+  --bg-1:           var(--bg-2);
 
   /* State */
   --ok:             #16a34a;
