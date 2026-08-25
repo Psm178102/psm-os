@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
 from _prod_lib import first_touch_map, email_local, METAS_CORRETOR  # type: ignore
 
-KV_CACHE = "prod_real_cache"
+KV_CACHE = "prod_real_cache_v2"   # v86.79: bump invalida o payload antigo (sem filtro)
 CACHE_MIN = 10
 PASTA_BOAS = ("aprovada", "aprovado")
 PASTA_RUINS = ("reprovada", "reprovado")
@@ -154,6 +154,41 @@ def _compute(sb, janela):
     except Exception:
         pass
 
+    # ── v86.79: SÓ CORRETOR ATIVO entra na tela (achado do Paulo 25/ago) ──────
+    # A lista saía direto dos deals (e-mail do dono no RD) sem NUNCA cruzar com o
+    # cadastro: entravam sócios (isabella, paulomorimatsu), gerente (kauebordini),
+    # backoffice (mariane) e gente desligada (julia, nayara). Pior: a MEDIANA da
+    # equipe — a régua que decide "rendimento alto/baixo" — era calculada com todos
+    # eles juntos, então a régua de quem vende era puxada por quem não vende.
+    # Filtra ANTES da mediana. Se a leitura de users falhar, NÃO filtra nada
+    # (melhor mostrar demais do que esvaziar a tela em silêncio).
+    users_by_mail, users_ok = {}, True
+    try:
+        for u in _fetch_all(lambda: sb.table("users").select("id,name,email,role,status").order("id")):
+            ml = email_local(u.get("email"))
+            if ml:
+                users_by_mail[ml] = u
+        users_ok = bool(users_by_mail)
+    except Exception as e:
+        print(f"[produtividade] cadastro de users indisponível ({e}) — lista NÃO filtrada")
+        users_ok = False
+
+    fora_da_lista = []
+    if users_ok:
+        for k in list(por.keys()):
+            u = users_by_mail.get(k)
+            papel = str((u or {}).get("role") or "").lower()
+            if not u:
+                motivo = "sem cadastro no House"
+            elif (u.get("status") or "ativo") != "ativo":
+                motivo = "desligado/inativo"
+            elif not papel.startswith("corretor"):
+                motivo = papel or "sem papel definido"
+            else:
+                continue
+            fora_da_lista.append({"quem": (u or {}).get("name") or k, "motivo": motivo})
+            por.pop(k, None)
+
     # médias de equipe (mesmo funil dominante) p/ normalizar o rendimento
     conv_por_funil = {}
     for s in por.values():
@@ -208,6 +243,9 @@ def _compute(sb, janela):
         })
     return {"janela_dias": janela, "gerado_em": now.isoformat(),
             "metas": METAS_CORRETOR, "corretores": out,
+            # v86.79: quem foi tirado e POR QUÊ — filtro visível, nunca silencioso
+            "fora_da_lista": sorted(fora_da_lista, key=lambda x: x["quem"]),
+            "filtro_aplicado": users_ok,
             "nota": "Rendimento sempre vs mediana do MESMO funil; amostra mínima 30 leads. "
                     "NUNCA expor rendimento individual em TV/ranking público (spec)."}
 
