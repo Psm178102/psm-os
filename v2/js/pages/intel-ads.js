@@ -52,7 +52,7 @@ function render(loading) {
 
 function kpi(label, value, color, sub) {
   return `<div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:14px">
-    <div style="color:#64748b;font-size:10px;text-transform:uppercase;font-weight:700;margin-bottom:4px">${label}</div>
+    <div style="color:var(--ink-muted);font-size:10px;text-transform:uppercase;font-weight:700;margin-bottom:4px">${label}</div>
     <div style="color:${color};font-size:21px;font-weight:800">${value}</div>
     ${sub ? `<div style="color:#94a3b8;font-size:11px;margin-top:2px">${esc(sub)}</div>` : ''}</div>`;
 }
@@ -109,9 +109,9 @@ function renderContent() {
             <td style="padding:8px 10px;color:#fff;font-weight:600">${esc(c.nome || '—')}${c.handle ? `<div style="font-size:10px;color:#94a3b8">${esc(c.handle)}</div>` : ''}</td>
             <td style="padding:8px 10px;text-align:center"><span style="padding:2px 8px;border-radius:4px;background:${tierColor(c.tier)};color:#fff;font-size:11px;font-weight:700">${esc(c.tier || '—')}</span></td>
             <td style="padding:8px 10px;color:#94a3b8">${esc(c.segmento || '—')}</td>
-            <td style="padding:8px 10px;text-align:right;font-weight:800;color:${c.anuncios_count > 0 ? '#22c55e' : '#475569'}">${c.anuncios_count || '—'}${c.ultima_atualizacao && c.anuncios_count ? `<div class="tiny" style="font-weight:400;color:#64748b">${fmtDate(c.ultima_atualizacao)}</div>` : ''}</td>
+            <td style="padding:8px 10px;text-align:right;font-weight:800;color:${c.anuncios_count > 0 ? '#22c55e' : '#475569'}">${c.anuncios_count || '—'}${c.ultima_atualizacao && c.anuncios_count ? `<div class="tiny" style="font-weight:400;color:var(--ink-muted)">${fmtDate(c.ultima_atualizacao)}</div>` : ''}</td>
             <td style="padding:8px 10px;text-align:right;color:${c.anuncios_dias_medio ? '#e2e8f0' : '#475569'}">${c.anuncios_dias_medio ? Math.round(c.anuncios_dias_medio) + 'd' : '—'}</td>
-            <td style="padding:8px 10px;text-align:right;font-weight:700;color:${inv.v ? '#fffbea' : '#475569'}">${inv.v ? '≈ ' + f$(inv.v) : '—'}${inv.manual ? '<div class="tiny" style="font-weight:400;color:#64748b">manual</div>' : ''}</td>
+            <td style="padding:8px 10px;text-align:right;font-weight:700;color:${inv.v ? '#fffbea' : '#475569'}">${inv.v ? '≈ ' + f$(inv.v) : '—'}${inv.manual ? '<div class="tiny" style="font-weight:400;color:var(--ink-muted)">manual</div>' : ''}</td>
             <td style="padding:8px 10px;text-align:center;white-space:nowrap">
               <a href="${adLibUrl(c.nome)}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" title="Ver anúncios na Biblioteca Meta" style="font-size:11px">🔗</a>
               <button class="btn btn-ghost btn-sm" data-print="${c.id}" title="Contar anúncios + tempo por print (IA)" style="font-size:11px">📷</button>

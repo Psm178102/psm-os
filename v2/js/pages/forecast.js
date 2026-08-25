@@ -67,7 +67,7 @@ function render() {
                     <td style="padding:6px 10px;font-weight:700">${label}</td>
                     <td style="text-align:right;padding:6px 10px">${m.deals}</td>
                     <td style="text-align:right;padding:6px 10px">R$ ${money(m.valor_total)}</td>
-                    <td style="text-align:right;padding:6px 10px;color:#16a34a;font-weight:700">R$ ${money(m.valor_ponderado)}</td>
+                    <td style="text-align:right;padding:6px 10px;color:var(--ok);font-weight:700">R$ ${money(m.valor_ponderado)}</td>
                     <td style="text-align:right;padding:6px 10px;color:var(--ink-muted)">${conv}</td>
                   </tr>`;
                 }).join('')}
@@ -103,7 +103,7 @@ function stageRow(s, totalGeral) {
       <div style="font-weight:600">${escapeHtml(s.stage)}</div>
       <div class="muted">${s.count} deals</div>
       <div style="text-align:right;font-weight:700">R$ ${money(s.valor)}</div>
-      <div style="text-align:right;color:#16a34a;font-weight:700">${pct2(s.weight*100)}</div>
+      <div style="text-align:right;color:var(--ok);font-weight:700">${pct2(s.weight*100)}</div>
     </div>
   `;
 }

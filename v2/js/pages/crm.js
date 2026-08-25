@@ -120,7 +120,7 @@ function renderDeals() {
     <div class="tiny muted" style="margin-bottom:10px">
       ${d.cached ? `📦 Cache ${d.cache_age_s}s · ` : '🔥 Fresh · '}
       Scope: <b>${escapeHtml(d.scope)}</b> ·
-      ${d.raw_count} deals brutos${d.truncado ? ' <b style="color:#d97706" title="o RD devolveu mais deals que o teto da consulta — números abaixo são parciais">(parcial)</b>' : ''} · ${d.user_scope_count} no seu scope ·
+      ${d.raw_count} deals brutos${d.truncado ? ' <b style="color:var(--warn)" title="o RD devolveu mais deals que o teto da consulta — números abaixo são parciais">(parcial)</b>' : ''} · ${d.user_scope_count} no seu scope ·
       Atualizado ${d.fetched_at ? new Date(d.fetched_at * 1000).toLocaleString('pt-BR') : 'agora'}
     </div>
 

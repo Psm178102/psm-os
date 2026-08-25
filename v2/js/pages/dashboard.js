@@ -199,7 +199,7 @@ function taskModalHTML() {
       <textarea id="nt-obs" class="input" rows="2" placeholder="Andamento, comentário, nota…" style="margin-bottom:6px">${escapeHtml((ed && ed.observacoes) || '')}</textarea>
       ${_taskMsg ? `<div class="tiny" style="margin-bottom:8px;color:${_taskMsg[0] === '⚠' ? '#dc2626' : '#64748b'}">${escapeHtml(_taskMsg)}</div>` : ''}
       <div class="flex gap-2" style="align-items:center;margin-top:4px">
-        ${podeExcluir ? '<button class="btn btn-ghost" data-nt-delete="1" style="color:#dc2626">🗑️ Excluir</button>' : ''}
+        ${podeExcluir ? '<button class="btn btn-ghost" data-nt-delete="1" style="color:var(--err)">🗑️ Excluir</button>' : ''}
         <button class="btn btn-ghost" data-nt-close="1" style="margin-left:auto">Cancelar</button>
         <button class="btn btn-primary" data-nt-save="1" ${_taskBusy ? 'disabled' : ''}>${_taskBusy ? '⏳…' : (ed && ed.id ? '💾 Salvar' : '✅ Criar tarefa')}</button>
       </div>
@@ -260,7 +260,7 @@ const PLANNER_CSS = `<style>
 .exec-when{font-weight:800;font-size:12px;white-space:nowrap}
 .exec-sub{font-size:12px;color:var(--ink-muted,#64748b);max-width:320px}
 .exec-quem{font-size:12px;font-weight:600;white-space:nowrap}
-.exec-done{width:28px;height:28px;border-radius:8px;border:1.5px solid #16a34a;background:transparent;color:#16a34a;font-weight:900;cursor:pointer;line-height:1;transition:all .12s}
+.exec-done{width:28px;height:28px;border-radius:8px;border:1.5px solid #16a34a;background:transparent;color:var(--ok);font-weight:900;cursor:pointer;line-height:1;transition:all .12s}
 .exec-done:hover{background:#16a34a;color:#fff}
 .exec-filtros{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
 .exec-fchip{font-size:11px;font-weight:700;padding:4px 11px;border-radius:999px;border:1px solid var(--bd);background:transparent;color:var(--ink-muted,#64748b);cursor:pointer}
@@ -297,7 +297,7 @@ const PLANNER_CSS = `<style>
 .pl-empty{background:transparent;border:none}
 .pl-today{border-color:#2563eb;background:rgba(37,99,235,.07)}
 .pl-dn{font-size:11px;font-weight:800;color:var(--ink-muted,#94a3b8);margin-bottom:3px;text-align:right;padding-right:2px}
-.pl-today .pl-dn{color:#2563eb}
+.pl-today .pl-dn{color:var(--info)}
 .pl-ev{display:block;font-size:9.5px;font-weight:700;padding:2px 6px;border-radius:5px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-decoration:none}
 .pl-more{font-size:9px;color:var(--ink-muted,#94a3b8);font-weight:700;padding-left:3px}
 </style>`;
@@ -386,7 +386,7 @@ function listaExec() {
     const overdue = i.data && i.data < hoje, eh = i.data === hoje;
     const cor = corOrigem(i.origem);
     const dia = i.data ? i.data.split('-').reverse().slice(0, 2).join('/') : 'sem data';
-    const badge = overdue ? ` <span style="color:#dc2626">⚠ atrasado</span>` : eh ? ` <span style="color:#16a34a">• hoje</span>` : '';
+    const badge = overdue ? ` <span style="color:var(--err)">⚠ atrasado</span>` : eh ? ` <span style="color:var(--ok)">• hoje</span>` : '';
     const qcor = overdue ? '#dc2626' : eh ? '#16a34a' : 'var(--ink,#0f172a)';
     return `<tr>
       <td style="border-left:3px solid ${cor}">
@@ -729,8 +729,8 @@ function salesRow(c, i) {
       <div style="font-size:16px;text-align:center">${medal}</div>
       <div style="width:28px;height:28px;border-radius:50%;background:${c.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px">${ini}</div>
       <div style="min-width:0"><div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(c.name || '—')}</div><div class="tiny muted">${escapeHtml(c.team || 'geral')}</div></div>
-      <div style="text-align:right"><div class="tiny muted">vendas</div><div style="font-weight:800;color:#2563eb">${c.vendas || 0}</div></div>
-      <div style="text-align:right"><div class="tiny muted">VGV</div><div style="font-weight:900;color:#16a34a">R$ ${fmtKM(c.vgv)}</div></div>
+      <div style="text-align:right"><div class="tiny muted">vendas</div><div style="font-weight:800;color:var(--info)">${c.vendas || 0}</div></div>
+      <div style="text-align:right"><div class="tiny muted">VGV</div><div style="font-weight:900;color:var(--ok)">R$ ${fmtKM(c.vgv)}</div></div>
     </div>`;
 }
 
@@ -828,7 +828,7 @@ async function injectMeuAcompanhamento() {
       <span style="width:13px;height:13px;border-radius:50%;background:${cor};flex-shrink:0"></span>
       <b>📈 Meu Acompanhamento</b>
       <span class="tiny">${miolo}</span>
-      ${(card.alertas || []).map(a => `<span class="badge" style="background:#dc262622;color:#dc2626;font-weight:700">${escapeHtml(a)}</span>`).join(' ')}
+      ${(card.alertas || []).map(a => `<span class="badge" style="background:#dc262622;color:var(--err);font-weight:700">${escapeHtml(a)}</span>`).join(' ')}
       <button class="btn btn-primary btn-sm" style="margin-left:auto" id="dash-fisc-abrir">registrar produção →</button>
     </div>`;
   const primeiro = _root.querySelector('.card');

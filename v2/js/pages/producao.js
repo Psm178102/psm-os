@@ -158,7 +158,7 @@ function cardHtml(card, unico, podeLogar) {
     extras = `<div class="flex tiny mt-1" style="gap:10px;flex-wrap:wrap">
       <span>📊 NPS: <b style="color:${(n.score ?? 100) >= n.meta_min ? '#16a34a' : '#dc2626'}">${n.score ?? '—'}</b> (meta ≥${n.meta_min}, ${n.n} respostas)</span>
       <span>🌟 Fila de promotores: <b>${n.fila_promotores}</b></span>
-      <span>👀 Visitas sem NPS: <b>${n.visitas_sem_nps.total}</b>${n.visitas_sem_nps.atrasadas ? ` <b style="color:#dc2626">(${n.visitas_sem_nps.atrasadas} >48h)</b>` : ''}</span>
+      <span>👀 Visitas sem NPS: <b>${n.visitas_sem_nps.total}</b>${n.visitas_sem_nps.atrasadas ? ` <b style="color:var(--err)">(${n.visitas_sem_nps.atrasadas} >48h)</b>` : ''}</span>
     </div>`;
   }
   const contadores = Object.entries(card.contadores || {})
@@ -170,7 +170,7 @@ function cardHtml(card, unico, podeLogar) {
       <b style="font-size:16px">${esc(card.nome)}</b>
       <span class="tiny muted">${card.pct != null ? card.pct + '% do esperado' : ''}</span>
       <span style="margin-left:auto"></span>
-      ${(card.alertas || []).map(a => `<span class="badge" style="background:#dc262622;color:#dc2626;font-weight:700">${esc(a)}</span>`).join(' ')}
+      ${(card.alertas || []).map(a => `<span class="badge" style="background:#dc262622;color:var(--err);font-weight:700">${esc(a)}</span>`).join(' ')}
       ${(auth.user()?.lvl || 0) >= 10 && _modo !== 'me' ? `<button class="btn btn-ghost btn-sm fz-del" data-fz-del="${esc(card.key)}" title="tirar este colaborador do painel (histórico de eventos fica intacto)">🗑</button>` : ''}
     </div>
     <div class="mt-1">${corpo}</div>

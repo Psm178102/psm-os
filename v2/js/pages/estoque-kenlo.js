@@ -84,8 +84,8 @@ function cardImovel(im, extra = '') {
           <span class="badge" style="font-weight:800">${esc(im.property_code || '?')}</span>
           <b style="font-size:13px">${preco}</b>${preco2}
           ${badgeDias(im.dias_sem_atualizar)}
-          ${!im.n_fotos ? '<span class="badge" style="background:#dc262622;color:#dc2626">sem foto</span>' : `<span class="tiny muted">📷 ${im.n_fotos}</span>`}
-          ${im.property_code ? `<a href="${SITE_IMOVEL(im.property_code)}" target="_blank" rel="noopener" class="badge" style="background:#0891b222;color:#0891b2;text-decoration:none;font-weight:700">🌐 site</a>` : ''}
+          ${!im.n_fotos ? '<span class="badge" style="background:#dc262622;color:var(--err)">sem foto</span>' : `<span class="tiny muted">📷 ${im.n_fotos}</span>`}
+          ${im.property_code ? `<a href="${SITE_IMOVEL(im.property_code)}" target="_blank" rel="noopener" class="badge" style="background:#0891b222;color:var(--ciano);text-decoration:none;font-weight:700">🌐 site</a>` : ''}
           ${extra}
         </div>
         <div class="tiny" style="margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(im.titulo || '')}</div>
@@ -351,7 +351,7 @@ async function renderMatch(corpo) {
     res.innerHTML = `
       <div class="card tiny muted">Critérios extraídos${_match.deal_nome ? ' de "' + esc(_match.deal_nome) + '"' : ''}: <b>${esc(crTxt)}</b> · ${_match.avaliados} imóveis avaliados</div>
       <div class="mt-2">${(_match.itens || []).map(im =>
-        cardImovel(im, `<span class="badge" style="background:#2563eb22;color:#2563eb;font-weight:800">★ ${im.score}</span><span class="tiny muted">${esc((im.motivos || []).join(' · '))}</span>`)
+        cardImovel(im, `<span class="badge" style="background:#2563eb22;color:var(--info);font-weight:800">★ ${im.score}</span><span class="tiny muted">${esc((im.motivos || []).join(' · '))}</span>`)
       ).join('') || '<div class="card">Nenhum imóvel pontuou. Tente descrever de outro jeito (bairro, tipo, verba).</div>'}</div>`;
   };
   corpo.querySelector('#ek-go').onclick = go;

@@ -158,7 +158,7 @@ function evRow(e, i) {
     <input class="input ev-txt" value="${esc(e.texto || '')}" placeholder="Conquista / realização (ex.: virar líder, bater 1ª venda alto padrão…)" style="flex:1" ${_canEdit ? '' : 'disabled'}>
     <input class="input ev-prazo" value="${esc(e.prazo || '')}" placeholder="prazo" style="width:110px" ${_canEdit ? '' : 'disabled'}>
     <label class="tiny" style="white-space:nowrap"><input type="checkbox" class="ev-feito" ${e.feito ? 'checked' : ''} ${_canEdit ? '' : 'disabled'}> feito</label>
-    ${_canEdit ? '<button class="btn btn-ghost btn-sm ev-del" title="Remover" style="color:#dc2626">✕</button>' : ''}
+    ${_canEdit ? '<button class="btn btn-ghost btn-sm ev-del" title="Remover" style="color:var(--err)">✕</button>' : ''}
   </div>`;
 }
 
@@ -236,7 +236,7 @@ function abrirTeste() {
         </div>`).join('')}</div>
       <div style="position:sticky;bottom:0;background:inherit;padding:10px 0;display:flex;gap:10px;align-items:center">
         <button class="btn btn-primary" id="pf-fin">✅ Ver resultado e salvar</button>
-        <span id="pf-msg" class="tiny" style="color:#dc2626"></span>
+        <span id="pf-msg" class="tiny" style="color:var(--err)"></span>
       </div>
     </div></div>`;
   document.body.appendChild(ov);

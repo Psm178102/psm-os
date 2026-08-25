@@ -116,7 +116,7 @@ function cardHTML(it) {
       <b style="font-size:15px">${esc(it.incorporadora)}</b>
       ${_canManage ? `<div class="flex gap-1">
         <button class="btn btn-ghost btn-sm" data-edit="${esc(it.id)}">✏️</button>
-        <button class="btn btn-ghost btn-sm" data-del="${esc(it.id)}" style="color:#dc2626">🗑</button></div>` : ''}
+        <button class="btn btn-ghost btn-sm" data-del="${esc(it.id)}" style="color:var(--err)">🗑</button></div>` : ''}
     </div>
     ${((it.categorias || []).length || (it.cidades || []).length) ? `<div class="flex gap-2" style="flex-wrap:wrap;align-items:center;margin:6px 0 2px">
       ${(it.categorias || []).map(catBadge).join('')}

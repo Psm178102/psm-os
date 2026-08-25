@@ -58,7 +58,7 @@ function render() {
         reunião sem painel/pauta = cancelada. <span class="muted">Anti-inflação: formato novo só entra se outro sair ou justificar contra a carga acima.</span>
       </div>
       ${pend.length ? `<div class="card" style="margin:10px 0 0;background:#dc26260d;border:1px solid #dc262633">
-        <b class="tiny" style="color:#dc2626">⏳ ${pend.length} pendência(s) aberta(s) de reuniões</b>
+        <b class="tiny" style="color:var(--err)">⏳ ${pend.length} pendência(s) aberta(s) de reuniões</b>
         ${pend.slice(0, 8).map(p => `<div class="tiny" style="margin-top:4px;display:flex;gap:6px;align-items:center">
           <button class="btn btn-ghost btn-sm rp-baixa" data-ata="${esc(p.ata_id)}" data-idx="${p.idx}" style="padding:0 6px" title="marcar como feita">☑️</button>
           <span><b>${esc(p.txt)}</b> — ${esc(p.dono)} até ${esc(p.prazo)}</span></div>`).join('')}
@@ -71,7 +71,7 @@ function render() {
               <span class="tiny" style="background:var(--bg-3);border-radius:999px;padding:2px 9px;font-weight:700;white-space:nowrap">${cadenciaTxt(f)} · ${esc(f.hora)} · ${f.dur_min}min</span>
             </div>
             <div class="tiny muted" style="margin-top:4px">👑 ${esc(f.dono)} · 👥 ${(f.participantes || []).map(esc).join(', ')}${(f.papeis || []).length ? ' + ' + f.papeis.map(p => p === '*' ? 'empresa inteira' : esc(p)).join(', ') : ''}${f.obs ? ` · <i>${esc(f.obs)}</i>` : ''}</div>
-            <div class="tiny" style="margin-top:4px">🖥 Painel: <a href="${esc(f.painel)}" style="color:#2563eb">${esc(f.painel_nome)}</a></div>
+            <div class="tiny" style="margin-top:4px">🖥 Painel: <a href="${esc(f.painel)}" style="color:var(--info)">${esc(f.painel_nome)}</a></div>
             <ol class="tiny" style="margin:6px 0 0 16px;line-height:1.5">${(f.pauta || []).map(p => `<li>${esc(p)}</li>`).join('')}</ol>
             ${_d.pode_ata ? `<button class="btn btn-primary btn-sm mt-2 rp-ata" data-f="${esc(f.id)}">📝 Registrar reunião</button>` : ''}
             ${historicoHTML(f.id)}
@@ -113,14 +113,14 @@ function abrirAta(fid) {
         </div>
         <label class="tiny muted" style="font-weight:700;margin-top:8px;display:block">Decisões (3 linhas, no ato)</label>
         <textarea id="rp-dec" class="input" rows="3" style="width:100%" placeholder="O que foi DECIDIDO — dado, não opinião…"></textarea>
-        <label class="tiny muted" style="font-weight:700;margin-top:8px;display:block">Pendências <span style="color:#dc2626">(sem dono+prazo não existe)</span></label>
+        <label class="tiny muted" style="font-weight:700;margin-top:8px;display:block">Pendências <span style="color:var(--err)">(sem dono+prazo não existe)</span></label>
         <div id="rp-pends">${[0, 1, 2].map(i => `
           <div class="flex gap-1 mb-1">
             <input class="input rp-p-txt" placeholder="pendência ${i + 1}" style="flex:2;font-size:12px">
             <input class="input rp-p-dono" placeholder="dono" style="flex:1;font-size:12px">
             <input class="input rp-p-prazo" type="date" style="width:135px;font-size:12px">
           </div>`).join('')}</div>
-        <div id="rp-err" class="tiny" style="color:#dc2626;margin-top:6px"></div>
+        <div id="rp-err" class="tiny" style="color:var(--err);margin-top:6px"></div>
         <div class="flex gap-2 mt-2" style="justify-content:flex-end">
           <button class="btn btn-ghost" id="rp-cancel">Cancelar</button>
           <button class="btn btn-primary" id="rp-save">💾 Registrar</button>

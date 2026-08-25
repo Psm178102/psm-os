@@ -37,7 +37,7 @@ function render() {
   _root.innerHTML = `
     <div class="card">
       <h2 class="card-title">🔑 Locações — Gestão da Carteira</h2>
-      <p class="card-sub">${_kpis.total || 0} contratos · <b style="color:#16a34a">R$ ${money(_kpis.receita_adm)}/mês</b> de receita de administração (recorrente PSM) · R$ ${money(_kpis.receita_aluguel)} de aluguel sob gestão</p>
+      <p class="card-sub">${_kpis.total || 0} contratos · <b style="color:var(--ok)">R$ ${money(_kpis.receita_adm)}/mês</b> de receita de administração (recorrente PSM) · R$ ${money(_kpis.receita_aluguel)} de aluguel sob gestão</p>
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px">
         ${kpi('💼 Receita ADM/mês', 'R$ ' + money(_kpis.receita_adm), 'recorrente da PSM', '#16a34a')}
@@ -228,7 +228,7 @@ function openImport() {
   modal.style.display = 'flex';
   const msg = () => document.getElementById('imp-msg');
   document.getElementById('imp-cancel').onclick = () => { modal.style.display = 'none'; };
-  document.getElementById('imp-modelo').onclick = () => { try { navigator.clipboard.writeText(IMP_HEADER); } catch {} msg().innerHTML = '<div class="tiny" style="color:#16a34a">modelo copiado ✓ — cole no Excel, preencha e exporte CSV</div>'; };
+  document.getElementById('imp-modelo').onclick = () => { try { navigator.clipboard.writeText(IMP_HEADER); } catch {} msg().innerHTML = '<div class="tiny" style="color:var(--ok)">modelo copiado ✓ — cole no Excel, preencha e exporte CSV</div>'; };
   document.getElementById('imp-previa').onclick = () => {
     const rows = parseCSV(document.getElementById('imp-csv').value);
     msg().innerHTML = rows.length ? `<div class="tiny muted">✅ ${rows.length} linha(s) lida(s). Exemplo da 1ª: ${escapeHtml(JSON.stringify(rows[0]).slice(0, 220))}</div>` : '<div class="alert alert-warn">Nada reconhecido — confira se tem cabeçalho na 1ª linha.</div>';

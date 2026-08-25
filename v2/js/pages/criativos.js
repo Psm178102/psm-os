@@ -67,7 +67,7 @@ const dateChips = c => {
   const atrasE = c.data_entrega && c.status !== 'publicado' && c.status !== 'aprovado' && String(c.data_entrega).substring(0, 10) < hoje();
   const mk = (ic, d, lbl, bg, fg) => d ? `<span class="cr-chip" title="${lbl}" style="background:${bg};color:${fg}">${ic} ${esc(fmtData(d))}</span>` : '';
   const chips = mk('▶', c.data_inicio, 'Início', 'rgba(16,185,129,.14)', '#047857')
-    + (c.data_entrega ? `<span class="cr-chip" title="Entrega" style="background:${atrasE ? 'rgba(239,68,68,.18)' : 'rgba(239,68,68,.10)'};color:#b91c1c">📦 ${esc(fmtData(c.data_entrega))}${atrasE ? ' ⚠' : ''}</span>` : '')
+    + (c.data_entrega ? `<span class="cr-chip" title="Entrega" style="background:${atrasE ? 'rgba(239,68,68,.18)' : 'rgba(239,68,68,.10)'};color:var(--err-forte)">📦 ${esc(fmtData(c.data_entrega))}${atrasE ? ' ⚠' : ''}</span>` : '')
     + mk('📣', c.data_post, 'Post', 'rgba(79,70,229,.14)', '#4f46e5');
   return chips ? `<div class="flex gap-1" style="flex-wrap:wrap;margin-top:6px">${chips}</div>` : '';
 };
@@ -165,9 +165,9 @@ function kpis() {
     <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
       <div class="cr-kpi"><div class="tiny muted">Pedidos</div><div style="font-size:18px;font-weight:800">${f.length}</div></div>
       <div class="cr-kpi"><div class="tiny muted">📥 Na fila</div><div style="font-size:18px;font-weight:800;color:#f59e0b">${por('solicitado')}</div></div>
-      <div class="cr-kpi"><div class="tiny muted">🎨 Produzindo</div><div style="font-size:18px;font-weight:800;color:#0ea5e9">${por('producao')}</div></div>
-      <div class="cr-kpi"><div class="tiny muted">⏰ Atrasados</div><div style="font-size:18px;font-weight:800;color:#ef4444">${atras}</div></div>
-      <div class="cr-kpi"><div class="tiny muted">🚀 Publicados</div><div style="font-size:18px;font-weight:800;color:#0891b2">${por('publicado')}</div></div>
+      <div class="cr-kpi"><div class="tiny muted">🎨 Produzindo</div><div style="font-size:18px;font-weight:800;color:var(--azul-ceu)">${por('producao')}</div></div>
+      <div class="cr-kpi"><div class="tiny muted">⏰ Atrasados</div><div style="font-size:18px;font-weight:800;color:var(--err-suave)">${atras}</div></div>
+      <div class="cr-kpi"><div class="tiny muted">🚀 Publicados</div><div style="font-size:18px;font-weight:800;color:var(--ciano)">${por('publicado')}</div></div>
     </div>`;
 }
 
@@ -599,7 +599,7 @@ function adLibsSection() {
           const oculto = !canSeeResource('ads_' + k, _adsPerms, u);   // sócio vê, mas marca
           return `<div style="border:1px solid var(--border,#e2e8f0);border-radius:10px;padding:12px;background:var(--bg-2)">
             <div class="flex items-center" style="justify-content:space-between;gap:6px;margin-bottom:8px">
-              <div style="font-weight:800;font-size:13px">${lbl}${oculto ? ' <span class="tiny" style="color:#b45309">(oculto)</span>' : ''}</div>
+              <div style="font-weight:800;font-size:13px">${lbl}${oculto ? ' <span class="tiny" style="color:var(--warn-escuro)">(oculto)</span>' : ''}</div>
               ${isSocio ? `<button class="btn btn-ghost btn-sm adl-perm" data-cat="${k}" data-lbl="${esc(lbl)}" title="Quem vê esta conta" style="padding:2px 7px">👁</button>` : ''}
             </div>
             ${links.length ? links.map(l => `<div class="flex items-center" style="gap:4px;margin-bottom:6px">
@@ -681,7 +681,7 @@ function anCard(c) {
       </div>
       <div style="padding:10px 12px;display:flex;flex-direction:column;gap:8px;flex:1">
         <div style="font-weight:800;font-size:13px;line-height:1.3">${esc(c.titulo || 'Sem nome')}</div>
-        <div class="flex gap-1" style="flex-wrap:wrap">${cat ? `<span class="cr-chip" style="background:rgba(214,36,159,.12);color:#be185d">${esc(cat)}</span>` : ''}${c.formato ? `<span class="cr-chip" style="background:#64748b1f;color:#475569">${esc(c.formato)}</span>` : ''}</div>
+        <div class="flex gap-1" style="flex-wrap:wrap">${cat ? `<span class="cr-chip" style="background:rgba(214,36,159,.12);color:var(--rosa-forte)">${esc(cat)}</span>` : ''}${c.formato ? `<span class="cr-chip" style="background:#64748b1f;color:var(--ink-muted)">${esc(c.formato)}</span>` : ''}</div>
         ${copy ? `<div style="font-size:11.5px;line-height:1.4;color:var(--ink-2,#475569);background:var(--bg-3,#f1f5f9);border-radius:8px;padding:8px 9px;max-height:120px;overflow:auto;white-space:pre-wrap">${esc(copy)}</div>
           <button class="btn btn-ghost tiny an-copybtn" data-copy="${esc(c.id)}">📋 Copiar copy</button>` : '<div class="tiny muted">Sem copy cadastrada.</div>'}
         <div class="flex gap-2" style="margin-top:auto">

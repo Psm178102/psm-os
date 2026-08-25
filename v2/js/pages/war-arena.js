@@ -202,7 +202,7 @@ function guerreirosScene() {
       ${lista.map((g, i) => {
         const top3 = i < 3, medal = i === 0 ? '👑' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}º`;
         const bar = (g.vgv || 0) / topVgv * 100, d = _rankDelta[g.name] || 0;
-        const seta = d > 0 ? `<span style="color:#4ade80;font-weight:900">▲${d}</span>` : d < 0 ? `<span style="color:#f87171;font-weight:900">▼${-d}</span>` : '<span style="opacity:.3">—</span>';
+        const seta = d > 0 ? `<span style="color:#4ade80;font-weight:900">▲${d}</span>` : d < 0 ? `<span style="color:var(--err-claro);font-weight:900">▼${-d}</span>` : '<span style="opacity:.3">—</span>';
         return `<div class="wa-row" style="animation-delay:${i * 55}ms;display:grid;grid-template-columns:54px 40px 54px 1fr auto auto;gap:14px;align-items:center;padding:12px 18px;border-radius:13px;background:rgba(255,255,255,${top3 ? '.13' : '.06'});${top3 ? 'border:2px solid #fbbf24' : ''}">
           <div style="font-size:${top3 ? 32 : 25}px;font-weight:900;text-align:center">${medal}</div>
           <div style="font-size:18px;text-align:center">${seta}</div>

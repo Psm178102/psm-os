@@ -142,7 +142,7 @@ function renderRd(r) {
   const list = r.talentos || [];
   body.innerHTML = `
     <div class="flex items-center gap-2 mb-3" style="flex-wrap:wrap">
-      <span class="badge" style="background:#16a34a22;color:#16a34a;font-weight:700">🟢 ${list.length} talento(s)</span>
+      <span class="badge" style="background:#16a34a22;color:var(--ok);font-weight:700">🟢 ${list.length} talento(s)</span>
       <span class="tiny muted">${esc(r.pipeline?.name || 'FUNIL DE PARCERIA – PAULO')} · ${esc(r.stage?.name || 'BANCO DE TALENTOS')}</span>
       <span class="tiny muted" style="margin-left:auto">Atualizado ${ts} · auto a cada 60s</span>
       <button class="btn btn-ghost btn-sm" id="rd-refresh">🔄 Atualizar</button>
@@ -392,7 +392,7 @@ function renderLista(items) {
           const et = t.etapa || 'Triagem';
           return `
           <tr style="border-bottom:1px solid var(--bd)">
-            <td style="padding:8px"><div style="font-weight:700">${esc(t.nome)}${t.origem === 'rd' ? ' <span class="tiny" style="color:#16a34a">🟢RD</span>' : ''}</div>${sub ? `<div class="tiny muted">${esc(sub)}</div>` : ''}</td>
+            <td style="padding:8px"><div style="font-weight:700">${esc(t.nome)}${t.origem === 'rd' ? ' <span class="tiny" style="color:var(--ok)">🟢RD</span>' : ''}</div>${sub ? `<div class="tiny muted">${esc(sub)}</div>` : ''}</td>
             <td style="padding:8px">${chip(et, ETAPA_COR[et] || '#64748b')}</td>
             <td style="padding:8px">${esc(cargo) || '—'}${t.setor ? `<div class="tiny muted">${esc(t.setor)}</div>` : ''}</td>
             <td style="padding:8px">${chip(t.canal, '#7c3aed') || '—'}</td>
@@ -545,7 +545,7 @@ function renderDetail(e) {
       <button class="btn btn-primary" id="tal-save">${e.id ? '💾 Salvar ficha' : '➕ Criar candidato'}</button>
       ${e.id ? '<button class="btn btn-ghost" id="tal-contratar" title="Mover p/ Contratado + aprovar">✅ Contratar → Onboarding</button>' : ''}
       <button class="btn btn-ghost" id="tal-cancel">Cancelar</button>
-      ${e.id ? '<button class="btn btn-ghost" id="tal-del" style="margin-left:auto;color:#dc2626">🗑️ Excluir</button>' : ''}
+      ${e.id ? '<button class="btn btn-ghost" id="tal-del" style="margin-left:auto;color:var(--err)">🗑️ Excluir</button>' : ''}
     </div>
   `;
 }
@@ -561,8 +561,8 @@ function cndPainelHTML(e) {
     return `<div style="border:1px solid ${cor}44;background:${cor}0d;border-radius:8px;padding:9px;margin-bottom:8px">
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <b style="font-size:12.5px;color:${cor}">⚖️ Dossiê de CND (interno) — ${c.emitidas}/${c.total} emitida(s)</b>
-        ${c.positivas ? `<span class="tiny" style="color:#dc2626;font-weight:800">🔴 ${c.positivas} POSITIVA(S) — tem débito</span>` : ''}
-        ${c.pendencias ? `<span class="tiny" style="color:#a16207;font-weight:700">⚠️ ${c.pendencias} não emitida/bloqueada</span>` : ''}
+        ${c.positivas ? `<span class="tiny" style="color:var(--err);font-weight:800">🔴 ${c.positivas} POSITIVA(S) — tem débito</span>` : ''}
+        ${c.pendencias ? `<span class="tiny" style="color:var(--ambar-escuro);font-weight:700">⚠️ ${c.pendencias} não emitida/bloqueada</span>` : ''}
         <a class="btn btn-ghost btn-sm" style="margin-left:auto" href="#/cnds?dossie=${encodeURIComponent(c.id)}">📁 Abrir dossiê</a>
       </div>
       <label class="tiny muted" style="display:block;margin-top:6px">Situação das CNDs — atualiza sozinho pelo dossiê

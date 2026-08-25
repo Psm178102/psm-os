@@ -142,7 +142,7 @@ export async function pageEtica(ctx, root) {
             <div style="background:var(--bg-3);border-left:4px solid var(--psm-gold);border-radius:8px;padding:12px 16px;margin-bottom:10px">
               <div style="font-weight:800;margin-bottom:6px">Art. ${esc(a.n)} — ${esc(a.t)}</div>
               <div style="font-size:13px;line-height:1.6;margin-bottom:8px">${esc(a.c)}</div>
-              <div style="background:#fef3c7;color:#78350f;border-left:3px solid #f59e0b;padding:8px 12px;border-radius:6px;font-size:12px">
+              <div style="background:color-mix(in srgb, var(--warn) 18%, transparent);color:var(--marrom);border-left:3px solid #f59e0b;padding:8px 12px;border-radius:6px;font-size:12px">
                 <b>⚠️ Consequência:</b> ${esc(a.m)}
               </div>
             </div>
@@ -150,7 +150,7 @@ export async function pageEtica(ctx, root) {
         </div>
       `).join('')}
 
-      <div style="background:linear-gradient(135deg,#fef3c7,#fde68a);color:#78350f;border-radius:10px;padding:14px 18px;margin-top:20px;text-align:center;font-weight:600">
+      <div style="background:linear-gradient(135deg,#fef3c7,#fde68a);color:var(--marrom);border-radius:10px;padding:14px 18px;margin-top:20px;text-align:center;font-weight:600">
         Este código é parte integrante do contrato de parceria. O descumprimento pode acarretar nas consequências descritas em cada artigo.
       </div>
 

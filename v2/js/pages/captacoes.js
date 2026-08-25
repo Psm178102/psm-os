@@ -344,9 +344,9 @@ function card(c) {
       ${c.proprietario ? `<div class="tiny muted" style="margin-top:6px">👤 ${esc(c.proprietario)}${c.contato ? ' · ' + esc(c.contato) : ''}</div>` : (c.contato ? `<div class="tiny muted" style="margin-top:6px">📞 ${esc(c.contato)}</div>` : '')}
       ${agend ? `<div class="tiny muted" style="margin-top:4px">📅 ${esc(agend)}${horas ? ' · ' + esc(horas) : ''}</div>` : ''}
       ${(c.data_inicio || c.data_entrega || c.data_post) ? `<div class="tiny" style="margin-top:4px;display:flex;gap:8px;flex-wrap:wrap;font-weight:600">
-        ${c.data_inicio ? `<span title="Início" style="color:#047857">▶ ${esc(String(c.data_inicio).substring(0,10).split('-').reverse().join('/'))}</span>` : ''}
-        ${c.data_entrega ? `<span title="Entrega" style="color:#b91c1c">📦 ${esc(String(c.data_entrega).substring(0,10).split('-').reverse().join('/'))}</span>` : ''}
-        ${c.data_post ? `<span title="Post" style="color:#4f46e5">📣 ${esc(String(c.data_post).substring(0,10).split('-').reverse().join('/'))}</span>` : ''}
+        ${c.data_inicio ? `<span title="Início" style="color:var(--verde-esmeralda)">▶ ${esc(String(c.data_inicio).substring(0,10).split('-').reverse().join('/'))}</span>` : ''}
+        ${c.data_entrega ? `<span title="Entrega" style="color:var(--err-forte)">📦 ${esc(String(c.data_entrega).substring(0,10).split('-').reverse().join('/'))}</span>` : ''}
+        ${c.data_post ? `<span title="Post" style="color:var(--indigo)">📣 ${esc(String(c.data_post).substring(0,10).split('-').reverse().join('/'))}</span>` : ''}
       </div>` : ''}
       ${c.local_chaves ? `<div class="tiny muted" style="margin-top:4px">🔑 ${esc(c.local_chaves)}</div>` : ''}
       ${links.length ? `<div class="flex gap-2" style="margin-top:6px;font-size:15px">${links.join('')}</div>` : ''}
@@ -441,7 +441,7 @@ function openForm() {
         ${sel('cf-tipo', 'Tipo de imóvel', [['', '—'], ...TIPOS.map(t => [t.v, t.ic + ' ' + t.v])], c.tipo_imovel)}
         ${inp('cf-cond', 'Condomínio / Edifício', c.condominio, 'nome (opcional)')}
 
-        <div style="grid-column:1/-1;margin-top:4px;border-top:1px solid var(--border);padding-top:8px"><b class="tiny" style="color:#16a34a">📍 Endereço <span class="muted" style="font-weight:400">(monta o título do card)</span></b></div>
+        <div style="grid-column:1/-1;margin-top:4px;border-top:1px solid var(--border);padding-top:8px"><b class="tiny" style="color:var(--ok)">📍 Endereço <span class="muted" style="font-weight:400">(monta o título do card)</span></b></div>
         ${inp('cf-end', 'Endereço (rua/av + nº)', c.endereco, 'Ex.: Rua Guatemala, 123')}
         ${inp('cf-bairro', 'Bairro ⭐', c.bairro, 'obrigatório a partir da captura (vira pino no Mapa)')}
         ${inp('cf-quadra', 'Quadra', c.quadra)}
@@ -461,19 +461,19 @@ function openForm() {
         ${inp('cf-vv', 'Valor de venda (R$) ⭐', c.valor_venda, 'obrigatório p/ entrar no inventário', 'number')}
         ${inp('cf-kenlo', 'Código Kenlo', c.codigo_kenlo)}
 
-        <div style="grid-column:1/-1;margin-top:4px;border-top:1px solid var(--border);padding-top:8px"><b class="tiny" style="color:#3b82f6">📅 Agendamento</b></div>
+        <div style="grid-column:1/-1;margin-top:4px;border-top:1px solid var(--border);padding-top:8px"><b class="tiny" style="color:var(--azul-claro)">📅 Agendamento</b></div>
         ${inp('cf-agend', 'Data', (c.data_agendamento || '').substring(0, 10), '', 'date')}
         <div class="flex gap-2">
           <div style="flex:1">${inp('cf-hini', 'Hora início', c.hora_inicio, '', 'time')}</div>
           <div style="flex:1">${inp('cf-hfim', 'Hora fim', c.hora_fim, '', 'time')}</div>
         </div>
 
-        <div style="grid-column:1/-1;margin-top:4px;border-top:1px solid var(--border);padding-top:8px"><b class="tiny" style="color:#4f46e5">📅 Cronograma da demanda</b></div>
+        <div style="grid-column:1/-1;margin-top:4px;border-top:1px solid var(--border);padding-top:8px"><b class="tiny" style="color:var(--indigo)">📅 Cronograma da demanda</b></div>
         ${inp('cf-dini', '▶ Início', (c.data_inicio || '').substring(0, 10), '', 'date')}
         ${inp('cf-dentr', '📦 Entrega', (c.data_entrega || '').substring(0, 10), '', 'date')}
         ${inp('cf-dpost', '📣 Post', (c.data_post || '').substring(0, 10), '', 'date')}
 
-        <div style="grid-column:1/-1;margin-top:4px;border-top:1px solid var(--border);padding-top:8px"><b class="tiny" style="color:#a16207">🏠 Locação</b></div>
+        <div style="grid-column:1/-1;margin-top:4px;border-top:1px solid var(--border);padding-top:8px"><b class="tiny" style="color:var(--ambar-escuro)">🏠 Locação</b></div>
         ${inp('cf-vl', 'Valor locação (R$) ⭐', c.valor_locacao, 'obrigatório p/ entrar no inventário', 'number')}
         ${inp('cf-vcond', 'Valor condomínio (R$)', c.valor_condominio, '', 'number')}
         ${inp('cf-viptu', 'Valor IPTU (R$)', c.valor_iptu, '', 'number')}
@@ -482,7 +482,7 @@ function openForm() {
           <div style="width:90px">${sel('cf-taxatipo', 'em', [['pct', '%'], ['valor', 'R$']], c.taxa_adm_tipo || 'pct')}</div>
         </div>
 
-        <div style="grid-column:1/-1;margin-top:4px;border-top:1px solid var(--border);padding-top:8px"><b class="tiny" style="color:#3b82f6">📎 Mídia captada</b></div>
+        <div style="grid-column:1/-1;margin-top:4px;border-top:1px solid var(--border);padding-top:8px"><b class="tiny" style="color:var(--azul-claro)">📎 Mídia captada</b></div>
         ${linkInp('cf-lfotos', 'Link das fotos', c.link_fotos, 'Drive / URL')}
         ${linkInp('cf-lvideos', 'Link dos vídeos', c.link_videos, 'Drive / URL')}
       </div>
@@ -495,7 +495,7 @@ function openForm() {
       <div class="mt-2"><label class="tiny muted">Observação</label><textarea id="cf-obs" class="input" rows="2">${esc(c.observacao || '')}</textarea></div>
       <div class="flex gap-2 mt-3">
         <button class="btn btn-primary" id="cf-save">💾 Salvar</button>
-        ${c.id && isLider ? '<button class="btn btn-ghost" id="cf-del" style="color:#ef4444">🗑 Excluir</button>' : ''}
+        ${c.id && isLider ? '<button class="btn btn-ghost" id="cf-del" style="color:var(--err-suave)">🗑 Excluir</button>' : ''}
       </div>
       <div id="cf-msg" class="mt-2"></div>
     </div>

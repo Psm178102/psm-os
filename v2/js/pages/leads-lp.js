@@ -82,7 +82,7 @@ function render() {
       <div class="card" style="margin:0;text-align:center;${semResp ? 'border:1px solid #dc2626;animation:lpPulse 1.2s infinite' : ''}">
         <div class="tiny muted">Sem resposta AGORA</div>
         <div style="font-size:26px;font-weight:800;color:${semResp ? '#dc2626' : 'inherit'}">${semResp}</div>
-        <div class="tiny ${semResp ? '' : 'muted'}" style="${semResp ? 'color:#dc2626;font-weight:700' : ''}">${semResp ? 'CHAMA JÁ' : 'tudo respondido'}</div></div>
+        <div class="tiny ${semResp ? '' : 'muted'}" style="${semResp ? 'color:var(--err);font-weight:700' : ''}">${semResp ? 'CHAMA JÁ' : 'tudo respondido'}</div></div>
     </div>
     <style>@keyframes lpPulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.5)}50%{box-shadow:0 0 0 6px rgba(220,38,38,0)}}</style>`;
 
@@ -118,7 +118,7 @@ function render() {
     return `
     <tr style="${pend ? 'background:rgba(220,38,38,.06)' : ''}">
       <td><span class="lp-timer tiny ${pend ? '' : 'muted'}" data-ts="${l.ts_recebido}"
-            style="${pend ? 'color:#dc2626;font-weight:800' : ''}">${tempoVivo(l.ts_recebido)}</span></td>
+            style="${pend ? 'color:var(--err);font-weight:800' : ''}">${tempoVivo(l.ts_recebido)}</span></td>
       <td><b>${(l.nome || '?')}</b>${l.email ? `<div class="tiny muted">${l.email}</div>` : ''}</td>
       <td><span style="background:var(--psm-navy,#1e2650);color:#fffbea;border-radius:6px;padding:2px 8px;font-weight:700;font-size:12px;white-space:nowrap">${l.faixa_label || l.faixa_renda || '—'}</span></td>
       <td class="tiny muted" style="max-width:140px;overflow:hidden;text-overflow:ellipsis">${camp}</td>
@@ -158,7 +158,7 @@ function render() {
           <div class="tiny muted">o sync RD roda 1×/dia — normal casar amanhã</div>
         </div>
       </div>
-      ${(m.sem_rd || []).length ? `<details style="margin-top:8px"><summary class="tiny" style="cursor:pointer;color:#dc2626;font-weight:700">⚠️ ${m.sem_rd.length} leads maduros SEM par no RD (falha da LP→RD?)</summary>
+      ${(m.sem_rd || []).length ? `<details style="margin-top:8px"><summary class="tiny" style="cursor:pointer;color:var(--err);font-weight:700">⚠️ ${m.sem_rd.length} leads maduros SEM par no RD (falha da LP→RD?)</summary>
         <ul class="tiny muted" style="margin:6px 0 0 16px">${m.sem_rd.map(x => `<li>${x.nome} · ${x.whatsapp} · ${new Date(x.ts).toLocaleString('pt-BR')}</li>`).join('')}</ul></details>` : ''}
       <div class="tiny muted" style="margin-top:8px">${_data.paridade.nota || ''}</div>
       ${Object.keys(pc).length ? `<div style="margin-top:10px"><b class="tiny">Leads por campanha (janela ${_filtros.dias}d)</b>

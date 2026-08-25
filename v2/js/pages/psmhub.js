@@ -174,7 +174,7 @@ function matchBadge(m) {
 }
 // célula de divergência (semáforo) por corretor
 function diffCell(r) {
-  if (r.rd_zero) return `<span style="color:#d97706;font-weight:800;white-space:nowrap">🟠 RD sem registro</span>`;
+  if (r.rd_zero) return `<span style="color:var(--warn);font-weight:800;white-space:nowrap">🟠 RD sem registro</span>`;
   if (r.diff_pct === null || r.diff_pct === undefined) return `<span class="muted">—</span>`;
   const cor = r.ok ? '#16a34a' : '#dc2626';
   return `<span style="color:${cor};font-weight:800;white-space:nowrap">${r.ok ? '🟢' : '🔴'} ${r.diff_pct > 0 ? '+' : ''}${pct2(r.diff_pct)}</span>`;
@@ -197,9 +197,9 @@ function reconcileCard(rec) {
     <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
       <h3 class="card-title" style="font-size:14px;margin:0">🤝 Reconciliação por corretor — PSM HUB × RD (${rows.length})</h3>
       <div class="flex gap-2" style="flex-wrap:wrap">
-        <span class="tiny" style="background:#16a34a1f;color:#16a34a;padding:2px 8px;border-radius:999px;font-weight:700">🟢 ${okN} batem</span>
-        ${divN ? `<span class="tiny" style="background:#dc26261f;color:#dc2626;padding:2px 8px;border-radius:999px;font-weight:700">🔴 ${divN} divergem</span>` : ''}
-        ${zeroN ? `<span class="tiny" style="background:#d977061f;color:#d97706;padding:2px 8px;border-radius:999px;font-weight:700">🟠 ${zeroN} sem registro no RD</span>` : ''}
+        <span class="tiny" style="background:#16a34a1f;color:var(--ok);padding:2px 8px;border-radius:999px;font-weight:700">🟢 ${okN} batem</span>
+        ${divN ? `<span class="tiny" style="background:#dc26261f;color:var(--err);padding:2px 8px;border-radius:999px;font-weight:700">🔴 ${divN} divergem</span>` : ''}
+        ${zeroN ? `<span class="tiny" style="background:#d977061f;color:var(--warn);padding:2px 8px;border-radius:999px;font-weight:700">🟠 ${zeroN} sem registro no RD</span>` : ''}
       </div>
     </div>
     <p class="tiny muted" style="margin:4px 0 8px">Elo pelo <b>e-mail</b> do corretor (psmhub ↔ RD). Cada linha mostra a <b>base do match</b> — nunca cruzamos no chute. Divergência verde = dentro de ±5%.</p>

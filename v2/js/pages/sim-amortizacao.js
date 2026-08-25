@@ -129,7 +129,7 @@ function aportesHTML() {
     <input type="number" class="input" data-ap="${idx}" data-apk="mes" value="${a.mes ?? ''}" style="width:64px;font-size:12px;padding:5px 6px">
     <span class="tiny muted">R$</span>
     <input type="number" class="input" data-ap="${idx}" data-apk="valor" value="${a.valor ?? ''}" style="flex:1;font-size:12px;padding:5px 6px">
-    <button class="btn btn-ghost btn-sm" data-apdel="${idx}" style="color:#dc2626;padding:3px 7px">✕</button></div>`).join('');
+    <button class="btn btn-ghost btn-sm" data-apdel="${idx}" style="color:var(--err);padding:3px 7px">✕</button></div>`).join('');
 }
 
 function wireInputs() {
@@ -179,9 +179,9 @@ function renderOut() {
           <tbody>${dados.map(p => `<tr style="border-bottom:1px solid var(--border)">
             <td style="padding:5px 9px;text-align:right;font-weight:700">${p.m}</td>
             <td style="padding:5px 9px;text-align:right">${fmt(p.saldoIni)}</td>
-            <td style="padding:5px 9px;text-align:right;color:#dc2626">${fmt(p.juros)}</td>
-            <td style="padding:5px 9px;text-align:right;color:#16a34a">${fmt(p.amort)}</td>
-            ${showExtra ? `<td style="padding:5px 9px;text-align:right;color:#7c3aed">${p.extra ? fmt(p.extra) : '—'}</td>` : ''}
+            <td style="padding:5px 9px;text-align:right;color:var(--err)">${fmt(p.juros)}</td>
+            <td style="padding:5px 9px;text-align:right;color:var(--ok)">${fmt(p.amort)}</td>
+            ${showExtra ? `<td style="padding:5px 9px;text-align:right;color:var(--roxo)">${p.extra ? fmt(p.extra) : '—'}</td>` : ''}
             <td style="padding:5px 9px;text-align:right;font-weight:700">${fmt(p.parcela)}</td>
             <td style="padding:5px 9px;text-align:right">${fmt(p.saldoFim)}</td></tr>`).join('')}</tbody>
         </table>

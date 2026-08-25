@@ -64,7 +64,7 @@ function render() {
           <div style="display:grid;gap:4px">
             ${etapas.map((e, i) => `<div class="flex gap-1" style="align-items:center">
               <button class="btn btn-sm ${i === _selE ? '' : 'btn-ghost'}" data-e="${i}" style="flex:1;text-align:left;${i === _selE ? `background:${cor};color:#fff;border-color:${cor}` : ''}">${esc(e.nome)}</button>
-              ${_edit ? `<button class="btn btn-ghost btn-sm" data-eup="${i}" ${i === 0 ? 'disabled' : ''} style="padding:2px 5px">↑</button><button class="btn btn-ghost btn-sm" data-edn="${i}" ${i === etapas.length - 1 ? 'disabled' : ''} style="padding:2px 5px">↓</button><button class="btn btn-ghost btn-sm" data-edel="${i}" style="padding:2px 5px;color:#dc2626">✕</button>` : ''}
+              ${_edit ? `<button class="btn btn-ghost btn-sm" data-eup="${i}" ${i === 0 ? 'disabled' : ''} style="padding:2px 5px">↑</button><button class="btn btn-ghost btn-sm" data-edn="${i}" ${i === etapas.length - 1 ? 'disabled' : ''} style="padding:2px 5px">↓</button><button class="btn btn-ghost btn-sm" data-edel="${i}" style="padding:2px 5px;color:var(--err)">✕</button>` : ''}
             </div>`).join('')}
             ${_edit ? '<button class="btn btn-ghost btn-sm" id="sc-newe" style="margin-top:4px">➕ Etapa</button>' : ''}
           </div>
@@ -97,7 +97,7 @@ function linhaEditBar(L, cor) {
     <input type="color" id="sc-lcor" value="${esc(L.cor || cor)}" style="width:30px;height:26px;padding:0;border:0;background:none;cursor:pointer">
     <button class="btn btn-ghost btn-sm" data-lup="1" ${_selL === 0 ? 'disabled' : ''}>↑</button>
     <button class="btn btn-ghost btn-sm" data-ldn="1" ${_selL === _linhas.length - 1 ? 'disabled' : ''}>↓</button>
-    <button class="btn btn-ghost btn-sm" id="sc-ldel" style="color:#dc2626">🗑 excluir linha</button>
+    <button class="btn btn-ghost btn-sm" id="sc-ldel" style="color:var(--err)">🗑 excluir linha</button>
   </div>`;
 }
 

@@ -327,7 +327,7 @@ function coerenciaBar() {
       ${stat('💰 VGV orçado', fmt(vgv), 'meta do mês')}
       ${stat('🎯 Conta cheia', fmt((_d.conta_cheia_calc || {})[mr] ?? custoMes), 'lida pelo Amortecedor', '#fbbf24')}
       <div style="flex:none;align-self:center;display:flex;gap:6px;flex-wrap:wrap">${erros.length
-        ? `<button class="btn btn-sm" id="viab-div-toggle" style="background:#f59e0b;color:#1e2650;font-weight:800;border:none">⚠ ${erros.length} divergência${erros.length > 1 ? 's' : ''}</button>`
+        ? `<button class="btn btn-sm" id="viab-div-toggle" style="background:#f59e0b;color:var(--ink);font-weight:800;border:none">⚠ ${erros.length} divergência${erros.length > 1 ? 's' : ''}</button>`
         : `<span class="tiny" style="background:#16a34a33;color:#4ade80;font-weight:800;padding:5px 10px;border-radius:99px">✅ abas em sincronia</span>`}
         ${sims.length ? `<button class="btn btn-sm" id="viab-sim-toggle" style="background:#38bdf833;color:#7dd3fc;font-weight:800;border:none">🧪 ${sims.length} simulação${sims.length > 1 ? 'ões' : ''} ativa${sims.length > 1 ? 's' : ''}</button>` : ''}</div>
     </div>
@@ -335,8 +335,8 @@ function coerenciaBar() {
       ${div.map(d => `<div class="tiny" style="margin-bottom:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <span style="flex:1;min-width:220px">${d.tipo === 'sim' ? '🧪' : '•'} ${d.txt}</span>
         ${d.fix === 'salvar' ? '<button class="btn btn-sm" id="viab-fix-salvar" style="background:#22c55e;border:none;color:#052e16;font-weight:800">💾 salvar agora</button>' : ''}
-        ${d.fix === 'be' ? '<button class="btn btn-sm viab-fix-be" style="background:#fff;border:none;color:#1e2650;font-weight:800">⟳ usar o orçado</button>' : ''}
-        ${d.fix === 'betraf' ? '<button class="btn btn-sm viab-fix-betraf" style="background:#fff;border:none;color:#1e2650;font-weight:800">⟳ puxar tráfego orçado</button>' : ''}
+        ${d.fix === 'be' ? '<button class="btn btn-sm viab-fix-be" style="background:var(--bg-2);border:none;color:var(--ink);font-weight:800">⟳ usar o orçado</button>' : ''}
+        ${d.fix === 'betraf' ? '<button class="btn btn-sm viab-fix-betraf" style="background:var(--bg-2);border:none;color:var(--ink);font-weight:800">⟳ puxar tráfego orçado</button>' : ''}
       </div>`).join('')}
     </div>` : ''}
   </div>`;
@@ -384,7 +384,7 @@ function trafegoAlaHTML() {
     for (let m = 1; m <= 12; m++) { anoReal += trafReal(l.id, m); anoUso += trafEfetivo(l.id, m); }
     return `<tr style="border-top:2px solid var(--border)">
         <td rowspan="2" style="padding:3px 6px;white-space:nowrap;font-weight:700;border-left:3px solid ${l.cor};vertical-align:top">${l.icon} ${esc(l.nome)}
-          <div class="tiny muted" style="font-weight:400;max-width:140px;white-space:normal">${contas.length ? esc(contas.join(' + ')) : '<span style="color:#d97706">sem conta ligada</span>'}</div></td>
+          <div class="tiny muted" style="font-weight:400;max-width:140px;white-space:normal">${contas.length ? esc(contas.join(' + ')) : '<span style="color:var(--warn)">sem conta ligada</span>'}</div></td>
         <td class="tiny muted" style="padding:2px 5px;white-space:nowrap">📡 Meta</td>
         ${cellsReal}
         <td style="padding:2px 6px;text-align:right;white-space:nowrap;font-size:11px" class="muted">${fmt(anoReal)}</td>
@@ -472,13 +472,13 @@ function perfilGastoHTML() {
       </div>
       <div style="flex:1;min-width:230px;background:#7c3aed10;border:1px solid #7c3aed30;border-radius:10px;padding:10px 12px">
         <div class="tiny muted">🗓 CALENDÁRIO — anual, semestral, trimestral, parcelas e extras</div>
-        <div style="font-size:20px;font-weight:900;color:#7c3aed">${fmt(calendarioAno)}<span class="tiny muted" style="font-weight:400">/ano</span></div>
+        <div style="font-size:20px;font-weight:900;color:var(--roxo)">${fmt(calendarioAno)}<span class="tiny muted" style="font-weight:400">/ano</span></div>
         ${barra(calendarioAno, totFixo, '#7c3aed')}
         <div class="tiny muted mt-1">${calendarioMes ? `<b>${fmt(calendarioMes)}</b> cai em ${MESES_N3[mr - 1]}` : `nada cai em ${MESES_N3[mr - 1]}`} · média diluída ${fmt(calendarioAno / 12)}/mês</div>
       </div>
       <div style="flex:1;min-width:200px;background:#16a34a10;border:1px solid #16a34a30;border-radius:10px;padding:10px 12px">
         <div class="tiny muted">📈 VARIÁVEL (% do VGV) — só existe se vender</div>
-        <div style="font-size:20px;font-weight:900;color:#16a34a">${fmt(p.variavel.ano)}<span class="tiny muted" style="font-weight:400">/ano</span></div>
+        <div style="font-size:20px;font-weight:900;color:var(--ok)">${fmt(p.variavel.ano)}<span class="tiny muted" style="font-weight:400">/ano</span></div>
         <div class="tiny muted mt-1">${fmt(p.variavel.mes)} sobre o VGV orçado de ${MESES_N3[mr - 1]} · fora da conta cheia</div>
       </div>
     </div>
@@ -586,7 +586,7 @@ function render() {
           <button class="btn btn-ghost btn-sm" data-ano="${_ano - 1}" style="padding:2px 8px;color:var(--vbgm)">◄</button>
           <b style="color:var(--vbgi)">${_ano}</b>
           <button class="btn btn-ghost btn-sm" data-ano="${_ano + 1}" style="padding:2px 8px;color:var(--vbgm)" ${_ano >= new Date().getFullYear() ? 'disabled' : ''}>►</button>
-          ${erros.length ? `<button id="viab-div-toggle" class="vb-chip" style="background:#D9B45E;color:#22392E;border:0;cursor:pointer">⚠ ${erros.length} DIVERGÊNCIA${erros.length > 1 ? 'S' : ''}</button>` : ''}
+          ${erros.length ? `<button id="viab-div-toggle" class="vb-chip" style="background:#D9B45E;color:var(--verde-musgo);border:0;cursor:pointer">⚠ ${erros.length} DIVERGÊNCIA${erros.length > 1 ? 'S' : ''}</button>` : ''}
           ${sims.length ? `<button id="viab-sim-toggle" class="vb-chip" style="background:rgba(255,255,255,.14);color:var(--vbgi);border:0;cursor:pointer">SIMULAÇÃO ATIVA</button>` : ''}
         </span>
       </div>
@@ -604,8 +604,8 @@ function render() {
       ${div.map(d => `<div style="margin-bottom:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <span style="flex:1;min-width:220px">${d.tipo === 'sim' ? '🧪' : '•'} ${d.txt}</span>
         ${d.fix === 'salvar' ? '<button class="btn btn-sm" id="viab-fix-salvar" style="background:#7CBC93;border:0;color:#0D1410;font-weight:700">Salvar agora</button>' : ''}
-        ${d.fix === 'be' ? '<button class="btn btn-sm viab-fix-be" style="background:rgba(255,255,255,.9);border:0;color:#22392E;font-weight:700">Usar o orçado</button>' : ''}
-        ${d.fix === 'betraf' ? '<button class="btn btn-sm viab-fix-betraf" style="background:rgba(255,255,255,.9);border:0;color:#22392E;font-weight:700">Puxar tráfego orçado</button>' : ''}
+        ${d.fix === 'be' ? '<button class="btn btn-sm viab-fix-be" style="background:rgba(255,255,255,.9);border:0;color:var(--verde-musgo);font-weight:700">Usar o orçado</button>' : ''}
+        ${d.fix === 'betraf' ? '<button class="btn btn-sm viab-fix-betraf" style="background:rgba(255,255,255,.9);border:0;color:var(--verde-musgo);font-weight:700">Puxar tráfego orçado</button>' : ''}
       </div>`).join('')}</div>` : ''}
     <div style="display:flex;justify-content:flex-end"><span class="tiny muted" id="viab-msg" style="padding:4px 0">${esc(_msg)}</span></div>
     <div id="viab-body"></div>
@@ -673,7 +673,7 @@ function renderMes() {
         <p style="margin:0;max-width:70ch;font-size:13.5px">${frase}</p>
         <div style="margin-top:14px">
           <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--vbm)" class="num"><span>Cobertura do custo do mês</span><span>${fmt(k.margem)} de ${fmt(k.custo)}</span></div>
-          <div style="height:6px;background:#EFEBDD;border-radius:3px;margin-top:5px;position:relative">
+          <div style="height:6px;background:var(--bg-3);border-radius:3px;margin-top:5px;position:relative">
             <div style="height:100%;width:${Math.min(100, k.cob).toFixed(1)}%;background:${status[1]};border-radius:3px"></div>
             <span style="position:absolute;left:${k.esp.toFixed(1)}%;top:-3px;bottom:-3px;width:2px;background:var(--vbwarn)" title="esperado no dia ${k.dia} (${k.esp.toFixed(0)}%)"></span>
           </div>
@@ -725,7 +725,7 @@ function renderOrcado() {
         <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
           <b style="font-size:14px">${l.icon} ${l.nome}</b>
           <span class="tiny muted">meta ano: <b>${fmt(totVgv)}</b> · custo: <b>${fmt(totCusto)}</b></span>
-          <span class="tiny" style="background:#16a34a18;color:#16a34a;font-weight:700;padding:2px 8px;border-radius:99px" title="VGV realmente fechado no RD CRM em ${_ano} (deals ganhos)">📡 RD: ${fmt(totVgvReal)} · ${totVendasReal} venda(s)${totVgv ? ` · ${pct(totVgvReal / totVgv * 100)} da meta` : ''}</span>
+          <span class="tiny" style="background:#16a34a18;color:var(--ok);font-weight:700;padding:2px 8px;border-radius:99px" title="VGV realmente fechado no RD CRM em ${_ano} (deals ganhos)">📡 RD: ${fmt(totVgvReal)} · ${totVendasReal} venda(s)${totVgv ? ` · ${pct(totVgvReal / totVgv * 100)} da meta` : ''}</span>
           <button class="btn btn-ghost btn-sm orc-copy" data-l="${l.id}" title="Replica o VGV e vendas do 1º mês preenchido nos 12 meses">⧉ replicar nos 12 meses</button>
           <button class="btn btn-ghost btn-sm orc-pull" data-l="${l.id}" title="Copia o VGV e as vendas REAIS do RD para os meses já encerrados — o plano dos meses futuros fica intacto">📥 puxar realizado do RD</button>
           <span style="margin-left:auto;font-weight:800;color:${dc(totLucro)}">Lucro orçado ano: ${fmt(totLucro)}</span>
@@ -735,14 +735,14 @@ function renderOrcado() {
           <thead><tr><th style="text-align:left;padding:3px 6px;position:sticky;left:0;background:var(--bg-2)"></th>${MES.map(mn => `<th style="padding:3px 6px;text-align:right;color:var(--ink-muted)">${mn}</th>`).join('')}</tr></thead>
           <tbody>
             <tr><td style="padding:3px 6px;font-weight:700;position:sticky;left:0;background:var(--bg-2)">VGV meta</td>${cols.map(c => `<td style="padding:2px 4px">${inp(c.m, 'vgv', c.vgv)}</td>`).join('')}</tr>
-            <tr title="VGV fechado no RD CRM — atualiza sozinho a cada sync"><td style="padding:3px 6px;font-weight:700;color:#16a34a;position:sticky;left:0;background:var(--bg-2)">📡 VGV real</td>${cols.map(c => {
+            <tr title="VGV fechado no RD CRM — atualiza sozinho a cada sync"><td style="padding:3px 6px;font-weight:700;color:var(--ok);position:sticky;left:0;background:var(--bg-2)">📡 VGV real</td>${cols.map(c => {
               if (!c.passado) return '<td style="padding:3px 4px;text-align:right;color:var(--ink-muted)">·</td>';
               const at = c.vgv ? c.real.vgv / c.vgv * 100 : null;
               const cor = at == null ? 'var(--ink-muted)' : at >= 100 ? '#16a34a' : at >= 60 ? '#d97706' : '#dc2626';
               return `<td style="padding:3px 4px;text-align:right;font-weight:700;color:${cor}" title="${c.real.vendas} venda(s)${at != null ? ' · ' + pct(at) + ' da meta do mês' : ''}">${c.real.vgv ? fmtC(c.real.vgv) : '—'}</td>`;
             }).join('')}</tr>
             <tr><td style="padding:3px 6px;font-weight:700;position:sticky;left:0;background:var(--bg-2)">Vendas meta</td>${cols.map(c => `<td style="padding:2px 4px">${inp(c.m, 'vendas', c.vendas)}</td>`).join('')}</tr>
-            <tr><td style="padding:3px 6px;font-weight:700;color:#16a34a;position:sticky;left:0;background:var(--bg-2)">📡 Vendas reais</td>${cols.map(c => `<td style="padding:3px 4px;text-align:right;font-weight:700;color:${!c.passado ? 'var(--ink-muted)' : c.real.vendas >= (c.vendas || 0) && c.vendas ? '#16a34a' : c.real.vendas ? '#d97706' : '#dc2626'}">${!c.passado ? '·' : (c.real.vendas || '—')}</td>`).join('')}</tr>
+            <tr><td style="padding:3px 6px;font-weight:700;color:var(--ok);position:sticky;left:0;background:var(--bg-2)">📡 Vendas reais</td>${cols.map(c => `<td style="padding:3px 4px;text-align:right;font-weight:700;color:${!c.passado ? 'var(--ink-muted)' : c.real.vendas >= (c.vendas || 0) && c.vendas ? '#16a34a' : c.real.vendas ? '#d97706' : '#dc2626'}">${!c.passado ? '·' : (c.real.vendas || '—')}</td>`).join('')}</tr>
             <tr><td style="padding:3px 6px;font-weight:700;color:var(--ink-muted);position:sticky;left:0;background:var(--bg-2)">Lucro</td>${cols.map(c => `<td style="padding:3px 4px;text-align:right;font-weight:700;color:${dc(c.lucro)}">${fmtC(c.lucro)}</td>`).join('')}</tr>
           </tbody>
         </table></div>
@@ -819,7 +819,7 @@ function catsManagerHTML() {
   const rows = _cats.map((c, i) => `<div class="flex gap-2 mb-1" style="align-items:center">
     <input class="input cat-ren" data-i="${i}" value="${esc(c)}" style="max-width:230px;font-size:12px;padding:3px 6px">
     <span class="tiny muted">${usada(c)} item(ns)</span>
-    ${c === 'Outros' ? '' : `<button class="btn btn-ghost btn-sm cat-del" data-i="${i}" style="padding:1px 7px;color:#dc2626" title="Apagar (itens vão pra Outros)">🗑</button>`}
+    ${c === 'Outros' ? '' : `<button class="btn btn-ghost btn-sm cat-del" data-i="${i}" style="padding:1px 7px;color:var(--err)" title="Apagar (itens vão pra Outros)">🗑</button>`}
   </div>`).join('');
   return `<div class="card" style="margin:0 0 10px;background:var(--bg-3)">
     <div class="flex items-center"><b style="font-size:13px">⚙ Categorias de custo</b><button class="btn btn-ghost btn-sm" id="cd-cats-toggle" style="margin-left:auto">fechar</button></div>
@@ -844,7 +844,7 @@ function pgtosManagerHTML() {
   const rows = (_pgtos || []).map((p, i) => `<div class="flex gap-2 mb-1" style="align-items:center">
     <input class="input pg-ren" data-i="${i}" value="${esc(p)}" style="max-width:230px;font-size:12px;padding:3px 6px">
     <span class="tiny muted">${usada(p)} item(ns)</span>
-    <button class="btn btn-ghost btn-sm pg-del" data-i="${i}" style="padding:1px 7px;color:#dc2626" title="Apagar (itens ficam sem método)">🗑</button>
+    <button class="btn btn-ghost btn-sm pg-del" data-i="${i}" style="padding:1px 7px;color:var(--err)" title="Apagar (itens ficam sem método)">🗑</button>
   </div>`).join('');
   return `<div class="card" style="margin:0 0 10px;background:var(--bg-3)">
     <div class="flex items-center"><b style="font-size:13px">💳 Métodos de pagamento</b><button class="btn btn-ghost btn-sm" id="cd-pgtos-toggle" style="margin-left:auto">fechar</button></div>
@@ -958,7 +958,7 @@ function renderCustosDet() {
       <span style="font-size:24px;font-weight:900;color:var(--psm-navy)">${fmt(ccCalc)}<span class="tiny muted" style="font-weight:400">/mês</span></span>
     </div>
     <div class="tiny muted">custo fixo do mês com tráfego e pró-labore — fonte única: é este número que o 🎯 Amortecedor da Estratégia lê.</div>
-    ${diverge ? `<div class="tiny" style="color:#d97706;font-weight:700;margin-top:4px">⚠️ Divergência: o kv manual do plano diz ${fmt(ccKv)} — o calculado (${fmt(ccCalc)}) é quem manda; ajuste ou limpe o kv.</div>` : ''}
+    ${diverge ? `<div class="tiny" style="color:var(--warn);font-weight:700;margin-top:4px">⚠️ Divergência: o kv manual do plano diz ${fmt(ccKv)} — o calculado (${fmt(ccCalc)}) é quem manda; ajuste ou limpe o kv.</div>` : ''}
   </div>`;
   const nPend = (_custosOrc || []).filter(isPendente).length + (_custosOrc || []).filter(isKenlo).length;
   const MESES_A = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
@@ -989,8 +989,8 @@ function renderCustosDet() {
     if (comp && it.rateio === 'manual') detalhe = `<div class="flex gap-1" style="flex-wrap:wrap;margin-top:3px">${LINHAS.map(l => `<label class="tiny" style="display:inline-flex;flex-direction:column;align-items:center">${l.id}<input class="input cd-man" data-i="${i}" data-l="${l.id}" value="${(it.pesos || {})[l.id] ?? ''}" style="width:44px;padding:1px 3px;font-size:10px" placeholder="%"></label>`).join('')}</div>`;
     const mesesCell = `<button class="btn btn-ghost btn-sm cd-meses" data-i="${i}" title="clique pra marcar os meses" style="padding:2px 8px;font-size:11px;white-space:nowrap">${chipsMeses(it)}</button>`;
     const pendBadge = isKenlo(it)
-      ? `<div class="tiny" style="color:#dc2626;font-weight:800">🔻 CANCELAR no fornecedor — Locação pausada <button class="btn btn-ghost btn-sm cd-kenlo-ok" data-i="${i}" style="padding:0 6px">✓ cancelei</button></div>`
-      : (isPendente(it) ? `<div class="tiny" style="color:#d97706;font-weight:700">⚠ verificar <button class="btn btn-ghost btn-sm cd-verif" data-i="${i}" style="padding:0 6px" title="confirmar que R$ ${it.valor || 0} está certo">✓ confirmar</button></div>` : '');
+      ? `<div class="tiny" style="color:var(--err);font-weight:800">🔻 CANCELAR no fornecedor — Locação pausada <button class="btn btn-ghost btn-sm cd-kenlo-ok" data-i="${i}" style="padding:0 6px">✓ cancelei</button></div>`
+      : (isPendente(it) ? `<div class="tiny" style="color:var(--warn);font-weight:700">⚠ verificar <button class="btn btn-ghost btn-sm cd-verif" data-i="${i}" style="padding:0 6px" title="confirmar que R$ ${it.valor || 0} está certo">✓ confirmar</button></div>` : '');
     return `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:3px 5px"><input class="input cd-f" data-i="${i}" data-k="desc" value="${esc(it.desc)}" style="width:100%;min-width:120px;padding:2px 5px;font-size:12px">${pendBadge}</td>
       <td style="padding:3px 5px"><select class="select cd-f" data-i="${i}" data-k="cat" style="font-size:11px;padding:2px">${opt(_cats.map(c => [c, c]), it.cat)}</select></td>
@@ -1001,7 +1001,7 @@ function renderCustosDet() {
       <td style="padding:3px 5px;white-space:nowrap"><input class="input cd-f" data-i="${i}" data-k="valor" value="${it.valor ?? ''}" style="width:78px;padding:2px 5px;font-size:12px;text-align:right"> <span class="tiny muted">${it.classe === 'variavel' ? '% VGV' : (it.classe === 'parcelado' ? 'R$/parc' : 'R$')}</span></td>
       <td style="padding:3px 5px"><select class="select cd-f" data-i="${i}" data-k="pgto" style="font-size:11px;padding:2px;max-width:130px">${opt([['', '—'], ..._pgtos.map(p => [p, p])], it.pgto || '')}</select></td>
       <td style="padding:3px 5px">${mesesCell}</td>
-      <td style="padding:3px 5px"><button class="btn btn-ghost btn-sm cd-del" data-i="${i}" style="padding:1px 6px;color:#dc2626">🗑</button></td>
+      <td style="padding:3px 5px"><button class="btn btn-ghost btn-sm cd-del" data-i="${i}" style="padding:1px 6px;color:var(--err)">🗑</button></td>
     </tr>`;
   };
   /* v85.8 — a tabela agora AGRUPA (padrão: por recorrência), separando o gasto
@@ -1031,7 +1031,7 @@ function renderCustosDet() {
   return `
     <div class="alert" style="background:var(--bg-3);border:none;font-size:12px;margin-bottom:10px">🧾 <b>Custos orçados detalhados</b> — fixos, variáveis (% do VGV), extras e <b>parcelados</b> (valor da parcela × meses listados), por empresa. <b>Recorrência</b> = de quanto em quanto tempo o custo bate (anual não infla 12x). Compartilhados rateiam (igual/proporcional/específico/manual). Pré-carregado com seus custos reais — ajuste e <b>salve</b>. Alimenta o lucro orçado.</div>
     <div class="flex gap-2 mb-2" style="flex-wrap:wrap;align-items:center;background:#7c3aed12;border:1px solid #7c3aed33;border-radius:8px;padding:8px 10px">
-      <span class="tiny" style="font-weight:800;color:#7c3aed">⚖️ Quem rateia o overhead (Igual/Proporcional):</span>
+      <span class="tiny" style="font-weight:800;color:var(--roxo)">⚖️ Quem rateia o overhead (Igual/Proporcional):</span>
       ${LINHAS.map(l => `<label class="tiny" style="display:inline-flex;gap:4px;align-items:center;font-weight:600;cursor:pointer"><input type="checkbox" class="re-emp" value="${l.id}"${ratEmp().includes(l.id) ? ' checked' : ''}>${l.icon} ${l.nome}</label>`).join('')}
       <span class="tiny muted">desmarque quem não divide a estrutura (ex.: Terceiros). Salva na hora.</span>
     </div>
@@ -1256,7 +1256,7 @@ function renderRealizado() {
     chLbl.push(MES[m - 1]); chVgvR.push(Math.round(vgv)); chVgvO.push(Math.round(vgvO)); chLucroR.push(Math.round(lucro));
     const fechado = !!(_d.snapshots || {})[`${_ano}-${m}`];
     mm.push(`<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:6px 8px;font-weight:600">${MES[m - 1]}${fechado ? ' <span class="tiny" style="color:#16a34a">🔒 fechado</span>' : ''}</td>
+      <td style="padding:6px 8px;font-weight:600">${MES[m - 1]}${fechado ? ' <span class="tiny" style="color:var(--ok)">🔒 fechado</span>' : ''}</td>
       <td style="padding:6px 8px;text-align:right">${fmtC(vgv)}</td>
       <td style="padding:6px 8px;text-align:right">${fmtC(custo)}</td>
       <td style="padding:6px 8px;text-align:right;font-weight:700;color:${dc(lucro)}">${fmtC(lucro)}</td>
@@ -1309,7 +1309,7 @@ function renderCustosReais() {
     <td style="padding:4px 6px"><input class="input cr-desc" data-i="${i}" value="${esc(it.desc || '')}" style="width:100%;padding:3px 6px;font-size:12px"></td>
     <td style="padding:4px 6px"><input class="input cr-val" data-i="${i}" value="${it.valor || ''}" style="width:110px;padding:3px 6px;font-size:12px;text-align:right"></td>
     <td style="padding:4px 6px"><select class="select cr-linha" data-i="${i}" style="font-size:12px;padding:3px">${selLinha(it.linha)}</select></td>
-    <td style="padding:4px 6px"><button class="btn btn-ghost btn-sm cr-del" data-i="${i}" style="padding:2px 7px;color:#dc2626">🗑</button></td>
+    <td style="padding:4px 6px"><button class="btn btn-ghost btn-sm cr-del" data-i="${i}" style="padding:2px 7px;color:var(--err)">🗑</button></td>
   </tr>`).join('');
   const manual = itens.reduce((s, it) => s + (+it.valor || 0), 0);
   const a = autoMes(_custoMes); const totalAuto = a.meta_mkt + a.nibo_fixo; const total = manual + totalAuto;
@@ -1323,8 +1323,8 @@ function renderCustosReais() {
       <div style="margin-top:8px;background:var(--bg-3);border-radius:8px;padding:8px 10px">
         <div class="tiny" style="font-weight:700;margin-bottom:4px">🔌 Fontes automáticas <span class="muted" style="font-weight:400">— entram sozinhas, sem digitar</span></div>
         <div class="flex gap-2" style="flex-wrap:wrap">
-          <span class="tiny">📣 Meta Ads (verba real): <b>${fmt(a.meta_mkt)}</b> ${a.meta_mkt > 0 ? '<span style="color:#16a34a">✅ ao vivo</span>' : '<span class="muted">sem dado</span>'}</span>
-          <span class="tiny">🏦 NIBO (custo fixo): <b>${fmt(a.nibo_fixo)}</b> ${a.nibo_fixo > 0 ? '<span style="color:#16a34a">✅</span>' : '<span style="color:#d97706">⏳ aguardando upgrade da API</span>'}</span>
+          <span class="tiny">📣 Meta Ads (verba real): <b>${fmt(a.meta_mkt)}</b> ${a.meta_mkt > 0 ? '<span style="color:var(--ok)">✅ ao vivo</span>' : '<span class="muted">sem dado</span>'}</span>
+          <span class="tiny">🏦 NIBO (custo fixo): <b>${fmt(a.nibo_fixo)}</b> ${a.nibo_fixo > 0 ? '<span style="color:var(--ok)">✅</span>' : '<span style="color:var(--warn)">⏳ aguardando upgrade da API</span>'}</span>
           <span class="tiny muted" style="margin-left:auto">+ manual abaixo: <b>${fmt(manual)}</b></span>
         </div>
       </div>
@@ -1463,14 +1463,14 @@ function renderSim() {
     const real = realMediaMes(l.id);
     const fld = (f, lbl, hint) => `<label class="tiny muted" style="display:flex;flex-direction:column;gap:1px"${hint ? ` title="${hint}"` : ''}>${lbl}<input class="input sim-in" data-l="${l.id}" data-f="${f}" value="${s[f] ?? ''}" style="width:96px;padding:3px 5px;font-size:11px;text-align:right"></label>`;
     const origem = real.vgvTotal > 0
-      ? `<span class="tiny" style="background:#16a34a18;color:#16a34a;font-weight:700;padding:1px 7px;border-radius:99px" title="média dos ${real.meses} meses de ${_ano}: ${fmt(real.vgvTotal)} em ${real.vendasTotal} venda(s)">📡 real: ${fmt(real.vgv)}/mês</span>`
+      ? `<span class="tiny" style="background:#16a34a18;color:var(--ok);font-weight:700;padding:1px 7px;border-radius:99px" title="média dos ${real.meses} meses de ${_ano}: ${fmt(real.vgvTotal)} em ${real.vendasTotal} venda(s)">📡 real: ${fmt(real.vgv)}/mês</span>`
       : `<span class="tiny" style="background:var(--bg-3);color:var(--ink-muted);font-weight:700;padding:1px 7px;border-radius:99px" title="sem venda fechada no RD em ${_ano} — os campos vieram do plano orçado">⏸ sem venda no RD · veio do plano</span>`;
     return `<div class="card" style="margin:0 0 10px;border-left:4px solid ${l.cor}">
       <div class="flex items-center" style="gap:8px;flex-wrap:wrap"><b>${l.icon} ${l.nome}</b>${origem}<span style="margin-left:auto;font-weight:800;color:${dc(lucroTot)}">Resultado/mês: ${fmt(lucroTot)}</span></div>
       <div class="flex gap-2 mt-2" style="flex-wrap:wrap">
         ${fld('vgv', isLoc ? '1º aluguel/mês' : 'VGV/mês', 'semeado com a média mensal realizada no RD')}${fld('vendas', isLoc ? 'Captações' : 'Vendas')}${fld('com_bruta_pct', 'Com. bruta % (s/ VGV)')}${fld('com_corretor_pct', 'Corretor % s/ VGV')}${fld('com_corretor_sobre_com_pct', 'Corretor % s/ comissão')}${fld('com_senior_pct', 'Sênior % s/ VGV')}${fld('com_gerente_pct', 'Gerente % s/ VGV')}${fld('aliquota_pct', 'Imposto % (s/ comissão)')}${fld('custo_fixo', 'Custo/mês (s/ tráfego)', 'custo desta frente no mês de referência')}${fld('verba_mkt', '📣 Tráfego pago/mês', 'semeado com a verba da ala de tráfego desta marca')}${fld('admRec', '🔁 Receita recorrente/mês R$', 'administração de locação, gestão, mensalidade — o que entra todo mês independente de venda')}
       </div>
-      <div class="tiny muted mt-1">Receita ${fmtC(r.receita)} · corretor s/VGV ${fmtC(r.cc)} · corretor s/com. ${fmtC(r.ccCom)} · sênior ${fmtC(r.cs)} · gerente ${fmtC(r.cg)} · imposto ${fmtC(r.imp)} · custo ${fmtC(r.custo)}${admLiq ? ` · <b style="color:#16a34a">recorrente +${fmtC(admLiq)}/mês (líq. imposto)</b>` : ''} · margem <b style="color:${dc(r.margem)}">${pct(r.margem)}</b></div>
+      <div class="tiny muted mt-1">Receita ${fmtC(r.receita)} · corretor s/VGV ${fmtC(r.cc)} · corretor s/com. ${fmtC(r.ccCom)} · sênior ${fmtC(r.cs)} · gerente ${fmtC(r.cg)} · imposto ${fmtC(r.imp)} · custo ${fmtC(r.custo)}${admLiq ? ` · <b style="color:var(--ok)">recorrente +${fmtC(admLiq)}/mês (líq. imposto)</b>` : ''} · margem <b style="color:${dc(r.margem)}">${pct(r.margem)}</b></div>
     </div>`;
   }).join('');
   const opts = Object.keys(cenarios).map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
@@ -1629,7 +1629,7 @@ function renderBE() {
     ${lever('🤝 Terceiros (parceria · só tráfego)', '#0891b2', bi('terceiros', 'vendas', 'Vendas/mês') + bi('terceiros', 'ticket', 'Ticket R$', 100) + bi('terceiros', 'margem', 'Margem %') + bi('terceiros', 'trafego', 'Tráfego/mês R$', 96), r.tercC, 'Comissão pura (40% vendedor / 10% captador / 50% casa). Sem mínimo garantido. A mais barata de religar.')}
 
     ${lever('🔑 Locação (recorrência + mínimo garantido)', '#d97706', bi('locacao', 'corretores', 'Corretores') + bi('locacao', 'minGar', 'Mín. garant. R$', 96) + bi('locacao', 'capt', 'Captações/mês') + bi('locacao', 'aluguel', 'Aluguel médio R$', 100) + bi('locacao', 'adm', '% adm', 60) + bi('locacao', 'carteira', 'Carteira (contratos)', 110) + bi('locacao', 'trafego', 'Tráfego/mês R$', 96), r.locC,
-      `1º aluguel <b style="color:${dc(r.loc1)}">${fmtC(r.loc1)}</b> + recorrente <b style="color:${dc(r.locRec)}">${fmtC(r.locRec)}</b> − mín. garantido <b style="color:#dc2626">${fmtC(r.locMin)}</b> − tráfego. O piso permanente: a carteira × adm banca a estrutura sozinha (${_be.locacao.aluguel && _be.locacao.adm ? Math.ceil(_be.fixo / (_be.locacao.aluguel * _be.locacao.adm / 100 * 0.92)) : '—'} contratos cobrem 100% do fixo).`)}
+      `1º aluguel <b style="color:${dc(r.loc1)}">${fmtC(r.loc1)}</b> + recorrente <b style="color:${dc(r.locRec)}">${fmtC(r.locRec)}</b> − mín. garantido <b style="color:var(--err)">${fmtC(r.locMin)}</b> − tráfego. O piso permanente: a carteira × adm banca a estrutura sozinha (${_be.locacao.aluguel && _be.locacao.adm ? Math.ceil(_be.fixo / (_be.locacao.aluguel * _be.locacao.adm / 100 * 0.92)) : '—'} contratos cobrem 100% do fixo).`)}
 
     ${lever('🏢 MAP (corretores comissionados + tráfego + gestão)', '#7c3aed', bi('map', 'corretores', 'Corretores') + bi('map', 'vendasCorr', 'Vendas/corr/mês') + bi('map', 'ticket', 'Ticket R$', 100) + bi('map', 'margem', 'Margem %') + bi('map', 'trafego', 'Tráfego/mês R$', 96), r.mapC, 'Margem fina + consome sua energia de gestão + tráfego pago. Deixe por último.')}
 
@@ -1681,7 +1681,7 @@ function resumoInsight(d) {
   if (d.gap <= 0) return `✅ <b>Operação no azul.</b> A contribuição das vendas (${fmt(d.contribTotal)}/mês) cobre o custo fixo com folga de <b>${fmt(-d.gap)}/mês</b> — o excedente vira lucro.`;
   const ativas = d.frentes.filter(f => f.vgvMes > 0);
   const top = d.frentes.slice().sort((a, b) => b.contrib - a.contrib)[0];
-  return `No ritmo atual você cobre <b>${d.cobertura.toFixed(0)}%</b> do custo fixo — faltam <b style="color:#f87171">${fmt(d.gap)}/mês</b> pra fechar. ${ativas.length <= 1 ? 'Só a <b>Conquista</b> está rodando' : `<b>${ativas.length} frentes</b> rodando`}. Como a margem de corretagem é fina (~${top ? top.margemPct.toFixed(1) : '1,8'}%), fechar só por volume é duro — as alavancas mais rápidas são <b>sócio vendendo alto ticket</b> (retém ~4–5%) e <b>locação recorrente</b> (piso que entra todo mês). Teste as combinações na aba 🎯 <b>Break-even</b>.`;
+  return `No ritmo atual você cobre <b>${d.cobertura.toFixed(0)}%</b> do custo fixo — faltam <b style="color:var(--err-claro)">${fmt(d.gap)}/mês</b> pra fechar. ${ativas.length <= 1 ? 'Só a <b>Conquista</b> está rodando' : `<b>${ativas.length} frentes</b> rodando`}. Como a margem de corretagem é fina (~${top ? top.margemPct.toFixed(1) : '1,8'}%), fechar só por volume é duro — as alavancas mais rápidas são <b>sócio vendendo alto ticket</b> (retém ~4–5%) e <b>locação recorrente</b> (piso que entra todo mês). Teste as combinações na aba 🎯 <b>Break-even</b>.`;
 }
 function heroStat(lbl, val, cor) { return `<div><div class="tiny" style="opacity:.8">${lbl}</div><div style="font-size:20px;font-weight:900;color:${cor}">${val}</div></div>`; }
 function renderResumo() {
@@ -1775,7 +1775,7 @@ function eficienciaCard() {
     const corCac = r.cac == null ? null : (cacs.length > 1 && r.cac === min ? '#16a34a' : (cacs.length > 1 && r.cac === max ? '#dc2626' : null));
     return `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:4px 8px;white-space:nowrap;font-weight:700;border-left:3px solid ${r.l.cor}">${r.l.icon} ${esc(r.l.nome)}
-        ${r.parcial ? `<div class="tiny" style="color:#d97706;font-weight:600" title="a verba só cobre ${r.mesesComTraf} dos ${r.mesesComVenda} meses com venda — o custo por venda sai menor do que realmente foi">⚠ verba de ${r.mesesComTraf}/${r.mesesComVenda} meses</div>` : ''}</td>
+        ${r.parcial ? `<div class="tiny" style="color:var(--warn);font-weight:600" title="a verba só cobre ${r.mesesComTraf} dos ${r.mesesComVenda} meses com venda — o custo por venda sai menor do que realmente foi">⚠ verba de ${r.mesesComTraf}/${r.mesesComVenda} meses</div>` : ''}</td>
       ${cel(r.trafAno ? fmt(r.trafAno) : '—')}
       ${cel(r.leads || '—')}
       ${cel(r.cpl != null ? fmt(r.cpl) : '—')}
@@ -1804,7 +1804,7 @@ function eficienciaCard() {
       </tr></thead>
       <tbody>${linhas}</tbody>
     </table></div>
-    ${comDados.some(r => r.parcial) ? `<div class="tiny" style="color:#d97706;background:#d9770612;border-radius:8px;padding:7px 10px;margin-top:8px">
+    ${comDados.some(r => r.parcial) ? `<div class="tiny" style="color:var(--warn);background:#d9770612;border-radius:8px;padding:7px 10px;margin-top:8px">
       ⚠️ <b>Leia com cuidado:</b> em algumas marcas a verba de tráfego só está lançada em parte dos meses que tiveram venda. O custo por venda e o ROAS saem <b>melhores do que a realidade</b> — falta denominador, não sobra eficiência. Lance o histórico de mídia mês a mês na ala do Orçado pra estes números ficarem comparáveis.</div>` : ''}
     <div class="tiny muted mt-1">${melhor ? `🏆 <b>${melhor.l.nome}</b> tem o menor custo por venda (${fmt(melhor.cac)}). ` : ''}Total: ${fmt(tot.traf)} de mídia · ${tot.leads} leads · ${tot.vendas} vendas · ${fmt(tot.receita)} de margem líquida. <b>ROAS margem abaixo de 1× significa que a mídia daquela marca não pagou nem a si mesma.</b></div>
   </div>`;
@@ -1876,7 +1876,7 @@ function trafegoResumoCard() {
   }).join('');
   return `<div class="card" style="margin:0 0 14px"><h3 class="card-title">📣 Tráfego pago por marca <span class="tiny muted" style="font-weight:400">· ${fmt(totMes)}/mês em ${MESES_N3[mr - 1]}</span></h3>
     ${linhas}
-    ${traf.compart[mr] ? `<div class="tiny" style="color:#d97706">⚠ ${fmt(traf.compart[mr])} em item compartilhado (sem marca definida).</div>` : ''}
+    ${traf.compart[mr] ? `<div class="tiny" style="color:var(--warn)">⚠ ${fmt(traf.compart[mr])} em item compartilhado (sem marca definida).</div>` : ''}
     <div class="tiny muted mt-1">Mesma fonte da ala em Orçado → Custos detalhados. O VGV necessário usa a margem líquida orçada de cada frente.</div></div>`;
 }
 // card do donut "composição do custo por categoria" (v83.4)

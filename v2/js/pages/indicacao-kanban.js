@@ -95,8 +95,8 @@ function cardHtml(c) {
       ${c.objetivo ? `<span class="tiny" style="padding:0 4px">${OBJ[c.objetivo] || esc(c.objetivo)}</span>` : ''}
     </div>
     ${corretorNome(c) ? `<div class="tiny" style="margin-top:2px;font-weight:700">👔 ${esc(corretorNome(c))} <span class="muted" style="font-weight:400">(corretor no RD)</span></div>` : ''}
-    ${c.valor_indicacao || c.premio ? `<div class="tiny" style="margin-top:2px;color:#d97706;font-weight:700">${c.valor_indicacao ? '💼 ' + brl(c.valor_indicacao) : ''}${c.valor_indicacao && c.premio ? ' · ' : ''}${c.premio ? '🎁 ' + brl(c.premio) : ''}</div>` : ''}
-    ${c.tarefa?.data ? `<div class="tiny" style="margin-top:2px;color:#2563eb;font-weight:700">📅 ${esc(String(c.tarefa.data).split('-').reverse().join('/'))}${c.tarefa.hora_ini ? ' ' + esc(c.tarefa.hora_ini) : ''}${c.tarefa.hora_fim ? '–' + esc(c.tarefa.hora_fim) : ''}</div>` : ''}
+    ${c.valor_indicacao || c.premio ? `<div class="tiny" style="margin-top:2px;color:var(--warn);font-weight:700">${c.valor_indicacao ? '💼 ' + brl(c.valor_indicacao) : ''}${c.valor_indicacao && c.premio ? ' · ' : ''}${c.premio ? '🎁 ' + brl(c.premio) : ''}</div>` : ''}
+    ${c.tarefa?.data ? `<div class="tiny" style="margin-top:2px;color:var(--info);font-weight:700">📅 ${esc(String(c.tarefa.data).split('-').reverse().join('/'))}${c.tarefa.hora_ini ? ' ' + esc(c.tarefa.hora_ini) : ''}${c.tarefa.hora_fim ? '–' + esc(c.tarefa.hora_fim) : ''}</div>` : ''}
     ${c.descarte_motivo ? `<div class="tiny muted" style="margin-top:2px">🗑 ${esc(c.descarte_motivo)}</div>` : ''}
     ${c.obs ? `<div class="tiny muted" style="margin-top:2px;max-height:30px;overflow:hidden">${esc(c.obs)}</div>` : ''}
     <div class="tiny muted" style="margin-top:2px">➕ ${esc(String(c.criado_em || '').substring(0, 10).split('-').reverse().join('/'))}</div>
@@ -320,8 +320,8 @@ function abrirCard(id) {
       </div>
     </div>
     <div class="flex mt-3" style="gap:6px;flex-wrap:wrap;justify-content:flex-end">
-      ${lvl >= 7 ? '<button class="btn btn-ghost btn-sm" id="ck-del" style="color:#dc2626;margin-right:auto">🗑 Excluir card</button>' : ''}
-      <button class="btn btn-ghost btn-sm" id="ck-indicou" style="color:#16a34a;font-weight:800">🎁 Registrou indicação</button>
+      ${lvl >= 7 ? '<button class="btn btn-ghost btn-sm" id="ck-del" style="color:var(--err);margin-right:auto">🗑 Excluir card</button>' : ''}
+      <button class="btn btn-ghost btn-sm" id="ck-indicou" style="color:var(--ok);font-weight:800">🎁 Registrou indicação</button>
       <button class="btn btn-primary btn-sm" id="ck-save">💾 Salvar</button>
     </div>`);
   const tags = new Set(c.etiquetas || []);
@@ -388,12 +388,12 @@ function abrirCfg() {
     <input class="input cg-nome" value="${esc(c.nome)}" style="flex:1;padding:3px 8px">
     <input class="input cg-cor" type="color" value="${esc(c.cor)}" style="width:44px;padding:1px">
     <label class="tiny muted" title="Follow-up automático: mover um card PRA esta coluna cria tarefa (em N dias) pra quem moveu — 0 = não cria" style="display:flex;align-items:center;gap:2px">🔁<input class="input cg-fup" type="number" min="0" max="60" value="${c.followup_dias ?? 0}" style="width:50px;padding:3px 5px">d</label>
-    ${!['a_abordar', 'descartado'].includes(c.id) ? '<button class="btn btn-ghost btn-sm cg-del" type="button" style="color:#dc2626;padding:1px 7px">×</button>' : '<span style="width:30px" class="tiny muted" title="coluna estrutural">🔒</span>'}
+    ${!['a_abordar', 'descartado'].includes(c.id) ? '<button class="btn btn-ghost btn-sm cg-del" type="button" style="color:var(--err);padding:1px 7px">×</button>' : '<span style="width:30px" class="tiny muted" title="coluna estrutural">🔒</span>'}
   </div>`;
   const tagRow = t => `<div class="flex" style="gap:5px;margin-top:4px" data-cfgtag="${esc(t.id)}">
     <input class="input tg-nome" value="${esc(t.nome)}" style="flex:1;padding:3px 8px">
     <input class="input tg-cor" type="color" value="${esc(t.cor)}" style="width:44px;padding:1px">
-    <button class="btn btn-ghost btn-sm tg-del" type="button" style="color:#dc2626;padding:1px 7px">×</button>
+    <button class="btn btn-ghost btn-sm tg-del" type="button" style="color:var(--err);padding:1px 7px">×</button>
   </div>`;
   const cad = cfg.cadencia || {};
   const ov = overlay(`

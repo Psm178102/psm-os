@@ -168,9 +168,9 @@ function dispFollow(c) {
 
 function row(c) {
   const seg = SEGMENTOS[c.seg] || { label: c.seg, cor: '#64748b' };
-  const ig = c.handle ? `<a href="${instagramUrl(c.handle)}" target="_blank" rel="noopener" data-stop="1" style="color:#e1306c;text-decoration:none" title="Abrir Instagram">📷 IG</a>` : '';
+  const ig = c.handle ? `<a href="${instagramUrl(c.handle)}" target="_blank" rel="noopener" data-stop="1" style="color:var(--rosa);text-decoration:none" title="Abrir Instagram">📷 IG</a>` : '';
   const ads = c.fb
-    ? `<a href="${adsLibraryUrl(c.fb)}" target="_blank" rel="noopener" data-stop="1" style="color:#2563eb;text-decoration:none;font-weight:700" title="Biblioteca de Anúncios Meta">📊 Anúncios</a>`
+    ? `<a href="${adsLibraryUrl(c.fb)}" target="_blank" rel="noopener" data-stop="1" style="color:var(--info);text-decoration:none;font-weight:700" title="Biblioteca de Anúncios Meta">📊 Anúncios</a>`
     : '<span class="tiny muted">—</span>';
   const acoes = (canEdit() && !_fromSeed && c._id != null)
     ? `<span data-edit="${escapeHtml(String(c._id))}" style="cursor:pointer;padding:2px 5px" title="Editar">✏️</span><span data-del="${escapeHtml(String(c._id))}" style="cursor:pointer;padding:2px 5px" title="Excluir">🗑</span>`
@@ -240,9 +240,9 @@ function openForm() {
           ${f('cc-imoveis', 'Imóveis ativos', c.imoveis_ativos, '', 'number')}
           <div style="grid-column:1/-1"><label class="tiny muted" style="font-weight:700">Bio / observações</label><textarea id="cc-bio" class="input" rows="2" style="width:100%">${escapeHtml(c.bio || c.observacoes || '')}</textarea></div>
         </div>
-        <div id="cc-err" class="tiny" style="color:#dc2626;margin-top:8px"></div>
+        <div id="cc-err" class="tiny" style="color:var(--err);margin-top:8px"></div>
         <div class="flex gap-2 mt-3" style="justify-content:space-between">
-          ${c._id ? `<button class="btn btn-ghost" id="cc-del" style="color:#dc2626">🗑 Excluir</button>` : '<span></span>'}
+          ${c._id ? `<button class="btn btn-ghost" id="cc-del" style="color:var(--err)">🗑 Excluir</button>` : '<span></span>'}
           <div class="flex gap-2"><button class="btn btn-ghost" id="cc-cancel">Cancelar</button><button class="btn btn-primary" id="cc-save">${c._id ? 'Salvar' : 'Adicionar'}</button></div>
         </div>
       </div>

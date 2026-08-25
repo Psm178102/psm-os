@@ -116,7 +116,7 @@ function rowHTML(it, cor) {
         <a class="btn btn-primary btn-sm" href="${esc(driveDownload(it.url))}" rel="noopener noreferrer" download title="Baixa o arquivo (não abre online)">⬇️ Baixar</a>
         ${_canEdit ? `
           <button class="btn btn-ghost btn-sm" data-edit="${esc(it.id)}" title="Editar">✏️</button>
-          <button class="btn btn-ghost btn-sm" data-del="${esc(it.id)}" title="Excluir" style="color:#dc2626">🗑</button>` : ''}
+          <button class="btn btn-ghost btn-sm" data-del="${esc(it.id)}" title="Excluir" style="color:var(--err)">🗑</button>` : ''}
       </div>
     </div>`;
 }
@@ -162,7 +162,7 @@ function catMgrHTML() {
       <div id="cat-list" style="display:flex;flex-direction:column;gap:6px">
         ${_catDraft.map((c, i) => `<div class="flex gap-2" style="align-items:center">
           <input class="input" data-cat="${i}" value="${esc(c.val)}" style="max-width:320px" placeholder="Nome da categoria">
-          <button class="btn btn-ghost btn-sm" data-catdel="${i}" style="color:#dc2626">🗑</button>
+          <button class="btn btn-ghost btn-sm" data-catdel="${i}" style="color:var(--err)">🗑</button>
         </div>`).join('')}
       </div>
       <div class="flex gap-2 mt-2">

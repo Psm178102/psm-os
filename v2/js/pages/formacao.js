@@ -31,7 +31,7 @@ export async function pageFormacao(ctx, root) {
         <div style="font-size:44px;margin-bottom:14px">🎓</div>
         <h3 style="color:#fff;margin:0 0 8px;font-size:20px">Comunidade PSM</h3>
         <p style="color:#cbd5e1;margin:0 0 20px;max-width:460px;display:inline-block">Acesse a plataforma de aulas, acompanhe seu progresso e se desenvolva como corretor PSM.</p>
-        <a href="${KIWIFY_URL}" target="_blank" rel="noopener" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#d4a843,#e8c263);color:#0f172a;border-radius:10px;font-weight:800;font-size:15px;text-decoration:none">Acessar Aulas →</a>
+        <a href="${KIWIFY_URL}" target="_blank" rel="noopener" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#d4a843,#e8c263);color:var(--ink);border-radius:10px;font-weight:800;font-size:15px;text-decoration:none">Acessar Aulas →</a>
       </div>
 
       <h3 class="card-title mt-4">📚 Módulos Disponíveis</h3>

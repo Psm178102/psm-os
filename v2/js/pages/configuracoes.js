@@ -181,7 +181,7 @@ function initCargosNiveis() {
   const isSocio = (auth.user()?.lvl || 0) >= 10;
   const rowB = r => `<tr style="border-bottom:1px solid var(--border)">
     <td style="padding:5px 8px">${ROLE_LBL[r.id] || r.id}</td>
-    <td style="padding:5px 8px" class="tiny muted">fixo${r.override ? ' · <b style="color:#d97706">nível alterado</b>' : ''}</td>
+    <td style="padding:5px 8px" class="tiny muted">fixo${r.override ? ' · <b style="color:var(--warn)">nível alterado</b>' : ''}</td>
     <td style="padding:5px 8px;text-align:center">${['socio','diretor'].includes(r.id)
       ? `<b>${r.lvl}</b> 🔒`
       : `<input type="number" min="1" max="10" class="input cn-lvl" data-role="${r.id}" value="${r.lvl}" ${isSocio ? '' : 'disabled'} style="width:64px;padding:3px 6px;text-align:center">${r.override && isSocio ? ` <button class="btn btn-ghost btn-sm cn-reset" data-role="${r.id}" title="voltar ao padrão (${r.lvl_base})" style="padding:1px 6px">↩ ${r.lvl_base}</button>` : ''}`}</td>
@@ -197,7 +197,7 @@ function initCargosNiveis() {
       <tbody>${(_cfgBuiltin || []).map(rowB).join('')}${(_cfgCustomRoles || []).map(rowC).join('')}</tbody>
     </table></div>
     <div class="tiny muted mt-2">Referência de alçada: 10 sócio/diretor · 7 gerente · 6 backoffice · 5 líder · 4 financeiro · 3 marketing/secretaria · 2 corretor. Mudar aqui vale no login seguinte (cache de 60s no backend).</div>
-    <span class="tiny" id="cn-msg" style="color:#16a34a"></span>`;
+    <span class="tiny" id="cn-msg" style="color:var(--ok)"></span>`;
   if (!isSocio) return;
   const msg = t => { const m = document.getElementById('cn-msg'); if (m) { m.textContent = t; setTimeout(() => { if (m) m.textContent = ''; }, 3500); } };
   box.querySelectorAll('.cn-lvl').forEach(el => el.addEventListener('change', async () => {
@@ -249,7 +249,7 @@ function initTravasRota() {
     ${isSocio ? `<div class="flex gap-2 mt-2" style="align-items:center">
       <button class="btn btn-primary btn-sm" id="tr-save">💾 Salvar travas</button>
       <button class="btn btn-ghost btn-sm" id="tr-reset">↩ Voltar tudo ao padrão</button>
-      <span class="tiny" id="tr-msg" style="color:#16a34a"></span>
+      <span class="tiny" id="tr-msg" style="color:var(--ok)"></span>
     </div>` : '<div class="tiny muted mt-2">Só o sócio edita.</div>'}`;
   if (!isSocio) return;
   const msg = t => { const m = document.getElementById('tr-msg'); if (m) { m.textContent = t; setTimeout(() => { if (m) m.textContent = ''; }, 3500); } };
@@ -298,7 +298,7 @@ function initFrentes() {
     </table></div>
     ${isSocio ? `<div class="flex gap-2 mt-2" style="align-items:center">
       <button class="btn btn-primary btn-sm" id="fr-save">💾 Salvar frentes</button>
-      <span class="tiny" id="fr-msg" style="color:#16a34a"></span>
+      <span class="tiny" id="fr-msg" style="color:var(--ok)"></span>
     </div>` : '<div class="tiny muted mt-2">Só o sócio edita.</div>'}`;
   if (!isSocio) return;
   const save = document.getElementById('fr-save');
@@ -612,7 +612,7 @@ function settingRow(it, canEdit) {
       <div class="field" style="margin:0">
         <label style="font-size:11px;font-weight:700;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.5px">
           ${escapeHtml(it.label)}${it.is_secret ? ' 🔒' : ''}
-          ${it.has_value ? '<span class="tiny" style="background:#dcfce7;color:#166534;padding:1px 6px;border-radius:var(--r-full);margin-left:6px;font-weight:600">✓ configurado</span>' : ''}
+          ${it.has_value ? '<span class="tiny" style="background:color-mix(in srgb, var(--ok) 18%, transparent);color:var(--ok-escuro);padding:1px 6px;border-radius:var(--r-full);margin-left:6px;font-weight:600">✓ configurado</span>' : ''}
         </label>
         <input type="${inputType}" class="input" id="set-${it.key}"
                value="${escapeHtml(displayValue)}"
@@ -829,7 +829,7 @@ function renderConclEditor() {
       </select>
       ${(f.type === 'select') ? `<input class="input" style="flex:1.5;min-width:140px" value="${escapeHtml((f.options || []).join(', '))}" ${dis ? 'disabled' : ''} data-cf-edit="${kind}|${idx}|options" placeholder="opções: A, B, C">` : ''}
       <label class="tiny" style="font-weight:700;display:flex;align-items:center;gap:4px;white-space:nowrap"><input type="checkbox" ${f.required ? 'checked' : ''} ${dis ? 'disabled' : ''} data-cf-edit="${kind}|${idx}|required"> obrigatório</label>
-      ${dis ? '' : `<button class="btn btn-ghost btn-sm" data-cf-del="${kind}|${idx}" style="color:#dc2626">✕</button>`}
+      ${dis ? '' : `<button class="btn btn-ghost btn-sm" data-cf-del="${kind}|${idx}" style="color:var(--err)">✕</button>`}
     </div>`;
 
   host.innerHTML = `

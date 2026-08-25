@@ -157,8 +157,8 @@ async function renderResumo() {
             ${Object.entries(emp).map(([k, v]) => `
               <tr style="border-bottom:1px solid var(--border)">
                 <td style="padding:8px;font-weight:700">${escapeHtml(v.label)}</td>
-                <td style="text-align:right;padding:8px;color:#16a34a">R$ ${money(v.receita_total)}</td>
-                <td style="text-align:right;padding:8px;color:#dc2626">R$ ${money(v.despesa_total)}</td>
+                <td style="text-align:right;padding:8px;color:var(--ok)">R$ ${money(v.receita_total)}</td>
+                <td style="text-align:right;padding:8px;color:var(--err)">R$ ${money(v.despesa_total)}</td>
                 <td style="text-align:right;padding:8px">${v.n_lanc_receita || 0}</td>
                 <td style="text-align:right;padding:8px">${v.n_lanc_despesa || 0}</td>
               </tr>
@@ -322,10 +322,10 @@ async function renderDre() {
         <thead>
           <tr style="border-bottom:2px solid var(--ink);background:var(--bg-3)">
             <th style="text-align:left;padding:8px 10px;position:sticky;left:0;background:var(--bg-3)">Mês</th>
-            <th style="text-align:right;padding:8px 10px;color:#16a34a">Receita Real</th>
-            <th style="text-align:right;padding:8px 10px;color:#16a34a">Receita Prev</th>
-            <th style="text-align:right;padding:8px 10px;color:#dc2626">Despesa Real</th>
-            <th style="text-align:right;padding:8px 10px;color:#dc2626">Despesa Prev</th>
+            <th style="text-align:right;padding:8px 10px;color:var(--ok)">Receita Real</th>
+            <th style="text-align:right;padding:8px 10px;color:var(--ok)">Receita Prev</th>
+            <th style="text-align:right;padding:8px 10px;color:var(--err)">Despesa Real</th>
+            <th style="text-align:right;padding:8px 10px;color:var(--err)">Despesa Prev</th>
             <th style="text-align:right;padding:8px 10px">Saldo Real</th>
             <th style="text-align:right;padding:8px 10px">Saldo Prev</th>
             <th style="text-align:right;padding:8px 10px">#</th>
@@ -337,10 +337,10 @@ async function renderDre() {
         <tfoot>
           <tr style="border-top:2px solid var(--ink);background:var(--bg-3);font-weight:800">
             <td style="padding:8px 10px;position:sticky;left:0;background:var(--bg-3)">TOTAL 12m</td>
-            <td style="text-align:right;padding:8px 10px;color:#16a34a">R$ ${money(rows.reduce((s,r)=>s+r.receita_real,0))}</td>
-            <td style="text-align:right;padding:8px 10px;color:#16a34a">R$ ${money(rows.reduce((s,r)=>s+r.receita_prev,0))}</td>
-            <td style="text-align:right;padding:8px 10px;color:#dc2626">R$ ${money(rows.reduce((s,r)=>s+r.despesa_real,0))}</td>
-            <td style="text-align:right;padding:8px 10px;color:#dc2626">R$ ${money(rows.reduce((s,r)=>s+r.despesa_prev,0))}</td>
+            <td style="text-align:right;padding:8px 10px;color:var(--ok)">R$ ${money(rows.reduce((s,r)=>s+r.receita_real,0))}</td>
+            <td style="text-align:right;padding:8px 10px;color:var(--ok)">R$ ${money(rows.reduce((s,r)=>s+r.receita_prev,0))}</td>
+            <td style="text-align:right;padding:8px 10px;color:var(--err)">R$ ${money(rows.reduce((s,r)=>s+r.despesa_real,0))}</td>
+            <td style="text-align:right;padding:8px 10px;color:var(--err)">R$ ${money(rows.reduce((s,r)=>s+r.despesa_prev,0))}</td>
             <td style="text-align:right;padding:8px 10px;color:${rows.reduce((s,r)=>s+r.saldo_real,0) >= 0 ? '#16a34a' : '#dc2626'}">R$ ${money(rows.reduce((s,r)=>s+r.saldo_real,0))}</td>
             <td style="text-align:right;padding:8px 10px;color:${tot.saldo >= 0 ? '#16a34a' : '#dc2626'}">R$ ${money(tot.saldo)}</td>
             <td style="text-align:right;padding:8px 10px">${rows.reduce((s,r)=>s+r.receita_count+r.despesa_count, 0)}</td>
@@ -362,10 +362,10 @@ function dreRow(r, maxRec, maxDes) {
   return `
     <tr style="border-bottom:1px solid var(--border)">
       <td style="padding:6px 10px;font-weight:700;position:sticky;left:0;background:var(--bg-2)">${escapeHtml(r.label)}</td>
-      <td style="text-align:right;padding:6px 10px;color:#16a34a">R$ ${money(r.receita_real)}</td>
-      <td style="text-align:right;padding:6px 10px;color:#16a34a;opacity:0.7">R$ ${money(r.receita_prev)}</td>
-      <td style="text-align:right;padding:6px 10px;color:#dc2626">R$ ${money(r.despesa_real)}</td>
-      <td style="text-align:right;padding:6px 10px;color:#dc2626;opacity:0.7">R$ ${money(r.despesa_prev)}</td>
+      <td style="text-align:right;padding:6px 10px;color:var(--ok)">R$ ${money(r.receita_real)}</td>
+      <td style="text-align:right;padding:6px 10px;color:var(--ok);opacity:0.7">R$ ${money(r.receita_prev)}</td>
+      <td style="text-align:right;padding:6px 10px;color:var(--err)">R$ ${money(r.despesa_real)}</td>
+      <td style="text-align:right;padding:6px 10px;color:var(--err);opacity:0.7">R$ ${money(r.despesa_prev)}</td>
       <td style="text-align:right;padding:6px 10px;font-weight:700;color:${r.saldo_real >= 0 ? '#16a34a' : '#dc2626'}">R$ ${money(r.saldo_real)}</td>
       <td style="text-align:right;padding:6px 10px;color:${r.saldo_prev >= 0 ? '#16a34a' : '#dc2626'}">R$ ${money(r.saldo_prev)}</td>
       <td style="text-align:right;padding:6px 10px" class="muted">${r.receita_count + r.despesa_count}</td>
@@ -431,10 +431,10 @@ async function renderMetricas() {
           <thead>
             <tr style="background:var(--bg-3);border-bottom:2px solid var(--ink)">
               <th style="text-align:left;padding:8px">Mês</th>
-              <th style="text-align:right;padding:8px;color:#16a34a">Receita</th>
-              <th style="text-align:right;padding:8px;color:#16a34a">Δ%</th>
-              <th style="text-align:right;padding:8px;color:#dc2626">Despesa</th>
-              <th style="text-align:right;padding:8px;color:#dc2626">Δ%</th>
+              <th style="text-align:right;padding:8px;color:var(--ok)">Receita</th>
+              <th style="text-align:right;padding:8px;color:var(--ok)">Δ%</th>
+              <th style="text-align:right;padding:8px;color:var(--err)">Despesa</th>
+              <th style="text-align:right;padding:8px;color:var(--err)">Δ%</th>
               <th style="text-align:right;padding:8px">Saldo</th>
               <th style="text-align:right;padding:8px">Δ%</th>
             </tr>
@@ -483,8 +483,8 @@ async function renderMetricas() {
         return `<table style="width:100%;border-collapse:collapse;font-size:12px">
           <thead><tr style="background:var(--bg-3)">
             <th style="text-align:left;padding:6px 8px">Data</th>
-            <th style="text-align:right;padding:6px 8px;color:#16a34a">Entrada</th>
-            <th style="text-align:right;padding:6px 8px;color:#dc2626">Saída</th>
+            <th style="text-align:right;padding:6px 8px;color:var(--ok)">Entrada</th>
+            <th style="text-align:right;padding:6px 8px;color:var(--err)">Saída</th>
             <th style="text-align:right;padding:6px 8px">Saldo dia</th>
             <th style="text-align:right;padding:6px 8px">Acumulado</th>
           </tr></thead>
@@ -492,8 +492,8 @@ async function renderMetricas() {
             ${next14.map(c => `
               <tr style="border-bottom:1px solid var(--border)">
                 <td style="padding:5px 8px;font-weight:600">${fmtDataBR(c.data)}</td>
-                <td style="text-align:right;padding:5px 8px;color:#16a34a">${c.in > 0 ? 'R$ ' + money(c.in) + ` <span class="tiny muted">(${c.in_n})</span>` : '—'}</td>
-                <td style="text-align:right;padding:5px 8px;color:#dc2626">${c.out > 0 ? 'R$ ' + money(c.out) + ` <span class="tiny muted">(${c.out_n})</span>` : '—'}</td>
+                <td style="text-align:right;padding:5px 8px;color:var(--ok)">${c.in > 0 ? 'R$ ' + money(c.in) + ` <span class="tiny muted">(${c.in_n})</span>` : '—'}</td>
+                <td style="text-align:right;padding:5px 8px;color:var(--err)">${c.out > 0 ? 'R$ ' + money(c.out) + ` <span class="tiny muted">(${c.out_n})</span>` : '—'}</td>
                 <td style="text-align:right;padding:5px 8px;font-weight:700;color:${c.saldo_dia >= 0 ? '#16a34a' : '#dc2626'}">R$ ${money(c.saldo_dia)}</td>
                 <td style="text-align:right;padding:5px 8px;color:${c.saldo_acumulado >= 0 ? '#16a34a' : '#dc2626'}">R$ ${money(c.saldo_acumulado)}</td>
               </tr>
@@ -515,9 +515,9 @@ function momRow(m) {
   return `
     <tr style="border-bottom:1px solid var(--border)">
       <td style="padding:6px 8px;font-weight:700">${escapeHtml(m.label)}</td>
-      <td style="text-align:right;padding:6px 8px;color:#16a34a">R$ ${money(m.receita)}</td>
+      <td style="text-align:right;padding:6px 8px;color:var(--ok)">R$ ${money(m.receita)}</td>
       <td style="text-align:right;padding:6px 8px">${fmt(m.receita_pct)}</td>
-      <td style="text-align:right;padding:6px 8px;color:#dc2626">R$ ${money(m.despesa)}</td>
+      <td style="text-align:right;padding:6px 8px;color:var(--err)">R$ ${money(m.despesa)}</td>
       <td style="text-align:right;padding:6px 8px">${fmt(m.despesa_pct)}</td>
       <td style="text-align:right;padding:6px 8px;font-weight:700;color:${m.saldo >= 0 ? '#16a34a' : '#dc2626'}">R$ ${money(m.saldo)}</td>
       <td style="text-align:right;padding:6px 8px">${fmt(m.saldo_pct)}</td>
@@ -572,15 +572,15 @@ function bucketCard(b, monthKeys, totalGeral) {
       <div class="flex items-center gap-2" style="margin-bottom:6px">
         <h3 style="margin:0;font-size:14px;flex:1">${escapeHtml(b.bucket)}</h3>
         <span class="tiny muted">${b.count} lanç</span>
-        <span style="font-weight:800;color:#7c3aed">R$ ${money(b.total)}</span>
+        <span style="font-weight:800;color:var(--roxo)">R$ ${money(b.total)}</span>
         <span class="tiny muted">(${pct2(pctExato)})</span>
       </div>
       <div style="background:var(--bg);height:4px;border-radius:2px;overflow:hidden;margin-bottom:8px">
         <div style="background:#7c3aed;height:100%;width:${Math.min(100, pct * 2)}%"></div>
       </div>
       <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:8px">
-        <span class="tiny" style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:var(--r-full);font-weight:600">Pago: R$ ${money(b.pago)}</span>
-        <span class="tiny" style="background:#fef3c7;color:#78350f;padding:2px 8px;border-radius:var(--r-full);font-weight:600">Previsto: R$ ${money(b.previsto)}</span>
+        <span class="tiny" style="background:color-mix(in srgb, var(--ok) 18%, transparent);color:var(--ok-escuro);padding:2px 8px;border-radius:var(--r-full);font-weight:600">Pago: R$ ${money(b.pago)}</span>
+        <span class="tiny" style="background:color-mix(in srgb, var(--warn) 18%, transparent);color:var(--marrom);padding:2px 8px;border-radius:var(--r-full);font-weight:600">Previsto: R$ ${money(b.previsto)}</span>
       </div>
 
       ${monthKeys.length > 1 ? `
@@ -618,7 +618,7 @@ function bucketCard(b, monthKeys, totalGeral) {
                   <td style="padding:4px 8px" class="muted">${fmtDataBR(r.data)}</td>
                   <td style="padding:4px 8px;font-weight:600;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(r.stakeholder)}">${escapeHtml(r.stakeholder)}</td>
                   <td style="text-align:right;padding:4px 8px;font-weight:700">R$ ${money(r.valor)}</td>
-                  <td style="text-align:center;padding:4px 8px">${r.settled ? '<span style="color:#16a34a">✓</span>' : '<span style="color:#d97706">⏳</span>'}</td>
+                  <td style="text-align:center;padding:4px 8px">${r.settled ? '<span style="color:var(--ok)">✓</span>' : '<span style="color:var(--warn)">⏳</span>'}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -666,7 +666,7 @@ async function renderComissoes() {
                   <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(s.stakeholder)}</div>
                   <div class="tiny muted">${s.count} lançamentos · R$ ${money(s.pago)} pago · R$ ${money(s.previsto)} previsto</div>
                 </div>
-                <div style="font-weight:800;color:#7c3aed">R$ ${money(s.valor)}</div>
+                <div style="font-weight:800;color:var(--roxo)">R$ ${money(s.valor)}</div>
               </div>
             `).join('')}
           </div>
@@ -693,8 +693,8 @@ async function renderComissoes() {
                     <td style="padding:5px 8px" class="muted">${fmtDataBR(r.data)}</td>
                     <td style="padding:5px 8px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px" title="${escapeHtml(r.stakeholder)}">${escapeHtml(r.stakeholder)}</td>
                     <td style="padding:5px 8px" class="muted">${escapeHtml(r.category)}</td>
-                    <td style="text-align:right;padding:5px 8px;font-weight:700;color:#7c3aed">R$ ${money(r.valor)}</td>
-                    <td style="text-align:center;padding:5px 8px">${r.settled ? '<span style="color:#16a34a">✓</span>' : '<span style="color:#d97706">⏳</span>'}</td>
+                    <td style="text-align:right;padding:5px 8px;font-weight:700;color:var(--roxo)">R$ ${money(r.valor)}</td>
+                    <td style="text-align:center;padding:5px 8px">${r.settled ? '<span style="color:var(--ok)">✓</span>' : '<span style="color:var(--warn)">⏳</span>'}</td>
                   </tr>
                 `).join('')}
               </tbody>
@@ -761,11 +761,11 @@ async function renderRepasses() {
                 ${d.rows.map(r => `
                   <tr style="border-bottom:1px solid var(--border)">
                     <td style="padding:5px 8px" class="muted">${fmtDataBR(r.data)}</td>
-                    <td style="text-align:center;padding:5px 8px">${r.direction === 'credit' ? '<span title="Receber" style="color:#16a34a">↓</span>' : '<span title="Pagar" style="color:#dc2626">↑</span>'}</td>
+                    <td style="text-align:center;padding:5px 8px">${r.direction === 'credit' ? '<span title="Receber" style="color:var(--ok)">↓</span>' : '<span title="Pagar" style="color:var(--err)">↑</span>'}</td>
                     <td style="padding:5px 8px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px" title="${escapeHtml(r.stakeholder)}">${escapeHtml(r.stakeholder)}</td>
                     <td style="padding:5px 8px" class="muted">${escapeHtml(r.category)}</td>
                     <td style="text-align:right;padding:5px 8px;font-weight:700;color:${r.direction === 'credit' ? '#16a34a' : '#dc2626'}">R$ ${money(r.valor)}</td>
-                    <td style="text-align:center;padding:5px 8px">${r.settled ? '<span style="color:#16a34a">✓</span>' : '<span style="color:#d97706">⏳</span>'}</td>
+                    <td style="text-align:center;padding:5px 8px">${r.settled ? '<span style="color:var(--ok)">✓</span>' : '<span style="color:var(--warn)">⏳</span>'}</td>
                   </tr>
                 `).join('')}
               </tbody>

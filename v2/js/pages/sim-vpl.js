@@ -151,16 +151,16 @@ function propostaTableHTML(c) {
 
 // CSS fiel à planilha — o MESMO na tela e na via de impressão/compartilhamento
 const PP_CSS = `
-  .pp-table{border-collapse:collapse;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#000;width:100%;max-width:980px;background:#fff}
+  .pp-table{border-collapse:collapse;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:var(--ink);width:100%;max-width:980px;background:var(--bg-2)}
   .pp-table .pp-c,.pp-table .pp-h{border:1px solid #000;padding:2px 6px;height:19px}
-  .pp-titulo{background:#ffff00;color:#000;font-weight:800;font-size:21px;border:1.5px solid #000;text-align:center;padding:6px}
-  .pp-h{background:#fff;font-weight:700;text-align:center;font-size:11.5px}
+  .pp-titulo{background:#ffff00;color:var(--ink);font-weight:800;font-size:21px;border:1.5px solid #000;text-align:center;padding:6px}
+  .pp-h{background:var(--bg-2);font-weight:700;text-align:center;font-size:11.5px}
   .pp-n{width:44px;text-align:center;font-weight:700}
   .pp-data{width:74px;text-align:center;font-weight:700}
   .pp-money{min-width:108px;text-align:right;white-space:nowrap}
   .pp-money .pp-rs{float:left;padding-right:8px}
   .pp-r td{background:#dde8d0}
-  .pp-ato td{background:#fff;font-weight:700}
+  .pp-ato td{background:var(--bg-2);font-weight:700}
   .pp-verde .pp-n{background:#d9ead3;color:#38761d}
   .pp-verm .pp-n{background:#f4cccc;color:#cc0000}
   .pp-verm td:not(.pp-n){color:#333}
@@ -179,10 +179,10 @@ function abrirVia(autoPrint) {
   const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
     <title>Proposta ${escHtml(_s.cliente || _s.empreendimento || 'PSM')}</title>
     <style>
-      body{margin:18px;background:#fff}
-      .pp-cab{font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#000;margin:0 0 8px;max-width:980px}
+      body{margin:18px;background:var(--bg-2)}
+      .pp-cab{font-family:Arial,Helvetica,sans-serif;font-size:12px;color:var(--ink);margin:0 0 8px;max-width:980px}
       .pp-acoes{position:fixed;top:10px;right:10px;display:flex;gap:8px;font-family:Arial;z-index:9}
-      .pp-acoes button,.pp-acoes a{padding:8px 14px;border:1px solid #999;border-radius:8px;background:#f5f5f5;font-weight:700;cursor:pointer;text-decoration:none;color:#000;font-size:13px;font-family:Arial}
+      .pp-acoes button,.pp-acoes a{padding:8px 14px;border:1px solid #999;border-radius:8px;background:#f5f5f5;font-weight:700;cursor:pointer;text-decoration:none;color:var(--ink);font-size:13px;font-family:Arial}
       @media print{.pp-acoes{display:none}body{margin:0}}
       ${PP_CSS}
     </style></head><body>
@@ -359,7 +359,7 @@ function render() {
 
           <!-- proposta INTEIRA projetada na página (sem barra de rolagem interna;
                a página cresce — pedido do Paulo, v86.18) -->
-          <div id="vpl-proposta" style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px;overflow-x:auto">
+          <div id="vpl-proposta" style="background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:12px;overflow-x:auto">
             ${propostaTableHTML(c)}
           </div>
         </div>
@@ -403,9 +403,9 @@ function pintaSaida() {
   set('#vpl-alerta', Math.abs(c.pctTotal - 100) > 0.1
     ? `<div class="alert alert-warn tiny">⚠ Total: ${c.pctTotal.toFixed(1)}% (deve ser 100%)</div>` : '');
   const aparou = c.mensaisAparadas > 0
-    ? ` <span style="color:#d97706">· Nº de Mensais reduzido em ${c.mensaisAparadas} para não passar das chaves</span>` : '';
+    ? ` <span style="color:var(--warn)">· Nº de Mensais reduzido em ${c.mensaisAparadas} para não passar das chaves</span>` : '';
   const aparouPar = c.parcelasAparadas > 0
-    ? ` <span style="color:#d97706">· ${c.parcelasAparadas} parcela(s) anual/semestral aparada(s) (não cabem antes das chaves)</span>` : '';
+    ? ` <span style="color:var(--warn)">· ${c.parcelasAparadas} parcela(s) anual/semestral aparada(s) (não cabem antes das chaves)</span>` : '';
   set('#vpl-avisoato', (c.nAto > 1 || c.mensaisAparadas > 0 || c.parcelasAparadas > 0)
     ? `${c.nAto > 1 ? `ato ${c.nAto}x (meses 0 a ${c.nAto - 1}) + ` : ''}<b>${c.nMensais} mensais</b> (meses ${c.nAto} a ${_s.prazoObra}), chaves no mês ${_s.prazoObra}${aparou}${aparouPar}`
     : '');

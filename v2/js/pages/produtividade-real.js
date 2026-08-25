@@ -52,7 +52,7 @@ function render() {
       <td style="text-align:right">${c.sla_mediana_min != null ? c.sla_mediana_min + ' min' : '—'}<div class="tiny muted">${c.sla_amostra ? 'n=' + c.sla_amostra : ''}</div></td>
       <td style="text-align:right">${c.leads_janela}</td>
       <td style="text-align:right">${c.conv_pct != null ? c.conv_pct + '%' : '—'}<div class="tiny muted">${c.conv_equipe_pct != null ? 'equipe ' + c.conv_equipe_pct + '%' : ''}</div></td>
-      <td style="text-align:right">${c.pasta_aprovacao_pct != null ? c.pasta_aprovacao_pct + '%' : '—'}${c.pasta_reprovacao_pct ? `<div class="tiny" style="color:#dc2626">reprova ${c.pasta_reprovacao_pct}%</div>` : ''}</td>
+      <td style="text-align:right">${c.pasta_aprovacao_pct != null ? c.pasta_aprovacao_pct + '%' : '—'}${c.pasta_reprovacao_pct ? `<div class="tiny" style="color:var(--err)">reprova ${c.pasta_reprovacao_pct}%</div>` : ''}</td>
       <td style="text-align:right">${c.vendas_janela}<div class="tiny muted">R$ ${fmtK(c.vgv_janela)}</div></td>
       <td>${c.forecast_mes ? `<span class="tiny">${c.forecast_mes.comprometido}/${c.forecast_mes.provavel}/${c.forecast_mes.pipeline}</span>` : '<span class="tiny muted">não declarou</span>'}</td>
     </tr>`;

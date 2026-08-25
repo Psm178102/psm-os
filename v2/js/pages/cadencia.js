@@ -194,7 +194,7 @@ function renderPassos() {
     <div style="background:var(--bg-2);border-radius:8px;padding:10px;margin-bottom:6px">
       <div class="flex" style="justify-content:space-between;margin-bottom:6px">
         <div class="tiny muted">Passo ${i + 1}</div>
-        <button class="btn btn-ghost btn-sm" data-rem-p="${i}" style="color:#ef4444">🗑</button>
+        <button class="btn btn-ghost btn-sm" data-rem-p="${i}" style="color:var(--err-suave)">🗑</button>
       </div>
       <div style="display:grid;grid-template-columns:80px 140px 1fr;gap:6px">
         <input class="input" type="number" placeholder="Dia" data-p-key="dia" data-p-idx="${i}" value="${p.dia || 0}">
@@ -246,9 +246,9 @@ function fileToB64(file) { return new Promise((res, rej) => { const fr = new Fil
 
 function renderEmbed(a) {
   const k = fileKind(a.nome), url = esc(a.url);
-  if (k === 'pdf') return `<iframe src="${url}" style="width:100%;height:74vh;border:1px solid var(--bd,#e5e7eb);border-radius:8px;background:#fff"></iframe>`;
+  if (k === 'pdf') return `<iframe src="${url}" style="width:100%;height:74vh;border:1px solid var(--bd,#e5e7eb);border-radius:8px;background:var(--bg-2)"></iframe>`;
   if (k === 'image') return `<div style="text-align:center;background:var(--bg-3);border-radius:8px;padding:10px"><img src="${url}" alt="${esc(a.nome)}" style="max-width:100%;max-height:74vh;border-radius:6px"></div>`;
-  if (k === 'office') return `<iframe src="https://docs.google.com/viewer?url=${encodeURIComponent(a.url)}&embedded=true" style="width:100%;height:74vh;border:1px solid var(--bd,#e5e7eb);border-radius:8px;background:#fff"></iframe>`;
+  if (k === 'office') return `<iframe src="https://docs.google.com/viewer?url=${encodeURIComponent(a.url)}&embedded=true" style="width:100%;height:74vh;border:1px solid var(--bd,#e5e7eb);border-radius:8px;background:var(--bg-2)"></iframe>`;
   return `<div class="card" style="text-align:center;padding:30px"><div style="font-size:34px">📄</div><div class="muted tiny" style="margin:8px 0">Este tipo não tem visualização embutida.</div><a class="btn btn-primary btn-sm" href="${url}" target="_blank" rel="noopener">⬇️ Abrir / baixar ${esc(a.nome)}</a></div>`;
 }
 
@@ -286,7 +286,7 @@ function renderDetail() {
               <button data-selfile="${i}" style="background:none;border:0;cursor:pointer;font-weight:700;color:inherit;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${KIND_ICO[fileKind(a.nome)]} ${i + 1}. ${esc(a.nome)}</button>
               ${canEdit() ? `<button data-mvup="${i}" title="subir" ${i === 0 ? 'disabled' : ''} style="background:none;border:0;cursor:pointer;color:inherit">↑</button>
               <button data-mvdn="${i}" title="descer" ${i === arqs.length - 1 ? 'disabled' : ''} style="background:none;border:0;cursor:pointer;color:inherit">↓</button>
-              <button data-delfile="${i}" title="remover" style="background:none;border:0;cursor:pointer;color:#dc2626">✕</button>` : ''}
+              <button data-delfile="${i}" title="remover" style="background:none;border:0;cursor:pointer;color:var(--err)">✕</button>` : ''}
             </div>`).join('')}
         </div>
         ${sel ? renderEmbed(sel) : ''}

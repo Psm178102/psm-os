@@ -73,7 +73,7 @@ function renderPainel() {
       ${kpi('Total', _items.length, 'linear-gradient(135deg,#3b82f6,#2563eb)')}
     </div>
     ${Object.keys(cat).length === 0 ?
-      '<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:40px;text-align:center;color:#64748b">Nenhuma tendência registrada. Use a aba Registrar.</div>' :
+      '<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:40px;text-align:center;color:var(--ink-muted)">Nenhuma tendência registrada. Use a aba Registrar.</div>' :
       Object.keys(cat).sort().map(c => `
         <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:18px;margin-bottom:14px">
           <h3 style="color:#fffbea;font-size:14px;font-weight:800;margin:0 0 12px;text-transform:uppercase;letter-spacing:.5px">${esc(c)}</h3>
@@ -172,7 +172,7 @@ function renderHistorico() {
   body.innerHTML = `
     <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:18px;overflow-x:auto">
       <h3 style="color:#fff;margin:0 0 14px">Histórico (${_items.length})</h3>
-      ${_items.length === 0 ? '<div style="color:#64748b">Nenhuma tendência.</div>' : `
+      ${_items.length === 0 ? '<div style="color:var(--ink-muted)">Nenhuma tendência.</div>' : `
         <table style="width:100%;border-collapse:collapse;min-width:700px;font-size:13px">
           <thead><tr style="border-bottom:2px solid #334155;background:#0f172a">
             <th style="padding:10px;text-align:left;color:#fffbea;font-size:11px;text-transform:uppercase">Data</th>
@@ -190,7 +190,7 @@ function renderHistorico() {
                 <td style="padding:10px;color:#94a3b8">${esc(t.categoria || '—')}</td>
                 <td style="padding:10px;text-align:center;font-size:18px">${DIRECAO_ICO[t.direcao] || '➡️'}</td>
                 <td style="padding:10px;text-align:center"><span style="padding:3px 8px;border-radius:4px;font-size:11px;font-weight:700;background:${IMPACTO_COLOR[t.impacto] || '#64748b'};color:#fff">${esc(t.impacto || '—')}</span></td>
-                ${isLider ? `<td style="padding:10px;text-align:center"><button class="btn btn-ghost btn-sm" data-del="${t.id}" style="color:#ef4444">🗑</button></td>` : ''}
+                ${isLider ? `<td style="padding:10px;text-align:center"><button class="btn btn-ghost btn-sm" data-del="${t.id}" style="color:var(--err-suave)">🗑</button></td>` : ''}
               </tr>
             `).join('')}
           </tbody>

@@ -80,8 +80,8 @@ function renderShell(c) {
     const atencao = (c.sem_contato_48h || 0) + (c.parados_14d || 0);
     kpis = `
       <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
-        <div class="card" style="padding:13px 15px;flex:1;min-width:140px;border-left:4px solid #16a34a"><div class="tiny muted">💰 Pipeline ponderado</div><div style="font-size:20px;font-weight:800;color:#16a34a">${BRL(pond)}</div></div>
-        <div class="card" style="padding:13px 15px;flex:1;min-width:120px;border-left:4px solid #ef4444"><div class="tiny muted">🔥 Quentes</div><div style="font-size:20px;font-weight:800;color:#ef4444">${c.quentes || 0}</div></div>
+        <div class="card" style="padding:13px 15px;flex:1;min-width:140px;border-left:4px solid #16a34a"><div class="tiny muted">💰 Pipeline ponderado</div><div style="font-size:20px;font-weight:800;color:var(--ok)">${BRL(pond)}</div></div>
+        <div class="card" style="padding:13px 15px;flex:1;min-width:120px;border-left:4px solid #ef4444"><div class="tiny muted">🔥 Quentes</div><div style="font-size:20px;font-weight:800;color:var(--err-suave)">${c.quentes || 0}</div></div>
         <div class="card" style="padding:13px 15px;flex:1;min-width:120px;border-left:4px solid #f59e0b"><div class="tiny muted">⚠️ Atenção</div><div style="font-size:20px;font-weight:800;color:#f59e0b">${atencao}</div><div class="tiny muted">sem contato + parados</div></div>
         <div class="card" style="padding:13px 15px;flex:1;min-width:140px"><div class="tiny muted">🎯 Meta VGV (mês)</div><div style="font-size:20px;font-weight:800">${meta ? BRL(meta) : '—'}</div>${meta ? `<div class="tiny muted">ponderado = ${Math.round(pond / meta * 100)}% da meta</div>` : ''}</div>
       </div>`;

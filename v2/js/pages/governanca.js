@@ -72,7 +72,7 @@ function render(health, audit, dash) {
         ${Object.entries(env).map(([k, v]) => `
           <tr style="border-bottom:1px solid var(--border)">
             <td style="padding:8px 12px"><code>${escapeHtml(k.toUpperCase())}</code></td>
-            <td style="padding:8px 12px;text-align:right">${v ? '<span style="color:#16a34a;font-weight:700">✅ configurado</span>' : '<span style="color:#dc2626;font-weight:700">✕ ausente</span>'}</td>
+            <td style="padding:8px 12px;text-align:right">${v ? '<span style="color:var(--ok);font-weight:700">✅ configurado</span>' : '<span style="color:var(--err);font-weight:700">✕ ausente</span>'}</td>
           </tr>
         `).join('')}
       </table>

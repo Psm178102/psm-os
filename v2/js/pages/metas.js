@@ -90,7 +90,7 @@ function forecastPanel(d, grid) {
       ${box('📈 Projeção fim do ano', mny(forecast), (gap >= 0 ? '✅ ' + mny(gap) + ' acima' : '⚠️ ' + mny(-gap) + ' abaixo') + ' da meta', gap >= 0 ? '#16a34a' : '#dc2626')}
       ${box('🎯 Pra bater a meta', mny(necMes) + '/mês', 'faltam ' + mny(falta) + ' em ' + mesesRest.toFixed(1) + ' meses', necMes > ritmoMes * 1.05 ? '#dc2626' : '#16a34a')}
     </div>
-    <div class="tiny muted" style="margin-top:8px">💡 No ritmo atual (${mny(ritmoMes)}/mês) você fecha <b>${mny(forecast)}</b>. Pra bater a meta de ${mny(metaAno)}, precisa de <b>${mny(necMes)}/mês</b> nos meses que faltam${necMes > ritmoMes * 1.05 ? ' — <b style="color:#dc2626">acima do ritmo de hoje</b>, então ou acelera as vendas ou recalibra a meta.' : ' — dentro/abaixo do ritmo de hoje. ✅'}</div>
+    <div class="tiny muted" style="margin-top:8px">💡 No ritmo atual (${mny(ritmoMes)}/mês) você fecha <b>${mny(forecast)}</b>. Pra bater a meta de ${mny(metaAno)}, precisa de <b>${mny(necMes)}/mês</b> nos meses que faltam${necMes > ritmoMes * 1.05 ? ' — <b style="color:var(--err)">acima do ritmo de hoje</b>, então ou acelera as vendas ou recalibra a meta.' : ' — dentro/abaixo do ritmo de hoje. ✅'}</div>
   </div>`;
 }
 
@@ -120,7 +120,7 @@ function render() {
       <div class="flex items-center gap-2" style="flex-wrap:wrap">
         <div style="flex:1;min-width:240px">
           <h2 class="card-title">🎯 Planejador de Metas · ${_ano}</h2>
-          <p class="card-sub">${grid.length} corretores · ${teamNames.length} equipe(s) · scope <b>${esc(d.scope || '—')}</b>${editable ? ' · <span style="color:#16a34a;font-weight:700">edição inline ativa (clique e digite)</span>' : (canEdit ? ' · <span class="muted">edite na visão Mensal</span>' : '')}</p>
+          <p class="card-sub">${grid.length} corretores · ${teamNames.length} equipe(s) · scope <b>${esc(d.scope || '—')}</b>${editable ? ' · <span style="color:var(--ok);font-weight:700">edição inline ativa (clique e digite)</span>' : (canEdit ? ' · <span class="muted">edite na visão Mensal</span>' : '')}</p>
         </div>
         <select id="mt-ano" class="select" style="padding:6px 10px;font-size:13px">
           ${[2024, 2025, 2026, 2027].map(a => `<option value="${a}"${a === _ano ? ' selected' : ''}>${a}</option>`).join('')}

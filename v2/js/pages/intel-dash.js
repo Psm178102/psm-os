@@ -100,7 +100,7 @@ function renderContent(concorrentes, meses, tendManual) {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
       <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:18px">
         <h3 style="color:#fff;margin:0 0 6px;font-size:15px">📊 Tendências dos seus dados (Meta)</h3>
-        <div class="tiny" style="color:#64748b;margin-bottom:10px">Calculadas automaticamente — último mês vs anterior.</div>
+        <div class="tiny" style="color:var(--ink-muted);margin-bottom:10px">Calculadas automaticamente — último mês vs anterior.</div>
         ${trends.length === 0 ? '<div class="muted tiny" style="color:#94a3b8">Preciso de ≥2 meses de Meta Ads pra calcular tendência. Abra Histórico Meta e atualize.</div>' :
           trends.map(t => `
             <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #334155">
@@ -114,8 +114,8 @@ function renderContent(concorrentes, meses, tendManual) {
         ${top5.length === 0 ? '<div class="muted tiny">Sem dados.</div>' :
           top5.map((c, i) => `
             <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #334155">
-              <span style="color:#fff;font-weight:600;font-size:13px">${i + 1}. ${esc(c.nome)}<span style="color:#64748b;font-size:11px"> · ${esc(c.tier || '—')}</span></span>
-              <span style="color:#a855f7;font-weight:800;font-size:13px">${c._f ? fNum(c._f) : '—'}</span>
+              <span style="color:#fff;font-weight:600;font-size:13px">${i + 1}. ${esc(c.nome)}<span style="color:var(--ink-muted);font-size:11px"> · ${esc(c.tier || '—')}</span></span>
+              <span style="color:var(--lilas);font-weight:800;font-size:13px">${c._f ? fNum(c._f) : '—'}</span>
             </div>`).join('')}
         <div class="mt-3 flex gap-2" style="flex-wrap:wrap">
           <button class="btn btn-ghost btn-sm" onclick="location.hash='/intel-ads'">🎯 Guerra de Tráfego</button>
@@ -142,6 +142,6 @@ function renderContent(concorrentes, meses, tendManual) {
 
 function card(label, value, color) {
   return `<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:16px;border-left:4px solid ${color}">
-    <div style="color:#64748b;font-size:10px;text-transform:uppercase;font-weight:700;margin-bottom:6px">${label}</div>
+    <div style="color:var(--ink-muted);font-size:10px;text-transform:uppercase;font-weight:700;margin-bottom:6px">${label}</div>
     <div style="color:${color};font-size:24px;font-weight:800">${value}</div></div>`;
 }

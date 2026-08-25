@@ -104,7 +104,7 @@ function editorRow(t, i) {
       <input class="input" style="width:50px;text-align:center;font-size:18px" data-f="ico" data-i="${i}" value="${esc(t.ico)}" maxlength="4">
       <input class="input" style="flex:1" data-f="label" data-i="${i}" value="${esc(t.label)}" placeholder="Nome da equipe">
       <input class="input" type="color" style="width:50px;padding:2px" data-f="color" data-i="${i}" value="${esc(t.color)}">
-      <button class="btn btn-ghost btn-sm" data-del-team="${i}" style="color:#ef4444">🗑</button>
+      <button class="btn btn-ghost btn-sm" data-del-team="${i}" style="color:var(--err-suave)">🗑</button>
     </div>
   `;
 }

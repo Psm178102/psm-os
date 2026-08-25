@@ -428,7 +428,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '86.82';
+const APP_VERSION = '86.83';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -1224,11 +1224,11 @@ function showUpdateBanner(newVer) {
   o.id = 'upd-modal';
   o.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(15,23,42,.74);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:20px;animation:updfade .2s ease';
   o.innerHTML = `
-    <div role="alertdialog" aria-modal="true" style="background:#fff;color:#0f172a;max-width:430px;width:100%;border-radius:20px;padding:32px 26px;text-align:center;box-shadow:0 26px 70px rgba(0,0,0,.45);animation:updpop .26s ease">
+    <div role="alertdialog" aria-modal="true" style="background:var(--bg-2);color:var(--ink);max-width:430px;width:100%;border-radius:20px;padding:32px 26px;text-align:center;box-shadow:0 26px 70px rgba(0,0,0,.45);animation:updpop .26s ease">
       <div style="font-size:50px;line-height:1">🔄</div>
       <h2 style="margin:12px 0 8px;font-size:21px;font-weight:800">Nova versão disponível!</h2>
-      <p style="margin:0 0 6px;font-size:14.5px;color:#475569;line-height:1.5">Você está em uma versão <b>desatualizada</b> do sistema${newVer ? ` (a nova é a <b>v${newVer}</b>)` : ''}.</p>
-      <p style="margin:0 0 22px;font-size:14.5px;color:#475569;line-height:1.5">Recarregue a página pra ver as novidades — ou saia e entre de novo.</p>
+      <p style="margin:0 0 6px;font-size:14.5px;color:var(--ink-muted);line-height:1.5">Você está em uma versão <b>desatualizada</b> do sistema${newVer ? ` (a nova é a <b>v${newVer}</b>)` : ''}.</p>
+      <p style="margin:0 0 22px;font-size:14.5px;color:var(--ink-muted);line-height:1.5">Recarregue a página pra ver as novidades — ou saia e entre de novo.</p>
       <button id="upd-go" style="width:100%;background:var(--psm-navy);color:var(--psm-cream);border:0;border-radius:13px;padding:15px;font-size:16px;font-weight:800;cursor:pointer">🔄 Atualizar agora</button>
       <button id="upd-x" style="margin-top:12px;background:transparent;border:0;color:#94a3b8;font-size:13px;cursor:pointer">Agora não</button>
     </div>`;
@@ -1398,7 +1398,7 @@ function renderHealthPanel() {
       <button id="health-close" style="border:none;background:transparent;cursor:pointer;font-size:16px;line-height:1">✕</button>
     </div>
     ${d.issues.length === 0
-      ? '<div style="font-size:13px;color:#16a34a">Nenhuma falha detectada. Integrações e dados em dia.</div>'
+      ? '<div style="font-size:13px;color:var(--ok)">Nenhuma falha detectada. Integrações e dados em dia.</div>'
       : d.issues.map(i => {
           const c = i.severity === 'error' ? '#dc2626' : '#d97706';
           const ico = i.severity === 'error' ? '🔴' : '⚠️';

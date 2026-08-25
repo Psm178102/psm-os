@@ -33,7 +33,7 @@ function render() {
       <p class="tiny muted" style="margin:8px 0 10px">Preencha e envie normalmente — as respostas vão pro Google Forms como sempre. Ao terminar, o próprio formulário confirma o envio.</p>
       <div style="margin:0 -16px">
         <iframe src="${f.url}?embedded=true"
-                style="width:100%;height:calc(100vh - 230px);min-height:600px;border:0;border-radius:0 0 12px 12px;background:#fff"
+                style="width:100%;height:calc(100vh - 230px);min-height:600px;border:0;border-radius:0 0 12px 12px;background:var(--bg-2)"
                 loading="eager" title="${f.nome}">Carregando formulário…</iframe>
       </div>
     </div>`;

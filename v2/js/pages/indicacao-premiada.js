@@ -74,7 +74,7 @@ function htmlFaixasAba() {
     const de = i === 0 ? 0 : Number(fv[i - 1][0]) + 0.01;
     return `<tr style="border-top:1px solid var(--bd,#eef2f7)">
       <td style="padding:8px 10px">${i === 0 ? 'até ' + brl(teto) : brl(de) + ' — ' + brl(teto)}</td>
-      <td style="padding:8px 10px;text-align:right;font-weight:900;color:#d97706;font-size:15px">${brl(p)}</td>
+      <td style="padding:8px 10px;text-align:right;font-weight:900;color:var(--warn);font-size:15px">${brl(p)}</td>
     </tr>`;
   };
   const linhaL = ([teto, p], i) => {
@@ -82,7 +82,7 @@ function htmlFaixasAba() {
     const faixa = teto >= 999999999 ? 'acima de ' + brl(fl[i - 1] ? fl[i - 1][0] : 0) : (i === 0 ? 'até ' + brl(teto) : brl(de) + ' — ' + brl(teto));
     return `<tr style="border-top:1px solid var(--bd,#eef2f7)">
       <td style="padding:8px 10px">${faixa}</td>
-      <td style="padding:8px 10px;text-align:right;font-weight:900;color:#0891b2;font-size:15px">${brl(p)}</td>
+      <td style="padding:8px 10px;text-align:right;font-weight:900;color:var(--ciano);font-size:15px">${brl(p)}</td>
     </tr>`;
   };
   const tabela = (titulo, sub, linhas, extra) => `
@@ -101,7 +101,7 @@ function htmlFaixasAba() {
     </div>
     <div class="flex mt-2" style="gap:10px;flex-wrap:wrap">
       ${tabela('🏠 VENDA', 'prêmio pelo VGV do imóvel vendido', fv.map(linhaV).join(''),
-        `<tr style="border-top:1px solid var(--bd,#eef2f7)"><td style="padding:8px 10px">acima de ${brl(fv.length ? fv[fv.length - 1][0] : 0)}</td><td style="padding:8px 10px;text-align:right;font-weight:800;color:#7c3aed">personalizável (sócios)</td></tr>`)}
+        `<tr style="border-top:1px solid var(--bd,#eef2f7)"><td style="padding:8px 10px">acima de ${brl(fv.length ? fv[fv.length - 1][0] : 0)}</td><td style="padding:8px 10px;text-align:right;font-weight:800;color:var(--roxo)">personalizável (sócios)</td></tr>`)}
       ${tabela('🔑 LOCAÇÃO', 'prêmio pelo aluguel mensal do contrato fechado', fl.map(linhaL).join(''), '')}
     </div></div>`;
 }
@@ -113,7 +113,7 @@ function faixasEditor(fv, fl) {
       <input class="input fx-teto" type="number" min="1" value="${teto}" style="width:130px;padding:3px 8px" title="Teto da faixa (R$)">
       <span class="tiny muted">→ prêmio R$</span>
       <input class="input fx-premio" type="number" min="0" value="${p}" style="width:100px;padding:3px 8px" title="Prêmio (R$)">
-      <button class="btn btn-ghost btn-sm fx-del" type="button" style="color:#dc2626;padding:1px 7px">×</button>
+      <button class="btn btn-ghost btn-sm fx-del" type="button" style="color:var(--err);padding:1px 7px">×</button>
     </div>`;
   return `<div style="background:var(--bg-3);border-radius:10px;padding:10px 12px">
     <b class="tiny">✏️ Editar faixas de prêmio</b>
@@ -144,7 +144,7 @@ function wireFaixas() {
       <input class="input fx-teto" type="number" min="1" value="" style="width:130px;padding:3px 8px">
       <span class="tiny muted">→ prêmio R$</span>
       <input class="input fx-premio" type="number" min="0" value="" style="width:100px;padding:3px 8px">
-      <button class="btn btn-ghost btn-sm fx-del" type="button" style="color:#dc2626;padding:1px 7px">×</button>
+      <button class="btn btn-ghost btn-sm fx-del" type="button" style="color:var(--err);padding:1px 7px">×</button>
     </div>`;
     const row = div.firstElementChild;
     row.querySelector('.fx-del').onclick = () => row.remove();
@@ -172,7 +172,7 @@ function fluxoCard(f) {
     <div style="border-top:1px solid var(--bd,#eef2f7);padding:8px 0 6px">
       <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
         <b class="tiny">${i + 1}. ${esc(p.titulo || 'Mensagem')}</b>
-        ${p.envio ? `<span class="tiny" style="background:#2563eb1a;color:#2563eb;padding:1px 8px;border-radius:999px">⏱ ${esc(p.envio)}</span>` : ''}
+        ${p.envio ? `<span class="tiny" style="background:#2563eb1a;color:var(--info);padding:1px 8px;border-radius:999px">⏱ ${esc(p.envio)}</span>` : ''}
         <button class="btn btn-ghost btn-sm ipf-copy" data-fluxo="${esc(f.id)}" data-passo="${i}" style="margin-left:auto;padding:2px 9px;font-size:11px">📋 Copiar</button>
       </div>
       <div class="tiny" style="white-space:pre-wrap;background:var(--bg-3);border-radius:8px;padding:7px 9px;margin-top:4px">${esc(p.texto)}</div>
@@ -194,7 +194,7 @@ function fluxoEditor(f) {
       <div class="flex" style="gap:6px;flex-wrap:wrap">
         <input class="input pe-titulo" value="${esc(p.titulo || '')}" placeholder="Título do passo (ex.: Quebra-gelo)" style="flex:2;min-width:160px;padding:4px 8px">
         <input class="input pe-envio" value="${esc(p.envio || '')}" placeholder="Quando enviar (ex.: manhã / após resposta)" style="flex:1;min-width:150px;padding:4px 8px">
-        <button class="btn btn-ghost btn-sm pe-del" type="button" style="color:#dc2626;padding:1px 8px">×</button>
+        <button class="btn btn-ghost btn-sm pe-del" type="button" style="color:var(--err);padding:1px 8px">×</button>
       </div>
       <textarea class="input pe-texto" rows="2" style="margin-top:4px;resize:vertical" placeholder="Mensagem (use {nome} pro nome do cliente)">${esc(p.texto || '')}</textarea>
     </div>`;
@@ -208,7 +208,7 @@ function fluxoEditor(f) {
     <div id="fe-passos" class="mt-1">${(f.passos || []).map(passoEd).join('')}</div>
     <button class="btn btn-ghost btn-sm" id="fe-add" type="button">+ passo</button>
     <div class="flex gap-2 mt-2" style="justify-content:flex-end">
-      ${!novo ? '<button class="btn btn-ghost btn-sm" id="fe-del" type="button" style="color:#dc2626;margin-right:auto">🗑 Excluir fluxo</button>' : ''}
+      ${!novo ? '<button class="btn btn-ghost btn-sm" id="fe-del" type="button" style="color:var(--err);margin-right:auto">🗑 Excluir fluxo</button>' : ''}
       <button class="btn btn-ghost btn-sm" id="fe-cancel" type="button">Cancelar</button>
       <button class="btn btn-primary btn-sm" id="fe-save" type="button">💾 Salvar fluxos</button>
     </div>
@@ -218,7 +218,7 @@ function fluxoEditor(f) {
 function htmlFluxos() {
   const fluxos = _d.fluxos || [];
   return `
-    <div class="tiny" style="background:#d977061a;color:#a16207;border-radius:10px;padding:8px 10px;font-weight:700">
+    <div class="tiny" style="background:#d977061a;color:var(--ambar-escuro);border-radius:10px;padding:8px 10px;font-weight:700">
       💡 Regra de ouro: UMA mensagem por vez, curta e pessoal. Espere a resposta antes do próximo passo — textão mata a conversa.
     </div>
     ${_d.can_edit ? '<div class="flex mt-2" style="justify-content:flex-end"><button class="btn btn-primary btn-sm" id="ipf-novo">➕ Novo fluxo</button></div>' : ''}
@@ -249,7 +249,7 @@ function wireFluxos() {
       <div class="flex" style="gap:6px;flex-wrap:wrap">
         <input class="input pe-titulo" placeholder="Título do passo" style="flex:2;min-width:160px;padding:4px 8px">
         <input class="input pe-envio" placeholder="Quando enviar" style="flex:1;min-width:150px;padding:4px 8px">
-        <button class="btn btn-ghost btn-sm pe-del" type="button" style="color:#dc2626;padding:1px 8px">×</button>
+        <button class="btn btn-ghost btn-sm pe-del" type="button" style="color:var(--err);padding:1px 8px">×</button>
       </div>
       <textarea class="input pe-texto" rows="2" style="margin-top:4px;resize:vertical" placeholder="Mensagem (use {nome})"></textarea>
     </div>`;
@@ -315,8 +315,8 @@ function cardIndicacao(it) {
       <b>${esc(it.indicado_nome || '?')}</b>
       <span class="badge" style="background:${cor}22;color:${cor};font-weight:700">${lbl}</span>
       <span class="badge">${it.tipo === 'locacao' ? '🔑 Locação' : '🏠 Venda'}</span>
-      ${it.origem === 'nps_promotor' ? '<span class="badge" style="background:#7c3aed22;color:#7c3aed">🌟 promotor NPS</span>' : ''}
-      ${it.premio != null ? `<b style="color:#d97706">🎁 ${brl(it.premio)}</b>` : (it.status === 'vendida' ? '<span class="badge" style="background:#d9770622;color:#d97706">prêmio personalizável</span>' : '')}
+      ${it.origem === 'nps_promotor' ? '<span class="badge" style="background:#7c3aed22;color:var(--roxo)">🌟 promotor NPS</span>' : ''}
+      ${it.premio != null ? `<b style="color:var(--warn)">🎁 ${brl(it.premio)}</b>` : (it.status === 'vendida' ? '<span class="badge" style="background:#d9770622;color:var(--warn)">prêmio personalizável</span>' : '')}
       <span style="margin-left:auto"></span>
       ${botoes(it)}
     </div>

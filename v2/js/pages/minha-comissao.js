@@ -94,8 +94,8 @@ function blocoLeire(m) {
     <div class="flex items-center mt-2" style="gap:10px;flex-wrap:wrap">
       <div><div class="tiny muted">Fechadas no mês</div><div style="font-weight:900;font-size:22px">${m.qtd || 0}</div></div>
       <div><div class="tiny muted">Base</div><div style="font-weight:800">${brl(m.base)}</div></div>
-      <div><div class="tiny muted">Bônus de volume</div><div style="font-weight:800;color:#16a34a">${mult(m.mult)}</div></div>
-      <div style="margin-left:auto;text-align:right"><div class="tiny muted">Sua comissão</div><div style="font-weight:900;font-size:20px;color:#16a34a">${brl(m.total)}</div></div>
+      <div><div class="tiny muted">Bônus de volume</div><div style="font-weight:800;color:var(--ok)">${mult(m.mult)}</div></div>
+      <div style="margin-left:auto;text-align:right"><div class="tiny muted">Sua comissão</div><div style="font-weight:900;font-size:20px;color:var(--ok)">${brl(m.total)}</div></div>
     </div>
     ${m.no_teto ? `<div class="tiny mt-2" style="background:#f59e0b15;padding:6px 10px;border-radius:8px;border-left:3px solid #f59e0b">🏆 Você bateu o teto de ${brl(m.teto)} neste mês.</div>`
       : p ? `<div class="tiny mt-2" style="background:#2563eb12;padding:6px 10px;border-radius:8px;border-left:3px solid #2563eb">🎯 Faltam <b>${p.faltam} fechamento(s)</b> pro seu bônus subir pra <b>${mult(p.valor)}</b> — e o bônus vale pra <b>todas</b> as reativações do mês, não só a próxima.</div>` : ''}
@@ -119,7 +119,7 @@ function blocoMariane(m) {
     <div class="flex items-center mt-2" style="gap:10px;flex-wrap:wrap">
       <div><div class="tiny muted">Fecharam no mês</div><div style="font-weight:900;font-size:22px">${m.qtd || 0}</div></div>
       <div><div class="tiny muted">Valor por indicação</div><div style="font-weight:800">${brl(m.rate)}</div></div>
-      <div style="margin-left:auto;text-align:right"><div class="tiny muted">Sua comissão</div><div style="font-weight:900;font-size:20px;color:#16a34a">${brl(m.total)}</div></div>
+      <div style="margin-left:auto;text-align:right"><div class="tiny muted">Sua comissão</div><div style="font-weight:900;font-size:20px;color:var(--ok)">${brl(m.total)}</div></div>
     </div>
     ${m.no_teto ? `<div class="tiny mt-2" style="background:#f59e0b15;padding:6px 10px;border-radius:8px;border-left:3px solid #f59e0b">🏆 Você bateu o teto de ${brl(m.teto)} neste mês.</div>`
       : p ? `<div class="tiny mt-2" style="background:#2563eb12;padding:6px 10px;border-radius:8px;border-left:3px solid #2563eb">🎯 Faltam <b>${p.faltam} indicação(ões)</b> pra cada uma passar a valer <b>${brl(p.valor)}</b> — retroativo pra todas do mês.</div>` : ''}
@@ -142,7 +142,7 @@ function blocoMap(c, regua) {
     <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
       <b>🏢 Minhas vendas · Empreendimentos</b>
       <span class="tiny" style="background:${ehSenior ? '#16a34a' : '#2563eb'}20;color:${ehSenior ? '#16a34a' : '#2563eb'};border-radius:20px;padding:2px 9px;font-weight:800">${esc(c.senioridade_lbl)}</span>
-      <span style="margin-left:auto;font-weight:900;font-size:20px;color:#16a34a">${brl(c.comissao_total)}</span>
+      <span style="margin-left:auto;font-weight:900;font-size:20px;color:var(--ok)">${brl(c.comissao_total)}</span>
     </div>
     <div class="mt-2">
       <div class="flex tiny muted" style="justify-content:space-between;gap:8px;flex-wrap:wrap">
@@ -172,8 +172,8 @@ function blocoConquista(c) {
   return `<div class="card mt-2">
     <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
       <b>👥 Minhas vendas · Conquista</b>
-      ${c.acelerador ? '<span class="tiny" style="background:#16a34a20;color:#16a34a;border-radius:20px;padding:2px 9px;font-weight:800">🚀 Acelerador ativo · 1,9%</span>' : ''}
-      <span style="margin-left:auto;font-weight:900;font-size:20px;color:#16a34a">${brl(c.comissao_total)}</span>
+      ${c.acelerador ? '<span class="tiny" style="background:#16a34a20;color:var(--ok);border-radius:20px;padding:2px 9px;font-weight:800">🚀 Acelerador ativo · 1,9%</span>' : ''}
+      <span style="margin-left:auto;font-weight:900;font-size:20px;color:var(--ok)">${brl(c.comissao_total)}</span>
     </div>
     <div class="tiny muted mt-1">VGV no mês ${brl(c.vgv_total)} · em origens N2/N3 ${brl(c.vgv_n2n3)}</div>
     <div style="overflow-x:auto"><table style="width:100%;min-width:520px;border-collapse:collapse;margin-top:8px;font-size:13px">

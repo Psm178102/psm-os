@@ -191,7 +191,7 @@ function render() {
         <div style="text-align:center">
           ${avatar(u, 84)}
           <div style="margin-top:6px"><label class="btn btn-ghost btn-sm" style="cursor:pointer">📷 Trocar foto<input type="file" id="cg-foto" accept="image/*" style="display:none"></label></div>
-          ${myP.foto ? '<div><button class="btn btn-ghost btn-sm" id="cg-foto-rm" style="color:#dc2626">remover</button></div>' : ''}
+          ${myP.foto ? '<div><button class="btn btn-ghost btn-sm" id="cg-foto-rm" style="color:var(--err)">remover</button></div>' : ''}
         </div>
         <div style="flex:1;min-width:220px">
           <div style="font-weight:700">${esc(u.name || '')} <span class="tiny muted">· ${esc(cargoLbl(u.role))} · nível ${CARGO_LVL[u.role] || u.lvl || '?'}</span></div>

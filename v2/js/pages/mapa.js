@@ -121,11 +121,11 @@ async function loadEmpreendimentos(force) {
   try {
     const r = await api.request('/api/v3/maps/empreendimentos' + (force ? '?force=1' : ''));
     _emp = { pins: r.pins || [], shapes: r.shapes || [] };
-    if (info) info.innerHTML = r.aviso ? `<span style="color:#b45309">${esc(r.aviso)}</span>`
+    if (info) info.innerHTML = r.aviso ? `<span style="color:var(--warn-escuro)">${esc(r.aviso)}</span>`
       : `📍 <b>${_emp.pins.length}</b> empreendimentos${_emp.shapes.length ? ' · ' + _emp.shapes.length + ' território(s)' : ''} do seu <b>MAPA Empreendimentos PSM</b>, sobre satélite.`;
   } catch (e) {
     _emp = { pins: [], shapes: [] };
-    if (info) info.innerHTML = `<span style="color:#b91c1c">Erro ao carregar empreendimentos: ${esc(e.message)}</span>`;
+    if (info) info.innerHTML = `<span style="color:var(--err-forte)">Erro ao carregar empreendimentos: ${esc(e.message)}</span>`;
   }
   initEmpMap();
 }
@@ -370,7 +370,7 @@ async function initGoogleMap(key) {
   }
   const ok = await loadGoogleMapsApi(key);
   if (!ok || !(window.google && window.google.maps)) {
-    el.innerHTML = '<div style="padding:26px;text-align:center;color:#b91c1c;font-size:13px">⚠ Não consegui carregar o Google Maps.<br>Confira a chave: <b>Maps JavaScript API ativada</b> + <b>faturamento</b> + restrição de referrer <b>https://www.housepsm.com.br/*</b>.</div>';
+    el.innerHTML = '<div style="padding:26px;text-align:center;color:var(--err-forte);font-size:13px">⚠ Não consegui carregar o Google Maps.<br>Confira a chave: <b>Maps JavaScript API ativada</b> + <b>faturamento</b> + restrição de referrer <b>https://www.housepsm.com.br/*</b>.</div>';
     return;
   }
   if (info) info.innerHTML = '<span class="spinner"></span> Carregando empreendimentos (' + (_fonte === 'conquista' ? 'PSM Conquista' : 'MAP') + ')…';
@@ -441,7 +441,7 @@ async function initGoogleMap(key) {
   } catch (_) {}
   const nome = _fonte === 'conquista' ? 'PSM Conquista' : 'MAP';
   if (info) info.innerHTML = aviso
-    ? '<span style="color:#b45309">' + esc(aviso) + '</span>'
+    ? '<span style="color:var(--warn-escuro)">' + esc(aviso) + '</span>'
     : '📍 <b>' + pins.length + '</b> empreendimentos (' + nome + ')' + (shps.length ? ' · ' + shps.length + ' território(s)' : '') + ' — com as <b>cores e nomes</b> do seu My Maps, no satélite do Google.';
 }
 
@@ -483,7 +483,7 @@ function renderContent() {
         ${filtered.slice(0, 100).map(i => imovelMini(i)).join('')}
       </div>
     </div>
-    <div class="alert tiny mt-3" style="background:rgba(99,102,241,.1);color:#6366f1;border:1px solid rgba(99,102,241,.3);padding:8px;border-radius:6px">
+    <div class="alert tiny mt-3" style="background:rgba(99,102,241,.1);color:var(--violeta);border:1px solid rgba(99,102,241,.3);padding:8px;border-radius:6px">
       💡 Marcadores são posicionados pelo <b>bairro</b> dos imóveis. Pra geolocalização exata, cadastre lat/lng em cada imóvel.
     </div>
   `;
@@ -546,8 +546,8 @@ function initMap(items) {
       <div style="font-family:system-ui;font-size:13px">
         <div style="font-weight:800;margin-bottom:4px">${esc(i.codigo || 'Sem código')}</div>
         <div>${esc(i.tipo || '—')} · ${esc(i.bairro || '—')}</div>
-        <div style="color:#666;font-size:11px;margin:4px 0">${esc(i.endereco || '')}</div>
-        <div style="font-weight:700;color:#0b1f3a">${valor}</div>
+        <div style="color:var(--ink-muted);font-size:11px;margin:4px 0">${esc(i.endereco || '')}</div>
+        <div style="font-weight:700;color:var(--navy-txt)">${valor}</div>
         <div style="margin-top:4px"><span style="background:${cor}22;color:${cor};padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700">${i.status || '—'}</span></div>
       </div>
     `);

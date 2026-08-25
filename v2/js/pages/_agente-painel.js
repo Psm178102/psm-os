@@ -219,7 +219,7 @@ function renderSetup() {
         </div>
 
         <div style="background:var(--bg-2);padding:14px;border-radius:10px;border-left:4px solid #e1306c">
-          <div style="font-weight:800;color:#e1306c">📸 Instagram DM</div>
+          <div style="font-weight:800;color:var(--rosa)">📸 Instagram DM</div>
           <div class="tiny muted mt-2">Via Meta Graph API:</div>
           <ol class="tiny mt-1" style="padding-left:20px;line-height:1.7">
             <li>App Meta com permissão instagram_manage_messages</li>

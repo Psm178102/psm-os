@@ -94,7 +94,7 @@ function marcaSection(m) {
 function isUrl(v) { return /^https?:\/\//i.test(String(v || '').trim()); }
 function cellHTML(v) {
   const s = v != null ? String(v) : '';
-  if (isUrl(s)) return `<a href="${esc(s)}" target="_blank" rel="noopener" style="color:#1d4ed8;font-weight:700;text-decoration:underline">🔗 abrir</a>`;
+  if (isUrl(s)) return `<a href="${esc(s)}" target="_blank" rel="noopener" style="color:var(--azul-medio);font-weight:700;text-decoration:underline">🔗 abrir</a>`;
   return esc(s);
 }
 
@@ -137,9 +137,9 @@ function viewCard(t, m, idx, total) {
         </div>
       </div>
       ${isPdf
-        ? `<iframe src="${esc(t.pdf_url)}" style="width:100%;height:72vh;border:1px solid var(--border);border-radius:8px;background:#fff"></iframe>`
+        ? `<iframe src="${esc(t.pdf_url)}" style="width:100%;height:72vh;border:1px solid var(--border);border-radius:8px;background:var(--bg-2)"></iframe>`
         : ((t.linhas || []).length
-          ? `<div data-tablewrap="${t.id}" style="max-height:64vh;overflow:auto;border:1px solid ${zebra ? cor + '40' : 'var(--border)'};border-radius:8px${zebra ? ';background:#fff' : ''}"><table style="border-collapse:collapse;width:100%;min-width:max-content">${head}${body}</table></div>`
+          ? `<div data-tablewrap="${t.id}" style="max-height:64vh;overflow:auto;border:1px solid ${zebra ? cor + '40' : 'var(--border)'};border-radius:8px${zebra ? ';background:var(--bg-2)' : ''}"><table style="border-collapse:collapse;width:100%;min-width:max-content">${head}${body}</table></div>`
           : `<div class="tiny muted" style="padding:8px">Tabela vazia${_canEdit ? ' — clique em ✏️ Editar pra adicionar linhas.' : '.'}</div>`)}
     </div>`;
 }
@@ -150,7 +150,7 @@ function editorCard(cor) {
   const cols = d.colunas;
   const headInputs = cols.map((c, i) => `<th style="background:${cor};padding:4px;min-width:120px">
       <div class="flex gap-1" style="align-items:center">
-        <input class="input" data-h="${i}" value="${esc(c)}" style="height:26px;font-size:11px;padding:2px 5px;background:#fff;min-width:90px" placeholder="Coluna">
+        <input class="input" data-h="${i}" value="${esc(c)}" style="height:26px;font-size:11px;padding:2px 5px;background:var(--bg-2);min-width:90px" placeholder="Coluna">
         <button class="btn btn-ghost btn-sm" data-delcol="${i}" title="remover coluna" style="color:#fff;padding:2px 6px">✕</button>
       </div></th>`).join('');
   const rows = d.linhas.map((r, ri) => `<tr style="border-bottom:1px solid var(--border)">
@@ -158,7 +158,7 @@ function editorCard(cor) {
       <td style="padding:2px;white-space:nowrap">
         <button class="btn btn-ghost btn-sm" data-uprow="${ri}" ${ri === 0 ? 'disabled' : ''} style="padding:2px 5px">↑</button>
         <button class="btn btn-ghost btn-sm" data-downrow="${ri}" ${ri === d.linhas.length - 1 ? 'disabled' : ''} style="padding:2px 5px">↓</button>
-        <button class="btn btn-ghost btn-sm" data-delrow="${ri}" style="padding:2px 5px;color:#dc2626">✕</button>
+        <button class="btn btn-ghost btn-sm" data-delrow="${ri}" style="padding:2px 5px;color:var(--err)">✕</button>
       </td></tr>`).join('');
   return `
     <div style="background:var(--bg-3);border:2px solid ${cor};border-radius:10px;padding:12px;margin-bottom:12px">
@@ -525,7 +525,7 @@ function normCat(s) {
 function dupBadge(t) {
   const n = _tabelas.filter(x => x.id !== t.id && x.marca === t.marca &&
     (x.tipo || 'grade') === (t.tipo || 'grade') && normCat(x.categoria) === normCat(t.categoria)).length;
-  return n ? ` <span class="badge" title="Existem ${n + 1} tabelas com este nome nesta marca. Confira a data de atualização — a próxima gravação nesta categoria consolida tudo na versão nova." style="background:#d9770622;color:#d97706;font-weight:700;font-size:10px">⚠️ nome duplicado</span>` : '';
+  return n ? ` <span class="badge" title="Existem ${n + 1} tabelas com este nome nesta marca. Confira a data de atualização — a próxima gravação nesta categoria consolida tudo na versão nova." style="background:#d9770622;color:var(--warn);font-weight:700;font-size:10px">⚠️ nome duplicado</span>` : '';
 }
 
 function fmtData(iso) {

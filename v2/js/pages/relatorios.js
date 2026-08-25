@@ -69,21 +69,21 @@ function reportHeader(title, sub) {
   return `
     <div class="print-header" style="border-bottom:2px solid #0b1f3a;padding-bottom:12px;margin-bottom:18px">
       <div style="display:flex;align-items:center;gap:12px">
-        <div style="font-size:28px;font-weight:900;color:#0b1f3a">PSM IMÓVEIS</div>
-        <div style="flex:1;text-align:right;font-size:11px;color:#666">
+        <div style="font-size:28px;font-weight:900;color:var(--navy-txt)">PSM IMÓVEIS</div>
+        <div style="flex:1;text-align:right;font-size:11px;color:var(--ink-muted)">
           <div>📅 ${now}</div>
           <div>👤 Gerado por: ${escapeHtml(me?.name || '—')}</div>
         </div>
       </div>
-      <h1 style="font-size:22px;margin:8px 0 2px;color:#0b1f3a">${escapeHtml(title)}</h1>
-      <div style="font-size:12px;color:#666">${escapeHtml(sub)}</div>
+      <h1 style="font-size:22px;margin:8px 0 2px;color:var(--navy-txt)">${escapeHtml(title)}</h1>
+      <div style="font-size:12px;color:var(--ink-muted)">${escapeHtml(sub)}</div>
     </div>
   `;
 }
 
 function reportFooter() {
   return `
-    <div class="print-footer" style="margin-top:30px;border-top:1px solid #ddd;padding-top:10px;font-size:10px;color:#999;text-align:center">
+    <div class="print-footer" style="margin-top:30px;border-top:1px solid #ddd;padding-top:10px;font-size:10px;color:var(--ink-muted);text-align:center">
       PSM-OS v75.72 · Confidencial · Uso interno PSM Imóveis · São José do Rio Preto/SP
     </div>
     <div class="no-print mt-4" style="text-align:center">
@@ -195,8 +195,8 @@ async function loadCaptacoes(out) {
               <td style="padding:6px 8px;font-weight:700">${escapeHtml((u.user && u.user.name) || '—')}</td>
               <td style="padding:6px 8px;text-align:center">${u.total || 0}</td>
               <td style="padding:6px 8px;text-align:right">R$ ${formatBR(+u.valor||0)}</td>
-              <td style="padding:6px 8px;text-align:center;color:#16a34a">${u.disponiveis || 0}</td>
-              <td style="padding:6px 8px;text-align:center;color:#0ea5e9">${u.vendidos || 0}</td>
+              <td style="padding:6px 8px;text-align:center;color:var(--ok)">${u.disponiveis || 0}</td>
+              <td style="padding:6px 8px;text-align:center;color:var(--azul-ceu)">${u.vendidos || 0}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -321,11 +321,11 @@ function injectPrintCSS() {
   style.id = 'psm-print-css';
   style.textContent = `
     @media print {
-      body { background: #fff !important; color: #000 !important; }
+      body { background: var(--bg-2) !important; color: var(--ink) !important; }
       .app-sidebar, .app-header, .no-print { display: none !important; }
       .app-main { padding: 0 !important; margin: 0 !important; }
-      .print-area { box-shadow: none !important; background: #fff !important; color: #000 !important; padding: 0 !important; }
-      .print-area h1, .print-area h2, .print-area h3 { color: #0b1f3a !important; }
+      .print-area { box-shadow: none !important; background: var(--bg-2) !important; color: var(--ink) !important; padding: 0 !important; }
+      .print-area h1, .print-area h2, .print-area h3 { color: var(--navy-txt) !important; }
       .print-area table { page-break-inside: auto; }
       .print-area tr { page-break-inside: avoid; page-break-after: auto; }
       @page { margin: 1.2cm; }

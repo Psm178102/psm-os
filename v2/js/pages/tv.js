@@ -296,7 +296,7 @@ function rankRow(c, i, topVgv) {
   const top3 = i < 3;
   const barW = topVgv > 0 ? Math.max(4, num(c.vgv) / topVgv * 100) : 0;
   const d = _rankDelta[c.id || c.name] || 0;
-  const seta = d > 0 ? `<span style="color:#4ade80;font-weight:900" title="subiu ${d}">▲${d}</span>` : d < 0 ? `<span style="color:#f87171;font-weight:900" title="caiu ${-d}">▼${-d}</span>` : '<span style="opacity:.35">—</span>';
+  const seta = d > 0 ? `<span style="color:#4ade80;font-weight:900" title="subiu ${d}">▲${d}</span>` : d < 0 ? `<span style="color:var(--err-claro);font-weight:900" title="caiu ${-d}">▼${-d}</span>` : '<span style="opacity:.35">—</span>';
   return `
     <div class="tv-row" style="animation-delay:${i * 55}ms;display:grid;grid-template-columns:60px 44px 60px 1fr auto auto;gap:16px;align-items:center;padding:15px 20px;border-radius:14px;background:rgba(255,255,255,${top3 ? '.13' : '.06'});${top3 ? 'border:2px solid #d4a843' : ''}">
       <div style="font-size:${top3 ? 38 : 28}px;font-weight:900;text-align:center">${medal}</div>

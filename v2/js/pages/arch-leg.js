@@ -100,7 +100,7 @@ function render() {
     <div class="card">
       <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
         <h2 class="card-title" style="margin:0">🧭 Consultoria Arch Leg</h2>
-        <span class="tiny" style="background:#7c3aed18;color:#7c3aed;border-radius:20px;padding:2px 10px;font-weight:800">desenvolvimento humano</span>
+        <span class="tiny" style="background:#7c3aed18;color:var(--roxo);border-radius:20px;padding:2px 10px;font-weight:800">desenvolvimento humano</span>
         <span class="tiny muted" style="margin-left:auto">${fichasModo.length} ficha(s) de ${_modo === 'user' ? 'pessoa' : 'equipe'}</span>
       </div>
       <p class="card-sub">${_soLeitura
@@ -257,7 +257,7 @@ function renderFicha() {
       <div class="flex items-center" style="gap:10px;flex-wrap:wrap">
         <span class="tiny muted" id="al-status">Alterações salvam localmente enquanto você digita.</span>
         <span style="margin-left:auto"></span>
-        ${f.atualizado_em ? '<button class="btn btn-ghost btn-sm" id="al-del" style="color:#dc2626">🗑 Apagar ficha</button>' : ''}
+        ${f.atualizado_em ? '<button class="btn btn-ghost btn-sm" id="al-del" style="color:var(--err)">🗑 Apagar ficha</button>' : ''}
         <button class="btn btn-primary" id="al-save">💾 Salvar ficha</button>
       </div>
     </div>`;
@@ -297,7 +297,7 @@ function renderMats() {
       ${m.url ? `<a class="btn btn-ghost btn-sm" href="${esc(m.url)}" target="_blank" rel="noopener" title="abrir">↗</a>` : ''}
       <button class="btn btn-ghost btn-sm mat-up" data-i="${i}" title="subir" ${i === 0 ? 'disabled' : ''}>↑</button>
       <button class="btn btn-ghost btn-sm mat-dn" data-i="${i}" title="descer" ${i === _mats.length - 1 ? 'disabled' : ''}>↓</button>
-      <button class="btn btn-ghost btn-sm mat-del" data-i="${i}" style="color:#dc2626" title="remover">✕</button>
+      <button class="btn btn-ghost btn-sm mat-del" data-i="${i}" style="color:var(--err)" title="remover">✕</button>
     </div>`;
   }).join('');
   const mv = (from, to) => { coletaMats(); const x = _mats.splice(from, 1)[0]; _mats.splice(to, 0, x); renderMats(); marcaDirty(); };

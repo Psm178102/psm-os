@@ -89,10 +89,10 @@ function render() {
               ${mini('Financ./Chaves', fmt(c.financ), _s.pctFinanc + '%')}
               ${mini('Valor sem correção', fmt(_s.valorTotal), 'tabela')}
             </div>
-            ${c.parcelasAparadas > 0 ? `<div class="tiny" style="color:#d97706;margin-top:8px">⚠️ ${c.parcelasAparadas} parcela(s) anual/semestral aparada(s) — não cabem no prazo de obra (${_s.prazoMeses} meses).</div>` : ''}
+            ${c.parcelasAparadas > 0 ? `<div class="tiny" style="color:var(--warn);margin-top:8px">⚠️ ${c.parcelasAparadas} parcela(s) anual/semestral aparada(s) — não cabem no prazo de obra (${_s.prazoMeses} meses).</div>` : ''}
           </div>
 
-          <div class="alert" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3);margin-top:14px;padding:12px;border-radius:8px">
+          <div class="alert" style="background:rgba(239,68,68,.1);color:var(--err-suave);border:1px solid rgba(239,68,68,.3);margin-top:14px;padding:12px;border-radius:8px">
             <b>💡 Importante:</b> O INCC é aplicado mensalmente sobre o saldo devedor durante o prazo de obra. Após a entrega das chaves, o saldo passa a ser corrigido pelo IPCA + juros do financiamento bancário.
           </div>
 

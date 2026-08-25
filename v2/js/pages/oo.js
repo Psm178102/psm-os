@@ -104,7 +104,7 @@ function renderList() {
       <div class="flex items-center gap-2" style="flex-wrap:wrap">
         <div style="flex:1;min-width:200px">
           <h2 class="card-title">👥 One-on-One · Gestão</h2>
-          <p class="card-sub">${corretores.length} corretores · ${gestores.length} gestor(es) · ${totalVendas} vendas · R$ ${money(totalVgv)} VGV no período · <b style="color:#dc2626">${atencao}</b> em atenção 🔴</p>
+          <p class="card-sub">${corretores.length} corretores · ${gestores.length} gestor(es) · ${totalVendas} vendas · R$ ${money(totalVgv)} VGV no período · <b style="color:var(--err)">${atencao}</b> em atenção 🔴</p>
         </div>
         ${periodSel()}
       </div>
@@ -120,13 +120,13 @@ function brokerCard(c) {
   const dot = healthDot(c.health_color);
   const att = c.meta_attainment_pct;
   const attBar = att != null ? bar(Math.min(100, att), c.health_color) : '';
-  const alerts = (c.alertas_top || []).map(a => `<span style="display:inline-block;background:#fef2f2;color:#b91c1c;font-size:10px;font-weight:600;padding:2px 7px;border-radius:999px;margin:2px 2px 0 0">⚠ ${escapeHtml(a)}</span>`).join('');
+  const alerts = (c.alertas_top || []).map(a => `<span style="display:inline-block;background:color-mix(in srgb, var(--err) 12%, transparent);color:var(--err-forte);font-size:10px;font-weight:600;padding:2px 7px;border-radius:999px;margin:2px 2px 0 0">⚠ ${escapeHtml(a)}</span>`).join('');
   return `
     <div data-open="${escapeHtml(c.id)}" style="cursor:pointer;background:var(--bg-2);border:1px solid var(--border);border-left:4px solid ${healthHex(c.health_color)};border-radius:var(--r-md);padding:12px;transition:.15s" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,.08)'" onmouseout="this.style.boxShadow='none'">
       <div class="flex items-center gap-2" style="margin-bottom:8px">
         <div style="width:40px;height:40px;border-radius:50%;background:${c.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">${escapeHtml((c.ini || (c.name||'?').slice(0,2)).toUpperCase())}</div>
         <div style="min-width:0;flex:1">
-          <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(c.name || c.id)}${c.is_team ? ` <span class="tiny" style="background:#dbeafe;color:#1e40af;padding:1px 6px;border-radius:999px;font-weight:700">👥 equipe</span>` : ''}</div>
+          <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(c.name || c.id)}${c.is_team ? ` <span class="tiny" style="background:color-mix(in srgb, var(--info) 18%, transparent);color:var(--azul-forte);padding:1px 6px;border-radius:999px;font-weight:700">👥 equipe</span>` : ''}</div>
           <div class="tiny muted">${escapeHtml(c.team || '—')} · ${(() => { const r = (c.role || '').toLowerCase(); if (r === 'lider' || r === 'gerente') { const lbl = r === 'gerente' ? 'Gerente' : 'Líder'; return c.is_team ? `🛡 ${lbl} · agregado da equipe` : `🛡 ${lbl}`; } return '🏠 Corretor'; })()}</div>
         </div>
         <div style="text-align:center">${dot}<div style="font-size:10px;font-weight:700;color:${healthHex(c.health_color)}">${c.health}</div></div>
@@ -144,7 +144,7 @@ function brokerCard(c) {
           <div class="tiny">🏃 Ritmo: <span style="font-weight:800;color:${cor}">${p.proj_vendas ?? 0} venda(s) · R$ ${moneyShort(p.proj_vgv || 0)}</span>${p.atingira_vgv_pct != null ? ` <span class="muted">(${pctF(p.atingira_vgv_pct)} da meta)</span>` : ''}${p.confianca ? ` <span class="muted">conf. ${p.confianca}</span>` : ''}</div>
         </div>`; })()}
       ${alerts ? `<div style="margin-top:6px">${alerts}</div>` : ''}
-      ${c.proxima_oo ? `<div class="tiny muted" style="margin-top:6px">📅 Próxima 1:1: ${fmtD(c.proxima_oo)}</div>` : (c.last_oo ? `<div class="tiny muted" style="margin-top:6px">Última 1:1: ${fmtD(c.last_oo)}</div>` : '<div class="tiny" style="color:#d97706;margin-top:6px">Sem 1:1 registrada</div>')}
+      ${c.proxima_oo ? `<div class="tiny muted" style="margin-top:6px">📅 Próxima 1:1: ${fmtD(c.proxima_oo)}</div>` : (c.last_oo ? `<div class="tiny muted" style="margin-top:6px">Última 1:1: ${fmtD(c.last_oo)}</div>` : '<div class="tiny" style="color:var(--warn);margin-top:6px">Sem 1:1 registrada</div>')}
     </div>`;
 }
 
@@ -272,7 +272,7 @@ function renderGestor(d, c) {
 function ooTabBar() {
   if ((auth.user()?.lvl || 0) < 10) return '';
   const tb = (id, lbl) => `<button class="btn ${_dtab === id ? 'btn-primary' : 'btn-ghost'} btn-sm" data-dtab="${id}">${lbl}</button>`;
-  const sombra = _sim && _sim.shadow ? '<span class="tiny" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;padding:2px 8px;border-radius:999px;font-weight:700">🌒 modo sombra — só sócios veem</span>' : '';
+  const sombra = _sim && _sim.shadow ? '<span class="tiny" style="background:var(--bg-3);color:var(--ink-muted);border:1px solid #cbd5e1;padding:2px 8px;border-radius:999px;font-weight:700">🌒 modo sombra — só sócios veem</span>' : '';
   return `<div class="flex items-center gap-2" style="margin-top:12px;flex-wrap:wrap">${tb('cockpit', '📊 Cockpit')}${tb('simulador', '🧪 Simulador')}${sombra}</div>`;
 }
 
@@ -330,7 +330,7 @@ async function loadOORanking() {
 
     const linha = (u, pos) => {
       const eu = u.id === _selId;
-      return `<div style="display:flex;align-items:center;gap:8px;padding:4px 8px;border-radius:8px;${eu ? 'background:#eff6ff;border:1px solid #bfdbfe;font-weight:800' : ''}">
+      return `<div style="display:flex;align-items:center;gap:8px;padding:4px 8px;border-radius:8px;${eu ? 'background:color-mix(in srgb, var(--info) 12%, transparent);border:1px solid #bfdbfe;font-weight:800' : ''}">
         <span style="min-width:26px;font-weight:800;color:${pos <= 3 ? '#d97706' : 'var(--ink-muted)'}">${pos <= 3 ? ['🥇', '🥈', '🥉'][pos - 1] : pos + 'º'}</span>
         <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px">${escapeHtml(u.name || '?')}${eu ? ' (ele)' : ''}</span>
         <span style="font-size:11.5px;white-space:nowrap"><b>R$ ${moneyShort(u.vgv || 0)}</b> · ${u.vendas || 0}v</span>
@@ -358,19 +358,19 @@ function gestorHeader(d) {
     <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:var(--bg-3);border-radius:var(--r-md);padding:14px 16px;border-left:5px solid ${healthHex(hc)}">
       <div style="width:54px;height:54px;border-radius:50%;background:${c.color || '#2563eb'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;flex-shrink:0">${escapeHtml((c.ini || (c.name||'?').slice(0,2)).toUpperCase())}</div>
       <div style="flex:1;min-width:180px">
-        <div style="font-weight:800;font-size:18px">${escapeHtml(c.name)} <span style="font-size:12px;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:999px;font-weight:700">🛡 Gestor</span></div>
+        <div style="font-weight:800;font-size:18px">${escapeHtml(c.name)} <span style="font-size:12px;background:color-mix(in srgb, var(--info) 18%, transparent);color:var(--azul-forte);padding:2px 8px;border-radius:999px;font-weight:700">🛡 Gestor</span></div>
         <div class="tiny muted">Equipe ${escapeHtml(t.name)} · ${t.members.length} corretores · período ${fmtD(d.period.since)}–${fmtD(d.period.until)}</div>
       </div>
       <div style="text-align:center;padding:0 10px"><div style="font-size:34px;line-height:1">${healthEmoji(hc)}</div><div style="font-size:11px;font-weight:800;color:${healthHex(hc)}">SAÚDE EQUIPE ${M.health}/100</div></div>
       <div style="text-align:center;padding:0 10px;border-left:1px solid var(--border)"><div style="font-size:24px;font-weight:900;color:${healthHex(hc)}">${pctF(att)}</div><div class="tiny muted">meta VGV equipe</div></div>
       <div style="text-align:center;padding:0 10px;border-left:1px solid var(--border)"><div style="font-size:24px;font-weight:900">${M.kpis.vendas}</div><div class="tiny muted">vendas · R$ ${moneyShort(M.kpis.vgv)}</div></div>
-      <div style="text-align:center;padding:0 10px;border-left:1px solid var(--border)"><div style="font-size:24px;font-weight:900;color:#16a34a">R$ ${moneyShort(M.ano_vgv || 0)}</div><div class="tiny muted">VGV ${new Date().getFullYear()} (ano)</div></div>
+      <div style="text-align:center;padding:0 10px;border-left:1px solid var(--border)"><div style="font-size:24px;font-weight:900;color:var(--ok)">R$ ${moneyShort(M.ano_vgv || 0)}</div><div class="tiny muted">VGV ${new Date().getFullYear()} (ano)</div></div>
     </div>`;
 }
 
 function gestorAlerts(M) {
   const a = M.alertas || [];
-  if (!a.length) return '<div style="margin-top:10px;font-size:12px;color:#16a34a">✅ Equipe sem alertas críticos no período.</div>';
+  if (!a.length) return '<div style="margin-top:10px;font-size:12px;color:var(--ok)">✅ Equipe sem alertas críticos no período.</div>';
   return `<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">${a.map(x => `<span style="background:${x.level==='alto'?'#fef2f2':'#fffbeb'};color:${x.level==='alto'?'#b91c1c':'#b45309'};border:1px solid ${x.level==='alto'?'#fecaca':'#fde68a'};font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:999px">${x.level==='alto'?'🚨':'⚠️'} ${escapeHtml(x.txt)}</span>`).join('')}</div>`;
 }
 
@@ -383,9 +383,9 @@ function saudeEquipePanel(t) {
   const semVenda = ms.filter(m => !m.vendas).length;
   return panel('🩺 Saúde da equipe', `
     <div style="display:flex;gap:14px;justify-content:space-around;margin-bottom:10px">
-      <div style="text-align:center"><div style="font-size:24px;font-weight:900;color:#16a34a">${g}</div><div class="tiny muted">🟢 saudável</div></div>
-      <div style="text-align:center"><div style="font-size:24px;font-weight:900;color:#d97706">${y}</div><div class="tiny muted">🟡 atenção</div></div>
-      <div style="text-align:center"><div style="font-size:24px;font-weight:900;color:#dc2626">${r}</div><div class="tiny muted">🔴 crítico</div></div>
+      <div style="text-align:center"><div style="font-size:24px;font-weight:900;color:var(--ok)">${g}</div><div class="tiny muted">🟢 saudável</div></div>
+      <div style="text-align:center"><div style="font-size:24px;font-weight:900;color:var(--warn)">${y}</div><div class="tiny muted">🟡 atenção</div></div>
+      <div style="text-align:center"><div style="font-size:24px;font-weight:900;color:var(--err)">${r}</div><div class="tiny muted">🔴 crítico</div></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;text-align:center">
       ${miniKpi('Batendo meta', batendo + '/' + ms.length)}
@@ -409,8 +409,8 @@ function ooCoveragePanel(t) {
       ${miniKpi('Pendentes', overdue.length)}
     </div>
     ${overdue.length ? `<div class="tiny muted" style="margin-bottom:4px">Sem 1:1 nos últimos 30d — priorize (clique pra abrir):</div>
-      <div style="display:flex;flex-wrap:wrap;gap:5px">${overdue.map(m => `<span data-member="${escapeHtml(m.id)}" style="cursor:pointer;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px">${escapeHtml(m.name)} →</span>`).join('')}</div>`
-      : '<div style="font-size:12px;color:#16a34a">✅ Todos os corretores tiveram 1:1 recente.</div>'}`);
+      <div style="display:flex;flex-wrap:wrap;gap:5px">${overdue.map(m => `<span data-member="${escapeHtml(m.id)}" style="cursor:pointer;background:color-mix(in srgb, var(--err) 12%, transparent);color:var(--err-forte);border:1px solid #fecaca;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px">${escapeHtml(m.name)} →</span>`).join('')}</div>`
+      : '<div style="font-size:12px;color:var(--ok)">✅ Todos os corretores tiveram 1:1 recente.</div>'}`);
 }
 
 function teamHeader(d) {
@@ -435,9 +435,9 @@ function teamMembersPanel(t) {
   const now = Date.now(), D30 = 30 * 864e5;
   const ooCell = (m) => {
     const recent = m.last_oo && (now - new Date(m.last_oo + 'T12:00:00').getTime()) <= D30;
-    if (m.proxima_oo) return `<span class="tiny" style="color:#2563eb">📅 ${fmtD(m.proxima_oo)}</span>`;
+    if (m.proxima_oo) return `<span class="tiny" style="color:var(--info)">📅 ${fmtD(m.proxima_oo)}</span>`;
     if (recent) return `<span class="tiny muted">${fmtD(m.last_oo)}</span>`;
-    return '<span class="tiny" style="color:#dc2626;font-weight:700">sem 1:1</span>';
+    return '<span class="tiny" style="color:var(--err);font-weight:700">sem 1:1</span>';
   };
   return `${panel('🏅 Ranking de corretores (clique pra abrir o 1:1)', `
     <div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:640px">
@@ -453,7 +453,7 @@ function teamMembersPanel(t) {
         <td style="text-align:right">${m.visitas}</td>
         <td style="text-align:right">${pctF(m.win_rate)}</td>
         <td style="text-align:right">${pctF(m.meta_attainment_pct)}</td>
-        <td style="text-align:center">${m.alertas_count ? '<span style="color:#dc2626;font-weight:700">' + m.alertas_count + '</span>' : '✓'}</td>
+        <td style="text-align:center">${m.alertas_count ? '<span style="color:var(--err);font-weight:700">' + m.alertas_count + '</span>' : '✓'}</td>
         <td style="text-align:right">${ooCell(m)}</td>
       </tr>`).join('')}
       </tbody></table></div>
@@ -482,11 +482,11 @@ function detailHeader(d, c) {
         <div class="tiny muted">vendas · R$ ${moneyShort(d.kpis.vgv)}</div>
       </div>
       <div style="text-align:center;padding:0 10px;border-left:1px solid var(--border)">
-        <div style="font-size:24px;font-weight:900;color:#16a34a">R$ ${moneyShort(d.ano_vgv || 0)}</div>
+        <div style="font-size:24px;font-weight:900;color:var(--ok)">R$ ${moneyShort(d.ano_vgv || 0)}</div>
         <div class="tiny muted">VGV ${new Date().getFullYear()} (ano)</div>
       </div>
     </div>
-    ${(d.alertas || []).length ? `<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">${d.alertas.map(a => `<span style="background:${a.level==='alto'?'#fef2f2':'#fffbeb'};color:${a.level==='alto'?'#b91c1c':'#b45309'};border:1px solid ${a.level==='alto'?'#fecaca':'#fde68a'};font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:999px">${a.level==='alto'?'🚨':'⚠️'} ${escapeHtml(a.txt)}</span>`).join('')}</div>` : '<div style="margin-top:10px;font-size:12px;color:#16a34a">✅ Sem alertas no período.</div>'}`;
+    ${(d.alertas || []).length ? `<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">${d.alertas.map(a => `<span style="background:${a.level==='alto'?'#fef2f2':'#fffbeb'};color:${a.level==='alto'?'#b91c1c':'#b45309'};border:1px solid ${a.level==='alto'?'#fecaca':'#fde68a'};font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:999px">${a.level==='alto'?'🚨':'⚠️'} ${escapeHtml(a.txt)}</span>`).join('')}</div>` : '<div style="margin-top:10px;font-size:12px;color:var(--ok)">✅ Sem alertas no período.</div>'}`;
 }
 
 function funnelBars(stages, getLabel) {
@@ -516,7 +516,7 @@ function convTable(stages) {
   return `<table style="width:100%;font-size:11.5px;border-collapse:collapse;margin-top:8px">
     <thead><tr style="color:var(--ink-muted);font-size:10.5px"><th style="text-align:left;padding:4px 6px">Conversão por etapa</th><th style="text-align:right;padding:4px 6px">taxa</th></tr></thead>
     <tbody>${rows}</tbody>
-    <tfoot><tr style="border-top:2px solid var(--border)"><td style="padding:5px 6px;font-weight:700">${escapeHtml(stages[0]?.name||stages[0]?.label||'')} → ${escapeHtml(stages[stages.length-1]?.name||'')}</td><td style="text-align:right;padding:5px 6px;font-weight:900;color:#2563eb">${pctF(overall)}</td></tr></tfoot>
+    <tfoot><tr style="border-top:2px solid var(--border)"><td style="padding:5px 6px;font-weight:700">${escapeHtml(stages[0]?.name||stages[0]?.label||'')} → ${escapeHtml(stages[stages.length-1]?.name||'')}</td><td style="text-align:right;padding:5px 6px;font-weight:900;color:var(--info)">${pctF(overall)}</td></tr></tfoot>
   </table>`;
 }
 function round1(n) { return Math.round(n * 10) / 10; }
@@ -555,7 +555,7 @@ function kpiVsMeta(d) {
     ${row('📅 Agendamentos', m.real_agendamentos, m.meta_agendamentos)}
     ${row('📝 Propostas', m.real_propostas, m.meta_propostas)}
     ${row('📂 Pastas', m.real_pastas, m.meta_pastas)}
-    ${(!m.meta_vgv && !m.meta_visitas) ? '<div class="tiny" style="color:#d97706;margin-top:4px">Defina metas em Menu → Metas pra ver o atingimento.</div>' : ''}`);
+    ${(!m.meta_vgv && !m.meta_visitas) ? '<div class="tiny" style="color:var(--warn);margin-top:4px">Defina metas em Menu → Metas pra ver o atingimento.</div>' : ''}`);
 }
 
 /* 💸 Investimento em ads — atribuição EXATA por lead (CPL da campanha de cada lead) */
@@ -578,7 +578,7 @@ function adsInvestPanel(d, scope) {
     <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
       <div>
         <div class="tiny muted">Investido ${who} no período</div>
-        <div style="font-size:24px;font-weight:900;color:#fb7185">R$ ${moneyShort(a.invest)}</div>
+        <div style="font-size:24px;font-weight:900;color:var(--rosa-suave)">R$ ${moneyShort(a.invest)}</div>
         ${temFaixa ? `<div class="tiny muted">faixa provável R$ ${moneyShort(a.invest_low)} – R$ ${moneyShort(a.invest_high)}</div>` : ''}
       </div>
       <div style="margin-left:auto;text-align:right">
@@ -605,11 +605,11 @@ function custoTotalPanel(d, scope) {
   const who = scope === 'equipe' ? 'a equipe custa' : 'o corretor custa';
   return panel('💰 Quanto ' + who, `
     <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
-      <div><div class="tiny muted">💸 Ads (período)</div><div style="font-size:18px;font-weight:900;color:#fb7185">R$ ${moneyShort(ads)}</div></div>
+      <div><div class="tiny muted">💸 Ads (período)</div><div style="font-size:18px;font-weight:900;color:var(--rosa-suave)">R$ ${moneyShort(ads)}</div></div>
       <div style="font-size:18px;color:#94a3b8">+</div>
-      <div><div class="tiny muted">🧾 Custo fixo (mensal)</div><div style="font-size:18px;font-weight:900;color:#6366f1">R$ ${moneyShort(fixo)}</div></div>
+      <div><div class="tiny muted">🧾 Custo fixo (mensal)</div><div style="font-size:18px;font-weight:900;color:var(--violeta)">R$ ${moneyShort(fixo)}</div></div>
       <div style="font-size:18px;color:#94a3b8">=</div>
-      <div><div class="tiny muted">Custo total</div><div style="font-size:24px;font-weight:900;color:#0f172a">R$ ${moneyShort(total)}</div></div>
+      <div><div class="tiny muted">Custo total</div><div style="font-size:24px;font-weight:900;color:var(--ink)">R$ ${moneyShort(total)}</div></div>
     </div>
     <div class="tiny muted" style="margin-top:8px">${fixo === 0
       ? '🧾 Custo fixo ainda não cadastrado. Em <b>Diretoria → Métricas Viab</b> o sócio lança logins, e-mail e licenças por corretor.'
@@ -679,7 +679,7 @@ function trendPanel(d, who) {
   return `<div style="margin-top:14px">${panel(`📈 VGV ${yr} — ${who || ''} <span class="tiny muted" style="font-weight:400">· total R$ ${money(d.ano_vgv || 0)} · ${d.ano_vendas || 0} vendas</span>`, `
     <div style="display:flex;align-items:flex-end;gap:8px;height:120px;padding-top:4px">
       ${t.map(x => { const mm = parseInt(x.mes.slice(5)); return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px" title="${MES[mm]}/${yr}: ${x.vendas} venda(s) · R$ ${money(x.vgv)}">
-        <div style="font-size:10px;font-weight:800;color:#16a34a">${x.vgv ? 'R$' + moneyShort(x.vgv) : ''}</div>
+        <div style="font-size:10px;font-weight:800;color:var(--ok)">${x.vgv ? 'R$' + moneyShort(x.vgv) : ''}</div>
         <div style="width:100%;max-width:42px;height:${x.vgv ? Math.max(4, x.vgv / maxV * 78) : 2}px;background:${x.vgv ? 'linear-gradient(180deg,#34d399,#16a34a)' : 'var(--border)'};border-radius:5px 5px 0 0"></div>
         <div style="font-size:10px;color:var(--ink-muted);font-weight:600">${MES[mm]}</div>
         <div style="font-size:9px;color:var(--ink-muted)">${x.vendas ? x.vendas + 'v' : ''}</div>
@@ -705,7 +705,7 @@ function meetRow(i) {
       <div class="flex items-center gap-2" style="margin-bottom:4px">
         <span style="font-weight:700;font-size:13px;cursor:pointer" data-meet="${i.id}">📅 ${fmtD(i.data)}</span>
         <span class="tiny muted">com ${escapeHtml(lider?.name || '?')}</span>
-        ${acoes.length ? `<span class="tiny" style="margin-left:auto;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:999px;font-weight:600">PDI ${done}/${acoes.length}</span>` : ''}
+        ${acoes.length ? `<span class="tiny" style="margin-left:auto;background:color-mix(in srgb, var(--info) 18%, transparent);color:var(--azul-forte);padding:2px 8px;border-radius:999px;font-weight:600">PDI ${done}/${acoes.length}</span>` : ''}
         <span class="btn btn-ghost btn-sm" data-meet="${i.id}" style="padding:2px 8px;font-size:11px;${acoes.length?'':'margin-left:auto'}">✏️</span>
       </div>
       ${i.observacoes ? `<div class="tiny" style="margin-bottom:5px;white-space:pre-wrap">${escapeHtml(i.observacoes)}</div>` : ''}
@@ -812,9 +812,9 @@ function pipelinePanel(M) {
   const cor = cob == null ? '#64748b' : (cob >= 100 ? '#16a34a' : cob >= 70 ? '#d97706' : '#dc2626');
   return panel('🔮 Previsão por pipeline (realista)', `
     <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px">
-      <div><div class="tiny muted">Já vendido</div><div style="font-size:18px;font-weight:900;color:#16a34a">R$ ${moneyShort(p.ja_vendido)}</div></div>
+      <div><div class="tiny muted">Já vendido</div><div style="font-size:18px;font-weight:900;color:var(--ok)">R$ ${moneyShort(p.ja_vendido)}</div></div>
       <div style="font-size:18px;color:#94a3b8">+</div>
-      <div><div class="tiny muted">🔒 Quase fechando</div><div style="font-size:18px;font-weight:900;color:#2563eb">R$ ${moneyShort(p.comprometido)}</div></div>
+      <div><div class="tiny muted">🔒 Quase fechando</div><div style="font-size:18px;font-weight:900;color:var(--info)">R$ ${moneyShort(p.comprometido)}</div></div>
       <div style="font-size:18px;color:#94a3b8">=</div>
       <div><div class="tiny muted">Previsto (realista)</div><div style="font-size:20px;font-weight:900;color:${cor}">R$ ${moneyShort(p.previsto_total)}</div></div>
       ${p.meta_vgv ? `<div style="margin-left:auto;text-align:right"><div class="tiny muted">da meta</div><div style="font-size:20px;font-weight:900;color:${cor}">${pctF(cob)}</div></div>` : ''}
@@ -846,7 +846,7 @@ function matrizConversaoPanel(t) {
         <td style="padding:5px 6px;font-weight:600;white-space:nowrap">${escapeHtml((m.name || '').split(' ')[0])}</td>
         ${m.conv.map((v, j) => cell(v, j)).join('')}
       </tr>`).join('')}
-      <tr style="border-top:2px solid var(--border);font-weight:800;color:#64748b"><td style="padding:5px 6px">Média</td>${avg.map(a => `<td style="text-align:center;padding:5px 4px">${pctF(a)}</td>`).join('')}</tr>
+      <tr style="border-top:2px solid var(--border);font-weight:800;color:var(--ink-muted)"><td style="padding:5px 6px">Média</td>${avg.map(a => `<td style="text-align:center;padding:5px 4px">${pctF(a)}</td>`).join('')}</tr>
       </tbody></table></div>
     <div class="tiny muted" style="margin-top:6px">🔴 vermelho = bem abaixo da média da equipe naquela etapa → treine isso com a pessoa. Clique no corretor pra abrir.</div>`);
 }
@@ -884,10 +884,10 @@ function gargaloPanel(M) {
   const idx = (M.funnel || []).findIndex(s => s.key === pior.key);
   const ant = idx > 0 ? M.funnel[idx - 1].label : '';
   const chain = (M.funnel || []).map((s, i) => i === 0 ? `${s.label} (${s.n})`
-    : `<span style="${s.key === pior.key ? 'color:#dc2626;font-weight:800' : 'color:#64748b'}">→ ${pctF(s.conv_from_prev)} → ${s.label} (${s.n})</span>`).join(' ');
+    : `<span style="${s.key === pior.key ? 'color:var(--err);font-weight:800' : 'color:var(--ink-muted)'}">→ ${pctF(s.conv_from_prev)} → ${s.label} (${s.n})</span>`).join(' ');
   return panel('🔻 Gargalo do funil (foco de coaching)', `
-    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:9px 12px;margin-bottom:8px">
-      <div style="font-weight:800;color:#b91c1c;font-size:13px">Maior perda: ${escapeHtml(ant)} → ${escapeHtml(pior.label)} = ${pctF(pior.conv_from_prev)}</div>
+    <div style="background:color-mix(in srgb, var(--err) 12%, transparent);border:1px solid #fecaca;border-radius:10px;padding:9px 12px;margin-bottom:8px">
+      <div style="font-weight:800;color:var(--err-forte);font-size:13px">Maior perda: ${escapeHtml(ant)} → ${escapeHtml(pior.label)} = ${pctF(pior.conv_from_prev)}</div>
       <div class="tiny" style="color:#7f1d1d;margin-top:2px">É aqui que a equipe mais perde negócio. Trabalhe ${escapeHtml(pior.label.toLowerCase())} nas 1:1.</div>
     </div>
     <div class="tiny" style="line-height:1.7">${chain}</div>`);
@@ -909,8 +909,8 @@ function focoSemanaPanel(t) {
         : (m.alertas_count ? `${m.alertas_count} alerta(s)` : 'acompanhar ritmo');
       return `<div data-member="${escapeHtml(m.id)}" style="cursor:pointer;display:flex;align-items:center;gap:9px;background:var(--bg-3);border-left:4px solid ${healthHex(m.health_color)};border-radius:8px;padding:7px 10px">
         <span style="font-weight:900;color:var(--ink-muted)">${i + 1}</span>
-        <span style="flex:1;min-width:0"><b style="font-size:13px">${escapeHtml(m.name)}</b> <span class="tiny muted">· ${healthEmoji(m.health_color)} ${m.health}</span><div class="tiny" style="color:#b45309">${motivo} · R$ ${moneyShort(m.vgv)} · ${m.vendas} venda(s)</div></span>
-        <span class="tiny" style="color:#2563eb">abrir →</span>
+        <span style="flex:1;min-width:0"><b style="font-size:13px">${escapeHtml(m.name)}</b> <span class="tiny muted">· ${healthEmoji(m.health_color)} ${m.health}</span><div class="tiny" style="color:var(--warn-escuro)">${motivo} · R$ ${moneyShort(m.vgv)} · ${m.vendas} venda(s)</div></span>
+        <span class="tiny" style="color:var(--info)">abrir →</span>
       </div>`;
     }).join('')}
     </div>`);
@@ -931,7 +931,7 @@ function nortePanel(d) {
   const btns = `<div class="flex gap-2" style="margin-top:10px;flex-wrap:wrap;align-items:center">
       ${isSelfView() ? '' : `<button class="btn btn-primary btn-sm" id="norte-edit">⚙️ ${n.meses_com_meta ? 'Ajustar meta' : 'Definir meta do mês'}</button>`}
       ${(n.changelog || []).length && !isSelfView() ? '<button class="btn btn-ghost btn-sm" id="norte-log">🕘 O que mudou?</button>' : ''}
-      ${n.read_fail ? '<span class="tiny" style="color:#d97706">⚠ leitura parcial do banco — números podem estar incompletos</span>' : ''}
+      ${n.read_fail ? '<span class="tiny" style="color:var(--warn)">⚠ leitura parcial do banco — números podem estar incompletos</span>' : ''}
     </div>
     <div id="norte-log-box" style="display:none;margin-top:8px">${norteChangelog(n.changelog)}</div>`;
   if (!n.meses_com_meta) {
@@ -969,7 +969,7 @@ function nortePanel(d) {
     let extra = '';
     if (s.key === 'venda' && fxVenda && pct != null && pct < 100 && s.n >= fxVenda.lo) {
       cor = '#2563eb';   // dentro da faixa = normal estatístico, não é alerta
-      extra = `<span class="tiny" style="color:#2563eb;font-weight:700" title="faixa Poisson do período pra meta ${fmtN(metaVenda)}"> · 🎲 ${fxVenda.lo}–${fxVenda.hi} é normal</span>`;
+      extra = `<span class="tiny" style="color:var(--info);font-weight:700" title="faixa Poisson do período pra meta ${fmtN(metaVenda)}"> · 🎲 ${fxVenda.lo}–${fxVenda.hi} é normal</span>`;
     } else if (s.key === 'venda' && fxVenda) {
       extra = `<span class="tiny muted" title="faixa Poisson do período"> · 🎲 ${fxVenda.lo}–${fxVenda.hi} normal</span>`;
     }
@@ -987,7 +987,7 @@ function nortePanel(d) {
     const pct = meta > 0 ? real / meta * 100 : null;
     let cor = pct == null ? '#94a3b8' : pct >= 100 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626';
     let fxTxt = '';
-    if (faixa && pct != null && pct < 100 && real >= faixa.lo) { cor = '#2563eb'; fxTxt = ` <span class="tiny" style="color:#2563eb">🎲 ${faixa.lo}–${faixa.hi} normal</span>`; }
+    if (faixa && pct != null && pct < 100 && real >= faixa.lo) { cor = '#2563eb'; fxTxt = ` <span class="tiny" style="color:var(--info)">🎲 ${faixa.lo}–${faixa.hi} normal</span>`; }
     else if (faixa) fxTxt = ` <span class="tiny muted">🎲 ${faixa.lo}–${faixa.hi} normal</span>`;
     return `<div>
       <div class="flex" style="justify-content:space-between;font-size:11.5px;margin-bottom:2px">
@@ -1000,7 +1000,7 @@ function nortePanel(d) {
 
   return panel('🎯 Norte do Mês · Meta × Realizado', `
     ${strip}
-    ${parcial ? `<div class="tiny muted" style="margin-top:8px">📐 Meta <b>proporcional ao período selecionado</b> (${(n.fracs || []).map(f => `${f.ym}: ${Math.round(f.frac * 100)}%${f.tem_meta ? '' : ' <span style="color:#d97706">sem meta</span>'}`).join(' · ')}).</div>` : ''}
+    ${parcial ? `<div class="tiny muted" style="margin-top:8px">📐 Meta <b>proporcional ao período selecionado</b> (${(n.fracs || []).map(f => `${f.ym}: ${Math.round(f.frac * 100)}%${f.tem_meta ? '' : ' <span style="color:var(--warn)">sem meta</span>'}`).join(' · ')}).</div>` : ''}
     <div style="margin-top:10px;overflow-x:auto"><table style="width:100%;border-collapse:collapse">${rows}</table></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">
       ${resumoBar('Vendas no período', kp.vendas || 0, mp.vendas || 0, false, (mp.vendas || 0) > 0 ? poisFaixaJs(mp.vendas) : null)}
@@ -1027,7 +1027,7 @@ async function loadDefasagem() {
     const convPct = (_det?.funil_reverso?.taxas?.lead_venda_pct) ?? null;
     const esperadas = convPct != null ? leadsLag * convPct / 100 : null;
     const mesLag = s.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-    host.innerHTML = `<div style="margin-top:8px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 10px;font-size:12px">
+    host.innerHTML = `<div style="margin-top:8px;background:color-mix(in srgb, var(--info) 12%, transparent);border:1px solid #bfdbfe;border-radius:8px;padding:8px 10px;font-size:12px">
       ⏳ <b>Jornada ~${N} meses:</b> a venda de agora nasce da atividade de <b>${escapeHtml(mesLag)}</b> —
       foram <b>${fmtN(leadsLag)}</b> leads trabalhados lá${esperadas != null ? `, o que sustenta ≈ <b>${fmtN(Math.round(esperadas * 10) / 10)}</b> venda(s) neste período` : ''}.
       Cobre a atividade do mês; a venda, julgue no trimestre.</div>`;
@@ -1189,7 +1189,7 @@ function norteRecalc() {
   set('ne-mix-t', pctF(mixT)); set('ne-at-t', fmtN(Math.round(atT * 10) / 10)); set('ne-vd-t', fmtN(Math.round(vdT * 1000) / 1000));
   set('ne-vgv', 'R$ ' + money(vdT * (Number(c.ticket_medio) || 0)));
   const av = document.getElementById('ne-mix-aviso');
-  if (av) av.innerHTML = Math.abs(mixT - 100) < 0.51 ? '<span style="color:#16a34a;font-weight:700">✓ Mix fecha 100%</span>' : `<span style="color:#d97706;font-weight:700">⚠ Mix soma ${pctF(mixT)} — ajuste pra fechar 100%</span>`;
+  if (av) av.innerHTML = Math.abs(mixT - 100) < 0.51 ? '<span style="color:var(--ok);font-weight:700">✓ Mix fecha 100%</span>' : `<span style="color:var(--warn);font-weight:700">⚠ Mix soma ${pctF(mixT)} — ajuste pra fechar 100%</span>`;
 }
 
 async function saveNorte() {
@@ -1286,8 +1286,8 @@ function simRetrato() {
   const rows = ps.map(p => {
     const isG = p.key === garg;
     const abaixo = p.real != null && p.real < p.piso;
-    return `<tr style="${isG ? 'background:#fef2f2' : ''}${p.sintetica ? 'border-top:2px dashed var(--border)' : ''}">
-      <td style="padding:4px 8px 4px 0;font-size:12px;font-weight:600;white-space:nowrap${p.sintetica ? ';font-style:italic;color:var(--ink-muted)' : ''}">${escapeHtml(p.label)}${p.sintetica ? ' <span class="tiny" style="font-weight:400" title="o FUNIL MAP não tem lane de venda — o ganho é o WIN do deal no RD">(win — não é etapa do funil)</span>' : ''}${isG ? ' <span style="color:#dc2626;font-weight:800" title="maior ganho se consertar">🔥 gargalo</span>' : ''}</td>
+    return `<tr style="${isG ? 'background:color-mix(in srgb, var(--err) 12%, transparent)' : ''}${p.sintetica ? 'border-top:2px dashed var(--border)' : ''}">
+      <td style="padding:4px 8px 4px 0;font-size:12px;font-weight:600;white-space:nowrap${p.sintetica ? ';font-style:italic;color:var(--ink-muted)' : ''}">${escapeHtml(p.label)}${p.sintetica ? ' <span class="tiny" style="font-weight:400" title="o FUNIL MAP não tem lane de venda — o ganho é o WIN do deal no RD">(win — não é etapa do funil)</span>' : ''}${isG ? ' <span style="color:var(--err);font-weight:800" title="maior ganho se consertar">🔥 gargalo</span>' : ''}</td>
       <td style="text-align:right;font-size:12px;color:${abaixo ? '#dc2626' : '#16a34a'};font-weight:700">${_pc(p.real)}</td>
       <td style="text-align:right;font-size:12px;color:var(--ink-muted)">${_pc(p.piso)}</td>
       <td style="text-align:right;font-size:12px;font-weight:800">${_pc(p.usada)}</td>
@@ -1295,7 +1295,7 @@ function simRetrato() {
     </tr>`;
   }).join('');
   const rdBadge = e.modo === 'rd' && e.pipeline
-    ? `<div style="margin-bottom:8px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:6px 10px;font-size:12px">🔁 <b>Cópia EXATA do funil “${escapeHtml(e.pipeline.nome)}” do RD CRM</b> — ${e.etapas_rd || (e.funil || []).filter(f => !f.sintetica).length} etapas, mesma ordem e nomenclatura. Piso = taxa real da equipe inteira na passagem. A linha <i>💰 Ganho</i> não é etapa do funil: é o deal marcado como GANHO (win) no RD — sem ela o simulador não teria venda pra prever.</div>`
+    ? `<div style="margin-bottom:8px;background:color-mix(in srgb, var(--info) 12%, transparent);border:1px solid #bfdbfe;border-radius:8px;padding:6px 10px;font-size:12px">🔁 <b>Cópia EXATA do funil “${escapeHtml(e.pipeline.nome)}” do RD CRM</b> — ${e.etapas_rd || (e.funil || []).filter(f => !f.sintetica).length} etapas, mesma ordem e nomenclatura. Piso = taxa real da equipe inteira na passagem. A linha <i>💰 Ganho</i> não é etapa do funil: é o deal marcado como GANHO (win) no RD — sem ela o simulador não teria venda pra prever.</div>`
     : '';
   return panel(`📸 Funil real × piso (90d) · ${escapeHtml((_sim.corretor || {}).name || '')}`, `
     ${rdBadge}
@@ -1416,8 +1416,8 @@ function simRowsRecalc() {
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   set('simc-mix-t', fmtN(mixT) + '%'); set('simc-at-t', fmtN(Math.round(atT))); set('simc-vd-t', fmtN(Math.round(vdT * 100) / 100));
   const av = document.getElementById('simc-aviso');
-  if (av) av.innerHTML = Math.abs(mixT - 100) < 0.51 ? '<span style="color:#16a34a;font-weight:700">✓ Mix fecha 100%</span>'
-    : `<span style="color:#d97706;font-weight:700">⚠ Mix soma ${fmtN(mixT)}% — sobra/falta vira atendimento não trabalhado</span>`;
+  if (av) av.innerHTML = Math.abs(mixT - 100) < 0.51 ? '<span style="color:var(--ok);font-weight:700">✓ Mix fecha 100%</span>'
+    : `<span style="color:var(--warn);font-weight:700">⚠ Mix soma ${fmtN(mixT)}% — sobra/falta vira atendimento não trabalhado</span>`;
 }
 
 /* c) Resultado ao vivo */
@@ -1431,9 +1431,9 @@ function simResultado() {
   const ATV_LBL = { lead: 'Leads novos', contato: 'Contatos/qualif.', agendamento: 'Agendamentos', visita: 'Visitas realizadas', proposta: 'Propostas', pasta: 'Pastas' };
   const alav = (r.alavancas || []).map((a, i) =>
     `<div style="display:flex;gap:8px;align-items:center;background:var(--bg-3);border-radius:8px;padding:6px 10px">
-      <span style="font-weight:900;color:#2563eb">${i + 1}º</span>
+      <span style="font-weight:900;color:var(--info)">${i + 1}º</span>
       <span style="flex:1;font-size:12px">${escapeHtml(a.label)}</span>
-      <span style="font-weight:800;color:#16a34a;font-size:12px">+${fmtN(a.delta_vendas)} venda(s)/mês</span></div>`).join('');
+      <span style="font-weight:800;color:var(--ok);font-size:12px">+${fmtN(a.delta_vendas)} venda(s)/mês</span></div>`).join('');
   const gap = r.gap;
   return panel('📈 Resultado do cenário', `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;background:linear-gradient(135deg,#0f172a,#1e3a8a);border-radius:var(--r-md);padding:12px 14px;color:#fff;text-align:center">
@@ -1494,7 +1494,7 @@ function simProposta() {
       <div class="tiny" style="margin-top:4px">Atividade/mês: ${(p.atividade_rows && p.atividade_rows.length
         ? p.atividade_rows.map(a => `${escapeHtml(a.label)} <b>${fmtN(a.valor)}</b>`)
         : Object.keys(ATV_LBL).map(k => `${ATV_LBL[k]} <b>${fmtN((p.atividade_mes || {})[k])}</b>`)).join(' · ')}</div>
-      ${reg.aceite ? `<div class="tiny" style="color:#16a34a;margin-top:4px">Aceita em ${new Date(reg.aceite.ts).toLocaleString('pt-BR')}</div>` : ''}
+      ${reg.aceite ? `<div class="tiny" style="color:var(--ok);margin-top:4px">Aceita em ${new Date(reg.aceite.ts).toLocaleString('pt-BR')}</div>` : ''}
     </div>` : '<div class="tiny muted" style="margin-top:8px">Nenhuma proposta gerada pra este trimestre ainda.</div>'}`);
 }
 
@@ -1703,14 +1703,14 @@ function reverseFunnelPanel(d) {
     return `<tr>
       <td style="padding:4px 6px;font-weight:600">${lbl}</td>
       <td style="padding:4px 6px;text-align:center">${nec}</td>
-      <td style="padding:4px 6px;text-align:center;color:#64748b">${real}</td>
+      <td style="padding:4px 6px;text-align:center;color:var(--ink-muted)">${real}</td>
       <td style="padding:4px 6px;text-align:center;font-weight:800;color:${cor}">${falta > 0 ? 'faltam ' + falta : '✓'}</td>
     </tr>`;
   }).join('');
   return panel('🎯 Funil reverso — pra bater a meta', `
     <div class="tiny muted" style="margin-bottom:6px">Meta: <b>R$ ${money(fr.meta_vgv)}</b> · <b>${fr.necessario.vendas}</b> venda(s). Cálculo pelas ${fonte}.</div>
     <table style="width:100%;border-collapse:collapse;font-size:12.5px">
-      <thead><tr style="color:#64748b;font-size:10.5px;text-transform:uppercase">
+      <thead><tr style="color:var(--ink-muted);font-size:10.5px;text-transform:uppercase">
         <th style="text-align:left;padding:2px 6px">Etapa</th><th style="padding:2px 6px">Precisa</th><th style="padding:2px 6px">Feito</th><th style="padding:2px 6px">Falta</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
@@ -1820,7 +1820,7 @@ function render360() {
           ${items.length ? `<div class="tiny muted" style="margin-top:5px">Checklist: <b>${doneN}/${items.length}</b> concluídos</div>` : ''}`, '#7c3aed')}
         ${box('🎯 Desempenho & metas', `
           ${score != null
-            ? `<div style="font-size:22px;font-weight:800;color:#16a34a">${score}/${escala}</div>`
+            ? `<div style="font-size:22px;font-weight:800;color:var(--ok)">${score}/${escala}</div>`
             : `<div style="font-size:22px;font-weight:800;color:${hCor}">${health != null ? 'Saúde ' + health + '/100' : '<span style="font-size:13px;color:#94a3b8">sem dado</span>'}</div>
                <div class="tiny muted">automático do funil (sem avaliação formal) · meta atingida: <b>${metaPct != null ? money(metaPct) + '%' : '—'}</b> · ${_det?.ano_vendas || 0} venda(s) no ano</div>`}
           ${prof.meta_produtividade ? `<div class="tiny"><b>Meta produtividade:</b> ${escapeHtml(prof.meta_produtividade)}</div>` : ''}

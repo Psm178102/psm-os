@@ -49,7 +49,7 @@ function renderList(r) {
 
 function card(s) {
   const d = s.delta;
-  const deltaTxt = d == null ? '' : (d > 0 ? `<span style="color:#16a34a">▲ ${d}</span>` : d < 0 ? `<span style="color:#dc2626">▼ ${Math.abs(d)}</span>` : '<span class="muted">=</span>');
+  const deltaTxt = d == null ? '' : (d > 0 ? `<span style="color:var(--ok)">▲ ${d}</span>` : d < 0 ? `<span style="color:var(--err)">▼ ${Math.abs(d)}</span>` : '<span class="muted">=</span>');
   const inv = { alto: ['#dc2626', '🔴 Alto'], medio: ['#d97706', '🟡 Médio'], baixo: ['#16a34a', '🟢 Baixo'] }[s.nivel_invest] || ['#64748b', '—'];
   return `<div data-open="${escapeHtml(s.concorrente)}" style="cursor:pointer;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:12px" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,.08)'" onmouseout="this.style.boxShadow='none'">
     <div class="flex items-center gap-2" style="margin-bottom:6px">
@@ -61,7 +61,7 @@ function card(s) {
       <span style="font-size:11px;font-weight:700;color:${inv[0]}">💸 ${inv[1]}</span>
       <span class="tiny muted" style="margin-left:auto">${fmtD(s.captured_at)}</span>
     </div>
-    ${s.ai_analysis ? '<div class="tiny" style="margin-top:6px;color:#7c3aed;font-weight:600">🧠 análise IA disponível</div>' : ''}
+    ${s.ai_analysis ? '<div class="tiny" style="margin-top:6px;color:var(--roxo);font-weight:600">🧠 análise IA disponível</div>' : ''}
   </div>`;
 }
 
@@ -99,7 +99,7 @@ function renderDetail() {
         </div></div>` : ''}
 
       ${cur.ai_analysis ? `<div style="margin-top:12px;background:linear-gradient(180deg,rgba(124,58,237,.06),transparent);border:1px solid rgba(124,58,237,.25);border-radius:var(--r-md);padding:14px 16px">
-        <div style="font-weight:800;font-size:13px;color:#7c3aed;margin-bottom:8px">🧠 Análise da IA</div>
+        <div style="font-weight:800;font-size:13px;color:var(--roxo);margin-bottom:8px">🧠 Análise da IA</div>
         <div style="font-size:13px;line-height:1.55">${mdLite(cur.ai_analysis)}</div></div>` : '<div class="muted tiny" style="margin-top:12px">Sem análise da IA neste snapshot.</div>'}
 
       ${cur.conteudo ? `<details style="margin-top:12px"><summary style="cursor:pointer;font-weight:700;font-size:13px">📋 Anúncios capturados (texto)</summary>
@@ -199,13 +199,13 @@ Na ÚLTIMA linha escreva só: NIVEL_INVEST: baixo|medio|alto${cont ? '\n\nANÚNC
       const m = txt.match(/NIVEL_INVEST:\s*(baixo|medio|m[ée]dio|alto)/i);
       if (m) { nivel = m[1].toLowerCase().replace('é', 'e'); txt = txt.replace(/NIVEL_INVEST:.*/i, '').trim(); }
       _aiPreview = { text: txt, nivel };
-      status.innerHTML = `<span style="color:#16a34a">✓ análise pronta${imgs.length ? ' · ' + imgs.length + ' criativo(s) lido(s) pela visão' : ''} · ${escapeHtml(j.model_used || 'IA')} (será salva)</span>`;
+      status.innerHTML = `<span style="color:var(--ok)">✓ análise pronta${imgs.length ? ' · ' + imgs.length + ' criativo(s) lido(s) pela visão' : ''} · ${escapeHtml(j.model_used || 'IA')} (será salva)</span>`;
       document.getElementById('bl-ai-prev').innerHTML = `<div style="background:rgba(124,58,237,.06);border:1px solid rgba(124,58,237,.25);border-radius:8px;padding:12px;font-size:12.5px;line-height:1.5;max-height:320px;overflow:auto">${mdLite(txt)}</div>`;
     } else {
-      status.innerHTML = '<span style="color:#dc2626">IA indisponível: ' + escapeHtml(j.error || 'erro') + '</span>';
+      status.innerHTML = '<span style="color:var(--err)">IA indisponível: ' + escapeHtml(j.error || 'erro') + '</span>';
     }
   } catch (e) {
-    status.innerHTML = '<span style="color:#dc2626">Erro: ' + escapeHtml(e.message) + '</span>';
+    status.innerHTML = '<span style="color:var(--err)">Erro: ' + escapeHtml(e.message) + '</span>';
   } finally { _aiBusy = false; }
 }
 

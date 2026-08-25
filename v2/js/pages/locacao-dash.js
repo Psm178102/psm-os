@@ -74,7 +74,7 @@ function render() {
         <b>📅 Renovações nos próximos 90 dias</b>
         ${(c.vencendo || []).length ? `<div class="mt-1">${c.vencendo.map(v => `
           <div class="flex items-center tiny" style="gap:8px;padding:4px 0;border-bottom:1px solid var(--bg-3)">
-            <span class="badge" style="background:#d9770622;color:#d97706;font-weight:700">${fmtD(v.fim)}</span>
+            <span class="badge" style="background:#d9770622;color:var(--warn);font-weight:700">${fmtD(v.fim)}</span>
             <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(v.endereco)}${v.inquilino ? ' · ' + esc(v.inquilino) : ''}</span>
             <b>${brl(v.aluguel)}</b>
           </div>`).join('')}</div>`

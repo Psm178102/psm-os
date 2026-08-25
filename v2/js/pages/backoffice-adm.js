@@ -89,7 +89,7 @@ function renderCompras(root) {
       </div>
       <div class="flex gap-1 mt-2" style="flex-wrap:wrap">
         <button class="btn ${_comprasTab === 'solicitacoes' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-ct="solicitacoes">🛒 Solicitações (${abertas} abertas)</button>
-        <button class="btn ${_comprasTab === 'estoque' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-ct="estoque">📦 Estoque ${baixo ? `<span style="color:#ef4444">· ${baixo} p/ repor</span>` : ''}</button>
+        <button class="btn ${_comprasTab === 'estoque' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-ct="estoque">📦 Estoque ${baixo ? `<span style="color:var(--err-suave)">· ${baixo} p/ repor</span>` : ''}</button>
       </div>
       <div id="adm-body" class="mt-3"></div>
     </div>`;
@@ -133,7 +133,7 @@ function editCompra(root, r0) {
       ${fS('f-status', 'Status', r.status, ST_COMPRA, 'solicitado')}
     `)}
     ${fA('f-obs', 'Observações', r.obs)}
-    <div class="flex gap-2 mt-3"><button class="btn btn-primary" id="sv">💾 Salvar</button>${r.id ? '<button class="btn btn-ghost" id="dl" style="margin-left:auto;color:#dc2626">🗑 Excluir</button>' : ''}</div>`);
+    <div class="flex gap-2 mt-3"><button class="btn btn-primary" id="sv">💾 Salvar</button>${r.id ? '<button class="btn btn-ghost" id="dl" style="margin-left:auto;color:var(--err)">🗑 Excluir</button>' : ''}</div>`);
   const g = id => ov.querySelector('#' + id).value.trim();
   ov.querySelector('#x').onclick = () => ov.remove();
   ov.querySelector('#sv').onclick = async () => {
@@ -152,8 +152,8 @@ function renderEstoque(body, root) {
       <thead><tr style="background:var(--bg-3)"><th style="text-align:left;padding:8px">Item</th><th style="padding:8px">Atual</th><th style="padding:8px">Mín.</th><th style="text-align:left;padding:8px">Local</th><th style="text-align:left;padding:8px">Responsável</th><th></th></tr></thead>
       <tbody>${est.length ? est.map(e => {
         const low = estoqueBaixo(e);
-        return `<tr style="border-bottom:1px solid var(--bd)${low ? ';background:#fef2f2' : ''}">
-          <td style="padding:8px"><b>${esc(e.item || '—')}</b> <span class="tiny muted">${esc(e.categoria || '')}</span>${low ? ' <span class="tiny" style="color:#ef4444;font-weight:800">⚠ REPOR</span>' : ''}</td>
+        return `<tr style="border-bottom:1px solid var(--bd)${low ? ';background:color-mix(in srgb, var(--err) 12%, transparent)' : ''}">
+          <td style="padding:8px"><b>${esc(e.item || '—')}</b> <span class="tiny muted">${esc(e.categoria || '')}</span>${low ? ' <span class="tiny" style="color:var(--err-suave);font-weight:800">⚠ REPOR</span>' : ''}</td>
           <td style="padding:8px;text-align:center;font-weight:700">${esc(e.qtd_atual || 0)} ${esc(e.unidade || '')}</td>
           <td style="padding:8px;text-align:center" class="tiny muted">${esc(e.qtd_minima || 0)}</td>
           <td style="padding:8px">${esc(e.local || '—')}</td>
@@ -184,7 +184,7 @@ function editEstoque(root, r0) {
       ${fS('e-responsavel', 'Responsável', r.responsavel, _users.map(u => u.name || u.id))}
     `)}
     ${fA('e-obs', 'Observações', r.obs)}
-    <div class="flex gap-2 mt-3"><button class="btn btn-primary" id="sv">💾 Salvar</button>${r.id ? '<button class="btn btn-ghost" id="dl" style="margin-left:auto;color:#dc2626">🗑 Excluir</button>' : ''}</div>`);
+    <div class="flex gap-2 mt-3"><button class="btn btn-primary" id="sv">💾 Salvar</button>${r.id ? '<button class="btn btn-ghost" id="dl" style="margin-left:auto;color:var(--err)">🗑 Excluir</button>' : ''}</div>`);
   const g = id => ov.querySelector('#' + id).value.trim();
   ov.querySelector('#x').onclick = () => ov.remove();
   ov.querySelector('#sv').onclick = async () => {
@@ -212,7 +212,7 @@ function renderPatrimonio(root) {
       </div>
       <div class="flex gap-2 mt-2" style="flex-wrap:wrap">
         <div class="card" style="padding:10px 14px"><div class="tiny muted">Itens</div><div style="font-size:20px;font-weight:800">${p.length}</div></div>
-        <div class="card" style="padding:10px 14px"><div class="tiny muted">Valor estimado total</div><div style="font-size:20px;font-weight:800;color:#16a34a">${money(total)}</div></div>
+        <div class="card" style="padding:10px 14px"><div class="tiny muted">Valor estimado total</div><div style="font-size:20px;font-weight:800;color:var(--ok)">${money(total)}</div></div>
       </div>
       <div class="mt-3" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px">
         ${p.length ? p.map(patrCard).join('') : '<div class="muted tiny">Nenhum bem cadastrado.</div>'}
@@ -248,7 +248,7 @@ function editPatr(root, r0) {
       ${fI('p-nota_url', 'Nota fiscal (link)', r.nota_url, 'Drive / URL')}
     `)}
     ${fA('p-obs', 'Observações', r.obs)}
-    <div class="flex gap-2 mt-3"><button class="btn btn-primary" id="sv">💾 Salvar</button>${r.id ? '<button class="btn btn-ghost" id="dl" style="margin-left:auto;color:#dc2626">🗑 Excluir</button>' : ''}</div>`);
+    <div class="flex gap-2 mt-3"><button class="btn btn-primary" id="sv">💾 Salvar</button>${r.id ? '<button class="btn btn-ghost" id="dl" style="margin-left:auto;color:var(--err)">🗑 Excluir</button>' : ''}</div>`);
   const g = id => ov.querySelector('#' + id).value.trim();
   ov.querySelector('#x').onclick = () => ov.remove();
   ov.querySelector('#sv').onclick = async () => {
@@ -322,7 +322,7 @@ function editManut(root, r0) {
       <button class="btn btn-ghost btn-sm mt-1" id="orc-add" type="button">+ Orçamento</button>
       <div class="tiny muted" style="margin-top:6px">Valor aprovado: <b id="m-aprov">${r.valor_aprovado ? money(r.valor_aprovado) : '—'}</b></div>
       ${fA('m-obs', 'Observações', r.obs)}
-      <div class="flex gap-2 mt-3"><button class="btn btn-primary" id="sv">💾 Salvar</button>${r.id ? '<button class="btn btn-ghost" id="dl" style="margin-left:auto;color:#dc2626">🗑 Excluir</button>' : ''}</div>`;
+      <div class="flex gap-2 mt-3"><button class="btn btn-primary" id="sv">💾 Salvar</button>${r.id ? '<button class="btn btn-ghost" id="dl" style="margin-left:auto;color:var(--err)">🗑 Excluir</button>' : ''}</div>`;
     bind();
   };
   const captureOrc = () => {

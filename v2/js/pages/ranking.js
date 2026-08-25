@@ -95,14 +95,14 @@ async function loadAudit() {
   const soHub = rows.filter(x => x.rd_zero && (x.psmhub_vgv || 0) > 0);
   const diverg = rows.filter(x => !x.ok && !x.rd_zero);
   const statusCell = x => {
-    if (x.rd_zero && (x.psmhub_vgv || 0) > 0) return '<span style="color:#2563eb;font-weight:700">🟦 só no HUB</span>';
-    if (x.ok) return '<span style="color:#16a34a;font-weight:700">✅ confere</span>';
-    return `<span style="color:#dc2626;font-weight:700">⚠️ diverge ${x.diff_pct != null ? pct2(x.diff_pct) : ''}</span>`;
+    if (x.rd_zero && (x.psmhub_vgv || 0) > 0) return '<span style="color:var(--info);font-weight:700">🟦 só no HUB</span>';
+    if (x.ok) return '<span style="color:var(--ok);font-weight:700">✅ confere</span>';
+    return `<span style="color:var(--err);font-weight:700">⚠️ diverge ${x.diff_pct != null ? pct2(x.diff_pct) : ''}</span>`;
   };
   el.innerHTML = `
     <div class="card mt-3">
       <h3 class="card-title">🔎 Auditoria RD × PSM HUB (Conquista)</h3>
-      <p class="card-sub">Confere se o VGV/vendas do ranking (RD) batem com o PSM HUB. ${conf}/${rows.length} conferem${diverg.length ? ' · <b style="color:#dc2626">' + diverg.length + ' divergência(s)</b>' : ''}${soHub.length ? ' · <b style="color:#2563eb">' + soHub.length + ' só no HUB</b>' : ''}.</p>
+      <p class="card-sub">Confere se o VGV/vendas do ranking (RD) batem com o PSM HUB. ${conf}/${rows.length} conferem${diverg.length ? ' · <b style="color:var(--err)">' + diverg.length + ' divergência(s)</b>' : ''}${soHub.length ? ' · <b style="color:var(--info)">' + soHub.length + ' só no HUB</b>' : ''}.</p>
       <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:560px">
         <thead><tr style="color:var(--ink-muted);font-size:11px;text-align:left;border-bottom:1px solid var(--border)">
           <th style="padding:5px 6px">Corretor</th><th style="text-align:right">RD VGV</th><th style="text-align:right">HUB VGV</th><th style="text-align:right">RD vendas</th><th style="text-align:right">HUB vendas</th><th style="text-align:center">Status</th></tr></thead>
@@ -134,12 +134,12 @@ function rankRow(u, i, mode) {
       </div>
       ${mode === 'vgv' ? `
         <div style="text-align:right">
-          <div style="font-size:16px;font-weight:900;color:#7c3aed">R$ ${money(u.vgv)}</div>
+          <div style="font-size:16px;font-weight:900;color:var(--roxo)">R$ ${money(u.vgv)}</div>
           <div class="tiny muted">${u.vendas} vendas</div>
         </div>
       ` : `
         <div style="text-align:right">
-          <div style="font-size:16px;font-weight:900;color:#16a34a">${u.score} pts</div>
+          <div style="font-size:16px;font-weight:900;color:var(--ok)">${u.score} pts</div>
           <div class="tiny muted">${u.events_as_actor || 0} ator · ${u.events_as_target || 0} alvo</div>
         </div>
       `}

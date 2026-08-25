@@ -65,7 +65,7 @@ function dayBlock(date, items) {
       <div class="tiny muted" style="font-weight:700;text-transform:uppercase;margin-bottom:4px">${escapeHtml(dataFmt)}</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px">
         ${items.sort((a,b) => a.ts.localeCompare(b.ts)).map(i => `
-          <span class="tiny" style="background:${i.tipo === 'in' ? '#dcfce7;color:#166534' : '#fee2e2;color:#991b1b'};padding:3px 10px;border-radius:var(--r-full);font-weight:600">
+          <span class="tiny" style="background:${i.tipo === 'in' ? '#dcfce7;color:var(--ok-escuro)' : '#fee2e2;color:var(--err-forte)'};padding:3px 10px;border-radius:var(--r-full);font-weight:600">
             ${i.tipo === 'in' ? '🟢 IN' : '🚪 OUT'} ${new Date(i.ts).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}
           </span>
         `).join('')}

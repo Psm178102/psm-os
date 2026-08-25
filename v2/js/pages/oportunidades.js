@@ -181,7 +181,7 @@ function renderList() {
     ` : ''}
 
     ${minhas.length > 0 ? `
-      <h3 style="color:#3b82f6;font-size:14px;margin:14px 0 10px">📌 Minhas Oportunidades</h3>
+      <h3 style="color:var(--azul-claro);font-size:14px;margin:14px 0 10px">📌 Minhas Oportunidades</h3>
       <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:12px;margin-bottom:18px">
         ${minhas.map(o => opCard(o, isLider, false)).join('')}
       </div>
@@ -213,7 +213,7 @@ function opCard(o, isLider, canPegar) {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;color:var(--muted)">
         ${o.valor_est ? `<div>💰 R$ ${(+o.valor_est).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>` : '<div></div>'}
         ${o.prazo ? `<div>📅 ${o.prazo}</div>` : '<div></div>'}
-        ${o.comissao_pct != null ? `<div>💵 Comissão: <b style="color:#16a34a">${(+o.comissao_pct).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</b></div>` : ''}
+        ${o.comissao_pct != null ? `<div>💵 Comissão: <b style="color:var(--ok)">${(+o.comissao_pct).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</b></div>` : ''}
         ${o.premio ? `<div>🏆 ${esc(o.premio)}</div>` : ''}
         ${o.contato ? `<div style="grid-column:1/-1">📞 ${esc(o.contato)}</div>` : ''}
       </div>

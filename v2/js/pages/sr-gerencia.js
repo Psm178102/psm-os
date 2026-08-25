@@ -117,17 +117,17 @@ function renderInsights() {
 
   wrap.innerHTML = `
     <div class="card" style="background:var(--bg-3);padding:12px;margin-bottom:10px">
-      <div style="font-weight:800;font-size:13px;margin-bottom:8px;color:#0891b2">📊 Status Operacional</div>
+      <div style="font-weight:800;font-size:13px;margin-bottom:8px;color:var(--ciano)">📊 Status Operacional</div>
       <div style="display:flex;flex-direction:column;gap:6px;font-size:12px">
         <div class="flex" style="justify-content:space-between"><span class="muted">Corretores ativos:</span><b>${corretores.length}</b></div>
         <div class="flex" style="justify-content:space-between"><span class="muted">Vendas no mês:</span><b style="color:#22c55e">${fechados.length}</b></div>
-        <div class="flex" style="justify-content:space-between"><span class="muted">Sub-50% meta:</span><b style="color:#ef4444">${baixos.length}</b></div>
+        <div class="flex" style="justify-content:space-between"><span class="muted">Sub-50% meta:</span><b style="color:var(--err-suave)">${baixos.length}</b></div>
       </div>
     </div>
 
     ${baixos.length > 0 ? `
       <div class="card" style="background:rgba(239,68,68,.1);border:1px solid #ef444440;padding:12px;margin-bottom:10px">
-        <div style="font-weight:800;font-size:12px;margin-bottom:6px;color:#ef4444">⚠️ Alertas</div>
+        <div style="font-weight:800;font-size:12px;margin-bottom:6px;color:var(--err-suave)">⚠️ Alertas</div>
         <div style="font-size:11px;line-height:1.6">
           ${baixos.slice(0, 3).map(c => `<div>• ${esc(c.name)}: ${(c.vgv_atingido / Math.max(c.meta_vgv, 1) * 100).toFixed(0)}%</div>`).join('')}
           ${baixos.length > 3 ? `<div class="muted">+ ${baixos.length - 3} corretores…</div>` : ''}
@@ -136,7 +136,7 @@ function renderInsights() {
     ` : ''}
 
     <div class="card" style="background:var(--bg-3);padding:12px">
-      <div style="font-weight:800;font-size:13px;margin-bottom:8px;color:#0891b2">🕒 Última Atividade</div>
+      <div style="font-weight:800;font-size:13px;margin-bottom:8px;color:var(--ciano)">🕒 Última Atividade</div>
       ${auditos.length === 0 ? '<div class="muted tiny">—</div>' : auditos.map(a => `
         <div class="tiny" style="padding:4px 0;border-bottom:1px solid var(--bd)">
           <b>${esc(a.actor_name || '?')}</b> · ${esc(a.action)}

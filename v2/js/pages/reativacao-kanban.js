@@ -87,8 +87,8 @@ function cardHtml(c) {
       ${fone ? `<a class="tiny" href="https://wa.me/55${esc(fone)}" target="_blank" rel="noopener" title="Abrir WhatsApp" onclick="event.stopPropagation()">💬</a>` : ''}
     </div>
     <div class="flex" style="gap:4px;flex-wrap:wrap;margin-top:3px">
-      ${c.valor ? `<span class="tiny" style="color:#d97706;font-weight:800">💼 ${brl(c.valor)}</span>` : '<span class="tiny muted">sem valor</span>'}
-      ${dp !== null ? `<span class="tiny" style="background:#64748b1a;color:#64748b;padding:0 7px;border-radius:999px;font-weight:700">😴 ${dp}d parado</span>` : ''}
+      ${c.valor ? `<span class="tiny" style="color:var(--warn);font-weight:800">💼 ${brl(c.valor)}</span>` : '<span class="tiny muted">sem valor</span>'}
+      ${dp !== null ? `<span class="tiny" style="background:#64748b1a;color:var(--ink-muted);padding:0 7px;border-radius:999px;font-weight:700">😴 ${dp}d parado</span>` : ''}
       ${(c.etiquetas || []).map(t => { const i = tagInfo(t); return `<span class="tiny" style="background:${i.cor}1a;color:${i.cor};padding:0 7px;border-radius:999px;font-weight:700">${esc(i.nome)}</span>`; }).join('')}
     </div>
     ${c.estagio ? `<div class="tiny muted" style="margin-top:2px">📍 ${esc(c.estagio)}</div>` : ''}
@@ -265,7 +265,7 @@ function renderComissao() {
     <div class="card">
       <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
         <h3 class="card-title" style="margin:0;font-size:15px">💰 Como a reativação é paga</h3>
-        ${ed ? '<span class="tiny" style="background:#16a34a20;color:#16a34a;border-radius:20px;padding:1px 9px;font-weight:800">você pode editar</span>'
+        ${ed ? '<span class="tiny" style="background:#16a34a20;color:var(--ok);border-radius:20px;padding:1px 9px;font-weight:800">você pode editar</span>'
              : '<span class="tiny muted">só a direção edita</span>'}
       </div>
       <div class="tiny muted mt-1">Cada reativação que <b>fecha negócio</b> vale pela faixa de VGV e pelo tipo. A soma do mês é multiplicada pelo <b>bônus de volume</b> e travada no teto. Lançamento paga menos porque reativar lista de lançamento é mais fácil que ressuscitar lead de estoque.</div>
@@ -290,7 +290,7 @@ function renderComissao() {
               const lbl = fx[0] >= 999999 ? de + '+' : (de === fx[0] ? de : de + ' a ' + fx[0]);
               return `<tr style="border-top:1px solid var(--bd,#eef2f7)" data-rg-v>
                 <td style="padding:4px 6px">${ed ? `<span class="tiny muted">até</span> <input class="input rg-vt" type="number" value="${fx[0] >= 999999 ? '' : fx[0]}" placeholder="∞" style="width:56px;padding:1px 5px">` : lbl}</td>
-                <td style="text-align:right">${ed ? `<input class="input rg-vm" type="number" step="0.05" value="${fx[1]}" style="width:64px;padding:1px 5px;text-align:right">` : `<b style="color:#16a34a">${multC(fx[1])}</b>`}</td>
+                <td style="text-align:right">${ed ? `<input class="input rg-vm" type="number" step="0.05" value="${fx[1]}" style="width:64px;padding:1px 5px;text-align:right">` : `<b style="color:var(--ok)">${multC(fx[1])}</b>`}</td>
               </tr>`; }).join('')}
           </table>
         </div>
@@ -373,7 +373,7 @@ function abrirCard(id) {
   const ov = overlay(`
     <div class="flex items-center" style="gap:8px">
       <h3 class="card-title" style="margin:0;flex:1">${esc(c.nome)}</h3>
-      ${c.valor ? `<b style="color:#d97706">${brl(c.valor)}</b>` : ''}
+      ${c.valor ? `<b style="color:var(--warn)">${brl(c.valor)}</b>` : ''}
       <button class="btn btn-ghost btn-sm" id="rk-x">✕</button>
     </div>
     <div class="tiny mt-1" style="background:#2563eb12;border-radius:8px;padding:6px 10px">
@@ -417,7 +417,7 @@ function abrirCard(id) {
       </div>
     </div>
     <div class="flex mt-3" style="gap:6px;flex-wrap:wrap;justify-content:flex-end">
-      ${lvl >= 7 ? '<button class="btn btn-ghost btn-sm" id="rk-del" style="color:#dc2626;margin-right:auto">🗑 Excluir card</button>' : ''}
+      ${lvl >= 7 ? '<button class="btn btn-ghost btn-sm" id="rk-del" style="color:var(--err);margin-right:auto">🗑 Excluir card</button>' : ''}
       <button class="btn btn-primary btn-sm" id="rk-save">💾 Salvar</button>
     </div>`);
   const tags = new Set(c.etiquetas || []);
@@ -475,7 +475,7 @@ function fluxoCard(f) {
     <div style="border-top:1px solid var(--bd,#eef2f7);padding:8px 0 6px">
       <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
         <b class="tiny">${i + 1}. ${esc(p.titulo || 'Mensagem')}</b>
-        ${p.envio ? `<span class="tiny" style="background:#2563eb1a;color:#2563eb;padding:1px 8px;border-radius:999px">⏱ ${esc(p.envio)}</span>` : ''}
+        ${p.envio ? `<span class="tiny" style="background:#2563eb1a;color:var(--info);padding:1px 8px;border-radius:999px">⏱ ${esc(p.envio)}</span>` : ''}
         <button class="btn btn-ghost btn-sm rkf-copy" data-fluxo="${esc(f.id)}" data-passo="${i}" style="margin-left:auto;padding:2px 9px;font-size:11px">📋 Copiar</button>
       </div>
       <div class="tiny" style="white-space:pre-wrap;background:var(--bg-3);border-radius:8px;padding:7px 9px;margin-top:4px">${esc(p.texto)}</div>
@@ -497,7 +497,7 @@ function fluxoEditor(f) {
       <div class="flex" style="gap:6px;flex-wrap:wrap">
         <input class="input pe-titulo" value="${esc(p.titulo || '')}" placeholder="Título do passo" style="flex:2;min-width:160px;padding:4px 8px">
         <input class="input pe-envio" value="${esc(p.envio || '')}" placeholder="Quando enviar" style="flex:1;min-width:150px;padding:4px 8px">
-        <button class="btn btn-ghost btn-sm pe-del" type="button" style="color:#dc2626;padding:1px 8px">×</button>
+        <button class="btn btn-ghost btn-sm pe-del" type="button" style="color:var(--err);padding:1px 8px">×</button>
       </div>
       <textarea class="input pe-texto" rows="2" style="margin-top:4px;resize:vertical" placeholder="Mensagem (use {nome})">${esc(p.texto || '')}</textarea>
     </div>`;
@@ -511,7 +511,7 @@ function fluxoEditor(f) {
     <div id="fe-passos" class="mt-1">${(f.passos || []).map(passoEd).join('')}</div>
     <button class="btn btn-ghost btn-sm" id="fe-add" type="button">+ passo</button>
     <div class="flex gap-2 mt-2" style="justify-content:flex-end">
-      ${!novo ? '<button class="btn btn-ghost btn-sm" id="fe-del" type="button" style="color:#dc2626;margin-right:auto">🗑 Excluir fluxo</button>' : ''}
+      ${!novo ? '<button class="btn btn-ghost btn-sm" id="fe-del" type="button" style="color:var(--err);margin-right:auto">🗑 Excluir fluxo</button>' : ''}
       <button class="btn btn-ghost btn-sm" id="fe-cancel" type="button">Cancelar</button>
       <button class="btn btn-primary btn-sm" id="fe-save" type="button">💾 Salvar fluxos</button>
     </div>
@@ -521,7 +521,7 @@ function fluxoEditor(f) {
 function htmlFluxos() {
   const fluxos = _d.fluxos || [];
   return `<div class="mt-2">
-    <div class="tiny" style="background:#d977061a;color:#a16207;border-radius:10px;padding:8px 10px;font-weight:700">
+    <div class="tiny" style="background:#d977061a;color:var(--ambar-escuro);border-radius:10px;padding:8px 10px;font-weight:700">
       💡 Regra de ouro da reativação: UMA mensagem curta com contexto, espera a resposta. Bloco de texto mata a conversão.
     </div>
     ${_d.can_cfg ? '<div class="flex mt-2" style="justify-content:flex-end"><button class="btn btn-primary btn-sm" id="rkf-novo">➕ Novo fluxo</button></div>' : ''}
@@ -552,7 +552,7 @@ function wireFluxos() {
       <div class="flex" style="gap:6px;flex-wrap:wrap">
         <input class="input pe-titulo" placeholder="Título do passo" style="flex:2;min-width:160px;padding:4px 8px">
         <input class="input pe-envio" placeholder="Quando enviar" style="flex:1;min-width:150px;padding:4px 8px">
-        <button class="btn btn-ghost btn-sm pe-del" type="button" style="color:#dc2626;padding:1px 8px">×</button>
+        <button class="btn btn-ghost btn-sm pe-del" type="button" style="color:var(--err);padding:1px 8px">×</button>
       </div>
       <textarea class="input pe-texto" rows="2" style="margin-top:4px;resize:vertical" placeholder="Mensagem (use {nome})"></textarea>
     </div>`;
@@ -603,12 +603,12 @@ function abrirCfg() {
     <input class="input cg-nome" value="${esc(c.nome)}" style="flex:1;padding:3px 8px">
     <input class="input cg-cor" type="color" value="${esc(c.cor)}" style="width:44px;padding:1px">
     <label class="tiny muted" title="Follow-up automático: mover um card PRA esta coluna cria tarefa (em N dias) pra quem moveu — 0 = não cria" style="display:flex;align-items:center;gap:2px">🔁<input class="input cg-fup" type="number" min="0" max="60" value="${c.followup_dias ?? 0}" style="width:50px;padding:3px 5px">d</label>
-    ${!FIXAS.includes(c.id) ? '<button class="btn btn-ghost btn-sm cg-del" type="button" style="color:#dc2626;padding:1px 7px">×</button>' : '<span style="width:30px" class="tiny muted" title="coluna estrutural">🔒</span>'}
+    ${!FIXAS.includes(c.id) ? '<button class="btn btn-ghost btn-sm cg-del" type="button" style="color:var(--err);padding:1px 7px">×</button>' : '<span style="width:30px" class="tiny muted" title="coluna estrutural">🔒</span>'}
   </div>`;
   const tagRow = t => `<div class="flex" style="gap:5px;margin-top:4px" data-cfgtag="${esc(t.id)}">
     <input class="input tg-nome" value="${esc(t.nome)}" style="flex:1;padding:3px 8px">
     <input class="input tg-cor" type="color" value="${esc(t.cor)}" style="width:44px;padding:1px">
-    <button class="btn btn-ghost btn-sm tg-del" type="button" style="color:#dc2626;padding:1px 7px">×</button>
+    <button class="btn btn-ghost btn-sm tg-del" type="button" style="color:var(--err);padding:1px 7px">×</button>
   </div>`;
   const cad = cfg.cadencia || {};
   const ov = overlay(`

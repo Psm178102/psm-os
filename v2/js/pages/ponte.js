@@ -53,10 +53,10 @@ function render() {
           <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
             <b style="font-size:14px">${esc(it.contato)}</b>
             <span class="badge">${FRENTE[it.frente] || esc(it.frente)}</span>
-            ${it.sem_valor ? '<span class="badge" style="background:#d9770622;color:#d97706;font-weight:700">⚠️ SEM VALOR no RD</span>'
-      : `<b style="color:#16a34a">${brl(it.valor)}</b>`}
+            ${it.sem_valor ? '<span class="badge" style="background:#d9770622;color:var(--warn);font-weight:700">⚠️ SEM VALOR no RD</span>'
+      : `<b style="color:var(--ok)">${brl(it.valor)}</b>`}
             <span class="tiny muted">${esc(it.estagio || '')}</span>
-            ${it.st ? `<span class="badge" style="background:#2563eb22;color:#2563eb">${esc(it.st)}</span>` : ''}
+            ${it.st ? `<span class="badge" style="background:#2563eb22;color:var(--info)">${esc(it.st)}</span>` : ''}
             <span style="margin-left:auto"></span>
             <a class="btn btn-primary btn-sm" target="_blank" rel="noopener" href="https://wa.me/${esc(it.fone)}">💬 WhatsApp</a>
           </div>

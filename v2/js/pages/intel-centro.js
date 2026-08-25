@@ -204,7 +204,7 @@ function renderPerguntar() {
 }
 function respostaHTML(r) {
   return `<div style="background:linear-gradient(180deg,rgba(124,58,237,.06),transparent);border:1px solid rgba(124,58,237,.25);border-radius:var(--r-md);padding:14px 16px">
-    <div style="font-weight:800;font-size:13px;margin-bottom:4px;color:#7c3aed">❓ ${escapeHtml(r.q)}</div>
+    <div style="font-weight:800;font-size:13px;margin-bottom:4px;color:var(--roxo)">❓ ${escapeHtml(r.q)}</div>
     <div class="tiny muted" style="margin-bottom:8px">respondido por ${escapeHtml(r.model || 'IA')} com dossiê real</div>
     <div style="font-size:13px;line-height:1.6">${mdLite(r.text)}</div></div>`;
 }
@@ -253,7 +253,7 @@ function render() {
       <!-- Insights -->
       <h3 class="card-title mt-4" style="margin-top:16px">⚡ Diagnóstico priorizado</h3>
       ${ins.length ? `<div style="display:grid;gap:8px;margin-top:8px">${ins.map(insightCard).join('')}</div>`
-        : '<div style="font-size:13px;color:#16a34a;padding:10px">✅ Nenhum problema crítico detectado no período. Tudo dentro dos parâmetros.</div>'}
+        : '<div style="font-size:13px;color:var(--ok);padding:10px">✅ Nenhum problema crítico detectado no período. Tudo dentro dos parâmetros.</div>'}
 
       <div class="tiny muted" style="margin-top:12px">Regras determinísticas sobre dado real (Meta + CRM + metas). A IA escreve o plano executivo a partir desses fatos — clique em "Análise executiva da IA".</div>
     </div>`;
@@ -328,7 +328,7 @@ ${fatos || '(nenhum problema crítico detectado)'}`;
     const j = await api.request('/api/v3/ia/analyze', { method: 'POST', body: { prompt, max_tokens: 3000, dossie: true } });   // cérebro novo (Sonnet 5 + dossiê) v84.4
     if (j.ok && j.text) {
       box.innerHTML = `<div style="background:linear-gradient(180deg,rgba(124,58,237,.06),transparent);border:1px solid rgba(124,58,237,.25);border-radius:var(--r-md);padding:14px 16px">
-        <div style="font-weight:800;font-size:13px;margin-bottom:8px;color:#7c3aed">🧠 Análise executiva da IA <span class="tiny muted" style="font-weight:400">· ${escapeHtml(j.model_used || 'IA')}</span></div>
+        <div style="font-weight:800;font-size:13px;margin-bottom:8px;color:var(--roxo)">🧠 Análise executiva da IA <span class="tiny muted" style="font-weight:400">· ${escapeHtml(j.model_used || 'IA')}</span></div>
         <div style="font-size:13px;line-height:1.55">${mdLite(j.text)}</div></div>`;
     } else {
       box.innerHTML = `<div class="alert alert-warn">IA indisponível: ${escapeHtml(j.error || 'erro')}</div>`;

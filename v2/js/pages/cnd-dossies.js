@@ -127,7 +127,7 @@ function render() {
         <h2 class="card-title" style="margin:0;font-size:16px">📁 Dossiês de CND</h2>
         <span class="tiny muted">venda · locação · interno — você vê os casos em que está envolvido</span>
         <span style="margin-left:auto"></span>
-        ${podeInterno() ? '<button class="btn btn-sm" id="cd-cand" style="background:#b4530915;color:#b45309;font-weight:700">🧑‍💼 Do candidato (R&S)</button>' : ''}
+        ${podeInterno() ? '<button class="btn btn-sm" id="cd-cand" style="background:#b4530915;color:var(--warn-escuro);font-weight:700">🧑‍💼 Do candidato (R&S)</button>' : ''}
         <button class="btn btn-primary btn-sm" id="cd-novo">➕ Novo dossiê</button>
         <button class="btn btn-ghost btn-sm" id="cd-reload">↻</button>
       </div>
@@ -146,13 +146,13 @@ function render() {
             ${chipTipo(d.tipo_negocio)}
             <b>${esc(d.titulo)}</b>
             <span class="tiny muted">${(d.partes || []).length} parte(s)</span>
-            ${d.responsavel_id ? `<span class="tiny" style="background:var(--bg-3);border-radius:20px;padding:1px 9px">👤 ${esc(userName(d.responsavel_id))}</span>` : '<span class="tiny" style="color:#a16207;font-weight:700">⚠️ sem responsável</span>'}
+            ${d.responsavel_id ? `<span class="tiny" style="background:var(--bg-3);border-radius:20px;padding:1px 9px">👤 ${esc(userName(d.responsavel_id))}</span>` : '<span class="tiny" style="color:var(--ambar-escuro);font-weight:700">⚠️ sem responsável</span>'}
             ${d.tipo_negocio === 'locacao' ? `<span class="tiny" style="color:${gc};font-weight:700">${gl}</span>` : ''}
             <span style="margin-left:auto" class="tiny">
               <b>${p.emitidas}/${p.total}</b> emitidas
-              ${p.positivas ? ` · <b style="color:#dc2626">${p.positivas} POSITIVA(S)</b>` : ''}
-              ${p.bloqueadas ? ` · <b style="color:#dc2626">${p.bloqueadas} bloqueada(s)</b>` : ''}
-              ${p.vencidas ? ` · <b style="color:#a16207">${p.vencidas} vencida(s)</b>` : ''}
+              ${p.positivas ? ` · <b style="color:var(--err)">${p.positivas} POSITIVA(S)</b>` : ''}
+              ${p.bloqueadas ? ` · <b style="color:var(--err)">${p.bloqueadas} bloqueada(s)</b>` : ''}
+              ${p.vencidas ? ` · <b style="color:var(--ambar-escuro)">${p.vencidas} vencida(s)</b>` : ''}
             </span>
           </div>
           <div style="height:6px;background:var(--bd,#eef2f7);border-radius:20px;overflow:hidden;margin-top:6px">
@@ -210,10 +210,10 @@ async function abrirPickerCandidato() {
         ${list.length ? list.map(t => `<div class="flex items-center pk-row" data-id="${esc(t.id)}" style="gap:8px;border-top:1px solid var(--bd,#eef2f7);padding:7px 2px;cursor:pointer">
           <div style="flex:1;min-width:0">
             <b style="font-size:13px">${esc(t.nome || '(sem nome)')}</b>
-            <div class="tiny muted">${esc(t.cargo || t.funcao || t.vaga || '—')}${t.setor ? ' · ' + esc(t.setor) : ''}${t.cpf ? ' · CPF ' + esc(t.cpf) : ' · <b style="color:#a16207">sem CPF na ficha</b>'}</div>
+            <div class="tiny muted">${esc(t.cargo || t.funcao || t.vaga || '—')}${t.setor ? ' · ' + esc(t.setor) : ''}${t.cpf ? ' · CPF ' + esc(t.cpf) : ' · <b style="color:var(--ambar-escuro)">sem CPF na ficha</b>'}</div>
           </div>
           <span class="tiny" style="background:var(--bg-3);border-radius:20px;padding:1px 9px">${esc(t.etapa || 'Triagem')}</span>
-          ${t.dossie_id ? '<span class="tiny" style="color:#16a34a;font-weight:700">📁 já tem dossiê</span>' : '<span class="btn btn-primary btn-sm">➕ criar</span>'}
+          ${t.dossie_id ? '<span class="tiny" style="color:var(--ok);font-weight:700">📁 já tem dossiê</span>' : '<span class="btn btn-primary btn-sm">➕ criar</span>'}
         </div>`).join('') : '<div class="tiny muted" style="padding:14px;text-align:center">Nenhum candidato encontrado.</div>'}
       </div>
     </div>`;
@@ -265,7 +265,7 @@ function pfCampos(p, pref) {
     </div>
     <input class="input ${pref}endereco mt-1" placeholder="Endereço completo" value="${esc(p.endereco || '')}" style="width:100%">
     <div class="mt-1" style="background:${casado ? '#2563eb0d' : 'transparent'};border-radius:8px;padding:${casado ? '7px' : '0'}">
-      ${casado ? '<div class="tiny" style="font-weight:700;color:#2563eb">💍 Cônjuge — casado/união estável gera CND do cônjuge também</div>' : ''}
+      ${casado ? '<div class="tiny" style="font-weight:700;color:var(--info)">💍 Cônjuge — casado/união estável gera CND do cônjuge também</div>' : ''}
       <div class="flex mt-1" style="gap:6px;flex-wrap:wrap">
         <input class="input ${pref}conjuge_nome" placeholder="Nome do cônjuge" value="${esc(p.conjuge_nome || '')}" style="flex:2;min-width:160px">
         <input class="input ${pref}conjuge_cpf" placeholder="CPF do cônjuge" value="${esc(p.conjuge_cpf || '')}" style="flex:1;min-width:120px">
@@ -285,7 +285,7 @@ function parteHtml(p, i, tipoNeg) {
         <option value="pf"${!pj ? ' selected' : ''}>👤 Pessoa física</option>
         <option value="pj"${pj ? ' selected' : ''}>🏢 Pessoa jurídica</option>
       </select>
-      <button class="btn btn-ghost btn-sm fp-del" type="button" style="color:#dc2626;margin-left:auto;padding:1px 8px">× remover</button>
+      <button class="btn btn-ghost btn-sm fp-del" type="button" style="color:var(--err);margin-left:auto;padding:1px 8px">× remover</button>
     </div>
     <div class="mt-2">
       ${pj ? `
@@ -297,14 +297,14 @@ function parteHtml(p, i, tipoNeg) {
         <input class="input fp-endereco mt-1" placeholder="Endereço da empresa" value="${esc(p.endereco || '')}" style="width:100%">
         <div class="mt-2" style="background:#7c3aed0d;border-radius:8px;padding:8px">
           <div class="flex items-center" style="gap:6px">
-            <b class="tiny" style="color:#7c3aed">👥 Sócios representantes</b>
+            <b class="tiny" style="color:var(--roxo)">👥 Sócios representantes</b>
             <span class="tiny muted">cada sócio gera o pacote completo de CND (banco e cartório exigem)</span>
             <button class="btn btn-ghost btn-sm fp-socio-add" type="button" style="margin-left:auto;padding:1px 8px">+ sócio</button>
           </div>
           <div class="fp-socios mt-1">
             ${(p.socios || []).map((s, j) => `<div class="card" style="margin:0 0 6px;padding:8px 10px;background:var(--bg-2)" data-socio="${j}" data-sid="${esc(s.id || '')}">
               <div class="flex items-center" style="gap:6px"><b class="tiny">Sócio ${j + 1}</b>
-                <button class="btn btn-ghost btn-sm fp-socio-del" type="button" style="color:#dc2626;margin-left:auto;padding:0 7px">×</button>
+                <button class="btn btn-ghost btn-sm fp-socio-del" type="button" style="color:var(--err);margin-left:auto;padding:0 7px">×</button>
               </div>
               ${pfCampos(s, 'fs-')}
             </div>`).join('') || '<div class="tiny muted">Nenhum sócio ainda.</div>'}
@@ -354,7 +354,7 @@ function renderForm() {
         </select>
       </div>
       ${interno ? `<div class="mt-1" style="background:#b453090d;border:1px solid #b4530933;border-radius:8px;padding:8px">
-        <div class="tiny" style="font-weight:700;color:#b45309">🧑‍💼 Dossiê interno — candidato à contratação</div>
+        <div class="tiny" style="font-weight:700;color:var(--warn-escuro)">🧑‍💼 Dossiê interno — candidato à contratação</div>
         <div class="tiny muted" style="margin-top:2px">${d.talento_id ? 'Vinculado à ficha do Recrutamento — o andamento das CNDs aparece lá automaticamente.' : 'Sem vínculo com o pipeline. Para não redigitar dados, prefira <b>🧑‍💼 Do candidato (R&S)</b> na lista de dossiês.'}</div>
         <input class="input mt-1" id="cf-cargo" placeholder="Cargo / vaga (contendo «corretor» adiciona a consulta CRECI)" value="${esc(d.cargo || '')}" style="width:100%">
       </div>` : ''}
@@ -536,9 +536,9 @@ function renderDossie() {
       </div>
       <div class="flex mt-2" style="gap:10px;flex-wrap:wrap">
         <span class="tiny"><b>${p.emitidas}/${p.total}</b> emitidas</span>
-        ${p.positivas ? `<span class="tiny" style="color:#dc2626;font-weight:800">🔴 ${p.positivas} POSITIVA(S) — tem débito</span>` : ''}
-        ${p.bloqueadas ? `<span class="tiny" style="color:#dc2626;font-weight:700">🚫 ${p.bloqueadas} bloqueada(s)</span>` : ''}
-        ${p.vencidas ? `<span class="tiny" style="color:#a16207;font-weight:700">⏰ ${p.vencidas} vencida(s)</span>` : ''}
+        ${p.positivas ? `<span class="tiny" style="color:var(--err);font-weight:800">🔴 ${p.positivas} POSITIVA(S) — tem débito</span>` : ''}
+        ${p.bloqueadas ? `<span class="tiny" style="color:var(--err);font-weight:700">🚫 ${p.bloqueadas} bloqueada(s)</span>` : ''}
+        ${p.vencidas ? `<span class="tiny" style="color:var(--ambar-escuro);font-weight:700">⏰ ${p.vencidas} vencida(s)</span>` : ''}
       </div>
     </div>
 
@@ -550,7 +550,7 @@ function renderDossie() {
         ${cs.map(c => `<tr style="border-top:1px solid var(--bd,#eef2f7)" data-cert="${esc(c.alvo)}|${esc(c.tipo)}">
           <td style="padding:6px 4px;width:38%">
             <a href="${esc(c.link)}" target="_blank" rel="noopener" style="font-weight:600">${esc(c.nome)} ↗</a>
-            ${vencida(c) ? '<div class="tiny" style="color:#a16207;font-weight:700">⏰ VENCIDA</div>' : ''}
+            ${vencida(c) ? '<div class="tiny" style="color:var(--ambar-escuro);font-weight:700">⏰ VENCIDA</div>' : ''}
           </td>
           <td style="width:130px">
             <select class="input cc-status" style="padding:1px 5px;font-size:11px;width:100%" ${!podeEditar ? 'disabled' : ''}>
@@ -592,13 +592,13 @@ function htmlGarantia(g, ed) {
       <input class="input" id="gr-det" placeholder="Detalhe (seguradora + apólice, nº do título, qual fiador…)" value="${esc(g.detalhe || '')}" style="flex:1;min-width:220px" ${!ed ? 'disabled' : ''}>
       <input class="input" id="gr-val" placeholder="Valor" value="${esc(g.valor || '')}" style="width:120px" ${!ed ? 'disabled' : ''}>
     </div>
-    ${g.tipo === 'fiador' ? '<div class="tiny mt-1" style="color:#2563eb">💡 Fiador: cadastre-o como <b>parte com papel Fiador</b> — aí ele entra no checklist e as CNDs dele são cobradas.</div>' : ''}
+    ${g.tipo === 'fiador' ? '<div class="tiny mt-1" style="color:var(--info)">💡 Fiador: cadastre-o como <b>parte com papel Fiador</b> — aí ele entra no checklist e as CNDs dele são cobradas.</div>' : ''}
     <textarea class="input mt-1" id="gr-obs" rows="2" placeholder="Parecer da análise" ${!ed ? 'disabled' : ''}>${esc(g.obs || '')}</textarea>
     ${ed ? `<div class="flex mt-2" style="gap:6px;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" id="gr-save">💾 Salvar garantia</button>
       <span style="margin-left:auto"></span>
-      <button class="btn btn-ghost btn-sm" id="gr-doc" style="color:#7c3aed">📄 Pendente doc</button>
-      <button class="btn btn-ghost btn-sm" id="gr-rep" style="color:#dc2626">❌ Reprovar</button>
+      <button class="btn btn-ghost btn-sm" id="gr-doc" style="color:var(--roxo)">📄 Pendente doc</button>
+      <button class="btn btn-ghost btn-sm" id="gr-rep" style="color:var(--err)">❌ Reprovar</button>
       <button class="btn btn-primary btn-sm" id="gr-apr">✅ Aprovar garantia</button>
     </div>` : ''}
   </div>`;

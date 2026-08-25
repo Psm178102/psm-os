@@ -102,8 +102,8 @@ function cardHTML(d, colKey) {
   const nome = escapeHtml(d.contato || d.name || 'Lead');
   const sub = d.contato && d.name && d.contato !== d.name ? `<div class="tiny muted">${escapeHtml(d.name)}</div>` : '';
   const owner = d.owner ? `<span class="tiny muted">👤 ${escapeHtml(d.owner.split(' ')[0])}</span>` : '';
-  const parado = (d.dias_parado != null) ? `<span class="tiny ${d.needs_followup ? '' : 'muted'}" style="${d.needs_followup ? 'color:#dc2626;font-weight:700' : ''}">⏱ ${d.dias_parado}d</span>` : '';
-  const fupBadge = d.needs_followup ? '<span class="chip" style="background:#fee2e2;color:#b91c1c;font-weight:700">FOLLOW-UP</span>' : '';
+  const parado = (d.dias_parado != null) ? `<span class="tiny ${d.needs_followup ? '' : 'muted'}" style="${d.needs_followup ? 'color:var(--err);font-weight:700' : ''}">⏱ ${d.dias_parado}d</span>` : '';
+  const fupBadge = d.needs_followup ? '<span class="chip" style="background:color-mix(in srgb, var(--err) 16%, transparent);color:var(--err-forte);font-weight:700">FOLLOW-UP</span>' : '';
 
   // botões por coluna
   let actions = '';
@@ -137,7 +137,7 @@ function cardHTML(d, colKey) {
 function waBtn(d) {
   const msg = encodeURIComponent(WA_MSG);
   if (d.phone) {
-    return `<a class="btn btn-ghost tiny" target="_blank" rel="noopener" href="https://wa.me/${encodeURIComponent(d.phone)}?text=${msg}" style="color:#16a34a">💬 WhatsApp</a>`;
+    return `<a class="btn btn-ghost tiny" target="_blank" rel="noopener" href="https://wa.me/${encodeURIComponent(d.phone)}?text=${msg}" style="color:var(--ok)">💬 WhatsApp</a>`;
   }
   return `<button class="btn btn-ghost tiny" data-act="wa" data-id="${escapeHtml(d.id)}">💬 Buscar contato</button>`;
 }

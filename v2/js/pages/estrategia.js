@@ -262,7 +262,7 @@ function renderSelBar() {
       <option value="">${_ed.board === 'orgchart' ? 'Sem superior' : 'Sem conexão'}</option>
       ${others.map(o => `<option value="${esc(o.id)}"${n.parent === o.id ? ' selected' : ''}>${_ed.board === 'orgchart' ? '↳ ' : '→ '}${esc((o.text || '').slice(0, 24))}</option>`).join('')}
     </select>
-    <button class="btn btn-ghost btn-sm" id="nd-del" style="color:#dc2626">🗑</button>
+    <button class="btn btn-ghost btn-sm" id="nd-del" style="color:var(--err)">🗑</button>
   `;
   document.getElementById('nd-text').addEventListener('input', e => { n.text = e.target.value; const el = document.querySelector(`.est-node[data-id="${cssesc(n.id)}"] .nlabel`); if (el) el.innerText = n.text; drawConnectors(); scheduleSave(); });
   bar.querySelectorAll('[data-color]').forEach(s => s.addEventListener('click', () => { n.color = s.dataset.color; paintNodes(); scheduleSave(); }));
@@ -392,8 +392,8 @@ function paintCronograma(container) {
     <div class="card" style="border-radius:0 10px 10px 10px">
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
         <div class="flex gap-2" style="flex-wrap:wrap">
-          <span class="cap-chip" style="background:rgba(37,99,235,.12);color:#2563eb;padding:3px 10px;border-radius:999px;font-weight:700;font-size:12px">🎯 ${metas} meta(s)${pctMetas != null ? ` · <b>${pctMetas}%</b> atingido` : ''}</span>
-          <span class="cap-chip" style="background:rgba(22,163,74,.12);color:#16a34a;padding:3px 10px;border-radius:999px;font-weight:700;font-size:12px">🚩 ${objs} objetivo(s)${pctObjs != null ? ` · <b>${pctObjs}%</b> atingido` : ''}</span>
+          <span class="cap-chip" style="background:rgba(37,99,235,.12);color:var(--info);padding:3px 10px;border-radius:999px;font-weight:700;font-size:12px">🎯 ${metas} meta(s)${pctMetas != null ? ` · <b>${pctMetas}%</b> atingido` : ''}</span>
+          <span class="cap-chip" style="background:rgba(22,163,74,.12);color:var(--ok);padding:3px 10px;border-radius:999px;font-weight:700;font-size:12px">🚩 ${objs} objetivo(s)${pctObjs != null ? ` · <b>${pctObjs}%</b> atingido` : ''}</span>
           ${excluidos.length ? `<button class="btn btn-ghost btn-sm" id="cr-toggle-exc" style="font-size:11px">🗑 ${_crVerExcluidos ? 'ocultar' : 'ver'} excluídos (${excluidos.length})</button>` : ''}
         </div>
         <button class="btn btn-primary btn-sm" id="cr-new">➕ Novo item</button>
@@ -447,7 +447,7 @@ function cronoCard(i) {
       <div class="flex gap-1" style="flex-wrap:wrap;margin-top:6px">
         <span style="background:${st.cor}1f;color:${st.cor};padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700">${st.lbl}</span>
         ${i.responsavel ? `<span style="background:rgba(148,163,184,.16);padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700">👤 ${esc(i.responsavel)}</span>` : ''}
-        ${i.fonte ? `<span style="background:rgba(124,58,237,.12);color:#7c3aed;padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700" title="progresso medido automaticamente nesta fonte">🔗 auto</span>` : ''}
+        ${i.fonte ? `<span style="background:rgba(124,58,237,.12);color:var(--roxo);padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700" title="progresso medido automaticamente nesta fonte">🔗 auto</span>` : ''}
       </div>
       ${(() => {   /* v84.96 — barra de % (manual ou nutrida pela fonte) */
         const pct = cronoPct(i);
@@ -507,7 +507,7 @@ function openCronoForm(item) {
           <div style="grid-column:1/-1"><label class="tiny muted" style="font-weight:700">Observações</label>
             <textarea id="cr-obs" class="input" rows="4" style="width:100%" placeholder="Notas, contexto, dependências, próximos passos…">${esc(i.obs || '')}</textarea></div>
         </div>
-        <div id="cr-err" class="tiny" style="color:#dc2626;margin-top:8px"></div>
+        <div id="cr-err" class="tiny" style="color:var(--err);margin-top:8px"></div>
         <div class="flex gap-2 mt-3" style="justify-content:flex-end">
           <button class="btn btn-ghost" id="cr-cancel">Cancelar</button>
           <button class="btn btn-primary" id="cr-save">${i.id ? 'Salvar' : 'Adicionar'}</button>
@@ -586,7 +586,7 @@ async function iaEstrategista() {
     const j = await api.request('/api/v3/ia/analyze', { method: 'POST', body: { prompt, max_tokens: 3500, dossie: true } });   // cérebro novo (Sonnet 5 + dossiê) v84.4
     if (j.ok && j.text) {
       modal.innerHTML = wrapModal(`
-        <div style="font-weight:800;color:#7c3aed;margin-bottom:8px">🤖 Leitura estratégica <span class="tiny muted" style="font-weight:400">· ${esc(j.model_used || 'IA')}</span></div>
+        <div style="font-weight:800;color:var(--roxo);margin-bottom:8px">🤖 Leitura estratégica <span class="tiny muted" style="font-weight:400">· ${esc(j.model_used || 'IA')}</span></div>
         <div style="font-size:13.5px;line-height:1.6">${mdLite(j.text)}</div>`);
     } else {
       modal.innerHTML = wrapModal(`<div class="alert alert-warn">IA indisponível: ${esc(j.error || 'erro')}</div>`);
@@ -706,7 +706,7 @@ function prPaint(c) {
           <div style="flex:1;min-width:170px;background:var(--bg-2);border-radius:8px;padding:6px 10px"><div class="tiny muted">📏 Régua próprio (recalculada)</div><div style="font-weight:800;color:${cor}">${prBrl(am.regua_proprio_sem)}/sem</div></div>
         </div>
         <div class="tiny muted" style="margin-top:4px">Regra do Amortecedor: o que a Conquista não atingir vira meta própria de Paulo/Isa — recalculada toda segunda (push automático).</div>
-        ${am.divergencia ? `<div class="tiny" style="color:#d97706;font-weight:700;margin-top:4px">⚠️ kv manual (${prBrl(am.divergencia.kv_manual)}) ≠ calculado (${prBrl(am.divergencia.calculada)}) — o calculado manda; limpe/ajuste o kv na Viabilidade.</div>` : ''}
+        ${am.divergencia ? `<div class="tiny" style="color:var(--warn);font-weight:700;margin-top:4px">⚠️ kv manual (${prBrl(am.divergencia.kv_manual)}) ≠ calculado (${prBrl(am.divergencia.calculada)}) — o calculado manda; limpe/ajuste o kv na Viabilidade.</div>` : ''}
       </div>`;
     })() : '';
     corpo = amBox + briefBox + `
@@ -714,7 +714,7 @@ function prPaint(c) {
       ${prBarra('🏆 Conquista (equipe)', vgvC, mesAtual.conquista || 0, '#16a34a')}
       ${prBarra('🤝 VGV próprio (MAP + Terceiros)', vgvP, mesAtual.proprio || 0, '#2563eb')}
       <div class="tiny mt-2"><b>💰 Contribuição estimada do mês: ${prBrl(contrib)}</b> (Conquista ×${cts.margem_conquista_pct}% + próprio ×${cts.margem_proprio_pct}%)</div>
-      ${r.caixa_recebido != null ? `<div class="tiny" style="margin-top:2px"><b>🏦 CAIXA do mês: recebido ${prBrl(r.caixa_recebido)}</b> de ${prBrl(r.caixa_previsto || 0)} previstos${(r.caixa_travado || 0) > 0 ? ` · <span style='color:#dc2626;font-weight:800'>⛔ ${prBrl(r.caixa_travado)} travados</span>` : ''} — <span class="muted">competência ≠ caixa: o gap vendido×recebido</span></div>` : ''}
+      ${r.caixa_recebido != null ? `<div class="tiny" style="margin-top:2px"><b>🏦 CAIXA do mês: recebido ${prBrl(r.caixa_recebido)}</b> de ${prBrl(r.caixa_previsto || 0)} previstos${(r.caixa_travado || 0) > 0 ? ` · <span style='color:var(--err);font-weight:800'>⛔ ${prBrl(r.caixa_travado)} travados</span>` : ''} — <span class="muted">competência ≠ caixa: o gap vendido×recebido</span></div>` : ''}
       <div style="background:var(--bg-3);border-radius:6px;height:14px;position:relative;margin:4px 0 2px">
         <div style="width:${pctBe}%;background:${contrib >= beOp ? '#16a34a' : '#d97706'};height:14px;border-radius:6px"></div>
         <div style="position:absolute;left:${Math.round(100 * beOp / bePl)}%;top:-3px;bottom:-3px;width:2px;background:#dc2626" title="break-even operacional"></div>
@@ -727,7 +727,7 @@ function prPaint(c) {
       </div>
       <div class="tiny muted mt-2">👁 Fiscalização no mês: ${Object.entries(r.fiscalizacao || {}).map(([k, ts]) =>
         `<b>${prEsc(k)}</b> ${Object.values(ts).reduce((a, b) => a + b, 0)} eventos`).join(' · ') || 'sem eventos ainda'}
-        · <a href="#/fiscalizacao" style="color:#2563eb">abrir painel →</a></div>
+        · <a href="#/fiscalizacao" style="color:var(--info)">abrir painel →</a></div>
       <div class="tiny mt-2" id="pr-ads"><span class="muted">💸 Semáforo de ads: carregando…</span></div>`;
   } else if (_prSub === 'check') {
     corpo = (p.meses || []).map(m => {

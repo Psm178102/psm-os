@@ -110,7 +110,7 @@ function render() {
             </table>
           </div>
 
-          <div class="alert" style="background:rgba(168, 85, 247, .1);color:#a855f7;border:1px solid rgba(168, 85, 247, .3);margin-top:14px;padding:12px;border-radius:8px">
+          <div class="alert" style="background:rgba(168, 85, 247, .1);color:var(--lilas);border:1px solid rgba(168, 85, 247, .3);margin-top:14px;padding:12px;border-radius:8px">
             <b>💡 Como usar:</b> ajuste a energia (0-100%) em cada canal pra simular onde investir tempo/atenção. O sistema calcula automaticamente o mix ideal de atendimentos, conversão e VGV previsto.
           </div>
 

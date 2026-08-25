@@ -85,10 +85,10 @@ function render(issues, counts) {
         <button class="btn btn-ghost btn-sm" id="q-reload">🔄 Re-escanear</button>
       </div>
       <div class="q-stat">
-        <div class="s" style="${n1 ? 'border-color:#fca5a5;background:#fef2f2' : ''}"><div class="n" style="color:#dc2626">${n1}</div><div class="l">🔴 Alta</div></div>
-        <div class="s" style="${n2 ? 'border-color:#fdba74;background:#fffbeb' : ''}"><div class="n" style="color:#b45309">${n2}</div><div class="l">🟡 Média</div></div>
-        <div class="s"><div class="n" style="color:#1d4ed8">${n3}</div><div class="l">🔵 Baixa</div></div>
-        <div class="s"><div class="n" style="color:#16a34a">${total}</div><div class="l">Registros</div></div>
+        <div class="s" style="${n1 ? 'border-color:#fca5a5;background:color-mix(in srgb, var(--err) 12%, transparent)' : ''}"><div class="n" style="color:var(--err)">${n1}</div><div class="l">🔴 Alta</div></div>
+        <div class="s" style="${n2 ? 'border-color:#fdba74;background:color-mix(in srgb, var(--warn) 12%, transparent)' : ''}"><div class="n" style="color:var(--warn-escuro)">${n2}</div><div class="l">🟡 Média</div></div>
+        <div class="s"><div class="n" style="color:var(--azul-medio)">${n3}</div><div class="l">🔵 Baixa</div></div>
+        <div class="s"><div class="n" style="color:var(--ok)">${total}</div><div class="l">Registros</div></div>
       </div>
       ${!issues.length ? `<div class="card mt-2" style="text-align:center;padding:30px;background:var(--bg-3)"><div style="font-size:30px">✨</div><div class="muted tiny" style="margin-top:6px">Tudo limpo! Nenhum problema encontrado nos cadastros.</div></div>`
         : issues.map(i => { const sv = sevLbl[i.sev]; return `<div class="q-row" style="--c:${sv.c}">

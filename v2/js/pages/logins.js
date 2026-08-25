@@ -96,7 +96,7 @@ function catManagerHTML() {
       ${_cats.length ? _cats.map(c => `<span class="vk-chip" style="--c:${catColor(c)}">
         ${esc(c)}<span class="tiny muted" style="font-weight:400">·${count(c)}</span>
         <button class="vk-chip-b" data-catren="${esc(c)}" title="Renomear">✏️</button>
-        <button class="vk-chip-b" data-catdel="${esc(c)}" title="Excluir" style="color:#dc2626">✕</button>
+        <button class="vk-chip-b" data-catdel="${esc(c)}" title="Excluir" style="color:var(--err)">✕</button>
       </span>`).join('') : '<span class="tiny muted">Nenhuma categoria cadastrada.</span>'}
     </div>
     <div class="flex gap-2 mt-2" style="max-width:380px">
@@ -117,7 +117,7 @@ function cardHTML(it, cor) {
       <div class="flex gap-1">
         ${it.url ? `<a class="btn btn-ghost btn-sm" href="${esc(it.url)}" target="_blank" rel="noopener">🌐 abrir</a>` : ''}
         ${_canManage ? `<button class="btn btn-ghost btn-sm" data-edit="${esc(it.id)}">✏️</button>
-          <button class="btn btn-ghost btn-sm" data-del="${esc(it.id)}" style="color:#dc2626">🗑</button>` : ''}
+          <button class="btn btn-ghost btn-sm" data-del="${esc(it.id)}" style="color:var(--err)">🗑</button>` : ''}
       </div>
     </div>
     ${it.login ? `<div class="vk-field"><span class="lbl">Login</span><span class="vk-val">${esc(it.login)}</span><button class="vk-ico" data-copy="login|${esc(it.id)}" title="Copiar">📋</button></div>` : ''}
@@ -126,7 +126,7 @@ function cardHTML(it, cor) {
       <button class="vk-ico" data-reveal="${esc(it.id)}" title="${rev ? 'Ocultar' : 'Revelar'}">${rev ? '🙈' : '👁'}</button>
       <button class="vk-ico" data-copy="senha|${esc(it.id)}" title="Copiar">📋</button></div>
     ${it.obs ? `<div class="tiny muted">📝 ${esc(it.obs)}</div>` : ''}
-    ${_canManage ? `<div class="tiny muted">👁 vê: ${viewers.length ? esc(viewers.join(', ')) : '<span style="color:#d97706">só você</span>'}</div>` : ''}
+    ${_canManage ? `<div class="tiny muted">👁 vê: ${viewers.length ? esc(viewers.join(', ')) : '<span style="color:var(--warn)">só você</span>'}</div>` : ''}
   </div>`;
 }
 

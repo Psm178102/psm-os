@@ -58,7 +58,7 @@ export async function pageAgentes(ctx, root) {
             <div style="background:#0f172a;border-radius:10px;padding:12px">
               <div style="font-size:18px;margin-bottom:6px">${a.ico}</div>
               <div style="font-weight:700;color:#fff;font-size:12px;margin-bottom:4px">${a.t}</div>
-              <div style="font-size:11px;color:#64748b;line-height:1.5">${a.d}</div>
+              <div style="font-size:11px;color:var(--ink-muted);line-height:1.5">${a.d}</div>
             </div>
           `).join('')}
         </div>
@@ -73,7 +73,7 @@ export async function pageAgentes(ctx, root) {
 function kpi(ico, label, value, color) {
   return `
     <div style="background:#1e293b;border-radius:12px;padding:14px;border-left:4px solid ${color}">
-      <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">${ico} ${label}</div>
+      <div style="font-size:10px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">${ico} ${label}</div>
       <div style="font-size:24px;font-weight:800;color:${color}">${value}</div>
     </div>
   `;
@@ -98,7 +98,7 @@ function agentCard(a) {
       </div>
       ${a.page
         ? `<button data-nav="${a.page}" style="width:100%;padding:10px;background:${a.color};color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">${a.status === 'active' ? 'Abrir Painel' : 'Configurar'} →</button>`
-        : `<button disabled style="width:100%;padding:10px;background:#334155;color:#64748b;border:none;border-radius:8px;font-size:12px;cursor:not-allowed">Em breve</button>`
+        : `<button disabled style="width:100%;padding:10px;background:#334155;color:var(--ink-muted);border:none;border-radius:8px;font-size:12px;cursor:not-allowed">Em breve</button>`
       }
     </div>
   `;

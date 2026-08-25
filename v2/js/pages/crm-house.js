@@ -59,8 +59,8 @@ function cardHtml(c) {
       ${c.phone ? `<a class="tiny" href="https://wa.me/55${esc(c.phone)}" target="_blank" rel="noopener" title="Abrir WhatsApp" onclick="event.stopPropagation()">💬</a>` : ''}
     </div>
     <div class="flex" style="gap:4px;flex-wrap:wrap;margin-top:3px;align-items:center">
-      ${Number(c.amount) ? `<span class="tiny" style="color:#d97706;font-weight:800">💼 ${brl(c.amount)}</span>` : '<span class="tiny muted">sem valor</span>'}
-      ${quieto ? `<span class="tiny" style="background:#64748b1a;color:#64748b;padding:0 7px;border-radius:999px;font-weight:700">😴 ${dp}d</span>` : ''}
+      ${Number(c.amount) ? `<span class="tiny" style="color:var(--warn);font-weight:800">💼 ${brl(c.amount)}</span>` : '<span class="tiny muted">sem valor</span>'}
+      ${quieto ? `<span class="tiny" style="background:#64748b1a;color:var(--ink-muted);padding:0 7px;border-radius:999px;font-weight:700">😴 ${dp}d</span>` : ''}
       ${dono ? `<span class="tiny muted" style="margin-left:auto">👔 ${esc(dono)}</span>` : ''}
     </div>
   </div>`;
@@ -85,7 +85,7 @@ function render() {
           <b style="font-size:13px;flex:1">${esc(s.name)}</b>
           <span class="tiny muted">${lista.length}</span>
         </div>
-        ${soma ? `<div class="tiny" style="color:#d97706;font-weight:700">${brlK(soma)}</div>` : ''}
+        ${soma ? `<div class="tiny" style="color:var(--warn);font-weight:700">${brlK(soma)}</div>` : ''}
       </div>
       <div style="overflow-y:auto;flex:1;min-height:40px">
         ${lista.slice(0, max).map(cardHtml).join('') || '<div class="tiny muted" style="text-align:center;padding:14px 0">vazio</div>'}
@@ -195,7 +195,7 @@ function abrirCard(id) {
         <button class="btn btn-sm btn-ghost" id="chm-x">✕</button>
       </div>
       <div class="tiny muted" style="margin-top:6px">📍 ${esc(atual)} ${dp !== null ? `· 😴 ${dp}d sem atualização` : ''}</div>
-      <div style="margin-top:8px">${Number(c.amount) ? `<b style="color:#d97706">💼 ${brl(c.amount)}</b>` : '<span class="tiny muted">sem valor</span>'}</div>
+      <div style="margin-top:8px">${Number(c.amount) ? `<b style="color:var(--warn)">💼 ${brl(c.amount)}</b>` : '<span class="tiny muted">sem valor</span>'}</div>
       ${c.user_email ? `<div class="tiny" style="margin-top:4px">👔 ${esc(c.user_email)}</div>` : ''}
       <div class="flex" style="gap:6px;margin-top:12px;flex-wrap:wrap">
         ${c.phone ? `<a class="btn btn-sm btn-primary" href="https://wa.me/55${esc(c.phone)}" target="_blank" rel="noopener">💬 WhatsApp</a>` : ''}

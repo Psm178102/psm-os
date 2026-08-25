@@ -135,7 +135,7 @@ function avLine(a, own) {
   return `<div style="border-top:1px solid var(--bd,#e2e8f0);padding:8px 0">
     <div class="flex items-center" style="gap:8px"><b>${esc(a.cargo || '—')}</b>
       <span class="tiny muted">${esc((ciclos().find(c => c.id === a.ciclo_id) || {}).nome || 'sem ciclo')} · por ${esc(uName(a.avaliador_id))}</span>
-      ${ne != null ? `<span style="margin-left:auto;font-weight:800;color:#16a34a">${ne}/${escala()}</span>` : `<span style="margin-left:auto" class="tiny muted">${esc(a.status)}</span>`}</div>
+      ${ne != null ? `<span style="margin-left:auto;font-weight:800;color:var(--ok)">${ne}/${escala()}</span>` : `<span style="margin-left:auto" class="tiny muted">${esc(a.status)}</span>`}</div>
     ${a.pontos_fortes ? `<div class="tiny"><b>Fortes:</b> ${esc(a.pontos_fortes)}</div>` : ''}
     ${a.a_desenvolver ? `<div class="tiny"><b>A desenvolver:</b> ${esc(a.a_desenvolver)}</div>` : ''}
     ${a.comentario ? `<div class="tiny">${esc(a.comentario)}</div>` : ''}
@@ -188,7 +188,7 @@ function renderScorecard(body) {
   body.innerHTML = `
     <div class="flex items-center gap-2 mb-2"><button class="btn btn-ghost btn-sm" id="sc-back">← Voltar</button>
       <div style="font-weight:800">${esc(uName(f.avaliado_id))} · ${esc((TIPOS.find(t => t[0] === f.tipo) || [, f.tipo])[1])}</div>
-      <div id="sc-nf" style="margin-left:auto;font-weight:800;color:#16a34a">${nf != null ? nf + '/' + E : '—'}</div></div>
+      <div id="sc-nf" style="margin-left:auto;font-weight:800;color:var(--ok)">${nf != null ? nf + '/' + E : '—'}</div></div>
     <div class="card">
       <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:10px">
         <label class="tiny muted">Ciclo<select id="sc-ciclo" class="select"><option value="">— avulsa —</option>${ciclos().map(c => `<option value="${esc(c.id)}"${c.id === f.ciclo_id ? ' selected' : ''}>${esc(c.nome)}</option>`).join('')}</select></label>

@@ -86,7 +86,7 @@ function convitesCard() {
         <div class="tiny muted">${fmtDataBR(c.data)}${c.hora_inicio ? ' · ' + c.hora_inicio.slice(0, 5) : ' · dia todo'}${c.local ? ' · ' + escapeHtml(c.local) : ''} · de ${escapeHtml(nomeDe(c.criado_por))}</div>
       </div>
       <button class="btn btn-primary btn-sm cv-ok" data-id="${escapeHtml(c.id)}">✅ Aceitar</button>
-      <button class="btn btn-ghost btn-sm cv-no" data-id="${escapeHtml(c.id)}" style="color:#dc2626">Recusar</button>
+      <button class="btn btn-ghost btn-sm cv-no" data-id="${escapeHtml(c.id)}" style="color:var(--err)">Recusar</button>
     </div>`).join('')}
   </div>`;
 }
@@ -155,7 +155,7 @@ async function loadSalas() {
           </div>
           <div class="tiny muted">${s.capacidade ? '👥 ' + escapeHtml(String(s.capacidade)) + ' lugares' : ''}${s.local ? ' · ' + escapeHtml(s.local) : ''}</div>
           ${s.estado === 'desconhecida'
-            ? '<div class="tiny mt-1" style="color:#6b7280">Não consegui ler a agenda desta sala agora. Confirme no Zoho antes de ocupar.</div>'
+            ? '<div class="tiny mt-1" style="color:var(--ink-muted)">Não consegui ler a agenda desta sala agora. Confirme no Zoho antes de ocupar.</div>'
             : `<div class="tiny muted mt-1">${lista ? '🕑 ' + escapeHtml(lista) : 'sem reservas neste dia'}</div>`}
           <button class="btn btn-ghost btn-sm mt-1 sala-rsv" data-id="${escapeHtml(s.id)}" data-nome="${escapeHtml(s.nome || '')}" style="padding:2px 10px;font-size:11px">📌 Reservar</button>
         </div>`;
@@ -306,7 +306,7 @@ async function loadZohoBanner() {
     <b class="tiny">📮 Zoho conectado</b>
     <span class="tiny muted">${escapeHtml(st.zoho_email || '')} · última sync: ${escapeHtml(quando)}${r.puxados != null ? ` (↓${r.puxados} ↑${r.enviados || 0})` : ''}</span>
     <button class="btn btn-ghost btn-sm" id="zoho-sync" style="margin-left:auto">🔄 Sincronizar agora</button>
-    <button class="btn btn-ghost btn-sm" id="zoho-off" style="color:#dc2626">Desconectar</button>
+    <button class="btn btn-ghost btn-sm" id="zoho-off" style="color:var(--err)">Desconectar</button>
   </div>`;
   host.querySelector('#zoho-sync').onclick = async (e) => {
     const b = e.target; b.disabled = true; b.textContent = '⏳ Sincronizando…';

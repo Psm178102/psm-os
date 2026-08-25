@@ -191,7 +191,7 @@ function execHero(ex) {
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px">
       ${heroCard('💎 VGV realizado', 'R$ ' + moneyC(k.vgv), subline(deltaBadge(k.delta_vgv_pct)), '#c084fc')}
       ${k.has_meta
-        ? heroCard('🎯 Meta do período', 'R$ ' + moneyC(k.meta), subline(k.gap > 0 ? `faltam <b style="color:#f87171">R$ ${moneyC(k.gap)}</b>` : `<b style="color:#34d399">meta batida</b> (+R$ ${moneyC(-k.gap)})`), '#60a5fa')
+        ? heroCard('🎯 Meta do período', 'R$ ' + moneyC(k.meta), subline(k.gap > 0 ? `faltam <b style="color:var(--err-claro)">R$ ${moneyC(k.gap)}</b>` : `<b style="color:#34d399">meta batida</b> (+R$ ${moneyC(-k.gap)})`), '#60a5fa')
         : heroCard('🎟 Ticket médio', 'R$ ' + moneyC(k.ticket), subline(`${fmtNum(k.vendas)} vendas no período`), '#60a5fa')}
       ${k.has_meta ? atingCard(k.ating_pct) : heroCard('🥧 Participação', shareOfSelected(ex), subline('do VGV total do período'), '#22d3ee')}
       ${heroCard('🤝 Vendas', fmtNum(k.vendas), subline(deltaBadge(k.delta_vendas_pct)), '#2dd4bf')}
@@ -387,7 +387,7 @@ function recadoCard(r, isSocio) {
       <div class="flex items-center gap-2" style="margin-bottom:6px">
         <span style="font-size:16px">${p.ico}</span>
         <span style="font-weight:800">${p.lbl}</span>
-        ${r.fixado ? '<span class="tiny" style="background:#fff;color:#0f172a;padding:2px 8px;border-radius:var(--r-full);font-weight:700">📌 FIXADO</span>' : ''}
+        ${r.fixado ? '<span class="tiny" style="background:var(--bg-2);color:var(--ink);padding:2px 8px;border-radius:var(--r-full);font-weight:700">📌 FIXADO</span>' : ''}
         <span style="margin-left:auto;font-size:11px;opacity:0.7">${dt} · ${ate}</span>
         ${isSocio ? `<button class="btn btn-ghost tiny" data-rec-edit="${r.id}" style="padding:3px 8px">✏️</button>` : ''}
         ${isSocio ? `<button class="btn btn-ghost tiny" data-rec-del="${r.id}" style="padding:3px 8px">🗑</button>` : ''}
@@ -517,7 +517,7 @@ function estItem(it, isSocio) {
           <div style="font-weight:700">${escapeHtml(it.titulo)}</div>
           ${it.descricao ? `<div class="tiny muted" style="margin-top:2px">${escapeHtml(it.descricao)}</div>` : ''}
         </div>
-        <span class="tiny" style="background:${it.status === 'concluido' ? '#dcfce7;color:#166534' : it.status === 'ativo' ? '#dbeafe;color:#1e40af' : '#fef3c7;color:#78350f'};padding:3px 8px;border-radius:var(--r-full);font-weight:600">${escapeHtml(it.status)}</span>
+        <span class="tiny" style="background:${it.status === 'concluido' ? '#dcfce7;color:var(--ok-escuro)' : it.status === 'ativo' ? '#dbeafe;color:var(--azul-forte)' : '#fef3c7;color:var(--marrom)'};padding:3px 8px;border-radius:var(--r-full);font-weight:600">${escapeHtml(it.status)}</span>
         ${isSocio ? `<button class="btn btn-ghost tiny" data-est-edit="${it.id}" style="padding:3px 8px">✏️</button>` : ''}
         ${isSocio ? `<button class="btn btn-ghost tiny" data-est-del="${it.id}" style="padding:3px 8px">🗑</button>` : ''}
       </div>

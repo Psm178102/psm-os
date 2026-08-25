@@ -283,7 +283,7 @@ async function loadPropostaMeta() {
     ? p.atividade_rows.map(a => _chip(escapeHtml(a.label), a.valor))
     : Object.keys(ATV).filter(k => (p.atividade_mes || {})[k] != null).map(k => _chip(ATV[k], (p.atividade_mes || {})[k]))).join('');
   if (pr.status === 'aceita') {
-    host.innerHTML = `<div class="mt-3" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:var(--r-md);padding:10px 14px;font-size:12.5px">
+    host.innerHTML = `<div class="mt-3" style="background:color-mix(in srgb, var(--ok) 12%, transparent);border:1px solid #bbf7d0;border-radius:var(--r-md);padding:10px 14px;font-size:12.5px">
       ✅ Meta do <b>${escapeHtml(q)}</b> aceita: <b>${p.vendas_mes} venda(s)/mês</b> (${p.vendas_tri} no tri) — a atividade mensal já está no seu Norte do Dia.</div>`;
     return;
   }
@@ -296,7 +296,7 @@ async function loadPropostaMeta() {
           <div class="tiny" style="opacity:.9;margin-top:4px">🎲 Estatística honesta: com essa meta, <b>${(p.poisson_tri || {}).lo}–${(p.poisson_tri || {}).hi}</b> vendas no tri é normal — e o mês pode zerar ${Math.round(((p.poisson_mes || {}).p_zero || 0) * 100)}% das vezes MESMO executando certo. O que o mês cobra é a atividade:</div>
           <div style="margin-top:6px">${atv}</div>
         </div>
-        <button class="btn" id="prop-aceitar" style="background:#fff;color:#14532d;font-weight:800;white-space:nowrap">✅ Aceitar meta</button>
+        <button class="btn" id="prop-aceitar" style="background:var(--bg-2);color:#14532d;font-weight:800;white-space:nowrap">✅ Aceitar meta</button>
       </div>
     </div>`;
   document.getElementById('prop-aceitar')?.addEventListener('click', async ev => {
@@ -611,13 +611,13 @@ async function loadTravados() {
       <h3 class="card-title" style="margin:0">💼 Seus negócios pós-venda</h3>
       <div class="tiny muted">Sua comissão só entra na projeção quando o contrato está ASSINADO — empurre o cliente até lá.</div>
       <div class="flex mt-2" style="gap:10px;flex-wrap:wrap">
-        <div class="tiny"><b style="color:#16a34a">${brl2(projecao)}</b> em projeção (contrato assinado+)</div>
-        ${travados.length ? `<div class="tiny"><b style="color:#dc2626">${travados.length} negócio(s) travado(s) antes da assinatura</b></div>` : ''}
+        <div class="tiny"><b style="color:var(--ok)">${brl2(projecao)}</b> em projeção (contrato assinado+)</div>
+        ${travados.length ? `<div class="tiny"><b style="color:var(--err)">${travados.length} negócio(s) travado(s) antes da assinatura</b></div>` : ''}
       </div>
       ${travados.map(r => `<div class="tiny" style="border-top:1px solid var(--bd,#ebe3ca);padding:6px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <b>${(r.descricao || '').slice(0, 60)}</b>
         <span class="muted">${MARCO_LBL[r.marco_atual] || r.marco_atual}</span>
-        ${(r.bloqueio || 'nenhum') !== 'nenhum' ? `<span style="color:#dc2626;font-weight:800">⛔ ${r.bloqueio.replace(/_/g, ' ')}</span>` : ''}
+        ${(r.bloqueio || 'nenhum') !== 'nenhum' ? `<span style="color:var(--err);font-weight:800">⛔ ${r.bloqueio.replace(/_/g, ' ')}</span>` : ''}
         <span style="margin-left:auto">${r.valor_liquido_estimado != null ? brl2(r.valor_liquido_estimado) : ''}</span>
       </div>`).join('')}
     </div>`;

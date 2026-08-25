@@ -62,7 +62,7 @@ function render() {
     <style>
       .dm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
       .dm-kpi{background:var(--bg-1,#fff);border:1px solid var(--border);border-top:3px solid #2563eb;border-radius:12px;padding:12px 14px;position:relative}
-      .dm-kpi .v{font-size:22px;font-weight:900;color:#2563eb}
+      .dm-kpi .v{font-size:22px;font-weight:900;color:var(--info)}
       .dm-tbl{width:100%;border-collapse:collapse;font-size:12.5px}
       .dm-tbl th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-muted,#64748b);padding:8px 10px;border-bottom:2px solid var(--border);white-space:nowrap}
       .dm-tbl td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:top}
@@ -221,7 +221,7 @@ function modal(titulo, inner, onSave) {
           <button class="btn btn-ghost btn-sm" id="dm-x">✕</button>
         </div>
         <div style="margin-top:12px">${inner}</div>
-        <div id="dm-err" class="tiny" style="color:#dc2626;margin-top:8px"></div>
+        <div id="dm-err" class="tiny" style="color:var(--err);margin-top:8px"></div>
         <div class="flex gap-2 mt-3" style="justify-content:flex-end">
           <button class="btn btn-ghost" id="dm-cancel">Cancelar</button>
           <button class="btn btn-primary" id="dm-ok">Salvar</button>

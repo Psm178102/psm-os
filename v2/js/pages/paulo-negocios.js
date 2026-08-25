@@ -58,7 +58,7 @@ function render() {
     </div>
     <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
       <div class="pn-kpi"><div class="tiny muted">Em andamento</div><div style="font-size:18px;font-weight:800">${money(total) || 'R$ 0'}</div></div>
-      <div class="pn-kpi"><div class="tiny muted">Fechado (acumulado)</div><div style="font-size:18px;font-weight:800;color:#16a34a">${money(fechado) || 'R$ 0'}</div></div>
+      <div class="pn-kpi"><div class="tiny muted">Fechado (acumulado)</div><div style="font-size:18px;font-weight:800;color:var(--ok)">${money(fechado) || 'R$ 0'}</div></div>
       <div class="pn-kpi"><div class="tiny muted">Negócios ativos</div><div style="font-size:18px;font-weight:800">${_cards.filter(c => c.status !== 'fechado' && c.status !== 'pausado').length}</div></div>
     </div>
     <div class="pn-board">
@@ -86,7 +86,7 @@ function card(c) {
     <div class="pn-card" draggable="true" data-card="${esc(c.id)}">
       <div style="font-weight:800;font-size:13.5px;line-height:1.3">${esc(c.titulo || 'Sem título')}</div>
       <div class="flex gap-1" style="flex-wrap:wrap;margin-top:6px">
-        ${v ? `<span class="pn-chip" style="background:rgba(22,163,74,.14);color:#15803d">${esc(v)}</span>` : ''}
+        ${v ? `<span class="pn-chip" style="background:rgba(22,163,74,.14);color:var(--ok-medio)">${esc(v)}</span>` : ''}
         ${c.data_ref ? `<span class="pn-chip" style="background:rgba(148,163,184,.16);color:var(--ink,#475569)">📅 ${esc(fmtData(c.data_ref))}</span>` : ''}
       </div>
       ${c.obs ? `<div class="tiny muted" style="margin-top:6px;white-space:pre-wrap;max-height:54px;overflow:hidden">${esc(c.obs)}</div>` : ''}

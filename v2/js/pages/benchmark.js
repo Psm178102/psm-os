@@ -47,7 +47,7 @@ function renderContent() {
   if (_concorrentes.length === 0) {
     body.innerHTML = `
       <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:40px;text-align:center">
-        <p style="color:#64748b">Nenhum concorrente cadastrado. Use o <a href="#/concorrencia" style="color:#fffbea">Radar de Concorrência</a> pra adicionar.</p>
+        <p style="color:var(--ink-muted)">Nenhum concorrente cadastrado. Use o <a href="#/concorrencia" style="color:#fffbea">Radar de Concorrência</a> pra adicionar.</p>
       </div>
     `;
     return;
@@ -101,7 +101,7 @@ function metricCard(m) {
 function stat(label, value, color) {
   return `
     <div style="background:#0f172a;border:1px solid #334155;border-radius:6px;padding:8px">
-      <div style="color:#64748b;font-size:10px;text-transform:uppercase;font-weight:600">${label}</div>
+      <div style="color:var(--ink-muted);font-size:10px;text-transform:uppercase;font-weight:600">${label}</div>
       <div style="color:${color};font-size:15px;font-weight:800">${value}</div>
     </div>
   `;
@@ -118,7 +118,7 @@ function renderTiers() {
           return `
             <div style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:14px">
               <div style="color:${tierColor};font-weight:800;margin-bottom:10px;text-transform:uppercase">Tier ${tier} <span style="color:#94a3b8;font-weight:400">(${grupo.length})</span></div>
-              ${grupo.length === 0 ? '<div style="color:#64748b;font-size:12px;text-align:center;padding:10px">—</div>' :
+              ${grupo.length === 0 ? '<div style="color:var(--ink-muted);font-size:12px;text-align:center;padding:10px">—</div>' :
                 grupo.slice(0, 8).map((c, i) => `
                   <div class="flex" style="justify-content:space-between;padding:8px 0;border-bottom:1px solid #1e293b;font-size:12px">
                     <span style="color:#fff;font-weight:600">${i + 1}. ${esc(c.nome || '—')}</span>

@@ -115,8 +115,8 @@ function kpis() {
     <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
       <div class="pj-kpi"><div class="tiny muted">Projetos</div><div style="font-size:18px;font-weight:800">${f.length}</div></div>
       <div class="pj-kpi"><div class="tiny muted">🚧 Em andamento</div><div style="font-size:18px;font-weight:800;color:#f59e0b">${por('andamento')}</div></div>
-      <div class="pj-kpi"><div class="tiny muted">⏰ Atrasados</div><div style="font-size:18px;font-weight:800;color:#ef4444">${atrasados}</div></div>
-      <div class="pj-kpi"><div class="tiny muted">✅ Concluídos</div><div style="font-size:18px;font-weight:800;color:#16a34a">${por('concluido')}</div></div>
+      <div class="pj-kpi"><div class="tiny muted">⏰ Atrasados</div><div style="font-size:18px;font-weight:800;color:var(--err-suave)">${atrasados}</div></div>
+      <div class="pj-kpi"><div class="tiny muted">✅ Concluídos</div><div style="font-size:18px;font-weight:800;color:var(--ok)">${por('concluido')}</div></div>
     </div>`;
 }
 
@@ -156,7 +156,7 @@ function card(c) {
       ${(() => { const d = checkDone(c); return d ? `<div style="margin-top:7px"><div style="height:5px;border-radius:3px;background:rgba(148,163,184,.25);overflow:hidden"><div style="height:100%;width:${Math.round(d / CHECK.length * 100)}%;background:${d === CHECK.length ? '#16a34a' : '#0891b2'}"></div></div><div class="tiny muted" style="margin-top:2px">✔ ${d}/${CHECK.length}</div></div>` : ''; })()}
       <div class="flex gap-2" style="margin-top:8px;align-items:center">
         ${c.responsavel ? `<span class="tiny" style="font-weight:700">👤 ${esc(c.responsavel)}</span>` : ''}
-        ${c.obs ? '<span class="tiny" title="Tem escopo" style="color:#16a34a">📄</span>' : ''}
+        ${c.obs ? '<span class="tiny" title="Tem escopo" style="color:var(--ok)">📄</span>' : ''}
         ${c.link ? `<a href="${esc(c.link)}" target="_blank" rel="noopener" data-stop="1" class="tiny" style="text-decoration:none">🔗</a>` : ''}
         <button class="btn btn-ghost tiny pj-edit" data-card="${esc(c.id)}" style="margin-left:auto">editar</button>
       </div>
@@ -189,7 +189,7 @@ function renderPrazos() {
         ${groups[d].map(row).join('')}
       </div>`;
     }).join('')}
-    ${semData.length ? `<div class="pj-day"><div style="font-weight:800;font-size:14px;color:#64748b">📌 Sem prazo (${semData.length})</div>${semData.map(row).join('')}</div>` : ''}`;
+    ${semData.length ? `<div class="pj-day"><div style="font-weight:800;font-size:14px;color:var(--ink-muted)">📌 Sem prazo (${semData.length})</div>${semData.map(row).join('')}</div>` : ''}`;
 }
 
 /* ── MÉTRICAS ── */
@@ -208,8 +208,8 @@ function renderMetricas() {
   return `
     <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
       <div class="pj-kpi"><div class="tiny muted">Total</div><div style="font-size:20px;font-weight:800">${n}</div></div>
-      <div class="pj-kpi"><div class="tiny muted">Concluídos</div><div style="font-size:20px;font-weight:800;color:#16a34a">${concl} <span class="tiny muted">(${Math.round(concl / n * 100)}%)</span></div></div>
-      <div class="pj-kpi"><div class="tiny muted">⏰ Atrasados</div><div style="font-size:20px;font-weight:800;color:#ef4444">${atras}</div></div>
+      <div class="pj-kpi"><div class="tiny muted">Concluídos</div><div style="font-size:20px;font-weight:800;color:var(--ok)">${concl} <span class="tiny muted">(${Math.round(concl / n * 100)}%)</span></div></div>
+      <div class="pj-kpi"><div class="tiny muted">⏰ Atrasados</div><div style="font-size:20px;font-weight:800;color:var(--err-suave)">${atras}</div></div>
     </div>
     <div class="pj-day"><div style="font-weight:800;font-size:14px;margin-bottom:8px">Por etapa</div>
       ${stg.map(x => `<div style="margin-bottom:8px"><div class="flex" style="justify-content:space-between"><span class="tiny" style="font-weight:700;color:${x.s.cor}">${x.s.lbl}</span><span class="tiny muted">${x.n}</span></div>${bar(x.n, stgMax, x.s.cor)}</div>`).join('')}

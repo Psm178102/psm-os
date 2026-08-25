@@ -247,11 +247,11 @@ function taticoView() {
     <div class="wr-grid wr-2" style="margin-top:14px">
       <div class="wr-card">
         <div class="wr-h">📍 Plantão de hoje</div>
-        ${(h.plantao || []).length ? (h.plantao || []).map(p => `<div style="display:flex;justify-content:space-between;padding:7px 10px;background:#1e293b;border-radius:8px;margin-bottom:6px;font-size:14px"><span>👤 ${esc(p.corretor)}</span><span style="color:#94a3b8">${esc(p.periodo || '')}</span></div>`).join('') : '<div style="color:#64748b;font-size:13px">Ninguém escalado pra hoje.</div>'}
+        ${(h.plantao || []).length ? (h.plantao || []).map(p => `<div style="display:flex;justify-content:space-between;padding:7px 10px;background:#1e293b;border-radius:8px;margin-bottom:6px;font-size:14px"><span>👤 ${esc(p.corretor)}</span><span style="color:#94a3b8">${esc(p.periodo || '')}</span></div>`).join('') : '<div style="color:var(--ink-muted);font-size:13px">Ninguém escalado pra hoje.</div>'}
       </div>
       <div class="wr-card">
         <div class="wr-h">🗓 Visitas agendadas hoje <span style="color:#94a3b8">· ${fmtInt(h.visitas_total || (h.visitas || []).length)}</span></div>
-        ${(h.visitas || []).length ? (h.visitas || []).slice(0, 8).map(v => `<div style="display:grid;grid-template-columns:54px 1fr auto;gap:8px;padding:6px 10px;background:#1e293b;border-radius:8px;margin-bottom:5px;font-size:13px"><b style="color:#fde68a">${esc(v.hora || '--:--')}</b><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(v.titulo)}</span><span style="color:#94a3b8;white-space:nowrap">${esc(v.corretor)}</span></div>`).join('') : '<div style="color:#64748b;font-size:13px">Nenhuma visita agendada hoje.</div>'}
+        ${(h.visitas || []).length ? (h.visitas || []).slice(0, 8).map(v => `<div style="display:grid;grid-template-columns:54px 1fr auto;gap:8px;padding:6px 10px;background:#1e293b;border-radius:8px;margin-bottom:5px;font-size:13px"><b style="color:#fde68a">${esc(v.hora || '--:--')}</b><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(v.titulo)}</span><span style="color:#94a3b8;white-space:nowrap">${esc(v.corretor)}</span></div>`).join('') : '<div style="color:var(--ink-muted);font-size:13px">Nenhuma visita agendada hoje.</div>'}
       </div>
     </div>
     <div class="wr-grid wr-2" style="margin-top:14px">
@@ -266,7 +266,7 @@ function taticoView() {
       <div class="wr-card">
         <div class="wr-h">🏆 Em alta hoje/mês</div>
         ${top.length ? top.map((c, i) => `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#1e293b;border-radius:8px;margin-bottom:5px;font-size:13px">
-          <b style="width:18px">${i + 1}º</b><span style="flex:1">${esc(c.name)}</span><b style="color:#4ade80">${money(c.vgv)}</b><span style="color:#94a3b8">${fmtInt(c.vendas)}v</span></div>`).join('') : '<div style="color:#64748b;font-size:13px">Ranking abre com a primeira venda.</div>'}
+          <b style="width:18px">${i + 1}º</b><span style="flex:1">${esc(c.name)}</span><b style="color:#4ade80">${money(c.vgv)}</b><span style="color:#94a3b8">${fmtInt(c.vendas)}v</span></div>`).join('') : '<div style="color:var(--ink-muted);font-size:13px">Ranking abre com a primeira venda.</div>'}
       </div>
     </div>
 
@@ -284,7 +284,7 @@ function funilView(f) {
     { l: 'Visitas', n: f.visitas, c: '#f59e0b' }, { l: 'Vendas', n: f.vendas, c: '#22c55e' },
   ];
   const top = Math.max(1, stages[0].n);
-  if (!f.leads && !f.vendas) return '<div style="color:#64748b;font-size:13px">Sem dados de funil no período.</div>';
+  if (!f.leads && !f.vendas) return '<div style="color:var(--ink-muted);font-size:13px">Sem dados de funil no período.</div>';
   return stages.map((s, i) => {
     const w = clamp(s.n / top * 100, 4, 100);
     const conv = i > 0 && stages[i - 1].n > 0 ? s.n / stages[i - 1].n * 100 : null;
@@ -294,7 +294,7 @@ function funilView(f) {
 }
 
 function tropaView(tropa, pr) {
-  if (!tropa.length) return '<div style="color:#64748b;font-size:13px">Sem dados de tropa (precisa de Líder+ no oo/overview).</div>';
+  if (!tropa.length) return '<div style="color:var(--ink-muted);font-size:13px">Sem dados de tropa (precisa de Líder+ no oo/overview).</div>';
   const topVgv = +tropa[0].vgv || 1;
   return `<div style="max-height:230px;overflow:auto">${tropa.slice(0, 12).map((c, i) => {
     const semVenda = (+c.vendas || 0) === 0;
@@ -303,14 +303,14 @@ function tropaView(tropa, pr) {
     return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;border-bottom:1px solid #1e293b">
       <b style="width:20px;color:#94a3b8">${i + 1}º</b>
       <span style="width:8px;height:8px;border-radius:50%;background:${cor}"></span>
-      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.name)}${c.meta_attainment_pct != null ? ` <span style="color:#64748b;font-size:11px">· ${pct1(c.meta_attainment_pct)} meta</span>` : ''}</span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.name)}${c.meta_attainment_pct != null ? ` <span style="color:var(--ink-muted);font-size:11px">· ${pct1(c.meta_attainment_pct)} meta</span>` : ''}</span>
       <span style="color:#93c5fd">${fmtInt(c.vendas)}v</span>
       <b style="color:#4ade80;min-width:90px;text-align:right">${money(c.vgv)}</b></div>`;
   }).join('')}</div>`;
 }
 
 function trafegoView(a) {
-  if (!a.spend && !a.results) return '<div style="color:#64748b;font-size:13px">Sem dados de tráfego no período (requer Meta Ads conectado).</div>';
+  if (!a.spend && !a.results) return '<div style="color:var(--ink-muted);font-size:13px">Sem dados de tráfego no período (requer Meta Ads conectado).</div>';
   return `<div class="wr-grid wr-3" style="gap:8px">
       ${miniDark('💸 Investido', money(a.spend), 'no mês')}
       ${miniDark('🌱 Leads', fmtInt(a.results), 'gerados')}

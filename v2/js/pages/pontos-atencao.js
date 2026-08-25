@@ -326,7 +326,7 @@ function openNoteForm(n) {
           <div><label class="tiny muted" style="font-weight:700">Detalhe</label>
             <textarea id="pa-f-texto" class="input" rows="4" style="width:100%" placeholder="Contexto, o que precisa ser feito, prazo…">${esc(n.texto || '')}</textarea></div>
         </div>
-        <div id="pa-f-err" class="tiny" style="color:#dc2626;margin-top:8px"></div>
+        <div id="pa-f-err" class="tiny" style="color:var(--err);margin-top:8px"></div>
         <div class="flex gap-2 mt-3" style="justify-content:flex-end">
           <button class="btn btn-ghost" id="pa-cancel">Cancelar</button>
           <button class="btn btn-primary" id="pa-save">${n.id ? 'Salvar' : 'Adicionar'}</button>

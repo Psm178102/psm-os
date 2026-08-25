@@ -151,19 +151,19 @@ function ataCard(a) {
         </div>
         ${_canEdit ? `<div class="flex gap-2">
           <button class="btn btn-ghost btn-sm" data-edita="${esc(a.id)}">✏️ Editar</button>
-          <button class="btn btn-ghost btn-sm" data-dela="${esc(a.id)}" style="color:#dc2626">🗑</button>
+          <button class="btn btn-ghost btn-sm" data-dela="${esc(a.id)}" style="color:var(--err)">🗑</button>
         </div>` : ''}
       </div>
       ${parts.length ? `<div class="tiny muted mt-1">👥 ${parts.map(esc).join(', ')}</div>` : ''}
-      ${a.proxima_data ? `<div class="tiny mt-1" style="color:#2563eb;font-weight:700">🔁 Próxima: ${fmtData(a.proxima_data)}${a.recorrencia && a.recorrencia !== 'nenhuma' ? ' · ' + esc(a.recorrencia) : ''} <span class="muted" style="font-weight:400">(na Agenda)</span></div>` : ''}
+      ${a.proxima_data ? `<div class="tiny mt-1" style="color:var(--info);font-weight:700">🔁 Próxima: ${fmtData(a.proxima_data)}${a.recorrencia && a.recorrencia !== 'nenhuma' ? ' · ' + esc(a.recorrencia) : ''} <span class="muted" style="font-weight:400">(na Agenda)</span></div>` : ''}
       ${a.notas ? `<div class="tiny mt-2" style="white-space:pre-wrap;color:var(--ink-muted,#475569);max-height:64px;overflow:hidden">${esc(a.notas)}</div>` : ''}
 
       ${combs.length ? `<div class="mt-2" style="background:var(--bg-3);border-radius:10px;padding:10px 12px">
         <div class="flex items-center gap-2" style="margin-bottom:6px">
           <span class="tiny muted" style="font-weight:800;text-transform:uppercase;letter-spacing:.5px">🤝 Combinados</span>
-          ${atr ? `<span class="tiny" style="color:#dc2626;font-weight:800">🔴 ${atr}</span>` : ''}
-          ${pend ? `<span class="tiny" style="color:#a16207;font-weight:800">⏳ ${pend}</span>` : ''}
-          ${feito ? `<span class="tiny" style="color:#16a34a;font-weight:800">✅ ${feito}</span>` : ''}
+          ${atr ? `<span class="tiny" style="color:var(--err);font-weight:800">🔴 ${atr}</span>` : ''}
+          ${pend ? `<span class="tiny" style="color:var(--ambar-escuro);font-weight:800">⏳ ${pend}</span>` : ''}
+          ${feito ? `<span class="tiny" style="color:var(--ok);font-weight:800">✅ ${feito}</span>` : ''}
         </div>
         ${combs.map(c => combRow(a, c)).join('')}
       </div>` : ''}
@@ -185,7 +185,7 @@ function combRow(a, c) {
       ${c.responsavel_id ? `<span class="tiny muted">👤 ${esc(userName(c.responsavel_id))}</span>` : ''}
       ${c.prazo ? `<span class="tiny" style="color:${cor};font-weight:700">${ic} ${fmtData(c.prazo)}</span>` : `<span class="tiny" style="color:${cor}">${ic}</span>`}
       ${_canEdit ? (c.task_id
-        ? `<span class="tiny" style="color:#16a34a;font-weight:700" title="Já virou tarefa cobrada">✓ tarefa</span>`
+        ? `<span class="tiny" style="color:var(--ok);font-weight:700" title="Já virou tarefa cobrada">✓ tarefa</span>`
         : `<button class="btn btn-ghost btn-sm" data-vira="${esc(a.id)}|${esc(c.id)}" style="padding:2px 8px;font-size:11px" title="Vira uma tarefa de verdade pro responsável (cobrada e notificada)">📌 virar tarefa</button>`) : ''}
     </div>`;
 }
@@ -319,7 +319,7 @@ function combEditRow(cb, i) {
       <div style="flex:2;min-width:140px"><input class="input cb-texto" value="${esc(cb.texto || '')}" placeholder="O que ficou combinado"></div>
       <div style="flex:1;min-width:120px"><select class="input cb-resp"><option value="">— responsável —</option>${_users.map(u => `<option value="${esc(u.id)}"${cb.responsavel_id === u.id ? ' selected' : ''}>${esc(u.name)}</option>`).join('')}</select></div>
       <div style="width:140px"><input class="input cb-prazo" type="date" value="${cb.prazo ? String(cb.prazo).substring(0, 10) : ''}"></div>
-      <button class="btn btn-ghost btn-sm" type="button" data-comb-del="${i}" style="color:#dc2626">×</button>
+      <button class="btn btn-ghost btn-sm" type="button" data-comb-del="${i}" style="color:var(--err)">×</button>
     </div>`;
 }
 
@@ -529,9 +529,9 @@ function cardHTML(it) {
       <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
         <h3 class="card-title" style="margin:0;font-size:16px">${it.emoji || '📋'} ${esc(it.nome)}</h3>
         <div class="flex gap-2">
-          ${it.cadencia ? `<span class="tiny" style="background:#2563eb1a;color:#2563eb;padding:3px 10px;border-radius:999px;font-weight:700">${esc(it.cadencia)}</span>` : ''}
+          ${it.cadencia ? `<span class="tiny" style="background:#2563eb1a;color:var(--info);padding:3px 10px;border-radius:999px;font-weight:700">${esc(it.cadencia)}</span>` : ''}
           ${_canEditF ? `<button class="btn btn-ghost btn-sm" data-edit="${esc(it.id)}">✏️ Editar</button>
-            <button class="btn btn-ghost btn-sm" data-del="${esc(it.id)}" style="color:#dc2626">🗑</button>` : ''}
+            <button class="btn btn-ghost btn-sm" data-del="${esc(it.id)}" style="color:var(--err)">🗑</button>` : ''}
         </div>
       </div>
       ${it.objetivo ? `<p class="tiny" style="margin:6px 0 0;color:var(--ink-muted,#475569)"><b>🎯 Objetivo:</b> ${esc(it.objetivo)}</p>` : ''}

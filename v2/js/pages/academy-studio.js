@@ -131,9 +131,9 @@ function kpis() {
   return `
     <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
       <div class="as-kpi"><div class="tiny muted">Aulas no funil</div><div style="font-size:18px;font-weight:800">${f.length}</div></div>
-      <div class="as-kpi"><div class="tiny muted">📝 Em roteiro</div><div style="font-size:18px;font-weight:800;color:#0ea5e9">${porEtapa('roteiro')}</div></div>
+      <div class="as-kpi"><div class="tiny muted">📝 Em roteiro</div><div style="font-size:18px;font-weight:800;color:var(--azul-ceu)">${porEtapa('roteiro')}</div></div>
       <div class="as-kpi"><div class="tiny muted">🎬 Gravações agendadas</div><div style="font-size:18px;font-weight:800;color:#f59e0b">${agendadas}</div></div>
-      <div class="as-kpi"><div class="tiny muted">✅ Publicadas</div><div style="font-size:18px;font-weight:800;color:#16a34a">${porEtapa('publicada')}</div></div>
+      <div class="as-kpi"><div class="tiny muted">✅ Publicadas</div><div style="font-size:18px;font-weight:800;color:var(--ok)">${porEtapa('publicada')}</div></div>
     </div>`;
 }
 
@@ -165,14 +165,14 @@ function card(c) {
       <div style="font-weight:800;font-size:13px;line-height:1.3">${esc(c.titulo || 'Sem tema')}</div>
       <div class="flex gap-1" style="flex-wrap:wrap;margin-top:6px">
         ${c.plataforma ? `<span class="as-chip" style="background:${linhaCor(c.plataforma)}1f;color:${linhaCor(c.plataforma)}">${esc(c.plataforma)}</span>` : ''}
-        ${c.formato ? `<span class="as-chip" style="background:rgba(124,58,237,.12);color:#7c3aed">${esc(c.formato)}</span>` : ''}
-        ${c.data_ref ? `<span class="as-chip" style="background:rgba(245,158,11,.16);color:#b45309">🎬 ${esc(fmtData(c.data_ref))}</span>` : ''}
-        ${c.data_ref && c.data_ref < hoje() && c.status !== 'publicada' ? `<span class="as-chip" style="background:#dc262622;color:#dc2626">🔴 atrasada</span>` : ''}
+        ${c.formato ? `<span class="as-chip" style="background:rgba(124,58,237,.12);color:var(--roxo)">${esc(c.formato)}</span>` : ''}
+        ${c.data_ref ? `<span class="as-chip" style="background:rgba(245,158,11,.16);color:var(--warn-escuro)">🎬 ${esc(fmtData(c.data_ref))}</span>` : ''}
+        ${c.data_ref && c.data_ref < hoje() && c.status !== 'publicada' ? `<span class="as-chip" style="background:#dc262622;color:var(--err)">🔴 atrasada</span>` : ''}
       </div>
       ${(() => { const d = checkDone(c); return d ? `<div style="margin-top:7px"><div style="height:5px;border-radius:3px;background:rgba(148,163,184,.25);overflow:hidden"><div style="height:100%;width:${Math.round(d / CHECK.length * 100)}%;background:${d === CHECK.length ? '#16a34a' : '#7c3aed'}"></div></div><div class="tiny muted" style="margin-top:2px">✔ ${d}/${CHECK.length} produção</div></div>` : ''; })()}
       <div class="flex gap-2" style="margin-top:8px;align-items:center">
         ${c.responsavel ? `<span class="tiny" style="font-weight:700">👤 ${esc(c.responsavel)}</span>` : ''}
-        ${c.obs ? '<span class="tiny" title="Tem roteiro" style="color:#16a34a">📝</span>' : ''}
+        ${c.obs ? '<span class="tiny" title="Tem roteiro" style="color:var(--ok)">📝</span>' : ''}
         ${c.link ? `<a href="${esc(c.link)}" target="_blank" rel="noopener" data-stop="1" class="tiny" style="text-decoration:none">🔗</a>` : ''}
         <button class="btn btn-ghost tiny as-edit" data-card="${esc(c.id)}" style="margin-left:auto">editar</button>
       </div>
@@ -206,7 +206,7 @@ function renderAgenda() {
         ${groups[d].map(row).join('')}
       </div>`;
     }).join('')}
-    ${semData.length ? `<div class="as-day"><div style="font-weight:800;font-size:14px;color:#64748b">📌 Sem data de gravação (${semData.length})</div>${semData.map(row).join('')}</div>` : ''}`;
+    ${semData.length ? `<div class="as-day"><div style="font-weight:800;font-size:14px;color:var(--ink-muted)">📌 Sem data de gravação (${semData.length})</div>${semData.map(row).join('')}</div>` : ''}`;
 }
 
 /* ── MÉTRICAS: dashboard de produção da Academy ── */
@@ -234,7 +234,7 @@ function renderMetricas() {
     ${coberturaCurriculo()}
     <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
       <div class="as-kpi"><div class="tiny muted">Total de aulas</div><div style="font-size:20px;font-weight:800">${n}</div></div>
-      <div class="as-kpi"><div class="tiny muted">Publicadas</div><div style="font-size:20px;font-weight:800;color:#16a34a">${pubTotal} <span class="tiny muted">(${pct}%)</span></div></div>
+      <div class="as-kpi"><div class="tiny muted">Publicadas</div><div style="font-size:20px;font-weight:800;color:var(--ok)">${pubTotal} <span class="tiny muted">(${pct}%)</span></div></div>
       <div class="as-kpi"><div class="tiny muted">Lead-time médio</div><div style="font-size:20px;font-weight:800">${lead}</div><div class="tiny muted">ideia→publicada</div></div>
       <div class="as-kpi"><div class="tiny muted">🎬 Gravações agendadas</div><div style="font-size:20px;font-weight:800;color:#f59e0b">${agendadas}</div></div>
     </div>
@@ -475,7 +475,7 @@ function openEditor(seed) {
       <div class="flex gap-2 mt-3" style="justify-content:space-between">
         <button class="btn btn-ghost" id="as-del" ${c.id ? '' : 'style="visibility:hidden"'}>🗑 Excluir</button>
         <div class="flex gap-2">
-          ${c.id ? '<button class="btn btn-ghost" id="as-pub" style="color:#16a34a;font-weight:700">🚀 Publicar na Academy</button>' : ''}
+          ${c.id ? '<button class="btn btn-ghost" id="as-pub" style="color:var(--ok);font-weight:700">🚀 Publicar na Academy</button>' : ''}
           <button class="btn btn-ghost" id="as-cancel">Cancelar</button>
           <button class="btn btn-primary" id="as-save">Salvar</button>
         </div>

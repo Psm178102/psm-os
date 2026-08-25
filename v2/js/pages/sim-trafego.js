@@ -253,7 +253,7 @@ function renderOut() {
         ${row('   → seu CPL atual', fs.map(f => f$(L.cpl) + (L.cpl <= f.cplPositivar ? ' ✅' : ' 🔴')))}
       </tbody>
     </table></div>
-    <div class="tiny muted" style="margin-top:6px">💡 Se o <b>CPL atual</b> está <b>abaixo</b> do "CPL necessário pra positivar", o tráfego se paga (✅). Acima, queima caixa (🔴). A coluna <b style="color:#2563eb">Realista</b> é a referência.</div>
+    <div class="tiny muted" style="margin-top:6px">💡 Se o <b>CPL atual</b> está <b>abaixo</b> do "CPL necessário pra positivar", o tráfego se paga (✅). Acima, queima caixa (🔴). A coluna <b style="color:var(--info)">Realista</b> é a referência.</div>
 
     ${orcView(L)}
 
@@ -353,7 +353,7 @@ function otimView() {
   const dCaixa = otimo.caixa - atual.caixa;
   const pctM = budget > 0 ? (am / budget * 100) : 0, pctC = budget > 0 ? (ac / budget * 100) : 0;
   const objBtn = (v, l) => `<button class="btn ${obj === v ? 'btn-primary' : 'btn-ghost'} btn-sm" data-obj="${v}">${l}</button>`;
-  const cmpRow = (lbl, a, b, money, fmt2) => { const f = fmt2 || f$; return `<tr><td class="lbl">${lbl}</td><td class="val">${f(a)}</td><td class="val" style="font-weight:800;color:#16a34a">${f(b)}</td></tr>`; };
+  const cmpRow = (lbl, a, b, money, fmt2) => { const f = fmt2 || f$; return `<tr><td class="lbl">${lbl}</td><td class="val">${f(a)}</td><td class="val" style="font-weight:800;color:var(--ok)">${f(b)}</td></tr>`; };
   return `
     <div class="st-sec">⚡ Otimizador de verba <span class="tiny muted" style="font-weight:400">— onde investir cada R$ pra render mais (cenário Realista)</span></div>
     <div style="background:var(--bg-3);border-radius:12px;padding:13px">
@@ -376,7 +376,7 @@ function otimView() {
       </div>
 
       <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px"><table class="stt">
-        <thead><tr><th style="text-align:left">Resultado/mês</th><th style="text-align:right">Hoje (sua divisão)</th><th style="text-align:right;color:#16a34a">⚡ Ótimo</th></tr></thead>
+        <thead><tr><th style="text-align:left">Resultado/mês</th><th style="text-align:right">Hoje (sua divisão)</th><th style="text-align:right;color:var(--ok)">⚡ Ótimo</th></tr></thead>
         <tbody>
           ${cmpRow('💸 Investimento', atual.invest, otimo.invest)}
           ${cmpRow('🤝 Vendas', atual.vendas, otimo.vendas, 0, f1)}
@@ -433,7 +433,7 @@ function orcView(L) {
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px">
         ${ok('🏆 VGV alvo', fK(alvoVal))}${ok('🤝 Vendas', f1(o.vendas))}${ok('👥 Leads', f1(o.leads))}${ok('💸 Investir/mês', f$(o.invest), '#7c3aed')}${ok('💰 Caixa', f$(fa.caixa), fa.caixa >= 0 ? '#16a34a' : '#dc2626')}${ok('📊 CPA', f$(fa.cpa))}
       </div>
-      <div class="tiny muted" style="margin-top:7px">Pra fazer <b>${fK(alvoVal)}</b> de VGV na <b>${esc(lineMeta(_s.active).nome)}</b>, invista <b style="color:#7c3aed">${f$(o.invest)}</b>/mês em tráfego (CPL ${f$(L.cpl)}, conversão ${pct2(L.convReal)}, descarte ${pct2(L.descartePct)}). Hoje você investe ${f$(cur.invest)} → <b style="color:${dInv >= 0 ? '#d97706' : '#16a34a'}">${dInv >= 0 ? '+' : ''}${f$(dInv)}</b>.</div>
+      <div class="tiny muted" style="margin-top:7px">Pra fazer <b>${fK(alvoVal)}</b> de VGV na <b>${esc(lineMeta(_s.active).nome)}</b>, invista <b style="color:var(--roxo)">${f$(o.invest)}</b>/mês em tráfego (CPL ${f$(L.cpl)}, conversão ${pct2(L.convReal)}, descarte ${pct2(L.descartePct)}). Hoje você investe ${f$(cur.invest)} → <b style="color:${dInv >= 0 ? '#d97706' : '#16a34a'}">${dInv >= 0 ? '+' : ''}${f$(dInv)}</b>.</div>
     </div>`;
 }
 function projTable(pd) {
@@ -460,7 +460,7 @@ function realPanel() {
   const usarBtn = _s.active === 'consol' ? '' : `<button class="btn btn-primary btn-sm" id="st-real-usar">▶ usar no simulado (${esc(lineMeta(_s.active).nome.replace('PSM ', ''))})</button>`;
   return `<div style="margin:6px 0;background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.35);border-radius:12px;padding:13px">
     <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-      <div style="font-weight:800;color:#16a34a">📡 Cenário ATUAL — real ${r.ano} <span class="tiny muted" style="font-weight:400;color:var(--text-2,#94a3b8)">Meta + CRM · média mensal</span></div>
+      <div style="font-weight:800;color:var(--ok)">📡 Cenário ATUAL — real ${r.ano} <span class="tiny muted" style="font-weight:400;color:var(--text-2,#94a3b8)">Meta + CRM · média mensal</span></div>
       <div class="flex gap-2"><button class="btn btn-ghost btn-sm" id="st-real-reload">↻</button>${usarBtn}</div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(108px,1fr));gap:8px;margin-top:9px">

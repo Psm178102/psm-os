@@ -159,8 +159,8 @@ function card(c) {
     <div class="pc-card" draggable="true" data-card="${esc(c.id)}">
       <div style="font-weight:800;font-size:13px;line-height:1.3">${esc(c.titulo || 'Sem título')}</div>
       <div class="flex gap-1" style="flex-wrap:wrap;margin-top:6px">
-        ${c.semana ? `<span class="pc-chip" style="background:rgba(79,70,229,.14);color:#4f46e5">Sem ${esc(c.semana)}</span>` : ''}
-        ${c.formato ? `<span class="pc-chip" style="background:rgba(99,102,241,.14);color:#4f46e5">${esc(c.formato)}</span>` : ''}
+        ${c.semana ? `<span class="pc-chip" style="background:rgba(79,70,229,.14);color:var(--indigo)">Sem ${esc(c.semana)}</span>` : ''}
+        ${c.formato ? `<span class="pc-chip" style="background:rgba(99,102,241,.14);color:var(--indigo)">${esc(c.formato)}</span>` : ''}
       </div>
       ${dateChips(c)}
       ${c.responsavel ? `<div style="margin-top:6px">${respBadge(c.responsavel)}</div>` : ''}
@@ -191,7 +191,7 @@ function renderPlanner() {
     ${all.map(g => `
       <div class="pc-pl-week">
         <div class="flex items-center" style="justify-content:space-between">
-          <div style="font-weight:800;font-size:14px;color:#4f46e5">${g.lbl}</div>
+          <div style="font-weight:800;font-size:14px;color:var(--indigo)">${g.lbl}</div>
           <span class="tiny muted" style="font-weight:700">${g.items.length} post${g.items.length === 1 ? '' : 's'}</span>
         </div>
         ${g.items.slice().sort(sortFn).map(c => {
@@ -428,13 +428,13 @@ function openImport() {
       const byPlat = {};
       novos.forEach(c => { byPlat[c.plataforma] = (byPlat[c.plataforma] || 0) + 1; });
       const resumo = PLATAFORMAS.filter(p => byPlat[p.id]).map(p => `${p.ic} ${byPlat[p.id]}`).join(' · ') || '—';
-      prev.innerHTML = `Encontrei <b>${items.length}</b> linhas · <b style="color:#16a34a">${novos.length} novos</b> a importar (${resumo})${dups ? ` · ${dups} já existem (ignorados)` : ''}.
+      prev.innerHTML = `Encontrei <b>${items.length}</b> linhas · <b style="color:var(--ok)">${novos.length} novos</b> a importar (${resumo})${dups ? ` · ${dups} já existem (ignorados)` : ''}.
         ${novos.slice(0, 6).map(c => `<div style="margin-top:4px">• <b>${esc(c.titulo)}</b> <span class="muted">— ${esc(platInfo(c.plataforma).lbl)} · ${esc(c.formato || '')}${c.semana ? ' · Sem ' + c.semana : ''}${c.data_ref ? ' · ' + fmtData(c.data_ref) : ''}</span></div>`).join('')}
         ${novos.length > 6 ? `<div class="muted" style="margin-top:4px">… e mais ${novos.length - 6}</div>` : ''}`;
       goBtn.disabled = novos.length === 0;
       goBtn.textContent = `Importar ${novos.length}`;
     } catch (e) {
-      prev.innerHTML = `<span style="color:#dc2626">Erro ao ler: ${esc(e.message)}</span>`;
+      prev.innerHTML = `<span style="color:var(--err)">Erro ao ler: ${esc(e.message)}</span>`;
     }
   };
   ov.querySelector('#pc-imp-file').addEventListener('change', reparse);
@@ -449,7 +449,7 @@ function openImport() {
       await mount(_board, _root);
       alert(`✅ ${(r && r.inserted) || parsed.length} conteúdos importados pra Curadoria.`);
     } catch (e) {
-      prev.innerHTML = `<span style="color:#dc2626">Erro ao importar: ${esc(e.message)}</span>`;
+      prev.innerHTML = `<span style="color:var(--err)">Erro ao importar: ${esc(e.message)}</span>`;
       goBtn.disabled = false;
     }
   };

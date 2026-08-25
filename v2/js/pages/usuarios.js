@@ -178,7 +178,7 @@ function render() {
       </div>
 
       ${archivedList.length ? `
-      <details style="margin-top:16px;border:1px dashed var(--border-2);border-radius:var(--r-md);background:#fafafa">
+      <details style="margin-top:16px;border:1px dashed var(--border-2);border-radius:var(--r-md);background:var(--bg-2)">
         <summary style="cursor:pointer;padding:12px 14px;font-weight:800;font-size:13px;color:var(--ink-muted);user-select:none;list-style:none">
           📦 Arquivados · inativos + ocultos (${archivedList.length})
           <span class="tiny muted" style="font-weight:600">— não aparecem em nenhuma opção do sistema; reative aqui se precisar</span>
@@ -238,7 +238,7 @@ function userRow(u, isSocio, myId) {
         <div class="tiny muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(u.email || 'sem email')}</div>
         ${lastAudit ? `<div class="tiny" style="color:var(--info);margin-top:2px"><a href="#/auditoria" data-link-audit="${u.id}">📜 ${escapeHtml(lastAudit)}</a></div>` : ''}
         ${Array.isArray(u.menu_groups) ? `<div class="tiny" style="margin-top:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-          <span style="background:#fef3c7;color:#78350f;padding:1px 7px;border-radius:3px;font-weight:700" title="Esse usuário tem permissão INDIVIDUAL que IGNORA as Permissões por papel. Liberado só: ${escapeHtml((u.menu_groups || []).join(', ') || '(nada)')}">⚠️ Exceção de menu (${u.menu_groups.length})</span>
+          <span style="background:color-mix(in srgb, var(--warn) 18%, transparent);color:var(--marrom);padding:1px 7px;border-radius:3px;font-weight:700" title="Esse usuário tem permissão INDIVIDUAL que IGNORA as Permissões por papel. Liberado só: ${escapeHtml((u.menu_groups || []).join(', ') || '(nada)')}">⚠️ Exceção de menu (${u.menu_groups.length})</span>
           ${editable ? `<button class="btn btn-ghost" data-action="clear-menu-override" data-id="${u.id}" style="padding:2px 8px;font-size:10px" title="Remover a exceção → passa a seguir as Permissões por papel">↩︎ voltar ao papel</button>` : ''}
         </div>` : ''}
       </div>
@@ -260,7 +260,7 @@ function userRow(u, isSocio, myId) {
 
 function addUserBlock() {
   return `
-    <div class="mt-4" style="padding:14px;background:#f8fafc;border-radius:var(--r-md);border:1px dashed var(--border-2)">
+    <div class="mt-4" style="padding:14px;background:var(--bg-3);border-radius:var(--r-md);border:1px dashed var(--border-2)">
       <div style="font-size:12px;font-weight:800;color:var(--ink);margin-bottom:6px">➕ Adicionar novo usuário</div>
       <div class="tiny muted" style="margin-bottom:10px">Cria o usuário no Postgres. Depois ele acessa <b>housepsm.com.br/login</b> → "definir senha inicial".</div>
       <div class="flex gap-2 items-center" style="flex-wrap:wrap">
@@ -390,7 +390,7 @@ function openTeamsManager() {
         <input class="input te-ico" value="${escapeHtml(t.ico || '📁')}" maxlength="4" style="width:52px;text-align:center">
         <input class="input te-lbl" value="${escapeHtml(t.lbl || '')}" placeholder="Nome da equipe" style="flex:1">
         <input class="input te-cor" type="color" value="${escapeHtml(t.color || '#64748b')}" style="width:46px;padding:2px;min-width:46px">
-        <button class="btn btn-ghost btn-sm" type="button" data-tdel="${i}" style="color:#dc2626" title="Remover">×</button>
+        <button class="btn btn-ghost btn-sm" type="button" data-tdel="${i}" style="color:var(--err)" title="Remover">×</button>
       </div>`).join('');
   };
   draw();
@@ -427,7 +427,7 @@ function openRolesManager() {
     <span style="width:26px;text-align:center">${escapeHtml(r.ico || '🏷️')}</span>
     <span style="flex:1"><b>${escapeHtml(r.label)}</b> <span class="tiny muted">· ${escapeHtml(r.id)} · L${r.lvl}</span></span>
     <span style="width:16px;height:16px;border-radius:50%;background:${escapeHtml(r.color || '#64748b')}"></span>
-    <button class="btn btn-ghost btn-sm" data-cr-del="${escapeHtml(r.id)}" style="color:#dc2626">remover</button></div>`;
+    <button class="btn btn-ghost btn-sm" data-cr-del="${escapeHtml(r.id)}" style="color:var(--err)">remover</button></div>`;
   const draw = () => {
     const custom = _customRoles || [];
     ov.innerHTML = `

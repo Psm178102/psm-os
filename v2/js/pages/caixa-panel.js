@@ -83,8 +83,8 @@ function blocoRealizado(r) {
       <td style="text-align:right;font-size:12px">${fN(s.vendas || 0)}</td>
       <td style="text-align:right;font-size:12px">R$ ${kR$(s.vgv)}</td>
       <td style="text-align:right;font-size:12px">R$ ${kR$(s.receita)}</td>
-      <td style="text-align:right;font-size:12px;color:#b45309">R$ ${kR$((s.com_corretor || 0) + (s.com_senior || 0) + (s.com_gerente || 0))}</td>
-      <td style="text-align:right;font-size:12px;color:#b45309">R$ ${kR$(s.imposto)}</td>
+      <td style="text-align:right;font-size:12px;color:var(--warn-escuro)">R$ ${kR$((s.com_corretor || 0) + (s.com_senior || 0) + (s.com_gerente || 0))}</td>
+      <td style="text-align:right;font-size:12px;color:var(--warn-escuro)">R$ ${kR$(s.imposto)}</td>
       <td style="text-align:right;font-size:12px;font-weight:800;color:${(s.lucro || 0) >= 0 ? '#166534' : '#dc2626'}">R$ ${kR$(s.lucro)}</td>
       <td style="text-align:right;font-size:11px;color:var(--ink-muted)">${s.margem != null ? fN(s.margem) + '%' : '—'}</td>
     </tr>`;
@@ -115,7 +115,7 @@ function blocoFluxo(cx) {
     const neg = (s.acumulado || 0) < 0;
     return `<div style="flex:1;min-width:64px;text-align:center" title="entra R$ ${brl(s.entra_total)} (conf. R$ ${brl(s.entra_confirmado)} · trav. R$ ${brl(s.entra_travado)}) · sai R$ ${brl(s.sai_total)} (${s.base_pagar === 'nibo' ? 'agenda NIBO' : 'custo orçado'} + comissões)">
       <div style="height:70px;display:flex;align-items:flex-end;justify-content:center;gap:3px">
-        <div style="width:16px;background:#bbf7d0;height:${hE}px;border-radius:3px 3px 0 0;position:relative"><div style="position:absolute;bottom:0;left:0;right:0;height:${hEc}px;background:#16a34a;border-radius:${hEc === hE ? '3px 3px 0 0' : '0'}"></div></div>
+        <div style="width:16px;background:color-mix(in srgb, var(--ok) 24%, transparent);height:${hE}px;border-radius:3px 3px 0 0;position:relative"><div style="position:absolute;bottom:0;left:0;right:0;height:${hEc}px;background:#16a34a;border-radius:${hEc === hE ? '3px 3px 0 0' : '0'}"></div></div>
         <div style="width:16px;background:#fca5a5;height:${hS}px;border-radius:3px 3px 0 0"></div>
       </div>
       <div class="tiny" style="font-weight:700;margin-top:2px">${dBR(s.ini)}</div>
@@ -126,13 +126,13 @@ function blocoFluxo(cx) {
   const prox = (cx.proximos || []).slice(0, 12).map(p => {
     const [cor, ico] = STB[p.status] || ['#64748b', '•'];
     return `<div style="display:flex;gap:8px;align-items:center;border-left:3px solid ${cor};background:var(--bg-3);border-radius:6px;padding:5px 9px">
-      <span class="tiny" style="font-weight:800;white-space:nowrap">${p.data ? dBR(p.data) : '<span style="color:#d97706">s/ data</span>'}</span>
-      <span class="tiny" style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ico} ${esc(p.desc || '')}${p.corretor ? ' · ' + esc(p.corretor) : ''}${p.bloqueio && p.bloqueio !== 'nenhum' ? ` <b style="color:#dc2626">⛔ ${esc(p.bloqueio)}</b>` : ''}</span>
+      <span class="tiny" style="font-weight:800;white-space:nowrap">${p.data ? dBR(p.data) : '<span style="color:var(--warn)">s/ data</span>'}</span>
+      <span class="tiny" style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ico} ${esc(p.desc || '')}${p.corretor ? ' · ' + esc(p.corretor) : ''}${p.bloqueio && p.bloqueio !== 'nenhum' ? ` <b style="color:var(--err)">⛔ ${esc(p.bloqueio)}</b>` : ''}</span>
       <span class="tiny" style="font-weight:800;white-space:nowrap">R$ ${kR$(p.valor)}${p.estimado ? '<span class="muted" title="valor estimado pela premissa — preencher no Radar">*</span>' : ''}</span>
     </div>`;
   }).join('');
   const hub = cx.hub || {};
-  const semAgenda = (hub.sem_agenda || []).map(x => `<div class="tiny" style="display:flex;gap:8px;background:#fffbeb;border-left:3px solid #d97706;border-radius:6px;padding:4px 9px">
+  const semAgenda = (hub.sem_agenda || []).map(x => `<div class="tiny" style="display:flex;gap:8px;background:color-mix(in srgb, var(--warn) 12%, transparent);border-left:3px solid #d97706;border-radius:6px;padding:4px 9px">
       <span style="font-weight:700;white-space:nowrap">${dBR(x.venda)}</span>
       <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.cliente || '?')} · ${esc(x.produto || '')} · ${esc(x.corretor || '')}</span>
       <span style="font-weight:800;white-space:nowrap">R$ ${kR$(x.liquido)}</span></div>`).join('');
@@ -140,15 +140,15 @@ function blocoFluxo(cx) {
     <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:8px">
       <span class="tiny">Ponto de partida: <b>${cx.posicao_inicial != null ? 'R$ ' + brl(cx.posicao_inicial) : 'R$ 0 (fluxo puro)'}</b></span>
       <button class="btn btn-ghost btn-sm" id="cx-setpos">✏️ posição de caixa</button>
-      ${cx.furo ? `<span class="tiny" style="font-weight:800;color:#dc2626">🚨 fura na semana de ${dBR(cx.furo)}</span>` : '<span class="tiny" style="font-weight:700;color:#166534">✓ não fura no horizonte</span>'}
+      ${cx.furo ? `<span class="tiny" style="font-weight:800;color:var(--err)">🚨 fura na semana de ${dBR(cx.furo)}</span>` : '<span class="tiny" style="font-weight:700;color:var(--ok-escuro)">✓ não fura no horizonte</span>'}
       <span style="flex:1"></span>
       <span class="tiny muted">🟩 entra (escuro = confirmado) · 🟥 sai · nº = acumulado</span>
     </div>
     <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px">${cols}</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin:10px 0;text-align:center">
-      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:7px"><div style="font-weight:900">R$ ${kR$(rs.confirmado)}</div><div class="tiny muted">confirmado</div></div>
-      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:7px"><div style="font-weight:900">R$ ${kR$(rs.previsto)}</div><div class="tiny muted">previsto</div></div>
-      <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:7px"><div style="font-weight:900">R$ ${kR$(rs.travado)}</div><div class="tiny muted">travado (fora do saldo)</div></div>
+      <div style="background:color-mix(in srgb, var(--ok) 12%, transparent);border:1px solid #bbf7d0;border-radius:8px;padding:7px"><div style="font-weight:900">R$ ${kR$(rs.confirmado)}</div><div class="tiny muted">confirmado</div></div>
+      <div style="background:color-mix(in srgb, var(--info) 12%, transparent);border:1px solid #bfdbfe;border-radius:8px;padding:7px"><div style="font-weight:900">R$ ${kR$(rs.previsto)}</div><div class="tiny muted">previsto</div></div>
+      <div style="background:color-mix(in srgb, var(--err) 12%, transparent);border:1px solid #fecaca;border-radius:8px;padding:7px"><div style="font-weight:900">R$ ${kR$(rs.travado)}</div><div class="tiny muted">travado (fora do saldo)</div></div>
       <div style="background:var(--bg-3);border-radius:8px;padding:7px"><div style="font-weight:900">${rs.sem_data || 0} / ${rs.sem_valor || 0}</div><div class="tiny muted">sem data / sem valor ⚠</div></div>
     </div>
     <div style="display:grid;gap:4px">${prox || '<div class="tiny muted">Nenhum recebível ativo no Radar.</div>'}</div>

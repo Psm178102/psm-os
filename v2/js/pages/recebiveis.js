@@ -83,12 +83,12 @@ function linha(r) {
   const mi = MARCOS.indexOf(r.marco_atual || 'ganho');
   const esteira = MARCOS.map((m, i) => `<span title="${MARCO_LBL[m]}" style="width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:2px;background:${i <= mi ? '#16a34a' : 'var(--border-2,#dacfa9)'}"></span>`).join('');
   const prem = r.premiacao && (r.premiacao.detalhe || r.premiacao.valor)
-    ? `<span class="tiny" style="background:#7c3aed18;color:#7c3aed;border-radius:12px;padding:1px 8px">🎁 ${r.premiacao.tipo === 'percentual' ? (r.premiacao.valor || 0) + '%' : r.premiacao.tipo === 'valor' ? brl(r.premiacao.valor) : esc(r.premiacao.detalhe || 'produto')}</span>` : '';
+    ? `<span class="tiny" style="background:#7c3aed18;color:var(--roxo);border-radius:12px;padding:1px 8px">🎁 ${r.premiacao.tipo === 'percentual' ? (r.premiacao.valor || 0) + '%' : r.premiacao.tipo === 'valor' ? brl(r.premiacao.valor) : esc(r.premiacao.detalhe || 'produto')}</span>` : '';
   return `<div data-rc="${esc(r.id)}" style="border-left:4px solid ${cor};background:${vencido ? '#dc262608' : 'var(--bg-2,#fff)'};border-radius:10px;padding:10px 12px;margin-top:8px">
     <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
       <b style="font-size:14px">${esc(r.descricao)}</b>
       <span class="tiny" style="color:${ST_COR[r.status]};font-weight:800">● ${r.status}</span>
-      ${(r.bloqueio || 'nenhum') !== 'nenhum' ? `<span class="tiny" style="background:#dc262615;color:#dc2626;border-radius:12px;padding:1px 9px;font-weight:800">⛔ ${BLOQ_LBL[r.bloqueio] || r.bloqueio}${r.bloqueio_obs ? ' · ' + esc(r.bloqueio_obs) : ''}</span>` : ''}
+      ${(r.bloqueio || 'nenhum') !== 'nenhum' ? `<span class="tiny" style="background:#dc262615;color:var(--err);border-radius:12px;padding:1px 9px;font-weight:800">⛔ ${BLOQ_LBL[r.bloqueio] || r.bloqueio}${r.bloqueio_obs ? ' · ' + esc(r.bloqueio_obs) : ''}</span>` : ''}
       ${prem}
       <span style="margin-left:auto;font-weight:800;color:${cor}">${r.valor_liquido_estimado != null ? brl(r.valor_liquido_estimado) : '💬 valor a definir'}</span>
     </div>
@@ -103,9 +103,9 @@ function linha(r) {
     ${r.status !== 'recebido' ? `<div class="flex" style="gap:5px;flex-wrap:wrap;margin-top:7px">
       <button class="btn btn-ghost btn-sm rc-a" data-a="marco" data-v="nota_solicitada">🧾 nota solicitada</button>
       <button class="btn btn-ghost btn-sm rc-a" data-a="marco" data-v="contrato_assinado">✍️ assinatura ok</button>
-      <button class="btn btn-ghost btn-sm rc-a" data-a="status" data-v="confirmado" style="color:#16a34a">✅ confirmado</button>
-      <button class="btn btn-ghost btn-sm rc-a" data-a="status" data-v="recebido" style="color:#0891b2;font-weight:800">💰 recebido</button>
-      <button class="btn btn-ghost btn-sm rc-a" data-a="travar" style="color:#dc2626">⛔ travou…</button>
+      <button class="btn btn-ghost btn-sm rc-a" data-a="status" data-v="confirmado" style="color:var(--ok)">✅ confirmado</button>
+      <button class="btn btn-ghost btn-sm rc-a" data-a="status" data-v="recebido" style="color:var(--ciano);font-weight:800">💰 recebido</button>
+      <button class="btn btn-ghost btn-sm rc-a" data-a="travar" style="color:var(--err)">⛔ travou…</button>
       ${_d.completo ? `<button class="btn btn-ghost btn-sm rc-a" data-a="editar" style="margin-left:auto">✏️</button>` : ''}
     </div>` : ''}
   </div>`;
@@ -170,7 +170,7 @@ function abrirEditor(r) {
     </div>
     <textarea class="input mt-2" id="rc-notas" rows="2" placeholder="Notas">${esc(f.notas || '')}</textarea>
     <div class="flex mt-2" style="gap:8px">
-      ${r && (auth.user()?.lvl || 0) >= 8 ? '<button class="btn btn-ghost btn-sm" id="rc-del" style="color:#dc2626">🗑 Apagar</button>' : ''}
+      ${r && (auth.user()?.lvl || 0) >= 8 ? '<button class="btn btn-ghost btn-sm" id="rc-del" style="color:var(--err)">🗑 Apagar</button>' : ''}
       <button class="btn btn-ghost btn-sm" id="rc-cancel" style="margin-left:auto">Cancelar</button>
       <button class="btn btn-primary" id="rc-save">💾 Salvar</button>
     </div>

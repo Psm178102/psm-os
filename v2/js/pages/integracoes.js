@@ -66,7 +66,7 @@ async function loadZohoEquipe() {
         <td class="tiny">${escapeHtml(u.zoho_email || '—')}</td>
         <td style="text-align:right" class="tiny">${u.min_desde_sync == null ? '—' : (u.min_desde_sync < 60 ? u.min_desde_sync + ' min' : Math.round(u.min_desde_sync / 60) + ' h')}</td>
         <td style="text-align:right">${u.conectado
-          ? (u.saudavel ? '<span class="tiny" style="color:#16a34a;font-weight:700">✅ ok</span>'
+          ? (u.saudavel ? '<span class="tiny" style="color:var(--ok);font-weight:700">✅ ok</span>'
                         : `<span class="tiny" style="color:#f59e0b;font-weight:700">⚠️ ${u.erros ? u.erros + ' erro(s)' : 'sem sync'}</span>`)
           : '<span class="tiny muted">— não conectou</span>'}</td>
       </tr>`).join('')}
@@ -101,7 +101,7 @@ function render() {
       </div>
 
       ${isSocio ? `
-        <h3 class="card-title mt-4">🏢 Kenlo Imob (Import imóveis terceiros) <span style="font-size:11px;font-weight:700;background:#fef3c7;color:#b45309;padding:1px 7px;border-radius:999px;vertical-align:middle">em breve</span></h3>
+        <h3 class="card-title mt-4">🏢 Kenlo Imob (Import imóveis terceiros) <span style="font-size:11px;font-weight:700;background:color-mix(in srgb, var(--warn) 18%, transparent);color:var(--warn-escuro);padding:1px 7px;border-radius:999px;vertical-align:middle">em breve</span></h3>
         <p class="tiny muted">Importará imóveis do painel Kenlo → tabela imóveis (origem='terceiros'). Integração ainda não implementada — depende da liberação da API Kenlo (KENLO_API_TOKEN).</p>
         <div class="card" style="background:var(--bg-3);margin:8px 0;padding:14px">
           <button class="btn btn-primary" id="kenlo-sync" disabled title="Em breve — integração Kenlo não implementada" style="opacity:0.5;cursor:not-allowed">⚡ Disparar sync (em breve)</button>

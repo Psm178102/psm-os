@@ -235,7 +235,7 @@ function showForm() {
       <div class="flex gap-2 mt-3" style="flex-wrap:wrap">
         <button class="btn btn-primary" id="ff-save">💾 Salvar</button>
         <button class="btn btn-ghost" id="ff-print">🖨 Imprimir</button>
-        <button class="btn btn-ghost" id="ff-wpp" style="color:#16a34a">📲 WhatsApp</button>
+        <button class="btn btn-ghost" id="ff-wpp" style="color:var(--ok)">📲 WhatsApp</button>
       </div>
     </div>
   `;
@@ -297,19 +297,19 @@ function shareWhatsApp(f) {
 
 function printFicha(f) {
   const u = auth.user();
-  const row = (k, v) => v ? `<tr><td style="padding:7px 10px;font-weight:700;color:#475569;width:200px">${k}</td><td style="padding:7px 10px">${esc(v)}</td></tr>` : '';
+  const row = (k, v) => v ? `<tr><td style="padding:7px 10px;font-weight:700;color:var(--ink-muted);width:200px">${k}</td><td style="padding:7px 10px">${esc(v)}</td></tr>` : '';
   const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Proposta — ${esc(f.cliente || '')}</title>
-    <style>body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#0f172a;max-width:720px;margin:30px auto;padding:0 24px}
+    <style>body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:var(--ink);max-width:720px;margin:30px auto;padding:0 24px}
     h1{color:#0a2540;border-bottom:3px solid #d4a843;padding-bottom:8px;font-size:22px}
     .gold{color:#d4a843} table{width:100%;border-collapse:collapse;margin-top:14px;font-size:14px}
-    tr:nth-child(even){background:#f8fafc} .foot{margin-top:30px;font-size:12px;color:#64748b;border-top:1px solid #e5e7eb;padding-top:12px}
+    tr:nth-child(even){background:var(--bg-3)} .foot{margin-top:30px;font-size:12px;color:var(--ink-muted);border-top:1px solid #e5e7eb;padding-top:12px}
     .val{font-size:18px;font-weight:800;color:#0a2540}</style></head><body>
     <h1>PSM <span class="gold">IMÓVEIS</span> — Proposta</h1>
     <table>
       ${row('Cliente', f.cliente)}${row('CPF', f.cliente_doc)}${row('Contato', f.cliente_contato)}
       ${row('Imóvel', f.imovel)}
-      ${f.valor_imovel ? `<tr><td style="padding:7px 10px;font-weight:700;color:#475569">Valor do imóvel</td><td style="padding:7px 10px" class="val">${fmtBRL(f.valor_imovel)}</td></tr>` : ''}
-      ${f.valor_proposta ? `<tr><td style="padding:7px 10px;font-weight:700;color:#475569">Valor da proposta</td><td style="padding:7px 10px" class="val">${fmtBRL(f.valor_proposta)}</td></tr>` : ''}
+      ${f.valor_imovel ? `<tr><td style="padding:7px 10px;font-weight:700;color:var(--ink-muted)">Valor do imóvel</td><td style="padding:7px 10px" class="val">${fmtBRL(f.valor_imovel)}</td></tr>` : ''}
+      ${f.valor_proposta ? `<tr><td style="padding:7px 10px;font-weight:700;color:var(--ink-muted)">Valor da proposta</td><td style="padding:7px 10px" class="val">${fmtBRL(f.valor_proposta)}</td></tr>` : ''}
       ${row('Forma de pagamento', f.forma_pagto)}${row('Observações', f.observacoes)}
       ${row('Data', f.data_envio ? new Date(f.data_envio + 'T12:00').toLocaleDateString('pt-BR') : '')}
       ${row('Corretor', u?.name || '')}

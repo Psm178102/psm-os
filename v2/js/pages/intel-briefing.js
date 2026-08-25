@@ -94,7 +94,7 @@ function factCard(t, big, sub, color) {
 function briefCard(b) {
   return `<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px;margin-bottom:10px">
     <div class="flex items-center gap-2" style="margin-bottom:6px">
-      <span style="font-weight:800;font-size:12px;color:#7c3aed">⚔️ ${fmtDT(b.created_at)}</span>
+      <span style="font-weight:800;font-size:12px;color:var(--roxo)">⚔️ ${fmtDT(b.created_at)}</span>
       <span class="tiny muted" style="margin-left:auto">${escapeHtml(b.model || '')}${b.criado_por ? '' : ' · automático'}</span>
     </div>
     <div style="font-size:13px;line-height:1.55">${mdLite(b.briefing || '')}</div>
@@ -110,7 +110,7 @@ async function generate() {
     const r = await api.request('/api/v3/intel/war_briefing', { method: 'POST', body: {} });
     if (r && r.ok && r.briefing) {
       out.innerHTML = `<div style="background:linear-gradient(180deg,rgba(124,58,237,.07),transparent);border:1px solid rgba(124,58,237,.3);border-radius:var(--r-md);padding:16px 18px">
-        <div style="font-weight:800;font-size:13px;color:#7c3aed;margin-bottom:8px">⚔️ Briefing da semana <span class="tiny muted" style="font-weight:400">· ${escapeHtml(r.model || 'IA')}${r.saved ? ' · salvo' : ''}</span></div>
+        <div style="font-weight:800;font-size:13px;color:var(--roxo);margin-bottom:8px">⚔️ Briefing da semana <span class="tiny muted" style="font-weight:400">· ${escapeHtml(r.model || 'IA')}${r.saved ? ' · salvo' : ''}</span></div>
         <div style="font-size:13.5px;line-height:1.6">${mdLite(r.briefing)}</div></div>`;
       if (r.saved) setTimeout(reload, 1200);
     } else {

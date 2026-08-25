@@ -75,7 +75,7 @@ function render() {
       .tl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;margin-top:8px}
       .tl-grid{display:grid;grid-template-columns:120px repeat(12,minmax(94px,1fr));min-width:1180px}
       .tl-h{background:var(--bg-3);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-muted,#64748b);padding:8px 4px;text-align:center;border-bottom:1px solid var(--border)}
-      .tl-h.now{color:#2563eb}
+      .tl-h.now{color:var(--info)}
       .tl-lane{position:sticky;left:0;z-index:2;background:var(--bg-1,#fff);font-weight:800;font-size:12.5px;padding:10px 12px;border-right:2px solid var(--border);border-bottom:1px solid var(--border);display:flex;flex-direction:column;justify-content:center;gap:2px}
       .tl-cell{border-left:1px solid var(--border);border-bottom:1px solid var(--border);min-height:64px;padding:5px;position:relative}
       .tl-cell.now{background:rgba(37,99,235,.06)}
@@ -116,7 +116,7 @@ function render() {
             <button class="btn btn-ghost btn-sm" data-tl-nav="1">›</button>
           </div>
         </div>
-        <p class="tiny muted" style="margin:2px 0 0">Lançamentos por mês, em duas raias. <b style="color:#16a34a">■ Sólido</b> = já ocorreu · <b style="color:#64748b">▢ Tracejado</b> = previsto.${canEdit ? ' Passe o mouse numa célula e clique no <b>＋</b> pra cadastrar.' : ''}</p>
+        <p class="tiny muted" style="margin:2px 0 0">Lançamentos por mês, em duas raias. <b style="color:var(--ok)">■ Sólido</b> = já ocorreu · <b style="color:var(--ink-muted)">▢ Tracejado</b> = previsto.${canEdit ? ' Passe o mouse numa célula e clique no <b>＋</b> pra cadastrar.' : ''}</p>
         ${timeline2026(canEdit)}
       </div>
 

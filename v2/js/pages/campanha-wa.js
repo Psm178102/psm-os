@@ -91,7 +91,7 @@ function render(loading) {
     ${_audErro ? `<div class="alert alert-warn">⚠️ ${esc(_audErro)} ${/wa_|relation|exist/i.test(_audErro) ? '— rode <b>supabase/sprint_wa_campanha.sql</b>.' : ''}</div>` : ''}
     ${_cfg.pausada ? `
     <div style="background:rgba(217,119,6,.10);border:1px solid rgba(217,119,6,.4);border-radius:12px;padding:14px;margin:8px 0">
-      <div style="font-weight:800;color:#d97706;font-size:15px">⏸ CAMPANHA PAUSADA — aguardando a conta 360dialog (coexistência no nº da recepção)</div>
+      <div style="font-weight:800;color:var(--warn);font-size:15px">⏸ CAMPANHA PAUSADA — aguardando a conta 360dialog (coexistência no nº da recepção)</div>
       <div class="tiny muted" style="margin:6px 0 10px">Tudo pronto. O disparo só liga quando você criar a conta oficial e setar <code>D360_API_KEY</code> + <code>D360_TEMPLATE</code> no Vercel. Nada é enviado até lá.</div>
       <div class="tiny" style="font-weight:700;margin-bottom:4px">📋 Checklist (você faz, eu já deixei o código plugado):</div>
       <div class="tiny muted" style="white-space:pre-line;line-height:1.7">${esc((_cfg.checklist || []).join('\n'))}</div>
@@ -193,7 +193,7 @@ async function disparar() {
   const msgBase = document.getElementById('cw-msg').value.replace(/\{OFERTA\}/g, offerText());
   const oferta = offerText();
   const alvos = _aud.slice(0, restante);
-  if (!alvos.length) { prog.innerHTML = `<span style="color:#dc2626">Teto diário atingido (${jaHoje}/${cap}). Tente amanhã ou aumente o teto.</span>`; return; }
+  if (!alvos.length) { prog.innerHTML = `<span style="color:var(--err)">Teto diário atingido (${jaHoje}/${cap}). Tente amanhã ou aumente o teto.</span>`; return; }
   if (!confirm(`Vai enviar a oferta pra ${alvos.length} cliente(s) parado(s), 1 a cada ${int}s.\n\nPrévia:\n${msgBase.replace(/\{primeiro_nome\}/g, (alvos[0].nome || '').split(' ')[0])}\n\nConfirma o disparo?`)) return;
 
   _sending = true; _stop = false;
@@ -214,6 +214,6 @@ async function disparar() {
   }
   _sending = false;
   btn.textContent = `▶ Revisar e Disparar (${_aud.length})`; btn.classList.add('btn-primary'); btn.classList.remove('btn-ghost');
-  prog.innerHTML = `<b style="color:#16a34a">✅ Disparo ${_stop ? 'interrompido' : 'concluído'}:</b> ${ok} enviados · ${skip} pulados (opt-out) · ${fail} falhas. As respostas "sim" aparecem em 🔥 Quentes.`;
+  prog.innerHTML = `<b style="color:var(--ok)">✅ Disparo ${_stop ? 'interrompido' : 'concluído'}:</b> ${ok} enviados · ${skip} pulados (opt-out) · ${fail} falhas. As respostas "sim" aparecem em 🔥 Quentes.`;
   try { _status = await api.request('/api/v3/wa/list'); renderQuentes(_status.quentes || []); } catch {}
 }

@@ -68,14 +68,14 @@ function render() {
     </div>
 
     <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
-      <div class="card" style="padding:12px 14px;flex:1;min-width:110px;border-left:4px solid #ef4444"><div class="tiny muted">🔥 Quentes</div><div style="font-size:21px;font-weight:800;color:#ef4444">${c.quentes || 0}</div></div>
+      <div class="card" style="padding:12px 14px;flex:1;min-width:110px;border-left:4px solid #ef4444"><div class="tiny muted">🔥 Quentes</div><div style="font-size:21px;font-weight:800;color:var(--err-suave)">${c.quentes || 0}</div></div>
       <div class="card" style="padding:12px 14px;flex:1;min-width:110px;border-left:4px solid #f59e0b"><div class="tiny muted">🟡 Mornos</div><div style="font-size:21px;font-weight:800;color:#f59e0b">${c.mornos || 0}</div></div>
-      <div class="card" style="padding:12px 14px;flex:1;min-width:110px;border-left:4px solid #0ea5e9"><div class="tiny muted">🧊 Frios</div><div style="font-size:21px;font-weight:800;color:#0ea5e9">${c.frios || 0}</div></div>
+      <div class="card" style="padding:12px 14px;flex:1;min-width:110px;border-left:4px solid #0ea5e9"><div class="tiny muted">🧊 Frios</div><div style="font-size:21px;font-weight:800;color:var(--azul-ceu)">${c.frios || 0}</div></div>
       <div class="card" style="padding:12px 14px;flex:1;min-width:130px"><div class="tiny muted">💰 Pipeline ponderado</div><div style="font-size:19px;font-weight:800">${BRL(c.pipeline_ponderado_vgv || 0)}</div></div>
     </div>
 
     ${(semContato || parados) ? `<div class="card" style="padding:12px 14px;margin-bottom:14px;background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.25)">
-      <div style="font-weight:800;color:#b91c1c;margin-bottom:2px">⚠️ Atenção imediata</div>
+      <div style="font-weight:800;color:var(--err-forte);margin-bottom:2px">⚠️ Atenção imediata</div>
       <div class="tiny">${semContato ? `<b>${semContato}</b> sem 1º contato (>48h)` : ''}${semContato && parados ? ' · ' : ''}${parados ? `<b>${parados}</b> parados (>14 dias)` : ''} — perde-se venda aqui. Reaja primeiro nestes.</div>
     </div>` : ''}
 
@@ -106,6 +106,6 @@ function leadCard(l) {
         ${l.canal ? `<span class="tiny" style="background:var(--bg-3,#f1f5f9);padding:2px 8px;border-radius:99px">📡 ${esc(l.canal)}</span>` : ''}
         <span class="tiny" style="background:${parado > 14 ? 'rgba(239,68,68,.14)' : 'var(--bg-3,#f1f5f9)'};color:${parado > 14 ? '#b91c1c' : 'inherit'};padding:2px 8px;border-radius:99px">⏱ ${parado}d parado</span>
       </div>
-      ${l.acao ? `<div style="background:rgba(16,185,129,.10);border-radius:8px;padding:8px 10px;font-size:13px"><b style="color:#047857">▶ Próxima ação:</b> ${esc(l.acao)}</div>` : ''}
+      ${l.acao ? `<div style="background:rgba(16,185,129,.10);border-radius:8px;padding:8px 10px;font-size:13px"><b style="color:var(--verde-esmeralda)">▶ Próxima ação:</b> ${esc(l.acao)}</div>` : ''}
     </div>`;
 }

@@ -138,7 +138,7 @@ function renderList() {
   body.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(120px, 1fr));gap:10px;margin-bottom:16px">
       <div class="kpi" style="text-align:center"><div style="font-size:22px;font-weight:800;color:#22c55e">${ativas.length}</div><div class="tiny muted">Ativas</div></div>
-      <div class="kpi" style="text-align:center"><div style="font-size:22px;font-weight:800;color:#3b82f6">${futuras.length}</div><div class="tiny muted">Futuras</div></div>
+      <div class="kpi" style="text-align:center"><div style="font-size:22px;font-weight:800;color:var(--azul-claro)">${futuras.length}</div><div class="tiny muted">Futuras</div></div>
       <div class="kpi" style="text-align:center"><div style="font-size:22px;font-weight:800;color:var(--muted)">${encerradas.length}</div><div class="tiny muted">Encerradas</div></div>
       <div class="kpi" style="text-align:center"><div style="font-size:22px;font-weight:800;color:#fbbf24">${_items.length}</div><div class="tiny muted">Total</div></div>
     </div>
@@ -150,7 +150,7 @@ function renderList() {
       ${ativas.sort((a,b)=>a.fim.localeCompare(b.fim)).map(p => premCard(p, 'ATIVA', '#22c55e', isSocio, hoje)).join('')}
     ` : ''}
     ${futuras.length ? `
-      <h3 style="color:#3b82f6;font-size:14px;margin:18px 0 10px">📅 Próximas</h3>
+      <h3 style="color:var(--azul-claro);font-size:14px;margin:18px 0 10px">📅 Próximas</h3>
       ${futuras.sort((a,b)=>a.inicio.localeCompare(b.inicio)).map(p => premCard(p, 'FUTURA', '#3b82f6', isSocio, hoje)).join('')}
     ` : ''}
     ${encerradas.length ? `
@@ -202,11 +202,11 @@ function premCard(p, label, color, canEdit, hoje) {
         ` : ''}
       </div>
       <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;color:#cbd5e1">
-        <div><span style="color:#64748b">Incorporadora:</span> <b>${esc(p.incorporadora || '—')}</b></div>
-        <div><span style="color:#64748b">Produto:</span> <b>${esc(p.produto || '—')}</b></div>
-        <div><span style="color:#64748b">Início:</span> ${fmtDate(p.inicio)}</div>
-        <div><span style="color:#64748b">Término:</span> ${fmtDate(p.fim)}</div>
-        ${p.premio ? `<div style="grid-column:1/-1"><span style="color:#64748b">Prêmio:</span> <b style="color:#fbbf24">${esc(p.premio)}</b></div>` : ''}
+        <div><span style="color:var(--ink-muted)">Incorporadora:</span> <b>${esc(p.incorporadora || '—')}</b></div>
+        <div><span style="color:var(--ink-muted)">Produto:</span> <b>${esc(p.produto || '—')}</b></div>
+        <div><span style="color:var(--ink-muted)">Início:</span> ${fmtDate(p.inicio)}</div>
+        <div><span style="color:var(--ink-muted)">Término:</span> ${fmtDate(p.fim)}</div>
+        ${p.premio ? `<div style="grid-column:1/-1"><span style="color:var(--ink-muted)">Prêmio:</span> <b style="color:#fbbf24">${esc(p.premio)}</b></div>` : ''}
       </div>
       ${p.descricao ? `<div style="margin-top:10px;font-size:13px;line-height:1.5;color:#94a3b8">${esc(p.descricao)}</div>` : ''}
       ${extra}

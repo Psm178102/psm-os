@@ -102,7 +102,7 @@ function render() {
             </div>
           </div>
 
-          <div class="alert" style="background:rgba(99,102,241,.1);color:#6366f1;border:1px solid rgba(99,102,241,.3);margin-top:14px;padding:12px;border-radius:8px">
+          <div class="alert" style="background:rgba(99,102,241,.1);color:var(--violeta);border:1px solid rgba(99,102,241,.3);margin-top:14px;padding:12px;border-radius:8px">
             <b>💡 Benchmark:</b> CAC saudável no imobiliário ≤ 30% da comissão. LTV/CAC ≥ 3x = operação sustentável. ROI > 200% no marketing digital de luxo, > 400% no MCMV.
           </div>
 

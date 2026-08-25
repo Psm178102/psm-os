@@ -157,15 +157,15 @@ function trCard(t) {
   const barcor = pr.pct >= 80 ? '#16a34a' : pr.pct >= 40 ? '#f59e0b' : '#ef4444';
   return `<div class="card" style="padding:13px;cursor:pointer;border-left:4px solid ${st.c}" data-tr="${esc(t.id)}">
     <div class="flex items-center" style="justify-content:space-between;gap:8px">
-      <div style="font-weight:800;font-size:14px;line-height:1.25">${esc(t.titulo)}${t.obrigatorio ? ' <span class="tiny" style="color:#8b5cf6">❗obrig.</span>' : ''}</div>
+      <div style="font-weight:800;font-size:14px;line-height:1.25">${esc(t.titulo)}${t.obrigatorio ? ' <span class="tiny" style="color:var(--violeta-claro)">❗obrig.</span>' : ''}</div>
       <span class="tiny" style="color:${st.c};font-weight:800;white-space:nowrap">${st.l}</span>
     </div>
     <div class="flex gap-1" style="flex-wrap:wrap;margin:6px 0">
-      <span class="tiny" style="background:rgba(99,102,241,.12);color:#4f46e5;padding:1px 7px;border-radius:99px">${esc(TR_TIPO_LBL[t.tipo] || t.tipo || '—')}</span>
-      ${t.equipe ? `<span class="tiny" style="background:rgba(22,163,74,.14);color:#15803d;padding:1px 7px;border-radius:99px">${esc(t.equipe)}</span>` : ''}
-      ${t.setor ? `<span class="tiny" style="background:rgba(14,165,233,.14);color:#0369a1;padding:1px 7px;border-radius:99px">${esc(t.setor)}</span>` : ''}
+      <span class="tiny" style="background:rgba(99,102,241,.12);color:var(--indigo);padding:1px 7px;border-radius:99px">${esc(TR_TIPO_LBL[t.tipo] || t.tipo || '—')}</span>
+      ${t.equipe ? `<span class="tiny" style="background:rgba(22,163,74,.14);color:var(--ok-medio);padding:1px 7px;border-radius:99px">${esc(t.equipe)}</span>` : ''}
+      ${t.setor ? `<span class="tiny" style="background:rgba(14,165,233,.14);color:var(--azul-escuro);padding:1px 7px;border-radius:99px">${esc(t.setor)}</span>` : ''}
       ${t.modalidade ? `<span class="tiny muted">${esc(t.modalidade)}</span>` : ''}
-      ${t.trilha ? `<span class="tiny" style="background:rgba(214,36,159,.12);color:#be185d;padding:1px 7px;border-radius:99px">🛤 ${esc(t.trilha)}</span>` : ''}
+      ${t.trilha ? `<span class="tiny" style="background:rgba(214,36,159,.12);color:var(--rosa-forte);padding:1px 7px;border-radius:99px">🛤 ${esc(t.trilha)}</span>` : ''}
     </div>
     ${(t.participantes && t.participantes.length) ? `<div style="height:7px;background:var(--bg-3,#e2e8f0);border-radius:99px;overflow:hidden;margin-top:4px"><div style="height:100%;width:${pr.pct}%;background:${barcor}"></div></div>
       <div class="tiny muted" style="margin-top:4px">${pr.done}/${pr.total} concluíram (${pr.pct}%)${(t.materiais && t.materiais.length) ? ' · ' + t.materiais.length + ' material(is)' : ''}</div>`
@@ -430,7 +430,7 @@ function rhCard(tipo, p) {
       <div class="tiny muted" style="margin:3px 0 8px">${esc(p.cargo || '—')}${p.equipe && p.equipe !== '—' ? ' · ' + esc(p.equipe) : ''}${p.data ? ' · ' + esc(p.data.split('-').reverse().join('/')) : ''}</div>
       <div style="height:7px;background:var(--bg-3,#e2e8f0);border-radius:99px;overflow:hidden"><div style="height:100%;width:${pr.pct}%;background:${barcor};transition:width .2s"></div></div>
       <div class="tiny muted" style="margin-top:5px">${pr.done}/${pr.total} itens${p.responsavel ? ' · 👤 ' + esc(p.responsavel) : ''}</div>
-      ${tipo === 'offboarding' && p.carteira_destino ? `<div class="tiny" style="margin-top:5px;color:#0891b2;font-weight:700">🤝 carteira → ${esc(p.carteira_destino)}</div>` : ''}
+      ${tipo === 'offboarding' && p.carteira_destino ? `<div class="tiny" style="margin-top:5px;color:var(--ciano);font-weight:700">🤝 carteira → ${esc(p.carteira_destino)}</div>` : ''}
     </div>`;
 }
 
@@ -636,7 +636,7 @@ function offCargoRefHTML(cargo) {
   const c = _cargosOff[cargo];
   if (!c || !(c.requisitos || c.metricas || (c.checklist && c.checklist.length))) return '';
   return `<div style="background:#ef44440e;border:1px solid #ef444433;border-radius:8px;padding:8px 10px;margin:8px 0;font-size:12px">
-    <div style="font-weight:800;color:#ef4444;margin-bottom:3px">📋 Padrão do cargo «${esc(cargo)}»</div>
+    <div style="font-weight:800;color:var(--err-suave);margin-bottom:3px">📋 Padrão do cargo «${esc(cargo)}»</div>
     ${c.requisitos ? `<div><b>Requisitos p/ desligar:</b> ${esc(c.requisitos)}</div>` : ''}
     ${c.metricas ? `<div><b>Métricas:</b> ${esc(c.metricas)}</div>` : ''}
     ${(c.checklist && c.checklist.length) ? `<div><b>Checkout:</b><ul style="margin:3px 0 0 16px">${c.checklist.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}

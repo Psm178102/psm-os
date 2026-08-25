@@ -22,7 +22,7 @@ export function sparkSVG(vals, color) {
 
 /* ── Badge de variação (▲/▼ %) — invert=true quando "menor é melhor" ───── */
 export function deltaBadge(pct, invert) {
-  if (pct == null || isNaN(pct)) return '<span style="font-size:11px;color:#64748b">— vs ant.</span>';
+  if (pct == null || isNaN(pct)) return '<span style="font-size:11px;color:var(--ink-muted)">— vs ant.</span>';
   const good = invert ? pct <= 0 : pct >= 0;
   const c = good ? '#22c55e' : '#f87171';
   return `<span style="font-size:11px;font-weight:700;color:${c}">${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct).toFixed(1)}%</span>`;
@@ -45,7 +45,7 @@ export function progressCard(label, value, sub, frac, color) {
     <div style="font-size:11px;color:#94a3b8">${label}</div>
     <div style="font-size:22px;font-weight:800;color:#f1f5f9;margin-top:2px">${value}</div>
     <div style="height:7px;border-radius:6px;background:rgba(255,255,255,0.08);margin-top:8px;overflow:hidden"><div style="height:100%;width:${w}%;background:${color}"></div></div>
-    <div style="font-size:10px;color:#64748b;margin-top:4px">${sub || ''}</div>
+    <div style="font-size:10px;color:var(--ink-muted);margin-top:4px">${sub || ''}</div>
   </div>`;
 }
 

@@ -203,7 +203,7 @@ function openNoteForm(n) {
           <div><label class="tiny muted" style="font-weight:700">Detalhe</label>
             <textarea id="in-f-texto" class="input" rows="5" style="width:100%" placeholder="Sua leitura, hipótese, o que fazer com isso…">${esc(n.texto || '')}</textarea></div>
         </div>
-        <div id="in-f-err" class="tiny" style="color:#dc2626;margin-top:8px"></div>
+        <div id="in-f-err" class="tiny" style="color:var(--err);margin-top:8px"></div>
         <div class="flex gap-2 mt-3" style="justify-content:flex-end">
           <button class="btn btn-ghost" id="in-cancel">Cancelar</button>
           <button class="btn btn-primary" id="in-save">${n.id ? 'Salvar' : 'Adicionar'}</button>
@@ -270,7 +270,7 @@ async function generate() {
     const j = await api.request('/api/v3/ia/analyze', { method: 'POST', body: { prompt, max_tokens: 3000, dossie: true } });   // cérebro novo (Sonnet 5 + dossiê) v84.4
     if (j.ok && j.text) {
       out.innerHTML = `<div style="background:linear-gradient(180deg,rgba(37,99,235,.06),transparent);border:1px solid rgba(37,99,235,.28);border-radius:var(--r-md);padding:16px 18px">
-        <div style="font-weight:800;font-size:13px;color:#2563eb;margin-bottom:8px">💡 Leitura estratégica <span class="tiny muted" style="font-weight:400">· ${esc(j.model_used || 'IA')}</span></div>
+        <div style="font-weight:800;font-size:13px;color:var(--info);margin-bottom:8px">💡 Leitura estratégica <span class="tiny muted" style="font-weight:400">· ${esc(j.model_used || 'IA')}</span></div>
         <div style="font-size:13.5px;line-height:1.6">${mdLite(j.text)}</div></div>`;
     } else {
       out.innerHTML = `<div class="alert alert-warn">IA indisponível: ${esc(j.error || 'erro')}. Os cards acima seguem válidos (são computados, não dependem de IA).</div>`;

@@ -186,7 +186,7 @@ function renderKRs() {
     <div style="background:var(--bg-2);border-radius:8px;padding:10px;margin-bottom:6px">
       <div class="flex" style="justify-content:space-between;margin-bottom:6px">
         <div class="tiny muted">KR ${i + 1}</div>
-        <button class="btn btn-ghost btn-sm" data-rem-kr="${i}" style="color:#ef4444">🗑</button>
+        <button class="btn btn-ghost btn-sm" data-rem-kr="${i}" style="color:var(--err-suave)">🗑</button>
       </div>
       <input class="input" placeholder="Descrição (ex: Atingir 50M de VGV)" data-kr-key="label" data-kr-idx="${i}" value="${esc(kr.label || '')}" style="margin-bottom:6px">
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px">

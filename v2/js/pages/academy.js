@@ -415,7 +415,7 @@ async function installCurriculo() {
     const items = curriculumItems();
     const r = await api.request('/api/v3/diretoria/academy', { method: 'POST', body: { action: 'bulk', items } });
     if (r && r.ok) {
-      if (out) out.innerHTML = `<span style="color:#16a34a">✓ ${r.count} aulas instaladas.</span>`;
+      if (out) out.innerHTML = `<span style="color:var(--ok)">✓ ${r.count} aulas instaladas.</span>`;
       await load();
       _view = 'builder'; render();
     } else {
@@ -460,7 +460,7 @@ function openForm(item) {
           <div><label class="tiny muted" style="font-weight:700">Ordem</label>
             <input id="af-ordem" class="input" type="number" value="${esc(c.ordem ?? 0)}" style="width:100%" /></div>
         </div>
-        <div id="af-err" class="tiny" style="color:#dc2626;margin-top:8px"></div>
+        <div id="af-err" class="tiny" style="color:var(--err);margin-top:8px"></div>
         <div class="flex gap-2 mt-3" style="justify-content:flex-end">
           <button class="btn btn-ghost" id="af-cancel">Cancelar</button>
           <button class="btn btn-primary" id="af-save">${c.id ? 'Salvar' : 'Adicionar'}</button>

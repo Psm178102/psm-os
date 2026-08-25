@@ -112,9 +112,9 @@ function corretorCard(c) {
       <b>${esc(c.corretor_nome)}</b>
       <span class="badge">${c.n_vendas} venda(s)</span>
       <span class="tiny muted">VGV ${brl(c.vgv_total)} · N2/N3 ${brl(c.vgv_n2n3)}</span>
-      ${acel ? '<span class="badge" style="background:#16a34a22;color:#16a34a;font-weight:800">🚀 Acelerador N4 (1,9%)</span>'
+      ${acel ? '<span class="badge" style="background:#16a34a22;color:var(--ok);font-weight:800">🚀 Acelerador N4 (1,9%)</span>'
              : `<span class="tiny muted">faltam ${brl(Math.max(0, (_d.cfg.acelerador?.vgv_min || 850000) - c.vgv_n2n3))} p/ o N4</span>`}
-      <b style="margin-left:auto;color:#16a34a;font-size:16px">${brl(c.comissao_total)}</b>
+      <b style="margin-left:auto;color:var(--ok);font-size:16px">${brl(c.comissao_total)}</b>
     </div>
     <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:12px">
       <tr class="tiny muted" style="text-align:left"><th style="padding:3px 6px">Cliente</th><th>Origem</th><th style="text-align:right">VGV</th><th style="text-align:right">Taxa</th><th style="text-align:right">Desc. indic.</th><th style="text-align:right">Comissão</th><th></th></tr>
@@ -175,7 +175,7 @@ function htmlOperador(m, opts) {
     <div class="flex items-center" style="gap:10px;flex-wrap:wrap">
       <div style="flex:1;min-width:150px"><div class="tiny muted">${un.charAt(0).toUpperCase() + un.slice(1)}(s) fechada(s) em ${esc(_mes)}</div><div style="font-weight:900;font-size:22px">${m.qtd || 0}</div></div>
       <div style="min-width:120px"><div class="tiny muted">Faixa atual</div><div style="font-weight:800;font-size:16px">${m.qtd ? brl(m.rate) + '/un' : '—'}</div></div>
-      <div style="min-width:180px;background:#16a34a15;border-radius:10px;padding:8px 12px;border-left:3px solid #16a34a"><div class="tiny muted">Comissão no mês</div><div style="font-weight:900;font-size:20px">${brl(m.total)}${m.no_teto ? ' <span class="tiny" style="color:#d97706">(no teto)</span>' : ''}</div></div>
+      <div style="min-width:180px;background:#16a34a15;border-radius:10px;padding:8px 12px;border-left:3px solid #16a34a"><div class="tiny muted">Comissão no mês</div><div style="font-weight:900;font-size:20px">${brl(m.total)}${m.no_teto ? ' <span class="tiny" style="color:var(--warn)">(no teto)</span>' : ''}</div></div>
     </div>
     <div class="tiny muted mt-2">Tabela PROGRESSIVA e retroativa: a faixa do total do mês vale pra todas. Teto mensal: <b>${brl(m.teto)}</b>. Conta ${esc(opts.o_que)}.</div>
     <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:13px;max-width:420px">
@@ -205,7 +205,7 @@ function htmlLeire() {
       <div style="flex:1;min-width:140px"><div class="tiny muted">Reativações fechadas em ${esc(_mes)}</div><div style="font-weight:900;font-size:22px">${m.qtd || 0}</div></div>
       <div style="min-width:110px"><div class="tiny muted">Base do mês</div><div style="font-weight:800;font-size:15px">${brl(m.base)}</div></div>
       <div style="min-width:110px"><div class="tiny muted">Bônus volume</div><div style="font-weight:800;font-size:15px">×${(m.mult || 1).toLocaleString('pt-BR', { minimumFractionDigits: 1 })}</div></div>
-      <div style="min-width:170px;background:#16a34a15;border-radius:10px;padding:8px 12px;border-left:3px solid #16a34a"><div class="tiny muted">Comissão da Leire no mês</div><div style="font-weight:900;font-size:20px">${brl(m.total)}${m.no_teto ? ' <span class="tiny" style="color:#d97706">(no teto)</span>' : ''}</div></div>
+      <div style="min-width:170px;background:#16a34a15;border-radius:10px;padding:8px 12px;border-left:3px solid #16a34a"><div class="tiny muted">Comissão da Leire no mês</div><div style="font-weight:900;font-size:20px">${brl(m.total)}${m.no_teto ? ' <span class="tiny" style="color:var(--warn)">(no teto)</span>' : ''}</div></div>
     </div>
     <div class="tiny muted mt-2">Cada reativação vale pela faixa de VGV × tipo; o total é multiplicado pelo bônus de volume (progressivo) e travado no teto de <b>${brl(m.teto)}</b>. Marque 🚀 nos fechamentos de lançamento (pagam menos, é mais fácil).</div>
     <div class="flex mt-2" style="gap:10px;flex-wrap:wrap">
@@ -287,7 +287,7 @@ function htmlMap() {
       <span class="tiny muted">${c.n_vendas} venda(s) · VGV mês ${brl(c.vgv_total)}</span>
       <span class="tiny muted">· ano ${brl(c.vgv_ano)}${c.senioridade === 'corretor' ? ` · faltam <b>${brl(c.falta_senior)}</b> p/ Sênior` : ''}</span>
       ${canEdit() ? `<button class="btn btn-ghost btn-sm mp-estag" data-uid="${esc(c.corretor_id)}" data-on="${c.senioridade === 'estagiario' ? '1' : '0'}" style="padding:1px 8px;font-size:11px">${c.senioridade === 'estagiario' ? '↩︎ tirar estagiário' : '🎓 marcar estagiário'}</button>` : ''}
-      <span style="margin-left:auto;font-weight:900;font-size:17px;color:#16a34a">${brl(c.comissao_total)}</span>
+      <span style="margin-left:auto;font-weight:900;font-size:17px;color:var(--ok)">${brl(c.comissao_total)}</span>
     </div>
     <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:13px">
       <tr class="tiny muted" style="text-align:left"><th style="padding:4px 8px">Cliente</th><th>Origem</th><th style="text-align:right">VGV</th><th style="text-align:right">Taxa</th><th style="text-align:right">Comissão</th></tr>
@@ -351,7 +351,7 @@ function htmlConfig(podeEditar) {
           <input class="input mf-teto" type="number" min="1" value="${fx[0] >= 999999 ? '' : fx[0]}" placeholder="∞" style="width:80px;padding:2px 6px" ${!podeEditar ? 'disabled' : ''}>
           <span class="tiny muted">→ R$</span>
           <input class="input mf-rate" type="number" min="0" value="${fx[1]}" style="width:90px;padding:2px 6px" ${!podeEditar ? 'disabled' : ''}>
-          ${podeEditar ? '<button class="btn btn-ghost btn-sm mf-del" type="button" style="color:#dc2626;padding:1px 7px">×</button>' : ''}
+          ${podeEditar ? '<button class="btn btn-ghost btn-sm mf-del" type="button" style="color:var(--err);padding:1px 7px">×</button>' : ''}
         </div>`).join('')}
       </div>
       ${podeEditar ? `<div class="flex mt-2" style="gap:8px;flex-wrap:wrap;align-items:center">
@@ -372,7 +372,7 @@ function htmlConfig(podeEditar) {
           <input class="input lb-est" type="number" min="0" value="${fx[1]}" style="width:80px;padding:2px 6px" ${!podeEditar ? 'disabled' : ''}>
           <span class="tiny muted">🚀 R$</span>
           <input class="input lb-lanc" type="number" min="0" value="${((cfg.leire_lancamento || [])[i] || [])[1] || 0}" style="width:80px;padding:2px 6px" ${!podeEditar ? 'disabled' : ''}>
-          ${podeEditar ? '<button class="btn btn-ghost btn-sm lb-del" type="button" style="color:#dc2626;padding:1px 7px">×</button>' : ''}
+          ${podeEditar ? '<button class="btn btn-ghost btn-sm lb-del" type="button" style="color:var(--err);padding:1px 7px">×</button>' : ''}
         </div>`).join('')}
       </div>
       ${podeEditar ? '<button class="btn btn-ghost btn-sm mt-1" id="cf-lbadd" type="button">+ faixa de VGV</button>' : ''}
@@ -383,7 +383,7 @@ function htmlConfig(podeEditar) {
           <input class="input lv-teto" type="number" min="1" value="${fx[0] >= 999999 ? '' : fx[0]}" placeholder="∞" style="width:80px;padding:2px 6px" ${!podeEditar ? 'disabled' : ''}>
           <span class="tiny muted">fechamentos → ×</span>
           <input class="input lv-mult" type="number" min="1" step="0.05" value="${fx[1]}" style="width:80px;padding:2px 6px" ${!podeEditar ? 'disabled' : ''}>
-          ${podeEditar ? '<button class="btn btn-ghost btn-sm lv-del" type="button" style="color:#dc2626;padding:1px 7px">×</button>' : ''}
+          ${podeEditar ? '<button class="btn btn-ghost btn-sm lv-del" type="button" style="color:var(--err);padding:1px 7px">×</button>' : ''}
         </div>`).join('')}
       </div>
       ${podeEditar ? `<div class="flex mt-2" style="gap:8px;flex-wrap:wrap;align-items:center">
@@ -425,7 +425,7 @@ function htmlConfigMap(podeEditar) {
       </div>`).join('')}
     </div>
     ${podeEditar ? `<div class="flex mt-2" style="gap:8px;flex-wrap:wrap;align-items:center">
-      <label class="tiny">Vira <b style="color:#16a34a">Sênior</b> com VGV no ano ≥ R$ <input class="input" id="cf-mpsen" type="number" value="${m.senior_vgv_min}" style="width:130px;padding:2px 6px"></label>
+      <label class="tiny">Vira <b style="color:var(--ok)">Sênior</b> com VGV no ano ≥ R$ <input class="input" id="cf-mpsen" type="number" value="${m.senior_vgv_min}" style="width:130px;padding:2px 6px"></label>
       <button class="btn btn-primary btn-sm" id="cf-mpsave" style="margin-left:auto">💾 Salvar matriz MAP</button>
     </div>` : `<div class="tiny muted mt-1">Sênior automático a partir de ${brl(m.senior_vgv_min)} de VGV no ano.</div>`}
     <div class="tiny muted mt-2" style="font-weight:700">🔗 Fontes do RD nas vendas MAP → origem</div>
@@ -474,7 +474,7 @@ function wireConfig() {
       <span class="tiny muted" style="width:130px">nova faixa</span><span class="tiny muted">até</span>
       <input class="input mf-teto" type="number" min="1" placeholder="∞" style="width:80px;padding:2px 6px">
       <span class="tiny muted">→ R$</span><input class="input mf-rate" type="number" min="0" value="0" style="width:90px;padding:2px 6px">
-      <button class="btn btn-ghost btn-sm mf-del" type="button" style="color:#dc2626;padding:1px 7px">×</button></div>`;
+      <button class="btn btn-ghost btn-sm mf-del" type="button" style="color:var(--err);padding:1px 7px">×</button></div>`;
     const row = d.firstElementChild;
     row.querySelector('.mf-del').onclick = () => row.remove();
     box.appendChild(row);
@@ -498,7 +498,7 @@ function wireConfig() {
       <input class="input lb-teto" type="number" min="1" placeholder="∞" style="width:100px;padding:2px 6px">
       <span class="tiny muted">🎯 R$</span><input class="input lb-est" type="number" min="0" value="0" style="width:80px;padding:2px 6px">
       <span class="tiny muted">🚀 R$</span><input class="input lb-lanc" type="number" min="0" value="0" style="width:80px;padding:2px 6px">
-      <button class="btn btn-ghost btn-sm lb-del" type="button" style="color:#dc2626;padding:1px 7px">×</button></div>`;
+      <button class="btn btn-ghost btn-sm lb-del" type="button" style="color:var(--err);padding:1px 7px">×</button></div>`;
     const row = d.firstElementChild;
     row.querySelector('.lb-del').onclick = () => row.remove();
     boxB.appendChild(row);
@@ -511,7 +511,7 @@ function wireConfig() {
       <span class="tiny muted" style="width:90px">até</span>
       <input class="input lv-teto" type="number" min="1" placeholder="∞" style="width:80px;padding:2px 6px">
       <span class="tiny muted">fechamentos → ×</span><input class="input lv-mult" type="number" min="1" step="0.05" value="1" style="width:80px;padding:2px 6px">
-      <button class="btn btn-ghost btn-sm lv-del" type="button" style="color:#dc2626;padding:1px 7px">×</button></div>`;
+      <button class="btn btn-ghost btn-sm lv-del" type="button" style="color:var(--err);padding:1px 7px">×</button></div>`;
     const row = d.firstElementChild;
     row.querySelector('.lv-del').onclick = () => row.remove();
     boxV.appendChild(row);

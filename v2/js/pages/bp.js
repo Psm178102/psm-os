@@ -97,7 +97,7 @@ function render(atin, dre, custos) {
             return `<div style="display:grid;grid-template-columns:1fr auto auto auto;gap:10px;padding:8px 12px;background:var(--bg-3);border-radius:var(--r-sm);font-size:12.5px">
               <div style="font-weight:600">${escapeHtml(g.user.name)}</div>
               <div class="tiny muted">Meta R$ ${money(tt.meta_vgv)}</div>
-              <div style="color:#7c3aed;font-weight:700">↑ R$ ${money(tt.atingido_vgv)}</div>
+              <div style="color:var(--roxo);font-weight:700">↑ R$ ${money(tt.atingido_vgv)}</div>
               <div style="color:${cor};font-weight:800;min-width:50px;text-align:right">${p}</div>
             </div>`;
           }).join('')}

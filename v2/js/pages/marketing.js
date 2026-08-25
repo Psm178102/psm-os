@@ -215,16 +215,16 @@ async function openAccountsModal() {
         <b>⚙️ Contas de anúncio Meta</b>
         <button class="btn btn-ghost btn-sm" id="maam-close">✕ Fechar</button>
       </div>
-      ${msg ? `<div class="tiny" style="margin-top:6px;color:#16a34a;font-weight:700">${escapeHtml(msg)}</div>` : ''}
+      ${msg ? `<div class="tiny" style="margin-top:6px;color:var(--ok);font-weight:700">${escapeHtml(msg)}</div>` : ''}
       <table class="tiny" style="width:100%;margin-top:10px;border-collapse:collapse">
         <tr class="muted"><th style="text-align:left">Conta</th><th style="text-align:left">ID</th><th>Origem</th><th>Ação</th></tr>
         ${(contas || []).map(c => `
           <tr style="${c.ativa ? '' : 'opacity:.5'}">
-            <td><b>${escapeHtml(c.label)}</b>${c.ativa ? '' : ' <span style="color:#dc2626;font-weight:700">(excluída)</span>'}</td>
+            <td><b>${escapeHtml(c.label)}</b>${c.ativa ? '' : ' <span style="color:var(--err);font-weight:700">(excluída)</span>'}</td>
             <td class="muted">${escapeHtml(c.id)}</td>
             <td style="text-align:center">${c.origem === 'env' ? '🔧 env' : '➕ tela'}</td>
             <td style="text-align:center">${c.ativa
-              ? `<button class="btn btn-sm" data-maam-del="${esc(c.id)}" style="color:#dc2626">🗑 Excluir</button>`
+              ? `<button class="btn btn-sm" data-maam-del="${esc(c.id)}" style="color:var(--err)">🗑 Excluir</button>`
               : `<button class="btn btn-sm" data-maam-back="${esc(c.id)}">↩ Reativar</button>`}</td>
           </tr>`).join('')}
       </table>
@@ -327,7 +327,7 @@ function staleBadge(d) {
   const c = d && d.cache;
   if (!c || !c.stale) return '';
   const when = c.stale_since_br || (c.stale_since ? new Date(c.stale_since).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '');
-  return ` · <span style="color:#dc2626;font-weight:700" title="${escapeHtml(c.live_error || 'Meta API indisponível')}">⚠️ dado de ${escapeHtml(when)} (desatualizado)</span>`;
+  return ` · <span style="color:var(--err);font-weight:700" title="${escapeHtml(c.live_error || 'Meta API indisponível')}">⚠️ dado de ${escapeHtml(when)} (desatualizado)</span>`;
 }
 
 function render() {
@@ -344,9 +344,9 @@ function render() {
             ${accounts.length} conta(s) · período <strong>${escapeHtml(periodLabel(d.period))}</strong> ·
             atualizado ${d.fetchedAt ? new Date(d.fetchedAt).toLocaleTimeString('pt-BR') : 'agora'}
             ${staleBadge(d)}
-            ${d.partial ? ' · <span style="color:#d97706">⚠️ parcial</span>' : ''}
-            ${_crm ? ` · <span style="color:#16a34a">CRM ✓ ${_crm.deals_scanned} deals</span>` : ' · <span style="color:#d97706">CRM ⚠️</span>'}
-            ${_crm && _crm.truncated ? ' · <span style="color:#d97706" title="Mais deals do que o teto desta janela — aumente o recorte ou reduza o período">⚠️ amostra truncada</span>' : ''}
+            ${d.partial ? ' · <span style="color:var(--warn)">⚠️ parcial</span>' : ''}
+            ${_crm ? ` · <span style="color:var(--ok)">CRM ✓ ${_crm.deals_scanned} deals</span>` : ' · <span style="color:var(--warn)">CRM ⚠️</span>'}
+            ${_crm && _crm.truncated ? ' · <span style="color:var(--warn)" title="Mais deals do que o teto desta janela — aumente o recorte ou reduza o período">⚠️ amostra truncada</span>' : ''}
           </p>
         </div>
         <label class="tiny" style="display:flex;align-items:center;gap:6px;font-weight:700;cursor:pointer">
@@ -404,8 +404,8 @@ function alertStrip() {
   const total = al.burning.length + al.cplHigh.length + al.fadiga.length + al.ctrLow.length + al.qualBaixo.length;
   const mostrados = Math.min(al.burning.length, 2) + Math.min(al.cplHigh.length, 2) + Math.min(al.fadiga.length, 2) + Math.min(al.ctrLow.length, 2) + Math.min(al.qualBaixo.length, 1);
   const head = total
-    ? `<span style="font-size:15px;font-weight:900;color:#dc2626;white-space:nowrap">⚠️ ${total} ALERTA${total > 1 ? 'S' : ''}</span>`
-    : `<span style="font-size:14px;font-weight:900;color:#16a34a;white-space:nowrap">✅ SEM ALERTAS — dentro dos limiares</span>`;
+    ? `<span style="font-size:15px;font-weight:900;color:var(--err);white-space:nowrap">⚠️ ${total} ALERTA${total > 1 ? 'S' : ''}</span>`
+    : `<span style="font-size:14px;font-weight:900;color:var(--ok);white-space:nowrap">✅ SEM ALERTAS — dentro dos limiares</span>`;
   return `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;padding:10px 14px;border-radius:12px;background:${total ? 'color-mix(in srgb, #dc2626 6%, transparent)' : 'color-mix(in srgb, #16a34a 6%, transparent)'};border:1.5px solid ${total ? 'rgba(220,38,38,.4)' : 'rgba(22,163,74,.35)'}">
     ${head}${pills.join('')}
     ${total > mostrados ? `<span class="tiny" style="font-weight:800;opacity:.8">+${total - mostrados} na Central de Alertas (aba Tráfego)</span>` : ''}
@@ -573,7 +573,7 @@ function leadsGeoPanel() {
        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px">
        ${alerts.slice(0, 12).map(c => `<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:8px 12px">
           <div style="font-size:12px;color:#fca5a5;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escapeHtml(c.campanha)}">${escapeHtml(c.campanha)}</div>
-          <div style="font-size:18px;font-weight:900;color:#f87171">${pct2(c.pct_outras)} fora</div>
+          <div style="font-size:18px;font-weight:900;color:var(--err-claro)">${pct2(c.pct_outras)} fora</div>
           <div style="font-size:10px;color:#94a3b8">${c.outras} fora · ${c.rio_preto} RP · ${c.leads} leads</div></div>`).join('')}
        </div></div>`
     : '';
@@ -629,7 +629,7 @@ function sparkSVG(vals, color) {
   </svg>`;
 }
 function deltaBadge(pct, invert) {
-  if (pct == null || isNaN(pct)) return '<span style="font-size:11px;color:#64748b">— vs ant.</span>';
+  if (pct == null || isNaN(pct)) return '<span style="font-size:11px;color:var(--ink-muted)">— vs ant.</span>';
   const good = invert ? pct <= 0 : pct >= 0;
   const c = good ? '#22c55e' : '#f87171';
   return `<span style="font-size:11px;font-weight:700;color:${c}">${pct >= 0 ? '▲' : '▼'} ${pct2(Math.abs(pct))}</span>`;
@@ -655,7 +655,7 @@ function progressCard(label, value, sub, frac, color) {
     <div style="font-size:11px;color:#94a3b8">${label}</div>
     <div style="font-size:22px;font-weight:800;color:#f1f5f9;margin-top:2px">${value}</div>
     <div style="height:7px;border-radius:6px;background:rgba(255,255,255,0.08);margin-top:8px;overflow:hidden"><div style="height:100%;width:${w}%;background:${color}"></div></div>
-    <div style="font-size:10px;color:#64748b;margin-top:4px">${sub}</div>
+    <div style="font-size:10px;color:var(--ink-muted);margin-top:4px">${sub}</div>
   </div>`;
 }
 function execHero(t, accounts) {
@@ -730,7 +730,7 @@ function execHero(t, accounts) {
             <td style="padding:6px 8px;color:#e2e8f0">${escapeHtml((c.name || '—').slice(0, 34))}</td>
             ${cell('R$ ' + money(c.spend || 0), (c.spend || 0) / maxSp, '#3b82f6')}
             ${cell(fmtNum(c.clicks || 0), (c.clicks || 0) / maxCl, '#22c55e')}
-            <td style="padding:6px 8px;text-align:right;font-weight:700">${fmtNum(c.results || 0)}</td></tr>`).join('') : '<tr><td colspan="4" style="padding:12px;text-align:center;color:#64748b">Sem campanhas no período.</td></tr>'}</tbody>
+            <td style="padding:6px 8px;text-align:right;font-weight:700">${fmtNum(c.results || 0)}</td></tr>`).join('') : '<tr><td colspan="4" style="padding:12px;text-align:center;color:var(--ink-muted)">Sem campanhas no período.</td></tr>'}</tbody>
         </table>
       </div>
       <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:12px">
@@ -781,7 +781,7 @@ function heroAlertas() {
   const stat = (ico, lbl, val, color, sub) => `<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:10px 12px;border-left:4px solid ${color}">
       <div style="font-size:11px;color:#94a3b8">${ico} ${lbl}</div>
       <div style="font-size:20px;font-weight:800;color:#f1f5f9">${val}</div>
-      ${sub ? `<div style="font-size:10px;color:#64748b">${sub}</div>` : ''}</div>`;
+      ${sub ? `<div style="font-size:10px;color:var(--ink-muted)">${sub}</div>` : ''}</div>`;
   return `
   <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:14px;margin-top:14px">
     <div class="flex" style="justify-content:space-between;align-items:center;margin-bottom:10px">
@@ -897,7 +897,7 @@ function googleSection(attr) {
       </tr></thead><tbody>
       ${top.map(c => `<tr style="border-top:1px solid rgba(255,255,255,0.06)">
         <td style="padding:6px 10px;font-weight:600;color:#e2e8f0">${escapeHtml(c.name)}</td>
-        <td style="text-align:right;padding:6px 8px;color:#f87171">R$ ${money(c.spend)}</td>
+        <td style="text-align:right;padding:6px 8px;color:var(--err-claro)">R$ ${money(c.spend)}</td>
         <td style="text-align:right;padding:6px 8px;color:#e2e8f0">${fmtNum(c.clicks)}</td>
         <td style="text-align:right;padding:6px 8px;color:#e2e8f0">${fmtNum(c.conversions)}</td>
       </tr>`).join('')}
@@ -921,7 +921,7 @@ function execBrandRows(byBrand) {
     const bi = brandInfo(k === 'conquista' ? 'conquista' : k === 'locacao' ? 'locacao' : 'imoveis');
     rows.push(`<tr style="border-top:1px solid rgba(255,255,255,0.06)">
       <td style="padding:6px 10px;font-weight:700;color:${bi.cor}">${escapeHtml(crm?.label || bi.brand)}</td>
-      <td style="text-align:right;padding:6px 8px;color:#f87171">R$ ${money(spend)}</td>
+      <td style="text-align:right;padding:6px 8px;color:var(--err-claro)">R$ ${money(spend)}</td>
       <td style="text-align:right;padding:6px 8px;color:#e2e8f0">${fmtNum(leads)}</td>
       <td style="text-align:right;padding:6px 8px;color:#4ade80">${fmtNum(vendas)}</td>
       <td style="text-align:right;padding:6px 8px;color:#cbd5e1">${cac ? 'R$ ' + money(cac) : '—'}</td>
@@ -929,7 +929,7 @@ function execBrandRows(byBrand) {
       <td style="text-align:right;padding:6px 8px;font-weight:800;color:${roas>=1?'#4ade80':'#fb923c'}">${roas ? roas.toFixed(1) + 'x' : '—'}</td>
     </tr>`);
   });
-  return rows.join('') || '<tr><td colspan="7" style="padding:14px;text-align:center;color:#64748b;font-size:12px">Sem cruzamento no período.</td></tr>';
+  return rows.join('') || '<tr><td colspan="7" style="padding:14px;text-align:center;color:var(--ink-muted);font-size:12px">Sem cruzamento no período.</td></tr>';
 }
 
 /* ───────────────────────── ABA: GRÁFICOS (Chart.js) ───────────────────────── */
@@ -940,7 +940,7 @@ function tabGraficos() {
   const tsNote = _tsBusy
     ? '<span class="muted tiny"><span class="spinner"></span> carregando série diária…</span>'
     : (!_ts ? '<span class="muted tiny">série diária a caminho…</span>'
-      : (_ts.ok === false ? '<span class="tiny" style="color:#d97706">⚠️ série parcial</span>' : '<span class="muted tiny">por dia</span>'));
+      : (_ts.ok === false ? '<span class="tiny" style="color:var(--warn)">⚠️ série parcial</span>' : '<span class="muted tiny">por dia</span>'));
   const card = (title, id, sub, h) => `<div class="card" style="margin:0">
       <div class="flex" style="justify-content:space-between;align-items:baseline;gap:8px"><h3 class="card-title" style="font-size:14px;margin:0">${title}</h3>${sub || ''}</div>
       <div style="position:relative;height:${h || 280}px;margin-top:8px"><canvas id="${id}"></canvas></div>
@@ -1190,7 +1190,7 @@ function tabTrafego() {
       <div class="flex items-center gap-2" style="margin-bottom:10px">
         <h3 class="card-title" style="margin:0">⚠️ Central de Alertas</h3>
         <span class="tiny" style="background:${totalAlerts ? '#dc2626' : '#16a34a'};color:#fff;padding:2px 10px;border-radius:var(--r-full);font-weight:800">${totalAlerts}</span>
-        ${verbaRisco > 0 ? `<span class="tiny" style="color:#dc2626;font-weight:800;margin-left:6px">🔥 R$ ${money(verbaRisco)} em risco</span>` : ''}
+        ${verbaRisco > 0 ? `<span class="tiny" style="color:var(--err);font-weight:800;margin-left:6px">🔥 R$ ${money(verbaRisco)} em risco</span>` : ''}
         <button class="btn btn-ghost tiny" id="ma-th" style="margin-left:auto">⚙️ Limiares</button>
       </div>
       <div id="ma-th-panel" style="display:none"></div>
@@ -1213,17 +1213,17 @@ function tabTrafego() {
             <th style="text-align:right;padding:6px 8px">CTR</th><th style="text-align:right;padding:6px 8px">Freq</th><th style="text-align:right;padding:6px 8px">ROAS</th>
           </tr></thead><tbody>
             ${accounts.map(a => `<tr style="border-bottom:1px solid var(--border)">
-              <td style="padding:5px 10px;font-weight:600">${escapeHtml(a.label || a.id)}${a._error ? ' <span class="tiny" style="color:#dc2626">⚠️</span>' : ''}</td>
-              <td style="text-align:right;padding:5px 8px;color:#dc2626">R$ ${money(a.spend)}</td>
-              <td style="text-align:right;padding:5px 8px;color:#16a34a">${fmtNum(a.results)}</td>
+              <td style="padding:5px 10px;font-weight:600">${escapeHtml(a.label || a.id)}${a._error ? ' <span class="tiny" style="color:var(--err)">⚠️</span>' : ''}</td>
+              <td style="text-align:right;padding:5px 8px;color:var(--err)">R$ ${money(a.spend)}</td>
+              <td style="text-align:right;padding:5px 8px;color:var(--ok)">${fmtNum(a.results)}</td>
               <td style="text-align:right;padding:5px 8px">${a.cpr ? 'R$ ' + money(a.cpr) : '—'}</td>
               <td style="text-align:right;padding:5px 8px">${a.ctr != null ? pct2(a.ctr) : '—'}</td>
               <td style="text-align:right;padding:5px 8px">${a.frequency ? a.frequency.toFixed(2) : '—'}</td>
               <td style="text-align:right;padding:5px 8px">${a.roas ? a.roas.toFixed(2) + 'x' : '—'}</td>
             </tr>`).join('')}
             ${(d.accounts_error || []).map(a => `<tr style="border-bottom:1px solid var(--border);opacity:.7">
-              <td style="padding:5px 10px;font-weight:600">${escapeHtml(a.label || a.id)} <span class="tiny" style="color:#dc2626" title="${escapeHtml(a._error || '')}">⚠️ erro — fora dos totais</span></td>
-              <td colspan="6" style="padding:5px 8px;color:#dc2626;font-size:11px">${escapeHtml(a._error || 'falha na Meta API')}</td>
+              <td style="padding:5px 10px;font-weight:600">${escapeHtml(a.label || a.id)} <span class="tiny" style="color:var(--err)" title="${escapeHtml(a._error || '')}">⚠️ erro — fora dos totais</span></td>
+              <td colspan="6" style="padding:5px 8px;color:var(--err);font-size:11px">${escapeHtml(a._error || 'falha na Meta API')}</td>
             </tr>`).join('')}
           </tbody></table></div>
       </div>` : ''}
@@ -1310,7 +1310,7 @@ function breakdownSection() {
           </tr></thead><tbody>
           ${acc.rows.map(r => `<tr style="border-bottom:1px solid var(--border)">
             <td style="padding:6px 10px;font-weight:600">${escapeHtml(r.segment)}</td>
-            <td style="text-align:right;padding:6px 8px;color:#dc2626">R$ ${money(r.spend)}</td>
+            <td style="text-align:right;padding:6px 8px;color:var(--err)">R$ ${money(r.spend)}</td>
             <td style="text-align:right;padding:6px 8px">${fmtNum(r.results)}</td>
             <td style="text-align:right;padding:6px 8px;font-weight:700">${r.cpl ? 'R$ ' + money(r.cpl) : '—'}</td>
             <td style="text-align:right;padding:6px 8px">${r.ctr ? pct2(r.ctr) : '—'}</td>
@@ -1391,9 +1391,9 @@ function tabVendas() {
             ${g.ranking.map((o, i) => `<tr style="border-bottom:1px solid var(--border)">
               <td style="padding:5px 10px;font-weight:800;color:${i===0?'#d97706':'var(--ink-muted)'}">${i+1}º</td>
               <td style="padding:5px 8px;font-weight:600">${escapeHtml(o.nome || o.email || '—')}</td>
-              <td style="text-align:right;padding:5px 8px;color:#16a34a;font-weight:700">${fmtNum(o.vendas)}</td>
+              <td style="text-align:right;padding:5px 8px;color:var(--ok);font-weight:700">${fmtNum(o.vendas)}</td>
               <td style="text-align:right;padding:5px 8px;font-weight:700">R$ ${moneyShort(o.vgv)}</td>
-              <td style="text-align:right;padding:5px 8px;color:#dc2626">${fmtNum(o.perdas)}</td>
+              <td style="text-align:right;padding:5px 8px;color:var(--err)">${fmtNum(o.perdas)}</td>
             </tr>`).join('')}
           </tbody></table></div>`}
     </div>
@@ -1440,8 +1440,8 @@ function metricsBasis() { return (_crm && _crm.metrics_basis) || 'estimativa'; }
 function basisChip(b) {
   b = b || metricsBasis();
   return b === 'real'
-    ? `<span style="display:inline-block;padding:1px 6px;border-radius:var(--r-full);background:#dcfce7;color:#15803d;font-weight:800;font-size:10px;vertical-align:middle">✓ real</span>`
-    : `<span style="display:inline-block;padding:1px 6px;border-radius:var(--r-full);background:#fef3c7;color:#b45309;font-weight:800;font-size:10px;vertical-align:middle">≈ estimativa</span>`;
+    ? `<span style="display:inline-block;padding:1px 6px;border-radius:var(--r-full);background:color-mix(in srgb, var(--ok) 18%, transparent);color:var(--ok-medio);font-weight:800;font-size:10px;vertical-align:middle">✓ real</span>`
+    : `<span style="display:inline-block;padding:1px 6px;border-radius:var(--r-full);background:color-mix(in srgb, var(--warn) 18%, transparent);color:var(--warn-escuro);font-weight:800;font-size:10px;vertical-align:middle">≈ estimativa</span>`;
 }
 function fmtDateBR(iso) { try { return new Date(iso).toLocaleDateString('pt-BR'); } catch (_) { return iso || '—'; } }
 
@@ -1464,7 +1464,7 @@ function attrBanner(attr) {
 }
 function attrChannelTable(attr) {
   const rows = (attr && attr.by_channel) || [];
-  if (!rows.length) return '<div style="color:#64748b;font-size:12px">Sem ganhos/leads com canal no período.</div>';
+  if (!rows.length) return '<div style="color:var(--ink-muted);font-size:12px">Sem ganhos/leads com canal no período.</div>';
   const totalVgv = rows.reduce((s, r) => s + (r.vgv || 0), 0);
   return `<div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:560px">
     <thead><tr style="color:#94a3b8;font-size:11px;border-bottom:1px solid rgba(255,255,255,0.1)">
@@ -1604,19 +1604,19 @@ function crmKpiDark(label, value, sub, color) {
   return `<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-left:4px solid ${color};border-radius:14px;padding:12px 14px">
     <div style="font-size:11px;color:#94a3b8;letter-spacing:.4px;text-transform:uppercase;font-weight:700">${label}</div>
     <div style="font-size:23px;font-weight:800;color:${color};line-height:1.1;margin-top:3px">${value}</div>
-    <div style="font-size:11px;color:#64748b;margin-top:3px">${sub || ''}</div>
+    <div style="font-size:11px;color:var(--ink-muted);margin-top:3px">${sub || ''}</div>
   </div>`;
 }
 function crmMiniDark(label, val, color, sub) {
   return `<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:8px 10px">
     <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;font-weight:700">${label}</div>
     <div style="font-size:17px;font-weight:800;color:${color || '#f1f5f9'}">${val}</div>
-    ${sub ? `<div style="font-size:10px;color:#64748b">${sub}</div>` : ''}
+    ${sub ? `<div style="font-size:10px;color:var(--ink-muted)">${sub}</div>` : ''}
   </div>`;
 }
 function crmPanelDark(title, sub, inner) {
   return `<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:14px;margin-top:14px">
-    <div style="font-size:13px;font-weight:700;color:#cbd5e1;margin-bottom:8px">${title}${sub ? ` <span style="font-weight:500;color:#64748b;font-size:11px">${sub}</span>` : ''}</div>
+    <div style="font-size:13px;font-weight:700;color:#cbd5e1;margin-bottom:8px">${title}${sub ? ` <span style="font-weight:500;color:var(--ink-muted);font-size:11px">${sub}</span>` : ''}</div>
     ${inner}
   </div>`;
 }
@@ -1674,7 +1674,7 @@ function produtoEficienciaPanel() {
         <th style="text-align:right;padding:6px 8px">Vendas</th><th style="text-align:right;padding:6px 8px">VGV</th>
         <th style="text-align:right;padding:6px 8px" title="Retorno: comissão (VGV atribuído a mídia paga × 4%) ÷ investido">ROAS</th>
       </tr></thead><tbody>${rows}</tbody></table></div>
-    <div style="font-size:11px;color:#64748b;margin-top:8px">CPQL usa lead qualificado = lead que foi contatado/avançou no funil. ROAS = VGV <b>atribuído a mídia paga</b> × <b>${pct2(OO_COMISSAO_PCT*100)}</b> de comissão ÷ investido no Meta. Investido por produto = soma das contas Meta da marca.</div>`);
+    <div style="font-size:11px;color:var(--ink-muted);margin-top:8px">CPQL usa lead qualificado = lead que foi contatado/avançou no funil. ROAS = VGV <b>atribuído a mídia paga</b> × <b>${pct2(OO_COMISSAO_PCT*100)}</b> de comissão ÷ investido no Meta. Investido por produto = soma das contas Meta da marca.</div>`);
 }
 
 // ─── Ciclo de vendas por formato de criativo (#5 — Lead Ads × CRM) ───────────
@@ -1701,7 +1701,7 @@ function creativeCyclePanel() {
         <th style="text-align:right;padding:6px 8px">VGV</th>
         <th style="text-align:right;padding:6px 8px" title="Tempo médio do lead até a venda">Ciclo médio</th>
       </tr></thead><tbody>${rows}</tbody></table></div>
-    <div style="font-size:11px;color:#64748b;margin-top:8px">Ciclo = dias do lead (entrada no Meta) até o fechamento no RD. Quanto menor o ciclo do vídeo, mais a prova de que o audiovisual gera lead mais maduro.</div>`);
+    <div style="font-size:11px;color:var(--ink-muted);margin-top:8px">Ciclo = dias do lead (entrada no Meta) até o fechamento no RD. Quanto menor o ciclo do vídeo, mais a prova de que o audiovisual gera lead mais maduro.</div>`);
 }
 
 // ─── Rejeição de leads por motivo × produto (ajuste de segmentação) ───────────
@@ -1715,7 +1715,7 @@ function rejeicaoMotivoPanel() {
     const bi = brandInfo(k === 'conquista' ? 'conquista' : k === 'locacao' ? 'locacao' : 'imoveis');
     const maxN = Math.max(...mot.map(x => x.n));
     return `<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:10px 12px">
-      <div style="font-weight:700;font-size:12.5px;color:${bi.cor};margin-bottom:6px">${escapeHtml(c.label)} <span style="color:#64748b;font-weight:400">· ${c.perdas} perdas</span></div>
+      <div style="font-weight:700;font-size:12.5px;color:${bi.cor};margin-bottom:6px">${escapeHtml(c.label)} <span style="color:var(--ink-muted);font-weight:400">· ${c.perdas} perdas</span></div>
       ${mot.map(x => `<div style="margin-bottom:5px">
         <div class="flex items-center" style="justify-content:space-between;font-size:11.5px;color:#cbd5e1"><span>${escapeHtml(x.motivo)}</span><b>${x.n}${x.pct?` · ${pct2(x.pct)}`:''}</b></div>
         <div style="height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;margin-top:2px"><div style="height:100%;width:${Math.max(4, x.n/maxN*100)}%;background:#fb7185"></div></div>
@@ -1734,7 +1734,7 @@ function roadmapMini() {
         <div>📋 <b>Drop-off de formulário (Lead Ads)</b> — exige a API de Lead Forms do Meta (aberturas × envios); não vem no insights padrão.</div>
         <div>🎬 <b>Ciclo por formato de criativo</b> (vídeo×carrossel×imagem) — precisa capturar o <code style="font-size:10px">ad_id</code>/criativo no lead do RD pra linkar lead→anúncio.</div>
         <div>🎯 <b>Conversão por roteamento inteligente</b> — depende do sistema de distribuição de leads por patente (War Arena); quando existir, cruzamos roteado vs aleatório.</div>
-        <div style="color:#64748b">✓ Já no ar: CPQL/CPAR/ROAS por produto · rejeição por motivo × produto · breakdowns Meta · atribuição por canal.</div>
+        <div style="color:var(--ink-muted)">✓ Já no ar: CPQL/CPAR/ROAS por produto · rejeição por motivo × produto · breakdowns Meta · atribuição por canal.</div>
       </div></div>`;
 }
 
@@ -1763,12 +1763,12 @@ function campaignRow(c) {
       <td style="padding:5px 8px"><span style="background:${statusColor};color:#fff;padding:2px 8px;border-radius:var(--r-full);font-size:10px;font-weight:700">${statusLbl}</span></td>
       <td style="padding:5px 8px;font-size:11px" class="muted">${escapeHtml(c.account||'')}</td>
       <td style="padding:5px 8px;font-weight:600;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(c.name||'')}">${escapeHtml(c.name||'—')}</td>
-      <td style="text-align:right;padding:5px 8px;color:#dc2626">R$ ${money(c.spend)}</td>
+      <td style="text-align:right;padding:5px 8px;color:var(--err)">R$ ${money(c.spend)}</td>
       <td style="text-align:right;padding:5px 8px">${fmtNum(c.impressions)}</td>
-      <td style="text-align:right;padding:5px 8px${ctrLo?';color:#ca8a04;font-weight:700':''}">${c.ctr!=null?pct2(c.ctr):'—'}</td>
-      <td style="text-align:right;padding:5px 8px${freqHi?';color:#d97706;font-weight:700':''}">${c.frequency?c.frequency.toFixed(2):'—'}</td>
-      <td style="text-align:right;padding:5px 8px;color:#16a34a">${fmtNum(c.results)}</td>
-      <td style="text-align:right;padding:5px 8px;font-weight:700${cplHi?';color:#ea580c':''}">${c.cpr?'R$ '+money(c.cpr):'—'}</td>
+      <td style="text-align:right;padding:5px 8px${ctrLo?';color:var(--amarelo-ouro);font-weight:700':''}">${c.ctr!=null?pct2(c.ctr):'—'}</td>
+      <td style="text-align:right;padding:5px 8px${freqHi?';color:var(--warn);font-weight:700':''}">${c.frequency?c.frequency.toFixed(2):'—'}</td>
+      <td style="text-align:right;padding:5px 8px;color:var(--ok)">${fmtNum(c.results)}</td>
+      <td style="text-align:right;padding:5px 8px;font-weight:700${cplHi?';color:var(--laranja)':''}">${c.cpr?'R$ '+money(c.cpr):'—'}</td>
       <td style="text-align:center;padding:5px 8px">${actBtn}</td>
     </tr>`;
 }
@@ -1887,7 +1887,7 @@ function rankDot(r) {
   const c = r === 'ABOVE_AVERAGE' ? '#16a34a' : r === 'AVERAGE' ? '#ca8a04' : /BELOW_AVERAGE/.test(r || '') ? '#dc2626' : '#cbd5e1';
   return `<span title="${escapeHtml(rankLabel(r))}" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c};margin:0 2px"></span>`;
 }
-function colorVal(level) { return level === 2 ? 'color:#16a34a;font-weight:700' : level === 1 ? 'color:#d97706;font-weight:700' : 'color:#dc2626;font-weight:700'; }
+function colorVal(level) { return level === 2 ? 'color:var(--ok);font-weight:700' : level === 1 ? 'color:var(--warn);font-weight:700' : 'color:var(--err);font-weight:700'; }
 function kpi(label, big, sub, color) {
   return `<div style="flex:1;min-width:170px;background:var(--bg-3);border-radius:var(--r-md);padding:14px 16px;border-left:4px solid ${color}">
     <div class="tiny muted" style="letter-spacing:1px;text-transform:uppercase;font-weight:700">${label}</div>

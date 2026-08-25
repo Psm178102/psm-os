@@ -125,7 +125,7 @@ function linkHTML(it, cor) {
     <div class="flex gap-1" style="flex-shrink:0">
       ${it.link ? `<a class="btn btn-primary btn-sm" href="${esc(it.link)}" target="_blank" rel="noopener">🔗 Abrir</a>` : '<span class="tiny muted">sem link</span>'}
       ${_canManage ? `<button class="btn btn-ghost btn-sm" data-edit="${esc(it.id)}">✏️</button>
-        <button class="btn btn-ghost btn-sm" data-del="${esc(it.id)}" style="color:#dc2626">🗑</button>` : ''}
+        <button class="btn btn-ghost btn-sm" data-del="${esc(it.id)}" style="color:var(--err)">🗑</button>` : ''}
     </div>
   </div>`;
 }

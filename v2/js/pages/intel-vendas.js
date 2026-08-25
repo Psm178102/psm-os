@@ -118,7 +118,7 @@ function forecastPanel(fc) {
     <div style="font-weight:800;font-size:13px;margin-bottom:10px">🔮 Projeção do mês</div>
     <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end">
       <div><div class="tiny muted">Realizado (dia ${fc.dia}/${fc.dias_mes})</div><div style="font-size:20px;font-weight:900">R$ ${moneyShort(fc.realizado_mes_vgv)}</div><div class="tiny muted">${fc.realizado_mes_vendas || 0} venda(s)</div></div>
-      <div style="border-left:1px solid var(--border);padding-left:20px"><div class="tiny muted">💎 Pipeline ponderado <span title="Soma de (probabilidade × valor) de todos os abertos">ⓘ</span></div><div style="font-size:26px;font-weight:900;color:#7c3aed">R$ ${moneyShort(fc.pipeline_ponderado_vgv)}</div><div class="tiny muted">${fc.pipeline_ponderado_vendas || 0} vendas esperadas · valor esperado do funil</div></div>
+      <div style="border-left:1px solid var(--border);padding-left:20px"><div class="tiny muted">💎 Pipeline ponderado <span title="Soma de (probabilidade × valor) de todos os abertos">ⓘ</span></div><div style="font-size:26px;font-weight:900;color:var(--roxo)">R$ ${moneyShort(fc.pipeline_ponderado_vgv)}</div><div class="tiny muted">${fc.pipeline_ponderado_vendas || 0} vendas esperadas · valor esperado do funil</div></div>
       <div style="border-left:1px solid var(--border);padding-left:20px"><div class="tiny muted">Meta do mês</div><div style="font-size:20px;font-weight:900">R$ ${moneyShort(fc.meta_vgv_mes)}</div></div>
       <div style="text-align:center"><div class="tiny muted">Run-rate vs meta</div><div style="font-size:24px;font-weight:900;color:${col}">${pctMeta != null ? pct2(pctMeta) : '—'}</div></div>
     </div>
@@ -209,13 +209,13 @@ function corretorCard(c) {
     <div class="flex items-center gap-2" style="margin-bottom:8px">
       <div style="width:28px;height:28px;border-radius:50%;background:${c.color || '#7c3aed'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px">${escapeHtml(c.ini || (c.name || '?').slice(0, 2).toUpperCase())}</div>
       <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(c.name || '—')}</div><div class="tiny muted">${escapeHtml(c.team || '')} · ${c.open_count} abertos</div></div>
-      <div style="text-align:right"><div style="font-weight:900;font-size:15px;color:#7c3aed">R$ ${moneyShort(c.pipeline_ponderado_vgv)}</div><div class="tiny muted">pipeline pond.</div></div>
+      <div style="text-align:right"><div style="font-weight:900;font-size:15px;color:var(--roxo)">R$ ${moneyShort(c.pipeline_ponderado_vgv)}</div><div class="tiny muted">pipeline pond.</div></div>
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
       <span style="background:${TEMP.quente.c}1a;color:${TEMP.quente.c};font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px">${c.quentes} 🟢</span>
       <span style="background:${TEMP.morno.c}1a;color:${TEMP.morno.c};font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px">${c.mornos} 🟡</span>
-      ${c.sem_contato_48h > 0 ? `<span style="background:#dc26261a;color:#dc2626;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px">${c.sem_contato_48h} sem 1º contato</span>` : ''}
-      ${c.parados_14d > 0 ? `<span style="background:#d977061a;color:#d97706;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px">${c.parados_14d} parados +14d</span>` : ''}
+      ${c.sem_contato_48h > 0 ? `<span style="background:#dc26261a;color:var(--err);font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px">${c.sem_contato_48h} sem 1º contato</span>` : ''}
+      ${c.parados_14d > 0 ? `<span style="background:#d977061a;color:var(--warn);font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px">${c.parados_14d} parados +14d</span>` : ''}
     </div>
     ${(c.top_leads || []).slice(0, 3).map(l => `<div class="flex items-center gap-2" style="font-size:11.5px;padding:3px 0;border-top:1px solid var(--border)">
       ${scoreBadge(l.score, l.temp)}<span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(l.acao)}</span><span class="tiny muted">R$ ${moneyShort(l.amount)}</span></div>`).join('')}
@@ -261,7 +261,7 @@ ${lossTxt || '(sem dados)'}`;
     const j = await api.request('/api/v3/ia/analyze', { method: 'POST', body: { prompt, max_tokens: 3500, dossie: true } });   // cérebro novo (Sonnet 5 + dossiê) v84.4
     if (j.ok && j.text) {
       box.innerHTML = `<div style="background:linear-gradient(180deg,rgba(124,58,237,.06),transparent);border:1px solid rgba(124,58,237,.25);border-radius:var(--r-md);padding:14px 16px">
-        <div style="font-weight:800;font-size:13px;margin-bottom:8px;color:#7c3aed">🧠 Plano de ataque <span class="tiny muted" style="font-weight:400">· ${escapeHtml(j.model_used || 'IA')}</span></div>
+        <div style="font-weight:800;font-size:13px;margin-bottom:8px;color:var(--roxo)">🧠 Plano de ataque <span class="tiny muted" style="font-weight:400">· ${escapeHtml(j.model_used || 'IA')}</span></div>
         <div style="font-size:13px;line-height:1.55">${mdLite(j.text)}</div></div>`;
     } else {
       box.innerHTML = `<div class="alert alert-warn">IA indisponível: ${escapeHtml(j.error || 'erro')}</div>`;

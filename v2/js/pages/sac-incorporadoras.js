@@ -127,7 +127,7 @@ function rowHTML(it) {
       ${tel ? `<a class="btn btn-ghost btn-sm" href="${esc(tel)}">📞 Ligar</a>` : ''}
       ${it.email ? `<a class="btn btn-ghost btn-sm" href="mailto:${esc(it.email)}">✉️</a>` : ''}
       ${_canManage ? `<button class="btn btn-ghost btn-sm" data-edit="${esc(it.id)}">✏️</button>
-        <button class="btn btn-ghost btn-sm" data-del="${esc(it.id)}" style="color:#dc2626">🗑</button>` : ''}
+        <button class="btn btn-ghost btn-sm" data-del="${esc(it.id)}" style="color:var(--err)">🗑</button>` : ''}
     </div>
   </div>`;
 }
