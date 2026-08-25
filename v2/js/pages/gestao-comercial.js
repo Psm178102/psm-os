@@ -299,7 +299,7 @@ function cockpit() {
       <div class="gc-bar"><i style="width:${p}%"></i></div>
       <div class="row"><span>projeção ritmo</span><b class="acc">${x.proj_ritmo != null ? fN(x.proj_ritmo) : '—'}</b></div>
       <div class="row"><span>VGV</span><b>R$ ${kR$(x.real_vgv)}</b></div>
-      <div class="row"><span>propostas / pastas abertas</span><b>${fN(pa.propostas || 0)} / ${fN(pa.pastas || 0)}</b></div>
+      <div class="row"><span>pastas/propostas abertas</span><b>${fN(pa.pastas || 0)}</b></div>
     </div>`; }).join('')}</div>` : '';
   // alertas como lista de AÇÕES
   const its = (v.alertas || {}).itens || [];
@@ -494,19 +494,17 @@ function tabMetricas() {
       tile('CPQL · por qualificado', R$(c.custo_qualif), N(c.qualif) + ' qualificações no período — inclui leads antigos reativados (por isso pode passar de leads novos)'),
       tile('CPAG · por agendamento', R$(c.custo_agend), N(c.agend) + ' agendamentos', a('custo_agend')),
       tile('CPV · por visita', R$(c.custo_visita), N(c.visita) + ' visitas', a('custo_visita')),
-      tile('CPP · por proposta', R$(c.custo_proposta), N(c.proposta) + ' propostas'),
-      tile('CPP · por pasta', R$(c.custo_pasta), `${N(c.pasta)} pastas${c.pasta ? ` · ${fN(Math.round((c.vendas || 0) / c.pasta * 100))}% viraram venda` : ''}`, a('custo_pasta')),
+      tile('CPP · por pasta/proposta', R$(c.custo_pasta), `${N(c.pasta)} pastas${c.pasta ? ` · ${fN(Math.round((c.vendas || 0) / c.pasta * 100))}% viraram venda` : ''}`, a('custo_pasta')),
       tile('CPA · por aquisição', R$(c.cpa), `${N(c.vendas)} venda(s) — spend ÷ TODAS`),
       tile('CAC mídia', R$(c.cac_midia), N(c.vendas_pagas) + ' venda(s) de tráfego', a('cac_midia')),
       tile('CAC completo', R$(c.cac_completo), '+ fixo da linha + premiação'),
-    ].join('')) + (c.pasta && c.pasta === (c.vendas || 0) ? `<div class="tiny muted" style="margin-top:4px">ℹ️ neste período <b>todas as ${fN(c.pasta)} pasta(s) viraram venda</b> — por isso o custo por pasta ficou igual ao custo por venda. Amplie o período (ex.: 90 dias) pra ver pastas que ainda não fecharam.</div>` : '');
+    ].join('')) + (c.pasta && c.pasta === (c.vendas || 0) ? `<div class="tiny muted" style="margin-top:4px">ℹ️ neste período <b>todas as ${fN(c.pasta)} pasta(s) abertas viraram venda</b> — CPP e CPA coincidem por isso, não por erro de conta. Amplie o período pra ver pastas ainda em análise.</div>` : '');
     const razoes = grupo(`🔢 Quantos pra 1 venda — safra da janela (${N(n.venda)} venda${n.venda === 1 ? '' : 's'})`, [
       tile('Prospecções → 1 venda', N(pv.prospeccoes), N(n.leads) + ' leads'),
       tile('Qualificações → 1 venda', N(pv.qualificacoes), N(n.qualif) + ' qualificados'),
       tile('Agendamentos → 1 venda', N(pv.agendamentos), N(n.agend) + ' agendamentos'),
       tile('Visitas → 1 venda', N(pv.visitas), N(n.visita) + ' visitas'),
-      tile('Propostas → 1 venda', N(pv.propostas), N(n.proposta) + ' propostas'),
-      tile('Pastas → 1 venda', N(pv.pastas), N(n.pasta) + ' pastas'),
+      tile('Pastas → 1 venda', N(pv.pastas), N(n.pasta) + ' pastas/propostas'),
       tile('Dias p/ nova venda', pv.dias_por_venda != null ? fN(pv.dias_por_venda) + 'd' : '—', 'janela ÷ vendas'),
       tile('Dias desde a última venda', pv.dias_desde_ultima_venda != null ? fN(pv.dias_desde_ultima_venda) + 'd' : '—', 'histórico completo', pv.dias_desde_ultima_venda > 45 ? 'err' : ''),
     ].join(''));
@@ -520,8 +518,7 @@ function tabMetricas() {
       tile('Lead → qualificação', T(tp.lead_qualificacao)),
       tile('Qualificação → agendamento', T(tp.qualificacao_agendamento)),
       tile('Agendamento → visita', T(tp.agendamento_visita)),
-      tile('Visita → proposta', T(tp.visita_proposta)),
-      tile('Proposta → pasta', T(tp.proposta_pasta)),
+      tile('Visita → pasta/proposta', T(tp.visita_pasta)),
       tile('Pasta → resultado (análise)', T(tp.pasta_resultado), 'até virar venda ou perda'),
     ].join(''));
     return pan(`${TEAM_LBL[tk] || tk}`, custos + razoes + pastas + tempos);
@@ -618,7 +615,6 @@ function tabCampanhas() {
       <td style="text-align:right;font-size:12px">${fN(x.leads)}</td>
       <td style="text-align:right;font-size:12px">${fN(x.agend)}</td>
       <td style="text-align:right;font-size:12px">${fN(x.visita)}</td>
-      <td style="text-align:right;font-size:12px">${fN(x.proposta)}</td>
       <td style="text-align:right;font-size:12px">${fN(x.pasta)}</td>
       <td style="text-align:right;font-weight:900;font-size:13px">${fN(x.venda)}</td>
       <td style="text-align:right;font-size:12px">R$ ${kR$(x.vgv)}</td>
@@ -630,7 +626,7 @@ function tabCampanhas() {
     </tr>`;
   const ativas = its.filter(x => x.ativa);
   const inativas = its.filter(x => !x.ativa);
-  const cab = `<thead><tr style="text-align:right"><th style="text-align:left">Campanha</th><th>Leads</th><th>Agend.</th><th>Visitas</th><th>Prop.</th><th>Pastas</th><th>Vendas</th><th>VGV</th><th>Receita≈</th><th>Spend</th><th>CPL</th><th>ROAS</th><th style="text-align:left">Veredito</th></tr></thead>`;
+  const cab = `<thead><tr style="text-align:right"><th style="text-align:left">Campanha</th><th>Leads</th><th>Agend.</th><th>Visitas</th><th>Pastas</th><th>Vendas</th><th>VGV</th><th>Receita≈</th><th>Spend</th><th>CPL</th><th>ROAS</th><th style="text-align:left">Veredito</th></tr></thead>`;
   const SPENDS = [['this_month', 'Este mês'], ['last_7d', 'Últimos 7d'], ['last_14d', 'Últimos 14d'], ['last_30d', 'Últimos 30d'], ['last_month', 'Mês passado']];
   const spendSel = `<div class="flex items-center gap-2" style="margin-bottom:8px">
     <span class="tiny" style="font-weight:800">🎚 Período do spend/CPL (Meta):</span>
@@ -641,7 +637,7 @@ function tabCampanhas() {
   </div>`;
   return spendSel + pan('🏅 Pódio de campanhas — pelo FUNDO do funil, não pelo CPL', `
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px">
-        ${podio('visita', 'MAIS VISITAS', '🚶')}${podio('pasta', 'MAIS PASTAS', '📁')}${podio('proposta', 'MAIS PROPOSTAS', '📄')}${podio('venda', 'MAIS VENDAS', '💰')}
+        ${podio('visita', 'MAIS VISITAS', '🚶')}${podio('pasta', 'MAIS PASTAS', '📁')}${podio('venda', 'MAIS VENDAS', '💰')}
       </div>`, 'podio_campanhas')
     + pan(`🟢 Campanhas ATIVAS na Meta agora (${ativas.length})`, ativas.length ? `
       <div style="overflow-x:auto"><table>${cab}

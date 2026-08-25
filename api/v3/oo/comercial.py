@@ -52,6 +52,13 @@ MARCO_QUALIF = 1   # legado: marco de "contato" (entrada). NÃO use pra qualific
 # v86.81 (achado do Paulo 25/ago: "CPL 12 e CPQL 12 — todos que entraram são
 # qualificados então?"): qualificação de verdade é a LANE CTT OK/QUALIFICAÇÃO.
 _QUALIF_RE = re.compile(r"qualific|ctt\s*ok|contato\s*ok", re.I)
+# 🗂 v86.84: PASTA e PROPOSTA são a MESMA etapa na PSM — a lane de
+# "APROVACAO/PROPOSTA" (Conquista) / "Proposta/Aprovacao de credito" (MAP) é o
+# que a casa chama de PASTA (dossiê de crédito). Não existe lane de pasta
+# separada em nenhum dos 4 funis (PASTA LANCAMENTO é lane-fonte de lançamento,
+# marco 0). Antes o código contava "pasta" em marco 5, que — pela régua velha —
+# era a própria lane de VENDA: pasta ≈ vendas e CPP == CPA. Uma constante só.
+MARCO_PASTA = 4
 MIN_LEADS_RANK = 30   # amostra mínima pra fonte entrar no pódio
 MIN_VENDAS_RANK = 3
 
@@ -60,7 +67,7 @@ MIN_VENDAS_RANK = 3
 CANAL_MERGE = {"nao_atribuido": "trafego_imob", "outro": "trafego_imob", "meta": "trafego_imob"}
 CANAL_LBL = {**CHANNEL_LABEL, "trafego_imob": "Tráfego pago Imob"}
 CANAIS_PAGOS = ("trafego_imob", "google")   # v86.38: régua única de "venda de origem paga"
-CACHE_VER = "gc28"   # v86.39: bump aqui invalida página E cron juntos
+CACHE_VER = "gc29"   # v86.39: bump aqui invalida página E cron juntos
 
 FUNIS_RD = {"conquista": "funil conquista", "map": "funil map",
             "terceiros": "funil terceiros", "locacao": "funil de locacao"}
@@ -210,12 +217,22 @@ def mapa_marcos(sb):
         if len(stages) < 2:
             continue
         chain, cauda = _dividir_funil(stages)
-        # nó de ganho sintético só pra régua monotônica fechar (descartado depois)
+        # v86.84 (achado do Paulo 25/ago: "teve 17 pastas, como o custo por pasta
+        # é igual ao CPA?"). _marcos_monotonicos fecha SEMPRE com out[-1]=6, e o
+        # min(5,·) daqui rebaixava esse 6 pra 5. Quando o funil TEM lane de venda
+        # (CONQUISTA "VENDA", TERCEIROS "CONTRATO/VENDA"), o 6 caía JUSTAMENTE
+        # nela → a lane de venda virava marco 5 = "pasta". Ou seja: "pasta" não
+        # era pasta nenhuma, era a própria venda — por isso pasta ≈ vendas e
+        # CPP == CPA. Agora a lane de venda fica FORA da régua (ganho é o win do
+        # deal, nunca lane) e herda o marco do corpo do funil.
         tem_venda = bool(_VENDA_RE.search(chain[-1][1] or ""))
-        base = chain + ([] if tem_venda else [(chain[-1][0] + 1, "💰 Ganho (win)")])
-        marcos = _marcos_monotonicos(base)
-        for i, (pos, _nm) in enumerate(chain):
+        corpo = chain[:-1] if (tem_venda and len(chain) >= 2) else chain
+        base = corpo + [(corpo[-1][0] + 1, "💰 Ganho (win)")]
+        marcos = _marcos_monotonicos(base)   # o 6 cai no sintético, não numa lane real
+        for i, (pos, _nm) in enumerate(corpo):
             marco_pos[(str(pid), pos)] = min(5, marcos[i])
+        if corpo is not chain:               # lane de venda: herda o topo do corpo
+            marco_pos[(str(pid), chain[-1][0])] = min(5, marcos[len(corpo) - 1])
         for pos, _nm in cauda:                       # lanes de base = entrada
             marco_pos[(str(pid), pos)] = 0
     for sid, (pid, pos) in pos_by_id.items():
@@ -504,7 +521,7 @@ class handler(BaseHTTPRequestHandler):
                 c["leads"] += 1
                 if e["marco"] >= 2: c["agend"] += 1
                 if e["marco"] >= 3: c["visita"] += 1
-                if e["marco"] >= 5: c["pasta"] += 1
+                if e["marco"] >= MARCO_PASTA: c["pasta"] += 1
                 if e["win"]:
                     c["venda"] += 1
                     c["vgv"] += e["vgv"]
@@ -544,7 +561,7 @@ class handler(BaseHTTPRequestHandler):
             if e.get("t_qualif"): c["atend"] += 1   # v86.81: qualificação real, não entrada
             if e["marco"] >= 2: c["agend"] += 1
             if e["marco"] >= 3: c["visita"] += 1
-            if e["marco"] >= 5: c["pasta"] += 1
+            if e["marco"] >= MARCO_PASTA: c["pasta"] += 1
             if e["win"]:
                 c["venda"] += 1
                 c["vgv"] += e["vgv"]
@@ -600,8 +617,8 @@ class handler(BaseHTTPRequestHandler):
             # enquanto os corretores logo abaixo mostravam o número certo.
             agg = {"leads": len(pool), "atend": sum(1 for e in pool if e.get("t_qualif")),
                    "agend": sum(1 for e in pool if e["marco"] >= 2), "visita": sum(1 for e in pool if e["marco"] >= 3),
-                   "proposta": sum(1 for e in pool if e["marco"] >= 4),
-                   "pasta": sum(1 for e in pool if e["marco"] >= 5), "venda": sum(1 for e in pool if e["win"]),
+                   "proposta": sum(1 for e in pool if e["marco"] >= MARCO_PASTA),
+                   "pasta": sum(1 for e in pool if e["marco"] >= MARCO_PASTA), "venda": sum(1 for e in pool if e["win"]),
                    "vgv": round(sum(e["vgv"] for e in pool if e["win"]), 2)}
             equipes_prod[tk] = {**agg, **razoes(agg),
                                 "contato_h_mediana": _mediana([_h_contato(e) for e in pool])}
@@ -702,9 +719,42 @@ class handler(BaseHTTPRequestHandler):
         elif _ndias <= 32 and until_d >= hoje - timedelta(days=1):
             c_preset, c_ini, c_fim = "last_30d", hoje - timedelta(days=29), hoje
         else:
-            c_preset, c_ini, c_fim = "this_month", mes_ini, hoje
-        _ma = read_meta_accounts(sb, preset=c_preset) or read_meta_accounts(sb)
+            # v86.84 (Paulo 25/ago: "teve 17 pastas, como o custo por pasta é igual ao
+            # CPA?"). O problema era de JANELA, não de conta: acima de 32 dias o custo
+            # caía no mês corrente enquanto as contagens ao lado seguiam o período todo
+            # — dois denominadores diferentes lado a lado na mesma tela. Agora o custo
+            # SEGUE O PERÍODO somando o spend mensal já fotografado por equipe
+            # (gc_spend_mensal, snapshot horário do cron), com rateio dos meses parciais.
+            c_preset, c_ini, c_fim = None, since_d, until_d
+        _ma = read_meta_accounts(sb, preset=c_preset or "this_month") or read_meta_accounts(sb)
         c_preset_usado = (_ma or {}).get("preset_used") or c_preset
+
+        # spend por equipe quando a janela é longa (soma dos meses cobertos)
+        spend_janela_team, spend_janela_ok = {}, False
+        if c_preset is None:
+            snap_sp = _kv_read(sb, "gc_spend_mensal")[0] or {}
+            meses_frac = []
+            _y, _m = since_d.year, since_d.month
+            while (_y, _m) <= (until_d.year, until_d.month):
+                _dm = _calc.monthrange(_y, _m)[1]
+                _ini_m = max(since_d, date(_y, _m, 1))
+                _fim_m = min(until_d, date(_y, _m, _dm))
+                meses_frac.append((_y, _m, ((_fim_m - _ini_m).days + 1) / _dm))
+                _m = 1 if _m == 12 else _m + 1
+                if _m == 1:
+                    _y += 1
+            for _tk, _l in TEAMS:
+                tot_sp, achou = 0.0, False
+                for (_y2, _m2, _fr) in meses_frac:
+                    v = (snap_sp.get("%04d-%02d" % (_y2, _m2)) or {}).get(_tk)
+                    if v is not None:
+                        tot_sp += _num(v) * _fr
+                        achou = True
+                spend_janela_team[_tk] = round(tot_sp, 2)
+                spend_janela_ok = spend_janela_ok or achou
+            if not spend_janela_ok:   # sem snapshot → volta pro mês corrente, avisando
+                c_preset, c_ini, c_fim = "this_month", mes_ini, hoje
+                avisos.append("sem snapshot mensal de spend — custo do funil ficou no mês corrente")
         _ovr = read_team_account_override(sb)
         orcado = _kv_read(sb, "viab_custos_orcado")[0] or {}
         itens_orc = (orcado.get(str(hoje.year)) or {}).get("itens") or []
@@ -730,7 +780,8 @@ class handler(BaseHTTPRequestHandler):
         mes_pool = [e for e in eds if e["created"] and _in(e["created"])]
         for tk, lbl in TEAMS:
             acc = match_team_account((_ma or {}).get("accounts") or [], tk, _ovr) if _ma else None
-            spend = _num(acc.get("spend")) if acc else 0.0
+            spend = (spend_janela_team.get(tk, 0.0) if c_preset is None
+                     else (_num(acc.get("spend")) if acc else 0.0))
             pool = [e for e in mes_pool if e["team"] == tk]
             leads = len(pool)
             wins_tk = [e for e in eds if e["team"] == tk and e["win"] and e["closed"] and _in(e["closed"])]
@@ -752,8 +803,8 @@ class handler(BaseHTTPRequestHandler):
             qualif   = sum(1 for e in _eq if e.get("t_qualif") and _in(e["t_qualif"]))
             agend    = sum(1 for e in _eq if _reach(e) >= 2)
             visita   = sum(1 for e in _eq if _reach(e) >= 3)
-            proposta = sum(1 for e in _eq if _reach(e) >= 4)
-            pasta    = sum(1 for e in _eq if _reach(e) >= 5)
+            proposta = sum(1 for e in _eq if _reach(e) >= MARCO_PASTA)
+            pasta    = proposta   # mesma etapa: a pasta É a lane de aprovação/proposta
             vgv = sum(e["vgv"] for e in wins_tk)
             # 🎯 v86.34 (achado do Paulo 17/ago): CAC MÍDIA divide o spend SÓ pelas
             # vendas de origem PAGA (tráfego/google) — venda de indicação/orgânico
@@ -892,9 +943,8 @@ class handler(BaseHTTPRequestHandler):
                 m = marco_sid.get(str(d.get("stage_id") or ""))
                 if m == 3:
                     vis_ab += 1
-                elif m == 4:
+                elif m >= MARCO_PASTA:      # v86.84: pasta E proposta são a mesma lane
                     prop_ab += 1
-                elif m == 5:
                     pasta_ab += 1
             visao.append({"team": tk, "label": lbl, "real_vendas": rv, "real_vgv": rvgv,
                           "real_ticket": round(rvgv / rv, 2) if rv else None,
@@ -965,7 +1015,7 @@ class handler(BaseHTTPRequestHandler):
 
         # ── F) TEMPOS entre marcos (mediana de dias, por equipe) ──
         tempos = {}
-        PASSOS = [(0, 2, "lead→agendamento"), (2, 3, "agendamento→visita"), (3, 5, "visita→pasta")]
+        PASSOS = [(0, 2, "lead→agendamento"), (2, 3, "agendamento→visita"), (3, MARCO_PASTA, "visita→pasta")]
         for tk, _l in TEAMS:
             linhas = []
             for a, b, nome in PASSOS:
@@ -980,9 +1030,10 @@ class handler(BaseHTTPRequestHandler):
                 hs.sort()
                 linhas.append({"passo": nome, "mediana_h": round(hs[len(hs) // 2], 2) if hs else None,
                                "mediana_dias": round(hs[len(hs) // 2] / 24.0, 1) if hs else None, "n": len(hs)})
-            # pasta→venda: da 1ª vez no marco 5 até o closed do win
-            hs = sorted((e["closed"] - e["t_marco"][5]).total_seconds() / 3600.0 for e in na_janela
-                        if e["team"] == tk and e["win"] and e["closed"] and e["t_marco"].get(5) and e["closed"] >= e["t_marco"][5])
+            # pasta→venda: da 1ª vez na lane de pasta/proposta até o closed do win
+            hs = sorted((e["closed"] - e["t_marco"][MARCO_PASTA]).total_seconds() / 3600.0 for e in na_janela
+                        if e["team"] == tk and e["win"] and e["closed"] and e["t_marco"].get(MARCO_PASTA)
+                        and e["closed"] >= e["t_marco"][MARCO_PASTA])
             linhas.append({"passo": "pasta→venda", "mediana_h": round(hs[len(hs) // 2], 2) if hs else None,
                            "mediana_dias": round(hs[len(hs) // 2] / 24.0, 1) if hs else None, "n": len(hs)})
             tempos[tk] = linhas
@@ -997,13 +1048,14 @@ class handler(BaseHTTPRequestHandler):
             pool = [e for e in na_janela if e["team"] == tk]
             n = {"leads": len(pool), "qualif": sum(1 for e in pool if e.get("t_qualif")),
                  "agend": sum(1 for e in pool if e["marco"] >= 2), "visita": sum(1 for e in pool if e["marco"] >= 3),
-                 "proposta": sum(1 for e in pool if e["marco"] >= 4), "pasta": sum(1 for e in pool if e["marco"] >= 5),
+                 "proposta": sum(1 for e in pool if e["marco"] >= MARCO_PASTA), "pasta": sum(1 for e in pool if e["marco"] >= MARCO_PASTA),
                  "venda": sum(1 for e in pool if e["win"])}
             v = n["venda"]
             rz = lambda x: round(x / v, 1) if v else None
             wins_all = [e["closed"] for e in eds if e["team"] == tk and e["win"] and e["closed"]]
             # pastas por FLUXO na janela
-            pf = [e for e in eds if e["team"] == tk and e["t_marco"].get(5) and since_dt <= e["t_marco"][5] <= until_dt]
+            pf = [e for e in eds if e["team"] == tk and e["t_marco"].get(MARCO_PASTA)
+                  and since_dt <= e["t_marco"][MARCO_PASTA] <= until_dt]
             p_venc = [e for e in pf if e["win"]]
             p_perd = [e for e in pf if e["lost"]]
             p_repr = [e for e in p_perd if e["motivo"] and RX_REPROV.search(e["motivo"])]
@@ -1039,8 +1091,8 @@ class handler(BaseHTTPRequestHandler):
                            "pct_perdidas": pc(len(p_perd), len(pf)),
                            "motivos": sorted(motivos.items(), key=lambda x: -x[1])[:6]},
                 "tempos": {"lead_qualificacao": _tempo(0, 1), "qualificacao_agendamento": _tempo(1, 2),
-                           "agendamento_visita": _tempo(2, 3), "visita_proposta": _tempo(3, 4),
-                           "proposta_pasta": _tempo(4, 5), "pasta_resultado": _tempo(5, None, fim=True)},
+                           "agendamento_visita": _tempo(2, 3), "visita_pasta": _tempo(3, MARCO_PASTA),
+                           "pasta_resultado": _tempo(MARCO_PASTA, None, fim=True)},
             }
 
         # ── G) HISTÓRICO DO ANO (fetch leve, sem rd_raw): mês a mês, real ──
@@ -1520,8 +1572,8 @@ class handler(BaseHTTPRequestHandler):
             c["teams"].add(e["team"])
             if e["marco"] >= 2: c["agend"] += 1
             if e["marco"] >= 3: c["visita"] += 1
-            if e["marco"] >= 4: c["proposta"] += 1
-            if e["marco"] >= 5: c["pasta"] += 1
+            if e["marco"] >= MARCO_PASTA: c["proposta"] += 1
+            if e["marco"] >= MARCO_PASTA: c["pasta"] += 1
             if e["win"]:
                 c["venda"] += 1
                 c["vgv"] += e["vgv"]
@@ -1566,7 +1618,7 @@ class handler(BaseHTTPRequestHandler):
                 "janela_eh_mes": janela_eh_mes, "meses_janela": ["%04d-%02d" % (y, m) for y, m in meses_janela],
                 "historico": hist, "funil_rd": funil_rd, "campanhas": campanhas,
                 "forecast": forecast, "resposta": resposta, "metricas": metricas,
-                "custos": {"mes": ym, "janela_custo": {"ini": c_ini.isoformat(), "fim": c_fim.isoformat(), "preset": c_preset_usado, "segue_periodo": c_preset != "this_month" or since_d == mes_ini}, "equipes": custos, "payback_midia": payback,
+                "custos": {"mes": ym, "janela_custo": {"ini": c_ini.isoformat(), "fim": c_fim.isoformat(), "preset": c_preset_usado or "soma mensal", "segue_periodo": True, "modo": ("soma_mensal" if c_preset is None else "preset_meta")}, "equipes": custos, "payback_midia": payback,
                            "nota": "spend Meta this_month por conta da equipe ÷ atividade real do mês; CAC mídia divide SÓ pelas vendas de tráfego pago; CAC completo soma o custo fixo orçado da linha e divide por todas as vendas"},
                 "produtividade": {"corretores": corretores, "equipes": equipes_prod},
                 "esteira": {"corretores": esteira_corr, "equipes": esteira_eq,
