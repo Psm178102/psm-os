@@ -706,18 +706,22 @@ class handler(BaseHTTPRequestHandler):
         # livre além de 30 dias, então o custo vem da SOMA do snapshot mensal
         # por equipe (v86.84) — e não mais de um recorte do mês corrente.
         import calendar as _calc
-        _ndias = (until_d - since_d).days + 1
         _prev_ini = (mes_ini - timedelta(days=1)).replace(day=1)
         _prev_fim = mes_ini - timedelta(days=1)
         if since_d == mes_ini and until_d >= hoje:
             c_preset, c_ini, c_fim = "this_month", mes_ini, hoje
         elif since_d == _prev_ini and until_d == _prev_fim:
             c_preset, c_ini, c_fim = "last_month", _prev_ini, _prev_fim
-        elif _ndias <= 8 and until_d >= hoje - timedelta(days=1):
+        # v86.84: o casamento com o preset da Meta passa a ser EXATO. Antes bastava
+        # "≤ 8 dias e termina perto de hoje", então um recorte de 25 dias virava
+        # spend de 30 dias: o dinheiro vinha de uma janela e as contagens de outra
+        # (a mesma doença do CPP == CPA). Quem não casa exato vai pra soma mensal,
+        # que segue o período escolhido.
+        elif since_d == hoje - timedelta(days=6) and until_d >= hoje - timedelta(days=1):
             c_preset, c_ini, c_fim = "last_7d", hoje - timedelta(days=6), hoje
-        elif _ndias <= 16 and until_d >= hoje - timedelta(days=1):
+        elif since_d == hoje - timedelta(days=13) and until_d >= hoje - timedelta(days=1):
             c_preset, c_ini, c_fim = "last_14d", hoje - timedelta(days=13), hoje
-        elif _ndias <= 32 and until_d >= hoje - timedelta(days=1):
+        elif since_d == hoje - timedelta(days=29) and until_d >= hoje - timedelta(days=1):
             c_preset, c_ini, c_fim = "last_30d", hoje - timedelta(days=29), hoje
         else:
             # v86.84 (Paulo 25/ago: "teve 17 pastas, como o custo por pasta é igual ao
