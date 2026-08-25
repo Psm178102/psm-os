@@ -43,9 +43,11 @@ function render() {
     return `<tr>
       <td style="font-weight:700;white-space:nowrap">${esc(c.corretor)}<div class="tiny muted">${esc(c.funil)}</div></td>
       <td>${q ? `<span title="${esc(q[2])}" style="color:${q[1]};font-weight:800;white-space:nowrap">${q[0]}</span>`
-             : `<span class="tiny muted" title="Amostra < 30 leads ou sem atividade registrada — mês 1 é baseline">— baseline</span>`}</td>
-      <td style="text-align:right">${c.toques_7d || 0}<div class="tiny muted">${c.atividade_pct != null ? c.atividade_pct + '% da meta' : ''}</div></td>
-      <td style="text-align:right">${c.visitas_7d || 0}</td>
+             : (c.sem_registro_producao
+                ? `<span class="tiny muted" title="Este corretor ainda não registrou nenhum toque/visita. Sem esse dado o quadrante não opina — não é 'baixa atividade', é falta de registro.">— sem registro</span>`
+                : `<span class="tiny muted" title="Amostra < 30 leads — mês 1 é baseline">— baseline</span>`)}</td>
+      <td style="text-align:right">${c.sem_registro_producao ? '<span class="muted">—</span>' : (c.toques_7d || 0)}<div class="tiny muted">${c.atividade_pct != null ? c.atividade_pct + '% da meta' : (c.sem_registro_producao ? 'não registrou' : '')}</div></td>
+      <td style="text-align:right">${c.sem_registro_producao ? '<span class="muted">—</span>' : (c.visitas_7d || 0)}</td>
       <td style="text-align:right">${c.no_show_pct != null ? c.no_show_pct + '%' : '—'}</td>
       <td style="text-align:right">${c.sla_mediana_min != null ? c.sla_mediana_min + ' min' : '—'}<div class="tiny muted">${c.sla_amostra ? 'n=' + c.sla_amostra : ''}</div></td>
       <td style="text-align:right">${c.leads_janela}</td>

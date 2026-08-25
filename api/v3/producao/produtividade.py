@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
 from _prod_lib import first_touch_map, email_local, METAS_CORRETOR  # type: ignore
 
-KV_CACHE = "prod_real_cache_v2"   # v86.79: bump invalida o payload antigo (sem filtro)
+KV_CACHE = "prod_real_cache_v3"   # v86.80: payload ganhou sem_registro_producao
 CACHE_MIN = 10
 PASTA_BOAS = ("aprovada", "aprovado")
 PASTA_RUINS = ("reprovada", "reprovado")
@@ -66,7 +66,8 @@ def _compute(sb, janela):
             por[k] = {"corretor": k, "leads": 0, "vendas_safra": 0, "vendas": 0, "vgv": 0.0,
                       "funis": {}, "toques_7d": 0, "toques_por_bloco": {}, "visitas_7d": 0,
                       "visita_realizada": 0, "no_show": 0, "no_show_motivos": {},
-                      "pasta": {}, "perdas": {}, "sla_min": [], "deal_ids": []}
+                      "pasta": {}, "perdas": {}, "sla_min": [], "deal_ids": [],
+                      "eventos_registrados": 0}
         return por[k]
 
     for d in deals:
@@ -99,6 +100,7 @@ def _compute(sb, janela):
                                                            "perda_motivo", "visita_marcada"):
             continue
         s = slot(k)
+        s["eventos_registrados"] += 1   # v86.79: distingue "registrou pouco" de "NUNCA registrou"
         t = e.get("tipo")
         m = e.get("meta") or {}
         if isinstance(m, str):
@@ -206,7 +208,13 @@ def _compute(sb, janela):
         base = mediana_funil.get(funil)
         # camadas → quadrante (amostra mínima: 30 leads pra julgar rendimento — spec)
         meta_toques = METAS_CORRETOR["toques_dia"] * 5
-        atividade_pct = round(100 * s["toques_7d"] / meta_toques) if meta_toques else None
+        # v86.79 (achado do Paulo 25/ago): quem NUNCA registrou produção tinha
+        # atividade_pct = 0 e era julgado como "baixa atividade" — então TODO mundo
+        # caía em Talento ocioso/Escada e ninguém podia ser Máquina, com base em dado
+        # que não existe. Sem registro nenhum, a atividade é DESCONHECIDA (None) e o
+        # quadrante não opina. (O registro por corretor nasceu na v86.78, 25/ago.)
+        tem_registro = s["eventos_registrados"] > 0
+        atividade_pct = round(100 * s["toques_7d"] / meta_toques) if (meta_toques and tem_registro) else None
         rend = None
         if conv is not None and base and s["leads"] >= 30:
             rend = "alto" if conv >= base else "baixo"
@@ -230,6 +238,7 @@ def _compute(sb, janela):
             "amostra_ok": s["leads"] >= 30,
             "toques_7d": s["toques_7d"], "toques_por_bloco": s["toques_por_bloco"],
             "atividade_pct": atividade_pct, "visitas_7d": s["visitas_7d"],
+            "sem_registro_producao": not tem_registro,
             "no_show_pct": round(100 * s["no_show"] / vis_total) if vis_total else None,
             "no_show_motivos": s["no_show_motivos"],
             "pasta": s["pasta"],
