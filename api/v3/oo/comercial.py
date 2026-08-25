@@ -702,8 +702,9 @@ class handler(BaseHTTPRequestHandler):
         # ── C) CUSTO DO FUNIL — v86.64 (pedido do Paulo 23/ago: "filtro de prazo
         # não muda nada"): o unit economics SEGUE A JANELA quando ela casa com um
         # preset de spend da Meta (≤32 dias: 7d/14d/30d, mês atual, mês passado).
-        # Janela maior (ex.: 90d padrão) → cai no MÊS CORRENTE (decisão 17/ago),
-        # porque o cache da Meta não tem spend por data livre além de 30 dias.
+        # Janela maior (ex.: 90d padrão): o cache da Meta não tem spend por data
+        # livre além de 30 dias, então o custo vem da SOMA do snapshot mensal
+        # por equipe (v86.84) — e não mais de um recorte do mês corrente.
         import calendar as _calc
         _ndias = (until_d - since_d).days + 1
         _prev_ini = (mes_ini - timedelta(days=1)).replace(day=1)
@@ -730,7 +731,7 @@ class handler(BaseHTTPRequestHandler):
         c_preset_usado = (_ma or {}).get("preset_used") or c_preset
 
         # spend por equipe quando a janela é longa (soma dos meses cobertos)
-        spend_janela_team, spend_janela_ok = {}, False
+        spend_janela_team, spend_janela_ok, spend_meses_faltando = {}, False, []
         if c_preset is None:
             snap_sp = _kv_read(sb, "gc_spend_mensal")[0] or {}
             meses_frac = []
@@ -743,6 +744,8 @@ class handler(BaseHTTPRequestHandler):
                 _m = 1 if _m == 12 else _m + 1
                 if _m == 1:
                     _y += 1
+            meses_sem = [("%04d-%02d" % (_y2, _m2)) for (_y2, _m2, _fr) in meses_frac
+                         if not (snap_sp.get("%04d-%02d" % (_y2, _m2)) or {})]
             for _tk, _l in TEAMS:
                 tot_sp, achou = 0.0, False
                 for (_y2, _m2, _fr) in meses_frac:
@@ -752,9 +755,14 @@ class handler(BaseHTTPRequestHandler):
                         achou = True
                 spend_janela_team[_tk] = round(tot_sp, 2)
                 spend_janela_ok = spend_janela_ok or achou
-            if not spend_janela_ok:   # sem snapshot → volta pro mês corrente, avisando
+            if not spend_janela_ok:   # sem snapshot nenhum → volta pro mês corrente
                 c_preset, c_ini, c_fim = "this_month", mes_ini, hoje
-                avisos.append("sem snapshot mensal de spend — custo do funil ficou no mês corrente")
+                avisos.append("sem snapshot mensal de investimento — o custo do funil ficou no mês corrente "
+                              "(o resto da tela segue o período escolhido)")
+            elif meses_sem:           # snapshot PARCIAL: o custo sai subestimado, tem que aparecer
+                avisos.append("investimento sem snapshot em " + ", ".join(meses_sem) +
+                              " — o custo por etapa deste período está SUBESTIMADO")
+            spend_meses_faltando = meses_sem if spend_janela_ok else []
         _ovr = read_team_account_override(sb)
         orcado = _kv_read(sb, "viab_custos_orcado")[0] or {}
         itens_orc = (orcado.get(str(hoje.year)) or {}).get("itens") or []
@@ -1618,7 +1626,8 @@ class handler(BaseHTTPRequestHandler):
                 "janela_eh_mes": janela_eh_mes, "meses_janela": ["%04d-%02d" % (y, m) for y, m in meses_janela],
                 "historico": hist, "funil_rd": funil_rd, "campanhas": campanhas,
                 "forecast": forecast, "resposta": resposta, "metricas": metricas,
-                "custos": {"mes": ym, "janela_custo": {"ini": c_ini.isoformat(), "fim": c_fim.isoformat(), "preset": c_preset_usado or "soma mensal", "segue_periodo": True, "modo": ("soma_mensal" if c_preset is None else "preset_meta")}, "equipes": custos, "payback_midia": payback,
+                "custos": {"mes": ym, "janela_custo": {"ini": c_ini.isoformat(), "fim": c_fim.isoformat(), "preset": c_preset_usado or "soma mensal", "segue_periodo": True, "modo": ("soma_mensal" if c_preset is None else "preset_meta"),
+                             "meses_sem_snapshot": spend_meses_faltando}, "equipes": custos, "payback_midia": payback,
                            "nota": "spend Meta this_month por conta da equipe ÷ atividade real do mês; CAC mídia divide SÓ pelas vendas de tráfego pago; CAC completo soma o custo fixo orçado da linha e divide por todas as vendas"},
                 "produtividade": {"corretores": corretores, "equipes": equipes_prod},
                 "esteira": {"corretores": esteira_corr, "equipes": esteira_eq,

@@ -451,7 +451,7 @@ function unitEconomicsCards() {
     </div></div>`; }).join('');
   const cfg = al.cfg || {};
   const jc = (_v.custos || {}).janela_custo;
-  const tit = jc ? `📐 Unit economics — ${jc.ini} → ${jc.fim} · spend Meta "${jc.preset}"${jc.segue_periodo ? '' : ' · <span class="warn">mês corrente: janela maior que 32 dias não tem spend da Meta por data</span>'}` : '📐 Unit economics do mês';
+  const tit = jc ? `📐 Unit economics — ${jc.ini} → ${jc.fim} · ${jc.modo === 'soma_mensal' ? 'soma do investimento mensal' : `spend Meta "${jc.preset}"`}${(jc.meses_sem_snapshot || []).length ? ` · <span class="warn">sem investimento registrado em ${jc.meses_sem_snapshot.join(', ')} — custo subestimado</span>` : ''}` : '📐 Unit economics do mês';
   return pan(tit + ' (vermelho = fora da régua)', `
     ${blocos || '<div class="tiny muted">nenhuma equipe com mídia própria no recorte.</div>'}
     ${semMidia.length ? `<div class="tiny muted" style="margin-top:8px">Sem conta Meta própria (CAC vive no marketing/completo): ${semMidia.map(c => c.label).join(' · ')}</div>` : ''}
