@@ -656,12 +656,13 @@ class handler(BaseHTTPRequestHandler):
             return bool(dt and since_dt <= dt <= until_dt)
 
         # v86.81: "qualif" = lane REAL de qualificação (t_qualif), não o marco 1 de entrada
-        ETAPAS_ESTEIRA = (("prospec", None), ("visita", 3), ("proposta", 4), ("pasta", 5))
+        # v86.84: "pasta" era o marco 5, que na régua velha era a própria lane de
+        # VENDA. Pasta e proposta são a MESMA etapa (MARCO_PASTA) — uma coluna só.
+        ETAPAS_ESTEIRA = (("prospec", None), ("visita", 3), ("pasta", MARCO_PASTA))
 
         def _linha_esteira(nome, team, uid=None):
             return {"uid": uid, "nome": nome, "team": team, "prospec": 0, "qualif": 0,
-                    "visita": 0, "proposta": 0, "pasta": 0, "venda": 0, "vgv": 0.0,
-                    "sem_historico": 0}
+                    "visita": 0, "pasta": 0, "venda": 0, "vgv": 0.0, "sem_historico": 0}
 
         def _acumula_esteira(c, e):
             if _no_per(e["created"]):
@@ -686,8 +687,7 @@ class handler(BaseHTTPRequestHandler):
             return {**c, "vgv": round(c["vgv"], 2),
                     "ticket": round(c["vgv"] / v, 2) if v else None,
                     "por_venda": {"prospec": por(c["prospec"]), "qualif": por(c["qualif"]),
-                                  "visita": por(c["visita"]), "proposta": por(c["proposta"]),
-                                  "pasta": por(c["pasta"])},
+                                  "visita": por(c["visita"]), "pasta": por(c["pasta"])},
                     # razão de FLUXO entre etapas (contagens independentes no
                     # período — pode passar de 100%); NÃO é conversão de coorte
                     "razao_fluxo": {"prospec_qualif": pc(c["qualif"], c["prospec"]),
@@ -968,7 +968,8 @@ class handler(BaseHTTPRequestHandler):
                 m = marco_sid.get(str(d.get("stage_id") or ""))
                 if m == 3:
                     vis_ab += 1
-                elif m >= MARCO_PASTA:      # v86.84: pasta E proposta são a mesma lane
+                elif m is not None and m >= MARCO_PASTA:   # v86.84: pasta E proposta são a mesma lane
+                    # (m é None pra deal de funil não mapeado — comparar com >= estourava)
                     prop_ab += 1
                     pasta_ab += 1
             visao.append({"team": tk, "label": lbl, "real_vendas": rv, "real_vgv": rvgv,
@@ -1591,13 +1592,12 @@ class handler(BaseHTTPRequestHandler):
             nome = (e.get("camp") or "").strip()
             if not nome:
                 continue
-            c = camps.setdefault(nome, {"leads": 0, "agend": 0, "visita": 0, "proposta": 0,
+            c = camps.setdefault(nome, {"leads": 0, "agend": 0, "visita": 0,
                                         "pasta": 0, "venda": 0, "vgv": 0.0, "teams": set()})
             c["leads"] += 1
             c["teams"].add(e["team"])
             if e["marco"] >= 2: c["agend"] += 1
             if e["marco"] >= 3: c["visita"] += 1
-            if e["marco"] >= MARCO_PASTA: c["proposta"] += 1
             if e["marco"] >= MARCO_PASTA: c["pasta"] += 1
             if e["win"]:
                 c["venda"] += 1
@@ -1612,8 +1612,9 @@ class handler(BaseHTTPRequestHandler):
                 ver, vlbl = "escalar", "💰 ESCALAR"
             elif c["venda"] >= 1:
                 ver, vlbl = "manter", "✅ VENDE — manter"
-            elif (c["pasta"] + c["proposta"]) >= 2:
-                ver, vlbl = "maturando", "⏳ MATURANDO (pastas/propostas na esteira)"
+            elif c["pasta"] >= 2:   # v86.84: pasta e proposta são a MESMA etapa —
+                # somar as duas dobrava o número e uma pasta só já dava "maturando"
+                ver, vlbl = "maturando", "⏳ MATURANDO (pastas na esteira)"
             elif spend and spend >= 300 and c["visita"] == 0:
                 ver, vlbl = "pausar", "🔴 REVER/PAUSAR — gasta e não gera visita"
             else:
@@ -1623,12 +1624,12 @@ class handler(BaseHTTPRequestHandler):
                                "status_meta": st_meta,
                                "ativa": st_meta == "active",
                                "leads": c["leads"], "agend": c["agend"], "visita": c["visita"],
-                               "proposta": c["proposta"], "pasta": c["pasta"], "venda": c["venda"],
+                               "pasta": c["pasta"], "venda": c["venda"],
                                "vgv": round(c["vgv"], 2), "receita_est": round(receita, 2),
                                "spend_30d": round(spend, 2) if spend is not None else None,
                                "cpl_30d": _num(rec.get("cpl"), None),
                                "roas": roas, "veredito": ver, "veredito_lbl": vlbl})
-        itens_camp.sort(key=lambda x: (-x["venda"], -x["pasta"], -x["proposta"], -x["visita"], -x["leads"]))
+        itens_camp.sort(key=lambda x: (-x["venda"], -x["pasta"], -x["visita"], -x["leads"]))
         campanhas = {"itens": itens_camp[:60],
                      "sem_campanha": sum(1 for e in na_janela if not (e.get("camp") or "").strip()),
                      "spend_preset_pedido": spend_preset,
