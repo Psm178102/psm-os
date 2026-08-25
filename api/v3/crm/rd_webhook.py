@@ -84,10 +84,49 @@ class handler(BaseHTTPRequestHandler):
         except Exception as _e:
             evented = False
 
+        # ── v86.78 (Produtividade Real, peças 3 e 4): os CAMPOS PERSONALIZADOS que o
+        # Paulo criou no RD (status de visita/no-show; status de PASTA no funil Conquista)
+        # e o MOTIVO DE PERDA viram eventos quando o valor muda — diff contra o rd_raw
+        # guardado em `deals`. Depois atualizamos o deal guardado pra o próximo diff ser
+        # incremental (o sync 3×/dia continua como rede de segurança do resto).
+        campos = []
+        try:
+            prod_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "producao")
+            if prod_dir not in sys.path:
+                sys.path.insert(0, prod_dir)
+            from _prod_lib import record_field_events, record_loss_reason  # type: ignore
+            prev_raw = None
+            if did:
+                try:
+                    rows = sb.table("deals").select("rd_raw").eq("id", str(did)).limit(1).execute().data or []
+                    prev_raw = rows[0].get("rd_raw") if rows else None
+                    if isinstance(prev_raw, str):
+                        prev_raw = json.loads(prev_raw)
+                except Exception:
+                    prev_raw = None
+            campos = record_field_events(sb, deal, prev_raw)
+            if record_loss_reason(sb, deal, prev_raw):
+                campos.append("perda_motivo")
+            # refresh do espelho (só colunas seguras; user_id fica como está)
+            if did and (deal.get("deal_stage") or deal.get("deal_custom_fields") or deal.get("custom_fields")):
+                stage = deal.get("deal_stage") or {}
+                upd = {"id": str(did), "rd_raw": deal, "win": deal.get("win")}
+                if isinstance(stage, dict) and stage.get("id") is not None:
+                    upd["stage_id"] = stage.get("id")
+                    upd["stage_name"] = stage.get("name")
+                if deal.get("updated_at"):
+                    upd["updated_at_rd"] = deal.get("updated_at")
+                try:
+                    sb.table("deals").upsert(upd, on_conflict="id").execute()
+                except Exception as _e2:
+                    print(f"[webhook] refresh deal falhou: {_e2}")
+        except Exception as _e:
+            print(f"[webhook] campos personalizados falhou: {_e}")
+
         # ── Etapa CAPTAR IMÓVEL → cria captação na hora (comportamento original) ──
         if not is_captar_stage(deal):
             return self._send(200, {"ok": True, "evented": evented,
-                                    "skipped": "deal fora da etapa CAPTAR IMÓVEL"})
+                                    "campos": campos, "skipped": "deal fora da etapa CAPTAR IMÓVEL"})
 
         cid = create_captacao_from_deal(sb, deal)
-        return self._send(200, {"ok": True, "captacao_id": cid, "evented": evented, "instant": True})
+        return self._send(200, {"ok": True, "captacao_id": cid, "evented": evented, "campos": campos, "instant": True})

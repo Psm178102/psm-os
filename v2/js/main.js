@@ -14,6 +14,7 @@ import { pageDashboard as pageDashboardV2 } from './pages/dashboard.js';
 import { pagePainel } from './pages/painel.js';
 import { pageFinanceiro } from './pages/financeiro.js';
 import { pageGestaoComercial } from './pages/gestao-comercial.js';
+import { pageProdutividadeReal } from './pages/produtividade-real.js';   // v86.78
 import { pageCrm } from './pages/crm.js';
 import { pageEquipe } from './pages/equipe.js';
 import { pageTarefas } from './pages/tarefas.js';
@@ -157,7 +158,7 @@ export const ROUTE_GROUP = {
   '/dados-mercado': 'diretoria',
   // Arena & Performance (Metas/Equipes/Plantões migraram p/ Imóveis & Vendas)
   '/organograma': 'performance', '/one-on-one': 'performance', '/arena': 'performance',
-  '/gestao-comercial': 'performance',
+  '/gestao-comercial': 'performance', '/produtividade-real': 'performance',
   '/tv': 'performance', '/war-room': 'performance', '/war-arena': 'performance',
   // Diretoria
   '/cockpit': 'diretoria', '/paulo': 'diretoria', '/projetos': 'diretoria',
@@ -239,6 +240,7 @@ export const ROUTE_MIN_LVL = {
   '/campanha-wa': 5,      // disparo de campanha — não p/ corretor
   '/one-on-one': 2,       // v86.3: corretor vê o 1:1 DELE (gestor lvl>=5 vê todos; sensível some no backend)
   '/gestao-comercial': 5, // v86.19: painel comercial — gestores/gerentes/sócios (pedido do Paulo)
+  '/produtividade-real': 5, // v86.78: quadrante atividade×rendimento — NUNCA público/TV
   '/crm-house': 5,        // v86.52: CRM House PSM em PILOTO (gestão valida primeiro). Backend já
                           // escopa por papel (corretor=só os dele) — abrir pro corretor = baixar p/ 2.
   '/cerebro-vendas': 5,   // inteligência de vendas (líder+)
@@ -426,7 +428,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '86.77';
+const APP_VERSION = '86.78';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -588,6 +590,7 @@ const APP_VERSION = '86.77';
   router.register('/governanca',  { render: async (ctx, root) => { setHeader('Governança');   highlight('/governanca');  await pageGovernanca(ctx, root); } });
   router.register('/one-on-one',  { render: async (ctx, root) => { setHeader('One-on-One');   highlight('/one-on-one');  await pageOO(ctx, root); } });
   router.register('/gestao-comercial', { render: async (ctx, root) => { setHeader('Gestão Comercial'); highlight('/gestao-comercial'); await pageGestaoComercial(ctx, root); } });
+  router.register('/produtividade-real', { render: async (ctx, root) => { setHeader('Produtividade Real'); highlight('/produtividade-real'); await pageProdutividadeReal(ctx, root); } });
   router.register('/crm-house', { render: async (ctx, root) => { setHeader('CRM House PSM'); highlight('/crm-house'); await pageCrmHouse(ctx, root); } });
   router.register('/plantoes',    { render: async (ctx, root) => { setHeader('Plantões');     highlight('/plantoes');    await pagePlantoes(ctx, root); } });
   router.register('/captacoes',   { render: async (ctx, root) => { setHeader('Captações');    highlight('/captacoes');   await pageCaptacoes(ctx, root); } });
@@ -890,6 +893,7 @@ function shellHTML(user) {
         <div class="sb-sec">💼 Comercial</div>
         <button class="sb-link" data-nav="/crm-house"><span class="sb-ico">🧲</span> CRM House PSM</button>
         <button class="sb-link" data-nav="/gestao-comercial"><span class="sb-ico">📊</span> Gestão Comercial</button>
+        <button class="sb-link" data-nav="/produtividade-real"><span class="sb-ico">🎯</span> Produtividade Real</button>
 
         <div class="sb-sec">🏘 Imóveis & Vendas</div>
         <button class="sb-link" data-nav="/crm"><span class="sb-ico">🔗</span> CRM (RD)</button>

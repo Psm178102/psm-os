@@ -39,6 +39,8 @@ async function loadTarget(id) {
     _data = prof; _perf = perf; _audit = audit;
     render();
     if (mine) loadFila();
+    if (mine) loadProducaoHoje();   // ⚡ v86.78 Produtividade Real
+    if (mine) loadForecastCard();   // 📣 v86.78 forecast declarado
     if (mine) loadTravados();
     loadNorteCard();   // 🎯 Norte do Dia (v85.6) — meta do mês definida no 1:1
     if (mine) loadPropostaMeta();   // 🎯 v86.1 — proposta de meta do trimestre (motor 1:1)
@@ -84,7 +86,8 @@ async function loadFila() {
               <div class="tiny muted">${escapeHtml(s.stage_name || s.ms_label || '')}${s.amount ? ' · R$ ' + fmtKM(s.amount) : ''}${s.dias_parado != null ? ' · parado ' + s.dias_parado + 'd' : ''}</div>
               <div class="tiny" style="color:${c};font-weight:600">👉 ${escapeHtml(s.acao || 'Fazer contato')}</div>
             </div>
-            ${s.phone ? `<a class="btn btn-primary btn-sm" target="_blank" rel="noopener" href="https://wa.me/${escapeHtml(s.phone)}" style="white-space:nowrap">💬 Chamar</a>` : '<span class="tiny muted">s/ fone</span>'}
+            ${s.phone ? `<button class="btn btn-primary btn-sm" data-toque="whatsapp" data-deal="${escapeHtml(s.id)}" data-url="https://wa.me/${escapeHtml(s.phone)}" style="white-space:nowrap">💬 Chamar</button>
+            <button class="btn btn-ghost btn-sm" data-toque="ligacao" data-deal="${escapeHtml(s.id)}" data-url="tel:+${escapeHtml(s.phone)}" title="Ligar (registra o toque)">☎</button>` : '<span class="tiny muted">s/ fone</span>'}
             <a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="https://crm.rdstation.com/deals/${encodeURIComponent(s.id)}" title="Abrir no RD">🔗</a>
           </div>`;
         }).join('')}
@@ -92,6 +95,118 @@ async function loadFila() {
   } catch (e) {
     if (el()) el().innerHTML = `<div class="tiny muted">Fila indisponível agora.</div>`;
   }
+  // v86.78 (Produtividade Real): o clique REGISTRA o toque e abre o destino.
+  const host = el();
+  if (host && !host.__toqueBound) {
+    host.__toqueBound = true;
+    host.addEventListener('click', ev => {
+      const b = ev.target.closest('[data-toque]');
+      if (!b) return;
+      ev.preventDefault();
+      logToque(b.dataset.toque === 'ligacao' ? 'toque_ligacao' : 'toque_whatsapp', b.dataset.deal, 'fila_dia');
+      window.open(b.dataset.url, b.dataset.url.startsWith('tel:') ? '_self' : '_blank', 'noopener');
+    });
+  }
+}
+
+/* v86.78 — registro no ato (fire-and-forget; falha não trava o atendimento) */
+function logToque(tipo, dealId, bloco) {
+  api.request('/api/v3/producao/eventos', { method: 'POST', body: {
+    tipo, ref_type: dealId ? 'deal' : null, ref_id: dealId || null, meta: { bloco: bloco || blocoAtual() },
+  } }).then(r => { bumpProducaoHoje(tipo); }).catch(() => {});
+}
+function blocoAtual() {
+  const h = new Date().getHours() + new Date().getMinutes() / 60;
+  if (h >= 9 && h < 10.5) return 'sala_ligacao';
+  if (h >= 10.75 && h < 11.5) return 'ativo';
+  if (h >= 12 && h < 12.5) return 'meio_dia';
+  if (h >= 17.5 && h < 18) return 'retomada';
+  if (h >= 18.5 && h < 20) return 'corujao';
+  return 'fila_dia';
+}
+
+/* ⚡ Produção de hoje — contadores + botões de 1 clique (só no meu painel) */
+let _prodHoje = null;
+async function loadProducaoHoje() {
+  const host = document.getElementById('prod-hoje');
+  if (!host) return;
+  try {
+    const r = await api.request('/api/v3/producao/produtividade?me=1&janela=7');
+    _prodHoje = (r && r.eu) || null;
+  } catch { _prodHoje = null; }
+  renderProducaoHoje();
+}
+function renderProducaoHoje() {
+  const host = document.getElementById('prod-hoje');
+  if (!host) return;
+  const eu = _prodHoje || {};
+  const bl = eu.toques_por_bloco || {};
+  const chip = (k, lbl) => `<span class="tiny" style="background:var(--bg-3);border-radius:6px;padding:3px 8px">${lbl}: <b>${bl[k] || 0}</b></span>`;
+  host.innerHTML = `
+    <div class="tiny muted" style="margin-bottom:6px">Semana: <b>${eu.toques_7d || 0}</b> toques · <b>${eu.visitas_7d || 0}</b> visitas realizadas${eu.no_show_pct != null ? ` · no-show ${eu.no_show_pct}%` : ''}${eu.sla_mediana_min != null ? ` · 1º contato ~${eu.sla_mediana_min} min` : ''}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+      ${chip('sala_ligacao', '📞 Sala')} ${chip('ativo', '✍️ Ativo')} ${chip('meio_dia', '🕛 Meio-dia')} ${chip('retomada', '🌇 Retomada')} ${chip('corujao', '🦉 Corujão')}
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn btn-sm" data-ev="toque_ligacao">☎ +1 ligação</button>
+      <button class="btn btn-sm" data-ev="toque_whatsapp">💬 +1 WhatsApp</button>
+      <button class="btn btn-sm" data-ev="visita_realizada">🏠 Visita realizada</button>
+      <button class="btn btn-sm" data-ev="no_show">❌ No-show</button>
+    </div>
+    <div class="tiny muted" style="margin-top:6px">Registre NO ATO — toque fora da fila entra por aqui. Visita e pasta preenchidas no RD entram sozinhas.</div>`;
+  if (!host.__bound) {
+    host.__bound = true;
+    host.addEventListener('click', ev => {
+      const b = ev.target.closest('[data-ev]');
+      if (!b) return;
+      b.disabled = true; setTimeout(() => { b.disabled = false; }, 800);
+      logToque(b.dataset.ev, null, blocoAtual());
+    });
+  }
+}
+function bumpProducaoHoje(tipo) {
+  if (!_prodHoje) _prodHoje = {};
+  if (tipo === 'toque_ligacao' || tipo === 'toque_whatsapp') {
+    _prodHoje.toques_7d = (_prodHoje.toques_7d || 0) + 1;
+    const b = blocoAtual();
+    _prodHoje.toques_por_bloco = _prodHoje.toques_por_bloco || {};
+    _prodHoje.toques_por_bloco[b] = (_prodHoje.toques_por_bloco[b] || 0) + 1;
+  } else if (tipo === 'visita_realizada') _prodHoje.visitas_7d = (_prodHoje.visitas_7d || 0) + 1;
+  renderProducaoHoje();
+}
+
+/* 📣 Forecast do mês (declarado toda segunda antes da Semanal) */
+async function loadForecastCard() {
+  const host = document.getElementById('forecast-card');
+  if (!host) return;
+  let f = null;
+  try {
+    const r = await api.request('/api/v3/oo/forecast_corretor');
+    f = (r && r.forecast) || null;
+  } catch { f = null; }
+  const ult = f && f.versoes && f.versoes.length ? f.versoes[f.versoes.length - 1] : null;
+  host.innerHTML = `
+    ${ult ? `<div class="tiny muted" style="margin-bottom:6px">Declarado: <b>${ult.comprometido}</b> comprometido · <b>${ult.provavel}</b> provável · <b>${ult.pipeline}</b> pipeline (${new Date(ult.ts).toLocaleDateString('pt-BR')})</div>`
+          : `<div class="tiny muted" style="margin-bottom:6px">Você ainda não declarou o forecast deste mês — declare antes da Reunião Semanal de segunda.</div>`}
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <input id="fc-c" class="input" type="number" min="0" style="width:110px" placeholder="Comprometido" value="${ult ? ult.comprometido : ''}">
+      <input id="fc-p" class="input" type="number" min="0" style="width:110px" placeholder="Provável" value="${ult ? ult.provavel : ''}">
+      <input id="fc-l" class="input" type="number" min="0" style="width:110px" placeholder="Pipeline" value="${ult ? ult.pipeline : ''}">
+      <button class="btn btn-primary btn-sm" id="fc-save">Declarar</button>
+    </div>
+    <div class="tiny muted" style="margin-top:6px">Vendas do mês: quantas você <b>garante</b>, quantas são <b>prováveis</b>, quantas estão no <b>pipeline</b>. A acurácia é comparada no Fecho do Mês.</div>`;
+  const btn = document.getElementById('fc-save');
+  if (btn) btn.onclick = async () => {
+    btn.disabled = true;
+    try {
+      await api.request('/api/v3/oo/forecast_corretor', { method: 'POST', body: {
+        comprometido: +document.getElementById('fc-c').value || 0,
+        provavel: +document.getElementById('fc-p').value || 0,
+        pipeline: +document.getElementById('fc-l').value || 0,
+      } });
+      loadForecastCard();
+    } catch (e) { alert('Não deu pra declarar: ' + (e.message || e)); btn.disabled = false; }
+  };
 }
 
 /* ═══════════ 🎯 NORTE DO DIA (v85.6) — meta do mês definida no 1:1 ═══════════
@@ -294,6 +409,12 @@ function render() {
 
       ${mine && !hideForCorretor ? `
       <!-- Fila + comissões + tarefas + atividade (só meu painel) -->
+      <h3 class="card-title mt-4">⚡ Sua Produção de Hoje</h3>
+      <div id="prod-hoje"><div class="muted tiny"><span class="spinner"></span> Carregando…</div></div>
+
+      <h3 class="card-title mt-4">📣 Seu Forecast do Mês</h3>
+      <div id="forecast-card"><div class="muted tiny"><span class="spinner"></span> Carregando…</div></div>
+
       <h3 class="card-title mt-4">📞 Sua Fila do Dia</h3>
       <div id="fila-dia"><div class="muted tiny"><span class="spinner"></span> Montando suas ligações de hoje…</div></div>
 

@@ -21,6 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit, notify_all, hoje_brt  # type: ignore
 from _fisc_lib import (TIPOS_POR_COLAB, get_cfg, colaborador_do_user,  # type: ignore
                        user_ids_por_match, gestores_ids, premio_faixa)
+from _prod_lib import CORRETOR_TIPOS, BLOCOS, email_local  # type: ignore  # v86.78
 
 
 class handler(BaseHTTPRequestHandler):
@@ -73,10 +74,18 @@ class handler(BaseHTTPRequestHandler):
         colab = colaborador_do_user(cfg, user)
         if lvl >= 7 and body.get("colaborador"):
             colab = str(body["colaborador"]).strip().lower()
-        if not colab or colab not in TIPOS_POR_COLAB:
-            return self._send(403, {"ok": False, "error": "você não está entre os colaboradores do painel"})
         tipo = (body.get("tipo") or "").strip()
-        if tipo not in TIPOS_POR_COLAB[colab]:
+        # v86.78 (Produtividade Real, peça 1): CORRETORES logam a própria produção.
+        # Quem não está na cfg da Fiscalização pode gravar os tipos de corretor PRA SI
+        # (colaborador = parte local do e-mail). Bloco validado quando informado.
+        if (not colab or colab not in TIPOS_POR_COLAB) and tipo in CORRETOR_TIPOS:
+            colab = email_local(user.get("email")) or str(user.get("id"))
+            _meta_b = body.get("meta") if isinstance(body.get("meta"), dict) else {}
+            if _meta_b.get("bloco") and _meta_b["bloco"] not in BLOCOS:
+                return self._send(400, {"ok": False, "error": f"bloco inválido (use um de: {', '.join(BLOCOS)})"})
+        elif not colab or colab not in TIPOS_POR_COLAB:
+            return self._send(403, {"ok": False, "error": "você não está entre os colaboradores do painel"})
+        elif tipo not in TIPOS_POR_COLAB[colab] and tipo not in CORRETOR_TIPOS:
             return self._send(400, {"ok": False, "error": f"tipo '{tipo}' não vale pra {colab}"})
 
         meta = body.get("meta") if isinstance(body.get("meta"), dict) else {}
