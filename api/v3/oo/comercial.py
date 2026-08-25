@@ -322,7 +322,20 @@ class handler(BaseHTTPRequestHandler):
             except Exception:
                 payload = None
         if payload is None:
-            payload = self._compute(sb, since_d, until_d, hoje, spend_preset)
+            # v86.84: sem isto, QUALQUER erro no cálculo virava a página opaca da
+            # Vercel ("FUNCTION_INVOCATION_FAILED") — sem traceback no app e sem
+            # pista pro sócio. Agora o traceback vai pro log E o sócio (lvl>=10)
+            # recebe a linha que estourou junto do 500.
+            try:
+                payload = self._compute(sb, since_d, until_d, hoje, spend_preset)
+            except Exception as e:
+                import traceback as _tb
+                det = _tb.format_exc()
+                print("[gc _compute] ERRO %s\n%s" % (e, det))
+                corpo = {"ok": False, "error": "falha ao calcular a Gestão Comercial: %s" % e}
+                if (user.get("lvl") or 0) >= 10:
+                    corpo["traceback"] = det.strip().splitlines()[-8:]
+                return self._send(500, corpo)
             _kv_write(sb, ck, {"ts": datetime.now(timezone.utc).isoformat(), "data": payload})
 
         # 🚨 métrica fora da régua → notifica gestor da equipe + sócios (v86.33).
