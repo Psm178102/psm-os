@@ -12,6 +12,7 @@ let _edit = null;      // id da tabela em edição, ou 'new:conquista' / 'new:im
 let _draft = null;     // {id, marca, categoria, colunas:[], linhas:[[]]}
 let _msg = '';
 let _marcaFilter = null;  // null = ambas; 'conquista' | 'imoveis' (MAP)
+let _filtros = null;      // v86.88: filtros do MAP (Sets por categoria) — só em memória, zera a cada abertura
 let _renaming = null;     // id da tabela com título em edição inline
 
 const MARCAS = [
@@ -24,6 +25,7 @@ const SWATCHES = ['#dc2626', '#ea580c', '#d4a843', '#16a34a', '#0891b2', '#5b7fb
 
 export async function pageTabelaImoveis(ctx, root, marcaFilter = null) {
   _root = root; _edit = null; _draft = null; _msg = ''; _renaming = null;
+  _filtros = filtrosVazios();   // v86.88: filtros do MAP SEMPRE zerados ao abrir a página (nunca persistem)
   _marcaFilter = (marcaFilter === 'conquista' || marcaFilter === 'imoveis') ? marcaFilter : null;
   root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando…</div></div>';
   await load();
@@ -83,6 +85,7 @@ function marcaSection(m) {
           <button class="btn btn-primary btn-sm" data-new="${m.id}">➕ Nova tabela</button>
         </div>` : ''}
       </div>
+      ${m.id === 'imoveis' && !_edit ? filtroBarHTML(tabs) : ''}
       ${editingNew ? editorCard(m.cor) : ''}
       ${tabs.map((t, i) => (_edit === t.id ? editorCard(m.cor) : viewCard(t, m, i, tabs.length))).join('')
         || (editingNew ? '' : `<div class="tiny muted" style="padding:6px 2px">Nenhuma tabela ainda${_canEdit ? ' — clique em ➕ Nova tabela.' : '.'}</div>`)}
@@ -138,6 +141,163 @@ function linhasOrdenadasPorValor(t) {
     .map(x => x.r);
 }
 
+/* ───────── v86.88 — FILTROS DO MAP (Paulo, 25/ago) ─────────
+   Chips multi-seleção acima das tabelas do MAP: dentro da categoria é OU
+   (marcou 2 faixas = qualquer uma serve), entre categorias é E. Categoria sem
+   nada marcado = indiferente. Faixas CONTÍGUAS (limite superior inclusivo) pra
+   nenhum imóvel cair em buraco. Os dados são texto livre, então o parser é
+   tolerante: m² aceita múltiplas plantas na linha ("49m2 / 51m2 e 74m2" casa
+   se QUALQUER uma cair na faixa); valor < 10 mil é lido como "mil" digitado
+   curto ("R$ 541.00" ⇒ 541 mil); linha ILEGÍVEL num quesito filtrado é
+   ocultada mas CONTADA no aviso "⚠ sem dado" — nunca some calada. */
+const FILTROS_DEF = [
+  { cat: 'm2', lbl: '📐 Tamanho de planta', opts: [
+    { id: 'a', lbl: 'até 40 m²', max: 40 }, { id: 'b', lbl: '41–58', min: 40, max: 58 },
+    { id: 'c', lbl: '59–80', min: 58, max: 80 }, { id: 'd', lbl: '81–100', min: 80, max: 100 },
+    { id: 'e', lbl: '101–120', min: 100, max: 120 }, { id: 'f', lbl: '121–140', min: 120, max: 140 },
+    { id: 'g', lbl: '141–170', min: 140, max: 170 }, { id: 'h', lbl: '171–200', min: 170, max: 200 },
+    { id: 'i', lbl: '+200 m²', min: 200 } ] },
+  { cat: 'planta', lbl: '🛏 Tipo de planta', opts: [
+    { id: 'studio', lbl: 'Studio' }, { id: '1suite', lbl: '1 suíte' }, { id: '2dorm', lbl: '2 dorms' },
+    { id: '2dorm_s', lbl: '2 dorms c/ suíte' }, { id: '2suites', lbl: '2 suítes' },
+    { id: '3dorm_s', lbl: '3 dorms c/ suíte' }, { id: '3suites', lbl: '3 suítes' },
+    { id: '4dorm_s', lbl: '4 dorms c/ suíte' }, { id: '4suites', lbl: '4 suítes' } ] },
+  { cat: 'tipo', lbl: '🏠 Tipo de imóvel', opts: [
+    { id: 'casa_cond', lbl: 'Casa em condomínio' }, { id: 'apto', lbl: 'Apartamento' },
+    { id: 'terr_aberto', lbl: 'Terreno residencial aberto' }, { id: 'terr_cond', lbl: 'Terreno em condomínio' },
+    { id: 'terr_com', lbl: 'Terreno comercial' }, { id: 'terr_ind', lbl: 'Terreno industrial' },
+    { id: 'sala', lbl: 'Sala comercial' }, { id: 'loja', lbl: 'Loja' }, { id: 'cobertura', lbl: 'Cobertura' } ] },
+  { cat: 'valor', lbl: '💰 Valor', opts: [
+    { id: 'a', lbl: 'até 450 mil', max: 450000 }, { id: 'b', lbl: '450–600 mil', min: 450000, max: 600000 },
+    { id: 'c', lbl: '600–800 mil', min: 600000, max: 800000 }, { id: 'd', lbl: '800 mil–1M', min: 800000, max: 1000000 },
+    { id: 'e', lbl: '1M–1,8M', min: 1000000, max: 1800000 }, { id: 'f', lbl: '+1,8M', min: 1800000 } ] },
+  { cat: 'prazo', lbl: '📅 Prazo de entrega', opts: [
+    { id: 'a', lbl: 'até 6 meses', max: 6 }, { id: 'b', lbl: '6–12 meses', min: 6, max: 12 },
+    { id: 'c', lbl: '1–2 anos', min: 12, max: 24 }, { id: 'd', lbl: '2–3 anos', min: 24, max: 36 },
+    { id: 'e', lbl: '+3 anos', min: 36 } ] },
+];
+function filtrosVazios() { const f = {}; FILTROS_DEF.forEach(d => { f[d.cat] = new Set(); }); return f; }
+function filtrosAtivos() { return !!_filtros && FILTROS_DEF.some(d => _filtros[d.cat].size); }
+function norm(s) { return String(s == null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+function colPor(t, re, excl) {
+  return (t.colunas || []).findIndex(c => re.test(norm(c)) && !(excl && excl.test(norm(c))));
+}
+function emFaixa(v, opts, sel) {
+  return opts.some(o => sel.has(o.id) && v > (o.min != null ? o.min : -Infinity) && v <= (o.max != null ? o.max : Infinity));
+}
+// m² da linha: TODAS as plantas citadas na célula ("49m2 / 51m2 e 74m2" → [49,51,74])
+function m2Vals(v) {
+  if (isUrl(v)) return [];
+  const ms = String(v == null ? '' : v).match(/\d+(?:[.,]\d+)?/g) || [];
+  return ms.map(x => parseFloat(x.replace(',', '.'))).filter(x => isFinite(x) && x >= 10 && x <= 5000);
+}
+// valor da linha: "R$ 541.00" e "350" são "mil" digitado curto → ×1000 (imóvel < R$10 mil não existe)
+function valorNormalizado(v) {
+  const n = parseMoney(v);
+  return n == null ? null : (n < 10000 ? n * 1000 : n);
+}
+// meses até a entrega: "09/2026" (MM/AAAA), "pronto", "36 meses" ou coluna MESES RESTANTES
+function mesesAteEntrega(cel, celMesesRest) {
+  const s = String(cel == null ? '' : cel);
+  const mmaa = s.match(/(\d{1,2})\s*\/\s*(20\d{2})/);
+  if (mmaa) { const hoje = new Date(); return (+mmaa[2] - hoje.getFullYear()) * 12 + (+mmaa[1] - 1 - hoje.getMonth()); }
+  if (/pronto|entregue|imediat/i.test(s)) return 0;
+  const meses = s.match(/(\d+)\s*m[eê]s/i);
+  if (meses) return +meses[1];
+  const n = parseInt(String(celMesesRest == null ? '' : celMesesRest), 10);
+  return isFinite(n) ? n : null;
+}
+// tipo(s) de planta da célula, tolerante: "2/S" = 2 dorms c/ suíte; "1 suite ou
+// 2 quartos" casa com as duas; "3 dorms" seco casa com "3 dorms c/ suíte"
+function plantaIds(cel) {
+  const out = new Set();
+  norm(cel).split(/\bou\b|,|;|\+/).forEach(seg => {
+    seg = seg.trim(); if (!seg) return;
+    if (/stud/.test(seg)) { out.add('studio'); return; }
+    const temSuite = /suite|\/\s*s\b|\bc\/?\s*s\b/.test(seg);
+    const plural = /suites/.test(seg);
+    const d = seg.match(/\d/); if (!d) { if (temSuite) out.add('1suite'); return; }
+    const n = Math.min(4, +d[0]); if (n < 1) return;
+    if (n === 1) { out.add('1suite'); return; }
+    if (plural) { out.add(n + 'suites'); return; }
+    if (n === 2) out.add(temSuite ? '2dorm_s' : '2dorm');
+    else out.add(n + 'dorm_s');   // 3/4 dorms seco → opção "c/ suíte" (casamento tolerante)
+  });
+  return out;
+}
+// tipo de imóvel: não tem coluna própria — deduzido por palavra-chave na linha
+// inteira + nome da tabela; linha residencial com dorms e sem outra pista = apto
+function tipoIds(t, r, cPlanta) {
+  const x = norm((r || []).filter(c => !isUrl(c)).join(' ') + ' ' + (t.categoria || ''));
+  const out = new Set();
+  if (/cobertura/.test(x)) out.add('cobertura');
+  if (/sala/.test(x) && /comercial/.test(x)) out.add('sala');
+  if (/\bloja/.test(x)) out.add('loja');
+  if (/terreno|\blote\b/.test(x)) {
+    if (/industr/.test(x)) out.add('terr_ind');
+    else if (/comerc/.test(x)) out.add('terr_com');
+    else if (/condom/.test(x)) out.add('terr_cond');
+    else out.add('terr_aberto');
+  } else if (/\bcasa\b|sobrado/.test(x)) out.add('casa_cond');
+  if (!out.size && cPlanta >= 0 && plantaIds(r[cPlanta]).size) out.add('apto');
+  return out;
+}
+// Aplica os filtros ativos numa tabela do MAP. Retorna as linhas visíveis +
+// quantas foram ocultadas por estarem ILEGÍVEIS num quesito filtrado (semDado).
+function filtroResultado(t) {
+  const linhas = t.linhas || [];
+  if (!filtrosAtivos() || t.tipo === 'pdf') return { linhas: linhas.slice(), semDado: 0, ativo: false };
+  const cM2 = colPor(t, /m²|m2|metrag|area/);
+  const cVal = colunaValor(t);
+  const cPl = colPor(t, /dorm|suite|planta|tipolog|quarto/);
+  const cEnt = colPor(t, /entrega|conclus|prazo/, /abertura|venda/);
+  const cMR = colPor(t, /meses\s*rest/);
+  const vis = []; let semDado = 0;
+  for (const r of linhas) {
+    let ok = true, faltou = false;
+    for (const def of FILTROS_DEF) {
+      const sel = _filtros[def.cat]; if (!sel.size) continue;
+      let st; // true = casa, false = não casa, null = sem dado legível
+      if (def.cat === 'm2') { const vs = cM2 >= 0 ? m2Vals(r[cM2]) : []; st = vs.length ? vs.some(v => emFaixa(v, def.opts, sel)) : null; }
+      else if (def.cat === 'valor') { const v = cVal >= 0 ? valorNormalizado(r[cVal]) : null; st = v != null ? emFaixa(v, def.opts, sel) : null; }
+      else if (def.cat === 'planta') { const ids = cPl >= 0 ? plantaIds(r[cPl]) : new Set(); st = ids.size ? [...ids].some(i => sel.has(i)) : null; }
+      else if (def.cat === 'tipo') { const ids = tipoIds(t, r, cPl); st = ids.size ? [...ids].some(i => sel.has(i)) : null; }
+      else { const v = mesesAteEntrega(cEnt >= 0 ? r[cEnt] : '', cMR >= 0 ? r[cMR] : ''); st = v != null ? emFaixa(Math.max(0, v), def.opts, sel) : null; }
+      if (st === null) { faltou = true; ok = false; break; }
+      if (!st) { ok = false; break; }
+    }
+    if (ok) vis.push(r); else if (faltou) semDado++;
+  }
+  return { linhas: vis, semDado, ativo: true };
+}
+function filtroBarHTML(tabs) {
+  const dados = tabs.filter(tb => tb.tipo !== 'pdf' && (tb.linhas || []).length);
+  if (!dados.length) return '';
+  const ativo = filtrosAtivos();
+  let totV = 0, totAll = 0, totT = 0;
+  dados.forEach(tb => { const fr = filtroResultado(tb); totAll += (tb.linhas || []).length; totV += fr.linhas.length; if (fr.linhas.length) totT++; });
+  const chip = (def, o) => {
+    const sel = _filtros[def.cat].has(o.id);
+    return `<button type="button" data-fcat="${def.cat}" data-fchip="${o.id}" style="border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:700;margin:2px 3px 2px 0;cursor:pointer;${sel ? 'background:#5b7fb4;color:#fff;border:1px solid #5b7fb4' : 'background:transparent;color:var(--text,inherit);border:1px solid var(--border)'}">${esc(o.lbl)}</button>`;
+  };
+  return `
+    <div style="background:var(--bg-2);border:1px solid #5b7fb455;border-radius:10px;padding:10px 12px;margin-bottom:12px">
+      <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <b style="font-size:13px;color:#5b7fb4">🔎 Filtros do MAP</b>
+        <span class="flex" style="align-items:center;gap:8px;flex-wrap:wrap">
+          ${ativo ? `<span class="tiny" style="font-weight:800">${totV} de ${totAll} imóveis · ${totT} tabela(s) com resultado</span>
+                     <button class="btn btn-ghost btn-sm" data-flimpar="1" style="padding:2px 10px">✕ Limpar filtros</button>`
+                  : `<span class="tiny muted">marque quantas opções quiser · nada marcado = indiferente · abre sempre limpo</span>`}
+        </span>
+      </div>
+      ${FILTROS_DEF.map(def => `
+        <div style="margin-top:7px;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px">
+          <span class="tiny muted" style="font-weight:800;min-width:150px">${def.lbl}</span>
+          <span style="flex:1">${def.opts.map(o => chip(def, o)).join('')}</span>
+        </div>`).join('')}
+    </div>`;
+}
+
 function viewCard(t, m, idx, total) {
   const cor = t.cor || m.cor;               // cor efetiva: a da tabela tem prioridade
   const zebra = !!m.blue || !!t.cor;        // tabela colorida → linhas zebradas estilo planilha
@@ -154,15 +314,21 @@ function viewCard(t, m, idx, total) {
   // touch-action:none (arrasta no dedo sem brigar com o scroll da tabela); com o
   // mouse, segurar 0,3s em QUALQUER ponto da linha também engata.
   // v86.87: no MAP a ordem é AUTOMÁTICA (crescente por valor) — sem arrastar linha.
+  // v86.88: filtros do MAP — filtra as linhas ANTES de ordenar; tabela zerada
+  // pelo filtro vira um card recolhido em vez de ocupar a tela.
   const mapOrdenado = !isPdf && m.id === 'imoveis';
-  const linhas = mapOrdenado ? linhasOrdenadasPorValor(t) : (t.linhas || []);
+  const fr = mapOrdenado ? filtroResultado(t) : null;
+  const linhas = mapOrdenado
+    ? linhasOrdenadasPorValor({ colunas: t.colunas, linhas: fr.linhas })
+    : (t.linhas || []);
   const canDragRow = _canEdit && !_edit && !isPdf && !mapOrdenado && (t.linhas || []).length > 1;
   const headHandle = canDragRow ? `<th style="position:sticky;top:0;background:${cor};z-index:1;width:26px"></th>` : '';
   const head = `<thead><tr>${headHandle}${cols.map(c => `<th style="position:sticky;top:0;background:${cor};color:#fff;padding:7px 9px;font-size:11.5px;text-align:left;white-space:nowrap;z-index:1">${esc(c)}</th>`).join('')}</tr></thead>`;
   const rowBg = (i) => zebra ? `background:${i % 2 ? '#ffffff' : cor + '1a'}` : '';
   const handleTd = canDragRow ? `<td data-rowgrip style="padding:0 2px;text-align:center;cursor:grab;touch-action:none;user-select:none;color:${zebra ? cor : 'var(--muted,#94a3b8)'};font-weight:900">⠿</td>` : '';
   const body = `<tbody data-rowdrag="${canDragRow ? t.id : ''}">${linhas.map((r, ri) => `<tr data-ri="${ri}" style="border-bottom:1px solid ${zebra ? cor + '40' : 'var(--border)'};${rowBg(ri)}">${handleTd}${cols.map((_, i) => `<td style="padding:6px 9px;font-size:12px;white-space:nowrap;${cellTxt}">${cellHTML(r[i])}</td>`).join('')}</tr>`).join('')}</tbody>`;
-  const meta = isPdf ? '📄 PDF' : `${(t.linhas || []).length} linha(s)`;
+  const meta = isPdf ? '📄 PDF'
+    : (fr && fr.ativo ? `${linhas.length} de ${(t.linhas || []).length} linha(s)` : `${(t.linhas || []).length} linha(s)`);
   const renaming = _renaming === t.id;
   const reorder = _canEdit && !_edit && !renaming && total > 1
     ? `<span class="flex" style="gap:2px"><button class="btn btn-ghost btn-sm" data-tblup="${t.id}" title="subir" ${idx === 0 ? 'disabled' : ''} style="padding:1px 6px">↑</button><button class="btn btn-ghost btn-sm" data-tbldn="${t.id}" title="descer" ${idx === total - 1 ? 'disabled' : ''} style="padding:1px 6px">↓</button></span>`
@@ -187,9 +353,12 @@ function viewCard(t, m, idx, total) {
       </div>
       ${isPdf
         ? `<iframe src="${esc(t.pdf_url)}" style="width:100%;height:72vh;border:1px solid var(--border);border-radius:8px;background:var(--bg-2)"></iframe>`
-        : ((t.linhas || []).length
-          ? `<div data-tablewrap="${t.id}" style="max-height:64vh;overflow:auto;border:1px solid ${zebra ? cor + '40' : 'var(--border)'};border-radius:8px${zebra ? ';background:#ffffff' : ''}"><table style="border-collapse:collapse;width:100%;min-width:max-content">${head}${body}</table></div>`
-          : `<div class="tiny muted" style="padding:8px">Tabela vazia${_canEdit ? ' — clique em ✏️ Editar pra adicionar linhas.' : '.'}</div>`)}
+        : (fr && fr.ativo && !linhas.length && (t.linhas || []).length
+          ? `<div class="tiny muted" style="padding:8px">🔎 Nenhum imóvel desta tabela casa com os filtros ativos.${fr.semDado ? ` ⚠ ${fr.semDado} linha(s) sem dado legível no(s) quesito(s) filtrado(s).` : ''}</div>`
+          : ((t.linhas || []).length
+            ? `<div data-tablewrap="${t.id}" style="max-height:64vh;overflow:auto;border:1px solid ${zebra ? cor + '40' : 'var(--border)'};border-radius:8px${zebra ? ';background:#ffffff' : ''}"><table style="border-collapse:collapse;width:100%;min-width:max-content">${head}${body}</table></div>`
+              + (fr && fr.ativo && fr.semDado ? `<div class="tiny" style="margin-top:4px;color:var(--warn,#d97706);font-weight:700">⚠ ${fr.semDado} linha(s) ocultada(s) por não ter dado legível no(s) quesito(s) filtrado(s) — complete a tabela pra elas voltarem a aparecer.</div>` : '')
+            : `<div class="tiny muted" style="padding:8px">Tabela vazia${_canEdit ? ' — clique em ✏️ Editar pra adicionar linhas.' : '.'}</div>`))}
     </div>`;
 }
 
@@ -286,6 +455,13 @@ function wire() {
   // 🖐 arrastar linha (clicar e segurar) pra reordenar — view, can_edit (v86.53)
   rowDragDocBind();
   _root.querySelectorAll('tbody[data-rowdrag]').forEach(tb => { if (tb.dataset.rowdrag) ativarDragLinha(tb, tb.dataset.rowdrag); });
+  // 🔎 filtros do MAP (v86.88) — chips multi-seleção; estado só em memória
+  _root.querySelectorAll('[data-fchip]').forEach(b => b.onclick = () => {
+    const s = _filtros[b.dataset.fcat];
+    s.has(b.dataset.fchip) ? s.delete(b.dataset.fchip) : s.add(b.dataset.fchip);
+    render();
+  });
+  _root.querySelectorAll('[data-flimpar]').forEach(b => b.onclick = () => { _filtros = filtrosVazios(); render(); });
   // busca (view)
   _root.querySelectorAll('[data-search]').forEach(inp => inp.addEventListener('input', () => {
     const wrap = _root.querySelector(`[data-tablewrap="${inp.dataset.search}"]`); if (!wrap) return;
