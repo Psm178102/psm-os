@@ -1442,7 +1442,7 @@ function simResultado() {
       <div><div style="font-size:10.5px;opacity:.75;text-transform:uppercase">Conversão efetiva</div><div style="font-size:24px;font-weight:900">${fmtN(r.conv_efetiva_pct)}%</div></div>
     </div>
     <div class="tiny muted" style="margin-top:6px">funil ${_pc(r.conv_funil)} × ticket ${fmtN(r.fator_ticket)}× × canais ${fmtN(r.fator_canais)}× · ticket ponderado R$ ${moneyShort(r.ticket_ponderado)} · jornada ~${fmtN(r.jornada_meses)} mês(es)</div>
-    ${gap ? `<div style="margin-top:8px;background:${gap.gap_vendas > 0 ? '#fffbeb' : '#f0fdf4'};border:1px solid ${gap.gap_vendas > 0 ? '#fde68a' : '#bbf7d0'};border-radius:8px;padding:8px 10px;font-size:12px">
+    ${gap ? `<div style="margin-top:8px;background:${gap.gap_vendas > 0 ? '#fffbeb' : '#f0fdf4'};color:#1f2d3d;border:1px solid ${gap.gap_vendas > 0 ? '#fde68a' : '#bbf7d0'};border-radius:8px;padding:8px 10px;font-size:12px">
       🎯 Meta ${fmtN(gap.meta_vendas_mes)}/mês: ${gap.gap_vendas > 0 ? `faltam <b>${fmtN(gap.gap_vendas)}</b> venda(s) — precisaria de <b>${fmtN(gap.atend_necessarios)}</b> atendimentos/mês` : '<b>cenário bate a meta ✓</b>'}</div>` : ''}
     <div style="margin-top:10px;font-weight:800;font-size:12px">📋 Atividade mensal necessária (o que o mês cobra)</div>
     <table style="width:100%;border-collapse:collapse;margin-top:4px">${(r.atividade_rows && r.atividade_rows.length
@@ -1506,7 +1506,7 @@ function simCalibracao() {
   return `<details style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 14px">
     <summary style="font-weight:800;font-size:13px;cursor:pointer">⚙️ Calibração do motor (global — vale pra todos os corretores) ${_sim.shadow ? '· 🌒 SOMBRA LIGADA' : '· 🌕 sombra desligada'}</summary>
     <div style="margin-top:10px">
-      <label style="display:flex;align-items:center;gap:8px;background:${_sim.shadow ? '#f1f5f9' : '#f0fdf4'};border:1px solid ${_sim.shadow ? '#cbd5e1' : '#bbf7d0'};border-radius:8px;padding:8px 12px;cursor:pointer;font-size:12.5px">
+      <label style="display:flex;align-items:center;gap:8px;background:${_sim.shadow ? '#f1f5f9' : '#f0fdf4'};color:#1f2d3d;border:1px solid ${_sim.shadow ? '#cbd5e1' : '#bbf7d0'};border-radius:8px;padding:8px 12px;cursor:pointer;font-size:12.5px">
         <input type="checkbox" id="cal-shadow" ${_sim.shadow ? 'checked' : ''}>
         <span><b>Modo sombra</b> — aba e propostas visíveis SÓ pra sócios; nada é enviado a corretor nem gravado no Norte do Mês até desligar.</span>
       </label>

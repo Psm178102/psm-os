@@ -103,6 +103,12 @@ function viewCard(t, m, idx, total) {
   const zebra = !!m.blue || !!t.cor;        // tabela colorida → linhas zebradas estilo planilha
   const isPdf = t.tipo === 'pdf' && t.pdf_url;
   const cols = t.colunas && t.colunas.length ? t.colunas : (t.linhas[0] || []).map((_, i) => 'Col ' + (i + 1));
+  // v86.86 (Paulo 25/ago: "olha o modo escuro na tabela, não dá pra ler").
+  // A zebra é uma PLANILHA: linha ímpar branca fixa + linha par com tinta
+  // translúcida da cor. No escuro a tinta caía sobre o fundo escuro da página
+  // e o texto (escuro fixo) sumia linha sim, linha não. A base da tabela agora
+  // é folha BRANCA fixa nos 2 temas (como a via de impressão do VPL) — a tinta
+  // translúcida volta a ser o pastel claro que ela sempre foi no claro.
   const cellTxt = zebra ? 'color:#1f2d3d' : '';
   // v86.53: reordenar LINHA com clicar-e-segurar (pedido do Paulo). A alça ⠿ tem
   // touch-action:none (arrasta no dedo sem brigar com o scroll da tabela); com o
@@ -139,7 +145,7 @@ function viewCard(t, m, idx, total) {
       ${isPdf
         ? `<iframe src="${esc(t.pdf_url)}" style="width:100%;height:72vh;border:1px solid var(--border);border-radius:8px;background:var(--bg-2)"></iframe>`
         : ((t.linhas || []).length
-          ? `<div data-tablewrap="${t.id}" style="max-height:64vh;overflow:auto;border:1px solid ${zebra ? cor + '40' : 'var(--border)'};border-radius:8px${zebra ? ';background:var(--bg-2)' : ''}"><table style="border-collapse:collapse;width:100%;min-width:max-content">${head}${body}</table></div>`
+          ? `<div data-tablewrap="${t.id}" style="max-height:64vh;overflow:auto;border:1px solid ${zebra ? cor + '40' : 'var(--border)'};border-radius:8px${zebra ? ';background:#ffffff' : ''}"><table style="border-collapse:collapse;width:100%;min-width:max-content">${head}${body}</table></div>`
           : `<div class="tiny muted" style="padding:8px">Tabela vazia${_canEdit ? ' — clique em ✏️ Editar pra adicionar linhas.' : '.'}</div>`)}
     </div>`;
 }

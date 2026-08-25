@@ -112,7 +112,7 @@ async function loadVendasMes(out) {
         </thead>
         <tbody>
           ${deals.map((d,i)=>`
-            <tr style="background:${i%2?'#f8fafc':'#fff'};border-bottom:1px solid #eee">
+            <tr style="background:${i%2?'#f8fafc':'#fff'};color:#1f2d3d;border-bottom:1px solid #eee">
               <td style="padding:6px 8px">${escapeHtml((d.user && (d.user.name || d.user.email)) || '—')}</td>
               <td style="padding:6px 8px">${escapeHtml((d.name||'').substring(0,60))}</td>
               <td style="padding:6px 8px;text-align:right;font-weight:700">R$ ${formatBR(amt(d))}</td>
@@ -155,7 +155,7 @@ async function loadRankingGeral(out) {
         </thead>
         <tbody>
           ${items.map((u,i)=>`
-            <tr style="background:${i%2?'#f8fafc':'#fff'};border-bottom:1px solid #eee">
+            <tr style="background:${i%2?'#f8fafc':'#fff'};color:#1f2d3d;border-bottom:1px solid #eee">
               <td style="padding:6px 8px;text-align:center;font-weight:800">${i<3?['🥇','🥈','🥉'][i]:(i+1)}</td>
               <td style="padding:6px 8px;font-weight:700">${escapeHtml(u.name || '—')}</td>
               <td style="padding:6px 8px">${escapeHtml(u.team || u.frente || '—')}</td>
@@ -190,7 +190,7 @@ async function loadCaptacoes(out) {
         </thead>
         <tbody>
           ${items.map((u,i)=>`
-            <tr style="background:${i%2?'#f8fafc':'#fff'};border-bottom:1px solid #eee">
+            <tr style="background:${i%2?'#f8fafc':'#fff'};color:#1f2d3d;border-bottom:1px solid #eee">
               <td style="padding:6px 8px;text-align:center;font-weight:800">${i+1}</td>
               <td style="padding:6px 8px;font-weight:700">${escapeHtml((u.user && u.user.name) || '—')}</td>
               <td style="padding:6px 8px;text-align:center">${u.total || 0}</td>
@@ -227,7 +227,7 @@ async function loadMetasStatus(out) {
             const pct = u.meta_vgv ? (u.vgv_atingido/u.meta_vgv*100) : 0;
             const status = pct>=100?'✅':pct>=80?'⚠️':pct>=50?'🟡':'🔴';
             return `
-            <tr style="background:${i%2?'#f8fafc':'#fff'};border-bottom:1px solid #eee">
+            <tr style="background:${i%2?'#f8fafc':'#fff'};color:#1f2d3d;border-bottom:1px solid #eee">
               <td style="padding:6px 8px;font-weight:700">${escapeHtml(u.name || '—')}</td>
               <td style="padding:6px 8px;text-align:right">R$ ${formatBR(+u.meta_vgv||0)}</td>
               <td style="padding:6px 8px;text-align:right">R$ ${formatBR(+u.vgv_atingido||0)}</td>
@@ -268,7 +268,7 @@ async function loadPlantoesMes(out) {
         </thead>
         <tbody>
           ${items.map((p,i)=>`
-            <tr style="background:${i%2?'#f8fafc':'#fff'};border-bottom:1px solid #eee">
+            <tr style="background:${i%2?'#f8fafc':'#fff'};color:#1f2d3d;border-bottom:1px solid #eee">
               <td style="padding:6px 8px;text-align:center">${escapeHtml(p.data || '')}</td>
               <td style="padding:6px 8px;text-align:center">${escapeHtml(p.periodo || '')}</td>
               <td style="padding:6px 8px;font-weight:700">${escapeHtml(p.corretor_name || '—')}</td>
@@ -300,7 +300,7 @@ async function loadUsuariosLista(out) {
         </thead>
         <tbody>
           ${items.map((u,i)=>`
-            <tr style="background:${i%2?'#f8fafc':'#fff'};border-bottom:1px solid #eee">
+            <tr style="background:${i%2?'#f8fafc':'#fff'};color:#1f2d3d;border-bottom:1px solid #eee">
               <td style="padding:5px 6px;font-weight:700">${escapeHtml(u.name || '—')}</td>
               <td style="padding:5px 6px">${escapeHtml(u.email || '—')}</td>
               <td style="padding:5px 6px">${escapeHtml(u.role || '—')}</td>
@@ -321,11 +321,13 @@ function injectPrintCSS() {
   style.id = 'psm-print-css';
   style.textContent = `
     @media print {
-      body { background: var(--bg-2) !important; color: var(--ink) !important; }
+      /* v86.86: impressão é PAPEL — sempre branca com tinta escura, mesmo com o
+         app no tema escuro (tokens do tema aqui imprimiam página escura). */
+      body { background: #fff !important; color: #1f2d3d !important; }
       .app-sidebar, .app-header, .no-print { display: none !important; }
       .app-main { padding: 0 !important; margin: 0 !important; }
-      .print-area { box-shadow: none !important; background: var(--bg-2) !important; color: var(--ink) !important; padding: 0 !important; }
-      .print-area h1, .print-area h2, .print-area h3 { color: var(--navy-txt) !important; }
+      .print-area { box-shadow: none !important; background: #fff !important; color: #1f2d3d !important; padding: 0 !important; }
+      .print-area h1, .print-area h2, .print-area h3 { color: #0b1f3a !important; }
       .print-area table { page-break-inside: auto; }
       .print-area tr { page-break-inside: avoid; page-break-after: auto; }
       @page { margin: 1.2cm; }
