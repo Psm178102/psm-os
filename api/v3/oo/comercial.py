@@ -744,9 +744,6 @@ class handler(BaseHTTPRequestHandler):
             # SEGUE O PERÍODO somando o spend mensal já fotografado por equipe
             # (gc_spend_mensal, snapshot horário do cron), com rateio dos meses parciais.
             c_preset, c_ini, c_fim = None, since_d, until_d
-        _ma = read_meta_accounts(sb, preset=c_preset or "this_month") or read_meta_accounts(sb)
-        c_preset_usado = (_ma or {}).get("preset_used") or c_preset
-
         # spend por equipe quando a janela é longa (soma dos meses cobertos)
         spend_janela_team, spend_janela_ok, spend_meses_faltando = {}, False, []
         if c_preset is None:
@@ -780,6 +777,10 @@ class handler(BaseHTTPRequestHandler):
                 avisos.append("investimento sem snapshot em " + ", ".join(meses_sem) +
                               " — o custo por etapa deste período está SUBESTIMADO")
             spend_meses_faltando = meses_sem if spend_janela_ok else []
+        # _ma/c_preset_usado DEPOIS do fallback acima, senão o rótulo da janela
+        # de custo mente ("soma mensal" com modo preset_meta) quando não há snapshot
+        _ma = read_meta_accounts(sb, preset=c_preset or "this_month") or read_meta_accounts(sb)
+        c_preset_usado = (_ma or {}).get("preset_used") or c_preset
         _ovr = read_team_account_override(sb)
         orcado = _kv_read(sb, "viab_custos_orcado")[0] or {}
         itens_orc = (orcado.get(str(hoje.year)) or {}).get("itens") or []
