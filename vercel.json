@@ -219,5 +219,12 @@
         }
       ]
     }
+  ],
+  "redirects": [
+    {
+      "source": "/grupo",
+      "destination": "https://chat.whatsapp.com/GMzTUCpm2GT4P5fMP6LrEB",
+      "permanent": false
+    }
   ]
 }
