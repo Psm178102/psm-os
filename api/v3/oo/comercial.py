@@ -60,7 +60,7 @@ MIN_VENDAS_RANK = 3
 CANAL_MERGE = {"nao_atribuido": "trafego_imob", "outro": "trafego_imob", "meta": "trafego_imob"}
 CANAL_LBL = {**CHANNEL_LABEL, "trafego_imob": "Tráfego pago Imob"}
 CANAIS_PAGOS = ("trafego_imob", "google")   # v86.38: régua única de "venda de origem paga"
-CACHE_VER = "gc27"   # v86.39: bump aqui invalida página E cron juntos
+CACHE_VER = "gc28"   # v86.39: bump aqui invalida página E cron juntos
 
 FUNIS_RD = {"conquista": "funil conquista", "map": "funil map",
             "terceiros": "funil terceiros", "locacao": "funil de locacao"}
@@ -595,7 +595,10 @@ class handler(BaseHTTPRequestHandler):
         equipes_prod = {}
         for tk, _l in TEAMS:
             pool = [e for e in na_janela if e["team"] == tk]
-            agg = {"leads": len(pool), "atend": sum(1 for e in pool if e["marco"] >= 1),
+            # v86.81: "atend" (qualificado) pela lane REAL — o agregado da equipe ainda
+            # usava marco>=1 (entrada), então a linha da equipe dava qualif == leads
+            # enquanto os corretores logo abaixo mostravam o número certo.
+            agg = {"leads": len(pool), "atend": sum(1 for e in pool if e.get("t_qualif")),
                    "agend": sum(1 for e in pool if e["marco"] >= 2), "visita": sum(1 for e in pool if e["marco"] >= 3),
                    "proposta": sum(1 for e in pool if e["marco"] >= 4),
                    "pasta": sum(1 for e in pool if e["marco"] >= 5), "venda": sum(1 for e in pool if e["win"]),
