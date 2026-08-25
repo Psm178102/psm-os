@@ -98,6 +98,46 @@ function cellHTML(v) {
   return esc(s);
 }
 
+/* v86.87 — MAP SEMPRE em ordem CRESCENTE de valor (Paulo, 25/ago): cada tabela
+   (categoria) do MAP exibe as linhas do menor pro maior valor. A coluna de valor
+   é achada pelo cabeçalho (VALOR/PREÇO/INVESTIMENTO/A PARTIR) ou, sem cabeçalho
+   que case, pela coluna com mais células monetárias (≥ R$ 1.000). Linha sem
+   valor legível vai pro fim, na ordem original. Só exibição — o dado salvo não
+   muda; por isso o arrastar-linha (v86.53) fica desligado no MAP. */
+function parseMoney(v) {
+  let s = String(v == null ? '' : v).trim();
+  if (!s || isUrl(s)) return null;
+  s = s.replace(/R\$\s*/gi, '').replace(/[^\d.,]/g, '');
+  if (!/\d/.test(s)) return null;
+  // pt-BR: ponto = milhar, vírgula = decimal ("1.234.567,89", "189.900", "250000")
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  else if (/\.\d{3}(\.|$)/.test(s)) s = s.replace(/\./g, '');
+  const n = parseFloat(s);
+  return isFinite(n) ? n : null;
+}
+function colunaValor(t) {
+  const cols = t.colunas || [];
+  const porNome = cols.findIndex(c => /valor|pre[çc]o|invest|a\s*partir/i.test(String(c || '')));
+  if (porNome >= 0) return porNome;
+  const linhas = t.linhas || [];
+  const nCols = cols.length || (linhas[0] || []).length;
+  let best = -1, bestN = 0;
+  for (let c = 0; c < nCols; c++) {
+    const n = linhas.filter(r => { const v = parseMoney(r[c]); return v != null && v >= 1000; }).length;
+    if (n > bestN) { bestN = n; best = c; }
+  }
+  return best;
+}
+function linhasOrdenadasPorValor(t) {
+  const linhas = (t.linhas || []).slice();
+  const c = colunaValor(t);
+  if (c < 0) return linhas;
+  return linhas
+    .map((r, i) => ({ r, i, v: parseMoney(r[c]) }))
+    .sort((a, b) => ((a.v == null) - (b.v == null)) || ((a.v != null && b.v != null) ? (a.v - b.v) : 0) || (a.i - b.i))
+    .map(x => x.r);
+}
+
 function viewCard(t, m, idx, total) {
   const cor = t.cor || m.cor;               // cor efetiva: a da tabela tem prioridade
   const zebra = !!m.blue || !!t.cor;        // tabela colorida → linhas zebradas estilo planilha
@@ -113,12 +153,15 @@ function viewCard(t, m, idx, total) {
   // v86.53: reordenar LINHA com clicar-e-segurar (pedido do Paulo). A alça ⠿ tem
   // touch-action:none (arrasta no dedo sem brigar com o scroll da tabela); com o
   // mouse, segurar 0,3s em QUALQUER ponto da linha também engata.
-  const canDragRow = _canEdit && !_edit && !isPdf && (t.linhas || []).length > 1;
+  // v86.87: no MAP a ordem é AUTOMÁTICA (crescente por valor) — sem arrastar linha.
+  const mapOrdenado = !isPdf && m.id === 'imoveis';
+  const linhas = mapOrdenado ? linhasOrdenadasPorValor(t) : (t.linhas || []);
+  const canDragRow = _canEdit && !_edit && !isPdf && !mapOrdenado && (t.linhas || []).length > 1;
   const headHandle = canDragRow ? `<th style="position:sticky;top:0;background:${cor};z-index:1;width:26px"></th>` : '';
   const head = `<thead><tr>${headHandle}${cols.map(c => `<th style="position:sticky;top:0;background:${cor};color:#fff;padding:7px 9px;font-size:11.5px;text-align:left;white-space:nowrap;z-index:1">${esc(c)}</th>`).join('')}</tr></thead>`;
   const rowBg = (i) => zebra ? `background:${i % 2 ? '#ffffff' : cor + '1a'}` : '';
   const handleTd = canDragRow ? `<td data-rowgrip style="padding:0 2px;text-align:center;cursor:grab;touch-action:none;user-select:none;color:${zebra ? cor : 'var(--muted,#94a3b8)'};font-weight:900">⠿</td>` : '';
-  const body = `<tbody data-rowdrag="${canDragRow ? t.id : ''}">${(t.linhas || []).map((r, ri) => `<tr data-ri="${ri}" style="border-bottom:1px solid ${zebra ? cor + '40' : 'var(--border)'};${rowBg(ri)}">${handleTd}${cols.map((_, i) => `<td style="padding:6px 9px;font-size:12px;white-space:nowrap;${cellTxt}">${cellHTML(r[i])}</td>`).join('')}</tr>`).join('')}</tbody>`;
+  const body = `<tbody data-rowdrag="${canDragRow ? t.id : ''}">${linhas.map((r, ri) => `<tr data-ri="${ri}" style="border-bottom:1px solid ${zebra ? cor + '40' : 'var(--border)'};${rowBg(ri)}">${handleTd}${cols.map((_, i) => `<td style="padding:6px 9px;font-size:12px;white-space:nowrap;${cellTxt}">${cellHTML(r[i])}</td>`).join('')}</tr>`).join('')}</tbody>`;
   const meta = isPdf ? '📄 PDF' : `${(t.linhas || []).length} linha(s)`;
   const renaming = _renaming === t.id;
   const reorder = _canEdit && !_edit && !renaming && total > 1
