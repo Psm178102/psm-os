@@ -253,6 +253,9 @@ export const ROUTE_MIN_LVL = {
   // Ferramentas Conquista (v81.44): A PRINCÍPIO só sócio (lvl 10). Pra abrir pro
   // corretor é só baixar este número (ou liberar na matriz por papel).
   '/cockpit-conquista': 10, '/minha-comissao': 2, '/meu-cerebro': 10, '/sim-conquista': 10,  // v84.51: cada um vê a PRÓPRIA comissão (escopo travado no backend)
+  // v86.90: Sala de Comando (Cockpit+Dashboard unificados) — decisão do Paulo: SÓ sócio.
+  // /diretoria segue registrado FORA do menu (gestão de recados e retrocompat de links).
+  '/cockpit': 10, '/diretoria': 10,
   // RH + Sucesso do Cliente (v81.58): piso 2 (corretor) — quem vê isso é decidido
   // 100% na matriz por papel (Configurações → Permissões), sem trava de nível.
   '/onboarding': 2, '/offboarding': 2,
@@ -428,7 +431,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '86.90';
+const APP_VERSION = '86.92';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -540,7 +543,7 @@ const APP_VERSION = '86.90';
   router.register('/tarefas',   { render: async (ctx, root) => { setHeader('Tarefas');   highlight('/tarefas');   await pageTarefas(ctx, root); } });
   router.register('/metas',     { render: async (ctx, root) => { setHeader('Metas');     highlight('/metas');     await pageMetas(ctx, root); } });
   router.register('/agenda',    { render: async (ctx, root) => { setHeader('Agenda');    highlight('/agenda');    await pageAgenda(ctx, root); } });
-  router.register('/cockpit', { render: async (ctx, root) => { setHeader('Cockpit de Decisão'); highlight('/cockpit'); await pageCockpitHub(ctx, root); } });
+  router.register('/cockpit', { render: async (ctx, root) => { setHeader('Sala de Comando'); highlight('/cockpit'); await pageCockpitHub(ctx, root); } });
   router.register('/diretoria', { render: async (ctx, root) => { setHeader('Dashboard Diretoria'); highlight('/diretoria'); await pageDiretoria(ctx, root); } });
   router.register('/paulo', { render: async (ctx, root) => { setHeader('Paulo · Meus Negócios'); highlight('/paulo'); await pagePauloNegocios(ctx, root); } });
   router.register('/projetos', { render: async (ctx, root) => { setHeader('Projetos'); highlight('/projetos'); await pageProjetos(ctx, root); } });
@@ -976,8 +979,7 @@ function shellHTML(user) {
 
         <div class="sb-sec">🏛 Diretoria</div>
         <div class="sb-subsec" style="font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;opacity:.45;font-weight:800;padding:6px 14px 2px">Decisão</div>
-        <button class="sb-link" data-nav="/cockpit"><span class="sb-ico">🧭</span> Cockpit de Decisão</button>
-        <button class="sb-link" data-nav="/diretoria"><span class="sb-ico">📊</span> Dashboard</button>
+        <button class="sb-link" data-nav="/cockpit"><span class="sb-ico">🧭</span> Sala de Comando</button>
         <button class="sb-link" data-nav="/fiscalizacao"><span class="sb-ico">👁</span> Painel de Fiscalização</button>
         <button class="sb-link" data-nav="/ponte"><span class="sb-ico">🌉</span> Fila da Ponte</button>
         <button class="sb-link" data-nav="/paulo"><span class="sb-ico">🧑‍💼</span> Paulo</button>

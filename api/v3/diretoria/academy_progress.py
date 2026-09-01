@@ -43,8 +43,10 @@ class handler(BaseHTTPRequestHandler):
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
         try:
-            rows = sb.table("academy_progress").select("item_id").eq("user_id", actor.get("id")).limit(5000).execute().data or []
-            return self._send(200, {"ok": True, "completed": [r["item_id"] for r in rows]})
+            rows = sb.table("academy_progress").select("item_id,completed_at").eq("user_id", actor.get("id")).limit(5000).execute().data or []
+            # v86.92: dates alimenta a meta de estudo semanal no front
+            return self._send(200, {"ok": True, "completed": [r["item_id"] for r in rows],
+                                    "dates": {r["item_id"]: r.get("completed_at") for r in rows}})
         except Exception as e:
             if _missing(e):
                 return self._send(200, {"ok": True, "completed": [], "pending": True})
