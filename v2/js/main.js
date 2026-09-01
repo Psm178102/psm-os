@@ -129,6 +129,7 @@ import { pageSrPerformance } from './pages/sr-performance.js';
 import { pageMapa } from './pages/mapa.js';
 import { pageEstoqueKenlo } from './pages/estoque-kenlo.js';
 import { pageCrmHouse } from './pages/crm-house.js';
+import { pageCentralSol } from './pages/central-sol.js';   // 🤖 Central da Sol (atendente IA)
 
 // ─── Permissões por role (Sprint 9.6) ──────────────────────────────────
 // Cada rota pertence a um GRUPO. Cada role enxerga só os grupos liberados.
@@ -141,7 +142,7 @@ export const ROUTE_GROUP = {
   // Backoffice & Adm (v81.93)
   '/compras': 'adm', '/patrimonio': 'adm', '/manutencoes': 'adm',
   // Comercial (v86.52): CRM House PSM (piloto F2 do CRM próprio) + Gestão Comercial
-  '/crm-house': 'vendas',
+  '/crm-house': 'vendas', '/central-sol': 'vendas',
   // Imóveis & Vendas (+ Metas/Equipes/Plantões e simuladores VPL/INCC/Repasse/Energia migrados)
   '/crm': 'vendas', '/oportunidades': 'vendas', '/cadencia': 'vendas', '/scripts': 'vendas', '/form-captacao': 'vendas',
   '/imoveis': 'vendas', '/mapa': 'vendas', '/estoque-kenlo': 'vendas', '/tabela-imoveis': 'vendas', '/tabela-conquista': 'vendas', '/tabela-map': 'vendas', '/lancamentos': 'vendas',
@@ -243,6 +244,8 @@ export const ROUTE_MIN_LVL = {
   '/produtividade-real': 5, // v86.78: quadrante atividade×rendimento — NUNCA público/TV
   '/crm-house': 5,        // v86.52: CRM House PSM em PILOTO (gestão valida primeiro). Backend já
                           // escopa por papel (corretor=só os dele) — abrir pro corretor = baixar p/ 2.
+  '/central-sol': 10,     // Central da Sol (atendente IA WhatsApp) — SÓ sócio enquanto a Sol
+                          // está em rodagem (espelha o require_user(min_lvl=10) de api/v3/sol/).
   '/cerebro-vendas': 5,   // inteligência de vendas (líder+)
   '/briefing-guerra': 7,  // briefing estratégico (diretoria)
   '/academy-studio': 5,   // produção/construção da Academy — só time que constrói (líder+)
@@ -595,6 +598,7 @@ const APP_VERSION = '86.96';
   router.register('/gestao-comercial', { render: async (ctx, root) => { setHeader('Gestão Comercial'); highlight('/gestao-comercial'); await pageGestaoComercial(ctx, root); } });
   router.register('/produtividade-real', { render: async (ctx, root) => { setHeader('Produtividade Real'); highlight('/produtividade-real'); await pageProdutividadeReal(ctx, root); } });
   router.register('/crm-house', { render: async (ctx, root) => { setHeader('CRM House PSM'); highlight('/crm-house'); await pageCrmHouse(ctx, root); } });
+  router.register('/central-sol', { render: async (ctx, root) => { setHeader('Central da Sol'); highlight('/central-sol'); await pageCentralSol(ctx, root); } });
   router.register('/plantoes',    { render: async (ctx, root) => { setHeader('Plantões');     highlight('/plantoes');    await pagePlantoes(ctx, root); } });
   router.register('/captacoes',   { render: async (ctx, root) => { setHeader('Captações');    highlight('/captacoes');   await pageCaptacoes(ctx, root); } });
   router.register('/fiscalizacao', { render: async (ctx, root) => { setHeader('Painel de Fiscalização'); highlight('/fiscalizacao'); await pageProducao(ctx, root, 'gestor'); } });
@@ -895,6 +899,7 @@ function shellHTML(user) {
 
         <div class="sb-sec">💼 Comercial</div>
         <button class="sb-link" data-nav="/crm-house"><span class="sb-ico">🧲</span> CRM House PSM</button>
+        <button class="sb-link" data-nav="/central-sol"><span class="sb-ico">🤖</span> Central da Sol</button>
         <button class="sb-link" data-nav="/gestao-comercial"><span class="sb-ico">📊</span> Gestão Comercial</button>
         <button class="sb-link" data-nav="/produtividade-real"><span class="sb-ico">🎯</span> Produtividade Real</button>
 
