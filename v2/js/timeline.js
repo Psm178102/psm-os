@@ -3,10 +3,12 @@
    Sócios (lvl10) publicam recados que aparecem pra todos numa faixa acima do
    conteúdo, com tempo de exibição e opção de notificar (sino + push no celular).
    Cada usuário pode dispensar (some só pra ele, via localStorage). v78.7
+   v86.90: a faixa virou LETREIRO estilo rodapé de jornal — todos os recados
+   emendados rolando sem parar; hover pausa; pílula numerada abre a lista.
 ============================================================================ */
 import { api } from './api.js';
 
-let _bar = null, _items = [], _canManage = false;
+let _bar = null, _items = [], _canManage = false, _sig = '';
 const DISMISS_KEY = 'psm.tl.dismissed';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const dismissed = () => { try { return new Set(JSON.parse(localStorage.getItem(DISMISS_KEY) || '[]')); } catch (_) { return new Set(); } };
@@ -45,6 +47,10 @@ async function load() {
     const r = await api.request('/api/v3/timeline/recados');
     _items = r.items || []; _canManage = !!r.can_manage;
   } catch (_) { _items = []; }
+  // só re-renderiza se os dados mudaram — re-render reinicia o letreiro do zero
+  const sig = JSON.stringify([_canManage, _items.map(it => [it.id, it.texto, it.cor])]);
+  if (sig === _sig && _bar.innerHTML) return;
+  _sig = sig;
   render();
 }
 
@@ -59,16 +65,32 @@ function render() {
       <button class="tl-new" id="tl-new">＋ Novo recado</button></div>`;
     wire(); return;
   }
-  const cur = vis[0];
-  _bar.innerHTML = `<div class="tl-strip" style="border-left-color:${esc(cur.cor || '#0f172a')}">
+  // letreiro estilo rodapé de jornal: todos os recados emendados, rolando sem parar
+  const seg = vis.map(it => `<span class="tl-item"><span class="tl-dot" style="background:${esc(it.cor || '#0f172a')}"></span><b>${esc(it.texto)}</b><span class="tl-meta">— ${esc(it.autor || 'Diretoria')} · ${rel(it.criado_em)}${it.expira_em ? ' · ' + relAte(it.expira_em) : ''}</span></span>`).join('');
+  _bar.innerHTML = `<div class="tl-strip" style="border-left-color:${esc(vis[0].cor || '#0f172a')}">
     <span class="tl-ico">📣</span>
-    <div class="tl-txt"><b>${esc(cur.texto)}</b> <span class="tl-meta">— ${esc(cur.autor || 'Diretoria')} · ${rel(cur.criado_em)}${cur.expira_em ? ' · ' + relAte(cur.expira_em) : ' · fixo'}</span></div>
-    ${vis.length > 1 ? `<button class="tl-more" id="tl-more">+${vis.length - 1}</button>` : ''}
-    ${_canManage ? `<button class="tl-new" id="tl-new">＋</button>${_canManage ? `<button class="tl-del" id="tl-del" title="Excluir este recado">🗑</button>` : ''}` : ''}
-    <button class="tl-x" id="tl-x" title="Dispensar">✕</button>
+    <div class="tl-marquee" id="tl-mq"><div class="tl-track"><span class="tl-half">${seg}</span></div></div>
+    <button class="tl-more" id="tl-more" title="Ver lista de recados">${vis.length}</button>
+    ${_canManage ? `<button class="tl-new" id="tl-new">＋</button>` : ''}
+    <button class="tl-x" id="tl-x" title="Dispensar todos (some só pra você)">✕</button>
   </div>
   <div class="tl-list" id="tl-list" style="display:none">${vis.map(rowHTML).join('')}</div>`;
   wire();
+  startMarquee();
+}
+
+// mede o conteúdo e liga a animação; duplica até cobrir a janela pra emenda ficar invisível
+function startMarquee() {
+  const mq = _bar.querySelector('#tl-mq'); if (!mq) return;
+  const track = mq.querySelector('.tl-track'), half = mq.querySelector('.tl-half');
+  requestAnimationFrame(() => {
+    let guard = 0;
+    while (half.scrollWidth < mq.clientWidth + 40 && guard++ < 12) half.innerHTML += half.innerHTML;
+    track.appendChild(half.cloneNode(true));
+    const w = half.scrollWidth || 600;
+    track.style.animationDuration = Math.max(14, Math.round(w / 55)) + 's'; // ~55px/s
+    track.classList.add('run');
+  });
 }
 
 function rowHTML(it) {
@@ -82,10 +104,9 @@ function rowHTML(it) {
 function wire() {
   const $ = s => _bar.querySelector(s);
   ensureStyle();
-  $('#tl-x') && ($('#tl-x').onclick = () => { const d = dismissed(); if (_items[0]) d.add(_items.filter(it => !dismissed().has(it.id))[0].id); setDismissed(d); render(); });
+  $('#tl-x') && ($('#tl-x').onclick = () => { const d = dismissed(); _items.forEach(it => d.add(it.id)); setDismissed(d); render(); });
   $('#tl-more') && ($('#tl-more').onclick = () => { const l = $('#tl-list'); l.style.display = l.style.display === 'none' ? 'block' : 'none'; });
   $('#tl-new') && ($('#tl-new').onclick = compose);
-  $('#tl-del') && ($('#tl-del').onclick = () => { const vis = _items.filter(it => !dismissed().has(it.id)); if (vis[0]) del(vis[0].id); });
   _bar.querySelectorAll('[data-del]').forEach(b => b.onclick = () => del(b.dataset.del));
   _bar.querySelectorAll('[data-x]').forEach(b => b.onclick = () => { const d = dismissed(); d.add(b.dataset.x); setDismissed(d); render(); });
 }
@@ -154,6 +175,15 @@ function ensureStyle() {
     .tl-ico{font-size:15px;flex:0 0 auto}
     .tl-txt{flex:1;min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .tl-meta{color:var(--ink-muted,#64748b);font-weight:400;font-size:11.5px}
+    .tl-marquee{flex:1;min-width:0;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 18px,#000 calc(100% - 18px),transparent);mask-image:linear-gradient(90deg,transparent,#000 18px,#000 calc(100% - 18px),transparent)}
+    .tl-track{display:flex;width:max-content;will-change:transform}
+    .tl-track.run{animation:tl-scroll linear infinite}
+    .tl-marquee:hover .tl-track{animation-play-state:paused}
+    .tl-half{display:flex;align-items:center;flex:0 0 auto}
+    .tl-item{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;font-size:13px;padding-right:42px}
+    .tl-dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+    @keyframes tl-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+    @media (prefers-reduced-motion:reduce){.tl-track.run{animation:none}}
     .tl-more,.tl-new,.tl-del,.tl-x{border:0;background:var(--bg-3,#f1f5f9);border-radius:7px;padding:3px 9px;font-size:12px;font-weight:700;cursor:pointer;flex:0 0 auto}
     .tl-x,.tl-del{background:transparent;opacity:.55;font-weight:400}.tl-x:hover,.tl-del:hover{opacity:1}
     .tl-new{background:var(--psm-navy);color:var(--psm-cream)}
