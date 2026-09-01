@@ -26,6 +26,7 @@ const TABS = [
   { id: 'org', lbl: '🌳 Organograma' },
   { id: 'crono', lbl: '🗓️ Cronograma' },
   { id: 'okrs', lbl: '🎯 OKRs' },
+  { id: 'anual', lbl: '📆 Plano Anual' },
 ];
 
 export async function pageEstrategia(ctx, root) {
@@ -91,8 +92,53 @@ async function openTab(tab) {
   if (tab === 'recebiveis') { await renderRecebiveis(c); return; }
   if (tab === 'okrs') { await pageOKRs(null, c); return; }
   if (tab === 'crono') { await renderCronograma(c); return; }
+  if (tab === 'anual') { await renderPlanoAnual(c); return; }
   // mapa | org → editor de nós
   await renderBoard(c, tab === 'org' ? 'orgchart' : 'mindmap');
+}
+
+/* ── 📆 PLANO ANUAL (v86.94) — fusão da aba "Estratégia" legada do /diretoria.
+   Leitura consolidada aqui (uma fonte só de planejamento); a EDIÇÃO continua no
+   quadro original, linkado abaixo — zero duplicação de CRUD. ── */
+const PA_TIPOS = [
+  { id: 'visao',      lbl: 'Visão',       ico: '🎯', color: '#7c3aed' },
+  { id: 'missao',     lbl: 'Missão',      ico: '🚀', color: '#2563eb' },
+  { id: 'objetivo',   lbl: 'Objetivos',   ico: '📍', color: '#16a34a' },
+  { id: 'okr',        lbl: 'OKRs',        ico: '✅', color: '#d97706' },
+  { id: 'iniciativa', lbl: 'Iniciativas', ico: '🛠', color: '#dc2626' },
+];
+let _paAno = new Date().getFullYear();
+async function renderPlanoAnual(c) {
+  let e;
+  try { e = await api.request('/api/v3/diretoria/estrategia?ano=' + _paAno); }
+  catch (err) { c.innerHTML = `<div class="card" style="border-radius:0 10px 10px 10px"><div class="alert alert-err">${esc(err.message)}</div></div>`; return; }
+  const groups = (e && e.groups) || {};
+  const item = it => `<div style="background:var(--bg-3);border-radius:8px;padding:8px 12px">
+      <div class="flex items-center gap-2">
+        <div style="flex:1"><b style="font-size:13px">${esc(it.titulo || '')}</b>
+          ${it.descricao ? `<div class="tiny muted" style="margin-top:2px">${esc(it.descricao)}</div>` : ''}</div>
+        ${it.status ? `<span class="tiny" style="font-weight:700;opacity:.75">${esc(it.status)}</span>` : ''}
+      </div>
+      ${it.progresso != null ? `<div style="height:5px;background:var(--bg-2);border-radius:3px;margin-top:6px;overflow:hidden"><div style="height:100%;width:${Math.max(0, Math.min(100, Number(it.progresso) || 0))}%;background:#16a34a"></div></div>` : ''}
+    </div>`;
+  c.innerHTML = `
+    <div class="card" style="border-radius:0 10px 10px 10px">
+      <div class="flex gap-2" style="align-items:center;flex-wrap:wrap">
+        <b>📆 Plano Anual</b>
+        <select id="pa-ano" class="select" style="width:auto;font-size:12px">${[2024, 2025, 2026, 2027].map(a => `<option value="${a}"${a === _paAno ? ' selected' : ''}>${a}</option>`).join('')}</select>
+        <a class="tiny" href="#/diretoria?tab=estrategia" style="margin-left:auto">✏️ editar no quadro completo</a>
+      </div>
+      <div class="tiny muted" style="margin:4px 0 10px">Visão consolidada (leitura) do planejamento anual — a edição continua no quadro original.</div>
+      <div style="display:grid;gap:12px">
+        ${PA_TIPOS.map(t => { const its = groups[t.id] || []; return `
+          <div style="border-top:3px solid ${t.color};border-radius:6px;background:var(--bg-2);padding:10px 12px">
+            <b class="tiny">${t.ico} ${t.lbl} <span class="muted" style="font-weight:400">(${its.length})</span></b>
+            ${its.length ? `<div style="display:grid;gap:6px;margin-top:8px">${its.map(item).join('')}</div>` : '<div class="tiny muted" style="margin-top:4px">nenhum item</div>'}
+          </div>`; }).join('')}
+      </div>
+    </div>`;
+  const sel = document.getElementById('pa-ano');
+  if (sel) sel.onchange = () => { _paAno = Number(sel.value); renderPlanoAnual(c); };
 }
 
 /* ════════════════════ EDITOR DE NÓS (mapa mental / organograma) ═══════════ */
@@ -448,6 +494,7 @@ function cronoCard(i) {
         <span style="background:${st.cor}1f;color:${st.cor};padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700">${st.lbl}</span>
         ${i.responsavel ? `<span style="background:rgba(148,163,184,.16);padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700">👤 ${esc(i.responsavel)}</span>` : ''}
         ${i.fonte ? `<span style="background:rgba(124,58,237,.12);color:var(--roxo);padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700" title="progresso medido automaticamente nesta fonte">🔗 auto</span>` : ''}
+        ${(() => { if (!i.prazo) return ''; const atras = i.status !== 'concluido' && i.status !== 'excluido' && i.prazo < new Date().toISOString().slice(0, 10); return `<span style="background:${atras ? 'rgba(239,68,68,.16)' : 'rgba(148,163,184,.16)'};color:${atras ? '#dc2626' : 'inherit'};padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700">📅 ${i.prazo.split('-').reverse().join('/')}${atras ? ' ⚠ atrasado' : ''}</span>`; })()}
       </div>
       ${(() => {   /* v84.96 — barra de % (manual ou nutrida pela fonte) */
         const pct = cronoPct(i);
@@ -495,6 +542,9 @@ function openCronoForm(item) {
             </select></div>
           <div><label class="tiny muted" style="font-weight:700">Responsável</label>
             <input id="cr-resp" class="input" value="${esc(i.responsavel || '')}" placeholder="Nome" style="width:100%" /></div>
+          <div><label class="tiny muted" style="font-weight:700">📅 Prazo (opcional)</label>
+            <input id="cr-prazo" class="input" type="date" value="${esc(i.prazo || '')}" style="width:100%" />
+            <div class="tiny muted" style="margin-top:2px">passou do prazo sem concluir → card acusa atraso</div></div>
           <div style="grid-column:1/-1;border-top:1px dashed var(--border);padding-top:10px"><label class="tiny muted" style="font-weight:700">📈 Progresso — de onde vem o %?</label>
             <select id="cr-fonte" class="input" style="width:100%">
               ${Object.entries(CR_FONTES).map(([k, v]) => `<option value="${k}"${(i.fonte || '') === k ? ' selected' : ''}>${v}</option>`).join('')}
@@ -536,6 +586,7 @@ async function saveCrono(i) {
     periodo: document.getElementById('cr-periodo').value.trim() || 'Sem período',
     status: document.getElementById('cr-status').value,
     responsavel: document.getElementById('cr-resp').value.trim(),
+    prazo: document.getElementById('cr-prazo').value || null,
     obs: document.getElementById('cr-obs').value.trim(),
     fonte: document.getElementById('cr-fonte').value || null,
     alvo: document.getElementById('cr-alvo').value ? Number(document.getElementById('cr-alvo').value) : null,

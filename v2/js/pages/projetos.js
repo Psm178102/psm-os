@@ -5,6 +5,7 @@ import { api } from '../api.js';
 
 let _root = null;
 let _cards = [];
+let _okrs = [];    // v86.94: cascata OKR→projeto
 let _view = 'kanban';   // kanban | prazos | metricas | insights
 let _fArea = '';
 let _fResp = '';
@@ -51,6 +52,7 @@ export async function pageProjetos(ctx, root) {
     const r = await api.request('/api/v3/paulo/cards?board=' + _board);
     if (r && r.pending) { root.innerHTML = `<div class="alert alert-err">Tabela ainda não criada. Rode <code>supabase/sprint_paulo_e_captstale.sql</code>.</div>`; return; }
     _cards = (r && r.cards) || [];
+    try { const ro = await api.request('/api/v3/okrs/list'); _okrs = (ro && ro.okrs) || []; } catch (_) { _okrs = []; }
   } catch (e) {
     root.innerHTML = `<div class="alert alert-err">Erro: ${esc(e.message)}</div>`; return;
   }
@@ -152,6 +154,7 @@ function card(c) {
         ${c.plataforma ? `<span class="pj-chip" style="background:${areaCor(c.plataforma)}1f;color:${areaCor(c.plataforma)}">${esc(c.plataforma)}</span>` : ''}
         ${c.formato ? `<span class="pj-chip" style="background:${(PRIOR_COR[c.formato] || '#64748b')}1f;color:${PRIOR_COR[c.formato] || '#64748b'}">⚑ ${esc(c.formato)}</span>` : ''}
         ${c.data_ref ? `<span class="pj-chip" style="background:${atras ? 'rgba(239,68,68,.16)' : 'rgba(148,163,184,.16)'};color:${atras ? '#dc2626' : 'var(--ink,#475569)'}">📅 ${esc(fmtData(c.data_ref))}${atras ? ' ⚠' : ''}</span>` : ''}
+        ${(() => { if (!c.okr_id) return ''; const o = _okrs.find(x => x.id === c.okr_id); if (!o) return ''; const t = o.objetivo.length > 24 ? o.objetivo.slice(0, 23) + '…' : o.objetivo; return `<span class="pj-chip" style="background:rgba(212,168,67,.18);color:#a16207" title="OKR: ${esc(o.objetivo)}">🎯 ${esc(t)}</span>`; })()}
       </div>
       ${(() => { const d = checkDone(c); return d ? `<div style="margin-top:7px"><div style="height:5px;border-radius:3px;background:rgba(148,163,184,.25);overflow:hidden"><div style="height:100%;width:${Math.round(d / CHECK.length * 100)}%;background:${d === CHECK.length ? '#16a34a' : '#0891b2'}"></div></div><div class="tiny muted" style="margin-top:2px">✔ ${d}/${CHECK.length}</div></div>` : ''; })()}
       <div class="flex gap-2" style="margin-top:8px;align-items:center">
@@ -353,6 +356,8 @@ function openEditor(seed) {
         <div style="flex:1"><label class="tiny muted">Prioridade</label>
           <select id="pj-f-prior" class="select"><option value="">—</option>${PRIOR.map(p => `<option value="${esc(p)}"${c.formato === p ? ' selected' : ''}>${esc(p)}</option>`).join('')}</select></div>
       </div>
+      <div style="margin-bottom:10px"><label class="tiny muted">🎯 OKR vinculado <span style="opacity:.6">(cascata da Estratégia — o projeto aparece dentro do OKR)</span></label>
+        <select id="pj-f-okr" class="select"><option value="">— nenhum —</option>${_okrs.map(o => `<option value="${esc(o.id)}"${c.okr_id === o.id ? ' selected' : ''}>${esc(o.objetivo)} (${esc(o.ciclo || '')})</option>`).join('')}</select></div>
       <div class="flex gap-2" style="margin-bottom:10px">
         <div style="flex:1"><label class="tiny muted">Etapa</label>
           <select id="pj-f-status" class="select">${STAGES.map(s => `<option value="${s.id}"${(c.status || 'ideia') === s.id ? ' selected' : ''}>${esc(s.lbl)}</option>`).join('')}</select></div>
@@ -400,6 +405,7 @@ function openEditor(seed) {
       status: g('status'),
       responsavel: g('resp').trim(),
       data_ref: g('data') || null,     // prazo
+      okr_id: g('okr') || null,        // v86.94: cascata OKR→projeto
       link: g('link').trim(),
       obs: g('obs').trim(),            // escopo
       checklist,

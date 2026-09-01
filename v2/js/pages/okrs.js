@@ -4,6 +4,7 @@ import { auth } from '../auth.js';
 
 let _root = null;
 let _items = [];
+let _projs = [];   // v86.94: cascata — projetos (paulo_cards board=projetos) ligados por okr_id
 let _editing = null;
 
 const STATUS_MAP = {
@@ -23,6 +24,7 @@ async function load() {
   try {
     const r = await api.request('/api/v3/okrs/list');
     _items = r.okrs || [];
+    try { const rp = await api.request('/api/v3/paulo/cards?board=projetos'); _projs = (rp && rp.cards) || []; } catch (_) { _projs = []; }
     renderList();
   } catch (e) {
     document.getElementById('okr-body').innerHTML = `<div class="alert alert-err">${esc(e.message)}</div>`;
@@ -106,8 +108,37 @@ function okrCard(o, canEdit) {
       <div style="display:flex;flex-direction:column;gap:8px">
         ${(o.krs || []).map(kr => krBar(kr)).join('')}
       </div>
+      ${okrProjetos(o)}
     </div>
   `;
+}
+
+/* v86.94 — cascata Estratégia→Projetos: mostra os projetos ligados a este OKR
+   com etapa + % do checklist (progresso REAL, não digitado). */
+const PJ_CHECK_N = 7;
+function okrProjetos(o) {
+  const ps = _projs.filter(c => c.okr_id === o.id && c.status !== 'excluido');
+  if (!ps.length) return '';
+  const ETAPA = { ideia: '💡', planejamento: '📋', andamento: '🚧', revisao: '👁', concluido: '✅', pausado: '⏸' };
+  const hj = new Date().toISOString().slice(0, 10);
+  const linha = c => {
+    const done = Object.keys(c.checklist || {}).length;
+    const pct = c.status === 'concluido' ? 100 : Math.round(done / PJ_CHECK_N * 100);
+    const atras = c.data_ref && c.status !== 'concluido' && c.status !== 'pausado' && String(c.data_ref).slice(0, 10) < hj;
+    return `<div class="flex gap-2" style="align-items:center;font-size:12px;padding:4px 0;border-top:1px dashed var(--border)">
+      <span>${ETAPA[c.status] || '📁'}</span>
+      <a href="#/projetos" style="flex:1;min-width:0;font-weight:700;color:inherit;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.titulo || 'Sem nome')}</a>
+      ${c.responsavel ? `<span class="tiny muted">👤 ${esc(c.responsavel)}</span>` : ''}
+      ${atras ? '<span class="tiny" style="color:#dc2626;font-weight:700">⚠ atrasado</span>' : ''}
+      <div style="width:70px;height:5px;border-radius:3px;background:var(--bg-3);overflow:hidden"><div style="height:100%;width:${pct}%;background:${pct >= 100 ? '#16a34a' : '#0891b2'}"></div></div>
+      <span class="tiny muted" style="width:32px;text-align:right">${pct}%</span>
+    </div>`;
+  };
+  const media = Math.round(ps.reduce((a, c) => a + (c.status === 'concluido' ? 100 : Math.round(Object.keys(c.checklist || {}).length / PJ_CHECK_N * 100)), 0) / ps.length);
+  return `<div style="margin-top:10px">
+    <div class="tiny" style="font-weight:800">📁 Projetos ligados (${ps.length}) · <span style="color:${media >= 60 ? '#16a34a' : media >= 30 ? '#d97706' : '#dc2626'}">${media}% médio</span></div>
+    ${ps.map(linha).join('')}
+  </div>`;
 }
 
 function krBar(kr) {

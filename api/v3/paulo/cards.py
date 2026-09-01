@@ -36,7 +36,8 @@ def _safe_exec(do, payloads):
     return do()
 
 FIELDS = ["titulo", "status", "plataforma", "formato", "valor", "link", "data_ref", "obs", "ordem", "semana", "responsavel", "checklist",
-          "data_inicio", "data_entrega", "data_post"]   # 3 datas da demanda (criativos/conteúdos) v81.35
+          "data_inicio", "data_entrega", "data_post",   # 3 datas da demanda (criativos/conteúdos) v81.35
+          "okr_id"]   # v86.94: projeto ligado a um OKR (cascata Estratégia→Projetos)
 BOARDS = ("negocios", "conteudo", "conteudo_imoveis", "conteudo_conquista", "academy", "projetos", "criativos", "criativos_lib", "anuncios_psm")
 CONTEUDO_BOARDS = ("conteudo", "conteudo_imoveis", "conteudo_conquista", "academy", "projetos", "criativos", "criativos_lib", "anuncios_psm")  # compartilhados
 
