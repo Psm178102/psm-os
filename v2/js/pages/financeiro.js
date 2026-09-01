@@ -65,7 +65,7 @@ function drawShell() {
     _tab = b.dataset.tab; await loadAndRender();
   }));
   document.getElementById('btn-reload').addEventListener('click', async () => {
-    _cache = {}; _hubFin = null; _hubMes = '';   // zera também o cache do PSM HUB (módulo-level)
+    _cache = {}; _hubFin = null; _hubMes = ''; _hubSecData = {};   // zera também o cache do PSM HUB (módulo-level)
     await loadAndRender();
   });
 }
@@ -826,10 +826,35 @@ function escapeHtml(s) {
 }
 
 
-/* ─── Tab: 🌉 PSM HUB (financeiro do Hub da Equipe Conquista, via ponte) — v84.97 ─── */
+/* ─── Tab: 🌉 PSM HUB (financeiro do Hub da Equipe Conquista, via ponte) — v84.97 ───
+   v86.89: o Hub ganhou mais páginas de financeiro (Painel, Acompanhamento, Contas,
+   Recorrências, Conciliação, DRE, Viabilidade) → viraram sub-abas aqui, cada uma
+   espelhando os endpoints que a tela do Hub chama (ponte ?secao=). */
 let _hubFin = null, _hubMes = '';   // '' = todos os meses
+let _hubSec = 'comissoes';
+let _hubSecData = {};               // cache local por seção
+let _hubAno = String(new Date().getFullYear());
+
+const HUB_SECOES = [
+  ['comissoes',      '💰 Comissões'],
+  ['painel',         '📊 Painel Geral'],
+  ['acompanhamento', '🎯 Orçado × Realizado'],
+  ['contas',         '📒 Contas a Pagar/Receber'],
+  ['recorrencias',   '🔁 Recorrências'],
+  ['conciliacao',    '🤝 Conciliação'],
+  ['dre',            '📈 DRE'],
+  ['viabilidade',    '🧮 Viabilidade'],
+];
 
 async function renderPsmHub() {
+  const subBar = `<div class="flex gap-1 mb-3" style="flex-wrap:wrap">
+    ${HUB_SECOES.map(([k, lbl]) => `<button class="btn btn-sm ${_hubSec === k ? '' : 'btn-ghost'}" data-hubsec="${k}" style="font-size:11px">${lbl}</button>`).join('')}
+  </div>`;
+  if (_hubSec !== 'comissoes') return subBar + await renderHubSecao(_hubSec);
+  return subBar + await renderHubComissoes();
+}
+
+async function renderHubComissoes() {
   if (!_hubFin) {
     try { _hubFin = await api.request('/api/v3/psmhub/financeiro'); }
     catch (e) { return `<div class="alert alert-err">Ponte PSM HUB: ${escapeHtml(e.message)}</div>`; }
@@ -901,13 +926,106 @@ async function renderPsmHub() {
     </div>`;
 }
 
+/* ── Seções novas do Hub (v86.89): renderização resiliente ──
+   Ainda não conhecemos o shape exato de cada payload do Hub, então cada bloco é
+   desenhado de forma genérica (tabela automática/cartões) + status por endpoint.
+   Quando os dados reais aparecerem dá pra refinar o layout por seção. */
+const HUB_MONEY_RE = /valor|amount|total|vgv|saldo|price|liquido|bruto|imposto|comiss|receita|despesa|lucro|balance/i;
+const HUB_DATE_RE = /^(data|date|venc|due|created|updated|paid|competencia)|(_at|At|Date|data)$/i;
+
+function hubFmtCell(k, v) {
+  if (v == null || v === '') return '<span class="tiny muted">—</span>';
+  if (typeof v === 'boolean') return v ? '✓' : '✗';
+  if (Array.isArray(v)) return `<span class="tiny muted">${v.length} itens</span>`;
+  if (typeof v === 'object') return `<span class="tiny muted">{…}</span>`;
+  const s = String(v);
+  if (HUB_DATE_RE.test(k) && /^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10).split('-').reverse().join('/');
+  const num = Number(s);
+  if (s !== '' && !isNaN(num) && HUB_MONEY_RE.test(k)) return 'R$ ' + num.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  return escapeHtml(s.length > 80 ? s.slice(0, 77) + '…' : s);
+}
+
+function hubSmartTable(rows) {
+  if (!Array.isArray(rows) || !rows.length) return '<div class="tiny muted" style="padding:8px">sem registros</div>';
+  const cols = Object.keys(rows[0]).filter(k => !/^(id|.*Id|_.*)$/.test(k) || /valor|total/i.test(k)).slice(0, 12);
+  return `<div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:600px">
+    <thead><tr class="muted" style="text-align:left">${cols.map(c => `<th style="padding:4px;white-space:nowrap">${escapeHtml(c)}</th>`).join('')}</tr></thead>
+    <tbody>${rows.slice(0, 300).map(r => `<tr style="border-top:1px solid var(--border)">${cols.map(c => `<td style="padding:4px">${hubFmtCell(c, r[c])}</td>`).join('')}</tr>`).join('')}</tbody>
+  </table>${rows.length > 300 ? `<div class="tiny muted" style="padding:4px">mostrando 300 de ${rows.length}</div>` : ''}</div>`;
+}
+
+function hubKvCards(obj) {
+  const ent = Object.entries(obj).filter(([, v]) => typeof v !== 'object' || v == null);
+  if (!ent.length) return '';
+  return `<div class="flex gap-2" style="flex-wrap:wrap">${ent.map(([k, v]) =>
+    `<div style="min-width:130px;background:var(--bg-3);border-radius:10px;padding:8px 12px">
+      <div class="tiny muted">${escapeHtml(k)}</div><div style="font-weight:800">${hubFmtCell(k, v)}</div></div>`).join('')}</div>`;
+}
+
+function hubBloco(nome, dado) {
+  let corpo;
+  if (dado == null) corpo = '<div class="tiny muted" style="padding:8px">sem dados (ver status acima)</div>';
+  else if (Array.isArray(dado)) corpo = hubSmartTable(dado);
+  else if (typeof dado === 'object') {
+    // objeto: cartões com os escalares + tabela pra cada lista interna
+    corpo = hubKvCards(dado) + Object.entries(dado).filter(([, v]) => Array.isArray(v) && v.length)
+      .map(([k, v]) => `<div class="mt-2"><b class="tiny">${escapeHtml(k)}</b>${hubSmartTable(v)}</div>`).join('');
+    if (!corpo) corpo = '<div class="tiny muted" style="padding:8px">vazio</div>';
+  } else corpo = `<div style="padding:8px">${escapeHtml(String(dado))}</div>`;
+  return `<div class="card" style="margin:0 0 12px"><b class="tiny" style="text-transform:capitalize">${escapeHtml(nome.replace(/_/g, ' '))}</b>${corpo}</div>`;
+}
+
+async function renderHubSecao(sec) {
+  const key = `${sec}:${_hubAno}`;
+  if (!_hubSecData[key]) {
+    try { _hubSecData[key] = await api.request(`/api/v3/psmhub/financeiro?secao=${sec}&ano=${_hubAno}`); }
+    catch (e) { return `<div class="alert alert-err">Ponte PSM HUB: ${escapeHtml(e.message)}</div>`; }
+  }
+  const d = _hubSecData[key];
+  if (d && d.sem_permissao) return `<div class="alert alert-warn">🔑 ${escapeHtml(d.error)}</div>`;
+  if (!d || (!d.ok && !d.dados)) return `<div class="alert alert-err">${escapeHtml((d && d.error) || 'ponte indisponível')}</div>`;
+
+  const eps = d.endpoints || {};
+  const chip = (nome, ep) => {
+    const ok = ep.status === 'ok';
+    const cor = ok ? '#16a34a' : (ep.status === 'sem_permissao' ? '#d97706' : '#dc2626');
+    const lbl = ok ? 'ok' : (ep.status === 'sem_permissao' ? 'sem permissão no Hub' : ep.status);
+    return `<span class="tiny" style="background:var(--bg-3);border-radius:99px;padding:2px 10px;white-space:nowrap">
+      <span style="color:${cor}">●</span> ${escapeHtml(nome.replace(/_/g, ' '))} · ${escapeHtml(lbl)}</span>`;
+  };
+  const anos = []; for (let a = new Date().getFullYear(); a >= 2025; a--) anos.push(String(a));
+
+  return `
+    <div class="alert" style="background:var(--bg-3);border:none;font-size:12px">🌉 Espelho da página <b>${escapeHtml((HUB_SECOES.find(s => s[0] === sec) || [])[1] || sec)}</b> do PSM HUB — leitura via ponte, cache de 10min.</div>
+    <div class="flex gap-2 mb-2" style="align-items:center;flex-wrap:wrap">
+      <select id="hub-ano" class="select" style="width:auto;font-size:12px">
+        ${anos.map(a => `<option value="${a}"${_hubAno === a ? ' selected' : ''}>${a}</option>`).join('')}
+      </select>
+      <button class="btn btn-ghost btn-sm" id="hub-sec-reload">🔄 Atualizar agora</button>
+      <span class="tiny muted">${d.cache && d.cache.hit ? `cache de ${Math.round(d.cache.age_s / 60)}min` : 'ao vivo'}</span>
+    </div>
+    <div class="flex gap-1 mb-3" style="flex-wrap:wrap">${Object.entries(eps).map(([n, e]) => chip(n, e)).join('')}</div>
+    ${Object.entries(d.dados || {}).map(([nome, dado]) => hubBloco(nome, dado)).join('')}`;
+}
+
 function wirePsmHub() {
+  document.querySelectorAll('[data-hubsec]').forEach(b => {
+    b.onclick = async () => { _hubSec = b.dataset.hubsec; await drawBody(); };
+  });
   const sel = document.getElementById('hub-mes');
   if (sel) sel.onchange = async () => { _hubMes = sel.value; await drawBody(); };
+  const anoSel = document.getElementById('hub-ano');
+  if (anoSel) anoSel.onchange = async () => { _hubAno = anoSel.value; await drawBody(); };
   const rl = document.getElementById('hub-reload');
   if (rl) rl.onclick = async () => {
     rl.disabled = true;
     try { _hubFin = await api.request('/api/v3/psmhub/financeiro?nocache=1'); } catch (_) {}
+    await drawBody();
+  };
+  const rls = document.getElementById('hub-sec-reload');
+  if (rls) rls.onclick = async () => {
+    rls.disabled = true;
+    try { _hubSecData[`${_hubSec}:${_hubAno}`] = await api.request(`/api/v3/psmhub/financeiro?secao=${_hubSec}&ano=${_hubAno}&nocache=1`); } catch (_) {}
     await drawBody();
   };
 }

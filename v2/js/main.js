@@ -428,7 +428,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '86.88';
+const APP_VERSION = '86.89';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
