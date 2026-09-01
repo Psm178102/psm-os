@@ -233,31 +233,44 @@ function render() {
   if (_view === 'builder') return renderBuilder();
   if (_view === 'professor') return renderProfessor();
   if (_view === 'treino') return renderTreino();
+  if (_view === 'radio') return renderRadio();
   renderJourney();
 }
 
-function header(extra) {
+/* ─── Cabeçalho único: título + ABAS fixas (padrão de navegação da página) ─── */
+const ABAS = [
+  { id: 'journey', ico: '📚', nome: 'Estudar' },
+  { id: 'treino', ico: '🥊', nome: 'Treinar' },
+  { id: 'professor', ico: '👨‍🏫', nome: 'Professor' },
+  { id: 'radio', ico: '🎧', nome: 'Rádio' },
+];
+function abaAtiva() { return _view === 'trilha' ? 'journey' : _view; }
+
+function header() {
+  const ativa = abaAtiva();
+  const abas = canEdit() ? [...ABAS, { id: 'builder', ico: '🛠', nome: 'Construtor' }] : ABAS;
   return `
-    <div class="flex" style="justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
-      <div style="flex:1;min-width:240px">
-        <h2 class="card-title">🎓 PSM Academy</h2>
-        <p class="card-sub">A faculdade da PSM — do zero ao nível expert. Trilhas, níveis, módulos e aulas, com seu progresso e certificado.</p>
-      </div>
-      <div class="flex gap-2" style="flex-wrap:wrap">
-        ${_view !== 'journey' ? `<button class="btn btn-ghost" id="ac-home">🏠 Minha Jornada</button>` : ''}
-        <button class="btn ${_view === 'treino' ? 'btn-primary' : 'btn-ghost'}" id="ac-treino">🥊 Sala de Treino</button>
-        <button class="btn ${_view === 'professor' ? 'btn-primary' : 'btn-ghost'}" id="ac-prof">👨‍🏫 Professor PSM</button>
-        ${canEdit() ? `<button class="btn ${_view === 'builder' ? 'btn-primary' : 'btn-ghost'}" id="ac-builder">🛠 Construtor</button>` : ''}
-      </div>
+    <style>
+      .ac-bar{height:8px;border-radius:5px;background:var(--bg-3,#e2e8f0);overflow:hidden}
+      .ac-bar>i{display:block;height:100%;border-radius:5px;transition:width .5s}
+      .ac-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+      .ac-tab{border:1px solid var(--border);background:transparent;border-radius:999px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;color:inherit;transition:all .12s}
+      .ac-tab:hover{border-color:#2563eb;color:#2563eb}
+      .ac-tab.on{background:#2563eb;border-color:#2563eb;color:#fff}
+    </style>
+    <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <h2 class="card-title" style="margin:0">🎓 PSM Academy <span class="tiny muted" style="font-weight:400">· a escola do corretor PSM</span></h2>
     </div>
-    ${extra || ''}`;
+    <div class="ac-tabs">
+      ${abas.map(a => `<button class="ac-tab${ativa === a.id ? ' on' : ''}" data-aba="${a.id}">${a.ico} ${a.nome}</button>`).join('')}
+    </div>`;
 }
 
 function bindHeader() {
-  const h = document.getElementById('ac-home'); if (h) h.addEventListener('click', () => { _view = 'journey'; _trilha = null; render(); });
-  const b = document.getElementById('ac-builder'); if (b) b.addEventListener('click', () => { _view = _view === 'builder' ? 'journey' : 'builder'; render(); });
-  const pr = document.getElementById('ac-prof'); if (pr) pr.addEventListener('click', () => { _view = _view === 'professor' ? 'journey' : 'professor'; _trilha = null; render(); });
-  const tr = document.getElementById('ac-treino'); if (tr) tr.addEventListener('click', () => { _view = _view === 'treino' ? 'journey' : 'treino'; _trilha = null; render(); });
+  _root.querySelectorAll('[data-aba]').forEach(b => b.addEventListener('click', () => {
+    if (abaAtiva() === b.dataset.aba) return;
+    _view = b.dataset.aba; _trilha = null; render();
+  }));
 }
 
 /* ─── VIEW: Minha Jornada ─── */
@@ -268,27 +281,34 @@ function renderJourney() {
   const certificados = trilhas.filter(t => t.total > 0 && t.pct === 100).length;
   const pctMedio = trilhas.length ? Math.round(trilhas.reduce((s, t) => s + t.pct, 0) / trilhas.length) : 0;
 
+  const w = studyWeekStats();
+  const temMeta = (w.metaA > 0 || w.metaT > 0);
+  const bateu = (!w.metaA || w.aulas >= w.metaA) && (!w.metaT || w.treinos >= w.metaT);
+
   _root.innerHTML = `
     <style>
       .ac-tcard{background:var(--bg-1,#fff);border:1px solid var(--border);border-radius:14px;padding:16px;cursor:pointer;transition:transform .12s,box-shadow .12s}
       .ac-tcard:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(15,23,42,.12)}
-      .ac-bar{height:8px;border-radius:5px;background:var(--bg-3,#e2e8f0);overflow:hidden}
-      .ac-bar>i{display:block;height:100%;border-radius:5px;transition:width .5s}
       .ac-niv{display:inline-block;padding:2px 9px;border-radius:999px;font-size:10px;font-weight:800}
     </style>
     <div class="card">
       ${header()}
       ${_pendItems ? `<div class="alert alert-warn" style="margin-top:10px">⏳ Rode <code>supabase/sprint9_22_academy.sql</code> e <code>sprint9_25_academy_faculdade.sql</code> pra ativar a Academy.</div>` : ''}
-      <div class="flex gap-3 mt-3" style="flex-wrap:wrap">
-        ${kpi('🛤 Trilhas', trilhas.length, '#2563eb')}
-        ${kpi('▶ Iniciadas', iniciadas, '#7c3aed')}
-        ${kpi('✅ Aulas concluídas', aulasDone, '#16a34a')}
-        ${kpi('🏅 Certificados', certificados, '#d4a843')}
-      </div>
-      ${trilhas.length ? `<div style="margin-top:6px"><div class="tiny muted" style="margin:8px 0 4px">Progresso geral da sua formação</div><div class="ac-bar"><i style="width:${pctMedio}%;background:linear-gradient(90deg,#16a34a,#22c55e)"></i></div><div class="tiny muted" style="margin-top:3px">${pctMedio}% concluído</div></div>` : ''}
+      ${trilhas.length ? `
+      <div class="flex mt-3" style="gap:20px;align-items:center;flex-wrap:wrap">
+        <div style="flex:2;min-width:220px">
+          <div class="tiny" style="display:flex;justify-content:space-between"><span class="muted">Sua formação</span><b>${pctMedio}%</b></div>
+          <div class="ac-bar" style="margin-top:3px"><i style="width:${pctMedio}%;background:linear-gradient(90deg,#16a34a,#22c55e)"></i></div>
+          <div class="tiny muted" style="margin-top:3px">${aulasDone} aulas concluídas · ${iniciadas}/${trilhas.length} trilhas iniciadas · ${certificados} 🏅</div>
+        </div>
+        ${temMeta ? `
+        <div style="flex:1;min-width:200px;display:flex;gap:14px;align-items:center">
+          <span style="font-size:22px">${bateu ? '🏆' : '📅'}</span>
+          ${w.metaA ? metaBar('Aulas na semana', w.aulas, w.metaA, '#2563eb') : ''}
+          ${w.metaT ? metaBar('Treinos', w.treinos, w.metaT, '#7c3aed') : ''}
+        </div>` : ''}
+      </div>` : ''}
     </div>
-
-    ${escolaStrip()}
 
     ${!trilhas.length ? `
       <div class="card" style="text-align:center;padding:48px 22px">
@@ -300,14 +320,10 @@ function renderJourney() {
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-top:14px" id="ac-grid">
         ${trilhas.map(trilhaCard).join('')}
       </div>`}
-
-    ${radioSection()}
     <div id="ac-modal"></div>
   `;
   bindHeader();
   const i0 = document.getElementById('ac-install0'); if (i0) i0.addEventListener('click', installCurriculo);
-  const p0 = document.getElementById('ac-prof0'); if (p0) p0.addEventListener('click', () => { _view = 'professor'; render(); });
-  const t0 = document.getElementById('ac-tr0'); if (t0) t0.addEventListener('click', () => { _view = 'treino'; render(); });
   _root.querySelectorAll('[data-trilha]').forEach(el => el.addEventListener('click', () => { _trilha = el.dataset.trilha; _view = 'trilha'; render(); }));
 }
 
@@ -322,65 +338,29 @@ function metaBar(label, feito, meta, cor) {
     </div>`;
 }
 
-function escolaStrip() {
-  const nb = _cfg.notebooklm_url;
-  const w = studyWeekStats();
-  const temMeta = (w.metaA > 0 || w.metaT > 0);
-  const bateu = (!w.metaA || w.aulas >= w.metaA) && (!w.metaT || w.treinos >= w.metaT);
-  const ultimaNota = _treinos.length && _treinos[0].nota != null ? Number(_treinos[0].nota).toFixed(1) : null;
-  return `
-    ${temMeta ? `
-    <div class="card mt-3" style="border-left:4px solid ${bateu ? '#16a34a' : '#d97706'}">
-      <div class="flex" style="align-items:center;gap:14px;flex-wrap:wrap">
-        <div style="font-size:26px">${bateu ? '🏆' : '📅'}</div>
-        <div style="min-width:150px">
-          <div style="font-weight:800;font-size:13px">Sua semana de estudo</div>
-          <div class="tiny muted">${bateu ? 'Meta batida — mantém o ritmo!' : 'Meta semanal da escola PSM'}</div>
+/* ─── VIEW: Rádio (playlists embutidas + Caderno NotebookLM) ─── */
+function renderRadio() {
+  _root.innerHTML = `
+    <div class="card">${header()}</div>
+    ${_cfg.notebooklm_url ? `
+    <div class="card mt-3" style="background:linear-gradient(135deg,#0f766e12,#16a34a12)">
+      <div class="flex" style="align-items:center;gap:12px">
+        <div style="font-size:34px">🧠</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:800">Caderno de Estudos (NotebookLM)</div>
+          <div class="tiny muted">${esc(_cfg.notebooklm_desc || 'Converse com os livros, PDFs e podcasts da PSM.')}</div>
         </div>
-        ${w.metaA ? metaBar('📘 Aulas', w.aulas, w.metaA, '#2563eb') : ''}
-        ${w.metaT ? metaBar('🥊 Treinos', w.treinos, w.metaT, '#7c3aed') : ''}
+        <a href="${esc(_cfg.notebooklm_url)}" target="_blank" rel="noopener" class="btn btn-primary btn-sm" style="flex-shrink:0">Abrir ↗</a>
       </div>
     </div>` : ''}
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin-top:12px">
-      <div class="card" style="margin:0;background:linear-gradient(135deg,#7c3aed12,#dc262612);border:1px solid var(--border)">
-        <div class="flex" style="align-items:center;gap:12px">
-          <div style="font-size:34px">🥊</div>
-          <div style="flex:1;min-width:0">
-            <div style="font-weight:800">Sala de Treino</div>
-            <div class="tiny muted">A IA vira o cliente e você treina de verdade: objeção, NEPQ, follow-up.${ultimaNota ? ` Última nota: <b>${ultimaNota}</b>` : ''}</div>
-          </div>
-          <button class="btn btn-primary btn-sm" id="ac-tr0" style="flex-shrink:0">Treinar</button>
-        </div>
-      </div>
-      <div class="card" style="margin:0;background:linear-gradient(135deg,#1e3a8a12,#7c3aed12);border:1px solid var(--border)">
-        <div class="flex" style="align-items:center;gap:12px">
-          <div style="font-size:34px">👨‍🏫</div>
-          <div style="flex:1;min-width:0">
-            <div style="font-weight:800">Professor PSM</div>
-            <div class="tiny muted">Tira-dúvidas 24h com base nas trilhas da Academy.</div>
-          </div>
-          <button class="btn btn-ghost btn-sm" id="ac-prof0" style="flex-shrink:0">💬 Perguntar</button>
-        </div>
-      </div>
-      ${nb ? `
-      <div class="card" style="margin:0;background:linear-gradient(135deg,#0f766e12,#16a34a12);border:1px solid var(--border)">
-        <div class="flex" style="align-items:center;gap:12px">
-          <div style="font-size:34px">🧠</div>
-          <div style="flex:1;min-width:0">
-            <div style="font-weight:800">Caderno de Estudos (NotebookLM)</div>
-            <div class="tiny muted">${esc(_cfg.notebooklm_desc || 'Converse com os livros, PDFs e podcasts da PSM.')}</div>
-          </div>
-          <a href="${esc(nb)}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="flex-shrink:0">Abrir ↗</a>
-        </div>
-      </div>` : ''}
-    </div>`;
+    ${radioSection()}`;
+  bindHeader();
 }
 
-/* ─── Rádio PSM: playlists Spotify/YouTube embutidas ─── */
 function radioSection() {
   const radios = (_cfg.radio || []).map(r => ({ ...r, info: embedInfo(r.url) }));
   if (!radios.length) {
-    return canEdit() ? `<div class="card mt-3"><h3 class="card-title">🎧 Rádio PSM</h3><p class="muted" style="margin:0">Nenhuma playlist configurada. No <b>Construtor → Config da Escola</b>, cole links de playlist do Spotify ou YouTube (podcasts, audiobooks, treinos) e elas tocam aqui dentro.</p></div>` : '';
+    return `<div class="card mt-3"><h3 class="card-title">🎧 Rádio PSM</h3><p class="muted" style="margin:0">${canEdit() ? 'Nenhuma playlist configurada. No <b>Construtor → Config da Escola</b>, cole links de playlist do Spotify ou YouTube (podcasts, audiobooks, treinos) e elas tocam aqui dentro.' : 'As playlists de estudo da PSM vão aparecer aqui em breve.'}</p></div>`;
   }
   return `
     <div class="card mt-3">
@@ -431,6 +411,7 @@ function renderTrilha() {
       ${header()}
     </div>
     <div class="card mt-3">
+      <button class="btn btn-ghost btn-sm" id="ac-volta" style="margin-bottom:10px">← Todas as trilhas</button>
       <div class="flex" style="align-items:center;gap:14px;flex-wrap:wrap">
         <div style="font-size:40px">${icon}</div>
         <div style="flex:1;min-width:200px">
@@ -464,6 +445,7 @@ function renderTrilha() {
     }).join('')}
   `;
   bindHeader();
+  const v = document.getElementById('ac-volta'); if (v) v.addEventListener('click', () => { _view = 'journey'; _trilha = null; render(); });
   const c = document.getElementById('ac-cert'); if (c) c.addEventListener('click', () => certificado(_trilha));
   _root.querySelectorAll('[data-done]').forEach(el => el.addEventListener('change', () => toggleDone(el.dataset.done, el.checked)));
   _root.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => viewContent(b.dataset.view)));
