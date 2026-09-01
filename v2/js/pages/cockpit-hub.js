@@ -4,21 +4,21 @@
    Cada aba DELEGA à página original (zero duplicação) num sub-root próprio, lazy
    (só renderiza ao clicar). Deep-link: #/cockpit?tab=kpis|insights|atencao. */
 import { auth } from '../auth.js';
-import { pageCockpit } from './cockpit.js';
+import { pageSalaComando } from './sala-comando.js';
 import { pageKpis } from './kpis.js';
 import { pageInsights } from './insights.js';
 import { pagePontosAtencao } from './pontos-atencao.js';
 
 const TABS = [
-  { id: 'fronts',   lbl: '🧭 Decisão',            page: pageCockpit },
+  { id: 'comando',  lbl: '🧭 Sala de Comando',    page: pageSalaComando },
   { id: 'kpis',     lbl: '📈 KPIs Executivos',    page: pageKpis },
   { id: 'insights', lbl: '💡 Insights',           page: pageInsights },
   { id: 'atencao',  lbl: '🚨 Pontos de Atenção',  page: pagePontosAtencao },
 ];
 
 export async function pageCockpitHub(ctx, root) {
-  if ((auth.user()?.lvl || 0) < 7) { root.innerHTML = '<div class="alert alert-warn">🔒 Requer Sócio/Diretor (lvl 7+).</div>'; return; }
-  const inicial = TABS.some(t => t.id === ctx?.query?.tab) ? ctx.query.tab : 'fronts';
+  if ((auth.user()?.lvl || 0) < 10) { root.innerHTML = '<div class="alert alert-warn">🔒 Sala de Comando é restrita a Sócios (lvl 10).</div>'; return; }
+  const inicial = TABS.some(t => t.id === ctx?.query?.tab) ? ctx.query.tab : 'comando';
 
   root.innerHTML = `
     <div class="cockpit-hub">
