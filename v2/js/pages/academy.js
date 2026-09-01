@@ -14,8 +14,9 @@ let _root = null;
 let _items = [];          // aulas (academy_items)
 let _done = new Set();    // ids concluídos pelo usuário
 let _pendItems = false, _pendProg = false;
-let _view = 'journey';    // journey | trilha | builder | professor
+let _view = 'journey';    // journey | trilha | aula | builder | professor | treino | radio
 let _trilha = null;       // trilha selecionada (detalhe)
+let _aula = null;         // id da aula aberta (página de aula)
 let _cfg = { radio: [], notebooklm_url: '', notebooklm_desc: '', tutor_extra: '', meta_aulas_semana: 2, meta_treinos_semana: 1 }; // Config da Escola
 let _chat = [];           // histórico do Professor PSM (sessão)
 let _chatBusy = false;
@@ -227,8 +228,34 @@ function byNivelOrdem(a, b) {
   return na - nb || (a.ordem || 0) - (b.ordem || 0);
 }
 
+/* ─── direção: qual é a PRÓXIMA aula deste aluno? ────────────────────────
+   Prioridade: trilha da última aula concluída (continuidade) → trilha já
+   iniciada → primeira trilha pendente. Dentro da trilha, primeira aula
+   não concluída na ordem nível→ordem. */
+function proximaAula() {
+  const ts = trilhasList().filter(t => t.total > 0);
+  if (!ts.length) return null;
+  let alvo = null;
+  const ult = Object.entries(_dates).filter(([, d]) => d)
+    .sort((a, b) => new Date(b[1]) - new Date(a[1]))[0];
+  if (ult) {
+    const it = _items.find(i => i.id === ult[0]);
+    if (it) {
+      const t = ts.find(x => x.nome === (it.trilha || 'Geral'));
+      if (t && t.pct < 100) alvo = t;
+    }
+  }
+  if (!alvo) alvo = ts.find(t => t.pct > 0 && t.pct < 100) || ts.find(t => t.pct < 100) || null;
+  if (!alvo) return { fim: true };
+  const aula = alvo.aulas.filter(a => !_done.has(a.id)).sort(byNivelOrdem)[0];
+  return aula ? { trilha: alvo, aula, comecando: alvo.pct === 0 } : { fim: true };
+}
+
+function abrirAula(id) { _aula = id; _view = 'aula'; render(); }
+
 /* ─── render principal ─── */
 function render() {
+  if (_view === 'aula' && _aula) return renderAula();
   if (_view === 'trilha' && _trilha) return renderTrilha();
   if (_view === 'builder') return renderBuilder();
   if (_view === 'professor') return renderProfessor();
@@ -244,7 +271,7 @@ const ABAS = [
   { id: 'professor', ico: '👨‍🏫', nome: 'Professor' },
   { id: 'radio', ico: '🎧', nome: 'Rádio' },
 ];
-function abaAtiva() { return _view === 'trilha' ? 'journey' : _view; }
+function abaAtiva() { return (_view === 'trilha' || _view === 'aula') ? 'journey' : _view; }
 
 function header() {
   const ativa = abaAtiva();
@@ -317,14 +344,46 @@ function renderJourney() {
         <p class="muted" style="max-width:540px;display:inline-block;margin:0 0 16px">As 11 trilhas (do mercado básico ao alto padrão) já têm a ementa pronta — é só instalar o currículo e plugar os vídeos/materiais em cada aula.</p>
         ${canEdit() ? `<div><button class="btn btn-primary" id="ac-install0">📚 Instalar currículo PSM</button></div>` : `<p class="tiny muted">A diretoria vai publicar as trilhas em breve.</p>`}
       </div>` : `
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-top:14px" id="ac-grid">
+      ${heroProximaAula()}
+      <div class="tiny muted" style="margin:18px 2px 6px;text-transform:uppercase;letter-spacing:2px;font-weight:700">Suas trilhas</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px" id="ac-grid">
         ${trilhas.map(trilhaCard).join('')}
       </div>`}
     <div id="ac-modal"></div>
   `;
   bindHeader();
   const i0 = document.getElementById('ac-install0'); if (i0) i0.addEventListener('click', installCurriculo);
+  const hc = document.getElementById('ac-hero-cta'); if (hc) hc.addEventListener('click', () => abrirAula(hc.dataset.aula));
   _root.querySelectorAll('[data-trilha]').forEach(el => el.addEventListener('click', () => { _trilha = el.dataset.trilha; _view = 'trilha'; render(); }));
+}
+
+/* ─── HERO: a escola manda a próxima aula (nunca um menu) ─── */
+function heroProximaAula() {
+  const p = proximaAula();
+  if (!p) return '';
+  if (p.fim) {
+    return `
+    <div class="card mt-3" style="background:linear-gradient(135deg,#0b1f3a,#1e293b);border:1px solid #d4a84355;color:#fff;text-align:center;padding:30px 20px">
+      <div style="font-size:36px">🏛️</div>
+      <div style="letter-spacing:3px;font-size:11px;color:#d4a843;font-weight:800;margin-top:6px">FORMAÇÃO COMPLETA</div>
+      <div style="font-size:18px;font-weight:800;margin-top:8px">Você concluiu todas as trilhas disponíveis.</div>
+      <div class="tiny" style="color:#cbd5e1;margin-top:4px">Mantenha a lâmina afiada: uma rodada na Sala de Treino por semana.</div>
+    </div>`;
+  }
+  const { trilha, aula, comecando } = p;
+  return `
+    <div class="card mt-3" style="background:linear-gradient(135deg,#0b1f3a,#1e293b);border:1px solid #d4a84355;color:#fff;padding:24px 26px">
+      <div class="flex" style="align-items:center;gap:20px;flex-wrap:wrap">
+        <div style="flex:1;min-width:240px">
+          <div style="letter-spacing:3px;font-size:11px;color:#d4a843;font-weight:800">${comecando ? 'COMECE SUA FORMAÇÃO' : 'CONTINUE DE ONDE PAROU'}</div>
+          <div style="font-size:20px;font-weight:800;margin-top:8px;line-height:1.3">${esc(aula.titulo)}</div>
+          <div class="tiny" style="color:#cbd5e1;margin-top:6px">${trilha.icon} ${esc(trilha.nome)}${aula.nivel ? ' · ' + esc(aula.nivel) : ''}${aula.modulo ? ' · ' + esc(aula.modulo) : ''}</div>
+          <div style="margin-top:8px;max-width:340px"><div class="ac-bar" style="background:#ffffff22"><i style="width:${trilha.pct}%;background:linear-gradient(90deg,#d4a843,#e8c263)"></i></div>
+          <div class="tiny" style="color:#94a3b8;margin-top:3px">${trilha.done}/${trilha.total} aulas desta trilha</div></div>
+        </div>
+        <button class="btn" id="ac-hero-cta" data-aula="${esc(aula.id)}" style="background:#d4a843;color:#0b1f3a;font-weight:800;padding:14px 26px;font-size:15px;border:0;flex-shrink:0">▶ ${comecando ? 'Começar agora' : 'Continuar aula'}</button>
+      </div>
+    </div>`;
 }
 
 /* ─── Escola: meta da semana + Professor + Sala de Treino + NotebookLM ─── */
@@ -448,54 +507,73 @@ function renderTrilha() {
   const v = document.getElementById('ac-volta'); if (v) v.addEventListener('click', () => { _view = 'journey'; _trilha = null; render(); });
   const c = document.getElementById('ac-cert'); if (c) c.addEventListener('click', () => certificado(_trilha));
   _root.querySelectorAll('[data-done]').forEach(el => el.addEventListener('change', () => toggleDone(el.dataset.done, el.checked)));
-  _root.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => viewContent(b.dataset.view)));
-  _root.querySelectorAll('[data-play]').forEach(b => b.addEventListener('click', () => playAula(b.dataset.play)));
+  _root.querySelectorAll('[data-open]').forEach(el => el.addEventListener('click', () => abrirAula(el.dataset.open)));
   _root.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => openForm(_items.find(x => x.id === b.dataset.edit))));
-}
-
-/* ─── player embutido da aula (YouTube/Spotify/Drive dentro do House) ─── */
-function playAula(id) {
-  const a = _items.find(x => x.id === id); if (!a) return;
-  const info = embedInfo(a.url);
-  if (!info) { window.open(a.url, '_blank', 'noopener'); return; }
-  const modal = document.getElementById('ac-modal') || mkModal();
-  const isDone = _done.has(a.id);
-  modal.innerHTML = `
-    <div class="modal-backdrop" style="position:fixed;inset:0;background:rgba(15,23,42,.72);display:flex;align-items:flex-start;justify-content:center;z-index:1000;padding:24px;overflow:auto">
-      <div class="card" style="max-width:840px;width:100%;background:var(--bg-1);margin:auto">
-        <div class="flex" style="justify-content:space-between;align-items:center;gap:8px">
-          <h3 class="card-title" style="margin:0;min-width:0">${TIPO_IC[a.tipo] || '📘'} ${esc(a.titulo)}</h3>
-          <button class="btn btn-ghost btn-sm" id="ac-px" style="flex-shrink:0">✕</button>
-        </div>
-        <div style="margin-top:12px">${embedIframe(info, a.titulo)}</div>
-        ${(a.conteudo && a.conteudo.trim()) ? `<div style="white-space:pre-wrap;line-height:1.6;font-size:13.5px;background:var(--bg-3);border-radius:10px;padding:12px 14px;margin-top:12px">${esc(a.conteudo)}</div>` : ''}
-        <div class="flex gap-2 mt-3" style="justify-content:space-between;flex-wrap:wrap">
-          <a href="${esc(a.url)}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">Abrir no app ↗</a>
-          <button class="btn ${isDone ? 'btn-ghost' : 'btn-primary'} btn-sm" id="ac-pdone">${isDone ? '↩ Desmarcar concluída' : '✅ Marcar aula concluída'}</button>
-        </div>
-      </div>
-    </div>`;
-  document.getElementById('ac-px').addEventListener('click', () => { modal.innerHTML = ''; });
-  document.getElementById('ac-pdone').addEventListener('click', () => { modal.innerHTML = ''; toggleDone(a.id, !isDone); });
 }
 
 function aulaRow(a) {
   const isDone = _done.has(a.id);
-  const ic = TIPO_IC[a.tipo] || '📘';
+  const temConteudo = !!(a.url || (a.conteudo && a.conteudo.trim()));
   return `
-    <div style="display:flex;gap:10px;align-items:center;background:var(--bg-3);border-radius:8px;padding:9px 11px">
+    <div style="display:flex;gap:10px;align-items:center;background:var(--bg-3);border-radius:8px;padding:10px 12px">
       <input type="checkbox" data-done="${esc(a.id)}" ${isDone ? 'checked' : ''} style="width:18px;height:18px;flex-shrink:0;cursor:pointer" title="Marcar concluída" />
-      <div style="flex:1;min-width:0">
-        <div style="font-weight:600;font-size:13px;${isDone ? 'opacity:.6;text-decoration:line-through' : ''}">${ic} ${esc(a.titulo)}</div>
-        ${a.duracao ? `<div class="tiny muted">⏱ ${esc(a.duracao)}</div>` : ''}
-        ${a.missao ? `<div class="tiny" style="margin-top:3px;color:#7c3aed"><b>🎯 Missão de campo:</b> ${esc(a.missao)}</div>` : ''}
+      <div data-open="${esc(a.id)}" style="flex:1;min-width:0;cursor:pointer">
+        <div style="font-weight:600;font-size:13px;${isDone ? 'opacity:.55' : ''}">${esc(a.titulo)}</div>
+        <div class="tiny muted">${TIPO_IC[a.tipo] || '📘'} ${esc(a.tipo || 'aula')}${a.duracao ? ' · ⏱ ' + esc(a.duracao) : ''}${a.missao ? ' · 🎯 tem missão de campo' : ''}${!temConteudo ? ' · <i>material em breve</i>' : ''}</div>
       </div>
-      ${a.url ? (embedInfo(a.url)
-        ? `<button class="btn btn-primary btn-sm" data-play="${esc(a.id)}" style="flex-shrink:0">▶ Assistir</button>`
-        : `<a href="${esc(a.url)}" target="_blank" rel="noopener" class="btn btn-primary btn-sm" style="flex-shrink:0">▶ Abrir</a>`) : ''}
-      ${(a.conteudo && a.conteudo.trim()) ? `<button class="btn btn-ghost btn-sm" data-view="${esc(a.id)}" style="flex-shrink:0">📖 Ler</button>` : ''}
-      ${(!a.url && !(a.conteudo && a.conteudo.trim())) ? `<span class="tiny muted" style="flex-shrink:0">${canEdit() ? '<button class="btn btn-ghost btn-sm" data-edit="' + esc(a.id) + '">➕ conteúdo</button>' : 'em breve'}</span>` : ''}
+      ${canEdit() && !temConteudo ? `<button class="btn btn-ghost btn-sm" data-edit="${esc(a.id)}" style="flex-shrink:0">➕</button>` : ''}
+      <span data-open="${esc(a.id)}" class="tiny" style="flex-shrink:0;cursor:pointer;font-weight:800;color:#2563eb">${isDone ? 'rever' : 'abrir'} →</span>
     </div>`;
+}
+
+/* ─── VIEW: Página de aula (o coração da escola) ─── */
+function renderAula() {
+  const a = _items.find(x => x.id === _aula);
+  if (!a) { _view = 'journey'; return render(); }
+  const trilhaNome = a.trilha || 'Geral';
+  const aulasT = _items.filter(i => (i.trilha || 'Geral') === trilhaNome).sort(byNivelOrdem);
+  const idx = aulasT.findIndex(x => x.id === a.id);
+  const prox = aulasT.slice(idx + 1).find(x => !_done.has(x.id)) || aulasT.find(x => !_done.has(x.id) && x.id !== a.id) || null;
+  const isDone = _done.has(a.id);
+  const info = a.url ? embedInfo(a.url) : null;
+  const ni = NIVEL_IDX[a.nivel] ?? 0;
+  const cor = NIVEL_COR[ni] || '#2563eb';
+
+  _root.innerHTML = `
+    <div class="card">${header()}</div>
+    <div class="card mt-3" style="max-width:900px">
+      <button class="btn btn-ghost btn-sm" id="ac-volta-t">← ${TRILHA_ICON[trilhaNome] || '🎓'} ${esc(trilhaNome)}</button>
+      <div style="margin-top:14px">
+        <span class="tiny" style="font-weight:800;color:${cor};text-transform:uppercase;letter-spacing:1px">${esc(a.nivel || '')}${a.modulo ? ' · ' + esc(a.modulo) : ''}</span>
+        <h2 style="margin:6px 0 2px;font-size:22px;line-height:1.25">${esc(a.titulo)}</h2>
+        <div class="tiny muted">${TIPO_IC[a.tipo] || '📘'} ${esc(a.tipo || 'aula')}${a.duracao ? ' · ⏱ ' + esc(a.duracao) : ''} · aula ${idx + 1} de ${aulasT.length}</div>
+      </div>
+      ${info ? `<div style="margin-top:16px">${embedIframe(info, a.titulo)}</div>` : (a.url ? `<div style="margin-top:16px"><a href="${esc(a.url)}" target="_blank" rel="noopener" class="btn btn-primary">▶ Abrir material ↗</a></div>` : '')}
+      ${(a.conteudo && a.conteudo.trim()) ? `<div style="white-space:pre-wrap;line-height:1.7;font-size:14px;margin-top:16px;padding:16px 18px;background:var(--bg-3);border-radius:12px">${esc(a.conteudo)}</div>` : ''}
+      ${(!a.url && !(a.conteudo && a.conteudo.trim())) ? `<div class="alert alert-warn" style="margin-top:16px">📦 O material desta aula ainda vai ser plugado pela gestão.${canEdit() ? ' <button class="btn btn-ghost btn-sm" data-edit="' + esc(a.id) + '">✏️ Plugar agora</button>' : ''}</div>` : ''}
+      ${a.missao ? `
+      <div style="margin-top:16px;padding:14px 18px;border-radius:12px;background:#7c3aed14;border-left:4px solid #7c3aed">
+        <div style="font-weight:800;color:#7c3aed;font-size:13px">🎯 MISSÃO DE CAMPO</div>
+        <div style="font-size:14px;margin-top:4px;line-height:1.5">${esc(a.missao)}</div>
+        <div class="tiny muted" style="margin-top:4px">Aula boa termina no campo — faça e registre no painel.</div>
+      </div>` : ''}
+      <div class="flex gap-2" style="margin-top:20px;justify-content:space-between;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:14px">
+        <button class="btn btn-ghost btn-sm" id="ac-undone" ${isDone ? '' : 'style="visibility:hidden"'}>↩ Desmarcar concluída</button>
+        <button class="btn btn-primary" id="ac-done-next" style="padding:12px 22px;font-weight:800">
+          ${isDone ? (prox ? 'Próxima aula →' : 'Voltar à trilha →') : ('✓ Concluir' + (prox ? ' e próxima aula →' : ' aula'))}
+        </button>
+      </div>
+    </div>
+    <div id="ac-modal"></div>`;
+  bindHeader();
+  document.getElementById('ac-volta-t').addEventListener('click', () => { _view = 'trilha'; _trilha = trilhaNome; _aula = null; render(); });
+  const un = document.getElementById('ac-undone'); if (un && isDone) un.addEventListener('click', () => { toggleDone(a.id, false); render(); });
+  document.getElementById('ac-done-next').addEventListener('click', () => {
+    if (!isDone) toggleDone(a.id, true);
+    if (prox) { _aula = prox.id; render(); }
+    else { _view = 'trilha'; _trilha = trilhaNome; _aula = null; render(); }
+  });
+  const ed = _root.querySelector('[data-edit]'); if (ed) ed.addEventListener('click', () => openForm(_items.find(x => x.id === ed.dataset.edit)));
 }
 
 /* ─── certificado ─── */
@@ -526,24 +604,6 @@ function certificado(trilha) {
     </div>`;
   document.getElementById('cert-x').addEventListener('click', () => { modal.innerHTML = ''; });
   document.getElementById('cert-print').addEventListener('click', () => window.print());
-}
-
-/* ─── conteúdo inline ─── */
-function viewContent(id) {
-  const i = _items.find(x => x.id === id); if (!i) return;
-  const modal = document.getElementById('ac-modal') || mkModal();
-  modal.innerHTML = `
-    <div class="modal-backdrop" style="position:fixed;inset:0;background:rgba(15,23,42,.55);display:flex;align-items:flex-start;justify-content:center;z-index:1000;padding:24px;overflow:auto">
-      <div class="card" style="max-width:680px;width:100%;background:var(--bg-1);margin:auto">
-        <div class="flex" style="justify-content:space-between;align-items:center">
-          <h3 class="card-title">${TIPO_IC[i.tipo] || '📘'} ${esc(i.titulo)}</h3>
-          <button class="btn btn-ghost btn-sm" id="ac-vx">✕</button>
-        </div>
-        <div style="white-space:pre-wrap;line-height:1.6;font-size:14px;background:var(--bg-3);border-radius:10px;padding:14px 16px;margin-top:10px">${esc(i.conteudo || '')}</div>
-        ${i.url ? `<div style="margin-top:12px"><a href="${esc(i.url)}" target="_blank" rel="noopener" class="btn btn-primary">▶ Abrir material</a></div>` : ''}
-      </div>
-    </div>`;
-  document.getElementById('ac-vx').addEventListener('click', () => { modal.innerHTML = ''; });
 }
 
 /* ─── toggle conclusão ─── */
