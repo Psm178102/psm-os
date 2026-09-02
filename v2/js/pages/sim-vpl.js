@@ -15,6 +15,8 @@ const DEFAULTS = {
   pctAto: 5, pctMensal: 14, pctAnual: 6, pctSemestral: 0, pctFinanc: 75,
   numAto: 1,                                        // 1 = ato à vista; 3 = ato em 3x
   numAnuais: 3, numSemestrais: 0, numMensais: 0,   // 0 = até as chaves
+  // v87.3 — BALÕES PERSONALIZADOS (reforços com periodicidade livre, ex.: 4 balões a cada 10 meses)
+  pctBalao: 0, numBaloes: 0, intervaloBalao: 10, inicioBalao: 0,   // inicioBalao 0 = 1º balão cai no próprio intervalo
   mesesExibidos: 0,                                 // 0 = até as chaves (igual planilha: pode exibir além, zerado em vermelho)
   desconto: 0,
 };
@@ -72,9 +74,24 @@ function compute() {
   const nSemestraisPedido = Math.max(0, Math.round(v.numSemestrais || 0));
   const nSemestrais = Math.min(nSemestraisPedido, Math.floor(v.prazoObra / 6));
   const semestral = nSemestrais > 0 ? totalSemestral / nSemestrais : 0;
+  // ── BALÕES PERSONALIZADOS (v87.3) — periodicidade livre: N balões a cada K
+  // meses, opcionalmente começando num mês escolhido. Mesma regra das demais:
+  // balão que cairia DEPOIS das chaves é aparado (não pode montar em cima do
+  // financiamento) e o total configurado se redistribui entre os que couberam.
+  const totalBalao = valorFinal * (v.pctBalao || 0) / 100;
+  const intervalo = Math.max(1, Math.round(v.intervaloBalao || 1));
+  const inicioB = Math.max(0, Math.round(v.inicioBalao || 0)) || intervalo;
+  const nBaloesPedido = Math.max(0, Math.round(v.numBaloes || 0));
+  const cabemBaloes = inicioB <= v.prazoObra ? 1 + Math.floor((v.prazoObra - inicioB) / intervalo) : 0;
+  const nBaloes = Math.min(nBaloesPedido, cabemBaloes);
+  const balao = nBaloes > 0 ? totalBalao / nBaloes : 0;
+  const mesesBalao = new Set();
+  for (let k = 0; k < nBaloes; k++) mesesBalao.add(inicioB + k * intervalo);
+  const baloesAparados = nBaloesPedido - nBaloes;
+  const temBalao = nBaloes > 0;
   const parcelasAparadas = (nAnuaisPedido - nAnuais) + (nSemestraisPedido - nSemestrais);
   const financ = valorFinal * v.pctFinanc / 100;
-  const pctTotal = v.pctAto + v.pctMensal + v.pctAnual + v.pctSemestral + v.pctFinanc;
+  const pctTotal = v.pctAto + v.pctMensal + v.pctAnual + v.pctSemestral + v.pctFinanc + (v.pctBalao || 0);
 
   const nLinhas = Math.max(v.prazoObra, v.mesesExibidos > 0 ? Math.min(v.mesesExibidos, 480) : 0);
   const fluxo = [];
@@ -84,17 +101,19 @@ function compute() {
     const a = (i > 0 && i % 12 === 0 && i / 12 <= nAnuais) ? anual : 0;
     const s = (i > 0 && nSemestrais > 0 && i % 6 === 0 && i / 6 <= nSemestrais) ? semestral : 0;
     const f = (i === v.prazoObra) ? financ : 0;
-    const total = ent + m + a + s + f;
+    const b = mesesBalao.has(i) ? balao : 0;
+    const total = ent + m + a + s + b + f;
     const pv = total / Math.pow(1 + taxaM, i);
-    fluxo.push({ mes: i, ent, m, a, s, f, total, pv, chaves: i === v.prazoObra && v.prazoObra > 0 });
+    fluxo.push({ mes: i, ent, m, a, s, b, f, total, pv, chaves: i === v.prazoObra && v.prazoObra > 0 });
   }
   const vpl = fluxo.reduce((sum, x) => sum + x.pv, 0);
   const descVPL = v.valorTabela > 0 ? ((1 - vpl / v.valorTabela) * 100).toFixed(2) : '0.00';
   const m2VPL = v.m2 > 0 ? (vpl / v.m2).toFixed(0) : 0;
   const m2Tabela = v.m2 > 0 ? (v.valorTabela / v.m2).toFixed(0) : 0;
-  const tot = fluxo.reduce((acc, x) => ({ ent: acc.ent + x.ent, m: acc.m + x.m, s: acc.s + x.s, a: acc.a + x.a, f: acc.f + x.f, total: acc.total + x.total }),
-    { ent: 0, m: 0, s: 0, a: 0, f: 0, total: 0 });
-  return { taxaM, ato, atoTotal, nAto, mensaisAparadas, parcelasAparadas, nAnuais, nSemestrais, mensal, anual, semestral, financ, pctTotal, fluxo, tot, vpl, descVPL, m2VPL, m2Tabela, totalMensal, totalAnual, valorFinal, nMensais };
+  const tot = fluxo.reduce((acc, x) => ({ ent: acc.ent + x.ent, m: acc.m + x.m, s: acc.s + x.s, a: acc.a + x.a, b: acc.b + (x.b || 0), f: acc.f + x.f, total: acc.total + x.total }),
+    { ent: 0, m: 0, s: 0, a: 0, b: 0, f: 0, total: 0 });
+  return { taxaM, ato, atoTotal, nAto, mensaisAparadas, parcelasAparadas, nAnuais, nSemestrais, mensal, anual, semestral, financ, pctTotal, fluxo, tot, vpl, descVPL, m2VPL, m2Tabela, totalMensal, totalAnual, valorFinal, nMensais,
+    temBalao, nBaloes, balao, totalBalao, baloesAparados, intervaloBalao: intervalo, inicioBalao: inicioB };
 }
 
 /* ═══════════ A TABELA DA PLANILHA (idêntica na tela, na impressão e no share) ═══════════ */
@@ -117,6 +136,7 @@ function propostaTableHTML(c) {
       ${x.mes === 0 ? celR$(0, true) : celR$(x.m)}
       ${celR$(x.s)}
       ${celR$(x.a)}
+      ${c.temBalao ? celR$(x.b) : ''}
       ${celR$(x.f)}
       <td class="pp-c pp-money pp-tot"><span>${fmt2(x.total)}</span></td>
     </tr>`;
@@ -127,13 +147,14 @@ function propostaTableHTML(c) {
       <tr>
         <th class="pp-h pp-n" rowspan="2">N°</th>
         <th class="pp-h pp-data" rowspan="2">Data</th>
-        <th class="pp-titulo" colspan="6">PROPOSTA PERSONALIZADA</th>
+        <th class="pp-titulo" colspan="${c.temBalao ? 7 : 6}">PROPOSTA PERSONALIZADA</th>
       </tr>
       <tr>
         <th class="pp-h">ENTRADA</th>
         <th class="pp-h">MENSAIS</th>
         <th class="pp-h">SEMESTRAIS</th>
         <th class="pp-h">ANUAIS</th>
+        ${c.temBalao ? '<th class="pp-h">BALÕES</th>' : ''}
         <th class="pp-h">FINANCIAMENTO /<br>CHAVES</th>
         <th class="pp-h">TOTAL</th>
       </tr>
@@ -142,7 +163,7 @@ function propostaTableHTML(c) {
     <tfoot>
       <tr class="pp-foot">
         <td class="pp-c" colspan="2"><b>Total</b></td>
-        ${celR$(c.tot.ent, true)}${celR$(c.tot.m, true)}${celR$(c.tot.s, true)}${celR$(c.tot.a, true)}${celR$(c.tot.f, true)}
+        ${celR$(c.tot.ent, true)}${celR$(c.tot.m, true)}${celR$(c.tot.s, true)}${celR$(c.tot.a, true)}${c.temBalao ? celR$(c.tot.b, true) : ''}${celR$(c.tot.f, true)}
         <td class="pp-c pp-money pp-tot"><span class="pp-rs">R$</span><span>${fmt2(c.tot.total)}</span></td>
       </tr>
     </tfoot>
@@ -219,14 +240,15 @@ function cabecalhoHTML(c) {
    idêntica sem lib externa e sem canvas 'tainted' (foreignObject não exporta
    no Chrome — descoberto no teste local antes do deploy). */
 const PPC = {
-  cols: [44, 74, 118, 118, 118, 118, 132, 118],   // N° Data ENTRADA MENSAIS SEM ANU FIN TOTAL
+  cols: [44, 74, 118, 118, 118, 118, 132, 118],   // N° Data ENTRADA MENSAIS SEM ANU [BALÕES] FIN TOTAL — c/ balões, insere 118 antes do FIN
   hTit: 36, hHead: 32, hRow: 21, hFoot: 26, pad: 16, hCab: 22,
   verde: '#dde8d0', nVerde: '#d9ead3', nVerdeTx: '#38761d', nVerm: '#f4cccc',
   nVermTx: '#cc0000', nAzul: '#a4c2f4', nAzulTx: '#1c4587', foot: '#c6d5b0', amarelo: '#ffff00',
 };
 
 function desenharPropostaCanvas(c, scale) {
-  const W = PPC.cols.reduce((a, b) => a + b, 0);
+  const cols = c.temBalao ? [...PPC.cols.slice(0, 6), 118, ...PPC.cols.slice(6)] : PPC.cols;
+  const W = cols.reduce((a, b) => a + b, 0);
   const n = c.fluxo.length;
   const H = PPC.hCab + PPC.hTit + PPC.hHead + n * PPC.hRow + PPC.hFoot;
   const cv = document.createElement('canvas');
@@ -235,7 +257,7 @@ function desenharPropostaCanvas(c, scale) {
   g.scale(scale, scale);
   g.fillStyle = '#fff'; g.fillRect(0, 0, W + PPC.pad * 2, H + PPC.pad * 2);
   g.translate(PPC.pad, PPC.pad);
-  const X = [0]; PPC.cols.forEach((w, i) => X.push(X[i] + w));
+  const X = [0]; cols.forEach((w, i) => X.push(X[i] + w));
   const fmtv = v => fmt2(v);
   const cell = (x0, y0, w, h, bg) => { if (bg) { g.fillStyle = bg; g.fillRect(x0, y0, w, h); } g.strokeStyle = '#000'; g.lineWidth = 1; g.strokeRect(x0 + .5, y0 + .5, w, h); };
   const txt = (s, x, y, { al = 'left', bold = false, size = 12, col = '#000' } = {}) => {
@@ -252,17 +274,19 @@ function desenharPropostaCanvas(c, scale) {
   txt(cab, 0, PPC.hCab / 2 - 3, { size: 11.5 });
   let y = PPC.hCab;
   // título amarelo + N°/Data com altura dupla
-  cell(X[0], y, PPC.cols[0], PPC.hTit + PPC.hHead, '#fff'); txt('N°', X[0] + PPC.cols[0] / 2, y + (PPC.hTit + PPC.hHead) / 2, { al: 'center', bold: true, size: 11.5 });
-  cell(X[1], y, PPC.cols[1], PPC.hTit + PPC.hHead, '#fff'); txt('Data', X[1] + PPC.cols[1] / 2, y + (PPC.hTit + PPC.hHead) / 2, { al: 'center', bold: true, size: 11.5 });
+  cell(X[0], y, cols[0], PPC.hTit + PPC.hHead, '#fff'); txt('N°', X[0] + cols[0] / 2, y + (PPC.hTit + PPC.hHead) / 2, { al: 'center', bold: true, size: 11.5 });
+  cell(X[1], y, cols[1], PPC.hTit + PPC.hHead, '#fff'); txt('Data', X[1] + cols[1] / 2, y + (PPC.hTit + PPC.hHead) / 2, { al: 'center', bold: true, size: 11.5 });
   cell(X[2], y, W - X[2], PPC.hTit, PPC.amarelo);
   txt('PROPOSTA PERSONALIZADA', X[2] + (W - X[2]) / 2, y + PPC.hTit / 2, { al: 'center', bold: true, size: 21 });
   y += PPC.hTit;
-  const HEADS = ['ENTRADA', 'MENSAIS', 'SEMESTRAIS', 'ANUAIS', ['FINANCIAMENTO /', 'CHAVES'], 'TOTAL'];
+  const HEADS = c.temBalao
+    ? ['ENTRADA', 'MENSAIS', 'SEMESTRAIS', 'ANUAIS', 'BALÕES', ['FINANCIAMENTO /', 'CHAVES'], 'TOTAL']
+    : ['ENTRADA', 'MENSAIS', 'SEMESTRAIS', 'ANUAIS', ['FINANCIAMENTO /', 'CHAVES'], 'TOTAL'];
   HEADS.forEach((hh, i) => {
     const ci = i + 2;
-    cell(X[ci], y, PPC.cols[ci], PPC.hHead, '#fff');
-    if (Array.isArray(hh)) { txt(hh[0], X[ci] + PPC.cols[ci] / 2, y + 10, { al: 'center', bold: true, size: 10.5 }); txt(hh[1], X[ci] + PPC.cols[ci] / 2, y + 22, { al: 'center', bold: true, size: 10.5 }); }
-    else txt(hh, X[ci] + PPC.cols[ci] / 2, y + PPC.hHead / 2, { al: 'center', bold: true, size: 11 });
+    cell(X[ci], y, cols[ci], PPC.hHead, '#fff');
+    if (Array.isArray(hh)) { txt(hh[0], X[ci] + cols[ci] / 2, y + 10, { al: 'center', bold: true, size: 10.5 }); txt(hh[1], X[ci] + cols[ci] / 2, y + 22, { al: 'center', bold: true, size: 10.5 }); }
+    else txt(hh, X[ci] + cols[ci] / 2, y + PPC.hHead / 2, { al: 'center', bold: true, size: 11 });
   });
   y += PPC.hHead;
   c.fluxo.forEach(x => {
@@ -270,24 +294,30 @@ function desenharPropostaCanvas(c, scale) {
     const bg = tipo === 'ato' ? '#fff' : PPC.verde;
     const nBg = tipo === 'ato' ? '#fff' : tipo === 'verde' ? PPC.nVerde : tipo === 'chaves' ? PPC.nAzul : PPC.nVerm;
     const nTx = tipo === 'verde' ? PPC.nVerdeTx : tipo === 'chaves' ? PPC.nAzulTx : tipo === 'verm' ? PPC.nVermTx : '#000';
-    cell(X[0], y, PPC.cols[0], PPC.hRow, nBg);
-    txt(String(x.mes), X[0] + PPC.cols[0] / 2, y + PPC.hRow / 2, { al: 'center', bold: true, col: nTx });
-    cell(X[1], y, PPC.cols[1], PPC.hRow, bg);
+    const nCols = cols.length;
+    cell(X[0], y, cols[0], PPC.hRow, nBg);
+    txt(String(x.mes), X[0] + cols[0] / 2, y + PPC.hRow / 2, { al: 'center', bold: true, col: nTx });
+    cell(X[1], y, cols[1], PPC.hRow, bg);
     txt(x.mes === 0 ? 'ATO' : (x.mes < c.nAto ? `${labelMes(x.mes)} (ato ${x.mes + 1}/${c.nAto})` : labelMes(x.mes)),
-        X[1] + PPC.cols[1] / 2, y + PPC.hRow / 2, { al: 'center', bold: true, size: x.mes > 0 && x.mes < c.nAto ? 9 : undefined });
-    for (let ci = 2; ci <= 7; ci++) cell(X[ci], y, PPC.cols[ci], PPC.hRow, bg);
+        X[1] + cols[1] / 2, y + PPC.hRow / 2, { al: 'center', bold: true, size: x.mes > 0 && x.mes < c.nAto ? 9 : undefined });
+    for (let ci = 2; ci <= nCols - 1; ci++) cell(X[ci], y, cols[ci], PPC.hRow, bg);
     const boldAto = tipo === 'ato';
     money(2, y, PPC.hRow, x.ent, false, boldAto);
     money(3, y, PPC.hRow, x.m, x.mes === 0, boldAto);
-    money(4, y, PPC.hRow, x.s); money(5, y, PPC.hRow, x.a); money(6, y, PPC.hRow, x.f);
-    txt(fmtv(x.total), X[8] - 6, y + PPC.hRow / 2, { al: 'right', bold: true });
+    money(4, y, PPC.hRow, x.s); money(5, y, PPC.hRow, x.a);
+    if (c.temBalao) { money(6, y, PPC.hRow, x.b); money(7, y, PPC.hRow, x.f); }
+    else money(6, y, PPC.hRow, x.f);
+    txt(fmtv(x.total), X[nCols] - 6, y + PPC.hRow / 2, { al: 'right', bold: true });
     y += PPC.hRow;
   });
   // rodapé Total
-  cell(X[0], y, PPC.cols[0] + PPC.cols[1], PPC.hFoot, PPC.foot);
-  txt('Total', X[0] + (PPC.cols[0] + PPC.cols[1]) / 2, y + PPC.hFoot / 2, { al: 'center', bold: true });
-  [[2, c.tot.ent], [3, c.tot.m], [4, c.tot.s], [5, c.tot.a], [6, c.tot.f], [7, c.tot.total]].forEach(([ci, v]) => {
-    cell(X[ci], y, PPC.cols[ci], PPC.hFoot, PPC.foot);
+  cell(X[0], y, cols[0] + cols[1], PPC.hFoot, PPC.foot);
+  txt('Total', X[0] + (cols[0] + cols[1]) / 2, y + PPC.hFoot / 2, { al: 'center', bold: true });
+  const footVals = c.temBalao
+    ? [[2, c.tot.ent], [3, c.tot.m], [4, c.tot.s], [5, c.tot.a], [6, c.tot.b], [7, c.tot.f], [8, c.tot.total]]
+    : [[2, c.tot.ent], [3, c.tot.m], [4, c.tot.s], [5, c.tot.a], [6, c.tot.f], [7, c.tot.total]];
+  footVals.forEach(([ci, v]) => {
+    cell(X[ci], y, cols[ci], PPC.hFoot, PPC.foot);
     money(ci, y, PPC.hFoot, v, true, true);
   });
   return cv;
@@ -340,6 +370,12 @@ function render() {
             inp('Nº Semestrais', 'numSemestrais', 'num'),
             inp('Anuais (%)', 'pctAnual', 'num', '%'),
             inp('Nº Anuais', 'numAnuais', 'num'),
+            `<div class="tiny muted" style="text-transform:uppercase;font-weight:800;letter-spacing:1px;margin:8px 0 0">🎈 Balões personalizados <span style="font-weight:400;text-transform:none;letter-spacing:0">(periodicidade livre)</span></div>`,
+            inp('Balões (%)', 'pctBalao', 'num', '%'),
+            inp('Nº de balões', 'numBaloes', 'num', 'x'),
+            inp('A cada quantos meses', 'intervaloBalao', 'num', 'meses'),
+            inp('1º balão no mês (0 = no próprio intervalo)', 'inicioBalao', 'num'),
+            `<div class="tiny muted" id="vpl-avisobalao"></div>`,
             inp('Financiamento/Chaves (%)', 'pctFinanc', 'num', '%'),
             inp('Meses exibidos (0 = até chaves)', 'mesesExibidos', 'num'),
           ])}
@@ -385,6 +421,7 @@ function minisHTML(c) {
     + miniKpi('Mensais ' + c.nMensais + 'x', fmt(c.mensal), 'por mês')
     + miniKpi('Semestrais ' + _s.numSemestrais + 'x', fmt(c.semestral), '')
     + miniKpi('Anuais ' + _s.numAnuais + 'x', fmt(c.anual), '')
+    + (c.temBalao ? miniKpi('🎈 Balões ' + c.nBaloes + 'x', fmt(c.balao), `a cada ${c.intervaloBalao}m · total ${fmt(c.totalBalao)}`) : '')
     + miniKpi('Financiamento/Chaves', fmt(c.financ), _s.pctFinanc + '%')
     + miniKpi('Total do fluxo', fmt(c.tot.total), '');
 }
@@ -407,6 +444,11 @@ function pintaSaida() {
     ? ` <span style="color:var(--warn)">· Nº de Mensais reduzido em ${c.mensaisAparadas} para não passar das chaves</span>` : '';
   const aparouPar = c.parcelasAparadas > 0
     ? ` <span style="color:var(--warn)">· ${c.parcelasAparadas} parcela(s) anual/semestral aparada(s) (não cabem antes das chaves)</span>` : '';
+  const mesesB = [];
+  if (c.temBalao) for (let k = 0; k < c.nBaloes; k++) mesesB.push(c.inicioBalao + k * c.intervaloBalao);
+  set('#vpl-avisobalao', c.temBalao || c.baloesAparados > 0
+    ? `${c.temBalao ? `balões nos meses <b>${mesesB.join(', ')}</b>` : ''}${c.baloesAparados > 0 ? ` <span style="color:var(--warn)">· ${c.baloesAparados} balão(ões) aparado(s) — não cabem antes das chaves</span>` : ''}`
+    : '');
   set('#vpl-avisoato', (c.nAto > 1 || c.mensaisAparadas > 0 || c.parcelasAparadas > 0)
     ? `${c.nAto > 1 ? `ato ${c.nAto}x (meses 0 a ${c.nAto - 1}) + ` : ''}<b>${c.nMensais} mensais</b> (meses ${c.nAto} a ${_s.prazoObra}), chaves no mês ${_s.prazoObra}${aparou}${aparouPar}`
     : '');
