@@ -32,6 +32,7 @@ export async function pageRankingHub(ctx, root) {
 }
 
 function cleanup() {
+  closeTickerOverlay();
   document.body.classList.remove('tv-mode');
   [_pollTimer, _clock].forEach(t => t && clearInterval(t));
   _pollTimer = _clock = null;
@@ -165,33 +166,79 @@ function rowCard(a) {
 
 /* ── letreiro de jornal: recados da timeline + oportunidades abertas ── */
 const OP_ICO = { lead: '🎯', imovel: '🏠', parceria: '🤝', investidor: '💼', outro: '📌' };
+let _tkItems = [];
 function tickerItems() {
   const its = [];
   _recados.forEach(r => its.push({
-    ico: '📣', cor: r.cor || '#eab308',
-    texto: `${r.texto}${r.autor ? ` — ${r.autor}` : ''}`,
+    kind: 'recado', tag: 'RECADO', ico: '📣', cor: r.cor || '#eab308',
+    texto: r.texto || '', extra: r.autor || '',
   }));
   _oport.forEach(o => its.push({
-    ico: OP_ICO[o.tipo] || '💡', cor: '#22c55e',
-    texto: `OPORTUNIDADE: ${o.titulo}${o.valor_est ? ` · ${fmtBRL(o.valor_est)}` : ''} · aberta pra pegar em 💡 Oportunidades`,
+    kind: 'oportunidade', tag: 'OPORTUNIDADE', ico: OP_ICO[o.tipo] || '💡', cor: '#22c55e',
+    texto: o.titulo || '', extra: o.valor_est ? fmtBRL(o.valor_est) : '',
+    desc: o.descricao || '',
   }));
   return its;
 }
-function ticker() {
-  const its = tickerItems();
-  if (!its.length) return '';
-  const chunk = its.map(i =>
-    `<span style="display:inline-flex;align-items:center;gap:10px;margin-right:64px;font-size:19px;font-weight:600;color:#e2e8f0;white-space:nowrap">
-       <span style="width:10px;height:10px;border-radius:99px;background:${i.cor};flex:none"></span>${i.ico} ${escapeHtml(i.texto)}
-     </span>`).join('');
-  const chars = its.reduce((a, i) => a + i.texto.length + 8, 0);
-  const dur = Math.max(18, Math.round(chars * 0.42));   // ~ constante em px/s, mínimo 18s
+function tkChip(i, idx) {
   return `
-    <div class="rh-ticker" style="overflow:hidden;background:#0d1120;border-top:1px solid rgba(71,85,105,.3);padding:10px 0">
-      <div class="rh-track" style="display:inline-flex;white-space:nowrap;will-change:transform;animation:rhTicker ${dur}s linear infinite">
-        <span style="display:inline-flex">${chunk}</span><span style="display:inline-flex">${chunk}</span>
+    <button class="rh-item" data-tk="${idx}" style="display:inline-flex;align-items:center;gap:10px;margin-right:22px;padding:7px 16px;border-radius:99px;white-space:nowrap;cursor:pointer;border:1px solid ${i.cor}66;background:linear-gradient(180deg,${i.cor}2e,${i.cor}14);color:#f1f5f9;font-family:inherit">
+      <span style="font-size:20px;line-height:1">${i.ico}</span>
+      <span style="font-size:10px;font-weight:900;letter-spacing:.12em;color:${i.cor};background:${i.cor}22;padding:2px 8px;border-radius:99px">${i.tag}</span>
+      <span style="font-size:19px;font-weight:700">${escapeHtml(i.texto)}</span>
+      ${i.extra ? `<span style="font-size:16px;font-weight:800;color:${i.kind === 'oportunidade' ? '#4ade80' : '#94a3b8'}">${escapeHtml(i.extra)}</span>` : ''}
+    </button>`;
+}
+function ticker() {
+  _tkItems = tickerItems();
+  if (!_tkItems.length) return '';
+  const chunk = _tkItems.map(tkChip).join('');
+  const chars = _tkItems.reduce((a, i) => a + i.texto.length + (i.extra || '').length + 16, 0);
+  const dur = Math.max(10, Math.round(chars * 0.16));   // bem mais rápido, mínimo 10s por volta
+  return `
+    <div class="rh-ticker" style="display:flex;align-items:center;background:#0d1120;border-top:1px solid rgba(71,85,105,.3)">
+      <div style="flex:none;display:flex;align-items:center;gap:8px;padding:12px 18px;background:linear-gradient(90deg,#1c1917,#0d1120);border-right:1px solid rgba(234,179,8,.35)">
+        <span class="rh-live" style="width:10px;height:10px;border-radius:99px;background:#ef4444"></span>
+        <span style="font-size:13px;font-weight:900;letter-spacing:.14em;color:#facc15">AGORA</span>
+      </div>
+      <div style="flex:1;overflow:hidden;padding:8px 0">
+        <div class="rh-track" style="display:inline-flex;white-space:nowrap;will-change:transform;animation:rhTicker ${dur}s linear infinite">
+          <span style="display:inline-flex">${chunk}</span><span style="display:inline-flex">${chunk}</span>
+        </div>
       </div>
     </div>`;
+}
+
+/* overlay grande (pra TV): clique no item amplia; Esc/✕/fora fecha */
+function showTickerItem(i) {
+  closeTickerOverlay();
+  document.querySelector('.rh-track')?.style.setProperty('animation-play-state', 'paused');
+  const ov = document.createElement('div');
+  ov.id = 'rh-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:70;background:rgba(5,8,15,.88);display:flex;align-items:center;justify-content:center;padding:6vh 6vw';
+  ov.innerHTML = `
+    <div style="max-width:900px;width:100%;border-radius:22px;padding:44px 48px;background:linear-gradient(180deg,${i.cor}24,#0d1120 60%);border:2px solid ${i.cor}88;box-shadow:0 0 80px ${i.cor}33;text-align:center;animation:rhPop .25s ease">
+      <div style="font-size:56px">${i.ico}</div>
+      <div style="font-size:13px;font-weight:900;letter-spacing:.16em;color:${i.cor};margin-top:6px">${i.tag}</div>
+      <div style="font-size:34px;font-weight:800;color:#f8fafc;line-height:1.3;margin-top:14px">${escapeHtml(i.texto)}</div>
+      ${i.desc ? `<div style="font-size:19px;color:#cbd5e1;line-height:1.5;margin-top:12px">${escapeHtml(i.desc)}</div>` : ''}
+      ${i.extra ? `<div style="font-size:26px;font-weight:900;color:${i.kind === 'oportunidade' ? '#4ade80' : '#94a3b8'};margin-top:12px">${escapeHtml(i.extra)}</div>` : ''}
+      <div style="display:flex;gap:12px;justify-content:center;margin-top:26px">
+        ${i.kind === 'oportunidade' ? `<button id="rh-ov-go" style="cursor:pointer;border:0;border-radius:12px;padding:12px 22px;font-size:16px;font-weight:800;background:#22c55e;color:#052e16">💡 Abrir Oportunidades</button>` : ''}
+        <button id="rh-ov-x" style="cursor:pointer;border:1px solid rgba(148,163,184,.4);border-radius:12px;padding:12px 22px;font-size:16px;font-weight:700;background:transparent;color:#e2e8f0">Fechar ✕</button>
+      </div>
+    </div>`;
+  ov.addEventListener('click', e => { if (e.target === ov) closeTickerOverlay(); });
+  document.body.appendChild(ov);
+  document.getElementById('rh-ov-x')?.addEventListener('click', closeTickerOverlay);
+  document.getElementById('rh-ov-go')?.addEventListener('click', () => { closeTickerOverlay(); location.hash = '#/oportunidades'; });
+  document.addEventListener('keydown', escCloseOverlay);
+}
+function escCloseOverlay(e) { if (e.key === 'Escape') closeTickerOverlay(); }
+function closeTickerOverlay() {
+  document.getElementById('rh-overlay')?.remove();
+  document.removeEventListener('keydown', escCloseOverlay);
+  document.querySelector('.rh-track')?.style.removeProperty('animation-play-state');
 }
 
 function shell(body) {
@@ -204,8 +251,13 @@ function shell(body) {
     body.tv-mode .app-shell { grid-template-columns:1fr; grid-template-rows:1fr; grid-template-areas:"main"; }
     body.tv-mode .app-main { padding:0; }
     @keyframes rhTicker { from { transform:translateX(0) } to { transform:translateX(-50%) } }
+    @keyframes rhLive { 0%,100% { opacity:1; box-shadow:0 0 0 0 rgba(239,68,68,.6) } 50% { opacity:.5; box-shadow:0 0 0 6px rgba(239,68,68,0) } }
+    @keyframes rhPop { from { transform:scale(.9); opacity:0 } to { transform:scale(1); opacity:1 } }
+    .rh-live { animation:rhLive 1.4s ease infinite; }
     .rh-ticker:hover .rh-track { animation-play-state:paused; }
-    @media (prefers-reduced-motion: reduce) { .rh-track { animation:none !important } }
+    .rh-item { transition:transform .15s ease, box-shadow .15s ease; }
+    .rh-item:hover { transform:scale(1.06); box-shadow:0 0 22px rgba(250,204,21,.25); }
+    @media (prefers-reduced-motion: reduce) { .rh-track, .rh-live { animation:none !important } }
   </style>
   <div style="position:fixed;inset:0;z-index:50;background:#0a0d16;color:#e2e8f0;display:flex;flex-direction:column;overflow:hidden;font-family:inherit">
     <div style="display:flex;align-items:center;gap:18px;padding:14px 26px;background:#0d1120;border-bottom:1px solid rgba(71,85,105,.3);position:sticky;top:0;z-index:2">
@@ -237,6 +289,12 @@ function shell(body) {
 
 function bind() {
   _root.querySelectorAll('[data-team]').forEach(b => b.addEventListener('click', () => { _team = b.dataset.team; render(); }));
+  _root.querySelector('.rh-ticker')?.addEventListener('click', e => {
+    const b = e.target.closest('[data-tk]');
+    if (!b) return;
+    const it = _tkItems[+b.dataset.tk];
+    if (it) showTickerItem(it);
+  });
   document.getElementById('rh-fs')?.addEventListener('click', () => {
     if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
     else document.documentElement.requestFullscreen?.().catch(() => {});
