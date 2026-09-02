@@ -8,8 +8,10 @@ Devolve tudo que a página precisa em 1 request:
   - conversas: conversas ATIVAS de sol_conversas (telefone MASCARADO — (17) 9****-2193),
                ordenadas por prioridade desc
   - eventos:   últimas 50 linhas de sol_eventos (tipo + criado_em)
-  - config:    chaves de sol_config (autonomia_padrao / numero_whatsapp / persona_versao)
-               — o número também sai mascarado; token NUNCA passa por aqui (fica no env)
+  - config:    chaves de sol_config (autonomia_padrao / numero_whatsapp / persona_versao
+               / reguas / templates) — o número sai mascarado; token NUNCA passa por aqui
+  - integracoes: status por cabo (env presente? último evento com payload.origem_cabo?)
+               — só BOOLEANOS de presença de env; o valor do token nunca viaja
 """
 from http.server import BaseHTTPRequestHandler
 from datetime import datetime, timedelta
@@ -25,6 +27,30 @@ from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
 STATUS_FECHADOS = ("encerrada", "finalizada", "perdida", "descartada", "handoff_concluido")
 
 DIAS_JANELA = 14
+
+# ── Cabos de integração da Sol ────────────────────────────────────────────
+# Cada cabo: lista de grupos de env; cada grupo é "A|B" = QUALQUER um serve.
+# Nomes REAIS já usados no repo (não inventar env novo onde já existe um):
+#   RD CRM  → RD_CRM_TOKEN (api/rd.js) / RD_API_TOKEN (api/v3/crm/*)
+#   RD MKT  → RD_MKT_TOKEN ou OAuth RD_MKT_CLIENT_ID (api/rd.js / rd-auth.js)
+#   Leadgen → META_ACCESS_TOKEN + META_APP_SECRET (api/v3/marketing/leads_webhook.py)
+#   IG      → IG_PAGE_TOKEN_CONQUISTA / IG_PAGE_TOKEN (api/webhook-instagram.js)
+#   WA Cloud→ META_WA_TOKEN + META_WABA_ID (novos — a WABA da Sol ainda não existe)
+CABOS = {
+    "whatsapp_cloud": {"lbl": "WhatsApp Cloud API", "envs": ["META_WA_TOKEN", "META_WABA_ID"]},
+    "rd_crm":         {"lbl": "RD CRM",             "envs": ["RD_CRM_TOKEN|RD_API_TOKEN"]},
+    "rd_mkt":         {"lbl": "RD Marketing",       "envs": ["RD_MKT_TOKEN|RD_MKT_CLIENT_ID"]},
+    "meta_leadgen":   {"lbl": "Meta Leadgen (FB)",  "envs": ["META_ACCESS_TOKEN", "META_APP_SECRET"]},
+    "instagram":      {"lbl": "Instagram Direct",   "envs": ["IG_PAGE_TOKEN_CONQUISTA|IG_PAGE_TOKEN"]},
+}
+
+
+def _env_ok(grupos):
+    """True se TODOS os grupos têm pelo menos um env presente (grupo = 'A|B')."""
+    for g in grupos:
+        if not any(os.environ.get(n, "").strip() for n in g.split("|")):
+            return False
+    return True
 
 
 def _hoje_sp():
@@ -134,7 +160,28 @@ class handler(BaseHTTPRequestHandler):
             wa["numero_mascarado"] = _mascara_fone(wa.get("numero"))
             wa.pop("numero", None)
         # token da Cloud API presente no env? (só o BOOLEANO viaja — nunca o valor)
-        config["token_env_ok"] = bool(os.environ.get("META_WA_TOKEN") or os.environ.get("WA_CLOUD_TOKEN"))
+        config["token_env_ok"] = bool(os.environ.get("META_WA_TOKEN"))
+
+        # ── integrações: env presente + último evento visto por cabo ──────
+        # (o evento carrega payload.origem_cabo; a query filtra no PostgREST)
+        integracoes = {}
+        for cabo, meta in CABOS.items():
+            ultimo = None
+            try:
+                r = (
+                    sb.table("sol_eventos").select("tipo,criado_em")
+                    .eq("payload->>origem_cabo", cabo)
+                    .order("criado_em", desc=True).limit(1).execute().data or []
+                )
+                ultimo = r[0] if r else None
+            except Exception:
+                ultimo = None  # best-effort: card fica sem "último evento"
+            integracoes[cabo] = {
+                "lbl": meta["lbl"],
+                "envs": meta["envs"],          # só os NOMES — valor nunca viaja
+                "env_ok": _env_ok(meta["envs"]),
+                "ultimo_evento": ultimo,
+            }
 
         return self._send(200, {
             "ok": True,
@@ -143,4 +190,5 @@ class handler(BaseHTTPRequestHandler):
             "conversas": convs,
             "eventos": evs,
             "config": config,
+            "integracoes": integracoes,
         })
