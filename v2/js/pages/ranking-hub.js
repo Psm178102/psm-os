@@ -155,6 +155,11 @@ function shell(body) {
   const titulo = _data ? `Ranking — ${meses[_data.month] || ''} ${_data.year}` : 'Ranking — PSM HUB';
   const tabs = ['GERAL', ...teams()];
   return `
+  <style>
+    body.tv-mode .app-sidebar, body.tv-mode .app-header { display:none !important; }
+    body.tv-mode .app-shell { grid-template-columns:1fr; grid-template-rows:1fr; grid-template-areas:"main"; }
+    body.tv-mode .app-main { padding:0; }
+  </style>
   <div style="position:fixed;inset:0;z-index:50;background:#0a0d16;color:#e2e8f0;display:flex;flex-direction:column;overflow:auto;font-family:inherit">
     <div style="display:flex;align-items:center;gap:18px;padding:14px 26px;background:#0d1120;border-bottom:1px solid rgba(71,85,105,.3);position:sticky;top:0;z-index:2">
       <div style="font-weight:800;font-size:18px;color:#f8fafc">🏆 PSM HUB</div>
