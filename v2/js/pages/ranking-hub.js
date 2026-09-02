@@ -55,7 +55,7 @@ async function reload() {
   if (r && r.ok) { _data = r.data; _fetchedAt = new Date(); _err = ''; }
   else if (r) { _err = r.error || r._err || 'PSM HUB indisponível'; if (r.pending_config) _pending = true; }
   if (rec) _recados = rec.items || [];
-  if (op) _oport = (op.items || []).filter(o => o.status === 'aberta');
+  if (op) _oport = (op.oportunidades || []).filter(o => o.status === 'aberta');
 
   // só re-renderiza se o DADO mudou — senão o letreiro reiniciava a cada 30s
   const sig = JSON.stringify([_data, _recados.map(x => x.id + (x.texto || '')), _oport.map(x => x.id + (x.titulo || '')), _err]);
