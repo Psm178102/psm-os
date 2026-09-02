@@ -114,8 +114,7 @@ import { pageSimEnergia } from './pages/sim-energia.js';
 import { pageSimAmortizacao } from './pages/sim-amortizacao.js';
 import { pageSimLeads } from './pages/sim-leads.js';
 import { pageSimCriativos } from './pages/sim-criativos.js';
-import { pageWarRoom } from './pages/war-room.js';
-import { pageWarArena } from './pages/war-arena.js';
+import { pageRankingHub } from './pages/ranking-hub.js';
 import { pageOKRs } from './pages/okrs.js';
 import { pageMetricasViab } from './pages/metricas-viab.js';
 import { pageComissaoConquista } from './pages/comissao-conquista.js';
@@ -159,7 +158,7 @@ export const ROUTE_GROUP = {
   // Arena & Performance (Metas/Equipes/Plantões migraram p/ Imóveis & Vendas)
   '/organograma': 'performance', '/one-on-one': 'performance', '/arena': 'performance',
   '/gestao-comercial': 'performance', '/produtividade-real': 'performance',
-  '/tv': 'performance', '/war-room': 'performance', '/war-arena': 'performance',
+  '/tv': 'performance', '/ranking-hub': 'performance',
   // Diretoria
   '/cockpit': 'diretoria', '/paulo': 'diretoria', '/projetos': 'diretoria',
   '/diretoria': 'diretoria', '/kpis': 'diretoria', '/okrs': 'diretoria',
@@ -431,7 +430,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '86.96';
+const APP_VERSION = '86.97';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -658,8 +657,7 @@ const APP_VERSION = '86.96';
   router.register('/sim-conquista',    { render: async (ctx, root) => { setHeader('Simulador Conquista'); highlight('/sim-conquista'); await pageSimConquista(ctx, root); } });
   router.register('/sim-leads',   { render: async (ctx, root) => { setHeader('Simulador Leads/CAC'); highlight('/sim-leads'); await pageSimLeads(ctx, root); } });
   router.register('/sim-criativos', { render: async (ctx, root) => { setHeader('Simulador Criativos'); highlight('/sim-criativos'); await pageSimCriativos(ctx, root); } });
-  router.register('/war-room',    { render: async (ctx, root) => { setHeader('War Room');            highlight('/war-room');   await pageWarRoom(ctx, root); } });
-  router.register('/war-arena',   { render: async (ctx, root) => { setHeader('War Arena');           highlight('/war-arena');  await pageWarArena(ctx, root); } });
+  router.register('/ranking-hub', { render: async (ctx, root) => { setHeader('Ranking HUB · Modo TV'); highlight('/ranking-hub'); await pageRankingHub(ctx, root); } });
   router.register('/okrs',        { render: async (ctx, root) => { setHeader('OKRs');                highlight('/okrs');       await pageOKRs(ctx, root); } });
   router.register('/kpis',        { render: async () => { location.hash = '#/cockpit?tab=kpis'; } });
   router.register('/metricas-viab', { render: async (ctx, root) => { setHeader('Métricas Viabilidade'); highlight('/metricas-viab'); await pageMetricasViab(ctx, root); } });
@@ -919,8 +917,7 @@ function shellHTML(user) {
 
         <div class="sb-sec">🔥 Arena & Performance</div>
         <button class="sb-link" data-nav="/tv"><span class="sb-ico">📺</span> Modo TV</button>
-        <button class="sb-link" data-nav="/war-room"><span class="sb-ico">⚔️</span> War Room</button>
-        <button class="sb-link" data-nav="/war-arena"><span class="sb-ico">🔥</span> War Arena</button>
+        <button class="sb-link" data-nav="/ranking-hub"><span class="sb-ico">🏆</span> Ranking HUB (Modo TV)</button>
 
         <div class="sb-sec">🎓 PSM Academy</div>
         <button class="sb-link" data-nav="/academy-studio"><span class="sb-ico">🎬</span> Academy · Produção</button>
