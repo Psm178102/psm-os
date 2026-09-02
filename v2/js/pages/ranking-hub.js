@@ -4,6 +4,10 @@
    vindos DO PRÓPRIO HUB via ponte /api/v3/psmhub/ranking (login de serviço).
    Pódio 1º/2º/3º + fila 4º+, badges por regra (Prosp/Agend/Aten/Doc/Venda/Perdas),
    filtro por equipe, relógio, tela cheia e atualização automática a cada 30s.
+   v86.99: letreiro de jornal no rodapé (padrão da timeline v86.90) com os
+   RECADOS ativos (timeline) + OPORTUNIDADES abertas (quadro, onde o Radar
+   Incorporadoras publica) — texto passando, pausa no mouse, só re-renderiza
+   quando o dado muda (senão o letreiro reiniciava a cada poll).
 ============================================================================ */
 import { api } from '../api.js';
 import { enableWakeLock, disableWakeLock } from '../wakelock.js';
@@ -14,6 +18,7 @@ let _root = null, _data = null, _err = '', _pending = false;
 let _team = 'GERAL';
 let _pollTimer = null, _clock = null;
 let _fetchedAt = null;
+let _recados = [], _oport = [], _sig = '';
 
 export async function pageRankingHub(ctx, root) {
   _root = root; _err = ''; _data = null; _team = 'GERAL';
@@ -41,12 +46,20 @@ function startTimers() {
 }
 
 async function reload() {
-  try {
-    const r = await api.request('/api/v3/psmhub/ranking');
-    if (r.ok) { _data = r.data; _fetchedAt = new Date(); _err = ''; }
-    else { _err = r.error || 'PSM HUB indisponível'; if (r.pending_config) _pending = true; }
-  } catch (e) { _err = e.message || 'erro'; }
-  render();
+  const [r, rec, op] = await Promise.all([
+    api.request('/api/v3/psmhub/ranking').catch(e => ({ _err: e.message })),
+    api.request('/api/v3/timeline/recados').catch(() => null),
+    api.request('/api/v3/crm_extra/oportunidades').catch(() => null),
+  ]);
+  if (r && r.ok) { _data = r.data; _fetchedAt = new Date(); _err = ''; }
+  else if (r) { _err = r.error || r._err || 'PSM HUB indisponível'; if (r.pending_config) _pending = true; }
+  if (rec) _recados = rec.items || [];
+  if (op) _oport = (op.items || []).filter(o => o.status === 'aberta');
+
+  // só re-renderiza se o DADO mudou — senão o letreiro reiniciava a cada 30s
+  const sig = JSON.stringify([_data, _recados.map(x => x.id + (x.texto || '')), _oport.map(x => x.id + (x.titulo || '')), _err]);
+  if (sig !== _sig) { _sig = sig; render(); }
+  else { const el = document.getElementById('rh-upd'); if (el && _fetchedAt) el.textContent = `Atualizado às ${_fetchedAt.toLocaleTimeString('pt-BR')}`; }
 }
 
 /* ── classificação de regra → badge (mesma legenda do Modo TV do HUB) ── */
@@ -150,6 +163,37 @@ function rowCard(a) {
     </div>`;
 }
 
+/* ── letreiro de jornal: recados da timeline + oportunidades abertas ── */
+const OP_ICO = { lead: '🎯', imovel: '🏠', parceria: '🤝', investidor: '💼', outro: '📌' };
+function tickerItems() {
+  const its = [];
+  _recados.forEach(r => its.push({
+    ico: '📣', cor: r.cor || '#eab308',
+    texto: `${r.texto}${r.autor ? ` — ${r.autor}` : ''}`,
+  }));
+  _oport.forEach(o => its.push({
+    ico: OP_ICO[o.tipo] || '💡', cor: '#22c55e',
+    texto: `OPORTUNIDADE: ${o.titulo}${o.valor_est ? ` · ${fmtBRL(o.valor_est)}` : ''} · aberta pra pegar em 💡 Oportunidades`,
+  }));
+  return its;
+}
+function ticker() {
+  const its = tickerItems();
+  if (!its.length) return '';
+  const chunk = its.map(i =>
+    `<span style="display:inline-flex;align-items:center;gap:10px;margin-right:64px;font-size:19px;font-weight:600;color:#e2e8f0;white-space:nowrap">
+       <span style="width:10px;height:10px;border-radius:99px;background:${i.cor};flex:none"></span>${i.ico} ${escapeHtml(i.texto)}
+     </span>`).join('');
+  const chars = its.reduce((a, i) => a + i.texto.length + 8, 0);
+  const dur = Math.max(18, Math.round(chars * 0.42));   // ~ constante em px/s, mínimo 18s
+  return `
+    <div class="rh-ticker" style="overflow:hidden;background:#0d1120;border-top:1px solid rgba(71,85,105,.3);padding:10px 0">
+      <div class="rh-track" style="display:inline-flex;white-space:nowrap;will-change:transform;animation:rhTicker ${dur}s linear infinite">
+        <span style="display:inline-flex">${chunk}</span><span style="display:inline-flex">${chunk}</span>
+      </div>
+    </div>`;
+}
+
 function shell(body) {
   const meses = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
   const titulo = _data ? `Ranking — ${meses[_data.month] || ''} ${_data.year}` : 'Ranking — PSM HUB';
@@ -159,6 +203,9 @@ function shell(body) {
     body.tv-mode .app-sidebar, body.tv-mode .app-header { display:none !important; }
     body.tv-mode .app-shell { grid-template-columns:1fr; grid-template-rows:1fr; grid-template-areas:"main"; }
     body.tv-mode .app-main { padding:0; }
+    @keyframes rhTicker { from { transform:translateX(0) } to { transform:translateX(-50%) } }
+    .rh-ticker:hover .rh-track { animation-play-state:paused; }
+    @media (prefers-reduced-motion: reduce) { .rh-track { animation:none !important } }
   </style>
   <div style="position:fixed;inset:0;z-index:50;background:#0a0d16;color:#e2e8f0;display:flex;flex-direction:column;overflow:auto;font-family:inherit">
     <div style="display:flex;align-items:center;gap:18px;padding:14px 26px;background:#0d1120;border-bottom:1px solid rgba(71,85,105,.3);position:sticky;top:0;z-index:2">
@@ -174,11 +221,12 @@ function shell(body) {
       </div>
       <div style="margin-left:auto;text-align:right">
         <div id="rh-clock" style="font-size:30px;font-weight:800;color:#facc15;font-variant-numeric:tabular-nums">${nowStr()}</div>
-        <div style="font-size:11px;color:#64748b">${_fetchedAt ? `Atualizado às ${_fetchedAt.toLocaleTimeString('pt-BR')}` : '&nbsp;'}</div>
+        <div id="rh-upd" style="font-size:11px;color:#64748b">${_fetchedAt ? `Atualizado às ${_fetchedAt.toLocaleTimeString('pt-BR')}` : '&nbsp;'}</div>
       </div>
       <button id="rh-fs" title="Tela cheia" style="border:1px solid rgba(148,163,184,.35);background:transparent;color:#cbd5e1;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:16px">⛶</button>
     </div>
     <div style="flex:1">${body}</div>
+    ${ticker()}
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 26px;background:#0d1120;border-top:1px solid rgba(71,85,105,.3)">
       ${Object.values(BADGES).map(b => `<span style="padding:3px 10px;border-radius:99px;font-size:11px;background:${b.bg};color:${b.fg}">${b.ab} <b>${b.lbl}</b></span>`).join('')}
       <span style="font-size:11px;color:#475569">💲 VGV Real</span>
