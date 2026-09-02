@@ -207,7 +207,7 @@ function shell(body) {
     .rh-ticker:hover .rh-track { animation-play-state:paused; }
     @media (prefers-reduced-motion: reduce) { .rh-track { animation:none !important } }
   </style>
-  <div style="position:fixed;inset:0;z-index:50;background:#0a0d16;color:#e2e8f0;display:flex;flex-direction:column;overflow:auto;font-family:inherit">
+  <div style="position:fixed;inset:0;z-index:50;background:#0a0d16;color:#e2e8f0;display:flex;flex-direction:column;overflow:hidden;font-family:inherit">
     <div style="display:flex;align-items:center;gap:18px;padding:14px 26px;background:#0d1120;border-bottom:1px solid rgba(71,85,105,.3);position:sticky;top:0;z-index:2">
       <div style="font-weight:800;font-size:18px;color:#f8fafc">🏆 PSM HUB</div>
       <div style="color:#475569">|</div>
@@ -225,7 +225,7 @@ function shell(body) {
       </div>
       <button id="rh-fs" title="Tela cheia" style="border:1px solid rgba(148,163,184,.35);background:transparent;color:#cbd5e1;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:16px">⛶</button>
     </div>
-    <div style="flex:1">${body}</div>
+    <div style="flex:1;min-height:0;overflow:auto">${body}</div>
     ${ticker()}
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 26px;background:#0d1120;border-top:1px solid rgba(71,85,105,.3)">
       ${Object.values(BADGES).map(b => `<span style="padding:3px 10px;border-radius:99px;font-size:11px;background:${b.bg};color:${b.fg}">${b.ab} <b>${b.lbl}</b></span>`).join('')}
