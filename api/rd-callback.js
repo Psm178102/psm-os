@@ -28,17 +28,21 @@ module.exports = async (req, res) => {
     return res.status(400).send('<h2>Erro: codigo de autorizacao nao recebido</h2><a href="/">Voltar</a>');
   }
 
-  // Recupera client_id e client_secret do state param (enviado pelo rd-auth.js)
-  let stateData = {};
-  try {
-    if (req.query.state) {
-      stateData = JSON.parse(Buffer.from(req.query.state, 'base64').toString());
-    }
-  } catch(e) { console.warn('[RD MKT] State parse error:', e.message); }
-
-  const clientId = stateData.client_id || process.env.RD_MKT_CLIENT_ID || '1e0caaab-8e36-40b6-b0d7-4175403b513d';
-  const clientSecret = stateData.client_secret || process.env.RD_MKT_CLIENT_SECRET || 'd16a9e739cc1405da1bc7eb76d97c95c';
-  const redirectUri = 'https://psm-os.vercel.app/api/rd-callback';
+  // v87.7: credenciais SÓ via env — nada de secret vindo pelo `state` da URL
+  // (o segredo passava pelo navegador) nem de fallback hardcoded no código.
+  const clientId = process.env.RD_MKT_CLIENT_ID || '';
+  const clientSecret = process.env.RD_MKT_CLIENT_SECRET || '';
+  const redirectUri = process.env.RD_MKT_REDIRECT || 'https://psm-os.vercel.app/api/rd-callback';
+  if (!clientId || !clientSecret) {
+    res.setHeader('Content-Type', 'text/html');
+    return res.status(503).send(
+      '<html><body style="font-family:system-ui;background:#1c1c1c;color:#fff;padding:40px">'
+      + '<h1 style="color:#ef4444">RD Marketing nao configurado</h1>'
+      + '<p>Faltam as envs <code>RD_MKT_CLIENT_ID</code> / <code>RD_MKT_CLIENT_SECRET</code> no Vercel.</p>'
+      + '<a href="https://www.housepsm.com.br" style="color:#d4a843">Voltar ao House PSM</a>'
+      + '</body></html>'
+    );
+  }
 
   try {
     console.log('[RD MKT] Exchanging code for tokens...');

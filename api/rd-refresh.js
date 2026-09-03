@@ -35,8 +35,12 @@ module.exports = async (req, res) => {
 
     if (!refreshToken) return res.status(400).json({ error: 'refresh_token required' });
 
-    const clientId = process.env.RD_MKT_CLIENT_ID || '1e0caaab-8e36-40b6-b0d7-4175403b513d';
-    const clientSecret = process.env.RD_MKT_CLIENT_SECRET || 'd16a9e739cc1405da1bc7eb76d97c95c';
+    // v87.7: env-only — sem fallback hardcoded no código (repo é público)
+    const clientId = process.env.RD_MKT_CLIENT_ID || '';
+    const clientSecret = process.env.RD_MKT_CLIENT_SECRET || '';
+    if (!clientId || !clientSecret) {
+      return res.status(503).json({ error: 'RD_MKT_CLIENT_ID/RD_MKT_CLIENT_SECRET nao configurados no Vercel' });
+    }
 
     const resp = await httpsPost('https://api.rd.services/auth/token', {
       client_id: clientId,

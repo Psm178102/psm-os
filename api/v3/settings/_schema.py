@@ -12,8 +12,8 @@ Por isso o prefix _ (Vercel ignora arquivos com underscore).
 SETTINGS_SCHEMA = [
     # RD Station
     ("rd_crm_token",           "RD CRM · Token API",          "rd",       True,  "Ex: 6823d1aa..."),
-    ("rd_mkt_client_id",       "RD MKT · Client ID",          "rd",       True,  "1e0caaab-8e36-..."),
-    ("rd_mkt_client_secret",   "RD MKT · Client Secret",      "rd",       True,  "d16a9e739cc..."),
+    ("rd_mkt_client_id",       "RD MKT · Client ID",          "rd",       True,  "UUID do app RD"),
+    ("rd_mkt_client_secret",   "RD MKT · Client Secret",      "rd",       True,  "secret do app RD"),
 
     # NIBO (informativo — tokens reais ficam em env vars do Vercel)
     ("nibo_company_imoveis",   "NIBO · CNPJ Imóveis (display)","nibo",    False, "50.741.349/0001-52"),
