@@ -17,8 +17,9 @@ const TABS = [
 ];
 
 const CHAT_KEY = 'psm_v2_gestor_trafego_chat';
-const METRICAS = ['cpl', 'spend', 'leads', 'ctr', 'frequency', 'cpm'];
-const MET_LBL = { cpl: 'CPL (R$)', spend: 'Gasto (R$)', leads: 'Leads', ctr: 'CTR (%)', frequency: 'Frequência', cpm: 'CPM (R$)' };
+const METRICAS = ['cpl', 'spend', 'leads', 'ctr', 'frequency', 'cpm', 'ddd_fora_pct'];
+const MET_LBL = { cpl: 'CPL (R$)', spend: 'Gasto (R$)', leads: 'Leads', ctr: 'CTR (%)', frequency: 'Frequência', cpm: 'CPM (R$)', ddd_fora_pct: '% leads DDD ≠ 17' };
+const LIM_LBL = { cpl_alvo: 'CPL alvo (R$)', cpl_max: 'CPL máximo (R$)', freq_max: 'Frequência máx', ctr_min_pct: 'CTR mínimo (%)', ddd_fora_max_pct: '% máx DDD ≠ 17', escala_fator: 'Fator de escala (0-1)' };
 
 let _root = null, _tab = 'painel';
 let _painel = null, _summary = null;
@@ -134,6 +135,12 @@ function renderPainel(body) {
             <span class="tiny muted">— ${esc(a.metrica)} ${esc(a.op)} ${a.valor} (${esc(a.janela)}) · atual: <b>${a.valor_atual}</b></span>
           </div>`).join('')
         : `<div class="tiny muted">Nenhum alerta disparado. ${(_painel.alertas?.regras || []).length ? '' : 'Configure regras na aba 🚨 Alertas.'}</div>`}
+        ${(_painel.diagnosticos || []).length ? `
+          <div class="tiny" style="font-weight:800;margin-top:10px;color:var(--muted)">DIAGNÓSTICO POR CAMPANHA (7d)</div>
+          ${(_painel.diagnosticos || []).slice(0, 6).map(d => `
+            <div class="tiny" style="padding:5px 0;border-bottom:1px solid var(--bd)">
+              ${d.sev === 'critico' ? '🔴' : d.sev === 'atencao' ? '🟡' : '🟢'} <b>${esc(String(d.campanha).slice(0, 45))}</b><br>${esc(d.acao)}
+            </div>`).join('')}` : ''}
       </div>
       <div style="background:var(--bg-3);border-radius:10px;padding:14px">
         <div style="font-weight:800;margin-bottom:8px">⚡ Últimas ações executadas</div>
@@ -437,8 +444,32 @@ function renderAlertas(body) {
   const aval = {};
   (_painel.alertas?.avaliacao || []).forEach(a => { aval[a.id] = a; });
   const podeEditar = socio();
+  const lims = _painel.limiares || {};
+  const diags = _painel.diagnosticos || [];
   body.innerHTML = `
-    <div class="tiny muted" style="margin-bottom:10px">Métricas de alerta avaliadas contra o cache Meta (7d/30d). Regra disparada aparece no Painel. ${podeEditar ? '' : 'Só o sócio edita as regras.'}</div>
+    <div class="tiny muted" style="margin-bottom:10px">Métricas de alerta avaliadas contra o cache Meta (7d/30d) + base RD (DDD). Regra disparada aparece no Painel. ${podeEditar ? '' : 'Só o sócio edita.'}</div>
+
+    <div style="background:var(--bg-3);border-radius:10px;padding:14px;margin-bottom:14px">
+      <div style="font-weight:800;margin-bottom:4px">📏 Limiares de viabilidade</div>
+      <div class="tiny muted" style="margin-bottom:8px">Alimentam o diagnóstico automático por campanha (saturação, CTR, público, escala) e a régua de DDD.</div>
+      <div class="flex gap-2" style="flex-wrap:wrap">
+        ${Object.entries(LIM_LBL).map(([k, lbl]) => `
+          <label class="tiny">${lbl}<br><input class="input tiny" type="number" step="0.1" data-lim="${k}" value="${lims[k] ?? ''}" style="width:110px" ${podeEditar ? '' : 'disabled'}></label>`).join('')}
+      </div>
+    </div>
+
+    <div style="background:var(--bg-3);border-radius:10px;padding:14px;margin-bottom:14px">
+      <div style="font-weight:800;margin-bottom:8px">🔬 Diagnóstico automático por campanha (7 dias)</div>
+      ${diags.length ? diags.map(d => `
+        <div style="padding:7px 0;border-bottom:1px solid var(--bd)" class="tiny">
+          ${d.sev === 'critico' ? '🔴' : d.sev === 'atencao' ? '🟡' : '🟢'} <b>${esc(d.campanha)}</b>
+          ${d.spend != null ? `<span class="muted">· ${brl(d.spend)} · ${d.leads ?? 0} leads · CPL ${d.cpl ? brl(d.cpl) : '—'} · freq ${d.freq ?? '—'} · CTR ${d.ctr ?? '—'}</span>` : ''}
+          <div>${esc(d.acao)}</div>
+        </div>`).join('')
+      : '<div class="tiny muted">Nenhum diagnóstico no momento (sem campanhas com gasto na janela, ou tudo dentro dos limiares).</div>'}
+    </div>
+
+    <div style="font-weight:800;margin-bottom:8px">🚨 Regras de alerta</div>
     <div style="overflow-x:auto"><table class="table tiny" style="min-width:760px">
       <tr><th>Nome</th><th>Métrica</th><th>Condição</th><th>Valor</th><th>Janela</th><th>Severidade</th><th>Ativo</th><th>Estado agora</th>${podeEditar ? '<th></th>' : ''}</tr>
       ${_regras.map((r, i) => {
@@ -472,7 +503,9 @@ function renderAlertas(body) {
   const sv = document.getElementById('al-save');
   if (sv) sv.onclick = async () => {
     try {
-      const r = await api.request('/api/v3/marketing/gestor', { method: 'POST', body: { action: 'alertas', regras: _regras.map(x => ({ ...x, valor: parseFloat(x.valor) })) } });
+      const limiares = {};
+      body.querySelectorAll('[data-lim]').forEach(el => { if (el.value !== '') limiares[el.dataset.lim] = parseFloat(el.value); });
+      const r = await api.request('/api/v3/marketing/gestor', { method: 'POST', body: { action: 'alertas', limiares, regras: _regras.map(x => ({ ...x, valor: parseFloat(x.valor) })) } });
       _regras = null; _painel = null; await load();
       if (r?.ok) alert('Regras salvas ✓');
     } catch (e) { alert('Falha: ' + e.message); }

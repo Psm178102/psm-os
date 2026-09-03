@@ -28,7 +28,7 @@ Tudo em shared_kv (aditivo, sem migração): gt_config, gt_alertas, gt_publicos,
 gt_listas_idx, gt_lista:<id>, gt_acoes_log. Token Meta NUNCA sai das envs.
 """
 from http.server import BaseHTTPRequestHandler
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import json
 import os
 import re
@@ -62,9 +62,20 @@ GUARDRAILS_DEFAULT = {
 CONFIG_CHAVES_OK = ("persona_extra", "estrategia", "conhecimento_extra",
                     "metricas_custom", "guardrails")
 
-METRICAS_ALERTA = ("cpl", "spend", "leads", "ctr", "frequency", "cpm")
+METRICAS_ALERTA = ("cpl", "spend", "leads", "ctr", "frequency", "cpm", "ddd_fora_pct")
 JANELAS_OK = ("last_7d", "last_30d")
 SEVERIDADES = ("info", "atencao", "critico")
+
+# Limiares de viabilidade (v87.11) — o sócio edita por cima (gt_alertas.limiares).
+# Alimentam os DIAGNÓSTICOS AUTOMÁTICOS por campanha e a métrica ddd_fora_pct.
+LIMIARES_DEFAULT = {
+    "cpl_alvo": 12.0,          # CPL saudável (estratégia)
+    "cpl_max": 18.0,           # acima disso = público/criativo ruim → agir
+    "freq_max": 2.6,           # frequência a partir daqui = criativo saturado
+    "ctr_min_pct": 1.0,        # CTR abaixo disso = criativo/público desalinhado
+    "ddd_fora_max_pct": 25.0,  # % de leads com DDD ≠ 17 acima disso = corrigir público/geo
+    "escala_fator": 0.7,       # CPL <= alvo×fator = pronta pra escalar (vertical/horizontal)
+}
 
 _ID_RX = re.compile(r"^[0-9]{5,25}$")           # ids de objeto do Graph
 _SLUG_RX = re.compile(r"^[a-z0-9_-]{1,60}$")
@@ -130,13 +141,77 @@ def _metricas_do_payload(payload):
     }
 
 
-def avaliar_alertas(sb, regras):
+def ddd_fora_pct(sb, dias=7):
+    """% de leads criados na janela cujo 1º telefone tem DDD ≠ 17 (vazamento de
+    público geográfico). Lê a base RD sincronizada (deals). None se sem dado."""
+    try:
+        desde = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
+        rows = (sb.table("deals").select("rd_raw")
+                .gte("created_at_rd", desde).order("created_at_rd", desc=True)
+                .limit(800).execute().data or [])
+        tot, fora = 0, 0
+        for d in rows:
+            _n, fones, _e = _contatos_do_raw(d.get("rd_raw"))
+            if not fones:
+                continue
+            ddd = fones[0][2:4] if fones[0].startswith("55") and len(fones[0]) >= 4 else ""
+            if not ddd:
+                continue
+            tot += 1
+            if ddd != "17":
+                fora += 1
+        return round(fora / tot * 100, 1) if tot >= 10 else None
+    except Exception:
+        return None
+
+
+def diagnosticos_campanhas(payload, limiares, ddd_pct=None):
+    """Diagnóstico automático POR CAMPANHA contra os limiares de viabilidade:
+    criativo saturado · CTR baixo · público/criativo ruim · pronta pra escalar."""
+    out = []
+    if isinstance(payload, dict):
+        for c in (payload.get("campaigns") or []):
+            spend = float(c.get("spend") or 0)
+            if spend < 50:
+                continue
+            leads = int(c.get("results") or 0)
+            cpl = (spend / leads) if leads else None
+            freq = float(c.get("frequency") or 0)
+            ctr = float(c.get("ctr") or 0)
+            nome = str(c.get("name") or "")[:80]
+            base = {"campanha": nome, "conta": c.get("account") or "", "id": c.get("id"),
+                    "spend": round(spend, 2), "leads": leads,
+                    "cpl": round(cpl, 2) if cpl else None, "freq": freq, "ctr": ctr}
+            if freq >= float(limiares["freq_max"]):
+                out.append({**base, "tipo": "criativo_saturado", "sev": "atencao",
+                            "acao": f"🎨 Frequência {freq:.2f} ≥ {limiares['freq_max']} — criativo saturado: rotacionar criativo AGORA"})
+            if ctr and ctr < float(limiares["ctr_min_pct"]) and spend >= 100:
+                out.append({**base, "tipo": "ctr_baixo", "sev": "atencao",
+                            "acao": f"🎯 CTR {ctr:.2f}% < {limiares['ctr_min_pct']}% — criativo/público desalinhado: testar gancho novo"})
+            if cpl and cpl > float(limiares["cpl_max"]) and spend >= 150:
+                out.append({**base, "tipo": "publico_ruim", "sev": "critico",
+                            "acao": f"🚫 CPL R$ {cpl:.2f} > teto R$ {limiares['cpl_max']} — público/criativo ruim: pausar ou reformular"})
+            if cpl and leads >= 10 and cpl <= float(limiares["cpl_alvo"]) * float(limiares["escala_fator"]):
+                out.append({**base, "tipo": "pronta_escalar", "sev": "info",
+                            "acao": f"🚀 CPL R$ {cpl:.2f} bem abaixo do alvo — ESCALAR: +20% de verba (vertical) ou duplicar a estrutura c/ público novo (horizontal)"})
+    if ddd_pct is not None and ddd_pct > float(limiares["ddd_fora_max_pct"]):
+        out.append({"campanha": "(conta)", "conta": "", "tipo": "ddd_fora", "sev": "critico",
+                    "ddd_fora_pct": ddd_pct,
+                    "acao": f"📍 {ddd_pct}% dos leads com DDD ≠ 17 (teto {limiares['ddd_fora_max_pct']}%) — corrigir GEO/público das campanhas"})
+    return out
+
+
+def avaliar_alertas(sb, regras, limiares=None):
     """Avalia cada regra ativa contra o cache compartilhado. Nunca chama o Meta
     live (o cron mantém o cache quente) — se não houver cache, marca sem_dado."""
+    limiares = {**LIMIARES_DEFAULT, **(limiares or {})}
+    ddd7 = ddd_fora_pct(sb, 7)
     caches = {}
     for jan in JANELAS_OK:
         payload, age_s, _src = read_cache(sb, build_cache_key(jan, "", ""), 10 ** 9)
         caches[jan] = _metricas_do_payload(payload)
+        if caches[jan] is not None:
+            caches[jan]["ddd_fora_pct"] = ddd7 if jan == "last_7d" else ddd_fora_pct(sb, 30)
     out = []
     for r in (regras or []):
         if not r.get("ativo", True):
@@ -298,14 +373,21 @@ class handler(BaseHTTPRequestHandler):
 
         if action == "painel":
             cfg = kv_get(sb, KV_CONFIG, {})
-            regras = (kv_get(sb, KV_ALERTAS, {}) or {}).get("regras") or []
-            alertas, caches = avaliar_alertas(sb, regras)
+            box_al = kv_get(sb, KV_ALERTAS, {}) or {}
+            regras = box_al.get("regras") or []
+            limiares = {**LIMIARES_DEFAULT, **(box_al.get("limiares") or {})}
+            alertas, caches = avaliar_alertas(sb, regras, limiares)
+            payload7, _a, _s = read_cache(sb, build_cache_key("last_7d", "", ""), 10 ** 9)
+            ddd7 = (caches.get("last_7d") or {}).get("ddd_fora_pct")
+            diags = diagnosticos_campanhas(payload7, limiares, ddd_pct=ddd7)
             ids, labels, _ = resolver_contas(sb)
             return self._send(200, {
                 "ok": True,
                 "config": cfg,
                 "guardrails": {**GUARDRAILS_DEFAULT, **(cfg.get("guardrails") or {})},
                 "alertas": {"regras": regras, "avaliacao": alertas},
+                "limiares": limiares,
+                "diagnosticos": diags,
                 "metricas": caches,
                 "contas": [{"id": i, "label": l} for i, l in zip(ids, labels)],
                 "publicos": (kv_get(sb, KV_PUBLICOS, {}) or {}).get("planos") or [],
@@ -425,10 +507,25 @@ class handler(BaseHTTPRequestHandler):
                     "severidade": r.get("severidade") if r.get("severidade") in SEVERIDADES else "atencao",
                     "ativo": bool(r.get("ativo", True)),
                 })
-            kv_set(sb, KV_ALERTAS, {"regras": limpo, "atualizado_em": _now_iso()})
+            # v87.11: limiares de viabilidade (opcional no mesmo POST)
+            box_al = kv_get(sb, KV_ALERTAS, {}) or {}
+            limiares = {**LIMIARES_DEFAULT, **(box_al.get("limiares") or {})}
+            lim_in = body.get("limiares")
+            if isinstance(lim_in, dict):
+                for campo, teto in (("cpl_alvo", 1000), ("cpl_max", 1000), ("freq_max", 20),
+                                    ("ctr_min_pct", 100), ("ddd_fora_max_pct", 100), ("escala_fator", 1)):
+                    if campo in lim_in:
+                        try:
+                            v = float(lim_in[campo])
+                        except Exception:
+                            return self._send(400, {"ok": False, "error": f"limiar {campo} precisa ser número"})
+                        if not (0 < v <= teto):
+                            return self._send(400, {"ok": False, "error": f"limiar {campo} fora de 0-{teto}"})
+                        limiares[campo] = v
+            kv_set(sb, KV_ALERTAS, {"regras": limpo, "limiares": limiares, "atualizado_em": _now_iso()})
             audit(self, user, "gestor_trafego.alertas", target_type="gt_alertas", target_id="regras",
                   notes=f"{len(limpo)} regras")
-            return self._send(200, {"ok": True, "regras": limpo})
+            return self._send(200, {"ok": True, "regras": limpo, "limiares": limiares})
 
         # ── planos de público ──────────────────────────────────────────
         if action == "publico":
