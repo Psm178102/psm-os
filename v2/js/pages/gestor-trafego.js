@@ -12,6 +12,7 @@ const TABS = [
   { id: 'publicos', lbl: '👥 Públicos' },
   { id: 'alertas',  lbl: '🚨 Alertas' },
   { id: 'acoes',    lbl: '⚡ Ações' },
+  { id: 'relatorios', lbl: '📜 Relatórios' },
   { id: 'cerebro',  lbl: '🧠 Cérebro' },
 ];
 
@@ -61,8 +62,8 @@ function render() {
         <div class="flex" style="align-items:center;gap:14px;flex-wrap:wrap">
           <div style="width:56px;height:56px;border-radius:14px;background:#f9731633;display:flex;align-items:center;justify-content:center;font-size:28px">🚦</div>
           <div style="flex:1;min-width:220px">
-            <div style="font-size:22px;font-weight:900;color:#fb923c">Sr. Tráfego</div>
-            <div style="opacity:.85;font-size:13px">Gestor de Tráfego sênior · Meta Ads, públicos e estratégia · PSM Conquista + PSM Imóveis</div>
+            <div style="font-size:22px;font-weight:900;color:#fb923c">Sr. Gestor de Tráfego</div>
+            <div style="opacity:.85;font-size:13px">Mídia paga sênior · Meta Ads, públicos, RD Station e estratégia · PSM Conquista + PSM Imóveis · relatórios 19h aos sócios</div>
           </div>
           <button class="btn btn-ghost" data-nav-mkt style="color:#fff;border-color:#ffffff44">📢 Dashboard Meta completo</button>
         </div>
@@ -80,6 +81,7 @@ function render() {
   if (_tab === 'publicos') renderPublicos(body);
   if (_tab === 'alertas') renderAlertas(body);
   if (_tab === 'acoes') renderAcoes(body);
+  if (_tab === 'relatorios') renderRelatorios(body);
   if (_tab === 'cerebro') renderCerebro(body);
 }
 
@@ -181,13 +183,13 @@ function renderGuerra(body) {
         ${_messages.length === 0 ? `
           <div style="text-align:center;padding:26px;color:var(--muted)">
             <div style="font-size:42px;margin-bottom:8px">🚦</div>
-            <div>Sala de guerra do tráfego. O Sr. Tráfego responde com os números REAIS do Meta e da base RD.</div>
+            <div>Sala de guerra do tráfego. O Sr. Gestor de Tráfego responde com os números REAIS do Meta, da base RD e dos concorrentes mapeados.</div>
             <div class="tiny mt-2 muted">Exemplos:</div>
             <div class="tiny" style="font-style:italic;margin:4px 0">"Diagnóstico da semana: onde estou queimando verba?"</div>
             <div class="tiny" style="font-style:italic;margin:4px 0">"Monta a estratégia de públicos da Conquista pra outubro"</div>
             <div class="tiny" style="font-style:italic;margin:4px 0">"Que campanha eu pauso hoje e por quê?"</div>
           </div>` : _messages.map(bubble).join('')}
-        ${_busy ? '<div class="muted tiny"><span class="spinner"></span> Sr. Tráfego analisando…</div>' : ''}
+        ${_busy ? '<div class="muted tiny"><span class="spinner"></span> Sr. Gestor de Tráfego analisando…</div>' : ''}
       </div>
       <div class="flex gap-2" style="align-items:flex-end">
         <textarea id="gt-input" class="input" rows="2" placeholder="Pergunte sobre campanhas, públicos, verba, estratégia… (Ctrl+Enter envia)" ${_busy ? 'disabled' : ''}></textarea>
@@ -506,6 +508,48 @@ async function executar(op, id, nome) {
     const r = await api.request('/api/v3/marketing/gestor', { method: 'POST', body });
     if (r?.ok) { alert('✅ Executado no Meta.'); _summary = null; _painel = null; await load(); }
   } catch (e) { alert('❌ ' + (e.message || 'falha')); _painel = null; await load(); }
+}
+
+/* ───────────────────────── 📜 Relatórios ───────────────────────── */
+let _relatorios = null;
+const TIPO_LBL = { diario: '📅 Diário (19h)', semanal: '🗓 Semanal (seg 18h)', quinzenal: '📆 Quinzenal (dia 15)', mensal: '📊 Fechamento de mês' };
+
+async function renderRelatorios(body) {
+  body.innerHTML = '<div class="muted tiny"><span class="spinner"></span> Buscando relatórios…</div>';
+  if (_relatorios === null) {
+    try { _relatorios = (await api.request('/api/v3/marketing/gestor_relatorio'))?.relatorios || []; }
+    catch (e) { body.innerHTML = `<div class="muted">⚠️ ${esc(e.message)}</div>`; return; }
+  }
+  body.innerHTML = `
+    <div class="tiny muted" style="margin-bottom:10px">Cadência automática pros sócios: <b>diário 19h</b> · <b>semanal segunda 18h</b> · <b>quinzenal dia 15</b> · <b>fechamento de mês</b>. Chegam por notificação/push e ficam aqui.</div>
+    ${socio() ? `<div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:12px;align-items:center">
+      <select id="rel-tipo" class="input" style="max-width:220px">${Object.entries(TIPO_LBL).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>
+      <button class="btn btn-primary" id="rel-gerar">⚡ Gerar agora</button>
+      <span class="tiny muted">(geração manual não espera o horário)</span>
+    </div>` : ''}
+    ${_relatorios.length ? _relatorios.map((r, i) => `
+      <div style="background:var(--bg-3);border-radius:10px;padding:12px 14px;margin-bottom:10px">
+        <div class="flex" style="align-items:center;gap:8px;cursor:pointer" data-rel-tg="${i}">
+          <b>${TIPO_LBL[r.tipo] || esc(r.tipo)}</b>
+          <span class="tiny muted">· ${esc(String(r.ts || '').slice(0, 16).replace('T', ' '))} UTC · ${esc(r.periodo || '')} ${r.gerado_por && r.gerado_por !== 'cron' ? '· manual (' + esc(r.gerado_por) + ')' : ''}</span>
+          <span style="margin-left:auto">${i === 0 ? '▼' : '▶'}</span>
+        </div>
+        <div data-rel-bd="${i}" ${i === 0 ? '' : 'hidden'} style="white-space:pre-wrap;font-size:13px;line-height:1.55;margin-top:10px;border-top:1px solid var(--bd);padding-top:10px">${esc(r.texto)}</div>
+      </div>`).join('')
+    : '<div class="tiny muted">Nenhum relatório ainda — o primeiro diário sai hoje às 19h (ou gere um agora).</div>'}`;
+  body.querySelectorAll('[data-rel-tg]').forEach(el => el.onclick = () => {
+    const bd = body.querySelector(`[data-rel-bd="${el.dataset.relTg}"]`);
+    bd.hidden = !bd.hidden;
+    el.querySelector('span[style*="margin-left"]').textContent = bd.hidden ? '▶' : '▼';
+  });
+  const g = document.getElementById('rel-gerar');
+  if (g) g.onclick = async () => {
+    g.disabled = true; g.textContent = '⏳ Gerando…';
+    try {
+      await api.request('/api/v3/marketing/gestor_relatorio', { method: 'POST', body: { tipo: document.getElementById('rel-tipo').value } });
+      _relatorios = null; render();
+    } catch (e) { alert('Falha: ' + e.message); g.disabled = false; g.textContent = '⚡ Gerar agora'; }
+  };
 }
 
 /* ───────────────────────── 🧠 Cérebro ───────────────────────── */

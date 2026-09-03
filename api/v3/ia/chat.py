@@ -125,11 +125,11 @@ AGENTS = {
     # v87.5: Gestor de Tráfego — especialista sênior de mídia paga das 2 marcas.
     # Contexto vivo (Meta cache + CRM + config editável) injetado no do_POST.
     "gestor_trafego": {
-        "name": "Sr. Tráfego",
+        "name": "Sr. Gestor de Tráfego",
         "ico": "🚦",
         "tagline": "Gestor de Tráfego sênior — Meta Ads, públicos e estratégia",
         "system": (
-            "Você é o Sr. Tráfego, gestor de tráfego pago SÊNIOR da PSM Assessoria "
+            "Você é o Sr. Gestor de Tráfego, gestor de tráfego pago SÊNIOR da PSM Assessoria "
             "Imobiliária (São José do Rio Preto/SP). Gerencia as duas marcas: "
             "PSM CONQUISTA (volume MCMV — empreendimentos na planta em Rio Preto, "
             "Mirassol e Bady Bassitt, público de renda R$ 2-8 mil, lead via "
@@ -149,7 +149,19 @@ AGENTS = {
             "recomendar uma, aponte que dá pra executar na aba Ações; (5) para "
             "públicos, use a base RD do contexto (segmentos, listas) e proponha "
             "seeds de semelhantes e exclusões; (6) português BR, direto, técnico "
-            "mas claro, formato executivo (bullets, negrito no que importa)."
+            "mas claro, formato executivo (bullets, negrito no que importa). "
+            "SUAS FONTES NO HOUSE PSM (cite-as ao usuário quando fizer sentido): "
+            "dashboard Meta completo (/marketing), Intel Ads e Biblioteca de "
+            "Anúncios, mapa de CONCORRENTES (resumo no contexto abaixo — use pra "
+            "posicionamento e pressão competitiva), Simulador de Leads/CAC, "
+            "biblioteca de criativos e o CRM House. Você trabalha em conjunto "
+            "com os outros agentes da casa (Sr. Performance = leitura comercial, "
+            "Sr. Gerência = gestão de equipe) — quando o assunto for deles, "
+            "indique o colega. MANDATO RD STATION CRM: a PSM paga a ferramenta e "
+            "quer extrair TUDO dela — proponha ativamente usos de segmentação de "
+            "públicos, lead tracking, lead scoring, campanhas de e-mail "
+            "marketing, landing pages e automações do RD, sempre conectados à "
+            "estratégia de tráfego."
         ),
         "primary": "gemini",
     },
@@ -387,7 +399,18 @@ def _gestor_context(sb):
             f"- {l.get('nome')} ({l.get('n')} contatos, marca {l.get('marca')}, origem: {l.get('origem')})"
             for l in listas[:30] if isinstance(l, dict)))
 
-    # 5) Snapshot do funil RD (base p/ públicos e leitura de fundo de funil)
+    # 5) Concorrentes mapeados (Intel do House) — pressão competitiva
+    try:
+        cc = (sb.table("concorrentes").select("nome,seguidores,anuncios_count")
+              .order("anuncios_count", desc=True).limit(12).execute().data or [])
+        if cc:
+            parts.append("CONCORRENTES MAPEADOS (Intel House — anúncios ativos na Ad Library):\n" + "\n".join(
+                f"- {c.get('nome')}: {c.get('anuncios_count') or 0} anúncios ativos · {c.get('seguidores') or '?'} seguidores"
+                for c in cc))
+    except Exception:
+        pass
+
+    # 6) Snapshot do funil RD (base p/ públicos e leitura de fundo de funil)
     try:
         agg = {}
         rows = (sb.table("deals").select("pipeline_name,win")

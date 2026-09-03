@@ -50,6 +50,11 @@ JOBS = [
     # 📣 gasto REAL de mídia por marca/mês (v85.16): puxa da Meta conta a conta e
     # alimenta o custo de tráfego da Viabilidade — valor exato do mês, sem média.
     ("trafego_real", "/api/v3/diretoria/trafego_real",         6),
+    # 🚦 relatórios do Sr. Gestor de Tráfego (v87.6): rede de segurança dos crons
+    # do vercel.json — o endpoint é idempotente por período (diário 19h, semanal
+    # seg 18h, quinzenal dia 15, mensal dia 1), então rodar de 30min em 30min só
+    # gera o que venceu e ainda não saiu.
+    ("gt_relatorio", "/api/v3/marketing/gestor_relatorio?cron=1&tipo=auto", 0.5),
 ]
 
 

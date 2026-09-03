@@ -5,6 +5,22 @@
       "schedule": "0 6,12,18 * * *"
     },
     {
+      "path": "/api/v3/marketing/gestor_relatorio?cron=1&tipo=diario",
+      "schedule": "5 22 * * *"
+    },
+    {
+      "path": "/api/v3/marketing/gestor_relatorio?cron=1&tipo=semanal",
+      "schedule": "5 21 * * 1"
+    },
+    {
+      "path": "/api/v3/marketing/gestor_relatorio?cron=1&tipo=quinzenal",
+      "schedule": "20 22 15 * *"
+    },
+    {
+      "path": "/api/v3/marketing/gestor_relatorio?cron=1&tipo=mensal",
+      "schedule": "5 11 1 * *"
+    },
+    {
       "path": "/api/v3/marketing/meta_monthly_cron",
       "schedule": "0 5 * * *"
     },
