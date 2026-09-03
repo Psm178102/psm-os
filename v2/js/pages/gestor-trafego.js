@@ -8,7 +8,7 @@ import { auth } from '../auth.js';
 
 const TABS = [
   { id: 'painel',   lbl: '🎛️ Painel' },
-  { id: 'guerra',   lbl: '💬 Sala de Guerra' },
+  { id: 'guerra',   lbl: '💬 Chat · Sala de Guerra' },
   { id: 'publicos', lbl: '👥 Públicos' },
   { id: 'alertas',  lbl: '🚨 Alertas' },
   { id: 'acoes',    lbl: '⚡ Ações' },
@@ -183,11 +183,13 @@ function renderGuerra(body) {
         ${_messages.length === 0 ? `
           <div style="text-align:center;padding:26px;color:var(--muted)">
             <div style="font-size:42px;margin-bottom:8px">🚦</div>
-            <div>Sala de guerra do tráfego. O Sr. Gestor de Tráfego responde com os números REAIS do Meta, da base RD e dos concorrentes mapeados.</div>
+            <div>Converse com o Sr. Gestor de Tráfego — dúvidas, estratégia, diagnóstico. Ele responde com os números REAIS do Meta, da base RD e dos concorrentes mapeados, e o histórico fica salvo.</div>
             <div class="tiny mt-2 muted">Exemplos:</div>
             <div class="tiny" style="font-style:italic;margin:4px 0">"Diagnóstico da semana: onde estou queimando verba?"</div>
             <div class="tiny" style="font-style:italic;margin:4px 0">"Monta a estratégia de públicos da Conquista pra outubro"</div>
             <div class="tiny" style="font-style:italic;margin:4px 0">"Que campanha eu pauso hoje e por quê?"</div>
+            <div class="tiny" style="font-style:italic;margin:4px 0">"Me explica o que é CBO e se vale pra gente"</div>
+            <div class="tiny" style="font-style:italic;margin:4px 0">"O que dá pra extrair do RD Station que não usamos?"</div>
           </div>` : _messages.map(bubble).join('')}
         ${_busy ? '<div class="muted tiny"><span class="spinner"></span> Sr. Gestor de Tráfego analisando…</div>' : ''}
       </div>
