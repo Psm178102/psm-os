@@ -122,6 +122,37 @@ AGENTS = {
         ),
         "primary": "claude",
     },
+    # v87.5: Gestor de Tráfego — especialista sênior de mídia paga das 2 marcas.
+    # Contexto vivo (Meta cache + CRM + config editável) injetado no do_POST.
+    "gestor_trafego": {
+        "name": "Sr. Tráfego",
+        "ico": "🚦",
+        "tagline": "Gestor de Tráfego sênior — Meta Ads, públicos e estratégia",
+        "system": (
+            "Você é o Sr. Tráfego, gestor de tráfego pago SÊNIOR da PSM Assessoria "
+            "Imobiliária (São José do Rio Preto/SP). Gerencia as duas marcas: "
+            "PSM CONQUISTA (volume MCMV — empreendimentos na planta em Rio Preto, "
+            "Mirassol e Bady Bassitt, público de renda R$ 2-8 mil, lead via "
+            "formulário/WhatsApp) e PSM IMÓVEIS (alto padrão, quiet luxury, NEPQ, "
+            "ticket R$ 600 mil+). Nível de especialista: domina Meta Ads (estrutura "
+            "de campanha, CBO/ABO, leilão, criativo, Advantage+, públicos "
+            "personalizados e semelhantes, pixel/CAPI, Lead Ads), Instagram, "
+            "Facebook, WhatsApp e a leitura de funil completo até a venda no CRM. "
+            "REGRAS: (1) responda SEMPRE com base nos DADOS REAIS do contexto "
+            "abaixo — cite números (gasto, CPL, leads, CTR) ao diagnosticar; se um "
+            "dado não estiver no contexto, diga que falta e como obtê-lo, nunca "
+            "invente; (2) pense como dono do orçamento: cada recomendação vem com "
+            "ação concreta, impacto esperado e prioridade; (3) CPL alvo Conquista "
+            "e verba são os da ESTRATÉGIA VIGENTE do contexto (se definida); "
+            "(4) ações executáveis no House (pausar/reativar campanha, ajustar "
+            "orçamento) respeitam guardrails e só o sócio executa — quando "
+            "recomendar uma, aponte que dá pra executar na aba Ações; (5) para "
+            "públicos, use a base RD do contexto (segmentos, listas) e proponha "
+            "seeds de semelhantes e exclusões; (6) português BR, direto, técnico "
+            "mas claro, formato executivo (bullets, negrito no que importa)."
+        ),
+        "primary": "gemini",
+    },
     "treino_nota": {
         "name": "Avaliador da Sala de Treino",
         "ico": "📋",
@@ -272,6 +303,109 @@ def _professor_context(sb):
     return ("\n\n".join(parts))[:22000]
 
 
+def _gestor_context(sb):
+    """Contexto vivo do Sr. Tráfego: config editável (gt_config), métricas Meta
+    do cache compartilhado (7d/30d), regras de alerta, públicos/listas e um
+    snapshot do funil RD. Tudo best-effort, capado em ~20k chars."""
+    if not sb:
+        return ""
+    parts = []
+
+    def _kv(key):
+        try:
+            rows = sb.table("shared_kv").select("value").eq("key", key).limit(1).execute().data or []
+            v = rows[0]["value"] if rows else {}
+            if isinstance(v, str):
+                v = json.loads(v)
+            return v if isinstance(v, (dict, list)) else {}
+        except Exception:
+            return {}
+
+    # 1) Config editável do sócio (persona extra, estratégia, conhecimento)
+    cfg = _kv("gt_config")
+    if isinstance(cfg, dict):
+        if cfg.get("persona_extra"):
+            parts.append("AJUSTE DE PERSONA (definido pelo sócio — obedeça):\n" + str(cfg["persona_extra"])[:4000])
+        est = cfg.get("estrategia") or {}
+        if isinstance(est, dict) and (est.get("conquista") or est.get("imoveis")):
+            parts.append("ESTRATÉGIA VIGENTE:\n[PSM Conquista] " + str(est.get("conquista") or "—")[:4000] +
+                         "\n[PSM Imóveis] " + str(est.get("imoveis") or "—")[:4000])
+        if cfg.get("conhecimento_extra"):
+            parts.append("BASE DE CONHECIMENTO EXTRA:\n" + str(cfg["conhecimento_extra"])[:6000])
+        mc = cfg.get("metricas_custom") or []
+        if mc:
+            parts.append("MÉTRICAS PERSONALIZADAS ACOMPANHADAS:\n" +
+                         "\n".join(f"- {m.get('nome')}: {m.get('descricao')}" for m in mc[:20] if isinstance(m, dict)))
+        g = cfg.get("guardrails") or {}
+        if g:
+            parts.append("GUARDRAILS DE AÇÃO (limites que o sócio definiu): " + json.dumps(g, ensure_ascii=False))
+
+    # 2) Métricas Meta do cache compartilhado (nunca chama a Graph aqui)
+    def _meta_janela(preset):
+        try:
+            rows = (sb.table("meta_ads_cache").select("payload,refreshed_at")
+                    .eq("cache_key", preset + "||").limit(1).execute().data or [])
+            p = rows[0].get("payload") if rows else None
+            if not isinstance(p, dict):
+                return None
+            tot = ((p.get("totals") or {}).get("cur")) or {}
+            spend = float(tot.get("spend") or 0)
+            res = int(tot.get("results") or 0)
+            linhas = [f"{preset}: gasto R$ {spend:,.0f} · {res} leads · CPL R$ {spend / res:,.2f}" if res
+                      else f"{preset}: gasto R$ {spend:,.0f} · 0 leads"]
+            camps = sorted([c for c in (p.get("campaigns") or []) if float(c.get("spend") or 0) > 0],
+                           key=lambda c: -float(c.get("spend") or 0))[:12]
+            for c in camps:
+                cs, cr = float(c.get("spend") or 0), int(c.get("results") or 0)
+                linhas.append(f"  - [{c.get('account') or ''}] {str(c.get('name') or '')[:70]} ({c.get('status') or ''}): "
+                              f"R$ {cs:,.0f} · {cr} leads · CPL {'R$ %.2f' % (cs / cr) if cr else '—'} · CTR {c.get('ctr') or 0}")
+            return "\n".join(linhas)
+        except Exception:
+            return None
+    metas = [m for m in (_meta_janela("last_7d"), _meta_janela("last_30d")) if m]
+    if metas:
+        parts.append("META ADS AGORA (cache compartilhado, por campanha):\n" + "\n".join(metas))
+
+    # 3) Alertas configurados
+    regras = (_kv("gt_alertas") or {}).get("regras") if isinstance(_kv("gt_alertas"), dict) else None
+    regras = regras or []
+    if regras:
+        parts.append("REGRAS DE ALERTA CONFIGURADAS:\n" + "\n".join(
+            f"- {r.get('nome') or r.get('metrica')}: {r.get('metrica')} {r.get('op')} {r.get('valor')} "
+            f"({r.get('janela')}, {r.get('severidade')}, {'ativo' if r.get('ativo', True) else 'inativo'})"
+            for r in regras[:40] if isinstance(r, dict)))
+
+    # 4) Públicos planejados + listas/mailings disponíveis
+    planos = (_kv("gt_publicos") or {}).get("planos") or []
+    if planos:
+        parts.append("PLANOS DE PÚBLICO:\n" + "\n".join(
+            f"- [{p.get('marca')}] {p.get('nome')} ({p.get('tipo')}, {p.get('status')}): {str(p.get('definicao') or '')[:150]}"
+            for p in planos[:30] if isinstance(p, dict)))
+    listas = (_kv("gt_listas_idx") or {}).get("listas") or []
+    if listas:
+        parts.append("LISTAS/MAILINGS DISPONÍVEIS (upload do sócio):\n" + "\n".join(
+            f"- {l.get('nome')} ({l.get('n')} contatos, marca {l.get('marca')}, origem: {l.get('origem')})"
+            for l in listas[:30] if isinstance(l, dict)))
+
+    # 5) Snapshot do funil RD (base p/ públicos e leitura de fundo de funil)
+    try:
+        agg = {}
+        rows = (sb.table("deals").select("pipeline_name,win")
+                .order("updated_at_rd", desc=True).limit(3000).execute().data or [])
+        for d in rows:
+            k = (d.get("pipeline_name") or "?")[:40]
+            a = agg.setdefault(k, {"aberto": 0, "ganho": 0, "perdido": 0})
+            a["ganho" if d.get("win") is True else ("perdido" if d.get("win") is False else "aberto")] += 1
+        if agg:
+            parts.append("BASE RD CRM (últimos 3.000 deals, por funil):\n" + "\n".join(
+                f"- {k}: {v['aberto']} abertos · {v['ganho']} ganhos · {v['perdido']} perdidos"
+                for k, v in sorted(agg.items(), key=lambda kv: -sum(kv[1].values()))[:15]))
+    except Exception:
+        pass
+
+    return ("\n\n".join(parts))[:22000]
+
+
 def _get_setting(sb, key):
     """Pega chave do shared_kv psm_os_settings."""
     if not sb: return None
@@ -413,6 +547,10 @@ class handler(BaseHTTPRequestHandler):
 
         agent = AGENTS[agent_id]
 
+        # v87.5: Sr. Tráfego carrega verba/estratégia/base no contexto — líder+ apenas
+        if agent_id == "gestor_trafego" and (user.get("lvl") or 0) < 5:
+            return self._send(403, {"ok": False, "error": "Sr. Tráfego é restrito à gestão (lvl 5+)"})
+
         # Carrega keys
         sb = supabase_client()
         # ENV primeiro (fonte de verdade que o /api/ai-analysis já usa e funciona);
@@ -434,6 +572,10 @@ class handler(BaseHTTPRequestHandler):
             ctx = _professor_context(sb)
             if ctx:
                 system = system + "\n\n" + ctx
+        elif agent_id == "gestor_trafego":
+            ctx = _gestor_context(sb)
+            if ctx:
+                system = system + "\n\n═══ CONTEXTO VIVO (dados reais agora) ═══\n" + ctx
         elif agent_id == "sala_treino":
             cen = TREINO_CENARIOS.get((body.get("cenario") or "").strip())
             if not cen:

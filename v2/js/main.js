@@ -38,6 +38,7 @@ import { pageLogins } from './pages/logins.js';
 import { pageConfigMenu } from './pages/config-menu.js';
 import { loadMenuLabels, loadMenuLayout, applyHeaderOverride } from './menu-labels.js';
 import { pageMarketing } from './pages/marketing.js';
+import { pageGestorTrafego } from './pages/gestor-trafego.js';
 import { pageIA } from './pages/ia.js';
 import { pageLancamentos } from './pages/lancamentos.js';
 import { pageLocacoes } from './pages/locacoes.js';
@@ -153,7 +154,7 @@ export const ROUTE_GROUP = {
   // Financeiro
   '/financeiro': 'financeiro', '/forecast': 'financeiro',
   // Inteligência & Marketing
-  '/marketing': 'marketing', '/concorrencia': 'marketing', '/benchmark': 'marketing',
+  '/marketing': 'marketing', '/gestor-trafego': 'marketing', '/concorrencia': 'marketing', '/benchmark': 'marketing',
   '/intel-ads': 'marketing', '/intel-dash': 'marketing', '/tendencias': 'marketing', '/inteligencia': 'marketing', '/biblioteca-ads': 'marketing', '/anuncios-concorrentes': 'marketing', '/marketing-historico': 'marketing', '/cerebro-vendas': 'marketing', '/briefing-guerra': 'marketing', '/paulo-conteudo': 'marketing', '/conteudo-imoveis': 'marketing', '/conteudo-conquista': 'marketing', '/criativos': 'marketing', '/criativos-download': 'marketing',
   '/dados-mercado': 'diretoria',
   // Arena & Performance (Metas/Equipes/Plantões migraram p/ Imóveis & Vendas)
@@ -243,6 +244,8 @@ export const ROUTE_MIN_LVL = {
   '/produtividade-real': 5, // v86.78: quadrante atividade×rendimento — NUNCA público/TV
   '/crm-house': 5,        // v86.52: CRM House PSM em PILOTO (gestão valida primeiro). Backend já
                           // escopa por papel (corretor=só os dele) — abrir pro corretor = baixar p/ 2.
+  '/gestor-trafego': 5,   // v87.5: Gestor de Tráfego (Sr. Tráfego) — verba/estratégia/base RD:
+                          // líder+ vê e conversa; AÇÕES no Meta e edição do cérebro = só sócio (backend trava).
   '/central-sol': 10,     // Central da Sol (atendente IA WhatsApp) — SÓ sócio enquanto a Sol
                           // está em rodagem (espelha o require_user(min_lvl=10) de api/v3/sol/).
   '/cerebro-vendas': 5,   // inteligência de vendas (líder+)
@@ -433,7 +436,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '87.4';
+const APP_VERSION = '87.5';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -563,6 +566,7 @@ const APP_VERSION = '87.4';
   router.register('/academy', { render: async (ctx, root) => { setHeader('PSM Academy'); highlight('/academy'); await pageAcademy(ctx, root); } });
   router.register('/academy-studio', { render: async (ctx, root) => { setHeader('Academy · Produção'); highlight('/academy-studio'); await pageAcademyStudio(ctx, root); } });
   router.register('/marketing', { render: async (ctx, root) => { setHeader('Marketing'); highlight('/marketing'); await pageMarketing(ctx, root); } });
+  router.register('/gestor-trafego', { render: async (ctx, root) => { setHeader('Gestor de Tráfego'); highlight('/gestor-trafego'); await pageGestorTrafego(ctx, root); } });
   router.register('/paulo-conteudo', { render: async (ctx, root) => { setHeader('Paulo Morimatsu · Conteúdo'); highlight('/paulo-conteudo'); await pagePauloConteudo(ctx, root); } });
   router.register('/conteudo-imoveis', { render: async (ctx, root) => { setHeader('PSM Imóveis · Conteúdo'); highlight('/conteudo-imoveis'); await pageConteudoImoveis(ctx, root); } });
   router.register('/conteudo-conquista', { render: async (ctx, root) => { setHeader('PSM Conquista · Conteúdo'); highlight('/conteudo-conquista'); await pageConteudoConquista(ctx, root); } });
@@ -967,6 +971,7 @@ function shellHTML(user) {
 
         <div class="sb-sec">📣 Marketing</div>
         <button class="sb-link" data-nav="/marketing"><span class="sb-ico">📢</span> Marketing (Meta)</button>
+        <button class="sb-link" data-nav="/gestor-trafego"><span class="sb-ico">🚦</span> Gestor de Tráfego</button>
         <button class="sb-link" data-nav="/criativos"><span class="sb-ico">🎨</span> Solicitações de Criativos</button>
         <button class="sb-link" data-nav="/criativos-download"><span class="sb-ico">⬇️</span> Criativos para Download</button>
         <button class="sb-link" data-nav="/paulo-conteudo"><span class="sb-ico">🎬</span> Paulo Morimatsu</button>
