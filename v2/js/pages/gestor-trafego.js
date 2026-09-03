@@ -146,6 +146,8 @@ function renderPainel(body) {
       </div>
     </div>
 
+    <div id="gt-rel-painel" style="margin-top:14px"></div>
+
     <div class="flex gap-2" style="flex-wrap:wrap;margin-top:14px">
       <div style="background:var(--bg-3);border-radius:10px;padding:10px 14px;flex:1;min-width:220px">
         <div class="tiny muted">CONTAS MONITORADAS</div>
@@ -157,6 +159,28 @@ function renderPainel(body) {
         <div class="tiny">🧠 Estratégia: ${_painel.config?.estrategia?.conquista || _painel.config?.estrategia?.imoveis ? 'definida ✓' : '<b>não definida</b> — aba Cérebro'}</div>
       </div>
     </div>`;
+  pintarRelatorioPainel();
+}
+
+/* v87.10: último relatório do gestor inline no Painel, junto dos KPIs */
+async function pintarRelatorioPainel() {
+  const el = document.getElementById('gt-rel-painel');
+  if (!el) return;
+  try {
+    const r = await api.request('/api/v3/marketing/gestor_relatorio');
+    const ult = (r?.relatorios || [])[0];
+    if (!ult) { el.innerHTML = ''; return; }
+    el.innerHTML = `
+      <div style="background:var(--bg-3);border-left:4px solid #fb923c;border-radius:10px;padding:14px 16px">
+        <div class="flex" style="align-items:center;gap:8px;flex-wrap:wrap">
+          <b>📜 ${TIPO_LBL[ult.tipo] || esc(ult.tipo)} — último relatório</b>
+          <span class="tiny muted">${esc(String(ult.ts || '').slice(0, 16).replace('T', ' '))} UTC</span>
+          <button class="btn btn-ghost tiny" style="margin-left:auto" data-rel-ir>ver todos →</button>
+        </div>
+        <div style="white-space:pre-wrap;font-size:13px;line-height:1.55;margin-top:8px">${esc(ult.texto)}</div>
+      </div>`;
+    el.querySelector('[data-rel-ir]').onclick = () => { _tab = 'relatorios'; render(); };
+  } catch { el.innerHTML = ''; }
 }
 
 /* ───────────────────────── 💬 Sala de Guerra ───────────────────────── */
