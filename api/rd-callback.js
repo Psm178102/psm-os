@@ -57,13 +57,21 @@ module.exports = async (req, res) => {
     const tokens = JSON.parse(resp.body);
 
     if (tokens.access_token) {
-      const tokenData = encodeURIComponent(JSON.stringify({
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token,
-        expires_in: tokens.expires_in,
-      }));
-      res.writeHead(302, { Location: 'https://www.housepsm.com.br/#rd_mkt_tokens=' + tokenData });
-      return res.end();
+      // v87.9: token NUNCA mais passa pelo navegador — grava server-side na
+      // shared_kv (rd_mkt_tokens) e mostra página de sucesso limpa.
+      const { kvSetTokens } = require('./_rd_kv.js');
+      const saved = await kvSetTokens(tokens);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.status(200).send(
+        '<html><body style="font-family:system-ui;background:#101E18;color:#EAE4D4;padding:60px;text-align:center">'
+        + '<div style="font-size:56px">✅</div>'
+        + '<h1 style="color:#8FBFA6">RD Station Marketing conectado!</h1>'
+        + (saved
+          ? '<p>Os tokens foram guardados com segurança no servidor do House PSM.<br>O Sr. Gestor de Tráfego já pode operar o RD Marketing.</p>'
+          : '<p style="color:#D9AE5F">Autorizou, mas falhou ao salvar no banco — avise o suporte (logs do rd-callback).</p>')
+        + '<a href="https://www.housepsm.com.br/#/gestor-trafego" style="color:#E08A5F;font-weight:700">Ir pro Gestor de Tráfego →</a>'
+        + '</body></html>'
+      );
     } else {
       const errMsg = tokens.errors ? JSON.stringify(tokens.errors) : JSON.stringify(tokens);
       res.setHeader('Content-Type', 'text/html');

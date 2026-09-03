@@ -31,9 +31,15 @@ module.exports = async (req, res) => {
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
-    const refreshToken = body.refresh_token;
+    let refreshToken = body.refresh_token;
 
-    if (!refreshToken) return res.status(400).json({ error: 'refresh_token required' });
+    // v87.9: sem refresh_token no body → usa o guardado na shared_kv
+    const rdkv = require('./_rd_kv.js');
+    if (!refreshToken) {
+      const kv = await rdkv.kvGetTokens();
+      refreshToken = kv && kv.refresh_token;
+    }
+    if (!refreshToken) return res.status(400).json({ error: 'refresh_token required (body ou shared_kv rd_mkt_tokens)' });
 
     // v87.7: env-only — sem fallback hardcoded no código (repo é público)
     const clientId = process.env.RD_MKT_CLIENT_ID || '';
@@ -50,6 +56,9 @@ module.exports = async (req, res) => {
 
     const tokens = JSON.parse(resp.body);
     console.log('[RD MKT] Refresh response:', resp.status);
+
+    // v87.9: refresh bem-sucedido também re-grava na shared_kv
+    if (tokens.access_token) await rdkv.kvSetTokens(tokens);
 
     return res.status(resp.status >= 400 ? 400 : 200).json(tokens);
   } catch (err) {

@@ -47,13 +47,22 @@ module.exports = async (req, res) => {
     let url, tokenSource;
 
     if (service === 'mkt') {
-      // MKT: header token (OAuth) tem prioridade, env var como fallback
-      const token = headerToken || process.env.RD_MKT_TOKEN || '';
+      // MKT (v87.9): header > env > shared_kv (OAuth server-side com auto-refresh)
+      let token = headerToken || process.env.RD_MKT_TOKEN || '';
       tokenSource = headerToken ? 'header' : (process.env.RD_MKT_TOKEN ? 'env' : 'none');
+      if (!token) {
+        try {
+          const { getValidAccessToken } = require('./_rd_kv.js');
+          token = (await getValidAccessToken()) || '';
+          if (token) tokenSource = 'kv';
+        } catch (e) {
+          console.error('[RD Proxy] kv token fail:', e.message);
+        }
+      }
       if (!token) {
         return res.status(401).json({
           error: 'Token RD Marketing nao configurado',
-          hint: 'Conecte via OAuth em Configuracoes > Conectores, ou configure RD_MKT_TOKEN no Vercel.',
+          hint: 'Autorize o OAuth em /api/rd-auth (grava na shared_kv), ou configure RD_MKT_TOKEN no Vercel.',
         });
       }
       const qs = forwardParams.toString();
