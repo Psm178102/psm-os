@@ -371,6 +371,7 @@ function renderPublicos(body) {
         <button class="btn btn-ghost tiny" id="pm-reload">↻ atualizar</button>
       </div>
       <div class="tiny muted" style="margin:4px 0 8px">Os botões 🚀 (do segmentador e das listas) criam o público personalizado DIRETO na conta selecionada — contatos com hash SHA-256, sem CSV. Aqui você acompanha e cria os semelhantes (LAL).</div>
+      <div id="pm-status" class="tiny" style="font-weight:800;margin:4px 0"></div>
       <div id="pm-lista"><span class="tiny muted"><span class="spinner"></span> consultando o Meta…</span></div>
     </div>
 
@@ -404,14 +405,19 @@ function renderPublicos(body) {
   const pmConta = document.getElementById('pm-conta');
   if (pmConta) pmConta.onchange = () => pintarPublicosMeta(true);
   pintarPublicosMeta();
-  body.querySelectorAll('[data-lst-meta]').forEach(b => b.onclick = () => criarPublicoMeta({ fonte: 'lista', lista_id: b.dataset.lstMeta }));
+  body.querySelectorAll('[data-lst-meta]').forEach(b => b.onclick = () => {
+    const lin = b.closest('tr');
+    const nomeLista = lin?.querySelector('b')?.textContent || ('Lista ' + b.dataset.lstMeta);
+    criarPublicoMeta({ fonte: 'lista', lista_id: b.dataset.lstMeta }, nomeLista.slice(0, 110), b);
+  });
+  // v87.18: sem confirm/prompt nativos (o Chrome suprime diálogos e o clique
+  // "não faz nada") — cria direto com nome automático e feedback no pm-status.
   body.querySelectorAll('[data-temp]').forEach(b => b.onclick = () => {
     const temp = b.dataset.temp;
     const frente = document.getElementById('seg-frente')?.value || 'todas';
     const emoji = { quente: '🔥', morno: '🌤', frio: '❄️' }[temp];
     const nomeAuto = `${emoji} ${temp.toUpperCase()} — RD ${frente === 'todas' ? 'base completa' : frente} — PSM`;
-    if (!confirm(`Criar público personalizado no Meta:\n\n${nomeAuto}\n\nQuente = ganhou ou chegou em pasta/visita/oportunidade do mês\nMorno = aberto com movimento nos últimos 60 dias\nFrio = perdido ou parado 60+ dias\n\nConta: ${document.getElementById('pm-conta')?.selectedOptions?.[0]?.textContent || ''}`)) return;
-    criarPublicoMeta({ fonte: 'crm', temperatura: temp, frente }, nomeAuto);
+    criarPublicoMeta({ fonte: 'crm', temperatura: temp, frente }, nomeAuto, b);
   });
   document.getElementById('lst-up').onclick = subirLista;
   document.getElementById('pub-add').onclick = salvarPublico;
@@ -458,30 +464,44 @@ async function pintarPublicosMeta(force = false) {
     </tr>`).join('')}</table></div>`
   : '<div class="tiny muted">Nenhum público nesta conta ainda — crie o primeiro pelo 🚀 do segmentador ou de uma lista.</div>';
   el.querySelectorAll('[data-lal]').forEach(b => b.onclick = async () => {
-    const pct = prompt(`Criar público SEMELHANTE (lookalike) a partir de:\n${b.dataset.lalNome}\n\n% de similaridade (1 = mais parecido, até 10):`, '1');
-    if (!pct) return;
+    b.disabled = true; b.textContent = '⏳';
+    pmStatus(`⏳ Criando lookalike 1% de "${b.dataset.lalNome}"…`);
     try {
       const r = await api.request('/api/v3/marketing/gestor_publicos', { method: 'POST', body: {
         action: 'criar_lookalike', conta: document.getElementById('pm-conta').value,
-        origem_id: b.dataset.lal, ratio: (parseFloat(String(pct).replace(',', '.')) || 1) / 100,
-        nome: `LAL ${pct}% — ${b.dataset.lalNome}`.slice(0, 100),
+        origem_id: b.dataset.lal, ratio: 0.01,
+        nome: `LAL 1% — ${b.dataset.lalNome}`.slice(0, 100),
       } });
-      if (r?.ok) { alert('✨ Lookalike criado: ' + r.nome); pintarPublicosMeta(true); }
-    } catch (e) { alert('❌ ' + e.message); }
+      if (r?.ok) { pmStatus('✨ Lookalike criado: ' + r.nome, 'var(--ok, #22c55e)'); pintarPublicosMeta(true); }
+      else pmStatus('❌ ' + (r?.error || 'falha'), 'var(--err, #ef4444)');
+    } catch (e) { pmStatus('❌ ' + e.message, 'var(--err, #ef4444)'); b.disabled = false; b.textContent = '✨ LAL'; }
   });
 }
 
-async function criarPublicoMeta(origem, nomeAuto = null) {
+function pmStatus(msg, cor) {
+  const el = document.getElementById('pm-status');
+  if (el) { el.textContent = msg; el.style.color = cor || 'inherit'; }
+}
+
+async function criarPublicoMeta(origem, nomeAuto = null, btn = null) {
   const conta = document.getElementById('pm-conta')?.value;
-  if (!conta) return alert('Nenhuma conta Meta configurada.');
-  const nome = nomeAuto || prompt('Nome do público no Meta (ex.: "CRM perdidos 90d Conquista" ou "Mailing incorporadoras"):');
-  if (!nome) return;
+  if (!conta) return pmStatus('⚠️ Nenhuma conta Meta configurada.', 'var(--err, #ef4444)');
+  const nome = nomeAuto || ('Público PSM ' + new Date().toLocaleDateString('pt-BR'));
+  const contaLbl = document.getElementById('pm-conta')?.selectedOptions?.[0]?.textContent || conta;
+  if (btn) { btn.disabled = true; btn.dataset.lblOrig = btn.textContent; btn.textContent = '⏳…'; }
+  pmStatus(`⏳ Criando "${nome}" na conta ${contaLbl} e enviando contatos (hash SHA-256)… pode levar ~1 min.`);
   try {
     const r = await api.request('/api/v3/marketing/gestor_publicos', { method: 'POST', body: {
       action: 'criar_personalizado', conta, nome, ...origem,
     } });
-    if (r?.ok) { alert(`🚀 Público criado no Meta!\n${r.nome} — ${r.contatos_enviados} contatos enviados (com hash).\n${r.obs || ''}`); pintarPublicosMeta(true); }
-  } catch (e) { alert('❌ ' + e.message); }
+    if (r?.ok) {
+      pmStatus(`✅ "${r.nome}" criado — ${r.contatos_enviados} contatos enviados. ${r.obs || ''}`, 'var(--ok, #22c55e)');
+      pintarPublicosMeta(true);
+    } else {
+      pmStatus('❌ ' + (r?.error || 'falha'), 'var(--err, #ef4444)');
+    }
+  } catch (e) { pmStatus('❌ ' + e.message, 'var(--err, #ef4444)'); }
+  if (btn) { btn.disabled = false; btn.textContent = btn.dataset.lblOrig || btn.textContent; }
 }
 
 function segParams() {
