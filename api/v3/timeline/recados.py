@@ -82,7 +82,7 @@ class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         try:
-            actor = require_user(self, min_lvl=10)   # só o sócio publica
+            actor = require_user(self, min_lvl=5)   # v87.24: gestores/gerentes (lvl>=5) também postam — pedido do Paulo (recado em tela cheia na TV)   # só o sócio publica
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
         try:
@@ -125,6 +125,7 @@ class handler(BaseHTTPRequestHandler):
             "expira_em": expira,
             "notif_sistema": bool(body.get("notif_sistema")),
             "notif_push": bool(body.get("notif_push")),
+            "tv": bool(body.get("tv")),   # v87.24: 📺 exibir em TELA CHEIA na TV da Arena (enquanto o recado valer)
         }
         items.append(rec)
         try:

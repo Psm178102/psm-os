@@ -30,17 +30,21 @@ const SLIDE_MS = 20000;
    liderança e Corrida da Meta entram no ciclo; voz no gongo; streaks/secas;
    Modo Fechamento na última semana; abertura do dia às 8h30; ticker de
    atividade ao vivo pelos DELTAS de pontos do HUB entre polls (sem backend). */
-const CICLO = ['vendas', 'duelo', 'doc', 'aten', 'prosp', 'vendas', 'corrida', 'criativos', 'premiacoes', 'placar'];
+/* v87.24 (Paulo): criativos SAI do ciclo; entra 📣 RECADO em tela cheia (recados
+   da Timeline marcados c/ 📺 pelo gestor); navegação manual ‹ › + setas do
+   teclado/controle; rankings mostram QUANTIDADE real + pontos em sequência. */
+const CICLO = ['vendas', 'recado', 'duelo', 'doc', 'aten', 'prosp', 'vendas', 'corrida', 'premiacoes', 'placar'];
 const CELEB_MS = 10000;
 const TELAS_SEC = [
-  { id: 'doc',        lbl: '🗂 Ranking de Pastas',       sub: 'pontos de Proposta/Documentação no HUB' },
-  { id: 'aten',       lbl: '🚶 Ranking de Visitas',      sub: 'pontos de Visita Realizada no HUB' },
-  { id: 'prosp',      lbl: '📞 Ranking de Atendimentos', sub: 'pontos de Prospecção/Atendimento no HUB' },
+  { id: 'doc',        lbl: '🗂 Ranking de Pastas',       sub: 'quantidade de pastas/propostas no HUB · pontos em sequência', un: 'pasta(s)' },
+  { id: 'aten',       lbl: '🚶 Ranking de Visitas',      sub: 'quantidade de visitas realizadas no HUB · pontos em sequência', un: 'visita(s)' },
+  { id: 'prosp',      lbl: '📞 Ranking de Atendimentos', sub: 'quantidade de prospecções/atendimentos no HUB · pontos em sequência', un: 'atendimento(s)' },
   { id: 'criativos',  lbl: '🎨 Criativos do mês' },
   { id: 'premiacoes', lbl: '🏆 Premiações ativas' },
   { id: 'placar',     lbl: '🎯 Placar do mês' },
   { id: 'duelo',      lbl: '⚔️ Duelo pela liderança' },
   { id: 'corrida',    lbl: '🏁 Corrida da Meta' },
+  { id: 'recado',     lbl: '📣 Recado da gestão' },
 ];
 
 let _root = null, _data = null, _err = '', _pending = false;
@@ -51,7 +55,8 @@ let _recados = [], _oport = [], _sig = '';
 let _screen = 'vendas', _secIdx = 0, _rotTimer = null, _rotPauseAte = 0;
 let _criativos = [], _ov = null, _metas = null, _extraAt = 0;
 let _prevVendas = null, _celeb = null, _celebTimer = null;
-let _ritmo = {}, _ritmoAt = 0;        // streaks/secas (GC ritmo_vendas, 1º nome → dias)
+let _ritmo = {}, _ritmoAt = 0;
+let _recTvIdx = 0;               // alterna entre recados 📺 a cada passada        // streaks/secas (GC ritmo_vendas, 1º nome → dias)
 let _atividade = [];                  // ticker ao vivo: deltas de pontos entre polls
 
 export async function pageRankingHub(ctx, root) {
@@ -84,6 +89,20 @@ function startTimers() {
   _clock = setInterval(() => { const el = document.getElementById('rh-clock'); if (el) el.textContent = nowStr(); }, 1000);
 }
 
+function mudaTela(passo) {
+  // navegação manual (botões ‹ › ou setas do controle): pausa a rotação por 90s
+  _rotPauseAte = Date.now() + 90000;
+  for (let t = 0; t < CICLO.length; t++) {
+    _secIdx = ((_secIdx + passo) % CICLO.length + CICLO.length) % CICLO.length;
+    const id = CICLO[_secIdx];
+    if (id === 'recado' && !_recados.some(r => r.tv)) continue;
+    if (id === 'premiacoes' && !_oport.length) continue;
+    _screen = id; break;
+  }
+  render();
+  agendaRotacao();
+}
+
 function agendaRotacao() {
   if (_rotTimer) clearTimeout(_rotTimer);
   _rotTimer = setTimeout(() => {
@@ -92,7 +111,7 @@ function agendaRotacao() {
     for (let t = 0; t < CICLO.length; t++) {
       _secIdx = (_secIdx + 1) % CICLO.length;
       const id = CICLO[_secIdx];
-      if (id === 'criativos' && !_criativos.length) continue;
+      if (id === 'recado' && !_recados.some(r => r.tv)) continue;
       if (id === 'premiacoes' && !_oport.length) continue;
       _screen = id; break;
     }
@@ -237,6 +256,24 @@ function aberturaDoDia() {
   setTimeout(() => ov.remove(), 45000);
 }
 
+/* ── 📣 tela: recado da gestão em TELA CHEIA (Timeline c/ flag 📺) ── */
+function telaRecado() {
+  const tvs = _recados.filter(r => r.tv);
+  if (!tvs.length) return telaRanking(null);
+  const r = tvs[_recTvIdx % tvs.length];
+  _recTvIdx++;
+  const cor = r.cor && r.cor !== '#0f172a' ? r.cor : '#eab308';
+  return `
+    <div style="display:flex;align-items:center;justify-content:center;height:100%;padding:5vh 7vw">
+      <div style="max-width:1100px;width:100%;text-align:center;border-radius:26px;padding:56px 54px;background:linear-gradient(180deg,${cor}26,#0d1120 65%);border:3px solid ${cor};box-shadow:0 0 90px ${cor}33">
+        <div style="font-size:64px">📣</div>
+        <div style="font-size:14px;font-weight:900;letter-spacing:.2em;color:${cor};margin-top:6px">RECADO DA GESTÃO</div>
+        <div style="font-size:44px;font-weight:900;color:#f8fafc;line-height:1.35;margin-top:18px;white-space:pre-wrap">${escapeHtml(r.texto || '')}</div>
+        <div style="font-size:19px;color:#94a3b8;margin-top:26px">— ${escapeHtml(r.autor || 'Diretoria')}${r.expira_em ? ` · vale até ${new Date(r.expira_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : ''}</div>
+      </div>
+    </div>`;
+}
+
 /* ── ⚔️ tela: duelo pela liderança (1º vs 2º) ── */
 function telaDuelo() {
   const l = ranked();
@@ -318,15 +355,22 @@ function classifyRule(rb) {
   if (t.includes('agend')) return 'agend';
   return 'prosp';
 }
-function badgesOf(agent) {
+function catAgg(agent) {
+  // v87.24: quantidade REAL (rb.count) + pontos, por categoria
   const acc = {};
   (agent.ruleBreakdown || []).forEach(rb => {
     const k = classifyRule(rb);
-    acc[k] = (acc[k] || 0) + (rb.totalPoints || 0);
+    acc[k] = acc[k] || { pts: 0, n: 0 };
+    acc[k].pts += rb.totalPoints || 0;
+    acc[k].n += rb.count || 0;
   });
-  return ['prosp', 'agend', 'aten', 'doc', 'venda', 'perdas'].filter(k => acc[k]).map(k => {
+  return acc;
+}
+function badgesOf(agent) {
+  const acc = catAgg(agent);
+  return ['prosp', 'agend', 'aten', 'doc', 'venda', 'perdas'].filter(k => acc[k] && (acc[k].pts || acc[k].n)).map(k => {
     const b = BADGES[k];
-    return `<span style="display:inline-block;padding:3px 10px;border-radius:99px;font-size:13px;font-weight:600;background:${b.bg};color:${b.fg}">${b.ab} <b>${fmtPts(acc[k])}</b></span>`;
+    return `<span style="display:inline-block;padding:3px 10px;border-radius:99px;font-size:13px;font-weight:600;background:${b.bg};color:${b.fg}">${b.ab} <b>${acc[k].n}</b> · ${fmtPts(acc[k].pts)}pts</span>`;
   }).join(' ');
 }
 
@@ -340,13 +384,17 @@ function catPts(a, cat) {
   return (a.ruleBreakdown || []).filter(rb => classifyRule(rb) === cat)
     .reduce((t, rb) => t + (rb.totalPoints || 0), 0);
 }
+function catCount(a, cat) {
+  return (a.ruleBreakdown || []).filter(rb => classifyRule(rb) === cat)
+    .reduce((t, rb) => t + (rb.count || 0), 0);
+}
 function ranked(cat) {
   let list = _data?.ranking || [];
   if (_team !== 'GERAL') list = list.filter(a => (a.teamName || '').trim() === _team);
   const val = a => cat ? catPts(a, cat) : (a.totalPoints || 0);
-  list = [...list].sort((a, b) => val(b) - val(a));
-  if (cat) list = list.filter(a => val(a) > 0);
-  return list.map((a, i) => ({ ...a, pos: i + 1, _val: val(a) }));
+  list = [...list].sort((a, b) => (cat ? catCount(b, cat) : val(b)) - (cat ? catCount(a, cat) : val(a)) || val(b) - val(a));
+  if (cat) list = list.filter(a => catCount(a, cat) > 0 || val(a) > 0);
+  return list.map((a, i) => ({ ...a, pos: i + 1, _val: val(a), _n: cat ? catCount(a, cat) : null }));
 }
 
 /* ── render ── */
@@ -360,6 +408,7 @@ function render() {
   }
   let corpo;
   if (_screen === 'criativos') corpo = telaCriativos();
+  else if (_screen === 'recado') corpo = telaRecado();
   else if (_screen === 'duelo') corpo = telaDuelo();
   else if (_screen === 'corrida') corpo = telaCorrida();
   else if (_screen === 'premiacoes') corpo = telaPremiacoes();
@@ -474,8 +523,8 @@ function podiumCard(a, cat) {
     <div style="border-radius:16px;padding:${first ? '26px' : '22px'} 18px;text-align:center;${style}">
       <div style="font-size:${first ? '30px' : '24px'};font-weight:800;color:${posColor}">${a.pos}°</div>
       <div style="font-size:${first ? '28px' : '22px'};font-weight:700;color:#f1f5f9;margin-top:2px">${escapeHtml(a.agentName || '—')}</div>
-      <div style="font-size:${first ? '84px' : '58px'};font-weight:900;line-height:1.1;color:${posColor}">${fmtPts(cat ? a._val : a.totalPoints)}</div>
-      <div style="font-size:12px;letter-spacing:.1em;color:${posColor};opacity:.8">pontos</div>
+      <div style="font-size:${first ? '84px' : '58px'};font-weight:900;line-height:1.1;color:${posColor}">${cat ? a._n : fmtPts(a.totalPoints)}</div>
+      <div style="font-size:${cat ? '15px' : '12px'};letter-spacing:.08em;color:${posColor};opacity:.85">${cat ? `${(TELAS_SEC.find(t => t.id === cat) || {}).un || ''} · ${fmtPts(a._val)} pts` : 'pontos'}</div>
       ${a.vgvReal ? `<div style="margin-top:6px;color:#86efac;font-weight:700">VGV ${fmtBRL(a.vgvReal)}</div>` : ''}
       <div style="height:1px;background:rgba(148,163,184,.25);margin:14px 40px"></div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;min-height:26px">${cat ? '' : badgesOf(a) + ' ' + streakChip(a)}</div>
@@ -497,8 +546,8 @@ function rowCard(a, cat) {
       <div style="font-size:20px;font-weight:700;color:#f1f5f9">${escapeHtml(a.agentName || '—')}</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px">${cat ? '' : badgesOf(a) + ' ' + streakChip(a)}</div>
       <div style="margin-left:auto;text-align:right">
-        <div style="font-size:26px;font-weight:900;color:#f1f5f9;line-height:1">${fmtPts(cat ? a._val : a.totalPoints)}</div>
-        <div style="font-size:11px;color:#64748b">pts${a.vgvReal ? ` · VGV ${fmtBRL(a.vgvReal)}` : ''}</div>
+        <div style="font-size:26px;font-weight:900;color:#f1f5f9;line-height:1">${cat ? a._n : fmtPts(a.totalPoints)}</div>
+        <div style="font-size:11px;color:#64748b">${cat ? `${(TELAS_SEC.find(t => t.id === cat) || {}).un || ''} · ${fmtPts(a._val)} pts` : `pts${a.vgvReal ? ` · VGV ${fmtBRL(a.vgvReal)}` : ''}`}</div>
       </div>
     </div>`;
 }
@@ -646,6 +695,8 @@ function shell(body) {
         <div id="rh-clock" style="font-size:30px;font-weight:800;color:#facc15;font-variant-numeric:tabular-nums">${nowStr()}</div>
         <div id="rh-upd" style="font-size:11px;color:#64748b">${_fetchedAt ? `Atualizado às ${_fetchedAt.toLocaleTimeString('pt-BR')}` : '&nbsp;'}</div>
       </div>
+      <button id="rh-prev" title="Tela anterior (←)" style="border:1px solid rgba(148,163,184,.35);background:transparent;color:#cbd5e1;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:18px;font-weight:900">‹</button>
+      <button id="rh-next" title="Próxima tela (→)" style="border:1px solid rgba(234,179,8,.5);background:rgba(234,179,8,.12);color:#facc15;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:18px;font-weight:900">›</button>
       <button id="rh-fs" title="Tela cheia" style="border:1px solid rgba(148,163,184,.35);background:transparent;color:#cbd5e1;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:16px">⛶</button>
     </div>
     ${modoFechamento()}
@@ -662,6 +713,16 @@ function shell(body) {
 
 function bind() {
   sounds.initSounds?.();
+  document.getElementById('rh-prev')?.addEventListener('click', () => mudaTela(-1));
+  document.getElementById('rh-next')?.addEventListener('click', () => mudaTela(1));
+  if (!window._rhKeys) {
+    window._rhKeys = true;
+    document.addEventListener('keydown', e => {
+      if (!document.body.classList.contains('tv-mode')) return;
+      if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); mudaTela(1); }
+      else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); mudaTela(-1); }
+    });
+  }
   _root.querySelectorAll('[data-team]').forEach(b => b.addEventListener('click', () => { _team = b.dataset.team; _rotPauseAte = Date.now() + 90000; render(); }));
   _root.querySelector('.rh-ticker')?.addEventListener('click', e => {
     const b = e.target.closest('[data-tk]');

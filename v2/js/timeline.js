@@ -127,6 +127,8 @@ function compose() {
     <label class="tiny muted">Recado</label>
     <textarea id="tl-txt" class="input" rows="3" maxlength="500" placeholder="Ex.: Reunião geral hoje às 18h na Arena. Presença obrigatória!"></textarea>
     <div class="flex gap-2 mt-2" style="flex-wrap:wrap;align-items:flex-end">
+      <div style="margin-bottom:8px"><label class="tiny" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700">
+        <input type="checkbox" id="tl-tv"> 📺 Exibir em TELA CHEIA na TV da Arena (enquanto o recado valer)</label></div>
       <div><label class="tiny muted">Cor</label><div id="tl-cores" style="display:flex;gap:6px;margin-top:4px">${CORES.map((c, i) => `<span data-cor="${c}" style="width:22px;height:22px;border-radius:6px;background:${c};cursor:pointer;border:2px solid ${i === 0 ? '#fff' : 'transparent'};box-shadow:0 0 0 1px var(--bd)"></span>`).join('')}</div></div>
       <div style="flex:1;min-width:160px"><label class="tiny muted">Ficar visível por</label>
         <select id="tl-dur" class="input">
@@ -155,6 +157,7 @@ function compose() {
     try {
       const r = await api.request('/api/v3/timeline/recados', { method: 'POST', body: {
         action: 'add', texto, cor,
+        tv: !!ov.querySelector('#tl-tv')?.checked,
         dur_horas: Number(ov.querySelector('#tl-dur').value),
         notif_sistema: ov.querySelector('#tl-sis').checked,
         notif_push: ov.querySelector('#tl-push').checked,
