@@ -25,7 +25,18 @@ const REFRESH_MS = 30000;
 /* v87.22 (feedback do Paulo: 60s de âncora ficou lento) — CARROSSEL DE TEMPO
    IGUAL: 20s por tela, sempre girando. O ranking de vendas aparece 2× por
    ciclo (abre e volta no meio) pra continuar sendo o foco sem travar o ritmo. */
-const SLIDE_MS = 20000;
+/* v87.25/87.26 — ⚙️ ENGRENAGEM: tempo por tela, telas ativas/ordem e "vendas
+   volta a cada N" vêm do /api/v3/arena/tv2_config (shared_kv) — calibra sem
+   deploy; a TV pega no próximo poll. (87.26 = hotfix: a definição não tinha
+   entrado no 87.25 e a TV quebrou com CICLO_ATUAL undefined.) */
+let _cfg = { slide_s: 20, vendas_cada: 5, telas: ['recado', 'duelo', 'doc', 'aten', 'prosp', 'corrida', 'premiacoes', 'placar'] };
+let _cfgCanEdit = false, _cfgAt = 0;
+const SLIDE_MS = () => _cfg.slide_s * 1000;
+function CICLO_ATUAL() {
+  const out = ['vendas'];
+  _cfg.telas.forEach((t, i) => { out.push(t); if ((i + 1) % _cfg.vendas_cada === 0 && i < _cfg.telas.length - 1) out.push('vendas'); });
+  return out;
+}
 /* v87.23 (pacote 'vida imediata' + corrida, aprovado pelo Paulo): duelo pela
    liderança e Corrida da Meta entram no ciclo; voz no gongo; streaks/secas;
    Modo Fechamento na última semana; abertura do dia às 8h30; ticker de
@@ -33,7 +44,6 @@ const SLIDE_MS = 20000;
 /* v87.24 (Paulo): criativos SAI do ciclo; entra 📣 RECADO em tela cheia (recados
    da Timeline marcados c/ 📺 pelo gestor); navegação manual ‹ › + setas do
    teclado/controle; rankings mostram QUANTIDADE real + pontos em sequência. */
-const CICLO = ['vendas', 'recado', 'duelo', 'doc', 'aten', 'prosp', 'vendas', 'corrida', 'premiacoes', 'placar'];
 const CELEB_MS = 10000;
 const TELAS_SEC = [
   { id: 'doc',        lbl: '🗂 Ranking de Pastas',       sub: 'quantidade de pastas/propostas no HUB · pontos em sequência', un: 'pasta(s)' },
