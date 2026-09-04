@@ -15,15 +15,27 @@ const PREMISSA_KEY = 'psm.intelads.premissa_mes';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const f$ = n => 'R$ ' + Math.round(+n || 0).toLocaleString('pt-BR');
 const fNum = n => (+n || 0).toLocaleString('pt-BR');
-// v87.14: default recalibrado pra R$ 700/criativo/mês — régua REAL da nossa conta
-// (ago/26: R$ 6,3k/mês ÷ 9 campanhas ativas ≈ R$ 700/campanha). Editável na tela.
-const premissa = () => Math.max(0, parseInt(localStorage.getItem(PREMISSA_KEY) || '700') || 700);
+// v87.15: premissa POR SEGMENTO, calibrada nas NOSSAS contas (pedido do Paulo):
+//   MCMV  ← conta PSM Conquista (ago/26: R$ 6.269 ÷ 9 campanhas ≈ R$ 700/criativo/mês)
+//   MAP/Terceiros/Locação ← contas PSM Imóveis + Paulo (R$ 4.256 ÷ 10 ≈ R$ 430/criativo/mês)
+// Editáveis na tela; override manual por concorrente segue em investimento_estimado.
+const PREMISSAS_KEY = 'psm.intelads.premissas_v2';
+const PREM_DEFAULT = { MCMV: 700, MAP: 430 };
+function premissas() {
+  try { return { ...PREM_DEFAULT, ...JSON.parse(localStorage.getItem(PREMISSAS_KEY) || '{}') }; }
+  catch { return { ...PREM_DEFAULT }; }
+}
+function premissaDe(seg) {
+  const p = premissas();
+  return String(seg || '').toUpperCase() === 'MCMV' ? p.MCMV : p.MAP;
+}
+const premissa = () => premissas().MAP;  // retrocompat (não usado no cálculo por linha)
 function adLibUrl(name) {
   return 'https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=BR&q='
     + encodeURIComponent((name || '').replace(/[&]/g, '')) + '&search_type=keyword_unordered';
 }
 function fmtDate(s) { try { return new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }); } catch { return ''; } }
-function investOf(c) { return (c.investimento_estimado != null && c.investimento_estimado !== '') ? { v: +c.investimento_estimado, manual: true } : { v: (+c.anuncios_count || 0) * premissa(), manual: false }; }
+function investOf(c) { return (c.investimento_estimado != null && c.investimento_estimado !== '') ? { v: +c.investimento_estimado, manual: true } : { v: (+c.anuncios_count || 0) * premissaDe(c.segmento || c.seg), manual: false }; }
 
 export async function pageIntelAds(ctx, root) {
   _root = root;
@@ -76,7 +88,8 @@ function renderContent() {
   body.innerHTML = `
     <div class="tiny" style="color:#cbd5e1;margin-bottom:12px;background:#1e293b;padding:10px 12px;border-radius:8px;border-left:3px solid #fffbea;line-height:1.6">
       📡 <b>Como ler:</b> <b>Anúncios</b> e <b>tempo ativo</b> são REAIS (lidos da Biblioteca do Meta por print+IA — clique <b>📷</b> na linha). O Meta <b>não publica</b> o gasto de anúncio imobiliário no BR, então <b>Investimento/mês é ESTIMATIVA</b> = nº de anúncios × sua premissa de custo.
-      <span style="display:inline-flex;align-items:center;gap:6px;margin-left:8px">💰 Premissa por anúncio/mês: R$ <input id="ia-prem" type="number" value="${premissa()}" style="width:90px;background:#0b1120;border:1px solid #334155;color:#fff;border-radius:6px;padding:3px 6px;font-size:12px"></span>
+      <span style="display:inline-flex;align-items:center;gap:6px;margin-left:8px">💰 Premissa/criativo/mês — MCMV (régua: conta Conquista): R$ <input id="ia-prem-mcmv" type="number" value="${premissas().MCMV}" style="width:80px;background:#0b1120;border:1px solid #334155;color:#fff;border-radius:6px;padding:3px 6px;font-size:12px"></span>
+      <span style="display:inline-flex;align-items:center;gap:6px;margin-left:8px">MAP/Terceiros/Locação (régua: contas Imóveis+Paulo): R$ <input id="ia-prem-map" type="number" value="${premissas().MAP}" style="width:80px;background:#0b1120;border:1px solid #334155;color:#fff;border-radius:6px;padding:3px 6px;font-size:12px"></span>
       <span id="ads-status" style="font-weight:700;margin-left:8px"></span>
     </div>
 
@@ -125,8 +138,13 @@ function renderContent() {
     </div>
     <input type="file" accept="image/*" id="ads-file" style="display:none">`;
 
-  const prem = document.getElementById('ia-prem');
-  if (prem) prem.addEventListener('change', () => { localStorage.setItem(PREMISSA_KEY, String(Math.max(0, parseInt(prem.value) || 0))); renderContent(); });
+  const salvaPrem = () => {
+    const m = Math.max(0, parseInt(document.getElementById('ia-prem-mcmv')?.value) || PREM_DEFAULT.MCMV);
+    const a = Math.max(0, parseInt(document.getElementById('ia-prem-map')?.value) || PREM_DEFAULT.MAP);
+    localStorage.setItem(PREMISSAS_KEY, JSON.stringify({ MCMV: m, MAP: a }));
+    renderContent();
+  };
+  ['ia-prem-mcmv', 'ia-prem-map'].forEach(id => { const el = document.getElementById(id); if (el) el.addEventListener('change', salvaPrem); });
   body.querySelectorAll('[data-seg]').forEach(b => b.addEventListener('click', () => { _segFilter = b.dataset.seg; renderContent(); }));
   body.querySelectorAll('[data-print]').forEach(b => b.addEventListener('click', () => startPrint(b.dataset.print)));
   const fi = document.getElementById('ads-file');

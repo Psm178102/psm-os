@@ -93,6 +93,42 @@ def _contexto(sb):
     except Exception:
         pass
 
+    # 3b) Ranking da praça com DELTA (último snapshot vs anterior, por concorrente)
+    try:
+        snaps = (sb.table("ad_library_snapshots")
+                 .select("concorrente,ads_count,segmento,ai_analysis,captured_at")
+                 .order("captured_at", desc=True).limit(300).execute().data or [])
+        vistos, rank = {}, []
+        for s in snaps:
+            n = s.get("concorrente")
+            if n not in vistos:
+                vistos[n] = {"atual": s, "prev": None}
+            elif vistos[n]["prev"] is None:
+                vistos[n]["prev"] = s
+        for n, v in vistos.items():
+            a = v["atual"].get("ads_count")
+            p = (v["prev"] or {}).get("ads_count")
+            rank.append((n, a if a is not None else -1, p, v["atual"].get("segmento"),
+                         (v["atual"].get("ai_analysis") or "")[:140]))
+        rank.sort(key=lambda r: -(r[1] or 0))
+        linhas = []
+        for n, a, p, seg, an in rank[:18]:
+            delta = ""
+            if p is not None and a is not None and a >= 0:
+                if p == 0 and a > 0:
+                    delta = " · 🚨 LIGOU a conta"
+                elif a == 0 and p > 0:
+                    delta = " · 💤 desligou"
+                elif p and a >= 2 * p:
+                    delta = f" · 📈 escalou ({p}→{a})"
+                elif p != a:
+                    delta = f" · Δ {p}→{a}"
+            linhas.append(f"- {n} [{seg}]: {a if a >= 0 else '?'} anúncios{delta} — {an}")
+        if linhas:
+            parts.append("RANKING DA PRAÇA (último snapshot por concorrente, com delta):\n" + "\n".join(linhas))
+    except Exception:
+        pass
+
     # 4) Nossa posição (contexto pra comparação)
     try:
         payload, _a, _s = read_cache(sb, build_cache_key("last_7d", "", ""), 10 ** 9)
@@ -115,18 +151,25 @@ def _rodar(sb, forcado=False, actor_name="vigia"):
     ctx = _contexto(sb)
     prompt = (
         "Você é o Sr. Gestor de Tráfego da PSM (São José do Rio Preto) em MODO VIGIA DE "
-        "CONCORRÊNCIA. Analise APENAS as últimas 24h dos dados abaixo e decida se há "
-        "algo ACIONÁVEL pros sócios: atitude nova de concorrente, estratégia detectável "
-        "(padrão de oferta/copy/hook/formato), movimento de incorporadora que afeta nosso "
-        "tráfego (bônus, tabela, comissão, campanha), janela de oportunidade ou ameaça. "
-        "Seja EXIGENTE: rotina não é alerta — só avise se um sócio deveria PARAR e agir. "
-        "Responda APENAS com JSON válido, sem markdown, neste formato: "
+        "CONCORRÊNCIA. Produza um RELATÓRIO COMPLETO E DETALHADO de inteligência "
+        "competitiva com base nos dados abaixo — cite números e nomes reais, interprete "
+        "estratégias (não descreva só), e nunca invente o que não está nos dados. "
+        "Estrutura obrigatória do relatório (texto corrido com estes títulos):\n"
+        "🏁 RANKING DA PRAÇA — quem manda no leilão, com números e o que cada líder está fazendo;\n"
+        "🔄 MUDANÇAS NAS ÚLTIMAS 24H — quem ligou/desligou/escalou, anúncios novos, movimentos de incorporadora;\n"
+        "🧠 PADRÕES & INSIGHTS — hooks, copys, formatos, ofertas e ângulos que a praça está usando (e o que isso revela);\n"
+        "🎯 OPORTUNIDADES PRA PSM — territórios vazios, produtos disputados, diferenciais exploráveis;\n"
+        "⚡ AÇÕES RECOMENDADAS — 3 a 5, priorizadas, concretas.\n"
+        "Depois decida: alerta=true SÓ se houver algo pelo qual um sócio deveria PARAR e agir hoje "
+        "(novo player agressivo, ataque a produto nosso, prazo, janela). Rotina = alerta false.\n"
+        "Responda APENAS com JSON válido, sem markdown externo: "
         '{"alerta": true|false, "titulo": "máx 70 chars", '
-        '"insight": "análise interpretada em até 120 palavras, com o PORQUÊ", '
-        '"acoes": ["1 a 3 ações concretas"]}'
-        "\nSe nada relevante: {\"alerta\": false}.\n\n═══ DADOS (últimas 24h) ═══\n\n" + (ctx or "(sem dados)")
+        '"relatorio": "o relatório completo estruturado acima (500-900 palavras)", '
+        '"insight": "resumo executivo em até 60 palavras", '
+        '"acoes": ["3 a 5 ações concretas"]}'
+        "\n\n═══ DADOS ═══\n\n" + (ctx or "(sem dados)")
     )
-    texto, provider, err = _ia(prompt)
+    texto, provider, err = _ia(prompt, max_tokens=3000)
     resultado = None
     if texto:
         try:
@@ -142,14 +185,24 @@ def _rodar(sb, forcado=False, actor_name="vigia"):
                 "alerta": bool(resultado and resultado.get("alerta"))}
     insights = estado.get("insights") or []
 
-    if resultado and resultado.get("alerta"):
-        titulo = str(resultado.get("titulo") or "Movimento de concorrência detectado")[:100]
+    # v87.15 (ordem do sócio: "relatório do vigia completo, detalhado, com insights"):
+    # o relatório COMPLETO entra na aba 📜 uma vez por dia (1ª rodada) e sempre que
+    # houver alerta ou rodada manual; a notificação continua só quando alerta=true.
+    ja_publicou_hoje = str((estado.get("last_run") or {}).get("ts") or "")[:10] == now.date().isoformat() \
+        and (estado.get("last_run") or {}).get("publicou")
+    publicar = bool(resultado) and (resultado.get("alerta") or forcado or not ja_publicou_hoje)
+    registro["publicou"] = bool(publicar or ja_publicou_hoje)
+
+    if resultado and publicar:
+        titulo = str(resultado.get("titulo") or "Vigia de Concorrência")[:100]
+        relatorio = str(resultado.get("relatorio") or resultado.get("insight") or "")[:8000]
         insight = str(resultado.get("insight") or "")[:2000]
-        acoes = [str(a)[:200] for a in (resultado.get("acoes") or [])][:3]
-        item_txt = ("🕵️ VIGIA DE CONCORRÊNCIA — " + titulo + "\n\n" + insight
+        acoes = [str(a)[:220] for a in (resultado.get("acoes") or [])][:5]
+        item_txt = ("🕵️ VIGIA DE CONCORRÊNCIA — " + titulo
+                    + (("\n\n📌 RESUMO: " + insight) if insight else "")
+                    + ("\n\n" + relatorio if relatorio else "")
                     + ("\n\n⚡ AÇÕES:\n" + "\n".join(f"• {a}" for a in acoes) if acoes else ""))
         insights.insert(0, {"ts": now.isoformat(), "titulo": titulo, "insight": insight, "acoes": acoes})
-        # entra no fluxo de relatórios (Painel + aba 📜)
         try:
             box = kv_get(sb, KV_RELATORIOS, {"itens": []})
             itens = box.get("itens") or []
@@ -160,6 +213,10 @@ def _rodar(sb, forcado=False, actor_name="vigia"):
             kv_set(sb, KV_RELATORIOS, {"itens": itens[:60]})
         except Exception:
             pass
+
+    if resultado and resultado.get("alerta"):
+        titulo = str(resultado.get("titulo") or "Movimento de concorrência detectado")[:100]
+        insight = str(resultado.get("insight") or "")[:2000]
         # sino + push pros sócios
         try:
             us = sb.table("users").select("id,role,status").execute().data or []

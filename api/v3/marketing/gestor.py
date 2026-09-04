@@ -201,6 +201,74 @@ def diagnosticos_campanhas(payload, limiares, ddd_pct=None):
     return out
 
 
+def _mes_atual(sb, payload30, limiares=None):
+    """Bloco 'mês atual' do cockpit (v87.15): gasto do mês (da série diária do
+    cache), funil Conquista do mês (deals) e custo por pasta vs meta."""
+    from _auth_lib import agora_brt  # type: ignore
+    hoje = agora_brt().date()
+    ini_mes = hoje.replace(day=1).isoformat()
+    out = {"mes": hoje.strftime("%m/%Y"), "dias_corridos": hoje.day}
+    # gasto/leads do mês pela série diária (quando o payload traz dailySeries)
+    try:
+        spend = leads = 0.0
+        achou = False
+        for d in (payload30 or {}).get("dailySeries") or []:
+            dt = str(d.get("date") or d.get("date_start") or "")[:10]
+            if dt >= ini_mes:
+                achou = True
+                spend += float(d.get("spend") or 0)
+                leads += int(d.get("results") or 0)
+        if achou:
+            out["spend"] = round(spend, 2)
+            out["leads"] = int(leads)
+    except Exception:
+        pass
+    # funil Conquista criado no mês
+    try:
+        rows = (sb.table("deals").select("stage_name,win,pipeline_name")
+                .gte("created_at_rd", ini_mes).limit(3000).execute().data or [])
+        cq = [d for d in rows if "CONQUISTA" in (d.get("pipeline_name") or "").upper()]
+        st = lambda d: (d.get("stage_name") or "").upper()
+        out["funil"] = {
+            "leads": len(cq),
+            "contato": sum(1 for d in cq if "TENT" not in st(d) and "NOVO" not in st(d)),
+            "visitas": sum(1 for d in cq if "VISITA" in st(d)),
+            "pastas": sum(1 for d in cq if "APROVA" in st(d) or "PASTA" in st(d) or "PROPOSTA" in st(d)),
+            "vendas": sum(1 for d in cq if d.get("win") is True),
+        }
+    except Exception:
+        pass
+    # custo por pasta (métrica-mãe) — meta vem do limiar do CPL? não: alvo fixo 420 salvo em métricas
+    try:
+        p = (out.get("funil") or {}).get("pastas") or 0
+        if out.get("spend") and p:
+            out["custo_pasta"] = round(out["spend"] / p, 2)
+        out["meta_pastas"] = 18
+        out["meta_custo_pasta"] = 420
+    except Exception:
+        pass
+    return out
+
+
+def _concorrencia_resumo(sb):
+    """Régua da praça pro cockpit: top anunciantes + total + última coleta."""
+    try:
+        rows = (sb.table("concorrentes").select("nome,segmento,anuncios_count")
+                .order("anuncios_count", desc=True).limit(60).execute().data or [])
+        top = [r for r in rows if (r.get("anuncios_count") or 0) > 0]
+        ult = (sb.table("ad_library_snapshots").select("captured_at")
+               .order("captured_at", desc=True).limit(1).execute().data or [])
+        return {
+            "top": top[:6],
+            "ativos_praca": sum(int(r.get("anuncios_count") or 0) for r in rows),
+            "anunciando": len(top),
+            "monitorados": len(rows),
+            "ultima_coleta": (ult[0].get("captured_at") if ult else None),
+        }
+    except Exception:
+        return {}
+
+
 def avaliar_alertas(sb, regras, limiares=None):
     """Avalia cada regra ativa contra o cache compartilhado. Nunca chama o Meta
     live (o cron mantém o cache quente) — se não houver cache, marca sem_dado."""
@@ -378,8 +446,19 @@ class handler(BaseHTTPRequestHandler):
             limiares = {**LIMIARES_DEFAULT, **(box_al.get("limiares") or {})}
             alertas, caches = avaliar_alertas(sb, regras, limiares)
             payload7, _a, _s = read_cache(sb, build_cache_key("last_7d", "", ""), 10 ** 9)
+            payload30, _a30, _s30 = read_cache(sb, build_cache_key("last_30d", "", ""), 10 ** 9)
             ddd7 = (caches.get("last_7d") or {}).get("ddd_fora_pct")
             diags = diagnosticos_campanhas(payload7, limiares, ddd_pct=ddd7)
+            # v87.15: deltas (cur vs prev) por janela pro cockpit
+            deltas = {}
+            for jan, pl in (("last_7d", payload7), ("last_30d", payload30)):
+                try:
+                    prev = ((pl or {}).get("totals") or {}).get("prev") or {}
+                    ps, pr = float(prev.get("spend") or 0), int(prev.get("results") or 0)
+                    deltas[jan] = {"spend": round(ps, 2), "leads": pr,
+                                   "cpl": round(ps / pr, 2) if pr else None}
+                except Exception:
+                    pass
             ids, labels, _ = resolver_contas(sb)
             return self._send(200, {
                 "ok": True,
@@ -389,6 +468,10 @@ class handler(BaseHTTPRequestHandler):
                 "limiares": limiares,
                 "diagnosticos": diags,
                 "metricas": caches,
+                "deltas_prev": deltas,
+                "serie_diaria": ((payload30 or {}).get("dailySeries") or [])[-30:],
+                "mes_atual": _mes_atual(sb, payload30, limiares),
+                "concorrencia": _concorrencia_resumo(sb),
                 "contas": [{"id": i, "label": l} for i, l in zip(ids, labels)],
                 "publicos": (kv_get(sb, KV_PUBLICOS, {}) or {}).get("planos") or [],
                 "listas": (kv_get(sb, KV_LISTAS_IDX, {}) or {}).get("listas") or [],

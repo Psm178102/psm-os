@@ -77,7 +77,7 @@ INSTRUCOES = {
 
 
 # ─── IA (mesma cadeia do sr_agente) ────────────────────────────────────
-def _ia(prompt):
+def _ia(prompt, max_tokens=1500):
     prefer = (os.environ.get("AI_PREFER") or "gemini").strip().lower()
     gem_key = (os.environ.get("GEMINI_API_KEY") or "").strip()
     ant_key = (os.environ.get("ANTHROPIC_API_KEY") or "").strip()
@@ -86,7 +86,7 @@ def _ia(prompt):
         model = os.environ.get("GEMINI_SMART_MODEL") or "gemini-2.5-flash"
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
         payload = {"contents": [{"role": "user", "parts": [{"text": prompt}]}],
-                   "generationConfig": {"maxOutputTokens": 1500, "temperature": 0.5,
+                   "generationConfig": {"maxOutputTokens": max_tokens, "temperature": 0.5,
                                         "thinkingConfig": {"thinkingBudget": 0}}}
         req = urllib.request.Request(url, data=json.dumps(payload).encode(),
                                      headers={"Content-Type": "application/json", "x-goog-api-key": gem_key})
@@ -97,7 +97,7 @@ def _ia(prompt):
 
     def claude():
         payload = {"model": os.environ.get("ANTHROPIC_MODEL") or "claude-sonnet-5",
-                   "max_tokens": 1500,
+                   "max_tokens": max_tokens,
                    "messages": [{"role": "user", "content": prompt}]}
         req = urllib.request.Request("https://api.anthropic.com/v1/messages", data=json.dumps(payload).encode(),
                                      headers={"x-api-key": ant_key, "anthropic-version": "2023-06-01",

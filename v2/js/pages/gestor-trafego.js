@@ -91,82 +91,134 @@ function aguarde(body) {
   return !_painel;
 }
 
-/* ───────────────────────── 🎛️ Painel ───────────────────────── */
-function kpiCard(lbl, val, sub) {
-  return `<div style="background:var(--bg-3);border-radius:10px;padding:12px 14px;min-width:130px;flex:1">
-    <div class="tiny muted">${lbl}</div>
-    <div style="font-size:20px;font-weight:900">${val}</div>
+/* ───────────────────────── 🎛️ Painel (cockpit v87.15) ───────────────────────── */
+function delta(cur, prev, invertido = false) {
+  if (prev == null || cur == null || !isFinite(prev) || prev === 0) return '';
+  const pct = (cur - prev) / Math.abs(prev) * 100;
+  if (Math.abs(pct) < 0.5) return '<span class="tiny muted">= estável</span>';
+  const bom = invertido ? pct < 0 : pct > 0;
+  return `<span class="tiny" style="font-weight:800;color:${bom ? 'var(--ok, #22c55e)' : 'var(--err, #ef4444)'}">${pct > 0 ? '▲' : '▼'} ${Math.abs(pct).toFixed(0)}%</span>`;
+}
+function kpiCard(lbl, val, sub, deltaHtml = '') {
+  return `<div style="background:var(--bg-3);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;min-width:140px;flex:1">
+    <div class="tiny" style="font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)">${lbl}</div>
+    <div style="display:flex;align-items:baseline;gap:8px"><span style="font-size:22px;font-weight:900">${val}</span>${deltaHtml}</div>
     ${sub ? `<div class="tiny muted">${sub}</div>` : ''}
+  </div>`;
+}
+function barraFunil(lbl, n, base, cor) {
+  const pct = base ? Math.max(1.5, n / base * 100) : 0;
+  const conv = base ? (n / base * 100).toFixed(1) + '%' : '—';
+  return `<div style="display:grid;grid-template-columns:110px 1fr 88px;gap:10px;align-items:center;font-size:13px;padding:3px 0">
+    <div style="text-align:right;font-weight:700">${lbl}</div>
+    <div style="background:var(--bg-2);border-radius:6px;height:18px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${cor}"></div></div>
+    <div style="font-variant-numeric:tabular-nums"><b>${n}</b> <span class="tiny muted">${conv}</span></div>
   </div>`;
 }
 
 function renderPainel(body) {
   if (aguarde(body)) return;
-  if (_painel.ok === false) {
-    body.innerHTML = `<div class="muted">⚠️ ${esc(_painel.error)}</div>`;
-    return;
-  }
+  if (_painel.ok === false) { body.innerHTML = `<div class="muted">⚠️ ${esc(_painel.error)}</div>`; return; }
   const m7 = _painel.metricas?.last_7d, m30 = _painel.metricas?.last_30d;
+  const d7 = _painel.deltas_prev?.last_7d || {};
+  const mes = _painel.mes_atual || {};
+  const fun = mes.funil || {};
+  const cc = _painel.concorrencia || {};
+  const contaPausada = m7 && (+m7.spend === 0);
+  const custoPasta = mes.custo_pasta;
+  const cpOk = custoPasta != null ? custoPasta <= (mes.meta_custo_pasta || 420) : null;
   const disparados = (_painel.alertas?.avaliacao || []).filter(a => a.estado === 'disparado');
   const sev = s => s === 'critico' ? '🔴' : s === 'atencao' ? '🟡' : '🔵';
+
   body.innerHTML = `
-    ${m7 ? `<div class="tiny muted" style="margin-bottom:6px">ÚLTIMOS 7 DIAS ${m7.period ? '· ' + esc(m7.period) : ''}</div>
-    <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:12px">
-      ${kpiCard('Investimento', brl(m7.spend))}
-      ${kpiCard('Leads', m7.leads)}
-      ${kpiCard('CPL', m7.cpl ? brl(m7.cpl) : '—')}
-      ${kpiCard('CTR', (m7.ctr || 0) + '%')}
-      ${kpiCard('Frequência máx', m7.frequency || '—')}
-    </div>` : '<div class="muted tiny" style="margin-bottom:10px">Sem cache Meta de 7 dias ainda (o cron aquece a cada ~10min).</div>'}
-    ${m30 ? `<div class="tiny muted" style="margin-bottom:6px">ÚLTIMOS 30 DIAS</div>
-    <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
-      ${kpiCard('Investimento', brl(m30.spend))}
-      ${kpiCard('Leads', m30.leads)}
-      ${kpiCard('CPL', m30.cpl ? brl(m30.cpl) : '—')}
-      ${kpiCard('CTR', (m30.ctr || 0) + '%')}
+    <style>@media(max-width:900px){.gt-grid{grid-template-columns:1fr!important}.gt-grid3{grid-template-columns:1fr!important}}</style>
+    ${contaPausada ? `<div style="background:var(--crit-bg, #7f1d1d22);border:1px solid #ef444455;border-left:5px solid #ef4444;border-radius:10px;padding:12px 16px;margin-bottom:14px">
+      <b>🔴 CONTA SEM ENTREGA</b> <span class="tiny">— gasto de 7 dias em R$ 0. Campanhas pausadas: cada dia parado encarece a meta do mês. Plano de religada no último relatório abaixo.</span>
     </div>` : ''}
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px" class="gt-grid">
-      <div style="background:var(--bg-3);border-radius:10px;padding:14px">
-        <div style="font-weight:800;margin-bottom:8px">🚨 Alertas agora</div>
-        ${disparados.length ? disparados.map(a => `
-          <div style="padding:6px 0;border-bottom:1px solid var(--bd)">
-            ${sev(a.severidade)} <b>${esc(a.nome || a.metrica)}</b>
-            <span class="tiny muted">— ${esc(a.metrica)} ${esc(a.op)} ${a.valor} (${esc(a.janela)}) · atual: <b>${a.valor_atual}</b></span>
-          </div>`).join('')
-        : `<div class="tiny muted">Nenhum alerta disparado. ${(_painel.alertas?.regras || []).length ? '' : 'Configure regras na aba 🚨 Alertas.'}</div>`}
-        ${(_painel.diagnosticos || []).length ? `
-          <div class="tiny" style="font-weight:800;margin-top:10px;color:var(--muted)">DIAGNÓSTICO POR CAMPANHA (7d)</div>
-          ${(_painel.diagnosticos || []).slice(0, 6).map(d => `
-            <div class="tiny" style="padding:5px 0;border-bottom:1px solid var(--bd)">
-              ${d.sev === 'critico' ? '🔴' : d.sev === 'atencao' ? '🟡' : '🟢'} <b>${esc(String(d.campanha).slice(0, 45))}</b><br>${esc(d.acao)}
-            </div>`).join('')}` : ''}
+    <div class="tiny muted" style="font-weight:800;letter-spacing:.06em;margin-bottom:6px">ÚLTIMOS 7 DIAS ${m7?.period ? '· ' + esc(m7.period) : ''} <span style="font-weight:400">· vs 7 dias anteriores</span></div>
+    <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
+      ${kpiCard('Investimento', m7 ? brl(m7.spend) : '—', '', delta(m7?.spend, d7.spend))}
+      ${kpiCard('Leads', m7 ? m7.leads : '—', '', delta(m7?.leads, d7.leads))}
+      ${kpiCard('CPL', m7?.cpl ? brl(m7.cpl) : '—', 'alvo ≤ ' + brl(_painel.limiares?.cpl_alvo || 12), delta(m7?.cpl, d7.cpl, true))}
+      ${kpiCard('CTR', m7 ? (m7.ctr || 0) + '%' : '—', 'mín ' + (_painel.limiares?.ctr_min_pct || 1) + '%')}
+      ${kpiCard('Frequência', m7?.frequency ?? '—', 'teto ' + (_painel.limiares?.freq_max || 2.6))}
+      ${kpiCard('DDD ≠ 17', m7?.ddd_fora_pct != null ? m7.ddd_fora_pct + '%' : '—', 'teto ' + (_painel.limiares?.ddd_fora_max_pct || 25) + '%')}
+    </div>
+
+    <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-bottom:14px" class="gt-grid">
+      <div style="background:var(--bg-3);border:1px solid var(--bd);border-radius:12px;padding:14px 16px">
+        <div style="font-weight:800;margin-bottom:6px">📈 Ritmo diário (30 dias) <span class="tiny muted">barras = gasto · linha = leads</span></div>
+        <canvas id="gt-spark" height="110" style="width:100%;display:block"></canvas>
+        <div class="tiny muted" style="margin-top:4px">30d: ${m30 ? brl(m30.spend) + ' · ' + m30.leads + ' leads · CPL ' + (m30.cpl ? brl(m30.cpl) : '—') : 'sem cache ainda'}</div>
       </div>
-      <div style="background:var(--bg-3);border-radius:10px;padding:14px">
-        <div style="font-weight:800;margin-bottom:8px">⚡ Últimas ações executadas</div>
-        ${(_painel.log || []).length ? (_painel.log || []).slice(0, 8).map(l => `
-          <div class="tiny" style="padding:5px 0;border-bottom:1px solid var(--bd)">
-            ${l.ok ? '✅' : '❌'} <b>${esc(l.op)}</b> ${esc(l.alvo?.nome || l.alvo?.id || '')}
-            <span class="muted">· ${esc(l.user)} · ${esc(String(l.ts || '').slice(0, 16).replace('T', ' '))}</span>
-          </div>`).join('')
-        : '<div class="tiny muted">Nenhuma ação executada ainda.</div>'}
+      <div style="background:var(--bg-3);border:1px solid var(--bd);border-radius:12px;padding:14px 16px">
+        <div style="font-weight:800;margin-bottom:6px">🎯 Mês ${esc(mes.mes || '')} — régua de pastas</div>
+        <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:8px">
+          <div style="flex:1;min-width:100px"><div class="tiny muted">GASTO MÊS</div><b style="font-size:18px">${mes.spend != null ? brl(mes.spend) : '—'}</b></div>
+          <div style="flex:1;min-width:80px"><div class="tiny muted">LEADS MÊS</div><b style="font-size:18px">${mes.leads ?? fun.leads ?? '—'}</b></div>
+          <div style="flex:1;min-width:80px"><div class="tiny muted">PASTAS</div><b style="font-size:18px">${fun.pastas ?? '—'}<span class="tiny muted">/${mes.meta_pastas || 18}</span></b></div>
+          <div style="flex:1;min-width:110px"><div class="tiny muted">CUSTO/PASTA</div><b style="font-size:18px;color:${cpOk == null ? 'inherit' : cpOk ? 'var(--ok, #22c55e)' : 'var(--err, #ef4444)'}">${custoPasta != null ? brl(custoPasta) : '—'}</b><span class="tiny muted"> alvo ≤ ${brl(mes.meta_custo_pasta || 420)}</span></div>
+        </div>
+        <div style="background:var(--bg-2);border-radius:8px;height:14px;overflow:hidden;margin-bottom:10px"><div style="height:100%;width:${Math.min(100, ((fun.pastas || 0) / (mes.meta_pastas || 18)) * 100)}%;background:linear-gradient(90deg,#f97316,#fb923c)"></div></div>
+        <div class="tiny muted" style="font-weight:800;margin-bottom:2px">FUNIL DO MÊS (Conquista)</div>
+        ${barraFunil('Leads', fun.leads || 0, fun.leads || 0, '#3b82f6')}
+        ${barraFunil('Em contato', fun.contato || 0, fun.leads || 0, '#6366f1')}
+        ${barraFunil('Visitas', fun.visitas || 0, fun.leads || 0, '#a855f7')}
+        ${barraFunil('Pastas', fun.pastas || 0, fun.leads || 0, '#f97316')}
+        ${barraFunil('Vendas', fun.vendas || 0, fun.leads || 0, '#22c55e')}
       </div>
     </div>
 
-    <div id="gt-rel-painel" style="margin-top:14px"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px" class="gt-grid3">
+      <div style="background:var(--bg-3);border:1px solid var(--bd);border-radius:12px;padding:14px 16px">
+        <div style="font-weight:800;margin-bottom:6px">🥊 Praça agora <span class="tiny muted">${cc.anunciando ?? '—'}/${cc.monitorados ?? '—'} anunciando · ${cc.ativos_praca ?? '—'} anúncios</span></div>
+        ${(cc.top || []).map((c, i) => `<div class="flex tiny" style="justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--bd)"><span>${i + 1}. ${esc(String(c.nome).slice(0, 26))} <span class="muted">[${esc(c.segmento || '')}]</span></span><b>${c.anuncios_count}</b></div>`).join('') || '<div class="tiny muted">sem coleta ainda</div>'}
+        <div class="flex tiny" style="justify-content:space-between;padding:4px 0;font-weight:800;color:${contaPausada ? 'var(--err, #ef4444)' : 'inherit'}"><span>NÓS (Conquista)</span><span>${contaPausada ? '0 🔴' : 'ativa'}</span></div>
+        <button class="btn btn-ghost tiny" data-ir-concorrencia style="margin-top:4px">abrir Concorrência →</button>
+      </div>
+      <div style="background:var(--bg-3);border:1px solid var(--bd);border-radius:12px;padding:14px 16px">
+        <div style="font-weight:800;margin-bottom:6px">🚨 Alertas & diagnóstico</div>
+        ${disparados.length ? disparados.map(a => `<div class="tiny" style="padding:4px 0;border-bottom:1px solid var(--bd)">${sev(a.severidade)} <b>${esc(a.nome || a.metrica)}</b> — atual <b>${a.valor_atual}</b> (${esc(a.op)} ${a.valor})</div>`).join('') : '<div class="tiny muted">Nenhuma regra disparada.</div>'}
+        ${(_painel.diagnosticos || []).slice(0, 4).map(d => `<div class="tiny" style="padding:4px 0;border-bottom:1px solid var(--bd)">${d.sev === 'critico' ? '🔴' : d.sev === 'atencao' ? '🟡' : '🟢'} <b>${esc(String(d.campanha).slice(0, 30))}</b><br>${esc(d.acao)}</div>`).join('')}
+        <button class="btn btn-ghost tiny" data-ir-alertas style="margin-top:4px">todas as regras →</button>
+      </div>
+      <div style="background:var(--bg-3);border:1px solid var(--bd);border-radius:12px;padding:14px 16px">
+        <div style="font-weight:800;margin-bottom:6px">⚡ Últimas ações & bases</div>
+        ${(_painel.log || []).slice(0, 4).map(l => `<div class="tiny" style="padding:3px 0;border-bottom:1px solid var(--bd)">${l.ok ? '✅' : '❌'} <b>${esc(l.op)}</b> ${esc(String(l.alvo?.nome || l.alvo?.id || '').slice(0, 30))} <span class="muted">${esc(String(l.ts || '').slice(5, 16).replace('T', ' '))}</span></div>`).join('') || '<div class="tiny muted">Nenhuma ação executada.</div>'}
+        <div class="tiny" style="margin-top:6px">📡 ${(_painel.contas || []).length} contas Meta · 👥 ${(_painel.publicos || []).length} públicos · 📋 ${(_painel.listas || []).length} listas</div>
+        <div class="tiny">🧠 Estratégia: ${_painel.config?.estrategia?.conquista ? 'definida ✓' : '<b>pendente</b>'} · 🕵️ Vigia: ${cc.ultima_coleta ? 'coleta ' + esc(String(cc.ultima_coleta).slice(5, 16).replace('T', ' ')) : 'sem coleta'}</div>
+      </div>
+    </div>
 
-    <div class="flex gap-2" style="flex-wrap:wrap;margin-top:14px">
-      <div style="background:var(--bg-3);border-radius:10px;padding:10px 14px;flex:1;min-width:220px">
-        <div class="tiny muted">CONTAS MONITORADAS</div>
-        ${(_painel.contas || []).map(c => `<div class="tiny">📡 ${esc(c.label)} <span class="muted">${esc(c.id)}</span></div>`).join('') || '<div class="tiny muted">nenhuma</div>'}
-      </div>
-      <div style="background:var(--bg-3);border-radius:10px;padding:10px 14px;flex:1;min-width:220px">
-        <div class="tiny muted">BASES DO GESTOR</div>
-        <div class="tiny">👥 ${(_painel.publicos || []).length} planos de público · 📋 ${(_painel.listas || []).length} listas/mailings</div>
-        <div class="tiny">🧠 Estratégia: ${_painel.config?.estrategia?.conquista || _painel.config?.estrategia?.imoveis ? 'definida ✓' : '<b>não definida</b> — aba Cérebro'}</div>
-      </div>
-    </div>`;
+    <div id="gt-rel-painel"></div>`;
+
+  body.querySelector('[data-ir-concorrencia]')?.addEventListener('click', () => { location.hash = '#/concorrencia'; });
+  body.querySelector('[data-ir-alertas]')?.addEventListener('click', () => { _tab = 'alertas'; render(); });
+  desenharSpark(_painel.serie_diaria || []);
   pintarRelatorioPainel();
+}
+
+function desenharSpark(serie) {
+  const cv = document.getElementById('gt-spark');
+  if (!cv || !serie.length) { if (cv) { const c = cv.getContext('2d'); c.font = '12px sans-serif'; c.fillStyle = '#94a3b8'; c.fillText('Sem série diária no cache (o cron aquece a cada ~10min).', 8, 40); } return; }
+  const W = cv.width = cv.clientWidth * (window.devicePixelRatio || 1);
+  const H = cv.height = 110 * (window.devicePixelRatio || 1);
+  const ctx = cv.getContext('2d');
+  const spends = serie.map(d => +d.spend || 0), leads = serie.map(d => +(d.results || 0));
+  const maxS = Math.max(...spends, 1), maxL = Math.max(...leads, 1);
+  const n = serie.length, bw = W / n;
+  serie.forEach((d, i) => {
+    const h = (spends[i] / maxS) * (H - 18);
+    ctx.fillStyle = spends[i] > 0 ? '#fb923c' : '#33415555';
+    ctx.fillRect(i * bw + bw * 0.15, H - h - 14, bw * 0.7, Math.max(h, spends[i] > 0 ? 2 : 1));
+  });
+  ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2 * (window.devicePixelRatio || 1); ctx.beginPath();
+  serie.forEach((d, i) => {
+    const x = i * bw + bw / 2, y = H - 14 - (leads[i] / maxL) * (H - 26);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
 }
 
 /* v87.10: último relatório do gestor inline no Painel, junto dos KPIs */
