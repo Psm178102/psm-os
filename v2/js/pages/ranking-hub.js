@@ -92,11 +92,13 @@ function startTimers() {
 function mudaTela(passo) {
   // navegação manual (botões ‹ › ou setas do controle): pausa a rotação por 90s
   _rotPauseAte = Date.now() + 90000;
+  const CICLO = CICLO_ATUAL();
   for (let t = 0; t < CICLO.length; t++) {
     _secIdx = ((_secIdx + passo) % CICLO.length + CICLO.length) % CICLO.length;
     const id = CICLO[_secIdx];
     if (id === 'recado' && !_recados.some(r => r.tv)) continue;
     if (id === 'premiacoes' && !_oport.length) continue;
+    if (id === 'criativos' && !_criativos.length) continue;
     _screen = id; break;
   }
   render();
@@ -107,17 +109,19 @@ function agendaRotacao() {
   if (_rotTimer) clearTimeout(_rotTimer);
   _rotTimer = setTimeout(() => {
     if (_celeb || Date.now() < _rotPauseAte || document.getElementById('rh-overlay')) { agendaRotacao(); return; }
-    // avança no ciclo pulando telas sem conteúdo (sem criativo/premiação cadastrados)
+    const CICLO = CICLO_ATUAL();
+    // avança no ciclo pulando telas sem conteúdo (sem recado 📺/premiação/criativo)
     for (let t = 0; t < CICLO.length; t++) {
       _secIdx = (_secIdx + 1) % CICLO.length;
       const id = CICLO[_secIdx];
       if (id === 'recado' && !_recados.some(r => r.tv)) continue;
       if (id === 'premiacoes' && !_oport.length) continue;
+      if (id === 'criativos' && !_criativos.length) continue;
       _screen = id; break;
     }
     render();
     agendaRotacao();
-  }, SLIDE_MS);
+  }, SLIDE_MS());
 }
 
 async function reload() {
@@ -130,6 +134,14 @@ async function reload() {
   else if (r) { _err = r.error || r._err || 'PSM HUB indisponível'; if (r.pending_config) _pending = true; }
   if (rec) _recados = rec.items || [];
   if (op) _oport = (op.oportunidades || []).filter(o => o.status === 'aberta');
+
+  // ⚙️ config da TV (shared_kv) — a cada 60s; calibragem vale sem deploy
+  if (Date.now() - _cfgAt > 60000) {
+    _cfgAt = Date.now();
+    api.request('/api/v3/arena/tv2_config').then(r => {
+      if (r && r.ok && r.config) { _cfg = r.config; _cfgCanEdit = !!r.can_edit; }
+    }).catch(() => {});
+  }
 
   // dados das telas extras (criativos/placar) — a cada 5min basta
   if (Date.now() - _extraAt > 300000) {
@@ -658,6 +670,7 @@ function shell(body) {
   const telaMeta = TELAS_SEC.find(t => t.id === _screen);
   const titulo = telaMeta ? telaMeta.lbl
     : (_data ? `Ranking — ${meses[_data.month] || ''} ${_data.year}` : 'Ranking — PSM HUB');
+  const CICLO = CICLO_ATUAL();
   const dots = `<span style="display:inline-flex;gap:5px;margin-left:10px;align-items:center">
     ${CICLO.map((id, i) => `<span style="width:8px;height:8px;border-radius:99px;background:${i === ((_secIdx % CICLO.length) + CICLO.length) % CICLO.length ? '#facc15' : '#334155'}"></span>`).join('')}</span>`;
   const tabs = ['GERAL', ...teams()];
@@ -672,7 +685,7 @@ function shell(body) {
     @keyframes rhFade { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:none } }
     @keyframes rhBar { from { transform:scaleX(0) } to { transform:scaleX(1) } }
     .rh-body { animation:rhFade .45s ease; }
-    .rh-bar { transform-origin:left; animation:rhBar ${SLIDE_MS}ms linear; }
+    .rh-bar { transform-origin:left; animation:rhBar ${SLIDE_MS()}ms linear; }
     .rh-live { animation:rhLive 1.4s ease infinite; }
     .rh-ticker:hover .rh-track { animation-play-state:paused; }
     .rh-item { transition:transform .15s ease, box-shadow .15s ease; }
@@ -695,6 +708,7 @@ function shell(body) {
         <div id="rh-clock" style="font-size:30px;font-weight:800;color:#facc15;font-variant-numeric:tabular-nums">${nowStr()}</div>
         <div id="rh-upd" style="font-size:11px;color:#64748b">${_fetchedAt ? `Atualizado às ${_fetchedAt.toLocaleTimeString('pt-BR')}` : '&nbsp;'}</div>
       </div>
+      ${_cfgCanEdit ? '<button id="rh-cfg" title="Configurar a TV (gestão)" style="border:1px solid rgba(148,163,184,.35);background:transparent;color:#cbd5e1;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:16px">⚙️</button>' : ''}
       <button id="rh-prev" title="Tela anterior (←)" style="border:1px solid rgba(148,163,184,.35);background:transparent;color:#cbd5e1;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:18px;font-weight:900">‹</button>
       <button id="rh-next" title="Próxima tela (→)" style="border:1px solid rgba(234,179,8,.5);background:rgba(234,179,8,.12);color:#facc15;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:18px;font-weight:900">›</button>
       <button id="rh-fs" title="Tela cheia" style="border:1px solid rgba(148,163,184,.35);background:transparent;color:#cbd5e1;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:16px">⛶</button>
@@ -713,6 +727,7 @@ function shell(body) {
 
 function bind() {
   sounds.initSounds?.();
+  document.getElementById('rh-cfg')?.addEventListener('click', abrirConfig);
   document.getElementById('rh-prev')?.addEventListener('click', () => mudaTela(-1));
   document.getElementById('rh-next')?.addEventListener('click', () => mudaTela(1));
   if (!window._rhKeys) {
@@ -734,6 +749,68 @@ function bind() {
     if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
     else document.documentElement.requestFullscreen?.().catch(() => {});
   });
+}
+
+/* ── ⚙️ engrenagem: modal de configuração da TV (gestão, salva no banco) ── */
+const CFG_LBL = { recado: '📣 Recado da gestão', duelo: '⚔️ Duelo pela liderança', doc: '🗂 Ranking de Pastas',
+  aten: '🚶 Ranking de Visitas', prosp: '📞 Ranking de Atendimentos', corrida: '🏁 Corrida da Meta',
+  premiacoes: '🏆 Premiações', placar: '🎯 Placar do mês', criativos: '🎨 Criativos do mês' };
+function abrirConfig() {
+  _rotPauseAte = Date.now() + 600000;   // pausa a rotação enquanto configura
+  const todas = [..._cfg.telas, ...Object.keys(CFG_LBL).filter(t => !_cfg.telas.includes(t))];
+  const ligadas = new Set(_cfg.telas);
+  const ov = document.createElement('div');
+  ov.id = 'rh-cfgov';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:95;background:rgba(5,8,15,.9);display:flex;align-items:center;justify-content:center;padding:4vh';
+  const linha = (t) => `
+    <div class="rhc-row" data-tela="${t}" style="display:flex;align-items:center;gap:12px;background:#141a2c;border:1px solid rgba(71,85,105,.4);border-radius:10px;padding:10px 14px">
+      <input type="checkbox" class="rhc-on" ${ligadas.has(t) ? 'checked' : ''} style="width:18px;height:18px;cursor:pointer">
+      <span style="flex:1;font-size:16px;font-weight:700;color:#e2e8f0">${CFG_LBL[t] || t}</span>
+      <button class="rhc-up" style="border:1px solid rgba(148,163,184,.3);background:transparent;color:#cbd5e1;border-radius:6px;padding:4px 10px;cursor:pointer">▲</button>
+      <button class="rhc-dn" style="border:1px solid rgba(148,163,184,.3);background:transparent;color:#cbd5e1;border-radius:6px;padding:4px 10px;cursor:pointer">▼</button>
+    </div>`;
+  ov.innerHTML = `
+    <div style="max-width:620px;width:100%;max-height:92vh;overflow:auto;border-radius:18px;background:#0d1120;border:1px solid rgba(71,85,105,.5);padding:26px 28px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:22px;font-weight:900;color:#facc15">⚙️ Configurar a Arena TV</span>
+        <button id="rhc-x" style="margin-left:auto;border:0;background:transparent;color:#94a3b8;font-size:20px;cursor:pointer">✕</button>
+      </div>
+      <div style="display:flex;gap:18px;margin:18px 0">
+        <label style="flex:1;font-size:13px;color:#94a3b8">Segundos por tela
+          <input id="rhc-slide" type="number" min="8" max="120" value="${_cfg.slide_s}" style="width:100%;margin-top:4px;background:#141a2c;border:1px solid rgba(71,85,105,.5);border-radius:8px;color:#f8fafc;padding:8px 10px;font-size:16px"></label>
+        <label style="flex:1;font-size:13px;color:#94a3b8">Vendas volta a cada X telas
+          <input id="rhc-cada" type="number" min="1" max="8" value="${_cfg.vendas_cada}" style="width:100%;margin-top:4px;background:#141a2c;border:1px solid rgba(71,85,105,.5);border-radius:8px;color:#f8fafc;padding:8px 10px;font-size:16px"></label>
+      </div>
+      <div style="font-size:13px;color:#94a3b8;margin-bottom:8px">Telas extras — ligue/desligue e arraste a ordem (▲▼). O ranking de vendas é fixo e intercala sozinho.</div>
+      <div id="rhc-list" style="display:grid;gap:8px">${todas.map(linha).join('')}</div>
+      <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:20px">
+        <button id="rhc-cancel" style="border:1px solid rgba(148,163,184,.4);background:transparent;color:#e2e8f0;border-radius:10px;padding:10px 20px;font-size:15px;font-weight:700;cursor:pointer">Cancelar</button>
+        <button id="rhc-save" style="border:0;background:#eab308;color:#1c1917;border-radius:10px;padding:10px 22px;font-size:15px;font-weight:900;cursor:pointer">Salvar pra todas as TVs</button>
+      </div>
+      <div id="rhc-msg" style="font-size:13px;color:#f87171;margin-top:8px;min-height:16px"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  const fecha = () => { ov.remove(); _rotPauseAte = Date.now() + 5000; };
+  ov.addEventListener('click', e => { if (e.target === ov) fecha(); });
+  ov.querySelector('#rhc-x').onclick = fecha;
+  ov.querySelector('#rhc-cancel').onclick = fecha;
+  ov.querySelectorAll('.rhc-up, .rhc-dn').forEach(b => b.onclick = () => {
+    const row = b.closest('.rhc-row');
+    if (b.classList.contains('rhc-up') && row.previousElementSibling) row.parentNode.insertBefore(row, row.previousElementSibling);
+    if (b.classList.contains('rhc-dn') && row.nextElementSibling) row.parentNode.insertBefore(row.nextElementSibling, row);
+  });
+  ov.querySelector('#rhc-save').onclick = async () => {
+    const telas = [...ov.querySelectorAll('.rhc-row')].filter(r => r.querySelector('.rhc-on').checked).map(r => r.dataset.tela);
+    const cfg = { slide_s: Number(ov.querySelector('#rhc-slide').value) || 20,
+                  vendas_cada: Number(ov.querySelector('#rhc-cada').value) || 5, telas };
+    if (!telas.length) { ov.querySelector('#rhc-msg').textContent = 'Ligue ao menos uma tela extra.'; return; }
+    ov.querySelector('#rhc-save').disabled = true;
+    try {
+      const r = await api.request('/api/v3/arena/tv2_config', { method: 'POST', body: { config: cfg } });
+      if (r && r.ok) { _cfg = r.config; _cfgAt = Date.now(); fecha(); _secIdx = 0; _screen = 'vendas'; render(); agendaRotacao(); }
+      else { ov.querySelector('#rhc-msg').textContent = (r && r.error) || 'erro ao salvar'; ov.querySelector('#rhc-save').disabled = false; }
+    } catch (e) { ov.querySelector('#rhc-msg').textContent = e.message; ov.querySelector('#rhc-save').disabled = false; }
+  };
 }
 
 /* ── utils ── */
