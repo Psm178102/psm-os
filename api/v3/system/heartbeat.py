@@ -55,6 +55,10 @@ JOBS = [
     # seg 18h, quinzenal dia 15, mensal dia 1), então rodar de 30min em 30min só
     # gera o que venceu e ainda não saiu.
     ("gt_relatorio", "/api/v3/marketing/gestor_relatorio?cron=1&tipo=auto", 0.5),
+    # 🕵️ Vigia de Concorrência (v87.12): analisa as últimas 24h (concorrentes +
+    # Radar Incorporadoras + Ad Library) e SÓ notifica os sócios quando a IA
+    # acha algo acionável. Dedupe interno por janela de 6h.
+    ("gt_vigia",     "/api/v3/marketing/gestor_vigia?cron=1",               2),
 ]
 
 

@@ -571,7 +571,7 @@ async function executar(op, id, nome) {
 
 /* ───────────────────────── 📜 Relatórios ───────────────────────── */
 let _relatorios = null;
-const TIPO_LBL = { diario: '📅 Diário (19h)', semanal: '🗓 Semanal (seg 18h)', quinzenal: '📆 Quinzenal (dia 15)', mensal: '📊 Fechamento de mês' };
+const TIPO_LBL = { diario: '📅 Diário (19h)', semanal: '🗓 Semanal (seg 18h)', quinzenal: '📆 Quinzenal (dia 15)', mensal: '📊 Fechamento de mês', vigia: '🕵️ Vigia de Concorrência' };
 
 async function renderRelatorios(body) {
   body.innerHTML = '<div class="muted tiny"><span class="spinner"></span> Buscando relatórios…</div>';
@@ -582,7 +582,7 @@ async function renderRelatorios(body) {
   body.innerHTML = `
     <div class="tiny muted" style="margin-bottom:10px">Cadência automática pros sócios: <b>diário 19h</b> · <b>semanal segunda 18h</b> · <b>quinzenal dia 15</b> · <b>fechamento de mês</b>. Chegam por notificação/push e ficam aqui.</div>
     ${socio() ? `<div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:12px;align-items:center">
-      <select id="rel-tipo" class="input" style="max-width:220px">${Object.entries(TIPO_LBL).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>
+      <select id="rel-tipo" class="input" style="max-width:220px">${Object.entries(TIPO_LBL).filter(([k]) => k !== 'vigia').map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>
       <button class="btn btn-primary" id="rel-gerar">⚡ Gerar agora</button>
       <span class="tiny muted">(geração manual não espera o horário)</span>
     </div>` : ''}

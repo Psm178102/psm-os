@@ -21,6 +21,10 @@
       "schedule": "5 11 1 * *"
     },
     {
+      "path": "/api/v3/marketing/gestor_vigia?cron=1",
+      "schedule": "0 12,21 * * *"
+    },
+    {
       "path": "/api/v3/marketing/meta_monthly_cron",
       "schedule": "0 5 * * *"
     },
