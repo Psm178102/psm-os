@@ -48,7 +48,7 @@ const CELEB_MS = 10000;
 const TELAS_SEC = [
   { id: 'doc',        lbl: '🗂 Ranking de Pastas',       sub: 'quantidade de pastas/propostas no HUB · pontos em sequência', un: 'pasta(s)' },
   { id: 'aten',       lbl: '🚶 Ranking de Visitas',      sub: 'quantidade de visitas realizadas no HUB · pontos em sequência', un: 'visita(s)' },
-  { id: 'prosp',      lbl: '📞 Ranking de Atendimentos', sub: 'quantidade de prospecções/atendimentos no HUB · pontos em sequência', un: 'atendimento(s)' },
+  { id: 'prosp',      lbl: '📞 Ranking de Prospecções',  sub: 'quantidade de prospecções no HUB · pontos em sequência', un: 'prospecção(ões)' },
   { id: 'criativos',  lbl: '🎨 Criativos do mês' },
   { id: 'premiacoes', lbl: '🏆 Premiações ativas' },
   { id: 'placar',     lbl: '🎯 Placar do mês' },
@@ -805,7 +805,7 @@ function bind() {
 
 /* ── ⚙️ engrenagem: modal de configuração da TV (gestão, salva no banco) ── */
 const CFG_LBL = { recado: '📣 Recado da gestão', duelo: '⚔️ Duelo pela liderança', doc: '🗂 Ranking de Pastas',
-  aten: '🚶 Ranking de Visitas', prosp: '📞 Ranking de Atendimentos', corrida: '🏁 Corrida da Meta',
+  aten: '🚶 Ranking de Visitas', prosp: '📞 Ranking de Prospecções', corrida: '🏁 Corrida da Meta',
   premiacoes: '🏆 Premiações', placar: '🎯 Placar do mês', criativos: '🎨 Criativos do mês' };
 function abrirConfig() {
   _rotPauseAte = Date.now() + 600000;   // pausa a rotação enquanto configura
