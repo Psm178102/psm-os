@@ -10,15 +10,38 @@
    quando o dado muda (senão o letreiro reiniciava a cada poll).
 ============================================================================ */
 import { api } from '../api.js';
+import { sounds } from '../sounds.js';
 import { enableWakeLock, disableWakeLock } from '../wakelock.js';
 
 const REFRESH_MS = 30000;
+
+/* ── ARENA TV 2.0 (v87.21, decisão do Paulo 04/set) ─────────────────────────
+   Telas INTEIRAS alternando, ranking de vendas como âncora (~70% do tempo):
+   vendas → pastas → vendas → visitas → vendas → atendimentos → vendas →
+   criativos → vendas → premiações → vendas → placar → …
+   Os rankings de pastas/visitas/atendimentos saem do MESMO ruleBreakdown do
+   HUB (pontos por categoria). + GONGO DA VENDA: pontos de venda/VGV de alguém
+   subiram entre polls → overlay de 10s + som (sounds.venda). */
+const ANCHOR_MS = 60000;      // ranking de vendas fica 60s entre cada tela extra
+const SEC_MS = 25000;         // cada tela extra fica 25s
+const CELEB_MS = 10000;
+const TELAS_SEC = [
+  { id: 'doc',        lbl: '🗂 Ranking de Pastas',       sub: 'pontos de Proposta/Documentação no HUB' },
+  { id: 'aten',       lbl: '🚶 Ranking de Visitas',      sub: 'pontos de Visita Realizada no HUB' },
+  { id: 'prosp',      lbl: '📞 Ranking de Atendimentos', sub: 'pontos de Prospecção/Atendimento no HUB' },
+  { id: 'criativos',  lbl: '🎨 Criativos do mês' },
+  { id: 'premiacoes', lbl: '🏆 Premiações ativas' },
+  { id: 'placar',     lbl: '🎯 Placar do mês' },
+];
 
 let _root = null, _data = null, _err = '', _pending = false;
 let _team = 'GERAL';
 let _pollTimer = null, _clock = null;
 let _fetchedAt = null;
 let _recados = [], _oport = [], _sig = '';
+let _screen = 'vendas', _secIdx = -1, _rotTimer = null, _rotPauseAte = 0;
+let _criativos = [], _ov = null, _metas = null, _extraAt = 0;
+let _prevVendas = null, _celeb = null, _celebTimer = null;
 
 export async function pageRankingHub(ctx, root) {
   _root = root; _err = ''; _data = null; _team = 'GERAL';
@@ -35,6 +58,9 @@ function cleanup() {
   closeTickerOverlay();
   document.body.classList.remove('tv-mode');
   [_pollTimer, _clock].forEach(t => t && clearInterval(t));
+  if (_rotTimer) clearTimeout(_rotTimer);
+  if (_celebTimer) clearTimeout(_celebTimer);
+  _rotTimer = _celebTimer = null;
   _pollTimer = _clock = null;
   disableWakeLock();
   if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
@@ -43,7 +69,29 @@ function cleanup() {
 function startTimers() {
   [_pollTimer, _clock].forEach(t => t && clearInterval(t));
   _pollTimer = setInterval(reload, REFRESH_MS);
+  agendaRotacao();
   _clock = setInterval(() => { const el = document.getElementById('rh-clock'); if (el) el.textContent = nowStr(); }, 1000);
+}
+
+function agendaRotacao() {
+  if (_rotTimer) clearTimeout(_rotTimer);
+  const dur = _screen === 'vendas' ? ANCHOR_MS : SEC_MS;
+  _rotTimer = setTimeout(() => {
+    if (_celeb || Date.now() < _rotPauseAte || document.getElementById('rh-overlay')) { agendaRotacao(); return; }
+    if (_screen === 'vendas') {
+      // pula tela sem conteúdo (ex.: sem criativo/premiação cadastrados)
+      for (let t = 0; t < TELAS_SEC.length; t++) {
+        _secIdx = (_secIdx + 1) % TELAS_SEC.length;
+        const id = TELAS_SEC[_secIdx].id;
+        if (id === 'criativos' && !_criativos.length) continue;
+        if (id === 'premiacoes' && !_oport.length) continue;
+        _screen = id; break;
+      }
+      if (_screen === 'vendas') { agendaRotacao(); return; }   // nada pra mostrar
+    } else _screen = 'vendas';
+    render();
+    agendaRotacao();
+  }, dur);
 }
 
 async function reload() {
@@ -57,11 +105,61 @@ async function reload() {
   if (rec) _recados = rec.items || [];
   if (op) _oport = (op.oportunidades || []).filter(o => o.status === 'aberta');
 
+  // dados das telas extras (criativos/placar) — a cada 5min basta
+  if (Date.now() - _extraAt > 300000) {
+    _extraAt = Date.now();
+    api.request('/api/v3/paulo/cards?board=criativos_lib').then(r => {
+      _criativos = ((r && r.cards) || []).filter(c => driveFileId(c.link)).slice(0, 24);
+    }).catch(() => {});
+    api.request('/api/v3/metrics/overview').then(r => { _ov = r; }).catch(() => {});
+    api.request('/api/v3/metas/atingimento?ano=' + new Date().getFullYear()).then(r => { _metas = r; }).catch(() => {});
+  }
+
+  // 🔔 GONGO DA VENDA — pontos de venda (ou VGV) de alguém subiram desde o último poll
+  if (_data && _data.ranking) {
+    const atual = {};
+    _data.ranking.forEach(a => {
+      const vPts = (a.ruleBreakdown || []).filter(rb => classifyRule(rb) === 'venda')
+        .reduce((t, rb) => t + (rb.totalPoints || 0), 0);
+      atual[a.agentName] = { v: vPts, vgv: a.vgvReal || 0 };
+    });
+    if (_prevVendas) {
+      for (const [nome, x] of Object.entries(atual)) {
+        const antes = _prevVendas[nome];
+        if (antes && (x.v > antes.v || x.vgv > antes.vgv + 1)) { gongo(nome, x.vgv - (antes.vgv || 0)); break; }
+      }
+    }
+    _prevVendas = atual;
+  }
+
   // só re-renderiza se o DADO mudou — senão o letreiro reiniciava a cada 30s
   const sig = JSON.stringify([_data, _recados.map(x => x.id + (x.texto || '')), _oport.map(x => x.id + (x.titulo || '')), _err]);
   if (sig !== _sig) { _sig = sig; render(); }
   else { const el = document.getElementById('rh-upd'); if (el && _fetchedAt) el.textContent = `Atualizado às ${_fetchedAt.toLocaleTimeString('pt-BR')}`; }
 }
+
+/* ── 🔔 gongo da venda: overlay de 10s + som ── */
+function gongo(nome, vgvDelta) {
+  try { sounds.venda(); } catch (_) {}
+  _celeb = { nome, vgvDelta };
+  const ov = document.createElement('div');
+  ov.id = 'rh-gongo';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:90;background:rgba(5,8,15,.92);display:flex;align-items:center;justify-content:center';
+  ov.innerHTML = `
+    <div style="text-align:center;animation:rhPop .3s ease">
+      <div style="font-size:110px;line-height:1">🔔🎉</div>
+      <div style="font-size:26px;font-weight:900;letter-spacing:.2em;color:#facc15;margin-top:10px">VENDA CONFIRMADA</div>
+      <div style="font-size:64px;font-weight:900;color:#f8fafc;margin-top:8px">${escapeHtml(nome)}</div>
+      ${vgvDelta > 1 ? `<div style="font-size:34px;font-weight:800;color:#4ade80;margin-top:8px">+ ${fmtBRL(vgvDelta)}</div>` : ''}
+      <div style="font-size:18px;color:#94a3b8;margin-top:16px">👏 Arena, aplausos!</div>
+    </div>`;
+  document.body.appendChild(ov);
+  if (_celebTimer) clearTimeout(_celebTimer);
+  _celebTimer = setTimeout(() => { ov.remove(); _celeb = null; _screen = 'vendas'; render(); agendaRotacao(); }, CELEB_MS);
+}
+
+const driveFileId = u => { const m = String(u || '').match(/\/file\/d\/([-\w]{15,})/) || String(u || '').match(/[?&]id=([-\w]{15,})/) || String(u || '').match(/([-\w]{25,})/); return m ? m[1] : ''; };
+const driveThumb = id => id ? `https://drive.google.com/thumbnail?id=${id}&sz=w800` : '';
 
 /* ── classificação de regra → badge (mesma legenda do Modo TV do HUB) ── */
 const BADGES = {
@@ -99,11 +197,17 @@ function teams() {
   return [...set];
 }
 function shortTeam(t) { return t.replace(/^EQUIPE\s+/i, '').toUpperCase(); }
-function ranked() {
+function catPts(a, cat) {
+  return (a.ruleBreakdown || []).filter(rb => classifyRule(rb) === cat)
+    .reduce((t, rb) => t + (rb.totalPoints || 0), 0);
+}
+function ranked(cat) {
   let list = _data?.ranking || [];
   if (_team !== 'GERAL') list = list.filter(a => (a.teamName || '').trim() === _team);
-  list = [...list].sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0));
-  return list.map((a, i) => ({ ...a, pos: i + 1 }));
+  const val = a => cat ? catPts(a, cat) : (a.totalPoints || 0);
+  list = [...list].sort((a, b) => val(b) - val(a));
+  if (cat) list = list.filter(a => val(a) > 0);
+  return list.map((a, i) => ({ ...a, pos: i + 1, _val: val(a) }));
 }
 
 /* ── render ── */
@@ -115,23 +219,109 @@ function render() {
       <div style="opacity:.6;font-size:16px">${escapeHtml(_err || '')}</div></div>`);
     bind(); return;
   }
-  const list = ranked();
-  const podium = list.slice(0, 3);
-  const rest = list.slice(3);
-  const ord = [podium[1], podium[0], podium[2]].filter(Boolean);   // 2º · 1º · 3º
-
-  _root.innerHTML = shell(`
-    <div style="display:grid;grid-template-columns:repeat(${Math.max(ord.length, 1)},1fr);gap:18px;padding:22px 26px 6px">
-      ${ord.map(a => podiumCard(a)).join('') || '<div style="opacity:.6;text-align:center;padding:60px">Ninguém pontuou ainda.</div>'}
-    </div>
-    <div style="padding:14px 26px;display:grid;gap:10px">
-      ${rest.map(rowCard).join('')}
-    </div>
-  `);
+  let corpo;
+  if (_screen === 'criativos') corpo = telaCriativos();
+  else if (_screen === 'premiacoes') corpo = telaPremiacoes();
+  else if (_screen === 'placar') corpo = telaPlacar();
+  else corpo = telaRanking(_screen === 'vendas' ? null : _screen);
+  _root.innerHTML = shell(corpo);
   bind();
 }
 
-function podiumCard(a) {
+function telaRanking(cat) {
+  const list = ranked(cat);
+  const podium = list.slice(0, 3);
+  const rest = list.slice(3, cat ? 7 : list.length);   // telas extras: top 7 (cabe sem rolar)
+  const ord = [podium[1], podium[0], podium[2]].filter(Boolean);   // 2º · 1º · 3º
+  const meta = cat ? TELAS_SEC.find(t => t.id === cat) : null;
+  return `
+    ${meta ? `<div style="text-align:center;padding:18px 0 0">
+      <span style="font-size:30px;font-weight:900;color:#facc15">${meta.lbl}</span>
+      <div style="font-size:14px;color:#64748b;margin-top:2px">${meta.sub || ''}</div></div>` : ''}
+    <div style="display:grid;grid-template-columns:repeat(${Math.max(ord.length, 1)},1fr);gap:18px;padding:22px 26px 6px">
+      ${ord.map(a => podiumCard(a, cat)).join('') || '<div style="opacity:.6;text-align:center;padding:60px">Ninguém pontuou ainda.</div>'}
+    </div>
+    <div style="padding:14px 26px;display:grid;gap:10px">
+      ${rest.map(a => rowCard(a, cat)).join('')}
+    </div>`;
+}
+
+/* ── 🎨 tela: criativos do mês (thumbs do Drive, board criativos_lib) ── */
+function telaCriativos() {
+  const cs = _criativos.slice(0, 8);
+  return `
+    <div style="text-align:center;padding:18px 0 0">
+      <span style="font-size:30px;font-weight:900;color:#facc15">🎨 Criativos do mês</span>
+      <div style="font-size:14px;color:#64748b;margin-top:2px">prontos pra usar — baixe na Biblioteca de Criativos do House</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:20px 26px">
+      ${cs.map(c => `
+        <div style="border-radius:14px;overflow:hidden;border:1px solid rgba(71,85,105,.4);background:#0d1120">
+          <div style="aspect-ratio:4/5;background:#111827">
+            <img src="${escapeHtml(driveThumb(driveFileId(c.link)))}" referrerpolicy="no-referrer" loading="lazy"
+                 style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">
+          </div>
+          <div style="padding:10px 12px;font-size:14px;font-weight:700;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(c.titulo || '')}</div>
+        </div>`).join('')}
+    </div>`;
+}
+
+/* ── 🏆 tela: premiações/campanhas ativas em formato grande ── */
+function telaPremiacoes() {
+  const ops = _oport.slice(0, 4);
+  const dias = o => { if (!o.expira_em && !o.validade) return null; const d = Math.ceil((new Date(o.expira_em || o.validade) - Date.now()) / 864e5); return isFinite(d) ? d : null; };
+  return `
+    <div style="text-align:center;padding:18px 0 0">
+      <span style="font-size:30px;font-weight:900;color:#facc15">🏆 Premiações & Oportunidades ativas</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(${Math.min(ops.length, 2) || 1},1fr);gap:18px;padding:22px 30px">
+      ${ops.map(o => { const d = dias(o); return `
+        <div style="border-radius:18px;padding:28px 30px;background:linear-gradient(180deg,rgba(34,197,94,.14),#0d1120 70%);border:2px solid rgba(34,197,94,.5)">
+          <div style="font-size:40px">${OP_ICO[o.tipo] || '💡'}</div>
+          <div style="font-size:26px;font-weight:800;color:#f8fafc;line-height:1.3;margin-top:10px">${escapeHtml(o.titulo || '')}</div>
+          ${o.descricao ? `<div style="font-size:17px;color:#cbd5e1;margin-top:8px;line-height:1.5">${escapeHtml(String(o.descricao).slice(0, 180))}</div>` : ''}
+          <div style="display:flex;gap:14px;margin-top:14px;align-items:center">
+            ${o.valor_est ? `<span style="font-size:22px;font-weight:900;color:#4ade80">${fmtBRL(o.valor_est)}</span>` : ''}
+            ${d != null ? `<span style="font-size:15px;font-weight:800;color:${d <= 2 ? '#f87171' : '#facc15'}">⏳ ${d <= 0 ? 'último dia!' : `expira em ${d}d`}</span>` : ''}
+          </div>
+        </div>`; }).join('') || '<div style="opacity:.6;text-align:center;padding:60px">Nenhuma premiação ativa.</div>'}
+    </div>`;
+}
+
+/* ── 🎯 tela: placar do mês (VGV × meta + destaques) ── */
+function telaPlacar() {
+  const sv = (_ov && _ov.sales) || {};
+  const meta = (_metas && _metas.totals) || {};
+  const metaMes = meta.meta_vgv ? meta.meta_vgv / 12 : 0;
+  const pct = metaMes ? Math.min(100, Math.round(100 * (sv.vgv_mes || 0) / metaMes)) : 0;
+  const topVgv = ranked().slice().sort((a, b) => (b.vgvReal || 0) - (a.vgvReal || 0))[0];
+  const big = (lbl, val, cor) => `
+    <div style="background:#0d1120;border:1px solid rgba(71,85,105,.4);border-radius:16px;padding:24px;text-align:center">
+      <div style="font-size:14px;letter-spacing:.12em;color:#64748b;text-transform:uppercase">${lbl}</div>
+      <div style="font-size:44px;font-weight:900;color:${cor || '#f8fafc'};margin-top:6px">${val}</div>
+    </div>`;
+  return `
+    <div style="text-align:center;padding:18px 0 0">
+      <span style="font-size:30px;font-weight:900;color:#facc15">🎯 Placar de ${new Date().toLocaleDateString('pt-BR', { month: 'long' })}</span>
+    </div>
+    <div style="padding:24px 40px">
+      <div style="display:flex;justify-content:space-between;font-size:16px;color:#cbd5e1;font-weight:700">
+        <span>VGV do mês: ${fmtBRL(sv.vgv_mes || 0)}</span><span>${metaMes ? 'meta ÷12: ' + fmtBRL(metaMes) : ''}</span>
+      </div>
+      <div style="height:26px;background:#1e293b;border-radius:99px;margin-top:8px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;border-radius:99px;background:linear-gradient(90deg,#facc15,#4ade80);transition:width 1s"></div>
+      </div>
+      <div style="text-align:center;font-size:22px;font-weight:900;color:#facc15;margin-top:6px">${pct}% da meta do mês</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding:6px 40px">
+      ${big('Vendas no mês', sv.vendas_mes || 0)}
+      ${big('Vendas · 30 dias', sv.vendas_30d || 0)}
+      ${big('Maior VGV do ranking', topVgv && topVgv.vgvReal ? `${escapeHtml(topVgv.agentName || '')}` : '—', '#4ade80')}
+    </div>
+    ${topVgv && topVgv.vgvReal ? `<div style="text-align:center;font-size:20px;font-weight:800;color:#4ade80;margin-top:6px">${fmtBRL(topVgv.vgvReal)}</div>` : ''}`;
+}
+
+function podiumCard(a, cat) {
   const first = a.pos === 1;
   const style = a.pos === 1
     ? 'border:2px solid #eab308;background:radial-gradient(120% 120% at 50% 0%,rgba(234,179,8,.14),rgba(10,13,22,.6));box-shadow:0 0 40px rgba(234,179,8,.25)'
@@ -143,22 +333,22 @@ function podiumCard(a) {
     <div style="border-radius:16px;padding:${first ? '26px' : '22px'} 18px;text-align:center;${style}">
       <div style="font-size:${first ? '30px' : '24px'};font-weight:800;color:${posColor}">${a.pos}°</div>
       <div style="font-size:${first ? '28px' : '22px'};font-weight:700;color:#f1f5f9;margin-top:2px">${escapeHtml(a.agentName || '—')}</div>
-      <div style="font-size:${first ? '84px' : '58px'};font-weight:900;line-height:1.1;color:${posColor}">${fmtPts(a.totalPoints)}</div>
+      <div style="font-size:${first ? '84px' : '58px'};font-weight:900;line-height:1.1;color:${posColor}">${fmtPts(cat ? a._val : a.totalPoints)}</div>
       <div style="font-size:12px;letter-spacing:.1em;color:${posColor};opacity:.8">pontos</div>
       ${a.vgvReal ? `<div style="margin-top:6px;color:#86efac;font-weight:700">VGV ${fmtBRL(a.vgvReal)}</div>` : ''}
       <div style="height:1px;background:rgba(148,163,184,.25);margin:14px 40px"></div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;min-height:26px">${badgesOf(a)}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;min-height:26px">${cat ? '' : badgesOf(a)}</div>
     </div>`;
 }
 
-function rowCard(a) {
+function rowCard(a, cat) {
   return `
     <div style="display:flex;align-items:center;gap:16px;background:rgba(30,41,59,.35);border:1px solid rgba(71,85,105,.4);border-radius:12px;padding:14px 20px">
       <div style="font-size:20px;font-weight:800;color:#94a3b8;width:44px">${a.pos}°</div>
       <div style="font-size:20px;font-weight:700;color:#f1f5f9">${escapeHtml(a.agentName || '—')}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px">${badgesOf(a)}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${cat ? '' : badgesOf(a)}</div>
       <div style="margin-left:auto;text-align:right">
-        <div style="font-size:26px;font-weight:900;color:#f1f5f9;line-height:1">${fmtPts(a.totalPoints)}</div>
+        <div style="font-size:26px;font-weight:900;color:#f1f5f9;line-height:1">${fmtPts(cat ? a._val : a.totalPoints)}</div>
         <div style="font-size:11px;color:#64748b">pts${a.vgvReal ? ` · VGV ${fmtBRL(a.vgvReal)}` : ''}</div>
       </div>
     </div>`;
@@ -243,7 +433,11 @@ function closeTickerOverlay() {
 
 function shell(body) {
   const meses = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-  const titulo = _data ? `Ranking — ${meses[_data.month] || ''} ${_data.year}` : 'Ranking — PSM HUB';
+  const telaMeta = TELAS_SEC.find(t => t.id === _screen);
+  const titulo = telaMeta ? telaMeta.lbl
+    : (_data ? `Ranking — ${meses[_data.month] || ''} ${_data.year}` : 'Ranking — PSM HUB');
+  const dots = `<span style="display:inline-flex;gap:5px;margin-left:10px;align-items:center">
+    ${['vendas', ...TELAS_SEC.map(t => t.id)].map(id => `<span style="width:8px;height:8px;border-radius:99px;background:${id === _screen ? '#facc15' : '#334155'}"></span>`).join('')}</span>`;
   const tabs = ['GERAL', ...teams()];
   return `
   <style>
@@ -263,7 +457,7 @@ function shell(body) {
     <div style="display:flex;align-items:center;gap:18px;padding:14px 26px;background:#0d1120;border-bottom:1px solid rgba(71,85,105,.3);position:sticky;top:0;z-index:2">
       <div style="font-weight:800;font-size:18px;color:#f8fafc">🏆 PSM HUB</div>
       <div style="color:#475569">|</div>
-      <div style="font-weight:600;font-size:16px;color:#cbd5e1">${titulo}</div>
+      <div style="font-weight:600;font-size:16px;color:#cbd5e1">${titulo}</div>${dots}
       <div style="display:flex;gap:4px;background:rgba(30,41,59,.6);border-radius:10px;padding:4px;margin-left:14px">
         ${tabs.map(t => {
           const key = t === 'GERAL' ? 'GERAL' : t;
@@ -288,7 +482,8 @@ function shell(body) {
 }
 
 function bind() {
-  _root.querySelectorAll('[data-team]').forEach(b => b.addEventListener('click', () => { _team = b.dataset.team; render(); }));
+  sounds.initSounds?.();
+  _root.querySelectorAll('[data-team]').forEach(b => b.addEventListener('click', () => { _team = b.dataset.team; _rotPauseAte = Date.now() + 90000; render(); }));
   _root.querySelector('.rh-ticker')?.addEventListener('click', e => {
     const b = e.target.closest('[data-tk]');
     if (!b) return;
