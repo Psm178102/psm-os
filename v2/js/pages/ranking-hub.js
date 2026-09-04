@@ -22,8 +22,11 @@ const REFRESH_MS = 30000;
    Os rankings de pastas/visitas/atendimentos saem do MESMO ruleBreakdown do
    HUB (pontos por categoria). + GONGO DA VENDA: pontos de venda/VGV de alguém
    subiram entre polls → overlay de 10s + som (sounds.venda). */
-const ANCHOR_MS = 60000;      // ranking de vendas fica 60s entre cada tela extra
-const SEC_MS = 25000;         // cada tela extra fica 25s
+/* v87.22 (feedback do Paulo: 60s de âncora ficou lento) — CARROSSEL DE TEMPO
+   IGUAL: 20s por tela, sempre girando. O ranking de vendas aparece 2× por
+   ciclo (abre e volta no meio) pra continuar sendo o foco sem travar o ritmo. */
+const SLIDE_MS = 20000;
+const CICLO = ['vendas', 'doc', 'aten', 'prosp', 'vendas', 'criativos', 'premiacoes', 'placar'];
 const CELEB_MS = 10000;
 const TELAS_SEC = [
   { id: 'doc',        lbl: '🗂 Ranking de Pastas',       sub: 'pontos de Proposta/Documentação no HUB' },
@@ -39,7 +42,7 @@ let _team = 'GERAL';
 let _pollTimer = null, _clock = null;
 let _fetchedAt = null;
 let _recados = [], _oport = [], _sig = '';
-let _screen = 'vendas', _secIdx = -1, _rotTimer = null, _rotPauseAte = 0;
+let _screen = 'vendas', _secIdx = 0, _rotTimer = null, _rotPauseAte = 0;
 let _criativos = [], _ov = null, _metas = null, _extraAt = 0;
 let _prevVendas = null, _celeb = null, _celebTimer = null;
 
@@ -75,23 +78,19 @@ function startTimers() {
 
 function agendaRotacao() {
   if (_rotTimer) clearTimeout(_rotTimer);
-  const dur = _screen === 'vendas' ? ANCHOR_MS : SEC_MS;
   _rotTimer = setTimeout(() => {
     if (_celeb || Date.now() < _rotPauseAte || document.getElementById('rh-overlay')) { agendaRotacao(); return; }
-    if (_screen === 'vendas') {
-      // pula tela sem conteúdo (ex.: sem criativo/premiação cadastrados)
-      for (let t = 0; t < TELAS_SEC.length; t++) {
-        _secIdx = (_secIdx + 1) % TELAS_SEC.length;
-        const id = TELAS_SEC[_secIdx].id;
-        if (id === 'criativos' && !_criativos.length) continue;
-        if (id === 'premiacoes' && !_oport.length) continue;
-        _screen = id; break;
-      }
-      if (_screen === 'vendas') { agendaRotacao(); return; }   // nada pra mostrar
-    } else _screen = 'vendas';
+    // avança no ciclo pulando telas sem conteúdo (sem criativo/premiação cadastrados)
+    for (let t = 0; t < CICLO.length; t++) {
+      _secIdx = (_secIdx + 1) % CICLO.length;
+      const id = CICLO[_secIdx];
+      if (id === 'criativos' && !_criativos.length) continue;
+      if (id === 'premiacoes' && !_oport.length) continue;
+      _screen = id; break;
+    }
     render();
     agendaRotacao();
-  }, dur);
+  }, SLIDE_MS);
 }
 
 async function reload() {
@@ -437,7 +436,7 @@ function shell(body) {
   const titulo = telaMeta ? telaMeta.lbl
     : (_data ? `Ranking — ${meses[_data.month] || ''} ${_data.year}` : 'Ranking — PSM HUB');
   const dots = `<span style="display:inline-flex;gap:5px;margin-left:10px;align-items:center">
-    ${['vendas', ...TELAS_SEC.map(t => t.id)].map(id => `<span style="width:8px;height:8px;border-radius:99px;background:${id === _screen ? '#facc15' : '#334155'}"></span>`).join('')}</span>`;
+    ${CICLO.map((id, i) => `<span style="width:8px;height:8px;border-radius:99px;background:${i === ((_secIdx % CICLO.length) + CICLO.length) % CICLO.length ? '#facc15' : '#334155'}"></span>`).join('')}</span>`;
   const tabs = ['GERAL', ...teams()];
   return `
   <style>
@@ -447,6 +446,10 @@ function shell(body) {
     @keyframes rhTicker { from { transform:translateX(0) } to { transform:translateX(-50%) } }
     @keyframes rhLive { 0%,100% { opacity:1; box-shadow:0 0 0 0 rgba(239,68,68,.6) } 50% { opacity:.5; box-shadow:0 0 0 6px rgba(239,68,68,0) } }
     @keyframes rhPop { from { transform:scale(.9); opacity:0 } to { transform:scale(1); opacity:1 } }
+    @keyframes rhFade { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:none } }
+    @keyframes rhBar { from { transform:scaleX(0) } to { transform:scaleX(1) } }
+    .rh-body { animation:rhFade .45s ease; }
+    .rh-bar { transform-origin:left; animation:rhBar ${SLIDE_MS}ms linear; }
     .rh-live { animation:rhLive 1.4s ease infinite; }
     .rh-ticker:hover .rh-track { animation-play-state:paused; }
     .rh-item { transition:transform .15s ease, box-shadow .15s ease; }
@@ -471,7 +474,8 @@ function shell(body) {
       </div>
       <button id="rh-fs" title="Tela cheia" style="border:1px solid rgba(148,163,184,.35);background:transparent;color:#cbd5e1;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:16px">⛶</button>
     </div>
-    <div style="flex:1;min-height:0;overflow:auto">${body}</div>
+    <div class="rh-bar" style="height:3px;background:linear-gradient(90deg,#facc15,#fb923c);flex:none"></div>
+    <div class="rh-body" style="flex:1;min-height:0;overflow:auto">${body}</div>
     ${ticker()}
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 26px;background:#0d1120;border-top:1px solid rgba(71,85,105,.3)">
       ${Object.values(BADGES).map(b => `<span style="padding:3px 10px;border-radius:99px;font-size:11px;background:${b.bg};color:${b.fg}">${b.ab} <b>${b.lbl}</b></span>`).join('')}
