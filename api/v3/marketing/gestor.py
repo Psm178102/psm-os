@@ -60,7 +60,7 @@ GUARDRAILS_DEFAULT = {
 }
 
 CONFIG_CHAVES_OK = ("persona_extra", "estrategia", "conhecimento_extra",
-                    "metricas_custom", "guardrails")
+                    "metricas_custom", "guardrails", "metas", "doutrina_competitiva")
 
 METRICAS_ALERTA = ("cpl", "spend", "leads", "ctr", "frequency", "cpm", "ddd_fora_pct")
 JANELAS_OK = ("last_7d", "last_30d")
@@ -201,7 +201,7 @@ def diagnosticos_campanhas(payload, limiares, ddd_pct=None):
     return out
 
 
-def _mes_atual(sb, payload30, limiares=None):
+def _mes_atual(sb, payload30, limiares=None, metas=None):
     """Bloco 'mês atual' do cockpit (v87.15): gasto do mês (da série diária do
     cache), funil Conquista do mês (deals) e custo por pasta vs meta."""
     from _auth_lib import agora_brt  # type: ignore
@@ -243,8 +243,9 @@ def _mes_atual(sb, payload30, limiares=None):
         p = (out.get("funil") or {}).get("pastas") or 0
         if out.get("spend") and p:
             out["custo_pasta"] = round(out["spend"] / p, 2)
-        out["meta_pastas"] = 18
-        out["meta_custo_pasta"] = 420
+        m = metas if isinstance(metas, dict) else {}
+        out["meta_pastas"] = int(m.get("meta_pastas") or 18)
+        out["meta_custo_pasta"] = float(m.get("meta_custo_pasta") or 420)
     except Exception:
         pass
     return out
@@ -470,13 +471,14 @@ class handler(BaseHTTPRequestHandler):
                 "metricas": caches,
                 "deltas_prev": deltas,
                 "serie_diaria": ((payload30 or {}).get("dailySeries") or [])[-30:],
-                "mes_atual": _mes_atual(sb, payload30, limiares),
+                "mes_atual": _mes_atual(sb, payload30, limiares, metas=cfg.get("metas")),
                 "concorrencia": _concorrencia_resumo(sb),
                 "contas": [{"id": i, "label": l} for i, l in zip(ids, labels)],
                 "publicos": (kv_get(sb, KV_PUBLICOS, {}) or {}).get("planos") or [],
                 "listas": (kv_get(sb, KV_LISTAS_IDX, {}) or {}).get("listas") or [],
                 "log": (kv_get(sb, KV_LOG, {}) or {}).get("itens", [])[:30],
                 "pode_agir": (user.get("lvl") or 0) >= 10,
+                "vigia_ultimo": ((kv_get(sb, "gt_vigia", {}) or {}).get("insights") or [None])[0],
             })
 
         if action == "segmento":
@@ -537,6 +539,21 @@ class handler(BaseHTTPRequestHandler):
                     return self._send(400, {"ok": False, "error": "metricas_custom: lista de até 20 itens"})
                 valor = [{"nome": str(m.get("nome") or "")[:80], "descricao": str(m.get("descricao") or "")[:400]}
                          for m in valor if isinstance(m, dict) and m.get("nome")]
+            elif chave == "doutrina_competitiva":
+                valor = str(valor or "")[:8000]
+            elif chave == "metas":
+                if not isinstance(valor, dict):
+                    return self._send(400, {"ok": False, "error": "metas precisa ser objeto"})
+                limpo_m = {}
+                for campo, teto in (("meta_pastas", 500), ("meta_custo_pasta", 100000)):
+                    try:
+                        v = float(valor.get(campo) or 0)
+                    except Exception:
+                        return self._send(400, {"ok": False, "error": f"{campo} precisa ser número"})
+                    if not (0 < v <= teto):
+                        return self._send(400, {"ok": False, "error": f"{campo} fora de 0-{teto}"})
+                    limpo_m[campo] = v
+                valor = limpo_m
             elif chave == "guardrails":
                 if not isinstance(valor, dict):
                     return self._send(400, {"ok": False, "error": "guardrails precisa ser objeto"})

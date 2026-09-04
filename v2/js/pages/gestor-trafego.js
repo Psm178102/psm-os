@@ -55,9 +55,58 @@ function socio() { return (auth.user()?.lvl || 0) >= 10 || !!_painel?.pode_agir;
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function brl(v) { return 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 }); }
 
+/* v87.27 — renderiza o markdown dos relatórios da IA (##/###, **negrito**, listas)
+   em HTML legível: fim do paredão de texto cru. */
+function md(txt) {
+  const inline = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>');
+  let html = '', inList = false;
+  for (const ln of String(txt || '').split(/\r?\n/)) {
+    const t = ln.trim();
+    const li = t.match(/^(?:[*\-•▪]|\d+[.)])\s+(.*)/);
+    if (li) { if (!inList) { html += '<ul class="gtmd-ul">'; inList = true; } html += `<li>${inline(li[1])}</li>`; continue; }
+    if (inList) { html += '</ul>'; inList = false; }
+    if (!t || /^[─—-]{4,}$/.test(t)) continue;
+    const h = t.match(/^(#{1,4})\s*(.*)/);
+    if (h) { html += `<div class="gtmd-h${Math.min(h[1].length, 3)}">${inline(h[2])}</div>`; continue; }
+    html += `<p class="gtmd-p">${inline(t)}</p>`;
+  }
+  if (inList) html += '</ul>';
+  return html;
+}
+
+/* resumo executivo: primeiro parágrafo "de carne" do relatório (pula saudações/títulos) */
+function resumoDe(txt) {
+  const paras = String(txt || '').split(/\r?\n/).map(l => l.trim())
+    .filter(l => l && !/^#/.test(l) && !/^(\*\*Data|Prezados|Apresento|📌 RESUMO)/i.test(l) && !/^[*\-•]/.test(l) && l.length > 60);
+  const rx = String(txt || '').match(/📌 RESUMO:\s*([\s\S]{20,400}?)(?:\n\n|$)/);
+  return (rx ? rx[1] : (paras[0] || '')).slice(0, 320);
+}
+
+/* cor semântica de um valor contra limiar (menor_melhor: CPL/freq/DDD; maior_melhor: CTR) */
+function semCor(v, alvo, teto, menorMelhor = true) {
+  if (v == null || !isFinite(v)) return 'inherit';
+  if (menorMelhor) return v <= alvo ? 'var(--ok, #22c55e)' : v <= teto ? '#f59e0b' : 'var(--err, #ef4444)';
+  return v >= alvo ? 'var(--ok, #22c55e)' : v >= teto ? '#f59e0b' : 'var(--err, #ef4444)';
+}
+
+const GT_CSS = `
+  .gt-card{background:var(--bg-3);border:1px solid var(--bd);border-radius:12px;padding:14px 16px}
+  .gt-card h4{margin:0 0 8px;font-size:14px}
+  .gtmd-h1,.gtmd-h2{font-weight:900;font-size:15px;margin:14px 0 4px;padding-bottom:4px;border-bottom:1px solid var(--bd)}
+  .gtmd-h3{font-weight:800;font-size:13.5px;margin:12px 0 2px;color:#fb923c}
+  .gtmd-p{margin:6px 0;font-size:13px;line-height:1.6}
+  .gtmd-ul{margin:4px 0 8px;padding-left:20px}
+  .gtmd-ul li{font-size:13px;line-height:1.55;margin:3px 0}
+  .gtmd-ul li::marker{color:#fb923c}
+  .gt-chip{display:inline-block;border:1px solid var(--bd);border-radius:999px;padding:3px 12px;font-size:12px;cursor:pointer;background:var(--bg-3)}
+  .gt-chip.on{background:#f9731622;border-color:#fb923c;color:#fb923c;font-weight:800}
+  @media(max-width:900px){.gt-grid{grid-template-columns:1fr!important}.gt-grid3{grid-template-columns:1fr!important}.gt-hero{grid-template-columns:1fr!important}}
+`;
+
 /* ───────────────────────── shell ───────────────────────── */
 function render() {
   _root.innerHTML = `
+    <style>${GT_CSS}</style>
     <div class="card">
       <div style="background:linear-gradient(135deg,#7c2d12 0%,#1c1917 100%);color:#fff;padding:20px;border-radius:14px 14px 0 0;margin:-16px -16px 16px">
         <div class="flex" style="align-items:center;gap:14px;flex-wrap:wrap">
@@ -130,43 +179,74 @@ function renderPainel(body) {
   const disparados = (_painel.alertas?.avaliacao || []).filter(a => a.estado === 'disparado');
   const sev = s => s === 'critico' ? '🔴' : s === 'atencao' ? '🟡' : '🔵';
 
+  const lim = _painel.limiares || {};
+  const metaPastas = mes.meta_pastas || 18;
+  const pctPastas = Math.min(100, ((fun.pastas || 0) / metaPastas) * 100);
+  const diasMes = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+  const pctMes = Math.min(100, ((mes.dias_corridos || 1) / diasMes) * 100);
+  const ritmoOk = pctPastas >= pctMes - 8;
+  const vg = _painel.vigia_ultimo;
+
   body.innerHTML = `
-    <style>@media(max-width:900px){.gt-grid{grid-template-columns:1fr!important}.gt-grid3{grid-template-columns:1fr!important}}</style>
     ${contaPausada ? `<div style="background:var(--crit-bg, #7f1d1d22);border:1px solid #ef444455;border-left:5px solid #ef4444;border-radius:10px;padding:12px 16px;margin-bottom:14px">
       <b>🔴 CONTA SEM ENTREGA</b> <span class="tiny">— gasto de 7 dias em R$ 0. Campanhas pausadas: cada dia parado encarece a meta do mês. Plano de religada no último relatório abaixo.</span>
     </div>` : ''}
 
-    <div class="tiny muted" style="font-weight:800;letter-spacing:.06em;margin-bottom:6px">ÚLTIMOS 7 DIAS ${m7?.period ? '· ' + esc(m7.period) : ''} <span style="font-weight:400">· vs 7 dias anteriores</span></div>
-    <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
-      ${kpiCard('Investimento', m7 ? brl(m7.spend) : '—', '', delta(m7?.spend, d7.spend))}
-      ${kpiCard('Leads', m7 ? m7.leads : '—', '', delta(m7?.leads, d7.leads))}
-      ${kpiCard('CPL', m7?.cpl ? brl(m7.cpl) : '—', 'alvo ≤ ' + brl(_painel.limiares?.cpl_alvo || 12), delta(m7?.cpl, d7.cpl, true))}
-      ${kpiCard('CTR', m7 ? (m7.ctr || 0) + '%' : '—', 'mín ' + (_painel.limiares?.ctr_min_pct || 1) + '%')}
-      ${kpiCard('Frequência', m7?.frequency ?? '—', 'teto ' + (_painel.limiares?.freq_max || 2.6))}
-      ${kpiCard('DDD ≠ 17', m7?.ddd_fora_pct != null ? m7.ddd_fora_pct + '%' : '—', 'teto ' + (_painel.limiares?.ddd_fora_max_pct || 25) + '%')}
-    </div>
-
-    <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-bottom:14px" class="gt-grid">
-      <div style="background:var(--bg-3);border:1px solid var(--bd);border-radius:12px;padding:14px 16px">
-        <div style="font-weight:800;margin-bottom:6px">📈 Ritmo diário (30 dias) <span class="tiny muted">barras = gasto · linha = leads</span></div>
-        <canvas id="gt-spark" height="110" style="width:100%;display:block"></canvas>
-        <div class="tiny muted" style="margin-top:4px">30d: ${m30 ? brl(m30.spend) + ' · ' + m30.leads + ' leads · CPL ' + (m30.cpl ? brl(m30.cpl) : '—') : 'sem cache ainda'}</div>
-      </div>
-      <div style="background:var(--bg-3);border:1px solid var(--bd);border-radius:12px;padding:14px 16px">
-        <div style="font-weight:800;margin-bottom:6px">🎯 Mês ${esc(mes.mes || '')} — régua de pastas</div>
-        <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:8px">
-          <div style="flex:1;min-width:100px"><div class="tiny muted">GASTO MÊS</div><b style="font-size:18px">${mes.spend != null ? brl(mes.spend) : '—'}</b></div>
-          <div style="flex:1;min-width:80px"><div class="tiny muted">LEADS MÊS</div><b style="font-size:18px">${mes.leads ?? fun.leads ?? '—'}</b></div>
-          <div style="flex:1;min-width:80px"><div class="tiny muted">PASTAS</div><b style="font-size:18px">${fun.pastas ?? '—'}<span class="tiny muted">/${mes.meta_pastas || 18}</span></b></div>
-          <div style="flex:1;min-width:110px"><div class="tiny muted">CUSTO/PASTA</div><b style="font-size:18px;color:${cpOk == null ? 'inherit' : cpOk ? 'var(--ok, #22c55e)' : 'var(--err, #ef4444)'}">${custoPasta != null ? brl(custoPasta) : '—'}</b><span class="tiny muted"> alvo ≤ ${brl(mes.meta_custo_pasta || 420)}</span></div>
+    <div class="gt-hero" style="display:grid;grid-template-columns:1.1fr 1fr 1.2fr;gap:14px;margin-bottom:14px">
+      <div class="gt-card" style="border-left:5px solid #f97316;display:flex;flex-direction:column;justify-content:space-between">
+        <div>
+          <div class="tiny" style="font-weight:800;letter-spacing:.06em;color:var(--muted)">🗂 PASTAS DO MÊS ${esc(mes.mes || '')} <span style="font-weight:400">— a métrica que manda</span></div>
+          <div style="display:flex;align-items:baseline;gap:10px;margin:4px 0">
+            <span style="font-size:44px;font-weight:900;line-height:1;color:#fb923c">${fun.pastas ?? '—'}</span>
+            <span style="font-size:18px;color:var(--muted)">/ ${metaPastas}</span>
+            <span class="tiny" style="font-weight:800;color:${ritmoOk ? 'var(--ok, #22c55e)' : 'var(--err, #ef4444)'}">${ritmoOk ? '✓ no ritmo' : '⚠ atrás do ritmo'}</span>
+          </div>
+          <div style="background:var(--bg-2);border-radius:8px;height:16px;overflow:hidden;position:relative">
+            <div style="height:100%;width:${pctPastas}%;background:linear-gradient(90deg,#f97316,#fb923c)"></div>
+            <div title="onde o mês está (${mes.dias_corridos || '?'}/${diasMes} dias)" style="position:absolute;top:-2px;bottom:-2px;left:${pctMes}%;width:2px;background:#38bdf8"></div>
+          </div>
+          <div class="tiny muted" style="margin-top:3px">barra laranja = pastas · risco azul = onde o mês está (${mes.dias_corridos || '?'}/${diasMes} dias)</div>
         </div>
-        <div style="background:var(--bg-2);border-radius:8px;height:14px;overflow:hidden;margin-bottom:10px"><div style="height:100%;width:${Math.min(100, ((fun.pastas || 0) / (mes.meta_pastas || 18)) * 100)}%;background:linear-gradient(90deg,#f97316,#fb923c)"></div></div>
-        <div class="tiny muted" style="font-weight:800;margin-bottom:2px">FUNIL DO MÊS (Conquista)</div>
+        <div class="flex" style="gap:14px;margin-top:10px;flex-wrap:wrap">
+          <div><div class="tiny muted">CUSTO/PASTA</div><b style="font-size:20px;color:${cpOk == null ? 'inherit' : cpOk ? 'var(--ok, #22c55e)' : 'var(--err, #ef4444)'}">${custoPasta != null ? brl(custoPasta) : '—'}</b><span class="tiny muted"> alvo ≤ ${brl(mes.meta_custo_pasta || 420)}</span></div>
+          <div><div class="tiny muted">GASTO MÊS</div><b style="font-size:20px">${mes.spend != null ? brl(mes.spend) : '—'}</b></div>
+          <div><div class="tiny muted">LEADS MÊS</div><b style="font-size:20px">${mes.leads ?? fun.leads ?? '—'}</b></div>
+        </div>
+      </div>
+      <div class="gt-card">
+        <h4>🪜 Funil do mês (Conquista) <span class="tiny muted">lead → pasta é o jogo</span></h4>
         ${barraFunil('Leads', fun.leads || 0, fun.leads || 0, '#3b82f6')}
         ${barraFunil('Em contato', fun.contato || 0, fun.leads || 0, '#6366f1')}
         ${barraFunil('Visitas', fun.visitas || 0, fun.leads || 0, '#a855f7')}
         ${barraFunil('Pastas', fun.pastas || 0, fun.leads || 0, '#f97316')}
         ${barraFunil('Vendas', fun.vendas || 0, fun.leads || 0, '#22c55e')}
+      </div>
+      <div class="gt-card" style="border-left:5px solid #38bdf8">
+        <h4>🕵️ Vigia de Concorrência — último achado</h4>
+        ${vg ? `
+          <div class="tiny muted">${esc(String(vg.ts || '').slice(0, 16).replace('T', ' '))} UTC</div>
+          <div style="font-size:13px;line-height:1.55;margin:6px 0">${esc(String(vg.insight || vg.titulo || '').slice(0, 300))}</div>
+          ${(vg.acoes || []).slice(0, 3).map(a => `<div class="tiny" style="padding:2px 0">⚡ ${esc(String(a).slice(0, 120))}</div>`).join('')}
+          <button class="btn btn-ghost tiny" data-ir-rel style="margin-top:6px">relatório completo →</button>`
+        : '<div class="tiny muted">Sem rodada do Vigia ainda — ele roda 2x/dia sozinho.</div>'}
+      </div>
+    </div>
+
+    <div class="tiny muted" style="font-weight:800;letter-spacing:.06em;margin-bottom:6px">ÚLTIMOS 7 DIAS ${m7?.period ? '· ' + esc(m7.period) : ''} <span style="font-weight:400">· vs 7 dias anteriores · cor = contra o limiar</span></div>
+    <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
+      ${kpiCard('Investimento', m7 ? brl(m7.spend) : '—', 'ritmo de verba', delta(m7?.spend, d7.spend))}
+      ${kpiCard('Leads', m7 ? m7.leads : '—', 'volume que alimenta o funil', delta(m7?.leads, d7.leads))}
+      ${kpiCard('CPL', m7?.cpl ? `<span style="color:${semCor(+m7.cpl, lim.cpl_alvo || 12, lim.cpl_max || 18)}">${brl(m7.cpl)}</span>` : '—', 'alvo ≤ ' + brl(lim.cpl_alvo || 12) + ' · teto ' + brl(lim.cpl_max || 18), delta(m7?.cpl, d7.cpl, true))}
+      ${kpiCard('CTR', m7 ? `<span style="color:${semCor(+(m7.ctr || 0), lim.ctr_min_pct || 1, (lim.ctr_min_pct || 1) * 0.7, false)}">${m7.ctr || 0}%</span>` : '—', 'criativo prende atenção? mín ' + (lim.ctr_min_pct || 1) + '%')}
+      ${kpiCard('Frequência', m7?.frequency != null ? `<span style="color:${semCor(+m7.frequency, (lim.freq_max || 2.6) * 0.77, lim.freq_max || 2.6)}">${m7.frequency}</span>` : '—', 'acima de ' + (lim.freq_max || 2.6) + ' = criativo saturando')}
+      ${kpiCard('DDD ≠ 17', m7?.ddd_fora_pct != null ? `<span style="color:${semCor(+m7.ddd_fora_pct, (lim.ddd_fora_max_pct || 25) * 0.6, lim.ddd_fora_max_pct || 25)}">${m7.ddd_fora_pct}%</span>` : '—', 'lead fora da praça = verba vazando · teto ' + (lim.ddd_fora_max_pct || 25) + '%')}
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr;gap:14px;margin-bottom:14px">
+      <div class="gt-card">
+        <div style="font-weight:800;margin-bottom:6px">📈 Ritmo diário (30 dias) <span class="tiny muted">barras = gasto · linha = leads</span></div>
+        <canvas id="gt-spark" height="110" style="width:100%;display:block"></canvas>
+        <div class="tiny muted" style="margin-top:4px">30d: ${m30 ? brl(m30.spend) + ' · ' + m30.leads + ' leads · CPL ' + (m30.cpl ? brl(m30.cpl) : '—') : 'sem cache ainda'}</div>
       </div>
     </div>
 
@@ -195,6 +275,7 @@ function renderPainel(body) {
 
   body.querySelector('[data-ir-concorrencia]')?.addEventListener('click', () => { location.hash = '#/concorrencia'; });
   body.querySelector('[data-ir-alertas]')?.addEventListener('click', () => { _tab = 'alertas'; render(); });
+  body.querySelector('[data-ir-rel]')?.addEventListener('click', () => { _tab = 'relatorios'; render(); });
   desenharSpark(_painel.serie_diaria || []);
   pintarRelatorioPainel();
 }
@@ -229,6 +310,7 @@ async function pintarRelatorioPainel() {
     const r = await api.request('/api/v3/marketing/gestor_relatorio');
     const ult = (r?.relatorios || [])[0];
     if (!ult) { el.innerHTML = ''; return; }
+    const resumo = resumoDe(ult.texto);
     el.innerHTML = `
       <div style="background:var(--bg-3);border-left:4px solid #fb923c;border-radius:10px;padding:14px 16px">
         <div class="flex" style="align-items:center;gap:8px;flex-wrap:wrap">
@@ -236,9 +318,16 @@ async function pintarRelatorioPainel() {
           <span class="tiny muted">${esc(String(ult.ts || '').slice(0, 16).replace('T', ' '))} UTC</span>
           <button class="btn btn-ghost tiny" style="margin-left:auto" data-rel-ir>ver todos →</button>
         </div>
-        <div style="white-space:pre-wrap;font-size:13px;line-height:1.55;margin-top:8px">${esc(ult.texto)}</div>
+        ${resumo ? `<div style="font-size:13px;line-height:1.6;margin-top:8px;padding:8px 12px;background:#f9731611;border-radius:8px"><b>Resumo:</b> ${esc(resumo)}…</div>` : ''}
+        <div data-rel-full hidden style="margin-top:8px">${md(ult.texto)}</div>
+        <button class="btn btn-ghost tiny" data-rel-exp style="margin-top:6px">📖 ler completo</button>
       </div>`;
     el.querySelector('[data-rel-ir]').onclick = () => { _tab = 'relatorios'; render(); };
+    el.querySelector('[data-rel-exp]').onclick = e => {
+      const f = el.querySelector('[data-rel-full]');
+      f.hidden = !f.hidden;
+      e.target.textContent = f.hidden ? '📖 ler completo' : '▲ recolher';
+    };
   } catch { el.innerHTML = ''; }
 }
 
@@ -733,33 +822,53 @@ async function executar(op, id, nome) {
 let _relatorios = null;
 const TIPO_LBL = { diario: '📅 Diário (19h)', semanal: '🗓 Semanal (seg 18h)', quinzenal: '📆 Quinzenal (dia 15)', mensal: '📊 Fechamento de mês', vigia: '🕵️ Vigia de Concorrência' };
 
+let _relFiltro = 'todos';
+const TIPO_COR = { diario: '#fb923c', semanal: '#38bdf8', quinzenal: '#a855f7', mensal: '#22c55e', vigia: '#f43f5e' };
+
 async function renderRelatorios(body) {
   body.innerHTML = '<div class="muted tiny"><span class="spinner"></span> Buscando relatórios…</div>';
   if (_relatorios === null) {
     try { _relatorios = (await api.request('/api/v3/marketing/gestor_relatorio'))?.relatorios || []; }
     catch (e) { body.innerHTML = `<div class="muted">⚠️ ${esc(e.message)}</div>`; return; }
   }
+  const lista = _relFiltro === 'todos' ? _relatorios : _relatorios.filter(r => r.tipo === _relFiltro);
   body.innerHTML = `
-    <div class="tiny muted" style="margin-bottom:10px">Cadência automática pros sócios: <b>diário 19h</b> · <b>semanal segunda 18h</b> · <b>quinzenal dia 15</b> · <b>fechamento de mês</b>. Chegam por notificação/push e ficam aqui.</div>
+    <div class="tiny muted" style="margin-bottom:10px">Cadência automática pros sócios: <b>diário 19h</b> · <b>semanal segunda 18h</b> · <b>quinzenal dia 15</b> · <b>fechamento de mês</b> · <b>Vigia 2x/dia</b>. Chegam por notificação/push e ficam aqui.</div>
     ${socio() ? `<div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:12px;align-items:center">
       <select id="rel-tipo" class="input" style="max-width:220px">${Object.entries(TIPO_LBL).filter(([k]) => k !== 'vigia').map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>
       <button class="btn btn-primary" id="rel-gerar">⚡ Gerar agora</button>
       <span class="tiny muted">(geração manual não espera o horário)</span>
     </div>` : ''}
-    ${_relatorios.length ? _relatorios.map((r, i) => `
-      <div style="background:var(--bg-3);border-radius:10px;padding:12px 14px;margin-bottom:10px">
-        <div class="flex" style="align-items:center;gap:8px;cursor:pointer" data-rel-tg="${i}">
+    <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:12px">
+      ${[['todos', '📚 Todos'], ...Object.entries(TIPO_LBL)].map(([k, v]) => `<span class="gt-chip ${_relFiltro === k ? 'on' : ''}" data-rel-fl="${k}">${v}${k !== 'todos' ? ` (${_relatorios.filter(r => r.tipo === k).length})` : ''}</span>`).join('')}
+    </div>
+    ${lista.length ? lista.map((r, i) => {
+      const resumo = resumoDe(r.texto);
+      const cor = TIPO_COR[r.tipo] || '#fb923c';
+      return `
+      <div style="background:var(--bg-3);border-left:4px solid ${cor};border-radius:10px;padding:12px 16px;margin-bottom:10px">
+        <div class="flex" style="align-items:center;gap:8px;cursor:pointer;flex-wrap:wrap" data-rel-tg="${i}">
           <b>${TIPO_LBL[r.tipo] || esc(r.tipo)}</b>
-          <span class="tiny muted">· ${esc(String(r.ts || '').slice(0, 16).replace('T', ' '))} UTC · ${esc(r.periodo || '')} ${r.gerado_por && r.gerado_por !== 'cron' ? '· manual (' + esc(r.gerado_por) + ')' : ''}</span>
-          <span style="margin-left:auto">${i === 0 ? '▼' : '▶'}</span>
+          <span class="tiny muted">· ${esc(String(r.ts || '').slice(0, 16).replace('T', ' '))} UTC ${r.gerado_por && r.gerado_por !== 'cron' && r.gerado_por !== 'vigia' ? '· manual (' + esc(r.gerado_por) + ')' : ''}</span>
+          <button class="btn btn-ghost tiny" data-rel-cp="${i}" title="copiar texto" style="margin-left:auto">📋</button>
+          <span data-rel-ar="${i}">${i === 0 ? '▼' : '▶'}</span>
         </div>
-        <div data-rel-bd="${i}" ${i === 0 ? '' : 'hidden'} style="white-space:pre-wrap;font-size:13px;line-height:1.55;margin-top:10px;border-top:1px solid var(--bd);padding-top:10px">${esc(r.texto)}</div>
-      </div>`).join('')
-    : '<div class="tiny muted">Nenhum relatório ainda — o primeiro diário sai hoje às 19h (ou gere um agora).</div>'}`;
+        ${resumo && i !== 0 ? `<div class="tiny" style="line-height:1.5;margin-top:6px;color:var(--muted)">${esc(resumo)}…</div>` : ''}
+        <div data-rel-bd="${i}" ${i === 0 ? '' : 'hidden'} style="margin-top:10px;border-top:1px solid var(--bd);padding-top:6px">${md(r.texto)}</div>
+      </div>`;
+    }).join('')
+    : '<div class="tiny muted">Nenhum relatório desse tipo ainda.</div>'}`;
+  body.querySelectorAll('[data-rel-fl]').forEach(el => el.onclick = () => { _relFiltro = el.dataset.relFl; render(); });
+  body.querySelectorAll('[data-rel-cp]').forEach(el => el.onclick = e => {
+    e.stopPropagation();
+    const r = lista[+el.dataset.relCp];
+    navigator.clipboard?.writeText(r?.texto || '').then(() => { el.textContent = '✓'; setTimeout(() => { el.textContent = '📋'; }, 1500); });
+  });
   body.querySelectorAll('[data-rel-tg]').forEach(el => el.onclick = () => {
-    const bd = body.querySelector(`[data-rel-bd="${el.dataset.relTg}"]`);
+    const i = el.dataset.relTg;
+    const bd = body.querySelector(`[data-rel-bd="${i}"]`);
     bd.hidden = !bd.hidden;
-    el.querySelector('span[style*="margin-left"]').textContent = bd.hidden ? '▶' : '▼';
+    body.querySelector(`[data-rel-ar="${i}"]`).textContent = bd.hidden ? '▶' : '▼';
   });
   const g = document.getElementById('rel-gerar');
   if (g) g.onclick = async () => {
@@ -792,6 +901,20 @@ function renderCerebro(body) {
         <div style="font-weight:800">💎 Estratégia PSM Imóveis</div>
         <div class="tiny muted" style="margin-bottom:6px">Posicionamento quiet luxury, LUX JK, ticket, abordagem NEPQ…</div>
         <textarea id="cb-est-imov" class="input" rows="7" ${dis}>${esc(cfg.estrategia?.imoveis || '')}</textarea>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px" class="gt-grid">
+      <div style="background:var(--bg-3);border-radius:10px;padding:14px">
+        <div style="font-weight:800">🎯 Metas do mês</div>
+        <div class="tiny muted" style="margin-bottom:8px">A régua do Painel e dos relatórios. Pasta é a métrica-mãe.</div>
+        <label class="tiny">Meta de pastas/mês<br><input id="cb-meta-pastas" class="input" type="number" min="1" value="${cfg.metas?.meta_pastas || 18}" ${dis} style="width:120px"></label><br>
+        <label class="tiny">Custo máximo por pasta (R$)<br><input id="cb-meta-cp" class="input" type="number" min="1" value="${cfg.metas?.meta_custo_pasta || 420}" ${dis} style="width:120px"></label>
+      </div>
+      <div style="background:var(--bg-3);border-radius:10px;padding:14px">
+        <div style="font-weight:800">🥊 Doutrina de análise competitiva</div>
+        <div class="tiny muted" style="margin-bottom:6px">Como o gestor e o Vigia DEVEM analisar concorrentes (6 dimensões + regra de ouro). Vai pro chat, relatórios e Vigia.</div>
+        <textarea id="cb-doutrina" class="input" rows="6" ${dis}>${esc(cfg.doutrina_competitiva || '')}</textarea>
       </div>
     </div>
 
@@ -837,6 +960,11 @@ function renderCerebro(body) {
       });
       await post('persona_extra', document.getElementById('cb-persona').value);
       await post('conhecimento_extra', document.getElementById('cb-conhec').value);
+      await post('doutrina_competitiva', document.getElementById('cb-doutrina').value);
+      await post('metas', {
+        meta_pastas: parseFloat(document.getElementById('cb-meta-pastas').value || '18'),
+        meta_custo_pasta: parseFloat(document.getElementById('cb-meta-cp').value || '420'),
+      });
       await post('metricas_custom', document.getElementById('cb-metricas').value.split('\n')
         .map(l => l.trim()).filter(Boolean).slice(0, 20)
         .map(l => { const i = l.indexOf(':'); return i > 0 ? { nome: l.slice(0, i).trim(), descricao: l.slice(i + 1).trim() } : { nome: l, descricao: '' }; }));
