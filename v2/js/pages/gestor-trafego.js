@@ -335,6 +335,12 @@ function renderPublicos(body) {
           <div style="overflow-x:auto;margin-top:6px"><table class="table tiny"><tr><th>Nome</th><th>Fone</th><th>Funil</th><th>Etapa</th><th>Status</th></tr>
           ${(_seg.preview || []).map(r => `<tr><td>${esc(r.nome)}</td><td>${esc(r.fone)}</td><td>${esc(r.funil)}</td><td>${esc(r.etapa)}</td><td>${esc(r.status)}</td></tr>`).join('')}</table></div>` : ''}
       </div>
+      ${socio() ? `<div style="margin-top:10px;padding-top:8px;border-top:1px dashed var(--bd)" class="flex gap-2" >
+        <span class="tiny" style="font-weight:800;align-self:center">🌡 Públicos por temperatura (1 clique · usa a Frente selecionada):</span>
+        <button class="btn btn-ghost tiny" data-temp="quente" style="color:#ef4444">🔥 Quente</button>
+        <button class="btn btn-ghost tiny" data-temp="morno" style="color:#f59e0b">🌤 Morno</button>
+        <button class="btn btn-ghost tiny" data-temp="frio" style="color:#38bdf8">❄️ Frio</button>
+      </div>` : ''}
       <div class="tiny muted" style="margin-top:8px">💡 Seeds clássicos: <b>ganhos</b> = semente de público semelhante (LAL 1-3%); <b>perdidos 90d+</b> = remarketing de reativação; <b>abertos</b> = exclusão pra não pagar duas vezes pelo mesmo lead.</div>
     </div>
 
@@ -399,6 +405,14 @@ function renderPublicos(body) {
   if (pmConta) pmConta.onchange = () => pintarPublicosMeta(true);
   pintarPublicosMeta();
   body.querySelectorAll('[data-lst-meta]').forEach(b => b.onclick = () => criarPublicoMeta({ fonte: 'lista', lista_id: b.dataset.lstMeta }));
+  body.querySelectorAll('[data-temp]').forEach(b => b.onclick = () => {
+    const temp = b.dataset.temp;
+    const frente = document.getElementById('seg-frente')?.value || 'todas';
+    const emoji = { quente: '🔥', morno: '🌤', frio: '❄️' }[temp];
+    const nomeAuto = `${emoji} ${temp.toUpperCase()} — RD ${frente === 'todas' ? 'base completa' : frente} — PSM`;
+    if (!confirm(`Criar público personalizado no Meta:\n\n${nomeAuto}\n\nQuente = ganhou ou chegou em pasta/visita/oportunidade do mês\nMorno = aberto com movimento nos últimos 60 dias\nFrio = perdido ou parado 60+ dias\n\nConta: ${document.getElementById('pm-conta')?.selectedOptions?.[0]?.textContent || ''}`)) return;
+    criarPublicoMeta({ fonte: 'crm', temperatura: temp, frente }, nomeAuto);
+  });
   document.getElementById('lst-up').onclick = subirLista;
   document.getElementById('pub-add').onclick = salvarPublico;
   body.querySelectorAll('[data-pub-del]').forEach(b => b.onclick = async () => {
@@ -457,10 +471,10 @@ async function pintarPublicosMeta(force = false) {
   });
 }
 
-async function criarPublicoMeta(origem) {
+async function criarPublicoMeta(origem, nomeAuto = null) {
   const conta = document.getElementById('pm-conta')?.value;
   if (!conta) return alert('Nenhuma conta Meta configurada.');
-  const nome = prompt('Nome do público no Meta (ex.: "CRM perdidos 90d Conquista" ou "Mailing incorporadoras"):');
+  const nome = nomeAuto || prompt('Nome do público no Meta (ex.: "CRM perdidos 90d Conquista" ou "Mailing incorporadoras"):');
   if (!nome) return;
   try {
     const r = await api.request('/api/v3/marketing/gestor_publicos', { method: 'POST', body: {

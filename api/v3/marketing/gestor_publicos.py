@@ -35,10 +35,55 @@ import urllib.error
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, audit, supabase_client  # type: ignore
 from _accounts_lib import resolver_contas  # type: ignore
-from gestor import kv_get, segmentar, log_acao  # type: ignore
+from gestor import kv_get, segmentar, log_acao, _contatos_do_raw  # type: ignore
+from _auth_lib import frente_of  # type: ignore
+from datetime import datetime, timezone, timedelta
 
 GRAPH = "https://graph.facebook.com/v21.0"
 LOTE = 5000
+
+# Régua de temperatura (v87.17 — pedido do Paulo: frio/morno/quente):
+#   QUENTE = ganhou OU chegou em etapa de fundo (pasta/aprovação/proposta,
+#            oportunidade do mês, visita, venda, carteira)
+#   MORNO  = aberto fora do fundo, com movimento nos últimos 60 dias
+#   FRIO   = perdido OU aberto parado 60+ dias (reativação)
+_RX_FUNDO = re.compile(r"PASTA|APROVA|PROPOSTA|OPORT. DO M|VISITA|VENDA|CARTEIRA")
+
+
+def segmentar_temperatura(sb, temp, frente="todas", max_rows=20000):
+    now = datetime.now(timezone.utc)
+    out, pg = [], 0
+    while pg < 40 and len(out) < max_rows:
+        rows = (sb.table("deals")
+                .select("id,name,win,pipeline_name,stage_name,updated_at_rd,created_at_rd,rd_raw")
+                .order("updated_at_rd", desc=True)
+                .range(pg * 500, pg * 500 + 499).execute().data or [])
+        if not rows:
+            break
+        for d in rows:
+            if frente and frente != "todas" and frente_of(d.get("pipeline_name")) != frente:
+                continue
+            st = (d.get("stage_name") or "").upper()
+            fundo = bool(_RX_FUNDO.search(st))
+            try:
+                up = datetime.fromisoformat(str(d.get("updated_at_rd") or d.get("created_at_rd")).replace("Z", "+00:00"))
+                dias = (now - up).days
+            except Exception:
+                dias = 9999
+            if d.get("win") is True or (d.get("win") is None and fundo):
+                classe = "quente"
+            elif d.get("win") is None and dias <= 60:
+                classe = "morno"
+            else:
+                classe = "frio"
+            if classe != temp:
+                continue
+            _n, fones, emails = _contatos_do_raw(d.get("rd_raw"))
+            if not fones and not emails:
+                continue
+            out.append({"fone": fones[0] if fones else "", "email": emails[0] if emails else ""})
+        pg += 1
+    return out
 
 
 def _token_da_conta(sb, act_id):
@@ -196,6 +241,10 @@ class handler(BaseHTTPRequestHandler):
                 box = kv_get(sb, f"gt_lista:{lid}", {})
                 rows = _detectar_contatos_lista(box.get("linhas") or [])
                 origem_desc = f"lista {lid}"
+            elif body.get("temperatura") in ("quente", "morno", "frio"):
+                temp = body.get("temperatura")
+                rows = segmentar_temperatura(sb, temp, body.get("frente") or "todas")
+                origem_desc = f"CRM temperatura={temp} frente={body.get('frente') or 'todas'}"
             else:
                 rows = segmentar(sb, body.get("frente") or "todas", body.get("status") or "todos",
                                  int(body.get("dias_parado_min") or 0), True)
