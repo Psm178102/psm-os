@@ -26,7 +26,11 @@ const REFRESH_MS = 30000;
    IGUAL: 20s por tela, sempre girando. O ranking de vendas aparece 2× por
    ciclo (abre e volta no meio) pra continuar sendo o foco sem travar o ritmo. */
 const SLIDE_MS = 20000;
-const CICLO = ['vendas', 'doc', 'aten', 'prosp', 'vendas', 'criativos', 'premiacoes', 'placar'];
+/* v87.23 (pacote 'vida imediata' + corrida, aprovado pelo Paulo): duelo pela
+   liderança e Corrida da Meta entram no ciclo; voz no gongo; streaks/secas;
+   Modo Fechamento na última semana; abertura do dia às 8h30; ticker de
+   atividade ao vivo pelos DELTAS de pontos do HUB entre polls (sem backend). */
+const CICLO = ['vendas', 'duelo', 'doc', 'aten', 'prosp', 'vendas', 'corrida', 'criativos', 'premiacoes', 'placar'];
 const CELEB_MS = 10000;
 const TELAS_SEC = [
   { id: 'doc',        lbl: '🗂 Ranking de Pastas',       sub: 'pontos de Proposta/Documentação no HUB' },
@@ -35,6 +39,8 @@ const TELAS_SEC = [
   { id: 'criativos',  lbl: '🎨 Criativos do mês' },
   { id: 'premiacoes', lbl: '🏆 Premiações ativas' },
   { id: 'placar',     lbl: '🎯 Placar do mês' },
+  { id: 'duelo',      lbl: '⚔️ Duelo pela liderança' },
+  { id: 'corrida',    lbl: '🏁 Corrida da Meta' },
 ];
 
 let _root = null, _data = null, _err = '', _pending = false;
@@ -45,6 +51,8 @@ let _recados = [], _oport = [], _sig = '';
 let _screen = 'vendas', _secIdx = 0, _rotTimer = null, _rotPauseAte = 0;
 let _criativos = [], _ov = null, _metas = null, _extraAt = 0;
 let _prevVendas = null, _celeb = null, _celebTimer = null;
+let _ritmo = {}, _ritmoAt = 0;        // streaks/secas (GC ritmo_vendas, 1º nome → dias)
+let _atividade = [];                  // ticker ao vivo: deltas de pontos entre polls
 
 export async function pageRankingHub(ctx, root) {
   _root = root; _err = ''; _data = null; _team = 'GERAL';
@@ -114,22 +122,50 @@ async function reload() {
     api.request('/api/v3/metas/atingimento?ano=' + new Date().getFullYear()).then(r => { _metas = r; }).catch(() => {});
   }
 
-  // 🔔 GONGO DA VENDA — pontos de venda (ou VGV) de alguém subiram desde o último poll
+  // 🔥 streaks/secas — ritmo do GC (1×/10min; nome de guerra → dias desde última venda)
+  if (Date.now() - _ritmoAt > 600000) {
+    _ritmoAt = Date.now();
+    const ini = new Date(); ini.setDate(1);
+    api.request(`/api/v3/oo/comercial?since=${ini.toISOString().slice(0, 10)}&until=${new Date().toISOString().slice(0, 10)}`).then(r => {
+      const m = {};
+      ((r && r.ritmo_vendas && r.ritmo_vendas.corretores) || []).forEach(c => {
+        const key = String(c.nome || '').split(' ')[0].toLowerCase();
+        if (!(key in m) || (c.dias_desde_ultima_venda != null && c.dias_desde_ultima_venda < m[key])) m[key] = c.dias_desde_ultima_venda;
+      });
+      _ritmo = m;
+    }).catch(() => {});
+  }
+
+  // 🔔 GONGO (venda/VGV subiu) + ⚡ TICKER DE ATIVIDADE (demais categorias subiram)
   if (_data && _data.ranking) {
+    const ATIV_LBL = { prosp: 'Prospecção', agend: 'Visita agendada', aten: 'Visita realizada', doc: 'Pasta/Proposta' };
     const atual = {};
     _data.ranking.forEach(a => {
-      const vPts = (a.ruleBreakdown || []).filter(rb => classifyRule(rb) === 'venda')
-        .reduce((t, rb) => t + (rb.totalPoints || 0), 0);
-      atual[a.agentName] = { v: vPts, vgv: a.vgvReal || 0 };
+      const cats = { v: 0, vgv: a.vgvReal || 0, prosp: 0, agend: 0, aten: 0, doc: 0 };
+      (a.ruleBreakdown || []).forEach(rb => {
+        const k = classifyRule(rb);
+        if (k === 'venda') cats.v += rb.totalPoints || 0;
+        else if (cats[k] != null) cats[k] += rb.totalPoints || 0;
+      });
+      atual[a.agentName] = cats;
     });
     if (_prevVendas) {
+      let gongou = false;
       for (const [nome, x] of Object.entries(atual)) {
         const antes = _prevVendas[nome];
-        if (antes && (x.v > antes.v || x.vgv > antes.vgv + 1)) { gongo(nome, x.vgv - (antes.vgv || 0)); break; }
+        if (!antes) continue;
+        if (!gongou && (x.v > antes.v || x.vgv > antes.vgv + 1)) { gongo(nome, x.vgv - (antes.vgv || 0)); gongou = true; }
+        for (const k of ['aten', 'doc', 'agend', 'prosp']) {
+          if (x[k] > antes[k]) _atividade.unshift({ nome, lbl: ATIV_LBL[k], hora: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) });
+        }
       }
+      _atividade = _atividade.slice(0, 12);
     }
     _prevVendas = atual;
   }
+
+  // ☀️ abertura do dia (08:20–09:00, uma vez por dia)
+  aberturaDoDia();
 
   // só re-renderiza se o DADO mudou — senão o letreiro reiniciava a cada 30s
   const sig = JSON.stringify([_data, _recados.map(x => x.id + (x.texto || '')), _oport.map(x => x.id + (x.titulo || '')), _err]);
@@ -137,9 +173,18 @@ async function reload() {
   else { const el = document.getElementById('rh-upd'); if (el && _fetchedAt) el.textContent = `Atualizado às ${_fetchedAt.toLocaleTimeString('pt-BR')}`; }
 }
 
-/* ── 🔔 gongo da venda: overlay de 10s + som ── */
+function fala(txt) {
+  try {
+    const u = new SpeechSynthesisUtterance(txt);
+    u.lang = 'pt-BR'; u.rate = 0.95; u.pitch = 1.05; u.volume = 1;
+    speechSynthesis.cancel(); speechSynthesis.speak(u);
+  } catch (_) {}
+}
+
+/* ── 🔔 gongo da venda: overlay de 10s + som + VOZ ── */
 function gongo(nome, vgvDelta) {
   try { sounds.venda(); } catch (_) {}
+  setTimeout(() => fala(`Venda confirmada! ${nome}!`), 900);
   _celeb = { nome, vgvDelta };
   const ov = document.createElement('div');
   ov.id = 'rh-gongo';
@@ -155,6 +200,101 @@ function gongo(nome, vgvDelta) {
   document.body.appendChild(ov);
   if (_celebTimer) clearTimeout(_celebTimer);
   _celebTimer = setTimeout(() => { ov.remove(); _celeb = null; _screen = 'vendas'; render(); agendaRotacao(); }, CELEB_MS);
+}
+
+/* ── ☀️ abertura do dia: overlay de 45s com placar + líder, 1×/dia ── */
+function aberturaDoDia() {
+  const h = new Date();
+  const hm = h.getHours() * 60 + h.getMinutes();
+  if (hm < 500 || hm > 540) return;                       // janela 08:20–09:00
+  const flag = 'psm_arena_tv_abertura';
+  const hojeStr = h.toISOString().slice(0, 10);
+  try { if (localStorage.getItem(flag) === hojeStr) return; localStorage.setItem(flag, hojeStr); } catch (_) { return; }
+  const sv = (_ov && _ov.sales) || {};
+  const lider = ranked()[0];
+  const ov = document.createElement('div');
+  ov.id = 'rh-abertura';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:85;background:linear-gradient(180deg,#0c1a2e,#0a0d16);display:flex;align-items:center;justify-content:center';
+  ov.innerHTML = `
+    <div style="text-align:center;animation:rhPop .4s ease">
+      <div style="font-size:90px">☀️</div>
+      <div style="font-size:52px;font-weight:900;color:#facc15;margin-top:6px">BOM DIA, ARENA!</div>
+      <div style="font-size:24px;color:#cbd5e1;margin-top:16px">${h.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+      <div style="display:flex;gap:20px;justify-content:center;margin-top:26px">
+        <div style="background:#0d1120;border:1px solid rgba(71,85,105,.4);border-radius:14px;padding:18px 26px">
+          <div style="font-size:13px;color:#64748b;text-transform:uppercase;letter-spacing:.1em">VGV do mês</div>
+          <div style="font-size:34px;font-weight:900;color:#4ade80">${fmtBRL(sv.vgv_mes || 0)}</div>
+        </div>
+        ${lider ? `<div style="background:#0d1120;border:1px solid rgba(234,179,8,.5);border-radius:14px;padding:18px 26px">
+          <div style="font-size:13px;color:#64748b;text-transform:uppercase;letter-spacing:.1em">Líder do ranking</div>
+          <div style="font-size:34px;font-weight:900;color:#facc15">👑 ${escapeHtml(lider.agentName || '')}</div>
+        </div>` : ''}
+      </div>
+      <div style="font-size:20px;color:#94a3b8;margin-top:24px">Bora fazer desse dia o melhor do mês. 💪</div>
+    </div>`;
+  document.body.appendChild(ov);
+  fala('Bom dia, Arena! Bora fazer desse dia o melhor do mês!');
+  setTimeout(() => ov.remove(), 45000);
+}
+
+/* ── ⚔️ tela: duelo pela liderança (1º vs 2º) ── */
+function telaDuelo() {
+  const l = ranked();
+  const [a, b] = [l[0], l[1]];
+  if (!a || !b) return telaRanking(null);
+  const diff = (a.totalPoints || 0) - (b.totalPoints || 0);
+  const lado = (x, cor, coroa) => `
+    <div style="flex:1;text-align:center;border-radius:20px;padding:34px 20px;background:${coroa ? 'radial-gradient(120% 120% at 50% 0%,rgba(234,179,8,.16),#0d1120)' : 'rgba(30,41,59,.4)'};border:2px solid ${cor}">
+      ${coroa ? '<div style="font-size:44px">👑</div>' : '<div style="font-size:44px">🥈</div>'}
+      <div style="font-size:38px;font-weight:900;color:#f8fafc;margin-top:6px">${escapeHtml(x.agentName || '')}</div>
+      <div style="font-size:76px;font-weight:900;color:${cor};line-height:1.1">${fmtPts(x.totalPoints)}</div>
+      <div style="font-size:14px;letter-spacing:.12em;color:#64748b">PONTOS</div>
+      ${x.vgvReal ? `<div style="font-size:22px;font-weight:800;color:#4ade80;margin-top:8px">${fmtBRL(x.vgvReal)}</div>` : ''}
+    </div>`;
+  return `
+    <div style="text-align:center;padding:18px 0 0">
+      <span style="font-size:30px;font-weight:900;color:#facc15">⚔️ Duelo pela liderança</span>
+    </div>
+    <div style="display:flex;gap:24px;align-items:stretch;padding:24px 50px">
+      ${lado(a, '#facc15', true)}
+      <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px">
+        <div style="font-size:40px;font-weight:900;color:#94a3b8">VS</div>
+        <div style="background:#7c2d12;border:1px solid #fb923c;border-radius:12px;padding:10px 16px;text-align:center">
+          <div style="font-size:26px;font-weight:900;color:#fb923c">${fmtPts(diff)} pts</div>
+          <div style="font-size:12px;color:#fdba74">separam os dois</div>
+        </div>
+      </div>
+      ${lado(b, '#94a3b8', false)}
+    </div>
+    <div style="text-align:center;font-size:22px;font-weight:800;color:#e2e8f0">${escapeHtml(b.agentName || '')} precisa de <span style="color:#fb923c">${fmtPts(diff + 1)} pontos</span> pra tomar a ponta 🔥</div>`;
+}
+
+/* ── 🏁 tela: Corrida da Meta (% da meta individual do ano, com linha de pace) ── */
+function telaCorrida() {
+  const pc = ((_metas && _metas.por_corretor) || []).filter(c => !c.inativo && (c.meta_vgv || 0) > 0);
+  if (!pc.length) return telaPlacar();
+  const paceAno = Math.round(((Date.now() - new Date(new Date().getFullYear(), 0, 1)) / 864e5) / 365 * 100);
+  const lanes = pc.map(c => ({ ...c, pct: Math.min(120, Math.round((c.vgv_atingido || 0) / c.meta_vgv * 100)) }))
+    .sort((a, b2) => b2.pct - a.pct).slice(0, 8);
+  return `
+    <div style="text-align:center;padding:18px 0 0">
+      <span style="font-size:30px;font-weight:900;color:#facc15">🏁 Corrida da Meta ${new Date().getFullYear()}</span>
+      <div style="font-size:14px;color:#64748b;margin-top:2px">% da meta individual de VGV · a linha tracejada é onde o ano está (${paceAno}%)</div>
+    </div>
+    <div style="padding:20px 50px;display:grid;gap:14px">
+      ${lanes.map((c, i) => `
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;color:#e2e8f0">
+            <span>${i === 0 ? '🥇 ' : ''}${escapeHtml(c.name || '')}</span>
+            <span style="color:${c.pct >= paceAno ? '#4ade80' : '#fb923c'}">${c.pct}% · ${fmtBRL(c.vgv_atingido || 0)} <span style="color:#64748b;font-weight:400">/ ${fmtBRL(c.meta_vgv)}</span></span>
+          </div>
+          <div style="position:relative;height:22px;background:#1e293b;border-radius:99px;margin-top:4px;overflow:visible">
+            <div style="height:100%;width:${Math.min(100, c.pct)}%;border-radius:99px;background:linear-gradient(90deg,${c.pct >= paceAno ? '#22c55e,#4ade80' : '#f59e0b,#fb923c'})"></div>
+            <div style="position:absolute;top:-4px;bottom:-4px;left:${Math.min(100, paceAno)}%;width:0;border-left:2px dashed rgba(226,232,240,.5)"></div>
+            <div style="position:absolute;top:-6px;left:calc(${Math.min(100, c.pct)}% - 14px);font-size:20px">🏎️</div>
+          </div>
+        </div>`).join('')}
+    </div>`;
 }
 
 const driveFileId = u => { const m = String(u || '').match(/\/file\/d\/([-\w]{15,})/) || String(u || '').match(/[?&]id=([-\w]{15,})/) || String(u || '').match(/([-\w]{25,})/); return m ? m[1] : ''; };
@@ -220,6 +360,8 @@ function render() {
   }
   let corpo;
   if (_screen === 'criativos') corpo = telaCriativos();
+  else if (_screen === 'duelo') corpo = telaDuelo();
+  else if (_screen === 'corrida') corpo = telaCorrida();
   else if (_screen === 'premiacoes') corpo = telaPremiacoes();
   else if (_screen === 'placar') corpo = telaPlacar();
   else corpo = telaRanking(_screen === 'vendas' ? null : _screen);
@@ -336,8 +478,16 @@ function podiumCard(a, cat) {
       <div style="font-size:12px;letter-spacing:.1em;color:${posColor};opacity:.8">pontos</div>
       ${a.vgvReal ? `<div style="margin-top:6px;color:#86efac;font-weight:700">VGV ${fmtBRL(a.vgvReal)}</div>` : ''}
       <div style="height:1px;background:rgba(148,163,184,.25);margin:14px 40px"></div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;min-height:26px">${cat ? '' : badgesOf(a)}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;min-height:26px">${cat ? '' : badgesOf(a) + ' ' + streakChip(a)}</div>
     </div>`;
+}
+
+function streakChip(a) {
+  const d = _ritmo[String(a.agentName || '').split(' ')[0].toLowerCase()];
+  if (d == null) return '';
+  if (d <= 7) return `<span style="padding:3px 10px;border-radius:99px;font-size:12px;font-weight:800;background:rgba(34,197,94,.16);color:#4ade80">🔥 vendeu há ${d}d</span>`;
+  if (d >= 21) return `<span style="padding:3px 10px;border-radius:99px;font-size:12px;font-weight:800;background:rgba(239,68,68,.14);color:#f87171">⏰ ${d}d sem venda</span>`;
+  return '';
 }
 
 function rowCard(a, cat) {
@@ -345,7 +495,7 @@ function rowCard(a, cat) {
     <div style="display:flex;align-items:center;gap:16px;background:rgba(30,41,59,.35);border:1px solid rgba(71,85,105,.4);border-radius:12px;padding:14px 20px">
       <div style="font-size:20px;font-weight:800;color:#94a3b8;width:44px">${a.pos}°</div>
       <div style="font-size:20px;font-weight:700;color:#f1f5f9">${escapeHtml(a.agentName || '—')}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px">${cat ? '' : badgesOf(a)}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${cat ? '' : badgesOf(a) + ' ' + streakChip(a)}</div>
       <div style="margin-left:auto;text-align:right">
         <div style="font-size:26px;font-weight:900;color:#f1f5f9;line-height:1">${fmtPts(cat ? a._val : a.totalPoints)}</div>
         <div style="font-size:11px;color:#64748b">pts${a.vgvReal ? ` · VGV ${fmtBRL(a.vgvReal)}` : ''}</div>
@@ -358,6 +508,10 @@ const OP_ICO = { lead: '🎯', imovel: '🏠', parceria: '🤝', investidor: '�
 let _tkItems = [];
 function tickerItems() {
   const its = [];
+  _atividade.slice(0, 6).forEach(a => its.push({
+    kind: 'atividade', tag: 'ATIVIDADE', ico: '⚡', cor: '#38bdf8',
+    texto: `${a.nome} · ${a.lbl}`, extra: a.hora,
+  }));
   _recados.forEach(r => its.push({
     kind: 'recado', tag: 'RECADO', ico: '📣', cor: r.cor || '#eab308',
     texto: r.texto || '', extra: r.autor || '',
@@ -430,6 +584,26 @@ function closeTickerOverlay() {
   document.querySelector('.rh-track')?.style.removeProperty('animation-play-state');
 }
 
+function modoFechamento() {
+  const h = new Date();
+  const fim = new Date(h.getFullYear(), h.getMonth() + 1, 0);
+  const diasRestantes = fim.getDate() - h.getDate();
+  if (diasRestantes > 6) return '';
+  let uteis = 0;
+  for (let d = new Date(h); d <= fim; d.setDate(d.getDate() + 1)) { const w = d.getDay(); if (w !== 0 && w !== 6) uteis++; }
+  const sv = (_ov && _ov.sales) || {};
+  const metaMes = (_metas && _metas.totals && _metas.totals.meta_vgv) ? _metas.totals.meta_vgv / 12 : 0;
+  const falta = Math.max(0, metaMes - (sv.vgv_mes || 0));
+  const porDia = uteis > 0 ? falta / uteis : falta;
+  return `
+    <div style="display:flex;align-items:center;justify-content:center;gap:16px;padding:9px 20px;background:linear-gradient(90deg,#7f1d1d,#9a3412);border-bottom:1px solid rgba(251,146,60,.5)">
+      <span style="font-size:15px;font-weight:900;letter-spacing:.14em;color:#fecaca">🔥 MODO FECHAMENTO</span>
+      <span style="font-size:15px;font-weight:700;color:#fed7aa">faltam <b>${uteis}</b> dia(s) útil(eis) no mês</span>
+      ${metaMes && falta > 0 ? `<span style="font-size:15px;font-weight:800;color:#fff">precisamos de <b style="color:#fde047">${fmtBRL(porDia)}/dia</b> pra bater a meta</span>`
+        : metaMes ? '<span style="font-size:15px;font-weight:800;color:#86efac">✅ meta do mês batida — agora é recorde!</span>' : ''}
+    </div>`;
+}
+
 function shell(body) {
   const meses = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
   const telaMeta = TELAS_SEC.find(t => t.id === _screen);
@@ -474,6 +648,7 @@ function shell(body) {
       </div>
       <button id="rh-fs" title="Tela cheia" style="border:1px solid rgba(148,163,184,.35);background:transparent;color:#cbd5e1;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:16px">⛶</button>
     </div>
+    ${modoFechamento()}
     <div class="rh-bar" style="height:3px;background:linear-gradient(90deg,#facc15,#fb923c);flex:none"></div>
     <div class="rh-body" style="flex:1;min-height:0;overflow:auto">${body}</div>
     ${ticker()}
