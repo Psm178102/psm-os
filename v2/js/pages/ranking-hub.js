@@ -500,37 +500,79 @@ function telaPremiacoes() {
     </div>`;
 }
 
-/* ── 🎯 tela: placar do mês (VGV × meta + destaques) ── */
+/* ── 🎯 tela: PLACAR DO MÊS 2.0 (v87.27, pedido do Paulo: produtividade +
+   projeção/meta detalhada + individuais). Meta individual = vgvMeta do HUB;
+   projeção = run-rate (real ÷ dias decorridos × dias do mês). ── */
 function telaPlacar() {
   const sv = (_ov && _ov.sales) || {};
-  const meta = (_metas && _metas.totals) || {};
-  const metaMes = meta.meta_vgv ? meta.meta_vgv / 12 : 0;
-  const pct = metaMes ? Math.min(100, Math.round(100 * (sv.vgv_mes || 0) / metaMes)) : 0;
-  const topVgv = ranked().slice().sort((a, b) => (b.vgvReal || 0) - (a.vgvReal || 0))[0];
-  const big = (lbl, val, cor) => `
-    <div style="background:#0d1120;border:1px solid rgba(71,85,105,.4);border-radius:16px;padding:24px;text-align:center">
-      <div style="font-size:14px;letter-spacing:.12em;color:#64748b;text-transform:uppercase">${lbl}</div>
-      <div style="font-size:44px;font-weight:900;color:${cor || '#f8fafc'};margin-top:6px">${val}</div>
+  const agentes = ranked();                          // já respeita o filtro de equipe
+  const hj = new Date(); const dia = hj.getDate();
+  const diasMes = new Date(hj.getFullYear(), hj.getMonth() + 1, 0).getDate();
+  const fator = dia > 0 ? diasMes / dia : 1;
+  // meta do mês: soma das metas individuais do HUB; fallback meta anual ÷12
+  const metaHub = agentes.reduce((t, a) => t + (a.vgvMeta || 0), 0);
+  const metaMes = metaHub || ((_metas && _metas.totals && _metas.totals.meta_vgv) ? _metas.totals.meta_vgv / 12 : 0);
+  const vgvMes = agentes.reduce((t, a) => t + (a.vgvReal || 0), 0) || sv.vgv_mes || 0;
+  const proj = vgvMes * fator;
+  const pct = metaMes ? Math.min(999, Math.round(100 * vgvMes / metaMes)) : 0;
+  const pctProj = metaMes ? Math.round(100 * proj / metaMes) : 0;
+  const falta = Math.max(0, metaMes - vgvMes);
+  let uteis = 0; const fimMes = new Date(hj.getFullYear(), hj.getMonth() + 1, 0);
+  for (let d = new Date(hj); d <= fimMes; d.setDate(d.getDate() + 1)) { const w = d.getDay(); if (w !== 0 && w !== 6) uteis++; }
+  const corProj = pctProj >= 100 ? '#4ade80' : pctProj >= 70 ? '#facc15' : '#f87171';
+  // produtividade do mês (quantidades reais do HUB, todas as categorias)
+  const prod = { prosp: 0, agend: 0, aten: 0, doc: 0, venda: 0 };
+  agentes.forEach(a => { const c = catAgg(a); Object.keys(prod).forEach(k => { prod[k] += (c[k] && c[k].n) || 0; }); });
+  const pCard = (ico, lbl, n) => `
+    <div style="background:#0d1120;border:1px solid rgba(71,85,105,.4);border-radius:12px;padding:12px 8px;text-align:center">
+      <div style="font-size:22px">${ico}</div>
+      <div style="font-size:30px;font-weight:900;color:#f8fafc;line-height:1.1">${n}</div>
+      <div style="font-size:11px;letter-spacing:.08em;color:#64748b;text-transform:uppercase">${lbl}</div>
     </div>`;
+  // individuais: real × meta (HUB) × projeção com farol
+  const linhas = agentes.filter(a => (a.vgvMeta || 0) > 0 || (a.vgvReal || 0) > 0).slice(0, 9).map(a => {
+    const real = a.vgvReal || 0, meta = a.vgvMeta || 0;
+    const pInd = meta ? Math.round(100 * real / meta) : null;
+    const projInd = real * fator;
+    const okInd = meta ? (projInd >= meta ? '#4ade80' : projInd >= meta * 0.7 ? '#facc15' : '#f87171') : '#64748b';
+    const vendas = (catAgg(a).venda || {}).n || 0;
+    return `<div style="display:flex;align-items:center;gap:10px;background:rgba(30,41,59,.35);border:1px solid rgba(71,85,105,.35);border-radius:10px;padding:8px 14px">
+      <span style="flex:1;font-size:17px;font-weight:800;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(a.agentName || '')}</span>
+      <span style="font-size:13px;color:#94a3b8;width:70px;text-align:center">${vendas} venda(s)</span>
+      <div style="width:230px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700"><span style="color:#e2e8f0">${fmtBRL(real)}</span><span style="color:#64748b">${meta ? fmtBRL(meta) : 'sem meta'}</span></div>
+        <div style="height:8px;background:#1e293b;border-radius:99px;overflow:hidden"><div style="height:100%;width:${Math.min(100, pInd || 0)}%;background:${okInd}"></div></div>
+      </div>
+      <span style="width:52px;text-align:right;font-size:16px;font-weight:900;color:${okInd}">${pInd != null ? pInd + '%' : '—'}</span>
+      <span style="width:120px;text-align:right;font-size:13px;color:${okInd}" title="projeção run-rate">→ ${fmtBRL(projInd)}</span>
+    </div>`;
+  }).join('');
   return `
-    <div style="text-align:center;padding:18px 0 0">
-      <span style="font-size:30px;font-weight:900;color:#facc15">🎯 Placar de ${new Date().toLocaleDateString('pt-BR', { month: 'long' })}</span>
+    <div style="text-align:center;padding:14px 0 0">
+      <span style="font-size:28px;font-weight:900;color:#facc15">🎯 Placar de ${hj.toLocaleDateString('pt-BR', { month: 'long' })}</span>
+      <span style="font-size:13px;color:#64748b;margin-left:10px">dia ${dia}/${diasMes} · ${uteis} dia(s) útil(eis) restando</span>
     </div>
-    <div style="padding:24px 40px">
-      <div style="display:flex;justify-content:space-between;font-size:16px;color:#cbd5e1;font-weight:700">
-        <span>VGV do mês: ${fmtBRL(sv.vgv_mes || 0)}</span><span>${metaMes ? 'meta ÷12: ' + fmtBRL(metaMes) : ''}</span>
+    <div style="padding:14px 40px 4px">
+      <div style="display:flex;justify-content:space-between;font-size:15px;font-weight:700;color:#cbd5e1">
+        <span>VGV: <b style="color:#f8fafc">${fmtBRL(vgvMes)}</b> <span style="color:#64748b">/ meta ${fmtBRL(metaMes)}${metaHub ? '' : ' (anual ÷12)'}</span></span>
+        <span style="color:${corProj}">projeção do mês: <b>${fmtBRL(proj)}</b> (${pctProj}% da meta)</span>
       </div>
-      <div style="height:26px;background:#1e293b;border-radius:99px;margin-top:8px;overflow:hidden">
-        <div style="height:100%;width:${pct}%;border-radius:99px;background:linear-gradient(90deg,#facc15,#4ade80);transition:width 1s"></div>
+      <div style="position:relative;height:22px;background:#1e293b;border-radius:99px;margin-top:6px;overflow:hidden">
+        <div style="height:100%;width:${Math.min(100, pct)}%;background:linear-gradient(90deg,#facc15,#4ade80)"></div>
+        <div style="position:absolute;top:0;bottom:0;left:${Math.min(100, Math.round(dia / diasMes * 100))}%;width:0;border-left:2px dashed rgba(226,232,240,.55)" title="pace do mês"></div>
       </div>
-      <div style="text-align:center;font-size:22px;font-weight:900;color:#facc15;margin-top:6px">${pct}% da meta do mês</div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:#64748b;margin-top:3px">
+        <span>${pct}% da meta · linha tracejada = pace do mês (${Math.round(dia / diasMes * 100)}%)</span>
+        ${falta > 0 ? `<span>faltam <b style="color:#fb923c">${fmtBRL(falta)}</b> · ${uteis ? `<b style="color:#fde047">${fmtBRL(falta / uteis)}/dia útil</b>` : ''}</span>` : '<span style="color:#4ade80">✅ meta batida — agora é recorde</span>'}
+      </div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding:6px 40px">
-      ${big('Vendas no mês', sv.vendas_mes || 0)}
-      ${big('Vendas · 30 dias', sv.vendas_30d || 0)}
-      ${big('Maior VGV do ranking', topVgv && topVgv.vgvReal ? `${escapeHtml(topVgv.agentName || '')}` : '—', '#4ade80')}
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:8px 40px">
+      ${pCard('📞', 'atendimentos', prod.prosp)}${pCard('📅', 'agendamentos', prod.agend)}${pCard('🚶', 'visitas', prod.aten)}${pCard('🗂', 'pastas', prod.doc)}${pCard('💰', 'vendas', prod.venda)}
     </div>
-    ${topVgv && topVgv.vgvReal ? `<div style="text-align:center;font-size:20px;font-weight:800;color:#4ade80;margin-top:6px">${fmtBRL(topVgv.vgvReal)}</div>` : ''}`;
+    <div style="padding:6px 40px 14px;display:grid;gap:7px">
+      <div style="font-size:13px;font-weight:800;color:#94a3b8;letter-spacing:.08em">INDIVIDUAIS — real × meta do mês (HUB) · → projeção no ritmo atual</div>
+      ${linhas || '<div style="color:#64748b;font-size:14px">sem metas individuais cadastradas no HUB</div>'}
+    </div>`;
 }
 
 function podiumCard(a, cat) {
