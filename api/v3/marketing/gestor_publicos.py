@@ -86,14 +86,37 @@ def segmentar_temperatura(sb, temp, frente="todas", max_rows=20000):
     return out
 
 
-def _token_da_conta(sb, act_id):
+def _tokens_da_conta(sb, act_id):
+    """[token_da_conta?, principal] sem duplicar — v87.19: se o token específico
+    da conta falhar (ex.: #100 sem permissão de custom audience), tentamos o
+    principal em seguida."""
     ids, _labels, tokens = resolver_contas(sb)
     principal = os.environ.get("META_ACCESS_TOKEN") or ""
+    out = []
     try:
         i = ids.index(act_id)
-        return tokens[i] or principal
+        if tokens[i]:
+            out.append(tokens[i])
     except ValueError:
-        return principal
+        pass
+    if principal and principal not in out:
+        out.append(principal)
+    return out or [principal]
+
+
+def _token_da_conta(sb, act_id):
+    return _tokens_da_conta(sb, act_id)[0]
+
+
+def _graph_retry(method, path, params, sb, act_id):
+    """Tenta a chamada com cada token disponível da conta (específico → principal)."""
+    ultimo = (False, "sem token")
+    for tk in _tokens_da_conta(sb, act_id):
+        ok, data = _graph(method, path, params, tk)
+        if ok:
+            return ok, data, tk
+        ultimo = (ok, data)
+    return ultimo[0], ultimo[1], None
 
 
 def _graph(method, path, params, token):
@@ -111,6 +134,9 @@ def _graph(method, path, params, token):
         try:
             err = (json.loads(e.read().decode()).get("error") or {})
             msg = err.get("error_user_msg") or err.get("message") or f"HTTP {e.code}"
+            det = [str(x) for x in (err.get("code"), err.get("error_subcode"), err.get("type")) if x]
+            if det:
+                msg += " [" + "/".join(det) + "]"
             # termo de Custom Audience não aceito vem como subcode 1870034/2654
             if "terms" in msg.lower() or err.get("error_subcode") in (1870034, 2654):
                 msg += " — aceite o Termo de Públicos Personalizados no Gerenciador de Negócios (1 clique, uma vez): business.facebook.com/ads/manage/customaudiences/tos"
@@ -192,7 +218,7 @@ class handler(BaseHTTPRequestHandler):
             ids, labels, _t = resolver_contas(sb)
             contas = []
             for i, act in enumerate(ids):
-                ok, data = _graph("GET", f"{act}/customaudiences", {"fields": campos, "limit": 25}, _token_da_conta(sb, act))
+                ok, data, _tk = _graph_retry("GET", f"{act}/customaudiences", {"fields": campos, "limit": 25}, sb, act)
                 contas.append({"id": act, "label": labels[i] if i < len(labels) else act,
                                "ok": ok,
                                "publicos": (data.get("data") if ok else None),
@@ -203,7 +229,7 @@ class handler(BaseHTTPRequestHandler):
             act = params.get("conta") or ""
             if not re.match(r"^act_\d+$", act):
                 return self._send(400, {"ok": False, "error": "conta inválida (act_...)"})
-            ok, data = _graph("GET", f"{act}/customaudiences", {"fields": campos, "limit": 100}, _token_da_conta(sb, act))
+            ok, data, _tk = _graph_retry("GET", f"{act}/customaudiences", {"fields": campos, "limit": 100}, sb, act)
             if not ok:
                 return self._send(502, {"ok": False, "error": data})
             return self._send(200, {"ok": True, "publicos": data.get("data") or []})
@@ -228,7 +254,6 @@ class handler(BaseHTTPRequestHandler):
         act = str(body.get("conta") or "")
         if not re.match(r"^act_\d+$", act):
             return self._send(400, {"ok": False, "error": "conta inválida (act_...)"})
-        token = _token_da_conta(sb, act)
         nome = str(body.get("nome") or "").strip()[:120]
 
         # ── público personalizado (CRM ou lista) ───────────────────────
@@ -253,12 +278,12 @@ class handler(BaseHTTPRequestHandler):
             if len(hashes) < 20:
                 return self._send(400, {"ok": False, "error": f"só {len(hashes)} contatos válidos — o Meta precisa de pelo menos ~100 pra parear bem (mínimo aqui: 20)"})
 
-            ok, data = _graph("POST", f"{act}/customaudiences", {
+            ok, data, token = _graph_retry("POST", f"{act}/customaudiences", {
                 "name": nome,
                 "description": (str(body.get("descricao") or origem_desc))[:200],
                 "subtype": "CUSTOM",
                 "customer_file_source": "USER_PROVIDED_ONLY",
-            }, token)
+            }, sb, act)
             if not ok:
                 log_acao(sb, actor, "publico_criar", {"nome": nome}, origem_desc, False, data)
                 return self._send(502, {"ok": False, "error": data})
@@ -293,12 +318,12 @@ class handler(BaseHTTPRequestHandler):
                 ratio = 0.01
             ratio = min(max(ratio, 0.01), 0.10)
             nome_lal = nome or f"LAL {int(ratio * 100)}% BR"
-            ok, data = _graph("POST", f"{act}/customaudiences", {
+            ok, data, _tk = _graph_retry("POST", f"{act}/customaudiences", {
                 "name": nome_lal,
                 "subtype": "LOOKALIKE",
                 "origin_audience_id": origem,
                 "lookalike_spec": json.dumps({"type": "similarity", "ratio": ratio, "country": "BR"}),
-            }, token)
+            }, sb, act)
             log_acao(sb, actor, "lookalike_criar", {"id": (data.get('id') if ok else None), "nome": nome_lal},
                      f"origem {origem} ratio {ratio}", ok, data if not ok else "ok")
             if not ok:
