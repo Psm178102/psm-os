@@ -328,6 +328,7 @@ function renderPublicos(body) {
         <label class="tiny" style="display:flex;align-items:center;gap:6px;padding-bottom:8px"><input id="seg-fone" type="checkbox" checked> só com telefone</label>
         <button class="btn btn-primary" id="seg-contar" ${_segBusy ? 'disabled' : ''}>${_segBusy ? '…' : 'Contar'}</button>
         <button class="btn" id="seg-export" ${!_seg ? 'disabled' : ''}>⬇️ Exportar CSV</button>
+        ${socio() ? `<button class="btn" id="seg-meta" ${!_seg ? 'disabled' : ''} style="border-color:#fb923c;color:#fb923c">🚀 Criar público no Meta</button>` : ''}
       </div>
       <div id="seg-out" style="margin-top:10px">
         ${_seg ? `<div class="tiny"><b>${_seg.total}</b> contatos no recorte · <b>${_seg.com_fone}</b> com fone · <b>${_seg.com_email}</b> com e-mail</div>
@@ -352,8 +353,19 @@ function renderPublicos(body) {
         ${listas.map(l => `<tr><td><b>${esc(l.nome)}</b></td><td>${l.n}</td><td>${esc(l.marca)}</td><td>${esc(l.origem)}</td>
           <td>${esc(String(l.criado_em || '').slice(0, 10))}</td>
           <td><button class="btn btn-ghost tiny" data-lst-dl="${esc(l.id)}">⬇️</button>
-              ${socio() ? `<button class="btn btn-ghost tiny" data-lst-del="${esc(l.id)}">🗑</button>` : ''}</td></tr>`).join('')}</table></div>`
+              ${socio() ? `<button class="btn btn-ghost tiny" data-lst-meta="${esc(l.id)}" title="Criar público no Meta com esta lista" style="color:#fb923c">🚀</button>
+              <button class="btn btn-ghost tiny" data-lst-del="${esc(l.id)}">🗑</button>` : ''}</td></tr>`).join('')}</table></div>`
       : '<div class="tiny muted">Nenhuma lista ainda.</div>'}
+    </div>
+
+    <div style="background:var(--bg-3);border-radius:10px;padding:14px;margin-bottom:14px">
+      <div class="flex" style="align-items:center;gap:10px;flex-wrap:wrap">
+        <div style="font-weight:800">🌐 Públicos no Meta (via API)</div>
+        <select id="pm-conta" class="input tiny" style="max-width:220px">${(_painel?.contas || []).map(c => `<option value="${esc(c.id)}">${esc(c.label)}</option>`).join('')}</select>
+        <button class="btn btn-ghost tiny" id="pm-reload">↻ atualizar</button>
+      </div>
+      <div class="tiny muted" style="margin:4px 0 8px">Os botões 🚀 (do segmentador e das listas) criam o público personalizado DIRETO na conta selecionada — contatos com hash SHA-256, sem CSV. Aqui você acompanha e cria os semelhantes (LAL).</div>
+      <div id="pm-lista"><span class="tiny muted"><span class="spinner"></span> consultando o Meta…</span></div>
     </div>
 
     <div style="background:var(--bg-3);border-radius:10px;padding:14px">
@@ -379,6 +391,14 @@ function renderPublicos(body) {
 
   document.getElementById('seg-contar').onclick = contarSegmento;
   document.getElementById('seg-export').onclick = exportarSegmento;
+  const segMeta = document.getElementById('seg-meta');
+  if (segMeta) segMeta.onclick = () => criarPublicoMeta({ fonte: 'crm', ...segParams() });
+  const pmReload = document.getElementById('pm-reload');
+  if (pmReload) pmReload.onclick = () => pintarPublicosMeta(true);
+  const pmConta = document.getElementById('pm-conta');
+  if (pmConta) pmConta.onchange = () => pintarPublicosMeta(true);
+  pintarPublicosMeta();
+  body.querySelectorAll('[data-lst-meta]').forEach(b => b.onclick = () => criarPublicoMeta({ fonte: 'lista', lista_id: b.dataset.lstMeta }));
   document.getElementById('lst-up').onclick = subirLista;
   document.getElementById('pub-add').onclick = salvarPublico;
   body.querySelectorAll('[data-pub-del]').forEach(b => b.onclick = async () => {
@@ -394,6 +414,60 @@ function renderPublicos(body) {
     const r = await api.request('/api/v3/marketing/gestor', { method: 'POST', body: { action: 'segmento_csv', fonte: 'lista', lista_id: b.dataset.lstDl } });
     if (r?.csv) baixarCSV(r.nome + '.csv', r.csv);
   });
+}
+
+/* v87.16 — Públicos no Meta via API (custom + lookalike) */
+let _pubMetaCache = null;
+async function pintarPublicosMeta(force = false) {
+  const el = document.getElementById('pm-lista');
+  const conta = document.getElementById('pm-conta')?.value;
+  if (!el || !conta) return;
+  if (force || !_pubMetaCache || _pubMetaCache.conta !== conta) {
+    el.innerHTML = '<span class="tiny muted"><span class="spinner"></span> consultando o Meta…</span>';
+    try {
+      const r = await api.request(`/api/v3/marketing/gestor_publicos?action=listar&conta=${encodeURIComponent(conta)}`);
+      _pubMetaCache = { conta, pubs: r.publicos || [], erro: null };
+    } catch (e) { _pubMetaCache = { conta, pubs: [], erro: e.message }; }
+  }
+  const { pubs, erro } = _pubMetaCache;
+  if (erro) {
+    el.innerHTML = `<div class="tiny" style="color:var(--err, #ef4444)">⚠️ ${esc(erro)}</div>`;
+    return;
+  }
+  el.innerHTML = pubs.length ? `<div style="overflow-x:auto"><table class="table tiny"><tr><th>Público</th><th>Tipo</th><th class="num">Tamanho ≥</th><th>Status</th><th></th></tr>
+    ${pubs.map(p => `<tr>
+      <td><b>${esc(p.name)}</b></td>
+      <td>${esc(p.subtype || '')}</td>
+      <td>${p.approximate_count_lower_bound != null ? Number(p.approximate_count_lower_bound).toLocaleString('pt-BR') : '—'}</td>
+      <td>${esc(p.operation_status?.description || p.delivery_status?.description || '')}</td>
+      <td>${socio() && p.subtype === 'CUSTOM' ? `<button class="btn btn-ghost tiny" data-lal="${esc(p.id)}" data-lal-nome="${esc(p.name)}">✨ LAL</button>` : ''}</td>
+    </tr>`).join('')}</table></div>`
+  : '<div class="tiny muted">Nenhum público nesta conta ainda — crie o primeiro pelo 🚀 do segmentador ou de uma lista.</div>';
+  el.querySelectorAll('[data-lal]').forEach(b => b.onclick = async () => {
+    const pct = prompt(`Criar público SEMELHANTE (lookalike) a partir de:\n${b.dataset.lalNome}\n\n% de similaridade (1 = mais parecido, até 10):`, '1');
+    if (!pct) return;
+    try {
+      const r = await api.request('/api/v3/marketing/gestor_publicos', { method: 'POST', body: {
+        action: 'criar_lookalike', conta: document.getElementById('pm-conta').value,
+        origem_id: b.dataset.lal, ratio: (parseFloat(String(pct).replace(',', '.')) || 1) / 100,
+        nome: `LAL ${pct}% — ${b.dataset.lalNome}`.slice(0, 100),
+      } });
+      if (r?.ok) { alert('✨ Lookalike criado: ' + r.nome); pintarPublicosMeta(true); }
+    } catch (e) { alert('❌ ' + e.message); }
+  });
+}
+
+async function criarPublicoMeta(origem) {
+  const conta = document.getElementById('pm-conta')?.value;
+  if (!conta) return alert('Nenhuma conta Meta configurada.');
+  const nome = prompt('Nome do público no Meta (ex.: "CRM perdidos 90d Conquista" ou "Mailing incorporadoras"):');
+  if (!nome) return;
+  try {
+    const r = await api.request('/api/v3/marketing/gestor_publicos', { method: 'POST', body: {
+      action: 'criar_personalizado', conta, nome, ...origem,
+    } });
+    if (r?.ok) { alert(`🚀 Público criado no Meta!\n${r.nome} — ${r.contatos_enviados} contatos enviados (com hash).\n${r.obs || ''}`); pintarPublicosMeta(true); }
+  } catch (e) { alert('❌ ' + e.message); }
 }
 
 function segParams() {
