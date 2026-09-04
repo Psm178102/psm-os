@@ -15,7 +15,9 @@ const PREMISSA_KEY = 'psm.intelads.premissa_mes';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const f$ = n => 'R$ ' + Math.round(+n || 0).toLocaleString('pt-BR');
 const fNum = n => (+n || 0).toLocaleString('pt-BR');
-const premissa = () => Math.max(0, parseInt(localStorage.getItem(PREMISSA_KEY) || '1500') || 1500);
+// v87.14: default recalibrado pra R$ 700/criativo/mês — régua REAL da nossa conta
+// (ago/26: R$ 6,3k/mês ÷ 9 campanhas ativas ≈ R$ 700/campanha). Editável na tela.
+const premissa = () => Math.max(0, parseInt(localStorage.getItem(PREMISSA_KEY) || '700') || 700);
 function adLibUrl(name) {
   return 'https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=BR&q='
     + encodeURIComponent((name || '').replace(/[&]/g, '')) + '&search_type=keyword_unordered';

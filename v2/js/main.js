@@ -436,7 +436,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '87.13';
+const APP_VERSION = '87.14';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -576,8 +576,8 @@ const APP_VERSION = '87.13';
   router.register('/dados-mercado', { render: async (ctx, root) => { setHeader('Dados de Mercado'); highlight('/dados-mercado'); await pageDadosMercado(ctx, root); } });
   // v81.61: "Biblioteca de Anúncios" agora é a dos anúncios DA PSM (criativo + copy).
   router.register('/biblioteca-ads', { render: async (ctx, root) => { setHeader('Biblioteca de Anúncios'); highlight('/biblioteca-ads'); await pageAnunciosPSM(ctx, root); } });
-  // o monitoramento de concorrentes (antiga biblioteca-ads) virou item próprio.
-  router.register('/anuncios-concorrentes', { render: async (ctx, root) => { setHeader('Anúncios dos Concorrentes'); highlight('/anuncios-concorrentes'); await pageBibliotecaAds(ctx, root); } });
+  // v87.14: /anuncios-concorrentes virou aba do hub de Concorrência (redirect retrocompat).
+  router.register('/anuncios-concorrentes', { render: async () => { router.go('/concorrencia?tab=ads'); } });
   router.register('/marketing-historico', { render: async (ctx, root) => { setHeader('Histórico Meta'); highlight('/marketing-historico'); await pageMarketingHistorico(ctx, root); } });
   router.register('/cerebro-vendas', { render: async (ctx, root) => { setHeader('Cérebro de Vendas'); highlight('/cerebro-vendas'); await pageIntelVendas(ctx, root); } });
   router.register('/briefing-guerra', { render: async (ctx, root) => { setHeader('Briefing de Guerra'); highlight('/briefing-guerra'); await pageIntelBriefing(ctx, root); } });
@@ -651,7 +651,7 @@ const APP_VERSION = '87.13';
   router.register('/agente-sol',  { render: async (ctx, root) => { setHeader('Agente Sol');          highlight('/agente-sol'); await pageAgenteSol(ctx, root); } });
   router.register('/tendencias',  { render: async (ctx, root) => { setHeader('Tendências');           highlight('/tendencias'); await pageTendencias(ctx, root); } });
   router.register('/benchmark',   { render: async (ctx, root) => { setHeader('Benchmark de Mercado'); highlight('/benchmark');  await pageBenchmark(ctx, root); } });
-  router.register('/intel-ads',   { render: async (ctx, root) => { setHeader('Inteligência Ads');    highlight('/intel-ads');  await pageIntelAds(ctx, root); } });
+  router.register('/intel-ads',   { render: async () => { router.go('/concorrencia?tab=intel'); } });  // v87.14: virou aba do hub de Concorrência
   router.register('/intel-dash',  { render: async () => { location.hash = '#/inteligencia?tab=landscape'; } });   // aposentado: virou aba do Centro (v84.5)
   router.register('/simuladores', { render: async (ctx, root) => { setHeader('Simuladores');         highlight('/simuladores'); await pageSimuladores(ctx, root); } });
   router.register('/sim-vpl',     { render: async (ctx, root) => { setHeader('Simulador VPL');       highlight('/sim-vpl'); await pageSimVPL(ctx, root); } });
@@ -979,8 +979,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/conteudo-conquista"><span class="sb-ico">🏆</span> PSM Conquista (conteúdo)</button>
         <button class="sb-link" data-nav="/marketing-historico"><span class="sb-ico">📅</span> Histórico Meta</button>
         <button class="sb-link" data-nav="/biblioteca-ads"><span class="sb-ico">📣</span> Biblioteca de Anúncios</button>
-        <button class="sb-link" data-nav="/anuncios-concorrentes"><span class="sb-ico">📡</span> Anúncios dos Concorrentes</button>
-        <button class="sb-link" data-nav="/intel-ads"><span class="sb-ico">🎯</span> Intel Ads</button>
+<!-- v87.14: Anúncios dos Concorrentes e Intel Ads viraram ABAS de 🥊 Concorrência (seção Inteligência) -->
         <button class="sb-link" data-nav="/sim-leads"><span class="sb-ico">📈</span> Simulador Leads/CAC</button>
         <button class="sb-link" data-nav="/sim-criativos"><span class="sb-ico">🎨</span> Simulador Criativos</button>
 

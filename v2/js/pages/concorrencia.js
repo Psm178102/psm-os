@@ -23,12 +23,45 @@ let _f = { tier: 'todos', seg: 'todos', tipo: 'todos', q: '' };
 let _sort = 'seguidores';
 const canEdit = () => (auth.user()?.lvl || 0) >= 5;
 
+/* v87.14 — HUB de Concorrência: unifica Radar + Anúncios dos Concorrentes +
+   Intel Ads numa página só (pedido do Paulo — as 3 abas estavam dispersas).
+   As rotas antigas /anuncios-concorrentes e /intel-ads redirecionam pra cá. */
+const HUB_TABS = [
+  { id: 'radar', lbl: '🥊 Radar' },
+  { id: 'ads',   lbl: '📡 Anúncios dos Concorrentes' },
+  { id: 'intel', lbl: '🎯 Intel Ads (investimento)' },
+];
+let _hubTab = 'radar';
+
 export async function pageConcorrencia(ctx, root) {
-  _root = root;
   if ((auth.user()?.lvl || 0) < 5) {
     root.innerHTML = '<div class="alert alert-warn">🔒 Requer Líder (lvl ≥ 5).</div>';
     return;
   }
+  if (ctx?.query?.tab && HUB_TABS.some(t => t.id === ctx.query.tab)) _hubTab = ctx.query.tab;
+  root.innerHTML = `
+    <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:12px">
+      ${HUB_TABS.map(t => `<button class="btn ${_hubTab === t.id ? 'btn-primary' : 'btn-ghost'}" data-hub-tab="${t.id}">${t.lbl}</button>`).join('')}
+    </div>
+    <div id="cc-hub-body"></div>`;
+  root.querySelectorAll('[data-hub-tab]').forEach(b => b.addEventListener('click', () => {
+    _hubTab = b.dataset.hubTab;
+    pageConcorrencia({ ...(ctx || {}), query: { ...(ctx?.query || {}), tab: _hubTab } }, root);
+  }));
+  const inner = root.querySelector('#cc-hub-body');
+  if (_hubTab === 'ads') {
+    const { pageBibliotecaAds } = await import('./biblioteca-ads.js');
+    return pageBibliotecaAds(ctx, inner);
+  }
+  if (_hubTab === 'intel') {
+    const { pageIntelAds } = await import('./intel-ads.js');
+    return pageIntelAds(ctx, inner);
+  }
+  return pageRadarConcorrencia(ctx, inner);
+}
+
+async function pageRadarConcorrencia(ctx, root) {
+  _root = root;
   _root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando concorrentes…</div></div>';
   await load();
 }
