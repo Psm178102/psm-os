@@ -232,7 +232,7 @@ function renderPainel(body) {
       </div>
     </div>
 
-    <div class="tiny muted" style="font-weight:800;letter-spacing:.06em;margin-bottom:6px">ÚLTIMOS 7 DIAS ${m7?.period ? '· ' + esc(m7.period) : ''} <span style="font-weight:400">· vs 7 dias anteriores · cor = contra o limiar</span></div>
+    <div class="tiny muted" style="font-weight:800;letter-spacing:.06em;margin-bottom:6px">ÚLTIMOS 7 DIAS ${(() => { const pd = m7?.period; if (!pd) return ''; if (typeof pd === 'string') return '· ' + esc(pd); const f = d => String(d || '').slice(5).split('-').reverse().join('/'); return pd.since ? `· ${f(pd.since)} a ${f(pd.until)}` : ''; })()} <span style="font-weight:400">· vs 7 dias anteriores · cor = contra o limiar</span></div>
     <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
       ${kpiCard('Investimento', m7 ? brl(m7.spend) : '—', 'ritmo de verba', delta(m7?.spend, d7.spend))}
       ${kpiCard('Leads', m7 ? m7.leads : '—', 'volume que alimenta o funil', delta(m7?.leads, d7.leads))}
