@@ -351,6 +351,8 @@ def _gestor_context(sb):
         g = cfg.get("guardrails") or {}
         if g:
             parts.append("GUARDRAILS DE AÇÃO (limites que o sócio definiu): " + json.dumps(g, ensure_ascii=False))
+        if cfg.get("doutrina_competitiva"):
+            parts.append("DOUTRINA DE ANÁLISE COMPETITIVA (obrigatória em toda análise):\n" + str(cfg["doutrina_competitiva"])[:4000])
 
     # 2) Métricas Meta do cache compartilhado (nunca chama a Graph aqui)
     def _meta_janela(preset):

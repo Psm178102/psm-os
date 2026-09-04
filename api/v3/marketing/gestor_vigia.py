@@ -48,6 +48,9 @@ def _slot(now):
 
 def _contexto(sb):
     parts = []
+    cfg = kv_get(sb, "gt_config", {})
+    if isinstance(cfg, dict) and cfg.get("doutrina_competitiva"):
+        parts.append("DOUTRINA DE ANÁLISE COMPETITIVA (obrigatória neste relatório):\n" + str(cfg["doutrina_competitiva"])[:4000])
     agora = datetime.now(timezone.utc)
     h24 = (agora - timedelta(hours=24)).isoformat()
 

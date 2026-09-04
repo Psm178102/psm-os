@@ -126,6 +126,8 @@ def _contexto(sb):
     if est.get("conquista") or est.get("imoveis"):
         parts.append("ESTRATÉGIA VIGENTE:\n[Conquista] " + str(est.get("conquista") or "—")[:3000] +
                      "\n[Imóveis] " + str(est.get("imoveis") or "—")[:3000])
+    if cfg.get("doutrina_competitiva"):
+        parts.append("DOUTRINA DE ANÁLISE COMPETITIVA (aplicar na seção de concorrência):\n" + str(cfg["doutrina_competitiva"])[:4000])
     mc = cfg.get("metricas_custom") or []
     if mc:
         parts.append("MÉTRICAS PERSONALIZADAS:\n" + "\n".join(
