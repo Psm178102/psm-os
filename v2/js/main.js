@@ -131,6 +131,7 @@ import { pageEstoqueKenlo } from './pages/estoque-kenlo.js';
 import { pageCrmHouse } from './pages/crm-house.js';
 import { pageCentralSol } from './pages/central-sol.js';   // 🤖 Central da Sol (atendente IA)
 import { pageCMO } from './pages/cmo.js';   // 🎯 CMO · Marketing (agente C-level, só sócio) v87.31
+import { pageSrCfo } from './pages/sr-cfo.js';             // 🧠 Sr. CFO (agente financeiro — só sócios) v87.32
 
 // ─── Permissões por role (Sprint 9.6) ──────────────────────────────────
 // Cada rota pertence a um GRUPO. Cada role enxerga só os grupos liberados.
@@ -163,7 +164,7 @@ export const ROUTE_GROUP = {
   '/gestao-comercial': 'performance', '/produtividade-real': 'performance',
   '/tv': 'performance', '/ranking-hub': 'performance',
   // Diretoria
-  '/cockpit': 'diretoria', '/paulo': 'diretoria', '/projetos': 'diretoria',
+  '/cockpit': 'diretoria', '/paulo': 'diretoria', '/projetos': 'diretoria', '/sr-cfo': 'diretoria',
   '/diretoria': 'diretoria', '/kpis': 'diretoria', '/okrs': 'diretoria', '/cmo': 'diretoria',
   '/metricas-viab': 'diretoria', '/comissao-conquista': 'diretoria', '/sim-trafego': 'diretoria', '/mapa-ciclos': 'diretoria', '/governanca': 'diretoria', '/reunioes': 'diretoria',
   // Jurídico (grupo próprio)
@@ -265,6 +266,8 @@ export const ROUTE_MIN_LVL = {
   // v87.31: CMO · Marketing (agente C-level) — decisão do Paulo (04/set): SÓ sócio
   // (espelha o require_user(min_lvl=10) de api/v3/diretoria/cmo.py).
   '/cmo': 10,
+  '/sr-cfo': 10,          // 🧠 Sr. CFO (v87.32): dossiês financeiros, radar de riscos, diário de
+                          // decisões e pendências do agente CFO — assunto de sócio, SEMPRE lvl 10.
   // RH + Sucesso do Cliente (v81.58): piso 2 (corretor) — quem vê isso é decidido
   // 100% na matriz por papel (Configurações → Permissões), sem trava de nível.
   '/onboarding': 2, '/offboarding': 2,
@@ -440,7 +443,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '87.31';
+const APP_VERSION = '87.32';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -558,6 +561,7 @@ const APP_VERSION = '87.31';
   router.register('/paulo', { render: async (ctx, root) => { setHeader('Paulo · Meus Negócios'); highlight('/paulo'); await pagePauloNegocios(ctx, root); } });
   router.register('/projetos', { render: async (ctx, root) => { setHeader('Projetos'); highlight('/projetos'); await pageProjetos(ctx, root); } });
   router.register('/psmhub', { render: async (ctx, root) => { setHeader('PSM HUB · Conquista'); highlight('/psmhub'); await pagePsmHub(ctx, root); } });
+  router.register('/sr-cfo', { render: async (ctx, root) => { setHeader('Sr. CFO'); highlight('/sr-cfo'); await pageSrCfo(ctx, root); } });
   router.register('/minutas', { render: async (ctx, root) => { setHeader('Minutas padrão'); highlight('/minutas'); await pageMinutasJuridico(ctx, root); } });
   router.register('/cnds',    { render: async (ctx, root) => { setHeader("CND's"); highlight('/cnds'); await pageCnds(ctx, root); } });
   router.register('/links-uteis', { render: async (ctx, root) => { setHeader('Links & Incorporadoras'); highlight('/links-uteis'); await pageCentralLinks(ctx, root); } });
@@ -997,6 +1001,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/paulo"><span class="sb-ico">🧑‍💼</span> Paulo</button>
         <button class="sb-link" data-nav="/relatorios"><span class="sb-ico">🖨</span> Relatórios</button>
         <button class="sb-link" data-nav="/psmhub"><span class="sb-ico">🔌</span> PSM HUB · Conquista</button>
+        <button class="sb-link" data-nav="/sr-cfo"><span class="sb-ico">🧠</span> Sr. CFO</button>
         <div class="sb-subsec" style="font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;opacity:.45;font-weight:800;padding:6px 14px 2px">Planejamento</div>
         <button class="sb-link" data-nav="/projetos"><span class="sb-ico">📌</span> Projetos</button>
         <button class="sb-link" data-nav="/estrategia"><span class="sb-ico">♟️</span> Estratégia</button>
