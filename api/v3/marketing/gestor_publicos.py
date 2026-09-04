@@ -225,6 +225,25 @@ class handler(BaseHTTPRequestHandler):
                                "erro": (None if ok else data)})
             return self._send(200, {"ok": True, "contas": contas})
 
+        if action == "app_info":
+            # v87.20: identifica o APP dono de cada token (é nele que se pede o
+            # Acesso Padrão do Marketing API pro erro #100 dos públicos de lista)
+            vistos, apps = set(), []
+            ids, labels, tokens = resolver_contas(sb)
+            todos = [("principal (META_ACCESS_TOKEN)", os.environ.get("META_ACCESS_TOKEN") or "")]
+            todos += [(f"token da conta {labels[i] if i < len(labels) else a}", tokens[i])
+                      for i, a in enumerate(ids) if i < len(tokens) and tokens[i]]
+            for rotulo, tk in todos:
+                if not tk or tk[:24] in vistos:
+                    continue
+                vistos.add(tk[:24])
+                ok, data = _graph("GET", "app", {"fields": "id,name,link"}, tk)
+                ok2, quem = _graph("GET", "me", {"fields": "id,name"}, tk)
+                apps.append({"token": rotulo,
+                             "app": (data if ok else {"erro": data}),
+                             "usuario": (quem if ok2 else {"erro": quem})})
+            return self._send(200, {"ok": True, "apps": apps})
+
         if action == "listar":
             act = params.get("conta") or ""
             if not re.match(r"^act_\d+$", act):
