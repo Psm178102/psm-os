@@ -248,10 +248,13 @@ function openForm() {
       </div>
     </div>`;
   const close = () => { modal.innerHTML = ''; };
-  document.getElementById('rc-x').addEventListener('click', close);
-  document.getElementById('rc-cancel').addEventListener('click', close);
-  modal.querySelector('.modal-backdrop').addEventListener('click', e => { if (e.target.classList.contains('modal-backdrop')) close(); });
-  document.getElementById('cc-save').addEventListener('click', () => save(c));
+  // v87.13: era 'rc-cancel' (id inexistente — o botão é 'cc-cancel') → TypeError
+  // silencioso que impedia de ligar o listener do SALVAR. Bug do "não consigo
+  // adicionar concorrente". Guards pra nunca mais um id órfão matar o modal.
+  document.getElementById('rc-x')?.addEventListener('click', close);
+  document.getElementById('cc-cancel')?.addEventListener('click', close);
+  modal.querySelector('.modal-backdrop')?.addEventListener('click', e => { if (e.target.classList.contains('modal-backdrop')) close(); });
+  document.getElementById('cc-save')?.addEventListener('click', () => save(c));
   if (c._id) { const d = document.getElementById('cc-del'); if (d) d.addEventListener('click', () => { close(); del(String(c._id)); }); }
 }
 
