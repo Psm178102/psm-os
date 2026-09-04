@@ -354,6 +354,16 @@ def _gestor_context(sb):
         if cfg.get("doutrina_competitiva"):
             parts.append("DOUTRINA DE ANÁLISE COMPETITIVA (obrigatória em toda análise):\n" + str(cfg["doutrina_competitiva"])[:4000])
 
+    # 1b) União Vigia+Gestor: últimos achados do Vigia de Concorrência
+    vg = _kv("gt_vigia")
+    if isinstance(vg, dict):
+        ins = [i for i in (vg.get("insights") or []) if isinstance(i, dict)][:2]
+        if ins:
+            parts.append("🕵️ ÚLTIMOS ACHADOS DO VIGIA DE CONCORRÊNCIA (use-os ao recomendar qualquer coisa):\n" + "\n".join(
+                f"- [{str(i.get('ts'))[:16]}] {i.get('titulo')}: {str(i.get('insight'))[:400]}"
+                + ((" | Ações sugeridas: " + "; ".join(str(a) for a in (i.get('acoes') or [])[:5])) if i.get('acoes') else "")
+                for i in ins))
+
     # 2) Métricas Meta do cache compartilhado (nunca chama a Graph aqui)
     def _meta_janela(preset):
         try:

@@ -132,13 +132,30 @@ def _contexto(sb):
     except Exception:
         pass
 
-    # 4) Nossa posição (contexto pra comparação)
+    # 4) NOSSO LADO DO CAMPO (união Vigia+Gestor): estratégia + campanhas 7d
+    try:
+        est = (cfg.get("estrategia") or {}) if isinstance(cfg, dict) else {}
+        if est.get("conquista") or est.get("imoveis"):
+            parts.append("NOSSA ESTRATÉGIA VIGENTE (compare a praça com ISSO e aponte conflitos/lacunas):\n[Conquista] "
+                         + str(est.get("conquista") or "—")[:2000]
+                         + "\n[Imóveis] " + str(est.get("imoveis") or "—")[:1000])
+    except Exception:
+        pass
     try:
         payload, _a, _s = read_cache(sb, build_cache_key("last_7d", "", ""), 10 ** 9)
         tot = ((payload or {}).get("totals") or {}).get("cur") or {}
         spend, res = float(tot.get("spend") or 0), int(tot.get("results") or 0)
-        parts.append(f"NOSSA POSIÇÃO (7d): gasto R$ {spend:,.0f} · {res} leads"
-                     + (" · ⚠️ CONTA CONQUISTA PAUSADA (sem entrega)" if spend == 0 else ""))
+        linhas = [f"NOSSAS CAMPANHAS (7d): gasto total R$ {spend:,.0f} · {res} leads"
+                  + (" · ⚠️ SEM ENTREGA no período" if spend == 0 else "")]
+        for c in ((payload or {}).get("campaigns") or [])[:15]:
+            sp = float(c.get("spend") or 0)
+            ld = int(c.get("results") or 0)
+            if sp <= 0:
+                continue
+            cpl = f"CPL R$ {sp/ld:,.2f}" if ld else "CPL —"
+            linhas.append(f"- {str(c.get('name'))[:70]} [{c.get('account') or ''}]: R$ {sp:,.0f} · {ld} leads · {cpl}"
+                          f" · CTR {c.get('ctr') or 0}% · freq {c.get('frequency') or 0}")
+        parts.append("\n".join(linhas))
     except Exception:
         pass
 
@@ -161,7 +178,7 @@ def _rodar(sb, forcado=False, actor_name="vigia"):
         "🏁 RANKING DA PRAÇA — quem manda no leilão, com números e o que cada líder está fazendo;\n"
         "🔄 MUDANÇAS NAS ÚLTIMAS 24H — quem ligou/desligou/escalou, anúncios novos, movimentos de incorporadora;\n"
         "🧠 PADRÕES & INSIGHTS — hooks, copys, formatos, ofertas e ângulos que a praça está usando (e o que isso revela);\n"
-        "🎯 OPORTUNIDADES PRA PSM — territórios vazios, produtos disputados, diferenciais exploráveis;\n"
+        "🎯 OPORTUNIDADES PRA PSM — territórios vazios, produtos disputados, diferenciais exploráveis, SEMPRE cruzando com NOSSAS campanhas e estratégia vigente (conflito de produto, ângulo que concorrente usa e nós não, verba deles vs nossa);\n"
         "⚡ AÇÕES RECOMENDADAS — 3 a 5, priorizadas, concretas.\n"
         "Depois decida: alerta=true SÓ se houver algo pelo qual um sócio deveria PARAR e agir hoje "
         "(novo player agressivo, ataque a produto nosso, prazo, janela). Rotina = alerta false.\n"

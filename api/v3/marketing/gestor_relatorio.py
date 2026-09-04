@@ -128,6 +128,16 @@ def _contexto(sb):
                      "\n[Imóveis] " + str(est.get("imoveis") or "—")[:3000])
     if cfg.get("doutrina_competitiva"):
         parts.append("DOUTRINA DE ANÁLISE COMPETITIVA (aplicar na seção de concorrência):\n" + str(cfg["doutrina_competitiva"])[:4000])
+    try:
+        vg = kv_get(sb, "gt_vigia", {})
+        ins = [i for i in ((vg or {}).get("insights") or []) if isinstance(i, dict)][:1]
+        if ins:
+            i = ins[0]
+            parts.append("🕵️ ÚLTIMO ACHADO DO VIGIA DE CONCORRÊNCIA (cruze com nossos números no relatório):\n"
+                         f"[{str(i.get('ts'))[:16]}] {i.get('titulo')}: {str(i.get('insight'))[:400]}"
+                         + ((" | Ações: " + "; ".join(str(a) for a in (i.get('acoes') or [])[:5])) if i.get('acoes') else ""))
+    except Exception:
+        pass
     mc = cfg.get("metricas_custom") or []
     if mc:
         parts.append("MÉTRICAS PERSONALIZADAS:\n" + "\n".join(
