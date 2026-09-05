@@ -23,20 +23,20 @@ const TABS = [
 
 /* Organograma oficial (espelho do cmo-psm.md + artifact Esteira Conquista). */
 const DEPTO = [
-  { n: 1, nome: 'Curador', ico: '🔎', ok: false, est: '1-2 · insumo', dono: 'Garimpo (Radar de Virais, NotebookLM, Pinterest, benchmark IG), pauta semanal por canal, distribuição 30/30/40.', cobra: 'Pauta na sexta 12h com evidência de padrão validado.' },
-  { n: 2, nome: 'Copywriter', ico: '✍️', ok: true, est: '3 · produção', dono: 'Legendas, headlines, roteiros, campanhas Meta, scripts WhatsApp/DM, landing pages.', cobra: 'Vícios de IA zerados, [CONFIRMAR] listados, zero contaminação de alto padrão.' },
-  { n: 3, nome: 'Design', ico: '🎨', ok: false, est: '3 · produção', dono: 'Artes de feed, carrossel, stories, capas e criativos — SEMPRE brand kit Canva da Conquista.', cobra: 'DoD do Padrão de Entrega + linguagem do board Pinterest; final nunca em Pillow.' },
-  { n: 4, nome: 'Gerador de Vídeo IA & Captação', ico: '🎥', ok: false, est: '3 · matéria-prima', dono: 'Vídeo 100% IA (Kling, TTS PT-BR, b-roll) + banco de brutos: shotlist pro time gravar e cobrança do material. Decide "grava ou gera".', cobra: 'Bruto/gerado disponível ANTES do editor precisar.' },
-  { n: 5, nome: 'Editor de vídeo e cortes', ico: '✂️', ok: false, est: '3 · produção', dono: 'Reels/TikTok/Shorts: cortes, montagem, legendas queimadas, capa, trilha.', cobra: 'Gancho nos 2 primeiros segundos + formato citado do Banco de Formatos.' },
-  { n: 6, nome: 'Social Media', ico: '📱', ok: false, est: '1, 5-7', dono: 'Presença e calendário por canal (IG/FB/TikTok/YT), identidade de cada rede, ritmo de stories.', cobra: 'Cadência cumprida vs planejada; canal sem post no prazo = anomalia.' },
-  { n: 7, nome: 'Community / Relacionamento', ico: '💬', ok: false, est: '7+ · pós-publicação', dono: 'Responder TODO comentário e DM (tom Sol), triagem comentário→lead→Sol/comercial, escuta social.', cobra: '100% respondido < 4h úteis; lead com origem marcada.' },
-  { n: 8, nome: 'Agendador de postagens', ico: '📆', ok: false, est: '6 · publicação', dono: 'Agendamento nativo: Business Suite (IG+FB), TikTok Studio/Canva Planner, YouTube Studio.', cobra: 'Checklist T1 100% antes de agendar; T2 verificação no ar em 1h.' },
-  { n: 9, nome: 'SEO', ico: '🔍', ok: false, est: 'território próprio', dono: 'SEO local (Google Meu Negócio, reviews, mapa), SEO de YouTube (título/tag/capítulos), legenda/hashtag.', cobra: 'Ranking nas buscas-chave locais; GMB vivo; vídeos indexando.' },
-  { n: 10, nome: 'Gestor de Tráfego Orgânico', ico: '📈', ok: false, est: 'consultor est. 1/5/6', dono: 'Alcance não pago: algoritmo por canal, trending sounds, horários, colabs.', cobra: 'Alcance/seguidor local rumo aos 5.000; aprendizado registrado.' },
-  { n: 11, nome: 'Gestor de Tráfego Pago', ico: '🚦', ok: true, est: 'mídia', dono: 'Meta Ads: campanhas, verba, públicos (com MRR), relatório 19h. Form novo Cod.<campanha> por anúncio.', cobra: 'CPL por nicho, ROAS, gasto vs capacidade de atendimento.' },
-  { n: 12, nome: 'MKT MRR', ico: '🧲', ok: true, est: 'base/RD', dono: 'TUDO do RD Station Marketing: réguas, automações, fluxos, segmentação, e-mail, lead scoring, tracking.', cobra: '% base rastreada, MQLs entregues, conversão por régua.' },
-  { n: 13, nome: 'Auditor de Marketing', ico: '⚖️', ok: false, est: '4 + esteira inteira', dono: 'NOTA 0-10 EM TUDO (entregáveis, fluxos, tarefas e agentes). Status de toda tarefa (feita/pendente/recusada/erro), tempo vs SLA, bugs e ERROS INVISÍVEIS. Sem compliance CRECI.', cobra: 'Corte 8: <8 volta AUTOMÁTICO pra refazer até ≥8. Nenhuma tarefa sem classificação.' },
-  { n: 14, nome: 'Vigia de Concorrência', ico: '🕵️', ok: true, est: 'inteligência', dono: 'Coleta 100% da Ad Library dos concorrentes 3x/dia (Windows) + IA analisa snapshots a cada 6h. Detecta quem ligou/desligou verba, hooks novos, empreendimentos disputados.', cobra: 'Cobertura 100% verificada por rodada; movimento relevante vira insumo do Curador, do Tráfego e do war-gaming do CMO.' },
+  { n: 1, key: 'curador-psm-conquista', nome: 'Curador', ico: '🔎', ok: false, est: '1-2 · insumo', dono: 'Garimpo (Radar de Virais, NotebookLM, Pinterest, benchmark IG), pauta semanal por canal, distribuição 30/30/40.', cobra: 'Pauta na sexta 12h com evidência de padrão validado.' },
+  { n: 2, key: 'copywriter-psm-conquista', nome: 'Copywriter', ico: '✍️', ok: true, est: '3 · produção', dono: 'Legendas, headlines, roteiros, campanhas Meta, scripts WhatsApp/DM, landing pages.', cobra: 'Vícios de IA zerados, [CONFIRMAR] listados, zero contaminação de alto padrão.' },
+  { n: 3, key: 'design-psm-conquista', nome: 'Design', ico: '🎨', ok: true, est: '3 · produção', dono: 'Artes de feed, carrossel, stories, capas e criativos — SEMPRE brand kit Canva da Conquista.', cobra: 'DoD do Padrão de Entrega + linguagem do board Pinterest; final nunca em Pillow.' },
+  { n: 4, key: 'video-ia-psm-conquista', nome: 'Gerador de Vídeo IA & Captação', ico: '🎥', ok: false, est: '3 · matéria-prima', dono: 'Vídeo 100% IA (Kling, TTS PT-BR, b-roll) + banco de brutos: shotlist pro time gravar e cobrança do material. Decide "grava ou gera".', cobra: 'Bruto/gerado disponível ANTES do editor precisar.' },
+  { n: 5, key: 'editor-video-psm-conquista', nome: 'Editor de vídeo e cortes', ico: '✂️', ok: false, est: '3 · produção', dono: 'Reels/TikTok/Shorts: cortes, montagem, legendas queimadas, capa, trilha.', cobra: 'Gancho nos 2 primeiros segundos + formato citado do Banco de Formatos.' },
+  { n: 6, key: 'social-media-psm-conquista', nome: 'Social Media', ico: '📱', ok: false, est: '1, 5-7', dono: 'Presença e calendário por canal (IG/FB/TikTok/YT), identidade de cada rede, ritmo de stories.', cobra: 'Cadência cumprida vs planejada; canal sem post no prazo = anomalia.' },
+  { n: 7, key: 'community-psm-conquista', nome: 'Community / Relacionamento', ico: '💬', ok: false, est: '7+ · pós-publicação', dono: 'Responder TODO comentário e DM (tom Sol), triagem comentário→lead→Sol/comercial, escuta social.', cobra: '100% respondido < 4h úteis; lead com origem marcada.' },
+  { n: 8, key: 'agendador-psm-conquista', nome: 'Agendador de postagens', ico: '📆', ok: false, est: '6 · publicação', dono: 'Agendamento nativo: Business Suite (IG+FB), TikTok Studio/Canva Planner, YouTube Studio.', cobra: 'Checklist T1 100% antes de agendar; T2 verificação no ar em 1h.' },
+  { n: 9, key: 'seo-psm-conquista', nome: 'SEO', ico: '🔍', ok: false, est: 'território próprio', dono: 'SEO local (Google Meu Negócio, reviews, mapa), SEO de YouTube (título/tag/capítulos), legenda/hashtag.', cobra: 'Ranking nas buscas-chave locais; GMB vivo; vídeos indexando.' },
+  { n: 10, key: 'trafego-organico-psm-conquista', nome: 'Gestor de Tráfego Orgânico', ico: '📈', ok: false, est: 'consultor est. 1/5/6', dono: 'Alcance não pago: algoritmo por canal, trending sounds, horários, colabs.', cobra: 'Alcance/seguidor local rumo aos 5.000; aprendizado registrado.' },
+  { n: 11, key: 'gestor-trafego-house', nome: 'Gestor de Tráfego Pago', ico: '🚦', ok: true, est: 'mídia', dono: 'Meta Ads: campanhas, verba, públicos (com MRR), relatório 19h. Form novo Cod.<campanha> por anúncio.', cobra: 'CPL por nicho, ROAS, gasto vs capacidade de atendimento.' },
+  { n: 12, key: 'sr-mkt-mrr', nome: 'MKT MRR', ico: '🧲', ok: true, est: 'base/RD', dono: 'TUDO do RD Station Marketing: réguas, automações, fluxos, segmentação, e-mail, lead scoring, tracking.', cobra: '% base rastreada, MQLs entregues, conversão por régua.' },
+  { n: 13, key: 'auditor-mkt-psm', nome: 'Auditor de Marketing', ico: '⚖️', ok: false, est: '4 + esteira inteira', dono: 'NOTA 0-10 EM TUDO (entregáveis, fluxos, tarefas e agentes). Status de toda tarefa (feita/pendente/recusada/erro), tempo vs SLA, bugs e ERROS INVISÍVEIS. Sem compliance CRECI.', cobra: 'Corte 8: <8 volta AUTOMÁTICO pra refazer até ≥8. Nenhuma tarefa sem classificação.' },
+  { n: 14, key: 'vigia-concorrencia', nome: 'Vigia de Concorrência', ico: '🕵️', ok: true, est: 'inteligência', dono: 'Coleta 100% da Ad Library dos concorrentes 3x/dia (Windows) + IA analisa snapshots a cada 6h. Detecta quem ligou/desligou verba, hooks novos, empreendimentos disputados.', cobra: 'Cobertura 100% verificada por rodada; movimento relevante vira insumo do Curador, do Tráfego e do war-gaming do CMO.' },
 ];
 
 const HANDOFFS = [
@@ -100,6 +100,10 @@ function md(txt) {
 
 function fmtTs(ts) { return esc(String(ts || '').slice(0, 16).replace('T', ' ')) + ' UTC'; }
 function rels() { return Array.isArray(_dados?.relatorios) ? _dados.relatorios : []; }
+function deptoVivo() {
+  const st = (_dados && _dados.depto_status) || {};
+  return DEPTO.map(d => ({ ...d, ok: st[d.key] !== undefined ? !!st[d.key] : d.ok }));
+}
 function notas() { return Array.isArray(_dados?.notas) ? _dados.notas : []; }
 function backlog() { return Array.isArray(_dados?.backlog) ? _dados.backlog : []; }
 function decisoes() { return Array.isArray(_dados?.decisoes) ? _dados.decisoes : []; }
@@ -180,7 +184,7 @@ function renderPainel(body) {
     <div class="tiny" style="margin-top:4px">${md(alerta.texto)}</div></div>` : ''}
 
   <div class="cmo-grid" style="margin-bottom:12px">
-    <div class="cmo-kpi"><div class="v">${DEPTO.filter(d => d.ok).length}/${DEPTO.length}</div><div class="l">agentes ativos</div></div>
+    <div class="cmo-kpi"><div class="v">${deptoVivo().filter(d => d.ok).length}/${DEPTO.length}</div><div class="l">agentes ativos</div></div>
     <div class="cmo-kpi"><div class="v">${media !== null ? media.toFixed(1) : '—'}</div><div class="l">nota média (Auditor)</div></div>
     <div class="cmo-kpi"><div class="v">${reprov !== null ? reprov + '%' : '—'}</div><div class="l">reprovado no corte 8</div></div>
     <div class="cmo-kpi"><div class="v">${testando}</div><div class="l">testes rodando</div></div>
@@ -331,11 +335,12 @@ function renderEsteira(body) {
 
 /* ─────────────────────────── 🏢 Departamento ─────────────────────────── */
 function renderDepto(body) {
-  const ativos = DEPTO.filter(d => d.ok).length;
+  const DEPTO_V = deptoVivo();
+  const ativos = DEPTO_V.filter(d => d.ok).length;
   body.innerHTML = `
-  <div class="tiny muted" style="margin-bottom:10px">As ${DEPTO.length} cadeiras do departamento Conquista — <b>${ativos} ativas</b>, ${DEPTO.length - ativos} a criar (uma por conversa, lendo o fluxograma-mãe antes). Todo agente nasce subordinado ao CMO e herda os guardrails: publicar/disparar/gastar = só com aprovação do Paulo.</div>
+  <div class="tiny muted" style="margin-bottom:10px">As ${DEPTO_V.length} cadeiras do departamento Conquista — <b>${ativos} ativas</b>, ${DEPTO_V.length - ativos} a criar (uma por conversa, lendo o fluxograma-mãe antes). Todo agente nasce subordinado ao CMO e herda os guardrails: publicar/disparar/gastar = só com aprovação do Paulo.</div>
   <div class="cmo-grid3">
-    ${DEPTO.map(d => `
+    ${DEPTO_V.map(d => `
     <div class="cmo-card" style="border-left:4px solid ${d.ok ? '#22c55e' : 'var(--bd)'}">
       <div class="flex" style="align-items:center;gap:8px">
         <span style="font-size:18px">${d.ico}</span>

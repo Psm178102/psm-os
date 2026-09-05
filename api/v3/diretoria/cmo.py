@@ -62,7 +62,7 @@ class handler(BaseHTTPRequestHandler):
             sb = supabase_client()
             # v87.37: o cockpit mostra TODO o estado interno do CMO — relatórios,
             # Placar de Notas do Auditor, backlog ICE e Decision Log (4 chaves).
-            extras = ["cmo_notas", "cmo_backlog", "cmo_decisoes"]
+            extras = ["cmo_notas", "cmo_backlog", "cmo_decisoes", "cmo_depto_status"]
             rows = (sb.table("shared_kv").select("key,value")
                     .in_("key", [KV_KEY] + extras).execute().data or [])
             kv = {}
@@ -86,6 +86,9 @@ class handler(BaseHTTPRequestHandler):
                 "notas": itens_de("cmo_notas"),
                 "backlog": itens_de("cmo_backlog"),
                 "decisoes": itens_de("cmo_decisoes"),
+                # {slug: true} — sessões que criam agentes marcam aqui (SQL upsert),
+                # e o cockpit acende a cadeira sem precisar de deploy.
+                "depto_status": kv.get("cmo_depto_status", {}),
             })
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)})
