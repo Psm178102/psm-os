@@ -60,10 +60,33 @@ class handler(BaseHTTPRequestHandler):
             return self._send(e.status, {"ok": False, "error": e.message})
         try:
             sb = supabase_client()
-            itens = _kv_get(sb).get("itens") or []
-            itens = [i for i in itens if isinstance(i, dict)]
-            itens.sort(key=lambda i: str(i.get("ts") or ""), reverse=True)
-            return self._send(200, {"ok": True, "relatorios": itens})
+            # v87.37: o cockpit mostra TODO o estado interno do CMO — relatórios,
+            # Placar de Notas do Auditor, backlog ICE e Decision Log (4 chaves).
+            extras = ["cmo_notas", "cmo_backlog", "cmo_decisoes"]
+            rows = (sb.table("shared_kv").select("key,value")
+                    .in_("key", [KV_KEY] + extras).execute().data or [])
+            kv = {}
+            for r in rows:
+                v = r.get("value")
+                if isinstance(v, str):
+                    try:
+                        v = json.loads(v)
+                    except Exception:
+                        v = {}
+                kv[r.get("key")] = v if isinstance(v, dict) else {}
+
+            def itens_de(key):
+                out = [i for i in (kv.get(key, {}).get("itens") or []) if isinstance(i, dict)]
+                out.sort(key=lambda i: str(i.get("ts") or ""), reverse=True)
+                return out
+
+            return self._send(200, {
+                "ok": True,
+                "relatorios": itens_de(KV_KEY),
+                "notas": itens_de("cmo_notas"),
+                "backlog": itens_de("cmo_backlog"),
+                "decisoes": itens_de("cmo_decisoes"),
+            })
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)})
 
