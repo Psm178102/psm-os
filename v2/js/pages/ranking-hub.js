@@ -29,7 +29,7 @@ const REFRESH_MS = 30000;
    volta a cada N" vêm do /api/v3/arena/tv2_config (shared_kv) — calibra sem
    deploy; a TV pega no próximo poll. (87.26 = hotfix: a definição não tinha
    entrado no 87.25 e a TV quebrou com CICLO_ATUAL undefined.) */
-let _cfg = { slide_s: 20, vendas_cada: 5, telas: ['recado', 'duelo', 'doc', 'aten', 'prosp', 'corrida', 'premiacoes', 'placar'] };
+let _cfg = { slide_s: 20, vendas_cada: 5, telas: ['recado', 'duelo', 'doc', 'aten', 'prosp', 'corrida', 'premiacoes', 'placar'], ocultar_nomes: ['Isabella', 'Paulo'] };
 let _cfgCanEdit = false, _cfgAt = 0;
 const SLIDE_MS = () => _cfg.slide_s * 1000;
 function CICLO_ATUAL() {
@@ -412,8 +412,13 @@ function catCount(a, cat) {
   return (a.ruleBreakdown || []).filter(rb => classifyRule(rb) === cat)
     .reduce((t, rb) => t + (rb.count || 0), 0);
 }
+function ocultoNaTV(nome) {
+  // sócios (e quem mais a gestão listar na ⚙) nunca aparecem na TV pública
+  const alvo = String(nome || '').split(' ')[0].toLowerCase();
+  return (_cfg.ocultar_nomes || []).some(n => String(n).split(' ')[0].toLowerCase() === alvo);
+}
 function ranked(cat) {
-  let list = _data?.ranking || [];
+  let list = (_data?.ranking || []).filter(a => !ocultoNaTV(a.agentName));
   if (_team !== 'GERAL') list = list.filter(a => (a.teamName || '').trim() === _team);
   const val = a => cat ? catPts(a, cat) : (a.totalPoints || 0);
   list = [...list].sort((a, b) => (cat ? catCount(b, cat) : val(b)) - (cat ? catCount(a, cat) : val(a)) || val(b) - val(a));
@@ -835,6 +840,8 @@ function abrirConfig() {
         <label style="flex:1;font-size:13px;color:#94a3b8">Vendas volta a cada X telas
           <input id="rhc-cada" type="number" min="1" max="8" value="${_cfg.vendas_cada}" style="width:100%;margin-top:4px;background:#141a2c;border:1px solid rgba(71,85,105,.5);border-radius:8px;color:#f8fafc;padding:8px 10px;font-size:16px"></label>
       </div>
+      <label style="display:block;font-size:13px;color:#94a3b8;margin-bottom:12px">🙈 Ocultar da TV (nomes separados por vírgula — sócios ficam de fora dos rankings)
+        <input id="rhc-ocultar" value="${escapeHtml((_cfg.ocultar_nomes || []).join(', '))}" style="width:100%;margin-top:4px;background:#141a2c;border:1px solid rgba(71,85,105,.5);border-radius:8px;color:#f8fafc;padding:8px 10px;font-size:15px"></label>
       <div style="font-size:13px;color:#94a3b8;margin-bottom:8px">Telas extras — ligue/desligue e arraste a ordem (▲▼). O ranking de vendas é fixo e intercala sozinho.</div>
       <div id="rhc-list" style="display:grid;gap:8px">${todas.map(linha).join('')}</div>
       <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:20px">
@@ -856,7 +863,8 @@ function abrirConfig() {
   ov.querySelector('#rhc-save').onclick = async () => {
     const telas = [...ov.querySelectorAll('.rhc-row')].filter(r => r.querySelector('.rhc-on').checked).map(r => r.dataset.tela);
     const cfg = { slide_s: Number(ov.querySelector('#rhc-slide').value) || 20,
-                  vendas_cada: Number(ov.querySelector('#rhc-cada').value) || 5, telas };
+                  vendas_cada: Number(ov.querySelector('#rhc-cada').value) || 5, telas,
+                  ocultar_nomes: String(ov.querySelector('#rhc-ocultar').value || '').split(',').map(x => x.trim()).filter(Boolean) };
     if (!telas.length) { ov.querySelector('#rhc-msg').textContent = 'Ligue ao menos uma tela extra.'; return; }
     ov.querySelector('#rhc-save').disabled = true;
     try {

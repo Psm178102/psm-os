@@ -22,6 +22,9 @@ DEFAULT = {
     "slide_s": 20,
     "vendas_cada": 5,   # ranking de vendas volta a cada N telas extras
     "telas": ["recado", "duelo", "doc", "aten", "prosp", "corrida", "premiacoes", "placar"],
+    # v87.36: sócios NUNCA na TV pública (Paulo, 05/set) — vale pra TODOS os
+    # rankings/placar (o HUB não sabe quem é sócio; o filtro é por 1º nome).
+    "ocultar_nomes": ["Isabella", "Paulo"],
 }
 
 
@@ -41,7 +44,11 @@ def _norm(v):
     except Exception:
         cada = DEFAULT["vendas_cada"]
     cada = max(1, min(8, cada))
-    return {"slide_s": slide, "vendas_cada": cada, "telas": telas}
+    ocultar = v.get("ocultar_nomes")
+    if not isinstance(ocultar, list):
+        ocultar = DEFAULT["ocultar_nomes"][:]
+    ocultar = [str(x).strip()[:40] for x in ocultar if str(x).strip()][:20]
+    return {"slide_s": slide, "vendas_cada": cada, "telas": telas, "ocultar_nomes": ocultar}
 
 
 class handler(BaseHTTPRequestHandler):
