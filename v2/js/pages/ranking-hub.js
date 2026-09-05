@@ -330,7 +330,9 @@ function telaDuelo() {
 
 /* ── 🏁 tela: Corrida da Meta (% da meta individual do ano, com linha de pace) ── */
 function telaCorrida() {
-  const pc = ((_metas && _metas.por_corretor) || []).filter(c => !c.inativo && (c.meta_vgv || 0) > 0);
+  // sócio/diretor NUNCA na TV da Arena (Paulo, 05/set: 'retire ela daquilo imediatamente')
+  const pc = ((_metas && _metas.por_corretor) || []).filter(c => !c.inativo && (c.meta_vgv || 0) > 0
+    && !/socio|diretor/i.test(String(c.role || '')));
   if (!pc.length) return telaPlacar();
   const paceAno = Math.round(((Date.now() - new Date(new Date().getFullYear(), 0, 1)) / 864e5) / 365 * 100);
   const lanes = pc.map(c => ({ ...c, pct: Math.min(120, Math.round((c.vgv_atingido || 0) / c.meta_vgv * 100)) }))
