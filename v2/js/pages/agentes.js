@@ -2,6 +2,16 @@
 import { auth } from '../auth.js';
 
 const AGENTS = [
+  // v87.31: Agentes Diretoria — C-level IA interligado pela Rede de Agentes (sócio)
+  { id: 'ceo',          name: 'CEO PSM',       line: 'Diretoria · rede de agentes', ico: '🎩', color: '#0ea5e9',
+    desc: 'Braço direito executivo: visão do todo, prioridades, preparo de decisão e fiscalização do Plano de Resgate',
+    channels: ['House PSM Chat', 'Rede de Agentes'], status: 'active', page: '/agente-ceo' },
+  { id: 'cfo',          name: 'Sr. CFO',       line: 'Diretoria · rede de agentes', ico: '💰', color: '#22c55e',
+    desc: 'Cérebro financeiro: caixa, dívida, margens, break-even e auditoria de incongruências',
+    channels: ['House PSM Chat', 'Rede de Agentes'], status: 'active', page: '/agente-cfo' },
+  { id: 'cmo',          name: 'CMO PSM',       line: 'Diretoria · rede de agentes', ico: '📣', color: '#f59e0b',
+    desc: 'Estratégia de marketing integrada: budget por nicho, CAC/ROAS e arbitragem dos executores',
+    channels: ['House PSM Chat', 'Rede de Agentes'], status: 'active', page: '/agente-cmo' },
   { id: 'vera',         name: 'Vera',          line: 'PSM Assessoria Imobiliária', ico: '💜', color: '#8b5cf6',
     desc: 'Atendimento de leads, qualificação, nutrição e captação para assessoria imobiliária',
     channels: ['WhatsApp', 'Instagram DM'], status: 'config', page: '/agente-vera' },

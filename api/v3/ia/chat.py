@@ -165,6 +165,138 @@ AGENTS = {
         ),
         "primary": "gemini",
     },
+    # v87.31: AGENTES DIRETORIA (menu Diretoria → Agentes Diretoria) — camada
+    # C-level da holding, SÓ sócio (lvl>=10). Contexto vivo (vendas/caixa/plano/
+    # Meta) + REDE DE AGENTES (quadro compartilhado em shared_kv agentes_rede)
+    # injetados no do_POST. Personas portadas dos agentes do Paulo (~/.claude/agents).
+    "ceo": {
+        "name": "CEO PSM",
+        "ico": "🎩",
+        "tagline": "Braço direito executivo — visão de dono, prioridades e cobrança",
+        "system": (
+            "Você é o CEO executivo da holding PSM (Paulo Morimatsu, São José do "
+            "Rio Preto/SP). O Paulo é o dono e a palavra final é SEMPRE dele — "
+            "você pensa como dono, prepara decisões, fiscaliza execução e cobra "
+            "números, mas nunca decide por ele em nada irreversível. Sua função: "
+            "olhar o todo, conectar as pontas, dizer verdades desconfortáveis e "
+            "transformar estratégia em cobrança semanal. "
+            "A HOLDING: PSM Conquista (volume MCMV 200-400k na planta, motor de "
+            "VGV, margem 1,85%), PSM Imóveis (alto padrão/NEPQ, MAP + Terceiros, "
+            "margem 3,6%, lançamentos LUX JK e SoHo), Locações (bandeira leve, "
+            "taxa adm 10%/mês), Morimatsu & Associados (gestão patrimonial/"
+            "leilões, fee) e Folk (agência da família). Sócios: Paulo + Isabella "
+            "(pró-labore R$15k cada). Time de apoio: Leire (reativação MAP), "
+            "Mariane (indicação/NPS/CS), Guilherme (locação). "
+            "O PLANO MESTRE: Plano de Resgate jul→dez/2026 — déficit ~R$12-23k/mês "
+            "tapado pelo bolso do Paulo, break-even R$70k, meta = equipes pagando "
+            "o pró-labore em dezembro; TUDO a 4% de comissão (5% é bônus); ads "
+            "segue capacidade + ROAS. Princípio-mestre: pró-labore vem do "
+            "resultado das EQUIPES, venda própria é ponte. Dívidas: FGI 1,99%/mês "
+            "(alongar), PRONAMP 0,99% (nunca quitar cedo). Toda recomendação tem "
+            "que ser consistente com o plano — se algo conflita, APONTE o "
+            "conflito. Pense em 3 horizontes: H1 sobrevivência (executar o "
+            "Resgate, nada pode comprometer o caixa), H2 alavancas 2027 (IA no "
+            "pré-venda Sol/Vera, CRM próprio, locação recorrente, Morimatsu), "
+            "H3 destino (VGV core R$17M/mês). "
+            "REGRAS: (1) nunca opine sem dado — use os números do CONTEXTO VIVO "
+            "abaixo e cite-os; se faltar dado, diga qual e onde instrumentar, "
+            "nunca invente; (2) toda ideia vem com régua: problema, prêmio em "
+            "R$, custo até o 1º sinal, quem executa, por que agora; (3) insights "
+            "proativos em seção separada e curta; (4) prepare decisões em "
+            "formato: contexto → opções → recomendação → o que o Paulo decide; "
+            "(5) português BR, formato executivo, direto. Você lidera a REDE DE "
+            "AGENTES da diretoria: CFO (dinheiro), CMO (marketing) e Sr. Gestor "
+            "de Tráfego (mídia) — arbitre conflitos entre eles, cobre pendências "
+            "publicadas na rede e despache pro colega certo o que for da alçada dele."
+        ),
+        "primary": "gemini",
+    },
+    "cfo": {
+        "name": "Sr. CFO",
+        "ico": "💰",
+        "tagline": "Cérebro financeiro — caixa, dívida, margens e gates do Resgate",
+        "system": (
+            "Você é o Sr. CFO — o cérebro financeiro da holding PSM (São José do "
+            "Rio Preto/SP). Tudo que envolve dinheiro passa por você: analisa, "
+            "estrategiza, enxerga risco antes de virar problema, aponta erro e "
+            "acerto com franqueza e transforma número em decisão. Você NÃO "
+            "executa pagamento nem contrata crédito — monta a decisão pro sócio. "
+            "POSTURA DE CÉREBRO (toda resposta): 1) o dado com fonte; 2) a "
+            "leitura (vs plano, vs mês passado, vs break-even); 3) o risco ou "
+            "oportunidade que ninguém perguntou; 4) a recomendação em 1 frase; "
+            "5) o que fica pra fiscalizar (data e critério). Se o mês vai furar, "
+            "diga na segunda, não no fechamento. Erro tem nome, custo em R$ e "
+            "lição; acerto também se quantifica. "
+            "AS CONSTANTES DA CASA: margens 1,85% (Conquista) e 3,6% (MAP/"
+            "Terceiros); break-even ~R$70k/mês; conta cheia; próprio necessário "
+            "= (conta cheia − contrib Conquista) ÷ 3,6%; ROAS piso 2×; LTV "
+            "Locações = aluguel × 10% × duração × 33. Dívidas: FGI 1,99%/mês "
+            "(alongar já; quitações 232,8k/31,7k), PRONAMP 0,99% (NUNCA quitar "
+            "cedo; novo ~50k fica na RESERVA com gatilho de saque). PJs: PSM "
+            "Assessoria (PJ 152, Paulo), PSM Negócios (PJ 180, Isabella), PJ da "
+            "Conquista, casca Morimatsu/Folk — nunca misturar marca × frente × "
+            "PJ. Regra do positivo: nenhum mês negativo desde ago/2026. "
+            "FONTE OFICIAL: financeiro vem do PSM HUB (NIBO cancelado 13/ago/"
+            "2026); no House, painel de Caixa e Métricas de Viabilidade. "
+            "RADAR DE RISCOS vivo: 🔴 existencial (fura caixa <60d), 🟡 "
+            "estrutural (corrói margem), 🔵 latente. Todo relatório abre com o "
+            "🔴 mais quente. Riscos conhecidos: concentração em VGV próprio dos "
+            "sócios, serviço de dívida pós-carência fev/2027, dependência do "
+            "bolso PF do Paulo. "
+            "REGRAS: use SÓ os números do CONTEXTO VIVO abaixo e cite a fonte; "
+            "dado ausente = dizer qual falta e onde instrumentar, nunca "
+            "estimar em silêncio; máx 3 melhorias acionáveis por análise, "
+            "priorizadas por R$ ÷ esforço; português BR executivo. Na REDE DE "
+            "AGENTES você é o dono do custo real: valide o budget do CMO, "
+            "aponte incongruência de qualquer colega com número, e publique na "
+            "rede todo risco 🔴 novo."
+        ),
+        "primary": "gemini",
+    },
+    "cmo": {
+        "name": "CMO PSM",
+        "ico": "📣",
+        "tagline": "Estratégia de marketing — budget, CAC/ROAS integrado e arbitragem",
+        "system": (
+            "Você é o CMO da holding PSM (Paulo Morimatsu, São José do Rio "
+            "Preto/SP). Você NÃO produz peça, NÃO compra mídia e NÃO dispara "
+            "régua — você decide ONDE o dinheiro e a energia de marketing "
+            "entram, cobra resultado dos executores e responde por UM número "
+            "integrado: cada real de marketing volta como VGV ou fica explicado. "
+            "SEUS EXECUTORES (cobrar, nunca fazer o trabalho deles): Sr. Gestor "
+            "de Tráfego (mídia paga Meta, módulo no House — CPL por nicho, "
+            "ROAS, gasto vs capacidade), marketing de conteúdo das 2 marcas "
+            "(linha editorial, calendário, criativos) e o marketing de "
+            "relacionamento/réguas da base (tracking/UTM, segmentos, lead "
+            "scoring). PARES: CEO (recebe seus reportes e arbitra acima de "
+            "você) e Sr. CFO (dono do custo real — seu CAC integrado usa o "
+            "custo DELE; budget proposto = validado com o CFO antes do Paulo). "
+            "CONTEXTO QUE COMANDA TUDO: Plano de Resgate jul→dez/2026 (sem "
+            "verba pra desperdiçar; ads segue capacidade de atendimento + "
+            "ROAS, piso 2×, nunca vaidade); nichos: Conquista = volume MCMV "
+            "(motor), MAP = ponte, Terceiros = caixa rápido, PSM Imóveis = "
+            "alto padrão/quiet luxury (LUX JK, SoHo), Locação = bandeira leve; "
+            "metas vivas: Conquista 5.000 seguidores LOCAIS antes de virar a "
+            "chave pra conversão; funil integrado: Meta Ads → form nomeado "
+            "(Cod.) → RD + House → Sol/Vera/corretor → visita → pasta → venda. "
+            "Lead mal aproveitado é problema de FUNIL, não de mídia. "
+            "FUNÇÕES: 1) plano mensal/trimestral por marca (objetivo → meta → "
+            "alocação → critério de corte, com hipótese e data de revisão); "
+            "2) budget de mídia por nicho amarrado a capacidade + ROAS; "
+            "3) CAC/ROAS integrado por nicho (custo total ÷ vendas por origem) "
+            "— seu placar; 4) arbitragem: gargalo do funil primeiro, caixa "
+            "curto vence tese longa, tom de marca é inegociável; o que cruzar "
+            "de área sobe pro CEO; 5) reporte por exceção e decisão, nunca "
+            "diário de bordo. "
+            "REGRAS: use os números do CONTEXTO VIVO abaixo (Meta Ads, funil "
+            "RD, estratégia vigente do Tráfego) e cite-os; sem instrumentação "
+            "= dizer que não tem o dado e mandar instrumentar, nunca inventar; "
+            "português BR, formato executivo. Na REDE DE AGENTES, publique "
+            "decisões de budget e alarmes de CPL/ROAS, cobre o Tráfego pelos "
+            "achados do Vigia e valide custo com o CFO."
+        ),
+        "primary": "gemini",
+    },
     "treino_nota": {
         "name": "Avaliador da Sala de Treino",
         "ico": "📋",
@@ -441,6 +573,268 @@ def _gestor_context(sb):
     return ("\n\n".join(parts))[:22000]
 
 
+# ─── REDE DE AGENTES (v87.31) ──────────────────────────────────────────
+# Quadro compartilhado no shared_kv 'agentes_rede': todo agente da rede LÊ os
+# recados dos colegas antes de responder e pode PUBLICAR achados/alertas/
+# incongruências que os outros verão na próxima conversa. É o que interliga
+# CEO × CFO × CMO × Sr. Tráfego × Sr. Performance × Sr. Gerência.
+KV_REDE = "agentes_rede"
+REDE_AGENTS = {"ceo", "cfo", "cmo", "gestor_trafego", "sr_performance", "sr_gerencia"}
+REDE_TIPOS = {"achado", "alerta", "incongruencia", "plano", "decisao", "pergunta", "resposta"}
+REDE_MAX_NOTAS = 120
+import re as _re
+
+
+def _kv_read(sb, key):
+    try:
+        rows = sb.table("shared_kv").select("value").eq("key", key).limit(1).execute().data or []
+        v = rows[0]["value"] if rows else {}
+        if isinstance(v, str):
+            v = json.loads(v)
+        return v if isinstance(v, (dict, list)) else {}
+    except Exception:
+        return {}
+
+
+def _kv_write(sb, key, value):
+    from datetime import datetime, timezone
+    sb.table("shared_kv").upsert({
+        "key": key, "value": value,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }, on_conflict="key").execute()
+
+
+def _rede_context(sb, agent_id):
+    """Quadro da rede visto por este agente: recados endereçados a ele ou a
+    'todos' (+ os que ele mesmo publicou, pra não repetir), mais o protocolo
+    de publicação. Capado em ~6k chars."""
+    if not sb:
+        return ""
+    v = _kv_read(sb, KV_REDE)
+    notas = [n for n in (v.get("notas") or []) if isinstance(n, dict)]
+    minhas = [n for n in notas if n.get("autor") == agent_id][-3:]
+    pra_mim = [n for n in notas
+               if n.get("autor") != agent_id
+               and (agent_id in (n.get("para") or []) or "todos" in (n.get("para") or []))][-12:]
+    linhas = []
+    if pra_mim:
+        linhas.append("RECADOS DOS COLEGAS (mais recentes por último — considere TODOS ao responder; "
+                      "se algum pedir sua posição, responda publicando um recado tipo 'resposta'):")
+        for n in pra_mim:
+            linhas.append(f"- [{str(n.get('ts') or '')[:16]}] {n.get('autor')} → {','.join(n.get('para') or [])} "
+                          f"({n.get('tipo')}): {n.get('titulo')} — {str(n.get('corpo') or '')[:400]}")
+    if minhas:
+        linhas.append("SEUS ÚLTIMOS RECADOS PUBLICADOS (não repita o que já publicou):")
+        for n in minhas:
+            linhas.append(f"- [{str(n.get('ts') or '')[:16]}] ({n.get('tipo')}) {n.get('titulo')}")
+    linhas.append(
+        "COMO PUBLICAR NA REDE: quando (e SÓ quando) você tiver algo que um colega "
+        "precisa saber — achado relevante, alerta, incongruência entre dados, decisão "
+        "que afeta a área dele, pergunta direta ou resposta a um recado — inclua no "
+        "FINAL da sua resposta um bloco neste formato exato (máx 2 blocos):\n"
+        '[[REDE]]{"para":["ceo"],"tipo":"alerta","titulo":"resumo em 1 linha","corpo":"detalhe objetivo com número e fonte"}[[/REDE]]\n'
+        "Destinos válidos: ceo, cfo, cmo, gestor_trafego, sr_performance, sr_gerencia, todos. "
+        "Tipos válidos: achado, alerta, incongruencia, plano, decisao, pergunta, resposta. "
+        "O bloco é removido da resposta ao usuário e entregue aos colegas — não mencione o bloco no texto. "
+        "Rotina sem novidade = NÃO publicar nada."
+    )
+    colegas = {
+        "ceo": "CEO (visão do todo, prioridades, arbitragem)", "cfo": "Sr. CFO (caixa, dívida, custos, margens)",
+        "cmo": "CMO (estratégia de marketing, budget, CAC/ROAS)", "gestor_trafego": "Sr. Gestor de Tráfego (mídia paga Meta, execução)",
+        "sr_performance": "Sr. Performance (leitura comercial/KPIs)", "sr_gerencia": "Sr. Gerência (gestão de equipe)",
+    }
+    outros = "; ".join(f"{k} = {d}" for k, d in colegas.items() if k != agent_id)
+    return ("═══ REDE DE AGENTES DA DIRETORIA ═══\nSeus colegas na rede: " + outros + "\n\n" + "\n".join(linhas))[:6000]
+
+
+def _rede_publish(sb, agent_id, reply, autor_user=None):
+    """Extrai blocos [[REDE]]{json}[[/REDE]] da resposta do agente, grava no
+    quadro e devolve (reply_limpo, n_publicados). Best-effort: bloco inválido
+    é só descartado."""
+    if not sb or "[[REDE]]" not in (reply or ""):
+        return reply, 0
+    from datetime import datetime, timezone
+    pub = []
+    def _take(m):
+        try:
+            d = json.loads(m.group(1))
+            para = [p for p in (d.get("para") or []) if p in REDE_AGENTS or p == "todos"] or ["todos"]
+            tipo = d.get("tipo") if d.get("tipo") in REDE_TIPOS else "achado"
+            titulo = str(d.get("titulo") or "").strip()[:160]
+            corpo = str(d.get("corpo") or "").strip()[:1200]
+            if titulo:
+                pub.append({
+                    "id": f"{agent_id}-{int(time.time() * 1000)}-{len(pub)}",
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                    "autor": agent_id, "para": para, "tipo": tipo,
+                    "titulo": titulo, "corpo": corpo,
+                    **({"por": autor_user} if autor_user else {}),
+                })
+        except Exception:
+            pass
+        return ""
+    limpo = _re.sub(r"\[\[REDE\]\]\s*(\{.*?\})\s*\[\[/REDE\]\]", _take, reply, flags=_re.DOTALL).strip()
+    if pub:
+        try:
+            v = _kv_read(sb, KV_REDE)
+            notas = [n for n in (v.get("notas") or []) if isinstance(n, dict)]
+            notas = (notas + pub[:2])[-REDE_MAX_NOTAS:]
+            _kv_write(sb, KV_REDE, {"notas": notas})
+        except Exception:
+            return limpo, 0
+    return limpo, len(pub[:2])
+
+
+def _diretoria_context(sb, agent_id):
+    """CONTEXTO VIVO dos agentes C-level: vendas do CRM (mês/ano por funil),
+    Meta Ads (cache), caixa + HUB financeiro (cache da ponte), Plano de Resgate
+    e estratégia vigente do Tráfego. Tudo best-effort, capado em ~18k chars."""
+    if not sb:
+        return ""
+    from datetime import datetime, timezone, timedelta
+    parts = []
+    agora = datetime.now(timezone(timedelta(hours=-3)))
+    ym = agora.strftime("%Y-%m")
+
+    # 1) Vendas (deals win) — mês corrente e acumulado do ano, por funil
+    try:
+        ini_ano = agora.strftime("%Y-01-01")
+        rows = (sb.table("deals")
+                .select("amount,closed_at,pipeline_name,amt_total:rd_raw->amount_total")
+                .eq("win", True).gte("closed_at", ini_ano).limit(3000).execute().data or [])
+        mes, ano = {}, {}
+        for d in rows:
+            try:
+                val = float(d.get("amount") or 0) or float(d.get("amt_total") or 0)
+            except Exception:
+                val = 0.0
+            k = (d.get("pipeline_name") or "?")[:40]
+            ano.setdefault(k, [0, 0.0]); ano[k][0] += 1; ano[k][1] += val
+            if str(d.get("closed_at") or "")[:7] == ym:
+                mes.setdefault(k, [0, 0.0]); mes[k][0] += 1; mes[k][1] += val
+        if ano:
+            tm = [sum(v[0] for v in mes.values()), sum(v[1] for v in mes.values())]
+            ta = [sum(v[0] for v in ano.values()), sum(v[1] for v in ano.values())]
+            linhas = [f"VENDAS (CRM, deals ganhos): mês {ym} = {tm[0]} vendas · VGV R$ {tm[1]:,.0f} | ano = {ta[0]} vendas · VGV R$ {ta[1]:,.0f}"]
+            for k, v in sorted(ano.items(), key=lambda kv: -kv[1][1])[:8]:
+                m = mes.get(k) or [0, 0.0]
+                linhas.append(f"  - {k}: mês {m[0]} (R$ {m[1]:,.0f}) · ano {v[0]} (R$ {v[1]:,.0f})")
+            parts.append("\n".join(linhas))
+    except Exception:
+        pass
+
+    # 2) Meta Ads — totais 7d/30d do cache compartilhado
+    try:
+        linhas = []
+        for preset in ("last_7d", "last_30d"):
+            rows = (sb.table("meta_ads_cache").select("payload")
+                    .eq("cache_key", preset + "||").limit(1).execute().data or [])
+            p = rows[0].get("payload") if rows else None
+            if isinstance(p, dict):
+                tot = ((p.get("totals") or {}).get("cur")) or {}
+                spend = float(tot.get("spend") or 0)
+                res = int(tot.get("results") or 0)
+                linhas.append(f"  - {preset}: gasto R$ {spend:,.0f} · {res} leads · CPL " +
+                              (f"R$ {spend / res:,.2f}" if res else "—"))
+        if linhas:
+            parts.append("META ADS (cache do House):\n" + "\n".join(linhas))
+    except Exception:
+        pass
+
+    # 3) Caixa + HUB financeiro (cache da ponte psmhub — fonte oficial pós-NIBO)
+    try:
+        cx = _kv_read(sb, "caixa_posicao")
+        if cx:
+            parts.append("POSIÇÃO DE CAIXA (kv caixa_posicao): " + json.dumps(cx, ensure_ascii=False)[:600])
+    except Exception:
+        pass
+    try:
+        hub = _kv_read(sb, "psmhub_financeiro_cache")
+        if hub:
+            parts.append("PSM HUB FINANCEIRO (cache da ponte — fonte OFICIAL; NIBO cancelado):\n" +
+                         json.dumps(hub, ensure_ascii=False, default=str)[:3000])
+    except Exception:
+        pass
+
+    # 4) Plano de Resgate (shared_kv editável — a bíblia do semestre)
+    try:
+        pl = _kv_read(sb, "plano_resgate_2026")
+        if isinstance(pl, dict) and pl.get("secoes"):
+            linhas = [f"PLANO DE RESGATE ({pl.get('versao') or ''}):"]
+            for s in pl["secoes"][:12]:
+                if isinstance(s, dict):
+                    linhas.append(f"  ## {s.get('titulo')}\n  {str(s.get('corpo') or '')[:700]}")
+            parts.append("\n".join(linhas)[:6000])
+    except Exception:
+        pass
+
+    # 4b) Dossiês da diretoria (kv diretoria_dossies — publicados pelas rotinas
+    # CEO/CFO que rodam no Windows) + radar de riscos do Sr. CFO + últimos
+    # relatórios do CMO. É o elo entre os agentes de ROTINA e os de CHAT.
+    try:
+        items = [d for d in ((_kv_read(sb, "diretoria_dossies") or {}).get("items") or []) if isinstance(d, dict)]
+        items.sort(key=lambda d: str(d.get("criado_em") or ""), reverse=True)
+        meus = [d for d in items if (d.get("autor") or "").lower() == agent_id][:2]
+        ceo_du = [d for d in items if (d.get("autor") or "").upper() == "CEO"][:1] if agent_id != "ceo" else []
+        linhas = []
+        for d in (meus + ceo_du):
+            linhas.append(f"[{d.get('autor')}] {d.get('titulo')} ({str(d.get('criado_em') or '')[:10]}): "
+                          f"{str(d.get('manchete') or '')[:200]}\n{str(d.get('corpo_md') or '')[:1800]}")
+        if linhas:
+            parts.append("DOSSIÊS DA DIRETORIA (rotina dos agentes — seus e o Estado da União do CEO):\n" + "\n---\n".join(linhas))
+    except Exception:
+        pass
+    if agent_id in ("ceo", "cfo"):
+        try:
+            radar = [i for i in ((_kv_read(sb, "sr_cfo_radar") or {}).get("itens") or []) if isinstance(i, dict)]
+            if radar:
+                ico = {"vermelho": "🔴", "amarelo": "🟡", "azul": "🔵"}
+                parts.append("RADAR DE RISCOS DO SR. CFO:\n" + "\n".join(
+                    f"- {ico.get(i.get('nivel'), '·')} {i.get('titulo')}: {str(i.get('detalhe') or '')[:250]}"
+                    + (f" (prazo: {i.get('prazo')})" if i.get("prazo") else "") for i in radar[:10]))
+        except Exception:
+            pass
+    if agent_id in ("ceo", "cmo"):
+        try:
+            rel = [i for i in ((_kv_read(sb, "cmo_relatorios") or {}).get("itens") or []) if isinstance(i, dict)]
+            rel.sort(key=lambda i: str(i.get("ts") or ""), reverse=True)
+            if rel:
+                parts.append("ÚLTIMOS RELATÓRIOS DO CMO (rotina):\n" + "\n---\n".join(
+                    f"[{i.get('tipo')}] {str(i.get('ts') or '')[:10]}{' 🚨' if i.get('alerta') else ''}: {str(i.get('texto') or '')[:1500]}"
+                    for i in rel[:2]))
+        except Exception:
+            pass
+
+    # 5) Estratégia vigente do Tráfego + achados do Vigia (CEO/CMO principalmente)
+    if agent_id in ("ceo", "cmo"):
+        try:
+            cfg = _kv_read(sb, "gt_config")
+            est = (cfg or {}).get("estrategia") or {}
+            if isinstance(est, dict) and (est.get("conquista") or est.get("imoveis")):
+                parts.append("ESTRATÉGIA VIGENTE DO SR. TRÁFEGO:\n[Conquista] " + str(est.get("conquista") or "—")[:1500] +
+                             "\n[Imóveis] " + str(est.get("imoveis") or "—")[:1500])
+            vg = _kv_read(sb, "gt_vigia")
+            ins = [i for i in ((vg or {}).get("insights") or []) if isinstance(i, dict)][:2]
+            if ins:
+                parts.append("ÚLTIMOS ACHADOS DO VIGIA DE CONCORRÊNCIA:\n" + "\n".join(
+                    f"- [{str(i.get('ts'))[:16]}] {i.get('titulo')}: {str(i.get('insight'))[:300]}" for i in ins))
+        except Exception:
+            pass
+
+    # 6) Concorrentes (CMO)
+    if agent_id == "cmo":
+        try:
+            cc = (sb.table("concorrentes").select("nome,seguidores,anuncios_count")
+                  .order("anuncios_count", desc=True).limit(8).execute().data or [])
+            if cc:
+                parts.append("CONCORRENTES (Intel House):\n" + "\n".join(
+                    f"- {c.get('nome')}: {c.get('anuncios_count') or 0} anúncios ativos · {c.get('seguidores') or '?'} seguidores" for c in cc))
+        except Exception:
+            pass
+
+    return ("\n\n".join(parts))[:18000]
+
+
 def _get_setting(sb, key):
     """Pega chave do shared_kv psm_os_settings."""
     if not sb: return None
@@ -586,6 +980,11 @@ class handler(BaseHTTPRequestHandler):
         if agent_id == "gestor_trafego" and (user.get("lvl") or 0) < 5:
             return self._send(403, {"ok": False, "error": "Sr. Tráfego é restrito à gestão (lvl 5+)"})
 
+        # v87.31: Agentes Diretoria (CEO/CFO/CMO) carregam caixa, dívida e plano
+        # no contexto — SÓ sócio (lvl 10), espelhando a Sala de Comando.
+        if agent_id in ("ceo", "cfo", "cmo") and (user.get("lvl") or 0) < 10:
+            return self._send(403, {"ok": False, "error": "Agentes Diretoria são restritos ao sócio (lvl 10)"})
+
         # Carrega keys
         sb = supabase_client()
         # ENV primeiro (fonte de verdade que o /api/ai-analysis já usa e funciona);
@@ -611,6 +1010,10 @@ class handler(BaseHTTPRequestHandler):
             ctx = _gestor_context(sb)
             if ctx:
                 system = system + "\n\n═══ CONTEXTO VIVO (dados reais agora) ═══\n" + ctx
+        elif agent_id in ("ceo", "cfo", "cmo"):
+            ctx = _diretoria_context(sb, agent_id)
+            if ctx:
+                system = system + "\n\n═══ CONTEXTO VIVO (dados reais do House agora) ═══\n" + ctx
         elif agent_id == "sala_treino":
             cen = TREINO_CENARIOS.get((body.get("cenario") or "").strip())
             if not cen:
@@ -621,12 +1024,26 @@ class handler(BaseHTTPRequestHandler):
             if cen:
                 system = system + "\n\nCENÁRIO TREINADO: " + cen["nome"] + " — " + cen["persona"]
 
+        # v87.31: REDE DE AGENTES — todo agente da rede vê o quadro dos colegas
+        # e recebe o protocolo de publicação ([[REDE]]…[[/REDE]]).
+        if agent_id in REDE_AGENTS:
+            rctx = _rede_context(sb, agent_id)
+            if rctx:
+                system = system + "\n\n" + rctx
+
         t0 = time.time()
         result = _try_chain(chain, system, messages, keys)
         dur = round(time.time() - t0, 2)
 
         if not result.get("text"):
             return self._send(502, {"ok": False, "error": result.get("error") or "sem resposta", "agent": agent_id})
+
+        # v87.31: publica na rede os blocos [[REDE]] que o agente emitiu
+        rede_pub = 0
+        if agent_id in REDE_AGENTS:
+            result["text"], rede_pub = _rede_publish(sb, agent_id, result["text"], autor_user=user.get("name"))
+            if not result["text"]:
+                result["text"] = "📡 Recado publicado na rede de agentes."
 
         # Audit (sem o texto inteiro; só metadata)
         last_user_msg = next((m["content"] for m in reversed(messages) if m.get("role") == "user"), "")
@@ -641,6 +1058,7 @@ class handler(BaseHTTPRequestHandler):
             "provider": result.get("provider"),
             "model": result.get("model"),
             "duration_s": dur,
+            "rede_pub": rede_pub,   # v87.31: nº de recados publicados na rede nesta resposta
         })
 
 

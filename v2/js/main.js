@@ -94,6 +94,7 @@ import { pageMeuCerebro } from './pages/meu-cerebro.js';
 import { pageSimConquista } from './pages/sim-conquista.js';
 import { pagePremiacoes } from './pages/premiacoes.js';
 import { pageAgentes } from './pages/agentes.js';
+import { pageAgentesDiretoria } from './pages/agentes-diretoria.js';   // v87.31: CEO/CFO/CMO + Rede
 import { pageAgenteVera } from './pages/agente-vera.js';
 import { pageAgenteSol } from './pages/agente-sol.js';
 import { pageTendencias } from './pages/tendencias.js';
@@ -172,6 +173,8 @@ export const ROUTE_GROUP = {
   // Jurídico (grupo próprio)
   '/minutas': 'juridico', '/cnds': 'juridico',
   '/pontos-atencao': 'diretoria', '/insights': 'diretoria', '/estrategia': 'diretoria',
+  // Agentes Diretoria (v87.31): CEO/CFO/CMO + Rede de Agentes — C-level IA
+  '/agentes-diretoria': 'diretoria', '/agente-ceo': 'diretoria', '/agente-cfo': 'diretoria', '/agente-cmo': 'diretoria',
   // IA
   '/agentes': 'ia', '/ia': 'ia', '/sr-performance': 'ia', '/sr-gerencia': 'ia',
   // PSM Academy — menu próprio, visível a todos (a "faculdade" da PSM)
@@ -265,12 +268,14 @@ export const ROUTE_MIN_LVL = {
   // v86.90: Sala de Comando (Cockpit+Dashboard unificados) — decisão do Paulo: SÓ sócio.
   // /diretoria segue registrado FORA do menu (gestão de recados e retrocompat de links).
   '/cockpit': 10, '/diretoria': 10,
-  // v87.31: CMO · Marketing (agente C-level) — decisão do Paulo (04/set): SÓ sócio
-  // (espelha o require_user(min_lvl=10) de api/v3/diretoria/cmo.py).
-  '/cmo': 10,
-  '/sr-cfo': 10,          // 🧠 Sr. CFO (v87.32): dossiês financeiros, radar de riscos, diário de
-                          // decisões e pendências do agente CFO — assunto de sócio, SEMPRE lvl 10.
-  '/diretoria-ceo': 10,   // 🏛️ Diretoria (sala do CEO IA) — espelha o require_user(min_lvl=10) de api/v3/diretoria/dossies. v87.33
+  // v87.31/32/33/34: AGENTES DIRETORIA — TUDO SÓ sócio (lvl 10): chats CEO/CFO/CMO
+  // + Rede de Agentes (contexto carrega caixa, dívida, pró-labore e Plano de
+  // Resgate — espelha o require_user(min_lvl=10) de ia/chat + ia/rede), os
+  // dossiês do CEO (diretoria/dossies), do Sr. CFO (diretoria/sr_cfo) e os
+  // relatórios do CMO (diretoria/cmo).
+  // Abrir pra diretor = baixar pra 8 AQUI e no backend juntos.
+  '/agentes-diretoria': 10, '/agente-ceo': 10, '/agente-cfo': 10, '/agente-cmo': 10,
+  '/cmo': 10, '/sr-cfo': 10, '/diretoria-ceo': 10,
   // RH + Sucesso do Cliente (v81.58): piso 2 (corretor) — quem vê isso é decidido
   // 100% na matriz por papel (Configurações → Permissões), sem trava de nível.
   '/onboarding': 2, '/offboarding': 2,
@@ -446,7 +451,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '87.33';
+const APP_VERSION = '87.34';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -664,6 +669,10 @@ const APP_VERSION = '87.33';
   router.register('/premiacoes',  { render: async (ctx, root) => { setHeader('Premiações');           highlight('/premiacoes'); await pagePremiacoes(ctx, root); } });
   router.register('/apresentacoes', { render: async (ctx, root) => { setHeader('🎬 Apresentações PSM'); highlight('/apresentacoes'); await pageApresentacoes(ctx, root); } });
   router.register('/agentes',     { render: async (ctx, root) => { setHeader('Central de Agentes');  highlight('/agentes');  await pageAgentes(ctx, root); } });
+  router.register('/agentes-diretoria', { render: async (ctx, root) => { setHeader('🏛 Agentes Diretoria'); highlight('/agentes-diretoria'); await pageAgentesDiretoria(ctx, root); } });
+  router.register('/agente-ceo', { render: async (ctx, root) => { setHeader('🎩 CEO PSM');  highlight('/agente-ceo'); await pageAgentesDiretoria(ctx, root, 'ceo'); } });
+  router.register('/agente-cfo', { render: async (ctx, root) => { setHeader('💰 Sr. CFO');  highlight('/agente-cfo'); await pageAgentesDiretoria(ctx, root, 'cfo'); } });
+  router.register('/agente-cmo', { render: async (ctx, root) => { setHeader('📣 CMO PSM');  highlight('/agente-cmo'); await pageAgentesDiretoria(ctx, root, 'cmo'); } });
   router.register('/agente-vera', { render: async (ctx, root) => { setHeader('Agente Vera');         highlight('/agente-vera'); await pageAgenteVera(ctx, root); } });
   router.register('/agente-sol',  { render: async (ctx, root) => { setHeader('Agente Sol');          highlight('/agente-sol'); await pageAgenteSol(ctx, root); } });
   router.register('/tendencias',  { render: async (ctx, root) => { setHeader('Tendências');           highlight('/tendencias'); await pageTendencias(ctx, root); } });
@@ -1003,14 +1012,22 @@ function shellHTML(user) {
         <div class="sb-sec">🏛 Diretoria</div>
         <div class="sb-subsec" style="font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;opacity:.45;font-weight:800;padding:6px 14px 2px">Decisão</div>
         <button class="sb-link" data-nav="/cockpit"><span class="sb-ico">🧭</span> Sala de Comando</button>
-        <button class="sb-link" data-nav="/diretoria-ceo"><span class="sb-ico">🏛️</span> Diretoria</button>
-        <button class="sb-link" data-nav="/cmo"><span class="sb-ico">🎯</span> CMO · Marketing</button>
         <button class="sb-link" data-nav="/fiscalizacao"><span class="sb-ico">👁</span> Painel de Fiscalização</button>
         <button class="sb-link" data-nav="/ponte"><span class="sb-ico">🌉</span> Fila da Ponte</button>
         <button class="sb-link" data-nav="/paulo"><span class="sb-ico">🧑‍💼</span> Paulo</button>
         <button class="sb-link" data-nav="/relatorios"><span class="sb-ico">🖨</span> Relatórios</button>
         <button class="sb-link" data-nav="/psmhub"><span class="sb-ico">🔌</span> PSM HUB · Conquista</button>
-        <button class="sb-link" data-nav="/sr-cfo"><span class="sb-ico">🧠</span> Sr. CFO</button>
+<!-- v87.34: submenu AGENTES DIRETORIA (pedido do Paulo, 04/set): CMO, CFO, CEO e
+     futuros agentes C-level moram AQUI — chats interligados pela Rede de Agentes
+     + os cockpits de leitura (dossiês do CEO e do Sr. CFO, relatórios do CMO). -->
+        <div class="sb-subsec" style="font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;opacity:.45;font-weight:800;padding:6px 14px 2px">Agentes Diretoria</div>
+        <button class="sb-link" data-nav="/agentes-diretoria"><span class="sb-ico">🕸</span> Rede de Agentes</button>
+        <button class="sb-link" data-nav="/agente-ceo"><span class="sb-ico">🎩</span> CEO</button>
+        <button class="sb-link" data-nav="/agente-cfo"><span class="sb-ico">💰</span> CFO</button>
+        <button class="sb-link" data-nav="/agente-cmo"><span class="sb-ico">📣</span> CMO</button>
+        <button class="sb-link" data-nav="/diretoria-ceo"><span class="sb-ico">🏛️</span> CEO · Dossiês</button>
+        <button class="sb-link" data-nav="/sr-cfo"><span class="sb-ico">🧠</span> CFO · Dossiês</button>
+        <button class="sb-link" data-nav="/cmo"><span class="sb-ico">🎯</span> CMO · Relatórios</button>
         <div class="sb-subsec" style="font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;opacity:.45;font-weight:800;padding:6px 14px 2px">Planejamento</div>
         <button class="sb-link" data-nav="/projetos"><span class="sb-ico">📌</span> Projetos</button>
         <button class="sb-link" data-nav="/estrategia"><span class="sb-ico">♟️</span> Estratégia</button>
