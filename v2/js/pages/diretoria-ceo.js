@@ -30,6 +30,7 @@ const TIPO = {
   'plano-estrategico': { lbl: 'Plano Estratégico', ico: '♟️', color: '#2563eb', bg: '#2563eb22' },
   'parecer':           { lbl: 'Parecer',           ico: '⚖️', color: '#d97706', bg: '#d9770622' },
   'insight':           { lbl: 'Insight',           ico: '💡', color: '#16a34a', bg: '#16a34a22' },
+  'fechamento-mensal': { lbl: 'Fechamento do mês', ico: '🗓️', color: '#0e7490', bg: '#0e749022' },
 };
 // fallback genérico: outros agentes publicam no mesmo kv com tipos próprios
 // (ex.: Sr. CFO usa tipo 'relatorio', v87.32) — mostra o tipo cru, sem mentir.
@@ -210,7 +211,12 @@ function leituraHtml() {
 
   // mini-histórico: 14 dias, do mais antigo pro mais novo
   const porData = {};
-  for (const l of _leituras) porData[String(l.data)] = l;
+  // dia 1º pode ter 2 entradas (leitura diária + fechamento mensal, v87.44) —
+  // a bolinha do dia mostra a leitura diária; o fechamento vive nos dossiês
+  for (const l of _leituras) {
+    const k = String(l.data);
+    if (!(k in porData) || porData[k].tipo === 'fechamento-mensal') porData[k] = l;
+  }
   let dots = '';
   for (let i = 13; i >= 0; i--) {
     const d = new Date(hoje.getTime() - i * 86400000);
@@ -231,7 +237,8 @@ function leituraHtml() {
   }
   const ehHoje = String(ult.data) === iso(hoje);
   const cls = ult.alerta ? 'alerta' : 'ok';
-  const rotulo = ult.tipo === 'estado-da-uniao' ? '🏛️ Estado da União' : '☀️ Leitura de hoje';
+  const rotulo = ult.tipo === 'estado-da-uniao' ? '🏛️ Estado da União'
+    : ult.tipo === 'fechamento-mensal' ? '🗓️ Fechamento do mês' : '☀️ Leitura de hoje';
   return `
     <div class="dc-hoje ${cls}">
       <div class="tiny muted" style="margin-bottom:4px">${rotulo} · ${ehHoje ? 'hoje' : esc(rel(ult.criado_em) || String(ult.data))} · 7h</div>

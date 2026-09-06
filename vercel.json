@@ -97,8 +97,16 @@
       "schedule": "0 12 1 * *"
     },
     {
-      "path": "/api/v3/diretoria/ceo_cron?cron=1",
-      "schedule": "0 10 * * *"
+      "path": "/api/v3/diretoria/ceo_cron?cron=1&tipo=diario",
+      "schedule": "45 10 * * *"
+    },
+    {
+      "path": "/api/v3/diretoria/ceo_cron?cron=1&tipo=semanal",
+      "schedule": "0 10 * * 1"
+    },
+    {
+      "path": "/api/v3/diretoria/ceo_cron?cron=1&tipo=mensal",
+      "schedule": "0 11 1 * *"
     }
   ],
   "rewrites": [

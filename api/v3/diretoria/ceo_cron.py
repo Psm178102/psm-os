@@ -2,7 +2,7 @@
 """
 GET/POST /api/v3/diretoria/ceo_cron — 🏛️ AGENTE CEO vira presença DIÁRIA (Onda 1 · v87.43)
 
-O CEO deixa de ser relatório semanal e passa a ler o negócio TODO DIA às 7h BRT
+O CEO deixa de ser relatório semanal e passa a ler o negócio TODO DIA de manhã
 (mesmo motor do cmo_cron/gestor_relatorio: IA server-side, CRON_SECRET, idempotente):
 
   - TERÇA A DOMINGO → LEITURA DE EXCEÇÃO: 1ª linha binária
@@ -28,10 +28,19 @@ Persistência:
 
 Push: alerta=true OU Estado da União → SÓ sócios (lvl>=10). Dia ✅ = silêncio.
 
-GET  ?cron=1        → gera a leitura do dia se ainda não existe (Bearer
-                      CRON_SECRET ou sócio lvl>=10). Idempotente por data.
+v87.44 — 3 crons explícitos no vercel.json (padrão cmo_cron):
+  - ?cron=1&tipo=diario   07:45 BRT todo dia   → leitura de exceção
+  - ?cron=1&tipo=semanal  segunda 07:00 BRT    → Estado da União
+  - ?cron=1&tipo=mensal   dia 1º 08:00 BRT     → FECHAMENTO DO MÊS ANTERIOR
+    (resultado vs meta, contribuição vs break-even R$70k, progresso do Plano
+     de Resgate rumo ao gate de dez/2026, checagem das decisões registradas
+     nos dossiês tipo 'parecer'). Sempre publica dossiê + push aos sócios.
+  Sem tipo → comportamento legado (segunda = estado-da-uniao, senão diaria).
+
+GET  ?cron=1[&tipo=diario|semanal|mensal] → gera se ainda não existe (Bearer
+                      CRON_SECRET ou sócio lvl>=10). Idempotente por período.
 GET  ?log=1         → devolve o log ceo_diario (sócio lvl>=10 — a página lê daqui).
-POST {action:"gerar"} → sócio força regeração AGORA (substitui a entrada do dia).
+POST {action:"gerar"[,tipo]} → sócio força regeração AGORA (substitui a entrada do período).
 """
 from http.server import BaseHTTPRequestHandler
 from datetime import datetime, timezone, timedelta
@@ -52,26 +61,36 @@ KV_DOSSIES = "diretoria_dossies"
 MAX_LOG = 45
 MAX_DOSSIES = 40
 BRT = timezone(timedelta(hours=-3))
+# param público (?tipo=) → tipo interno (padrão cmo_cron, v87.44)
+TIPO_MAP = {"diario": "diaria", "semanal": "estado-da-uniao", "mensal": "fechamento-mensal"}
 
 PERSONA = (
     "Você é o Agente CEO da holding PSM (São José do Rio Preto/SP) — braço direito executivo do "
     "Paulo (sócio, palavra final SEMPRE dele). Você é a camada ACIMA do CFO e do CMO: quando os "
     "relatórios deles aparecem nos dados, VOCÊ os sintetiza citando-os — o sócio recebe UMA "
-    "leitura, não três. Regras: (1) baseie-se EXCLUSIVAMENTE nos dados abaixo — cite números "
-    "reais; dado ausente = escreva 'sem dado', NUNCA invente; (2) você recomenda e cobra, o Paulo "
-    "decide — nenhuma ação é executada por você; (3) português BR, tom executivo direto, zero "
-    "vícios de IA (proibido 'Não é X. É Y.' e variações); (4) contexto permanente: Plano de "
-    "Resgate jul→dez/2026 — break-even R$70k/mês, gate de dezembro = equipes pagando o "
-    "pró-labore dos sócios; TUDO a 4%."
+    "leitura, não três. Regras: (1) baseie-se EXCLUSIVAMENTE nos dados abaixo — todo número "
+    "citado carrega a fonte consultada (deals, metas, rd_deals, producao_eventos, relatório do "
+    "CFO/CMO/tráfego, compromissos…); dado ausente = escreva 'sem dado', NUNCA invente; "
+    "(2) leitura executiva HONESTA: quando houver número ruim, ABRA por ele — nada de sanduíche "
+    "de elogio; (3) você recomenda e cobra, o Paulo decide — nenhuma ação é executada por você; "
+    "quando pedir ação imediata, escolha UMA prioridade clara por leitura; (4) português BR, tom "
+    "executivo direto, zero vícios de IA (proibido 'Não é X. É Y.' e variações); (5) conteúdo da "
+    "Diretoria é RESTRITO aos sócios — nunca proponha broadcast pro time. "
+    "REFERÊNCIAS FIXAS DO NEGÓCIO: Plano de Resgate jul→dez/2026 — break-even R$70k/mês, gate de "
+    "dezembro = equipes pagando o pró-labore dos sócios; comissões calculadas a 4% (5% é bônus); "
+    "motor de vendas próprias da PSM Imóveis parado desde abril — meta de religação ≥R$700k/mês "
+    "a partir de outubro; gate da Sol em 30/set condiciona a seletiva de 25/set; retroativo do "
+    "RD (deal_stage_histories) em execução — roda ANTES de qualquer cancelamento do RD."
 )
 
 INSTRUCOES = {
     "diaria": (
-        "LEITURA DE EXCEÇÃO DIÁRIA (7h). A PRIMEIRA LINHA é obrigatoriamente "
-        "'✅ Nada fora da faixa' OU '🚨 ALERTA: <o quê, em poucas palavras>'. "
-        "Depois da 1ª linha, NO MÁXIMO 10 linhas: ritmo do mês (vendas vs meta vs ritmo "
-        "necessário pelos dias corridos), dias sem venda, leads 24h/7d, produção do apoio de "
-        "ontem, compromissos atrasados, e — se CFO/CMO trouxeram algo relevante — 1 linha citando. "
+        "LEITURA DE EXCEÇÃO DIÁRIA (manhã). A PRIMEIRA LINHA é obrigatoriamente "
+        "'✅ Nada fora do normal' OU '🚨 <a exceção, em poucas palavras>'. "
+        "Depois da 1ª linha, NO MÁXIMO 5 bullets, escolhendo só o que merece o olho do sócio: "
+        "ritmo do mês (vendas vs meta vs ritmo necessário pelos dias corridos), dias sem venda, "
+        "leads 24h/7d, produção do apoio de ontem, compromissos atrasados, e — se CFO/CMO/tráfego "
+        "trouxeram algo relevante — 1 bullet citando. "
         "Se ✅: seja telegráfico e PARE — a leitura diária existe pra pegar incêndio, não pra "
         "produzir relatório. Se 🚨: o número que estourou + a cobrança objetiva (o quê, quem, até quando)."
     ),
@@ -90,6 +109,21 @@ INSTRUCOES = {
         "Se os dados incluírem a seção FECHAMENTO DO MÊS ANTERIOR (1ª segunda do mês), abra um "
         "bloco 🗓️ com o fechamento e a leitura do Plano de Resgate rumo ao gate de dezembro "
         "(break-even R$70k, equipes pagando pró-labore)."
+    ),
+    "fechamento-mensal": (
+        "FECHAMENTO DO MÊS ANTERIOR (dia 1º, 8h — o balanço executivo que o sócio lê com café). "
+        "A PRIMEIRA LINHA é a manchete do fechamento em 1 frase (com 🚨 se o mês furou feio; "
+        "senão sem emoji de alarme). Estrutura (markdown, máx ~450 palavras): "
+        "1) 🗓️ Resultado do mês vs meta (vendas, VGV, atingimento %) — cite a fonte; "
+        "2) 💰 Contribuição vs break-even de R$70k/mês (comissões a 4% sobre o VGV fechado — "
+        "quanto entrou vs quanto precisava; se faltar dado de caixa, diga 'sem dado' e use a "
+        "estimativa 4% declarando que é estimativa); "
+        "3) 📈 Progresso do Plano de Resgate rumo ao gate de dez/2026 (equipes pagando o "
+        "pró-labore) — no ritmo, atrasado ou adiantado, e o porquê em 1 linha; "
+        "4) ⚖️ CHECAGEM DAS DECISÕES: os dossiês tipo 'parecer' listados nos dados registram "
+        "alertas e cobranças do mês — confronte com os compromissos e diga o que FOI executado "
+        "e o que segue pendente (nominal, sem suavizar); "
+        "5) ✅ UMA recomendação para o mês que começa (verbo + número + dono)."
     ),
 }
 
@@ -399,6 +433,23 @@ def _contexto(sb, tipo, agora):
     else:
         parts.append("RELATÓRIO DO CMO: nenhum publicado ainda.")
 
+    # 7b) Último relatório do Sr. Gestor de Tráfego (shared_kv gt_relatorios)
+    gt = (_kv_get(sb, "gt_relatorios", {}).get("itens") or [])
+    ult_gt = next((i for i in gt if isinstance(i, dict)), None)
+    if ult_gt:
+        parts.append(f"ÚLTIMO RELATÓRIO DO GESTOR DE TRÁFEGO ({ult_gt.get('tipo')} · {str(ult_gt.get('ts'))[:10]}):\n"
+                     + str(ult_gt.get("texto") or "")[:1200])
+
+    # 7c) Dossiês recentes da Diretoria (manchetes — contexto do que já foi dito)
+    try:
+        dos_rec = [i for i in (_kv_get(sb, KV_DOSSIES, {}).get("items") or []) if isinstance(i, dict)][:6]
+        if dos_rec:
+            parts.append("DOSSIÊS RECENTES DA DIRETORIA (diretoria_dossies):\n" + "\n".join(
+                f"- [{i.get('tipo')}] {str(i.get('criado_em'))[:10]} · {i.get('autor')}: {str(i.get('manchete') or i.get('titulo'))[:120]}"
+                for i in dos_rec))
+    except Exception:
+        pass
+
     # 8) Histórico do próprio CEO (alertas repetidos = estrutural)
     meus = (_kv_get(sb, KV_LOG, {}).get("items") or [])
     alertas = [i for i in meus if isinstance(i, dict) and i.get("alerta")][:7]
@@ -406,7 +457,7 @@ def _contexto(sb, tipo, agora):
         parts.append("SEUS ALERTAS RECENTES (repetição = problema estrutural):\n" + "\n".join(
             f"- {i.get('data')}: {str(i.get('primeira_linha'))[:110]}" for i in alertas))
 
-    # 9) Estado da União: semana fechada + (1ª segunda) fechamento do mês anterior
+    # 9) Estado da União: semana fechada
     if tipo == "estado-da-uniao":
         seg_atual = d - timedelta(days=d.weekday())
         sem_ini = datetime.combine(seg_atual - timedelta(days=7), datetime.min.time(), BRT)
@@ -416,27 +467,49 @@ def _contexto(sb, tipo, agora):
         if not werr:
             parts.append(f"SEMANA FECHADA ({sem_ini.date().isoformat()} → {(sem_fim.date() - timedelta(days=1)).isoformat()}): "
                          f"{len(ws)} vendas · VGV {_fmt_reais(sum(float(w.get('amount') or 0) for w in ws))}")
-        if d.day <= 7:  # 1ª segunda do mês
-            prev_fim = mes_ini_brt
-            prev_ini = (prev_fim - timedelta(days=1)).replace(day=1)
-            ms, merr = _deals_win(sb, prev_ini.astimezone(timezone.utc).isoformat(),
-                                  prev_fim.astimezone(timezone.utc).isoformat())
-            mvgv, mvnd = _meta_mes(sb, prev_ini.year, prev_ini.month)
-            if not merr:
-                tot = sum(float(w.get("amount") or 0) for w in ms)
-                parts.append(f"FECHAMENTO DO MÊS ANTERIOR ({prev_ini.month:02d}/{prev_ini.year}): "
-                             f"{len(ms)} vendas · VGV {_fmt_reais(tot)} · meta {_fmt_reais(mvgv)} ({mvnd} vendas)"
-                             + (f" · atingimento {tot / mvgv * 100:.0f}%" if mvgv else ""))
-            plano = _kv_get(sb, "plano_resgate_2026", {})
-            if plano:
-                trecho = ""
-                for s in (plano.get("secoes") or []):
-                    if isinstance(s, dict) and s.get("id") in ("diagnostico", "gates", "metas"):
-                        trecho += f"\n[{s.get('titulo')}]\n" + str(s.get("corpo") or "")[:700]
-                if plano.get("meses"):
-                    trecho += "\n[Checklist por mês]\n" + json.dumps(plano.get("meses"), ensure_ascii=False)[:900]
-                parts.append("PLANO DE RESGATE (rumo ao gate de dezembro — break-even R$70k, "
-                             "equipes pagando pró-labore):" + (trecho or " sem detalhe no kv."))
+
+    # 10) Fechamento do mês anterior + Plano de Resgate: no mensal SEMPRE;
+    #     no Estado da União só na 1ª segunda do mês (comportamento v87.43)
+    if tipo == "fechamento-mensal" or (tipo == "estado-da-uniao" and d.day <= 7):
+        prev_fim = mes_ini_brt
+        prev_ini = (prev_fim - timedelta(days=1)).replace(day=1)
+        ms, merr = _deals_win(sb, prev_ini.astimezone(timezone.utc).isoformat(),
+                              prev_fim.astimezone(timezone.utc).isoformat())
+        mvgv, mvnd = _meta_mes(sb, prev_ini.year, prev_ini.month)
+        if not merr:
+            tot = sum(float(w.get("amount") or 0) for w in ms)
+            parts.append(f"FECHAMENTO DO MÊS ANTERIOR ({prev_ini.month:02d}/{prev_ini.year}): "
+                         f"{len(ms)} vendas · VGV {_fmt_reais(tot)} · meta {_fmt_reais(mvgv)} ({mvnd} vendas)"
+                         + (f" · atingimento {tot / mvgv * 100:.0f}%" if mvgv else "")
+                         + f" · comissão estimada a 4%: {_fmt_reais(tot * 0.04)} (vs break-even R$ 70.000/mês)")
+        plano = _kv_get(sb, "plano_resgate_2026", {})
+        if plano:
+            trecho = ""
+            for s in (plano.get("secoes") or []):
+                if isinstance(s, dict) and s.get("id") in ("diagnostico", "gates", "metas"):
+                    trecho += f"\n[{s.get('titulo')}]\n" + str(s.get("corpo") or "")[:700]
+            if plano.get("meses"):
+                trecho += "\n[Checklist por mês]\n" + json.dumps(plano.get("meses"), ensure_ascii=False)[:900]
+            parts.append("PLANO DE RESGATE (rumo ao gate de dezembro — break-even R$70k, "
+                         "equipes pagando pró-labore):" + (trecho or " sem detalhe no kv."))
+
+    # 11) Mensal: pareceres do mês anterior (decisões/cobranças registradas —
+    #     a IA confronta com os compromissos e diz o que foi executado)
+    if tipo == "fechamento-mensal":
+        try:
+            corte = (d - timedelta(days=45)).isoformat()
+            pareceres = [i for i in (_kv_get(sb, KV_DOSSIES, {}).get("items") or [])
+                         if isinstance(i, dict) and i.get("tipo") == "parecer"
+                         and str(i.get("criado_em") or "")[:10] >= corte][:10]
+            if pareceres:
+                parts.append("DECISÕES/COBRANÇAS REGISTRADAS (dossiês tipo 'parecer', últimos 45d — "
+                             "checar o que foi executado):\n" + "\n".join(
+                    f"- {str(p.get('criado_em'))[:10]}: {str(p.get('manchete') or p.get('titulo'))[:140]}"
+                    for p in pareceres))
+            else:
+                parts.append("DECISÕES/COBRANÇAS REGISTRADAS: nenhum parecer nos últimos 45 dias.")
+        except Exception:
+            pass
 
     return "\n\n".join(parts)[:18000], gatilhos
 
@@ -444,6 +517,8 @@ def _contexto(sb, tipo, agora):
 # ─── Geração + persistência ────────────────────────────────────────────
 def _gerar(sb, tipo, agora, actor_name="ceo-cron"):
     ctx, gatilhos = _contexto(sb, tipo, agora)
+    if tipo == "fechamento-mensal":
+        gatilhos = []  # incêndio do dia é assunto da leitura diária (07:45), não do balanço
     data = agora.date().isoformat()
     hoje = agora.strftime("%d/%m/%Y %H:%M")
     aviso = ""
@@ -469,20 +544,26 @@ def _gerar(sb, tipo, agora, actor_name="ceo-cron"):
     item = {"data": data, "tipo": tipo, "alerta": alerta, "primeira_linha": primeira[:300],
             "corpo_md": corpo, "criado_em": agora_iso, "provider": provider, "gerado_por": actor_name}
 
-    # log compacto (idempotente por data: substitui a entrada do dia)
+    # log compacto (idempotente por período: substitui a entrada equivalente do dia;
+    # o fechamento mensal convive com a leitura diária do dia 1º sem apagá-la)
+    eh_mensal = tipo == "fechamento-mensal"
+
     def mut_log(box):
-        items = [i for i in (box.get("items") or []) if isinstance(i, dict) and i.get("data") != data]
+        items = [i for i in (box.get("items") or []) if isinstance(i, dict)
+                 and not (i.get("data") == data and (i.get("tipo") == "fechamento-mensal") == eh_mensal)]
         items.insert(0, item)
         items.sort(key=lambda i: str(i.get("data") or ""), reverse=True)
         box["items"] = items[:MAX_LOG]
         return box
     _kv_write_locked(sb, KV_LOG, mut_log)
 
-    # dossiê completo: Estado da União SEMPRE; diária SÓ quando alerta
-    if tipo == "estado-da-uniao" or alerta:
-        dtipo = "estado-da-uniao" if tipo == "estado-da-uniao" else "parecer"
+    # dossiê completo: Estado da União e Fechamento mensal SEMPRE; diária SÓ quando alerta
+    if tipo in ("estado-da-uniao", "fechamento-mensal") or alerta:
+        dtipo = tipo if tipo in ("estado-da-uniao", "fechamento-mensal") else "parecer"
         did = f"ceo_{data}_{dtipo}"
+        mes_ant = (agora.date().replace(day=1) - timedelta(days=1))
         titulo = (f"Estado da União — semana de {agora.strftime('%d/%m')}" if dtipo == "estado-da-uniao"
+                  else f"Fechamento do mês — {mes_ant.month:02d}/{mes_ant.year}" if dtipo == "fechamento-mensal"
                   else f"Leitura de exceção — {agora.strftime('%d/%m')}")
         dossie = {"id": did, "tipo": dtipo, "titulo": titulo, "manchete": primeira[:200],
                   "corpo_md": texto, "autor": "CEO", "criado_em": agora_iso,
@@ -495,13 +576,15 @@ def _gerar(sb, tipo, agora, actor_name="ceo-cron"):
             return box
         _kv_write_locked(sb, KV_DOSSIES, mut_dos)
 
-    # push SÓ pros sócios: alerta ou Estado da União. Dia ✅ = silêncio absoluto.
-    if alerta or tipo == "estado-da-uniao":
+    # push SÓ pros sócios: alerta, Estado da União ou Fechamento mensal. Dia ✅ = silêncio absoluto.
+    if alerta or tipo in ("estado-da-uniao", "fechamento-mensal"):
         try:
             us = sb.table("users").select("id,role,status").execute().data or []
             socios = [u["id"] for u in us
                       if (u.get("status") or "ativo") == "ativo" and lvl_of((u.get("role") or "").lower()) >= 10]
-            titulo_push = ("🚨 ALERTA do CEO" if alerta else "🏛️ Estado da União")
+            titulo_push = ("🚨 ALERTA do CEO" if alerta
+                           else "🗓️ Fechamento do mês (CEO)" if tipo == "fechamento-mensal"
+                           else "🏛️ Estado da União")
             preview = primeira.replace("\n", " ")[:180]
             notify(socios, "ceo_leitura", titulo_push, body=preview, link="#/diretoria-ceo",
                    target_type="ceo_leitura", target_id=data)
@@ -562,9 +645,15 @@ class handler(BaseHTTPRequestHandler):
             return self._send(503, {"ok": False, "error": "backend indisponível"})
         agora = agora_brt()
         data = agora.date().isoformat()
-        tipo = "estado-da-uniao" if agora.weekday() == 0 else "diaria"
+        # tipo explícito (crons do vercel.json, v87.44) ou legado por dia da semana
+        tparam = (params.get("tipo") or "").strip().lower()
+        if tparam and tparam not in TIPO_MAP:
+            return self._send(400, {"ok": False, "error": "tipo inválido. Use: diario|semanal|mensal"})
+        tipo = TIPO_MAP[tparam] if tparam else ("estado-da-uniao" if agora.weekday() == 0 else "diaria")
+        eh_mensal = tipo == "fechamento-mensal"
         existentes = _kv_get(sb, KV_LOG, {}).get("items") or []
-        if any(isinstance(i, dict) and i.get("data") == data for i in existentes):
+        if any(isinstance(i, dict) and i.get("data") == data
+               and (i.get("tipo") == "fechamento-mensal") == eh_mensal for i in existentes):
             return self._send(200, {"ok": True, "pulado": f"{data} já gerado", "tipo": tipo})
         item, err = _gerar(sb, tipo, agora)
         if not item:
@@ -589,7 +678,10 @@ class handler(BaseHTTPRequestHandler):
         if not sb:
             return self._send(503, {"ok": False, "error": "backend indisponível"})
         agora = agora_brt()
-        tipo = "estado-da-uniao" if agora.weekday() == 0 else "diaria"
+        tparam = (body.get("tipo") or "").strip().lower()
+        if tparam and tparam not in TIPO_MAP:
+            return self._send(400, {"ok": False, "error": "tipo inválido. Use: diario|semanal|mensal"})
+        tipo = TIPO_MAP[tparam] if tparam else ("estado-da-uniao" if agora.weekday() == 0 else "diaria")
         item, err = _gerar(sb, tipo, agora, actor_name=user.get("login") or user.get("name") or "manual")
         if not item:
             return self._send(502, {"ok": False, "error": err})
