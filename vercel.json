@@ -266,5 +266,10 @@
       "destination": "https://chat.whatsapp.com/GMzTUCpm2GT4P5fMP6LrEB",
       "permanent": false
     }
-  ]
+  ],
+  "functions": {
+    "api/v3/crm/retroativo_rd.py": {
+      "maxDuration": 300
+    }
+  }
 }
