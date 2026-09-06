@@ -83,6 +83,18 @@
     {
       "path": "/api/v3/monitor/uptime",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/v3/diretoria/cmo_cron?cron=1&tipo=diario",
+      "schedule": "15 22 * * *"
+    },
+    {
+      "path": "/api/v3/diretoria/cmo_cron?cron=1&tipo=semanal",
+      "schedule": "0 11 * * 1"
+    },
+    {
+      "path": "/api/v3/diretoria/cmo_cron?cron=1&tipo=mensal",
+      "schedule": "0 12 1 * *"
     }
   ],
   "rewrites": [
