@@ -95,6 +95,10 @@
     {
       "path": "/api/v3/diretoria/cmo_cron?cron=1&tipo=mensal",
       "schedule": "0 12 1 * *"
+    },
+    {
+      "path": "/api/v3/diretoria/ceo_cron?cron=1",
+      "schedule": "0 10 * * *"
     }
   ],
   "rewrites": [
