@@ -1,10 +1,14 @@
-/* PSM-OS v2 — 🏛️ Diretoria (sala do CEO IA) · v87.43 (Onda 1: CEO diário)
-   Só sócio (lvl>=10). Três camadas nesta página:
+/* PSM-OS v2 — 🏛️ Diretoria (sala do CEO IA) · v87.47 (Onda 3: ciclo fechado)
+   Só sócio (lvl>=10). Quatro camadas nesta página:
      1. Faixa "Leitura de hoje" + mini-histórico 14 dias (✅/🚨) — o cron do CEO
         roda TODO DIA 7h BRT (ceo_cron) e grava o log em shared_kv ceo_diario.
-     2. 📋 Compromissos — caderninho de cobrança (ceo_compromissos): o sócio
+     2. 🎯 Diretrizes (ceo_diretrizes) — o ciclo fechado: recomendação do
+        Estado da União/Fechamento vira 'proposta'; o sócio APROVA ou REJEITA
+        em 1 clique; o cron marca 'atrasada' e cobra na seção de riscos;
+        concluída/falhou (com resultado) alimenta o Aprendizado mensal.
+     3. 📋 Compromissos — caderninho de cobrança (ceo_compromissos): o sócio
         marca "✔ feito"; quem marca 'atrasado' é o cron.
-     3. Dossiês (como sempre): estado-da-uniao · plano-estrategico · parecer ·
+     4. Dossiês (como sempre): estado-da-uniao · plano-estrategico · parecer ·
         insight, de GET /api/v3/diretoria/dossies (shared_kv diretoria_dossies).
    Badge "novo" no menu: dossiê <3 dias ainda não aberto (localStorage) põe
    um ponto no item — sem push, sem sino (Diretoria nunca notifica broadcast). */
@@ -22,6 +26,9 @@ let _leituras = [];     // log do ceo_diario (leituras diárias do CEO)
 let _comps = [];        // compromissos do caderninho
 let _leituraAberta = false;  // corpo da leitura de hoje expandido
 let _compBusy = null;   // id do compromisso sendo salvo
+let _dirs = [];         // 🎯 diretrizes do CEO (ceo_diretrizes) — v87.47
+let _dirBusy = null;    // id da diretriz sendo salva
+let _dirFiltro = 'abertas';  // 'abertas' | 'historico'
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -115,11 +122,13 @@ export async function pageDiretoriaCeo(ctx, root) {
     return;
   }
   _items = null; _err = null; _openId = null; _leituras = []; _comps = []; _leituraAberta = false;
+  _dirs = []; _dirBusy = null;
   render();
-  const [rd, rl, rc] = await Promise.allSettled([
+  const [rd, rl, rc, rz] = await Promise.allSettled([
     api.request('/api/v3/diretoria/dossies'),
     api.request('/api/v3/diretoria/ceo_cron?log=1'),
     api.request('/api/v3/diretoria/compromissos'),
+    api.request('/api/v3/diretoria/diretrizes'),
   ]);
   if (rd.status === 'fulfilled') {
     _items = (rd.value && Array.isArray(rd.value.items)) ? rd.value.items : [];
@@ -131,7 +140,44 @@ export async function pageDiretoriaCeo(ctx, root) {
   }
   if (rl.status === 'fulfilled' && Array.isArray(rl.value?.items)) _leituras = rl.value.items;
   if (rc.status === 'fulfilled' && Array.isArray(rc.value?.items)) _comps = rc.value.items;
+  if (rz.status === 'fulfilled' && Array.isArray(rz.value?.items)) _dirs = rz.value.items;
   render();
+}
+
+/* ─── 🎯 Diretrizes — ações do sócio (o gate real é o server, lvl>=10) ─── */
+async function _acaoDir(id, action, extra) {
+  if (_dirBusy) return;
+  _dirBusy = id; render();
+  try {
+    await api.request('/api/v3/diretoria/diretrizes', { method: 'POST', body: { id, action, ...(extra || {}) } });
+    const r = await api.request('/api/v3/diretoria/diretrizes');
+    if (Array.isArray(r?.items)) _dirs = r.items;
+  } catch (e) {
+    alert('Não deu pra salvar: ' + (e.message || e));
+  }
+  _dirBusy = null; render();
+}
+
+function _dirConcluir(id, falhou) {
+  const res = prompt(falhou
+    ? 'O que aconteceu? (resultado curto — obrigatório)'
+    : 'Resultado em 1 linha (obrigatório — vira o Aprendizado do mês):');
+  if (res == null) return;               // cancelou
+  if (!res.trim()) { alert('O resultado é obrigatório.'); return; }
+  _acaoDir(id, falhou ? 'falhar' : 'concluir', { resultado: res.trim() });
+}
+
+function _dirEditar(id) {
+  const d = _dirs.find(x => String(x.id) === String(id));
+  if (!d) return;
+  const dono = prompt('Dono (Paulo / Isabella / Leire / Mariane / Guilherme / CEO):', d.dono || '');
+  if (dono == null) return;
+  const prazo = prompt('Prazo (YYYY-MM-DD, vazio = sem prazo):', d.prazo || '');
+  if (prazo == null) return;
+  const extra = {};
+  if (dono.trim()) extra.dono = dono.trim();
+  extra.prazo = prazo.trim() || null;
+  _acaoDir(id, 'editar', extra);
 }
 
 async function _marcarComp(id, status) {
@@ -198,7 +244,97 @@ const CSS = `
   .dc-btn-feito:hover{background:#16a34a22}
   .dc-btn-feito:disabled{opacity:.4;cursor:wait}
   @media(max-width:700px){.dc-comps .dc-col-origem{display:none}}
+  .dc-dirs{margin-bottom:14px}
+  .dc-dir{border:1px solid var(--bd);border-radius:12px;padding:10px 12px;margin-bottom:8px;background:var(--bg-1)}
+  .dc-dir.proposta{border-color:#d97706;box-shadow:0 0 0 1px #d9770633}
+  .dc-dir.atrasada{border-color:#ef4444}
+  .dc-dir.done{opacity:.65}
+  .dc-dir-st{display:inline-block;border-radius:999px;padding:2px 9px;font-size:10.5px;font-weight:800;letter-spacing:.3px}
+  .dc-st-proposta{background:#d9770622;color:#d97706}
+  .dc-st-aprovada{background:#2563eb22;color:#2563eb}
+  .dc-st-em_andamento{background:#0e749022;color:#0e7490}
+  .dc-st-atrasada{background:#ef4444;color:#fff}
+  .dc-st-concluida{background:#16a34a22;color:#16a34a}
+  .dc-st-rejeitada{background:#64748b22;color:#64748b}
+  .dc-st-falhou{background:#b91c1c22;color:#b91c1c}
+  .dc-dir-tit{font-weight:800;font-size:13.5px;margin:5px 0 2px;line-height:1.4}
+  .dc-dir-meta{font-size:11.5px;color:var(--muted)}
+  .dc-dir-res{font-size:12px;margin-top:4px;padding:5px 9px;background:var(--bg-3);border-radius:8px}
+  .dc-dir-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
+  .dc-dbtn{background:none;border:1px solid var(--bd);color:var(--tx);border-radius:8px;padding:3px 10px;font-size:11.5px;font-weight:800;cursor:pointer;white-space:nowrap}
+  .dc-dbtn:disabled{opacity:.4;cursor:wait}
+  .dc-dbtn.ok{border-color:#16a34a;color:#16a34a}   .dc-dbtn.ok:hover{background:#16a34a22}
+  .dc-dbtn.no{border-color:#ef4444;color:#ef4444}   .dc-dbtn.no:hover{background:#ef444422}
+  .dc-dbtn.mid{border-color:#2563eb;color:#2563eb}  .dc-dbtn.mid:hover{background:#2563eb22}
+  .dc-dir-tabs{display:flex;gap:6px;margin-bottom:8px}
+  .dc-dir-tab{background:var(--bg-3);border:1px solid var(--bd);border-radius:999px;padding:3px 12px;font-size:11.5px;font-weight:800;cursor:pointer;color:var(--muted)}
+  .dc-dir-tab.on{background:var(--psm-blue);border-color:var(--psm-blue);color:#fff}
 `;
+
+/* ─── 🎯 Diretrizes do CEO (ceo_diretrizes) — v87.47 ───
+   O ciclo fechado: recomendação do cron vira 'proposta'; o sócio aprova ou
+   rejeita em 1 clique; o cron marca 'atrasada' e cobra no Estado da União;
+   concluída/falhou (com resultado) alimenta o Aprendizado do fechamento mensal. */
+const DIR_ST = {
+  proposta: '🟠 proposta', aprovada: '🔵 aprovada', em_andamento: '🌀 em andamento',
+  atrasada: '🚨 atrasada', concluida: '✅ concluída', rejeitada: '⛔ rejeitada', falhou: '❌ falhou',
+};
+const DIR_ABERTAS = ['proposta', 'aprovada', 'em_andamento', 'atrasada'];
+
+function dirsHtml() {
+  const fmtPrazo = p => {
+    if (!p) return 'sem prazo';
+    const [y, m, d] = String(p).slice(0, 10).split('-');
+    return `${d}/${m}/${y.slice(2)}`;
+  };
+  const abertas = _dirs.filter(d => DIR_ABERTAS.includes(String(d.status)));
+  const hist = _dirs.filter(d => !DIR_ABERTAS.includes(String(d.status)));
+  const lista = _dirFiltro === 'abertas' ? abertas : hist;
+  const nProp = abertas.filter(d => d.status === 'proposta').length;
+
+  const cards = lista.map(d => {
+    const st = String(d.status || 'proposta');
+    const busy = _dirBusy ? 'disabled' : '';
+    let acts = '';
+    if (st === 'proposta') {
+      acts = `<button class="dc-dbtn ok" data-dir-aprovar="${esc(d.id)}" ${busy}>✔ Aprovar</button>
+              <button class="dc-dbtn no" data-dir-rejeitar="${esc(d.id)}" ${busy}>✖ Rejeitar</button>
+              <button class="dc-dbtn" data-dir-editar="${esc(d.id)}" ${busy}>✎ dono/prazo</button>`;
+    } else if (DIR_ABERTAS.includes(st)) {
+      acts = `<button class="dc-dbtn ok" data-dir-concluir="${esc(d.id)}" ${busy}>✔ Concluída</button>
+              <button class="dc-dbtn no" data-dir-falhou="${esc(d.id)}" ${busy}>✖ Falhou</button>`
+        + (st === 'aprovada' ? `<button class="dc-dbtn mid" data-dir-iniciar="${esc(d.id)}" ${busy}>▶ Em andamento</button>` : '')
+        + `<button class="dc-dbtn" data-dir-editar="${esc(d.id)}" ${busy}>✎ dono/prazo</button>`;
+    } else {
+      acts = `<button class="dc-dbtn" data-dir-reabrir="${esc(d.id)}" ${busy}>↩ Reabrir</button>`;
+    }
+    return `
+      <div class="dc-dir ${st === 'proposta' ? 'proposta' : ''} ${st === 'atrasada' ? 'atrasada' : ''} ${DIR_ABERTAS.includes(st) ? '' : 'done'}">
+        <div class="flex" style="align-items:center;gap:8px;justify-content:space-between;flex-wrap:wrap">
+          <span class="dc-dir-st dc-st-${esc(st)}">${DIR_ST[st] || esc(st)}</span>
+          <span class="tiny muted">dono <b>${esc(d.dono || '—')}</b> · prazo <b>${fmtPrazo(d.prazo)}</b></span>
+        </div>
+        <div class="dc-dir-tit">${esc(d.titulo)}</div>
+        ${d.descricao ? `<div class="dc-dir-meta">${esc(d.descricao)}</div>` : ''}
+        ${d.origem && d.origem !== 'manual' ? `<div class="dc-dir-meta">origem: ${esc(d.origem)}</div>` : ''}
+        ${d.resultado ? `<div class="dc-dir-res">📝 ${esc(d.resultado)}</div>` : ''}
+        <div class="dc-dir-acts">${acts}</div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="dc-dirs">
+      <div style="font-weight:900;font-size:14px;margin-bottom:6px">🎯 Diretrizes
+        <span class="tiny muted" style="font-weight:600">— recomendação do CEO vira diretriz quando VOCÊ aprova; o cron cobra as atrasadas</span>
+        ${nProp ? `<span class="dc-dir-st dc-st-proposta" style="margin-left:6px">${nProp} aguardando você</span>` : ''}
+      </div>
+      <div class="dc-dir-tabs">
+        <button class="dc-dir-tab ${_dirFiltro === 'abertas' ? 'on' : ''}" data-dir-filtro="abertas">Abertas (${abertas.length})</button>
+        <button class="dc-dir-tab ${_dirFiltro === 'historico' ? 'on' : ''}" data-dir-filtro="historico">Histórico (${hist.length})</button>
+      </div>
+      ${cards || `<div class="muted" style="font-size:12.5px;padding:6px 2px">${_dirFiltro === 'abertas' ? 'Nenhuma diretriz aberta — as próximas propostas chegam com o Estado da União de segunda.' : 'Nada no histórico ainda.'}</div>`}
+    </div>`;
+}
 
 /* ─── faixa "Leitura de hoje" + mini-histórico 14 dias (ceo_diario) ─── */
 function leituraHtml() {
@@ -285,6 +421,27 @@ function _wireExtras() {
   if (tg) tg.addEventListener('click', () => { _leituraAberta = !_leituraAberta; render(); });
   _root.querySelectorAll('[data-comp-feito]').forEach(b =>
     b.addEventListener('click', () => _marcarComp(b.dataset.compFeito, 'feito')));
+  // 🎯 diretrizes
+  _root.querySelectorAll('[data-dir-filtro]').forEach(b =>
+    b.addEventListener('click', () => { _dirFiltro = b.dataset.dirFiltro; render(); }));
+  _root.querySelectorAll('[data-dir-aprovar]').forEach(b =>
+    b.addEventListener('click', () => _acaoDir(b.dataset.dirAprovar, 'aprovar')));
+  _root.querySelectorAll('[data-dir-rejeitar]').forEach(b =>
+    b.addEventListener('click', () => {
+      const motivo = prompt('Motivo da rejeição (opcional):');
+      if (motivo == null) return;
+      _acaoDir(b.dataset.dirRejeitar, 'rejeitar', motivo.trim() ? { resultado: motivo.trim() } : {});
+    }));
+  _root.querySelectorAll('[data-dir-iniciar]').forEach(b =>
+    b.addEventListener('click', () => _acaoDir(b.dataset.dirIniciar, 'iniciar')));
+  _root.querySelectorAll('[data-dir-concluir]').forEach(b =>
+    b.addEventListener('click', () => _dirConcluir(b.dataset.dirConcluir, false)));
+  _root.querySelectorAll('[data-dir-falhou]').forEach(b =>
+    b.addEventListener('click', () => _dirConcluir(b.dataset.dirFalhou, true)));
+  _root.querySelectorAll('[data-dir-editar]').forEach(b =>
+    b.addEventListener('click', () => _dirEditar(b.dataset.dirEditar)));
+  _root.querySelectorAll('[data-dir-reabrir]').forEach(b =>
+    b.addEventListener('click', () => _acaoDir(b.dataset.dirReabrir, 'reabrir')));
 }
 
 function render() {
@@ -304,7 +461,7 @@ function render() {
     return;
   }
 
-  const extras = leituraHtml() + compsHtml();
+  const extras = leituraHtml() + dirsHtml() + compsHtml();
 
   if (!_items.length) {
     _root.innerHTML = `<style>${CSS}</style><div class="card">${hero}${extras}

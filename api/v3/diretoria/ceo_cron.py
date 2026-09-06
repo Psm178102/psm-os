@@ -58,6 +58,8 @@ from _auth_lib import (require_user, AuthError, audit, supabase_client,  # type:
 KV_LOG = "ceo_diario"
 KV_COMPROMISSOS = "ceo_compromissos"
 KV_DOSSIES = "diretoria_dossies"
+KV_DIRETRIZES = "ceo_diretrizes"          # 🎯 Onda 3 (v87.47): ciclo fechado
+DIR_ABERTAS = ("proposta", "aprovada", "em_andamento", "atrasada")
 MAX_LOG = 45
 MAX_DOSSIES = 40
 BRT = timezone(timedelta(hours=-3))
@@ -104,8 +106,10 @@ INSTRUCOES = {
         "3) 🔻 Funil (leads 24h/7d vs semana anterior); "
         "4) 👥 Produção do time de apoio na semana vs meta; "
         "5) 📋 Compromissos (feitos / atrasados / novos — cobrar os atrasados nominalmente); "
-        "6) ⚠️ Riscos; "
-        "7) ✅ NO MÁXIMO 3 recomendações da semana (verbo + número + dono). "
+        "6) ⚠️ Riscos — TODA diretriz ATRASADA listada nos dados DEVE aparecer aqui, com o dono "
+        "NOMEADO e o prazo furado (a cobrança é o motivo de existir o ciclo de diretrizes); "
+        "7) ✅ NO MÁXIMO 3 recomendações da semana (verbo + número + dono) — sem repetir diretriz "
+        "que já está aberta nos dados. "
         "Se os dados incluírem a seção FECHAMENTO DO MÊS ANTERIOR (1ª segunda do mês), abra um "
         "bloco 🗓️ com o fechamento e a leitura do Plano de Resgate rumo ao gate de dezembro "
         "(break-even R$70k, equipes pagando pró-labore)."
@@ -122,8 +126,12 @@ INSTRUCOES = {
         "pró-labore) — no ritmo, atrasado ou adiantado, e o porquê em 1 linha; "
         "4) ⚖️ CHECAGEM DAS DECISÕES: os dossiês tipo 'parecer' listados nos dados registram "
         "alertas e cobranças do mês — confronte com os compromissos e diga o que FOI executado "
-        "e o que segue pendente (nominal, sem suavizar); "
-        "5) ✅ UMA recomendação para o mês que começa (verbo + número + dono)."
+        "e o que segue pendente (nominal, sem suavizar) — diretriz ATRASADA nos dados entra aqui "
+        "com dono nomeado; "
+        "5) 🧭 APRENDIZADO: para cada diretriz concluída × falha × rejeitada do mês (seção "
+        "'DIRETRIZES FECHADAS NO MÊS' nos dados), UMA linha: título → a lição em uma frase; "
+        "se não houve nenhuma, uma linha dizendo isso; "
+        "6) ✅ UMA recomendação para o mês que começa (verbo + número + dono)."
     ),
 }
 
@@ -338,6 +346,140 @@ def _compromissos_sync(sb, agora):
     return items, gat
 
 
+# ─── 🎯 Diretrizes do CEO (Onda 3 · v87.47): ciclo fechado ─────────────
+def _diretrizes_sync(sb, agora):
+    """Marca 'atrasada' (prazo vencido em diretriz aprovada/em_andamento) e
+    devolve a lista inteira. Espelho do _compromissos_sync, no kv ceo_diretrizes."""
+    hoje = agora.date().isoformat()
+
+    def mutate(box):
+        items = [i for i in (box.get("items") or []) if isinstance(i, dict)]
+        for it in items:
+            if (it.get("status") in ("aprovada", "em_andamento")
+                    and it.get("prazo") and str(it["prazo"])[:10] < hoje):
+                it["status"] = "atrasada"
+                it["atualizado_em"] = datetime.now(timezone.utc).isoformat()
+                it["atualizado_por"] = "ceo_cron"
+        box["items"] = items
+        return box
+
+    box = _kv_get(sb, KV_DIRETRIZES, {})
+    precisa = any(isinstance(i, dict) and i.get("status") in ("aprovada", "em_andamento")
+                  and i.get("prazo") and str(i["prazo"])[:10] < hoje
+                  for i in (box.get("items") or []))
+    if precisa:
+        box = _kv_write_locked(sb, KV_DIRETRIZES, mutate)
+    return [i for i in (box.get("items") or []) if isinstance(i, dict)]
+
+
+def _extrair_diretrizes(texto):
+    """Corta o bloco de máquina '===DIRETRIZES===' do fim do relatório e devolve
+    (texto_limpo, [{titulo,dono,prazo}]). Linha: 'título | dono | YYYY-MM-DD'."""
+    linhas = texto.split("\n")
+    idx = next((i for i, l in enumerate(linhas)
+                if l.strip().strip("*#` ").upper().startswith("===DIRETRIZES===")), None)
+    if idx is None:
+        return texto, []
+    novas = []
+    for l in linhas[idx + 1:]:
+        t = l.strip().lstrip("-*•").strip().strip("`")
+        if not t or "|" not in t:
+            continue
+        p = [x.strip() for x in t.split("|")]
+        if not p[0]:
+            continue
+        prazo = None
+        if len(p) >= 3:
+            try:
+                datetime.strptime(p[2][:10], "%Y-%m-%d")
+                prazo = p[2][:10]
+            except ValueError:
+                prazo = None
+        novas.append({"titulo": p[0][:180],
+                      "dono": (p[1][:60] if len(p) >= 2 and p[1] else "CEO"),
+                      "prazo": prazo})
+    return "\n".join(linhas[:idx]).rstrip(), novas[:3]
+
+
+def _criar_propostas(sb, novas, data, origem):
+    """Recomendações do relatório viram diretrizes 'proposta' (máx 3, id
+    idempotente dir_<data>_<slug> — cron re-rodar não duplica; slug já aberto
+    em outra diretriz também não duplica). Aguardam aprovação do sócio na UI."""
+    if not novas:
+        return 0
+    try:
+        from diretrizes import slugify  # mesmo diretório (padrão can_route/viab)
+    except Exception:
+        return 0
+    agora_iso = datetime.now(timezone.utc).isoformat()
+    estado = {"criadas": 0}
+
+    def mutate(box):
+        estado["criadas"] = 0
+        items = [i for i in (box.get("items") or []) if isinstance(i, dict)]
+        slugs_abertos = {slugify(i.get("titulo")) for i in items
+                         if i.get("status") in DIR_ABERTAS}
+        for d in novas[:3]:
+            slug = slugify(d["titulo"])
+            did = f"dir_{data}_{slug}"
+            if any(i.get("id") == did for i in items) or slug in slugs_abertos:
+                continue
+            items.insert(0, {"id": did, "titulo": d["titulo"],
+                             "descricao": f"Proposta automática do relatório de {data} — aguarda aprovação do sócio.",
+                             "dono": d["dono"], "prazo": d["prazo"], "origem": origem,
+                             "status": "proposta", "criado_em": agora_iso,
+                             "atualizado_em": agora_iso, "resultado": None,
+                             "criado_por": "ceo_cron"})
+            slugs_abertos.add(slug)
+            estado["criadas"] += 1
+        box["items"] = items[:200]
+        return box
+
+    _kv_write_locked(sb, KV_DIRETRIZES, mutate)
+    return estado["criadas"]
+
+
+def _oo_anotacoes(sb, agora):
+    """Anotações estruturadas do One-on-One / Norte do Mês (kv oo_norte:<cid>:<YYYY-MM>):
+    obs preenchida + ajustes de meta (changelog) dos últimos 7 dias. Só leitura."""
+    ym = agora.strftime("%Y-%m")
+    corte = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    try:
+        rows = (sb.table("shared_kv").select("key,value")
+                .like("key", f"oo_norte:%:{ym}").limit(200).execute().data or [])
+    except Exception:
+        return None  # sem acesso = pula (o contexto registra a ausência)
+    nomes = {}
+    try:
+        us = sb.table("users").select("id,name").execute().data or []
+        nomes = {str(u.get("id")): (u.get("name") or "") for u in us}
+    except Exception:
+        pass
+    linhas = []
+    for r in rows:
+        v = r.get("value")
+        if isinstance(v, str):
+            try:
+                v = json.loads(v)
+            except Exception:
+                continue
+        if not isinstance(v, dict):
+            continue
+        partes = str(r.get("key") or "").split(":")
+        cid = partes[1] if len(partes) >= 3 else "?"
+        nome = nomes.get(cid) or f"corretor {cid[:8]}"
+        obs = str(v.get("obs") or "").strip()
+        if obs:
+            linhas.append(f"- {nome} — obs do Norte do Mês: {obs[:220]}")
+        for c in [c for c in (v.get("changelog") or []) if isinstance(c, dict)
+                  and str(c.get("quando") or "") >= corte][-3:]:
+            muds = "; ".join(f"{m.get('campo')}: {m.get('de')}→{m.get('para')}"
+                             for m in (c.get("mudancas") or [])[:4] if isinstance(m, dict))
+            linhas.append(f"- {nome} — meta ajustada por {c.get('quem')} em "
+                          f"{str(c.get('quando'))[:10]}: {muds[:180]}")
+    return linhas
+
+
 # ─── Contexto + gatilhos ───────────────────────────────────────────────
 def _contexto(sb, tipo, agora):
     parts, gatilhos = [], []
@@ -407,6 +549,41 @@ def _contexto(sb, tipo, agora):
         parts.append("CADERNINHO DE COMPROMISSOS: vazio.")
     if comp_gat:
         gatilhos.append(comp_gat)
+
+    # 5b) 🎯 Diretrizes do CEO (semanal/mensal): cobrança do ciclo fechado.
+    #     O sync marca 'atrasada' ANTES de montar o contexto.
+    if tipo in ("estado-da-uniao", "fechamento-mensal"):
+        dirs = _diretrizes_sync(sb, agora)
+        abertas = [x for x in dirs if x.get("status") in DIR_ABERTAS]
+        if abertas:
+            linhas = [f"- [{x.get('status')}] {str(x.get('titulo'))[:100]} — dono {x.get('dono')} "
+                      f"— prazo {x.get('prazo') or 'sem prazo'}" for x in abertas[:15]]
+            parts.append("DIRETRIZES DO CEO (ceo_diretrizes — ciclo recomendação→aprovação do sócio"
+                         "→execução→cobrança):\n" + "\n".join(linhas))
+        else:
+            parts.append("DIRETRIZES DO CEO: nenhuma aberta.")
+        atrasadas = [x for x in abertas if x.get("status") == "atrasada"]
+        if atrasadas:
+            parts.append("⚠️ DIRETRIZES ATRASADAS (prazo vencido — OBRIGATÓRIO entrar na seção de "
+                         "riscos, com o dono NOMEADO):\n" + "\n".join(
+                f"- {str(x.get('titulo'))[:100]} — dono {x.get('dono')} — prazo furado {x.get('prazo')}"
+                for x in atrasadas[:10]))
+        propostas = [x for x in abertas if x.get("status") == "proposta"]
+        if propostas:
+            parts.append(f"PROPOSTAS AGUARDANDO O SÓCIO ({len(propostas)} — aprovar/rejeitar na aba "
+                         "Diretrizes de #/diretoria-ceo):\n" + "\n".join(
+                f"- {str(x.get('titulo'))[:100]} (dono sugerido {x.get('dono')}, prazo {x.get('prazo') or '—'})"
+                for x in propostas[:6]))
+
+    # 5c) Anotações do One-on-One / Norte do Mês (só no semanal, só leitura)
+    if tipo == "estado-da-uniao":
+        oo = _oo_anotacoes(sb, agora)
+        if oo:
+            parts.append("ANOTAÇÕES DO ONE-ON-ONE / NORTE DO MÊS (obs do mês + ajustes de meta "
+                         "dos últimos 7d):\n" + "\n".join(oo[:20]))
+        else:
+            parts.append("ANOTAÇÕES DO ONE-ON-ONE: sem anotações estruturadas nesta semana "
+                         "(obs e changelog do Norte do Mês vazios) — registre isso se for citar o 1:1.")
 
     # 6) Último relatório do CFO (dossiês em diretoria_dossies, autor CFO)
     try:
@@ -511,6 +688,22 @@ def _contexto(sb, tipo, agora):
         except Exception:
             pass
 
+        # 🧭 Aprendizado: diretrizes fechadas no mês (concluída × falha × rejeitada)
+        try:
+            prev_ini_iso = (d.replace(day=1) - timedelta(days=1)).replace(day=1).isoformat()
+            todas = [i for i in (_kv_get(sb, KV_DIRETRIZES, {}).get("items") or []) if isinstance(i, dict)]
+            fechadas = [x for x in todas if x.get("status") in ("concluida", "falhou", "rejeitada")
+                        and str(x.get("atualizado_em") or "")[:10] >= prev_ini_iso]
+            if fechadas:
+                parts.append("DIRETRIZES FECHADAS NO MÊS (base do bloco 🧭 Aprendizado):\n" + "\n".join(
+                    f"- [{x.get('status')}] {str(x.get('titulo'))[:100]} — dono {x.get('dono')}"
+                    + (f" — resultado: {str(x.get('resultado'))[:160]}" if x.get("resultado") else "")
+                    for x in fechadas[:12]))
+            else:
+                parts.append("DIRETRIZES FECHADAS NO MÊS: nenhuma (o bloco Aprendizado registra isso em 1 linha).")
+        except Exception:
+            pass
+
     return "\n\n".join(parts)[:18000], gatilhos
 
 
@@ -525,11 +718,28 @@ def _gerar(sb, tipo, agora, actor_name="ceo-cron"):
     if gatilhos:
         aviso = ("\n\n⚠️ GATILHOS DE ALERTA DISPARADOS (hard-coded — a 1ª linha DEVE ser "
                  "'🚨 ALERTA: …' citando o principal): " + " | ".join(gatilhos))
+    bloco_maquina = ""
+    if tipo in ("estado-da-uniao", "fechamento-mensal"):
+        bloco_maquina = (
+            "\n\nBLOCO DE MÁQUINA (obrigatório): DEPOIS da última seção do relatório, acrescente "
+            "uma linha exatamente '===DIRETRIZES===' seguida de uma linha por recomendação que "
+            "você fez no relatório (máx 3), no formato exato "
+            "'<título curto e acionável> | <dono: Paulo|Isabella|Leire|Mariane|Guilherme|CEO> | <prazo YYYY-MM-DD realista>'. "
+            "Sem recomendação nova, escreva '===DIRETRIZES===' seguida da linha 'nenhuma'. "
+            "Esse bloco é lido por máquina, REMOVIDO do relatório publicado e vira proposta de "
+            "diretriz aguardando aprovação do sócio. NUNCA proponha diretriz que repita uma já "
+            "listada como aberta em DIRETRIZES DO CEO nos dados."
+        )
     prompt = (PERSONA + f"\n\nHOJE: {hoje} ({['segunda','terça','quarta','quinta','sexta','sábado','domingo'][agora.weekday()]}-feira)"
-              + f"\n\n{INSTRUCOES[tipo]}{aviso}\n\n═══ DADOS REAIS ═══\n\n" + (ctx or "(sem dados)"))
+              + f"\n\n{INSTRUCOES[tipo]}{aviso}{bloco_maquina}\n\n═══ DADOS REAIS ═══\n\n" + (ctx or "(sem dados)"))
     texto, provider, err = _ia(prompt, max_tokens=1200 if tipo == "diaria" else 1800)
     if not texto:
         return None, err
+
+    # 🎯 recomendações → propostas de diretriz (o bloco de máquina sai do relatório)
+    novas_dirs = []
+    if tipo in ("estado-da-uniao", "fechamento-mensal"):
+        texto, novas_dirs = _extrair_diretrizes(texto)
 
     linhas = [l for l in texto.split("\n")]
     primeira = next((l.strip() for l in linhas if l.strip()), "")
@@ -575,6 +785,13 @@ def _gerar(sb, tipo, agora, actor_name="ceo-cron"):
             box["items"] = items[:MAX_DOSSIES]
             return box
         _kv_write_locked(sb, KV_DOSSIES, mut_dos)
+
+        # 🎯 recomendações do semanal/mensal → diretrizes 'proposta' (origem = este dossiê)
+        if novas_dirs and tipo in ("estado-da-uniao", "fechamento-mensal"):
+            try:
+                _criar_propostas(sb, novas_dirs, data, origem=did)
+            except Exception:
+                pass
 
     # push SÓ pros sócios: alerta, Estado da União ou Fechamento mensal. Dia ✅ = silêncio absoluto.
     if alerta or tipo in ("estado-da-uniao", "fechamento-mensal"):
