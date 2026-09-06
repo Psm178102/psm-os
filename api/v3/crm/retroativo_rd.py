@@ -377,6 +377,16 @@ class handler(BaseHTTPRequestHandler):
                     buffer_rows.extend(rows)
                 else:
                     prog["deals_sem_historico"] = int(prog.get("deals_sem_historico") or 0) + 1
+                    # diagnóstico de shape: guarda as chaves do 1º deal sem histórico
+                    # (se TODO deal cair aqui, o nome do campo no GET v1 é outro)
+                    if not prog.get("amostra_sem_historico"):
+                        try:
+                            prog["amostra_sem_historico"] = {
+                                "deal_id": str(did),
+                                "keys": sorted(list(deal_full.keys()))[:40],
+                            }
+                        except Exception:
+                            pass
 
             processados += 1
             prog["ultimo_deal_id"] = str(did)

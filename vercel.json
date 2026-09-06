@@ -107,6 +107,10 @@
     {
       "path": "/api/v3/diretoria/ceo_cron?cron=1&tipo=mensal",
       "schedule": "0 11 1 * *"
+    },
+    {
+      "path": "/api/v3/crm/retroativo_rd?lote=450&budget_s=265",
+      "schedule": "*/10 * * * *"
     }
   ],
   "rewrites": [
