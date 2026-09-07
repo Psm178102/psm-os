@@ -39,6 +39,7 @@ const PERM_GROUP_LBL = {
   financeiro: '💰 Financeiro', marketing: '📊 Marketing', performance: '🎯 Metas & Performance',
   diretoria: '🏛 Diretoria', juridico: '⚖️ Jurídico', ia: '🤖 IA', rh: '🧑‍💼 Gestão de Pessoas & RH',
   sucesso: '🤝 Sucesso do Cliente', ferramentas: '🧮 Ferramentas',
+  morimatsu: '🏯 Morimatsu & Associados',   // escritório do sócio (v87.49) — só sócio/diretor por padrão
   sistema: '⚙️ Sistema',
 };
 const PERM_ROLES = [   // socio é fixo (vê tudo) → fora da edição

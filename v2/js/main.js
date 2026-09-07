@@ -135,6 +135,7 @@ import { pageCentralSol } from './pages/central-sol.js';   // 🤖 Central da So
 import { pageCMO } from './pages/cmo.js';   // 🎯 CMO · Marketing (agente C-level, só sócio) v87.31
 import { pageSrCfo } from './pages/sr-cfo.js';             // 🧠 Sr. CFO (agente financeiro — só sócios) v87.32
 import { pageDiretoriaCeo, initDiretoriaBadge } from './pages/diretoria-ceo.js';   // 🏛️ Diretoria (sala do CEO IA) v87.33
+import { pageMorimatsu } from './pages/morimatsu.js';   // 🏯 Morimatsu & Associados — Gestão Patrimonial Imobiliária (só sócio) v87.51
 
 // ─── Permissões por role (Sprint 9.6) ──────────────────────────────────
 // Cada rota pertence a um GRUPO. Cada role enxerga só os grupos liberados.
@@ -176,6 +177,10 @@ export const ROUTE_GROUP = {
   '/pontos-atencao': 'diretoria', '/insights': 'diretoria', '/estrategia': 'diretoria',
   // Agentes Diretoria (v87.31): CEO/CFO/CMO + Rede de Agentes — C-level IA
   '/agentes-diretoria': 'diretoria', '/agente-ceo': 'diretoria', '/agente-cfo': 'diretoria', '/agente-cmo': 'diretoria',
+  // 🏯 Morimatsu & Associados (v87.51): grupo PRÓPRIO — escritório de gestão patrimonial do Paulo
+  // (leilão/venda direta Caixa → gestão → saída pela PSM). Fora de TODO ROLE_ALLOWED: só sócio/diretor ('*').
+  '/morimatsu': 'morimatsu', '/morimatsu-investidores': 'morimatsu', '/morimatsu-honorarios': 'morimatsu',
+  '/morimatsu-roteiro': 'morimatsu', '/morimatsu-documentos': 'morimatsu', '/morimatsu-marca': 'morimatsu',
   // IA
   '/agentes': 'ia', '/ia': 'ia', '/sr-performance': 'ia', '/sr-gerencia': 'ia',
   // PSM Academy — menu próprio, visível a todos (a "faculdade" da PSM)
@@ -278,6 +283,10 @@ export const ROUTE_MIN_LVL = {
   // Abrir pra diretor = baixar pra 8 AQUI e no backend juntos.
   '/agentes-diretoria': 10, '/agente-ceo': 10, '/agente-cfo': 10, '/agente-cmo': 10,
   '/cmo': 10, '/sr-cfo': 10, '/diretoria-ceo': 10,
+  // v87.51: 🏯 Morimatsu & Associados — SÓ sócio (honorários, funil de investidor, notas do sócio;
+  // espelha o require_user(min_lvl=10) de api/v3/morimatsu/state). Abrir = baixar aqui E no backend.
+  '/morimatsu': 10, '/morimatsu-investidores': 10, '/morimatsu-honorarios': 10,
+  '/morimatsu-roteiro': 10, '/morimatsu-documentos': 10, '/morimatsu-marca': 10,
   // RH + Sucesso do Cliente (v81.58): piso 2 (corretor) — quem vê isso é decidido
   // 100% na matriz por papel (Configurações → Permissões), sem trava de nível.
   '/onboarding': 2, '/offboarding': 2,
@@ -453,7 +462,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '87.50';
+const APP_VERSION = '87.51';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -577,6 +586,11 @@ const APP_VERSION = '87.50';
   router.register('/projetos', { render: async (ctx, root) => { setHeader('Projetos'); highlight('/projetos'); await pageProjetos(ctx, root); } });
   router.register('/psmhub', { render: async (ctx, root) => { setHeader('PSM HUB · Conquista'); highlight('/psmhub'); await pagePsmHub(ctx, root); } });
   router.register('/sr-cfo', { render: async (ctx, root) => { setHeader('Sr. CFO'); highlight('/sr-cfo'); await pageSrCfo(ctx, root); } });
+  // 🏯 Morimatsu & Associados (v87.51): 6 rotas = 6 itens do menu, mesma página na aba certa
+  [['/morimatsu', 'visao', 'Morimatsu & Associados'], ['/morimatsu-investidores', 'investidores', 'Morimatsu · Investidores'],
+   ['/morimatsu-honorarios', 'honorarios', 'Morimatsu · Honorários & Giro'], ['/morimatsu-roteiro', 'roteiro', 'Morimatsu · Roteiro 90 dias'],
+   ['/morimatsu-documentos', 'documentos', 'Morimatsu · Documentos'], ['/morimatsu-marca', 'marca', 'Morimatsu · Marca']]
+    .forEach(([rota, tab, titulo]) => router.register(rota, { render: async (ctx, root) => { setHeader(titulo); highlight(rota); await pageMorimatsu(ctx, root, tab); } }));
   router.register('/minutas', { render: async (ctx, root) => { setHeader('Minutas padrão'); highlight('/minutas'); await pageMinutasJuridico(ctx, root); } });
   router.register('/cnds',    { render: async (ctx, root) => { setHeader("CND's"); highlight('/cnds'); await pageCnds(ctx, root); } });
   router.register('/links-uteis', { render: async (ctx, root) => { setHeader('Links & Incorporadoras'); highlight('/links-uteis'); await pageCentralLinks(ctx, root); } });
@@ -1041,6 +1055,17 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/reunioes"><span class="sb-ico">🤝</span> Formatos de Reunião</button>
         <div class="sb-subsec" style="font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;opacity:.45;font-weight:800;padding:6px 14px 2px">Governança</div>
         <button class="sb-link" data-nav="/governanca"><span class="sb-ico">⚖️</span> Governança</button>
+
+<!-- v87.51: 🏯 MORIMATSU & ASSOCIADOS — menu PRÓPRIO (pedido do Paulo, 07/set): escritório de
+     Gestão Patrimonial Imobiliária (Aquisição em leilão/venda direta Caixa → Gestão → Desinvestimento
+     pela PSM). Boutique do sócio, não é imobiliária — só sócio vê. -->
+        <div class="sb-sec">🏯 Morimatsu & Associados</div>
+        <button class="sb-link" data-nav="/morimatsu"><span class="sb-ico">🏯</span> Visão do Escritório</button>
+        <button class="sb-link" data-nav="/morimatsu-investidores"><span class="sb-ico">💼</span> Investidores</button>
+        <button class="sb-link" data-nav="/morimatsu-honorarios"><span class="sb-ico">💰</span> Honorários & Giro</button>
+        <button class="sb-link" data-nav="/morimatsu-roteiro"><span class="sb-ico">🗓</span> Roteiro 90 dias</button>
+        <button class="sb-link" data-nav="/morimatsu-documentos"><span class="sb-ico">📄</span> Documentos</button>
+        <button class="sb-link" data-nav="/morimatsu-marca"><span class="sb-ico">🎨</span> Marca</button>
 
         <div class="sb-sec">🧠 Inteligência</div>
         <button class="sb-link" data-nav="/inteligencia"><span class="sb-ico">🧠</span> Centro de Inteligência</button>
