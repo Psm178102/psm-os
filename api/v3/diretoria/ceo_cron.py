@@ -142,18 +142,27 @@ def _ia(prompt, max_tokens=1600):
     gem_key = (os.environ.get("GEMINI_API_KEY") or "").strip()
     ant_key = (os.environ.get("ANTHROPIC_API_KEY") or "").strip()
 
-    def gemini():
+    def gemini(max_out=max_tokens):
         model = os.environ.get("GEMINI_SMART_MODEL") or "gemini-2.5-flash"
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
         payload = {"contents": [{"role": "user", "parts": [{"text": prompt}]}],
-                   "generationConfig": {"maxOutputTokens": max_tokens, "temperature": 0.4,
+                   "generationConfig": {"maxOutputTokens": max_out, "temperature": 0.4,
                                         "thinkingConfig": {"thinkingBudget": 0}}}
         req = urllib.request.Request(url, data=json.dumps(payload).encode(),
                                      headers={"Content-Type": "application/json", "x-goog-api-key": gem_key})
         with urllib.request.urlopen(req, timeout=60) as resp:
             data = json.loads(resp.read().decode())
-        parts = (data.get("candidates") or [{}])[0].get("content", {}).get("parts", [])
-        return "".join(p.get("text", "") for p in parts), "gemini/" + model
+        cand = (data.get("candidates") or [{}])[0]
+        parts = cand.get("content", {}).get("parts", [])
+        texto = "".join(p.get("text", "") for p in parts)
+        if not texto.strip():
+            # sem texto = resposta bloqueada/truncada — o motivo tem que ir pro log do Vercel
+            raise RuntimeError(f"gemini sem texto (maxOut={max_out}) finishReason={cand.get('finishReason')} "
+                               f"promptFeedback={json.dumps(data.get('promptFeedback'))[:200]}")
+        return texto, "gemini/" + model
+
+    def gemini_largo():
+        return gemini(max_out=max_tokens * 2)
 
     def claude():
         payload = {"model": os.environ.get("ANTHROPIC_MODEL") or "claude-sonnet-5",
@@ -166,7 +175,7 @@ def _ia(prompt, max_tokens=1600):
             data = json.loads(resp.read().decode())
         return "".join(c.get("text", "") for c in (data.get("content") or []) if c.get("type") == "text"), "claude"
 
-    chain = [claude, gemini] if (prefer == "claude" and ant_key) else ([gemini, claude] if gem_key else [claude])
+    chain = [claude, gemini] if (prefer == "claude" and ant_key) else ([gemini, gemini_largo, claude] if gem_key else [claude])
     last = None
     for fn in chain:
         try:
@@ -175,6 +184,7 @@ def _ia(prompt, max_tokens=1600):
                 return texto.strip(), prov, None
         except Exception as e:
             last = str(e)
+            print(f"[ceo_cron] provider {fn.__name__} falhou: {last[:300]}")
     return None, None, last or "nenhum provider de IA configurado"
 
 
@@ -516,16 +526,16 @@ def _contexto(sb, tipo, agora):
         if sem >= 3:
             gatilhos.append(f"{sem} dias sem venda na holding")
 
-    # 3) Leads novos (rd_deals) — janelas em UTC real, como no cmo_cron
+    # 3) Leads novos (tabela deals espelhada do RD; a data de criação no RD é created_at_rd)
     try:
         agora_utc = datetime.now(timezone.utc)
         d1 = (agora_utc - timedelta(days=1)).isoformat()
         d7 = (agora_utc - timedelta(days=7)).isoformat()
         d14 = (agora_utc - timedelta(days=14)).isoformat()
-        c24 = sb.table("rd_deals").select("id", count="exact").gte("created_at", d1).execute().count or 0
-        c7 = sb.table("rd_deals").select("id", count="exact").gte("created_at", d7).execute().count or 0
-        c14 = sb.table("rd_deals").select("id", count="exact").gte("created_at", d14).lt("created_at", d7).execute().count or 0
-        parts.append(f"LEADS NOVOS (rd_deals): 24h = {c24} · 7d = {c7} · 7d anteriores = {c14}")
+        c24 = sb.table("deals").select("id", count="exact").gte("created_at_rd", d1).execute().count or 0
+        c7 = sb.table("deals").select("id", count="exact").gte("created_at_rd", d7).execute().count or 0
+        c14 = sb.table("deals").select("id", count="exact").gte("created_at_rd", d14).lt("created_at_rd", d7).execute().count or 0
+        parts.append(f"LEADS NOVOS (deals/RD): 24h = {c24} · 7d = {c7} · 7d anteriores = {c14}")
     except Exception as e:
         parts.append(f"LEADS NOVOS: sem dado ({str(e)[:80]})")
 
@@ -732,8 +742,9 @@ def _gerar(sb, tipo, agora, actor_name="ceo-cron"):
         )
     prompt = (PERSONA + f"\n\nHOJE: {hoje} ({['segunda','terça','quarta','quinta','sexta','sábado','domingo'][agora.weekday()]}-feira)"
               + f"\n\n{INSTRUCOES[tipo]}{aviso}{bloco_maquina}\n\n═══ DADOS REAIS ═══\n\n" + (ctx or "(sem dados)"))
-    texto, provider, err = _ia(prompt, max_tokens=1200 if tipo == "diaria" else 1800)
+    texto, provider, err = _ia(prompt, max_tokens=1200 if tipo == "diaria" else 2600)
     if not texto:
+        print(f"[ceo_cron] {tipo} {data}: IA sem texto — {str(err)[:300]} (prompt {len(prompt)} chars)")
         return None, err
 
     # 🎯 recomendações → propostas de diretriz (o bloco de máquina sai do relatório)
@@ -777,7 +788,7 @@ def _gerar(sb, tipo, agora, actor_name="ceo-cron"):
                   else f"Leitura de exceção — {agora.strftime('%d/%m')}")
         dossie = {"id": did, "tipo": dtipo, "titulo": titulo, "manchete": primeira[:200],
                   "corpo_md": texto, "autor": "CEO", "criado_em": agora_iso,
-                  "fontes": ["ceo_cron (deals, metas, rd_deals, producao_eventos, CFO, CMO, compromissos)"]}
+                  "fontes": ["ceo_cron (deals, metas, producao_eventos, CFO, CMO, compromissos, diretrizes)"]}
 
         def mut_dos(box):
             items = [i for i in (box.get("items") or []) if isinstance(i, dict) and i.get("id") != did]
@@ -869,8 +880,16 @@ class handler(BaseHTTPRequestHandler):
         tipo = TIPO_MAP[tparam] if tparam else ("estado-da-uniao" if agora.weekday() == 0 else "diaria")
         eh_mensal = tipo == "fechamento-mensal"
         existentes = _kv_get(sb, KV_LOG, {}).get("items") or []
-        if any(isinstance(i, dict) and i.get("data") == data
-               and (i.get("tipo") == "fechamento-mensal") == eh_mensal for i in existentes):
+
+        # idempotência por (data, tipo): a diária pula quando o Estado da União do dia já
+        # existe (segunda), mas um semanal que FALHOU não pode ficar bloqueado pela diária
+        # das 07:45 do mesmo dia
+        def _ja_gerado(i):
+            if not isinstance(i, dict) or i.get("data") != data:
+                return False
+            t = i.get("tipo")
+            return t in ("diaria", "estado-da-uniao") if tipo == "diaria" else t == tipo
+        if any(_ja_gerado(i) for i in existentes):
             return self._send(200, {"ok": True, "pulado": f"{data} já gerado", "tipo": tipo})
         item, err = _gerar(sb, tipo, agora)
         if not item:

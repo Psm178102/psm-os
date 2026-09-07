@@ -178,10 +178,10 @@ def _contexto(sb, tipo):
         d1 = (agora - timedelta(days=1)).isoformat()
         d7 = (agora - timedelta(days=7)).isoformat()
         d14 = (agora - timedelta(days=14)).isoformat()
-        c24 = sb.table("rd_deals").select("id", count="exact").gte("created_at", d1).execute().count or 0
-        c7 = sb.table("rd_deals").select("id", count="exact").gte("created_at", d7).execute().count or 0
-        c14 = sb.table("rd_deals").select("id", count="exact").gte("created_at", d14).lt("created_at", d7).execute().count or 0
-        parts.append(f"LEADS NO CRM (rd_deals): últimas 24h = {c24} · últimos 7d = {c7} · 7d anteriores = {c14}")
+        c24 = sb.table("deals").select("id", count="exact").gte("created_at_rd", d1).execute().count or 0
+        c7 = sb.table("deals").select("id", count="exact").gte("created_at_rd", d7).execute().count or 0
+        c14 = sb.table("deals").select("id", count="exact").gte("created_at_rd", d14).lt("created_at_rd", d7).execute().count or 0
+        parts.append(f"LEADS NO CRM (deals/RD): últimas 24h = {c24} · últimos 7d = {c7} · 7d anteriores = {c14}")
     except Exception as e:
         parts.append(f"LEADS NO CRM: sem dado ({str(e)[:80]})")
 
