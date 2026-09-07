@@ -2,8 +2,9 @@
 GET/POST /api/v3/crm/reativacao — FILA DE REATIVAÇÃO MAP. v84.2
 
 A base parada do CRM MAP (leads já pagos, sem ninguém trabalhando) vira uma fila
-diária paced pra LEIRE (reatribuída da Mariane em 06/07/2026 — Mariane focou em
-CS/indicação): contatar 1-a-1 (WhatsApp/ligação), qualificar e agendar visita —
+diária paced pra RAFAELA (corretora MAP; herdou da Leire, que saiu da empresa em
+10/08/2026 — antes disso a fila já tinha saído da Mariane em 06/07/2026, que focou
+em CS/indicação): contatar 1-a-1 (WhatsApp/ligação), qualificar e agendar visita —
 o sócio fecha. Método fila (sem blast) = não toma bloqueio; quando a 360dialog
 entrar, o disparo pluga por cima. Cada set_status loga reativacao_tocada no
 Painel de Fiscalização (dedupe 1/lead/dia).
@@ -31,7 +32,7 @@ KV_CFG = "reativacao_cfg"
 STATUS = ["contatado", "respondeu", "agendou", "sem_interesse", "futuro", "nao_atendeu"]
 DEFAULT_CFG = {
     "lote": 40, "dias_min": 30,
-    "template": ("Olá {nome}, tudo bem? Aqui é a Leire, da PSM Imóveis 😊 "
+    "template": ("Olá {nome}, tudo bem? Aqui é a Rafaela, da PSM Imóveis 😊 "
                  "Você chegou a falar com a gente sobre imóveis um tempo atrás. "
                  "Estou revisando os atendimentos e queria saber: você ainda tem interesse "
                  "em comprar, ou posso atualizar seu cadastro?"),
@@ -208,7 +209,8 @@ class handler(BaseHTTPRequestHandler):
             # Dedupe: 1 toque por lead por dia (mudar o status 2x no dia não infla).
             try:
                 nome = (actor.get("name") or actor.get("email") or "").lower()
-                colab = "leire" if "leire" in nome else ("mariane" if "mariane" in nome else None)
+                colab = ("rafaela" if "rafaela" in nome else "mariane" if "mariane" in nome
+                         else "leire" if "leire" in nome else None)  # Leire saiu (ago/2026); Rafaela herdou a fila
                 if colab:
                     # v86.65: início do dia BRT (00:00 UTC-3 = 03:00 UTC)
                     hoje_utc = agora_brt().strftime("%Y-%m-%dT03:00:00+00:00")

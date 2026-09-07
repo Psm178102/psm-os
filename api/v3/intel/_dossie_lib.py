@@ -178,7 +178,7 @@ def compile_dossie(sb, frente_of):
             sem_foto = sum(1 for i in ki if not i.get("n_fotos"))
             vv = sum(float(i.get("preco_venda") or 0) for i in ki)
             L.append(f"\n## Estoque Kenlo (anúncios publicados)\n- {len(ki)} imóveis no ar · valor de venda somado: {_brl(vv)}\n"
-                     f"- Saúde do anúncio: {d90} sem atualizar há 90d+ ({d180} há 180d+), {sem_foto} sem foto — pauta do Estúdio (Guilherme) e da Leire")
+                     f"- Saúde do anúncio: {d90} sem atualizar há 90d+ ({d180} há 180d+), {sem_foto} sem foto — pauta do Estúdio")
     except Exception:
         pass
 
