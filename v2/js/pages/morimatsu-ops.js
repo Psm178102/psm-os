@@ -13,7 +13,7 @@ import { gerarMinuta, minutaPorSlug, minutas } from './morimatsu-minutas.js';
 import {
   S, COR, COLUNAS, OBJETIVO, PAGAMENTO, FAIXA, CAPITAL, DISP, MODAL, RAIO, ORIGEM,
   scoreDe, porta2, alertaCapital, esc, uid, num, brl, dtBR, hojeISO, autorNome, cfg, feeExito,
-  invPorId, imvPorId, upsert, remover, abrirModal, fecharModal, campo, select, input, mini, render, irPara, ctxQuery,
+  invPorId, imvPorId, upsert, remover, setCol, abrirModal, fecharModal, campo, select, input, mini, render, irPara, ctxQuery,
 } from './morimatsu.js';
 
 /* ── dicionários ── */
@@ -32,7 +32,6 @@ const TIPO_ATV = { tarefa: '☑️ Tarefa', contato: '📞 Contato', whatsapp: '
 const CHECK_POS = [['pagamento', 'Pagamento do lance (24–48h)'], ['carta', 'Carta de arrematação / contrato'], ['itbi', 'ITBI pago'], ['registro', 'Registro na matrícula'], ['desocupacao', 'Desocupação / imissão'], ['chaves', 'Chaves entregues']];
 const DESTINO = { indef: 'A decidir (mesa de ciclo)', flip: '🏘 Flip — revenda pela PSM', renda: '🔑 Renda — locação PSM (adm 10%/mês)' };
 const OP_STATUS = { pos: 'Pós-arrematação', destino: 'Em destino (venda/locação)', concluida: 'Concluída' };
-const CUSTOS_DEFAULT = { leiloeiro_pct: 5, itbi_pct: 2, registro: 2500, debitos: 0, desocupacao: 0, reforma: 0, outros: 0, saida_alvo: 0, margem_pct: 20 };
 
 let _busca = '', _fImv = 'ativos', _fAg = 'abertas';
 
@@ -275,25 +274,143 @@ function liImovel(i) {
     <div class="tiny muted" style="text-align:right">${an.lance_base ? `custo total<br><b>${brl(an.custo_total)}</b>` : ''}</div>
   </div>`;
 }
-/* Análise: custo total no lance-base e lance máximo dado saída alvo + margem */
-export function analise(i) {
-  const a = { ...CUSTOS_DEFAULT, ...(i.analise || {}) };
-  const f = cfg().fee;
-  const lance_base = num(a.lance_base) || num(i.lance_min);
-  const varPct = (num(a.leiloeiro_pct) + num(a.itbi_pct)) / 100;
-  const fixos = num(a.registro) + num(a.debitos) + num(a.desocupacao) + num(a.reforma) + num(a.outros);
-  const custoDe = L => L + L * varPct + fixos + feeExito(L);
-  const custo_total = lance_base ? custoDe(lance_base) : 0;
-  const saida = num(a.saida_alvo) || num(i.avaliacao) * 0.97;
-  const com = saida * num(f.comissao_pct) / 100;
-  const m = num(a.margem_pct) / 100;
-  const alvoCusto = (saida - com) / (1 + m);
-  let lance_max = (alvoCusto - fixos) / (1 + varPct + num(f.exito_pct) / 100);
-  if (lance_max * num(f.exito_pct) / 100 < num(f.piso)) lance_max = (alvoCusto - fixos - num(f.piso)) / (1 + varPct);
-  lance_max = Math.max(0, Math.floor(lance_max / 500) * 500);
-  const lucro = lance_base ? saida - com - custo_total : 0;
-  return { lance_base, custo_total, lance_max, saida, com, lucro, fixos, desconto: num(i.avaliacao) && lance_base ? Math.round((1 - lance_base / num(i.avaliacao)) * 100) : 0, roi: custo_total ? Math.round(lucro / custo_total * 100) : 0, fee: lance_base ? feeExito(lance_base) : 0 };
+/* ═══════════ 🧮 MOTOR DE VIABILIDADE v2 (v87.57) ═══════════
+   Reescrito depois da auditoria da planilha da GM (08/set). O que mudou em
+   relação ao motor anterior desta tela:
+     · preço de saída é % do valor de MERCADO (antes o lucro vinha de uma
+       revenda 35% acima do mercado — era a premissa que fabricava o resultado)
+     · custo de oportunidade FORA dos custos (não é desembolso; inflava o ROI)
+     · ITBI sobre a MAIOR base entre venal de referência e lance
+     · fee da Morimatsu dentro do custo do investidor (piso incluído)
+     · taxa de ocupação da Caixa enquanto o imóvel estiver ocupado
+     · IR sobre o ganho de capital correto (venda − custo de aquisição), PF ou PJ
+     · break-even = investimento ÷ (1 − corretagem); no equilíbrio não há IR
+     · prazo = desocupação + reforma + comercialização (a ocupação puxa o prazo)
+     · TIR mensal comparada com a TMA mensal — o ROI anualizado virou referência
+   Cada imóvel é calculado nas DUAS ROTAS (ocupado × desocupado) e em três
+   cenários econômicos. A conta decide, não a estratégia. */
+
+export const VIAB_DEFAULT = {
+  fator_venda: 97,      // % do valor de mercado que se consegue na revenda rápida
+  regime: 'PF',         // PF = 15% sobre o ganho · PJ = carga sobre a receita
+  fee_no_custo: true,   // o fee da assessoria entra no custo do investidor
+  taxa_ocup_mes: 0.5,   // % ao mês sobre a avaliação, enquanto ocupado (Caixa)
+  margem_alvo: 20,      // % sobre o investimento — base do lance máximo
+  tma_aa: 15,           // % ao ano
+  itbi: 2, registro: 1.5, escritura: 1, leiloeiro: 5, banco: 2, plataforma: 3,
+  ir_pf: 15, carga_pj: 5.93,
+  iptu_ano: 2400, cond_mes: 600, util_mes: 150, seguro_ano: 800, manut_mes: 200,
+};
+export const viab = () => ({ ...VIAB_DEFAULT, ...(S.config?.viab || {}) });
+export const posseMes = () => { const v = viab(); return v.iptu_ano / 12 + v.cond_mes + v.util_mes + v.seguro_ano / 12 + v.manut_mes; };
+export const tmaMes = () => Math.pow(1 + viab().tma_aa / 100, 1 / 12) - 1;
+const ehLeilao = i => ['extra', 'judicial'].includes(i.modalidade);
+const canalPct = i => { const v = viab(); return i.modalidade === 'direta' ? v.banco / 100 : i.modalidade === 'online' ? v.plataforma / 100 : 0; };
+
+/* Parâmetros do imóvel, com os padrões de quem ainda não preencheu */
+function par(i, o) {
+  const v = viab(), A = { ...(i.analise || {}) };
+  const aval = num(i.avaliacao) || num(i.lance_min) || 0;
+  const desoc = (o.desocupado != null) ? o.desocupado : !i.ocupado;
+  const m_oc = desoc ? 0 : (A.m_ocup != null ? num(A.m_ocup) : 3);
+  return {
+    v, A, aval, desoc, m_oc,
+    merc: num(A.mercado) || aval,
+    venal: num(A.venal) || aval,
+    L: num(o.lance != null ? o.lance : (A.lance_base || i.lance_min)),
+    m_ref: A.m_reforma != null ? num(A.m_reforma) : 2,
+    m_ven: A.m_venda != null ? num(A.m_venda) : 3,
+    reforma: (num(A.reforma) || 0) * (o.multRef || 1),
+    mobilia: num(A.mobilia) || 0,
+    dd: A.dd != null ? num(A.dd) : 1500,
+    advogado: desoc ? 0 : (A.advogado != null ? num(A.advogado) : 8000),
+    debitos: num(A.debitos) || num(i.debitos_cond) || 0,
+    fator: (o.fator != null ? o.fator : (num(A.fator_venda) || v.fator_venda)) / 100,
+  };
 }
+
+export function motor(i, o) {
+  o = o || {};
+  const P = par(i, o), v = P.v, f = cfg().fee;
+  const L = P.L;
+  const prazo = Math.max(1, P.m_oc + P.m_ref + P.m_ven + (o.extra || 0));
+  const feeEntra = v.fee_no_custo !== false;
+  const c = {
+    lance: L,
+    leiloeiro: ehLeilao(i) ? L * v.leiloeiro / 100 : 0,
+    canal: L * canalPct(i),
+    escritura: ehLeilao(i) ? 0 : L * v.escritura / 100,
+    itbi: Math.max(P.venal, L) * v.itbi / 100,
+    registro: L * v.registro / 100,
+    fee: feeEntra ? Math.max(L * f.exito_pct / 100, num(f.piso)) + num(f.analise) + num(f.certame) : 0,
+    dd: P.dd,
+    advogado: P.advogado,
+    ocupacao: P.desoc ? 0 : P.aval * v.taxa_ocup_mes / 100 * P.m_oc,
+    debitos: P.debitos,
+    reforma: P.reforma,
+    mobilia: P.mobilia,
+    posse: posseMes() * prazo,
+  };
+  const inv = Object.values(c).reduce((s, x) => s + x, 0);
+  const venda = P.merc * P.fator;
+  const corret = venda * f.comissao_pct / 100;
+  const cf = c.lance + c.leiloeiro + c.itbi + c.registro + c.escritura + c.reforma + c.mobilia;
+  const ganho = Math.max(0, venda - cf);
+  const imposto = v.regime === 'PJ' ? venda * v.carga_pj / 100 : ganho * v.ir_pf / 100;
+  const lucro = venda - corret - imposto - inv;
+  const roi = inv ? lucro / inv : 0;
+  const tir = roi <= -1 ? -1 : Math.pow(1 + roi, 1 / prazo) - 1;
+  const tm = tmaMes();
+  const feeGrupo = Math.max(L * f.exito_pct / 100, num(f.piso)) + num(f.analise) + num(f.certame);
+  return {
+    L, lance_base: L, prazo, custos: c, inv, custo_total: inv, venda, corret, cf, ganho, imposto,
+    lucro, roi, tir, tma_m: tm, fee: c.fee, feeGrupo, receitaGrupo: feeGrupo + corret,
+    vpl: -inv + (venda - corret - imposto) / Math.pow(1 + tm, prazo),
+    breakeven: inv / (1 - f.comissao_pct / 100),
+    desconto: P.merc && L ? Math.round((1 - L / P.merc) * 100) : 0,
+    desconto_aval: P.aval && L ? Math.round((1 - L / P.aval) * 100) : 0,
+    viavel: lucro > 0 && tir >= tm, desoc: P.desoc, merc: P.merc, aval: P.aval,
+  };
+}
+
+/* Lance máximo: dada a saída provável e a margem exigida, quanto dá para cobrir.
+   Fórmula fechada (assume venal ≥ lance, o caso normal em arrematação com deságio);
+   se o piso do fee passar a valer, resolve de novo com o fee fixo. */
+export function lanceMax(i, o, margemPct) {
+  o = o || {};
+  const P = par(i, o), v = P.v, f = cfg().fee;
+  const m = (margemPct != null ? margemPct : (num(P.A.margem_pct) || v.margem_alvo)) / 100;
+  const prazo = Math.max(1, P.m_oc + P.m_ref + P.m_ven + (o.extra || 0));
+  const feeEntra = v.fee_no_custo !== false;
+  const V = P.merc * P.fator, cor = f.comissao_pct / 100;
+  const ITBI = P.venal * v.itbi / 100;
+  const B = P.reforma + P.mobilia;
+  const F = P.dd + P.advogado + (P.desoc ? 0 : P.aval * v.taxa_ocup_mes / 100 * P.m_oc)
+    + P.debitos + B + posseMes() * prazo + (feeEntra ? num(f.analise) + num(f.certame) : 0);
+  const k = 1 + (ehLeilao(i) ? v.leiloeiro / 100 : 0) + v.registro / 100 + (ehLeilao(i) ? 0 : v.escritura / 100);
+  const pj = v.regime === 'PJ';
+  const tau = pj ? 0 : v.ir_pf / 100;
+  const solve = (K, Ff) => pj
+    ? (V * (1 - cor - v.carga_pj / 100) / (1 + m) - ITBI - Ff) / K
+    : (V * (1 - cor - tau) + tau * (ITBI + B) - (1 + m) * (ITBI + Ff)) / ((1 + m) * K - tau * k);
+  let L = solve(k + canalPct(i) + (feeEntra ? f.exito_pct / 100 : 0), F);
+  if (feeEntra && L * f.exito_pct / 100 < num(f.piso)) L = solve(k + canalPct(i), F + num(f.piso));
+  return Math.max(0, Math.floor(L / 500) * 500);
+}
+
+/* Compat: liImovel e criarOperacao continuam chamando analise(i) */
+export function analise(i) {
+  const r = motor(i, {});
+  r.lance_max = lanceMax(i, {});
+  return r;
+}
+
+const CENARIOS = [
+  { id: 'pes', nome: 'Pessimista', dFator: -7, multRef: 1.3, extra: 3, cor: '#ef4444' },
+  { id: 'base', nome: 'Base', dFator: 0, multRef: 1, extra: 0, cor: '#9C7A3C' },   // literal: import circular proíbe COR no top-level
+  { id: 'oti', nome: 'Otimista', dFator: 3, multRef: 0.85, extra: -1, cor: '#16a34a' },
+];
+
 export function abrirImovel(i, aba) {
   i = i || { id: null, status: 'garimpado' };
   aba = aba || (i.id ? 'analise' : 'dados');
@@ -363,40 +480,142 @@ function wireDadosImv(box, i) {
   };
 }
 function analiseImv(i) {
-  const a = { ...CUSTOS_DEFAULT, ...(i.analise || {}) };
-  const an = analise(i);
-  const f = cfg().fee;
-  return `<form class="ma-form" id="f-an" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
-    ${campo('Lance-base pra análise (R$)', input('lance_base', a.lance_base || i.lance_min, 'number'))}
-    ${campo('Comissão do leiloeiro (%)', input('leiloeiro_pct', a.leiloeiro_pct, 'number', 'step="0.5"'))}
-    ${campo('ITBI (%)', input('itbi_pct', a.itbi_pct, 'number', 'step="0.5"'))}
-    ${campo('Registro + certidões (R$)', input('registro', a.registro, 'number'))}
-    ${campo('Débitos (cond./IPTU) (R$)', input('debitos', a.debitos, 'number'))}
-    ${campo('Desocupação (R$)', input('desocupacao', a.desocupacao, 'number'))}
-    ${campo('Reforma (pior cenário) (R$)', input('reforma', a.reforma, 'number'))}
-    ${campo('Outros (R$)', input('outros', a.outros, 'number'))}
-    ${campo('Saída alvo — revenda (R$)', input('saida_alvo', a.saida_alvo || Math.round(num(i.avaliacao) * 0.97), 'number'))}
-    ${campo('Margem alvo do investidor (%)', input('margem_pct', a.margem_pct, 'number', 'step="1"'))}
-    ${campo('Risco', select('risco', RISCO, a.risco))}
-    ${campo('Parecer (ocupação, edital, condomínio, estado)', `<textarea class="input" name="parecer" rows="4">${esc(a.parecer || '')}</textarea>`, true)}
-    <div class="flex gap-2" style="grid-column:1/-1;align-items:center;flex-wrap:wrap"><button class="btn btn-primary" type="submit">💾 Salvar análise</button><span class="tiny muted">Fee Morimatsu ${f.exito_pct}% (piso ${brl(f.piso)}) e comissão PSM ${f.comissao_pct}% entram automaticamente na conta.</span></div>
+  const v = viab(), A = { ...(i.analise || {}) }, f = cfg().fee;
+  const fatorBase = num(A.fator_venda) || v.fator_venda;
+  const cen = CENARIOS.map(c => ({ ...c, r: motor(i, { fator: fatorBase + c.dFator, multRef: c.multRef, extra: c.extra }) }));
+  const base = cen[1].r;
+  const rotaOcup = { r: motor(i, { desocupado: false }), lm: lanceMax(i, { desocupado: false }) };
+  const rotaDeso = { r: motor(i, { desocupado: true }), lm: lanceMax(i, { desocupado: true }) };
+  const lm = lanceMax(i, {});
+  const custoOcupacao = rotaOcup.r.inv - rotaDeso.r.inv;
+  return `<form class="ma-form" id="f-an" style="grid-template-columns:repeat(auto-fit,minmax(155px,1fr))">
+    ${campo('Valor de mercado (R$)', input('mercado', A.mercado || i.avaliacao, 'number', 'placeholder="o que vale de verdade"'))}
+    ${campo('Venal de referência — base do ITBI', input('venal', A.venal || i.avaliacao, 'number'))}
+    ${campo('Lance / preço de compra (R$)', input('lance_base', A.lance_base || i.lance_min, 'number'))}
+    ${campo('Meses até desocupar', input('m_ocup', A.m_ocup != null ? A.m_ocup : 3, 'number'))}
+    ${campo('Meses de reforma', input('m_reforma', A.m_reforma != null ? A.m_reforma : 2, 'number'))}
+    ${campo('Meses de comercialização', input('m_venda', A.m_venda != null ? A.m_venda : 3, 'number'))}
+    ${campo('Reforma (R$)', input('reforma', A.reforma, 'number'))}
+    ${campo('Mobília (R$)', input('mobilia', A.mobilia, 'number'))}
+    ${campo('Due diligence (R$)', input('dd', A.dd != null ? A.dd : 1500, 'number'))}
+    ${campo('Advogado + imissão (R$)', input('advogado', A.advogado != null ? A.advogado : 8000, 'number'))}
+    ${campo('Débitos do edital (R$)', input('debitos', A.debitos || i.debitos_cond, 'number'))}
+    ${campo('Preço de saída (% do mercado)', input('fator_venda', fatorBase, 'number', 'step="0.5"'))}
+    ${campo('Margem alvo (%)', input('margem_pct', A.margem_pct || v.margem_alvo, 'number'))}
+    ${campo('Risco', select('risco', RISCO, A.risco))}
+    ${campo('Parecer (ocupação, edital, condomínio, estado)', `<textarea class="input" name="parecer" rows="3">${esc(A.parecer || '')}</textarea>`, true)}
+    <div class="flex gap-2" style="grid-column:1/-1;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-primary" type="submit">💾 Salvar análise</button>
+      <button class="btn btn-ghost" type="button" id="an-cfg">⚙️ Premissas do modelo</button>
+      <span class="tiny muted">Fee ${f.exito_pct}% (piso ${brl(f.piso)}) · corretagem PSM ${f.comissao_pct}% · ITBI ${v.itbi}% · taxa de ocupação ${v.taxa_ocup_mes}%/mês · ${v.regime}</span>
+    </div>
   </form>
-  <div class="ma-minis" id="an-out" style="margin-top:12px">${anOut(an)}</div>
-  <div class="tiny muted">Lance máximo = maior lance em que a revenda alvo, descontada a comissão PSM, ainda entrega a margem alvo sobre o custo total (lance + leiloeiro + ITBI + fixos + fee).</div>`;
+  <div id="an-out">${anOut(i, cen, lm, rotaOcup, rotaDeso, custoOcupacao)}</div>`;
 }
-function anOut(an) {
-  return [
-    mini('💵 Custo total no lance-base', brl(an.custo_total), `lance ${brl(an.lance_base)} + custos ${brl(an.custo_total - an.lance_base)} (fee ${brl(an.fee)})`),
-    mini('🎯 Lance MÁXIMO', brl(an.lance_max), 'pra saída alvo com a margem alvo', COR.dourado),
-    mini('📈 Lucro no lance-base', brl(an.lucro), `${an.roi}% sobre o custo · desconto ${an.desconto}% vs avaliação`, an.lucro > 0 ? '#16a34a' : '#ef4444'),
-    mini('🏘 Saída alvo − comissão PSM', brl(an.saida - an.com), `comissão ${brl(an.com)}`, '#0ea5e9'),
-  ].join('');
+
+function anOut(i, cen, lm, rotaOcup, rotaDeso, custoOcupacao) {
+  const base = cen[1].r, v = viab();
+  const linha = (lbl, fn, fmt) => `<tr><td>${lbl}</td>${cen.map(c => `<td class="ma-num" style="text-align:right">${fmt(fn(c.r))}</td>`).join('')}</tr>`;
+  const pct = x => (x * 100).toFixed(1).replace('.', ',') + '%';
+  const rota = (nome, R, atual) => `<div class="ma-rota ${atual ? 'on' : ''}">
+      <div class="tiny" style="letter-spacing:1.2px;text-transform:uppercase;font-weight:800;opacity:.7">${nome}${atual ? ' · como está' : ''}</div>
+      <div class="ma-mini-v" style="color:${R.r.lucro > 0 ? '#16a34a' : '#ef4444'}">${brl(R.r.lucro)}</div>
+      <div class="tiny muted">lucro do investidor · ROI ${pct(R.r.roi)} em ${R.r.prazo}m</div>
+      <div class="tiny" style="margin-top:6px">Lance máximo <b>${brl(R.lm)}</b> <span class="muted">(deságio ${R.r.aval ? Math.round((1 - R.lm / R.r.aval) * 100) : 0}% sobre a avaliação)</span></div>
+    </div>`;
+  return `
+    <div class="ma-sec">As duas rotas — a conta decide, não a estratégia</div>
+    <div class="ma-rotas">
+      ${rota('🔒 Ocupado', rotaOcup, !i.ocupado === false)}
+      ${rota('🔓 Desocupado', rotaDeso, !i.ocupado === true)}
+    </div>
+    <div class="tiny muted" style="margin-top:6px">A ocupação custa <b style="color:#ef4444">${brl(custoOcupacao)}</b> nesta operação — advogado, taxa de ocupação da Caixa e ${rotaOcup.r.prazo - rotaDeso.r.prazo} meses a mais de posse. ${base.aval ? `Isso é ${Math.round(custoOcupacao / base.aval * 100)}% da avaliação: no ticket baixo é o que consome a margem.` : ''}</div>
+
+    <div class="ma-sec">Três cenários</div>
+    <div style="overflow-x:auto"><table class="ma-tbl">
+      <tr><th></th>${cen.map(c => `<th style="text-align:right;color:${c.cor}">${c.nome}</th>`).join('')}</tr>
+      ${linha('Preço de saída', r => r.venda, brl)}
+      ${linha('Prazo (meses)', r => r.prazo, x => x)}
+      ${linha('Investimento total', r => r.inv, brl)}
+      ${linha('Lucro do investidor', r => r.lucro, brl)}
+      ${linha('ROI', r => r.roi, pct)}
+      ${linha('TIR ao mês', r => r.tir, x => (x * 100).toFixed(2).replace('.', ',') + '%')}
+      ${linha('VPL pela TMA', r => r.vpl, brl)}
+      <tr><td><b>Veredito</b></td>${cen.map(c => `<td style="text-align:right"><span class="ma-status" style="background:${c.r.viavel ? '#16a34a' : '#ef4444'}">${c.r.viavel ? 'VIÁVEL' : 'INVIÁVEL'}</span></td>`).join('')}</tr>
+    </table></div>
+    <div class="tiny muted">TMA exigida: ${(tmaMes() * 100).toFixed(2).replace('.', ',')}% ao mês (${v.tma_aa}% ao ano). Passa quem tiver lucro positivo <i>e</i> TIR acima da TMA.</div>
+
+    <div class="ma-minis" style="margin-top:12px">
+      ${mini('🎯 LANCE MÁXIMO', brl(lm), `para ${num(i.analise?.margem_pct) || v.margem_alvo}% de margem · deságio ${base.aval ? Math.round((1 - lm / base.aval) * 100) : 0}% sobre a avaliação`, COR.dourado)}
+      ${mini(base.L <= lm ? '✅ Seu lance cabe' : '🚫 Lance acima do teto', brl(Math.abs(lm - base.L)), base.L <= lm ? 'de folga até o teto' : 'acima do que a conta suporta', base.L <= lm ? '#16a34a' : '#ef4444')}
+      ${mini('💵 Custo total no lance', brl(base.inv), `desconto ${base.desconto}% vs mercado · break-even ${brl(base.breakeven)}`)}
+      ${mini('🏯 Receita do grupo no giro', brl(base.receitaGrupo), `fee ${brl(base.feeGrupo)} + corretagem ${brl(base.corret)}`, COR.verde)}
+    </div>
+    ${base.lucro <= 0 && base.receitaGrupo > 0 ? `<div class="alert alert-warn" style="font-size:12.5px;margin-top:8px">⚠️ O grupo fatura ${brl(base.receitaGrupo)} neste giro mesmo com o investidor no prejuízo. Não leve este imóvel ao cliente — com o sobrenome na porta, um caso malconduzido custa mais que o fee.</div>` : ''}`;
 }
+
 function wireAnaliseImv(box, i) {
   const form = box.querySelector('#f-an'); if (!form) return;
-  const lerForm = () => { const fd = new FormData(form); const a = { ...(i.analise || {}) }; ['lance_base', 'leiloeiro_pct', 'itbi_pct', 'registro', 'debitos', 'desocupacao', 'reforma', 'outros', 'saida_alvo', 'margem_pct'].forEach(k => { a[k] = num(fd.get(k)); }); a.risco = fd.get('risco'); a.parecer = String(fd.get('parecer') || '').trim(); return a; };
-  form.querySelectorAll('input').forEach(el => el.oninput = () => { box.querySelector('#an-out').innerHTML = anOut(analise({ ...i, analise: lerForm() })); });
-  form.onsubmit = async ev => { ev.preventDefault(); const it = { ...i, analise: lerForm() }; if (!it.status || it.status === 'garimpado') it.status = 'analise'; fecharModal(); await upsert('imoveis', it); };
+  const ler = () => {
+    const fd = new FormData(form), a = { ...(i.analise || {}) };
+    ['mercado', 'venal', 'lance_base', 'm_ocup', 'm_reforma', 'm_venda', 'reforma', 'mobilia', 'dd', 'advogado', 'debitos', 'fator_venda', 'margem_pct']
+      .forEach(k => { a[k] = num(fd.get(k)); });
+    a.risco = fd.get('risco'); a.parecer = String(fd.get('parecer') || '').trim();
+    return a;
+  };
+  const redesenhar = () => {
+    const it = { ...i, analise: ler() }, fb = num(ler().fator_venda) || viab().fator_venda;
+    const cen = CENARIOS.map(c => ({ ...c, r: motor(it, { fator: fb + c.dFator, multRef: c.multRef, extra: c.extra }) }));
+    const ro = { r: motor(it, { desocupado: false }), lm: lanceMax(it, { desocupado: false }) };
+    const rd = { r: motor(it, { desocupado: true }), lm: lanceMax(it, { desocupado: true }) };
+    box.querySelector('#an-out').innerHTML = anOut(it, cen, lanceMax(it, {}), ro, rd, ro.r.inv - rd.r.inv);
+  };
+  form.querySelectorAll('input,select').forEach(el => el.oninput = redesenhar);
+  box.querySelector('#an-cfg').onclick = () => editarViab(() => abrirImovel(imvPorId(i.id), 'analise'));
+  form.onsubmit = async ev => {
+    ev.preventDefault();
+    const it = { ...i, analise: ler() };
+    if (!it.status || it.status === 'garimpado') it.status = 'analise';
+    fecharModal(); await upsert('imoveis', it);
+  };
+}
+
+/* Premissas do modelo — o que era decisão fixa na planilha vira parâmetro do sócio */
+export function editarViab(depois) {
+  const v = viab();
+  abrirModal('⚙️ Premissas do modelo de viabilidade', `<form class="ma-form" id="f-viab">
+    ${campo('Preço de saída padrão (% do valor de mercado)', input('fator_venda', v.fator_venda, 'number', 'step="0.5"'))}
+    ${campo('Regime tributário', select('regime', { PF: 'PF — 15% sobre o ganho', PJ: 'PJ — carga sobre a receita' }, v.regime))}
+    ${campo('Fee da assessoria entra no custo?', select('fee_no_custo', { sim: 'SIM — o investidor vê o custo real', nao: 'NÃO — viabilidade antes do fee' }, v.fee_no_custo === false ? 'nao' : 'sim'))}
+    ${campo('Taxa de ocupação da Caixa (%/mês)', input('taxa_ocup_mes', v.taxa_ocup_mes, 'number', 'step="0.1"'))}
+    ${campo('Margem alvo padrão (%)', input('margem_alvo', v.margem_alvo, 'number'))}
+    ${campo('TMA (% ao ano)', input('tma_aa', v.tma_aa, 'number'))}
+    ${campo('ITBI (%)', input('itbi', v.itbi, 'number', 'step="0.1"'))}
+    ${campo('Registro (%)', input('registro', v.registro, 'number', 'step="0.1"'))}
+    ${campo('Escritura (%)', input('escritura', v.escritura, 'number', 'step="0.1"'))}
+    ${campo('Comissão do leiloeiro (%)', input('leiloeiro', v.leiloeiro, 'number', 'step="0.5"'))}
+    ${campo('Taxa do banco — venda direta (%)', input('banco', v.banco, 'number', 'step="0.5"'))}
+    ${campo('Taxa da plataforma — online (%)', input('plataforma', v.plataforma, 'number', 'step="0.5"'))}
+    ${campo('IR ganho de capital — PF (%)', input('ir_pf', v.ir_pf, 'number', 'step="0.5"'))}
+    ${campo('Carga PJ sobre a receita (%)', input('carga_pj', v.carga_pj, 'number', 'step="0.01"'))}
+    ${campo('IPTU anual (R$)', input('iptu_ano', v.iptu_ano, 'number'))}
+    ${campo('Condomínio mensal (R$)', input('cond_mes', v.cond_mes, 'number'))}
+    ${campo('Água e energia (R$/mês)', input('util_mes', v.util_mes, 'number'))}
+    ${campo('Seguro anual (R$)', input('seguro_ano', v.seguro_ano, 'number'))}
+    ${campo('Manutenção (R$/mês)', input('manut_mes', v.manut_mes, 'number'))}
+    <div class="tiny muted" style="grid-column:1/-1">Custo mensal de posse resultante: <b>${brl(posseMes())}</b>. Estas premissas valem para todas as análises.</div>
+    <div class="flex gap-2" style="grid-column:1/-1"><button class="btn btn-primary" type="submit">💾 Salvar</button><button class="btn btn-ghost" type="button" id="f-cancel">Cancelar</button></div>
+  </form>`, box => {
+    box.querySelector('#f-cancel').onclick = () => { fecharModal(); if (depois) depois(); };
+    box.querySelector('#f-viab').onsubmit = async ev => {
+      ev.preventDefault(); const fd = new FormData(ev.target), o = {};
+      ['fator_venda', 'taxa_ocup_mes', 'margem_alvo', 'tma_aa', 'itbi', 'registro', 'escritura', 'leiloeiro', 'banco', 'plataforma', 'ir_pf', 'carga_pj', 'iptu_ano', 'cond_mes', 'util_mes', 'seguro_ano', 'manut_mes']
+        .forEach(k => { o[k] = num(fd.get(k)); });
+      o.regime = fd.get('regime') || 'PF';
+      o.fee_no_custo = fd.get('fee_no_custo') !== 'nao';
+      fecharModal(); await setCol('config', { ...S.config, viab: o }); if (depois) depois();
+    };
+  }, 860);
 }
 
 /* ═══════════════════════════ 🔁 OPERAÇÕES ═══════════════════════════ */

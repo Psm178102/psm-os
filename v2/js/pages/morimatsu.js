@@ -661,6 +661,9 @@ function injectCss() {
     .ma-chk label{display:flex;gap:8px;align-items:center;padding:6px 10px;border-radius:8px;background:var(--bg-2);border:1px solid var(--border);font-size:12.5px;cursor:pointer}
     .ma-sec{font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;opacity:.65;font-weight:800;margin:14px 0 6px;color:${COR.dourado}}
     .ma-drawer-tabs{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0 10px}
+    .ma-rotas{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin-top:8px}
+    .ma-rota{background:var(--bg-2);border:1px solid var(--border);border-left:3px solid var(--border);border-radius:10px;padding:10px 12px}
+    .ma-rota.on{border-left-color:${COR.dourado};background:var(--bg-3)}
     .ma-chips{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px}
     .ma-chip{font-family:var(--font-mono,monospace);font-size:10.5px;padding:2px 7px;border-radius:6px;background:var(--bg-3);border:1px solid var(--border);color:inherit;cursor:pointer}
     .ma-chip:hover{border-color:${COR.dourado};color:${COR.dourado}}
