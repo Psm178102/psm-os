@@ -59,6 +59,9 @@ JOBS = [
     # Radar Incorporadoras + Ad Library) e SÓ notifica os sócios quando a IA
     # acha algo acionável. Dedupe interno por janela de 6h.
     ("gt_vigia",     "/api/v3/marketing/gestor_vigia?cron=1",               2),
+    # 🔔 paridade Meta×RD (v87.53): leads do Meta hoje vs entradas no RD com fonte
+    # de mídia paga — se o RD receber < piso (70%), push nos sócios (1x/dia).
+    ("gt_paridade",  "/api/v3/marketing/gestor_paridade?cron=1",            1),
 ]
 
 
