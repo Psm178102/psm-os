@@ -81,15 +81,73 @@ def render_template(tpl, nome):
 
 
 # ─── Provider de envio ───────────────────────────────────────────────────────
-# 360dialog (OFICIAL, Cloud API) é o preferido. Evolution (não-oficial) só dispara
-# se explicitamente ligado (WA_USE_EVOLUTION=1). Sem nenhum → 'none' = campanha PAUSADA.
+# meta_cloud (OFICIAL, Cloud API direto da Meta, sem BSP) é o preferido — decisão
+# do Paulo 28/ago/2026: sem 360dialog. Evolution (não-oficial) só dispara se
+# explicitamente ligado (WA_USE_EVOLUTION=1). Sem nenhum → 'none' = campanha PAUSADA.
+def cloud_token():
+    # WA_CLOUD_TOKEN é o nome da campanha; META_WA_TOKEN é o que o módulo da Sol já espera — aceita os dois
+    return (os.environ.get("WA_CLOUD_TOKEN", "") or os.environ.get("META_WA_TOKEN", "")).strip()
+
+
+def cloud_phone_id():
+    return os.environ.get("WA_PHONE_ID", "").strip()
+
+
 def provider():
+    if cloud_token() and cloud_phone_id() and os.environ.get("WA_TEMPLATE", "").strip():
+        return "meta_cloud"
     if os.environ.get("D360_API_KEY", "").strip() and os.environ.get("D360_TEMPLATE", "").strip():
         return "360dialog"
     if (os.environ.get("EVOLUTION_API_URL", "").strip() and os.environ.get("EVOLUTION_API_KEY", "").strip()
             and os.environ.get("EVOLUTION_INSTANCE", "").strip() and os.environ.get("WA_USE_EVOLUTION", "").strip() == "1"):
         return "evolution"
     return "none"
+
+
+def _graph_post(path, payload):
+    """POST na Graph API (v23) com o token de usuário do sistema. Quando a Meta
+    recusa, o corpo do erro dela vem junto — é ele que explica template
+    reprovado, número sem pagamento, janela de 24h fechada etc."""
+    req = urllib.request.Request(
+        "https://graph.facebook.com/v23.0/" + path,
+        data=json.dumps(payload).encode("utf-8"), method="POST",
+        headers={"Content-Type": "application/json", "Authorization": "Bearer " + cloud_token()})
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return {"ok": True, "status": r.status, "resp": (r.read().decode("utf-8") or "")[:300]}
+    except Exception as e:
+        body = ""
+        try:
+            body = (e.read().decode("utf-8") or "")[:300]
+        except Exception:
+            pass
+        return {"ok": False, "error": (str(e) + " " + body).strip()}
+
+
+def meta_cloud_send(phone, template, params, lang="pt_BR"):
+    """TEMPLATE aprovado, direto pela Cloud API da Meta. Envs: WA_CLOUD_TOKEN (ou
+    META_WA_TOKEN), WA_PHONE_ID (id do número no WhatsApp Manager), WA_TEMPLATE
+    (nome do template aprovado)."""
+    tpl = (template or os.environ.get("WA_TEMPLATE", "")).strip()
+    if not cloud_token() or not cloud_phone_id() or not tpl:
+        return {"ok": False, "error": "Cloud API nao configurada (WA_CLOUD_TOKEN / WA_PHONE_ID / WA_TEMPLATE)"}
+    comps = [{"type": "body", "parameters": [{"type": "text", "text": str(p)} for p in (params or [])]}] if params else []
+    payload = {
+        "messaging_product": "whatsapp", "recipient_type": "individual", "to": phone,
+        "type": "template",
+        "template": {"name": tpl, "language": {"code": lang}, "components": comps},
+    }
+    return _graph_post(cloud_phone_id() + "/messages", payload)
+
+
+def meta_cloud_send_text(phone, text):
+    """Texto livre — só chega dentro da janela de 24h aberta pelo cliente. É o
+    canal da Sol/Vera (resposta a quem escreveu), nunca de campanha fria."""
+    if not cloud_token() or not cloud_phone_id():
+        return {"ok": False, "error": "Cloud API nao configurada (WA_CLOUD_TOKEN / WA_PHONE_ID)"}
+    payload = {"messaging_product": "whatsapp", "recipient_type": "individual", "to": phone,
+               "type": "text", "text": {"preview_url": False, "body": text}}
+    return _graph_post(cloud_phone_id() + "/messages", payload)
 
 
 def cloud_api_send(phone, template, params, lang="pt_BR"):

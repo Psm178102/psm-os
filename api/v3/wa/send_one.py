@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
 from _wa_lib import (normalize_phone, render_template, evolution_send, cloud_api_send,  # type: ignore
-                     is_opted_out, provider, first_name, fila_update)
+                     meta_cloud_send, is_opted_out, provider, first_name, fila_update)
 
 
 class handler(BaseHTTPRequestHandler):
@@ -42,14 +42,17 @@ class handler(BaseHTTPRequestHandler):
         prov = provider()
         if prov == "none":
             return self._send(200, {"ok": False, "sent": False, "paused": True,
-                                    "error": "Campanha PAUSADA — aguardando a conta 360dialog (D360_API_KEY/D360_TEMPLATE no Vercel)."})
+                                    "error": "Campanha PAUSADA — aguardando a Cloud API oficial da Meta (WA_CLOUD_TOKEN / WA_PHONE_ID / WA_TEMPLATE no Vercel)."})
 
         if is_opted_out(sb, phone):
             return self._send(200, {"ok": True, "sent": False, "skipped": "opt-out"})
 
         texto = render_template(tpl, nome)
-        if prov == "360dialog":
-            # OFICIAL: envia o TEMPLATE aprovado com {{1}}=primeiro nome, {{2}}=oferta
+        if prov == "meta_cloud":
+            # OFICIAL direto da Meta: template aprovado com {{1}}=primeiro nome, {{2}}=oferta
+            res = meta_cloud_send(phone, None, [first_name(nome) or (nome or "tudo bem"), body.get("oferta") or ""])
+        elif prov == "360dialog":
+            # OFICIAL via BSP (legado — o Paulo vetou BSP em 28/ago; fica só como fallback explícito)
             res = cloud_api_send(phone, None, [first_name(nome) or (nome or "tudo bem"), body.get("oferta") or ""])
         else:
             res = evolution_send(phone, texto, body.get("instance"))

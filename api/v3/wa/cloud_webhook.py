@@ -1,10 +1,11 @@
-"""GET/POST /api/v3/wa/cloud_webhook — webhook da 360dialog (WhatsApp Cloud API).
-Aponte o webhook da 360dialog/Meta pra cá.
+"""GET/POST /api/v3/wa/cloud_webhook — webhook do WhatsApp Cloud API (direto da Meta).
+Configure no app da Meta (WhatsApp → Configuração → Webhook), campo 'messages'.
   GET  = verificação (hub.mode/hub.verify_token == WA_CLOUD_VERIFY_TOKEN → hub.challenge)
   POST = mensagens recebidas (texto OU clique no botão 'Quero ver') → record_reply (quente/opt-out)
+         Com META_APP_SECRET no Vercel, a assinatura X-Hub-Signature-256 é OBRIGATÓRIA (v87.50).
 """
 from http.server import BaseHTTPRequestHandler
-import json, os, sys, urllib.parse
+import hashlib, hmac, json, os, sys, urllib.parse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client  # type: ignore
@@ -57,7 +58,19 @@ class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             ln = int(self.headers.get("Content-Length") or 0)
-            body = json.loads(self.rfile.read(ln).decode("utf-8")) if ln else {}
+            raw = self.rfile.read(ln) if ln else b""
+        except Exception:
+            raw = b""
+        # Assinatura da Meta: X-Hub-Signature-256 = HMAC-SHA256 do corpo bruto com o App Secret.
+        # Sem META_APP_SECRET o webhook aceita qualquer POST (só até o Paulo setar a env).
+        secret = (os.environ.get("META_APP_SECRET") or "").strip()
+        if secret:
+            sig = (self.headers.get("X-Hub-Signature-256") or "").replace("sha256=", "").strip()
+            calc = hmac.new(secret.encode("utf-8"), raw, hashlib.sha256).hexdigest()
+            if not sig or not hmac.compare_digest(sig, calc):
+                return self._send(403, {"ok": False, "error": "assinatura inválida"})
+        try:
+            body = json.loads(raw.decode("utf-8")) if raw else {}
         except Exception:
             body = {}
         sb = supabase_client()
