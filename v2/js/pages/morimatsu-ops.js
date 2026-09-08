@@ -436,7 +436,11 @@ export function motor(i, o) {
 export function lanceMax(i, o, margemPct) {
   o = o || {};
   const P = par(i, o), v = P.v, f = cfg().fee;
-  const m = (margemPct != null ? margemPct : (num(P.A.margem_pct) || v.margem_alvo)) / 100;
+  // v87.68: ágio 0 é uma pergunta legítima ("onde empata?") e precisa ser obedecido.
+  // O `||` antigo trocava 0 por 20 em silêncio: a tela dizia 0 e o teto saía com 20%.
+  const mDigitado = P.A.margem_pct;
+  const m = (margemPct != null ? margemPct
+    : (mDigitado != null && mDigitado !== '' && isFinite(num(mDigitado)) ? num(mDigitado) : v.margem_alvo)) / 100;
   const prazo = Math.max(1, P.m_oc + P.m_doc + P.m_ref + P.m_ven + (o.extra || 0));
   const feeEntra = v.fee_no_custo !== false;
   const V = P.vendaBase * P.multVenda, cor = P.comRevenda / 100;
@@ -637,7 +641,7 @@ function analiseImv(i) {
     ${campo('Valor de venda esperado (R$) — zero usa o %', input('venda_esperada', A.venda_esperada, 'number'))}
     ${campo('Comissão de revenda (%)', input('comissao_revenda', A.comissao_revenda != null ? A.comissao_revenda : cfg().fee.comissao_pct, 'number', 'step="0.5"'))}
     ${campo('Preço de saída (% do mercado)', input('fator_venda', fatorBase, 'number', 'step="0.5"'))}
-    ${campo('Margem alvo (%)', input('margem_pct', A.margem_pct || v.margem_alvo, 'number'))}
+    ${campo('Ágio alvo (%)', input('margem_pct', A.margem_pct != null && A.margem_pct !== '' ? A.margem_pct : v.margem_alvo, 'number', 'min="0"'))}
     ${campo('Risco', select('risco', RISCO, A.risco))}
     ${campo('Parecer (ocupação, edital, condomínio, estado)', `<textarea class="input" name="parecer" rows="3">${esc(A.parecer || '')}</textarea>`, true)}
     <div class="flex gap-2" style="grid-column:1/-1;align-items:center;flex-wrap:wrap">
@@ -696,7 +700,10 @@ function anOut(i, cen, lm, rotaOcup, rotaDeso, custoOcupacao) {
     <div class="tiny muted">TMA exigida: ${(tmaMes() * 100).toFixed(2).replace('.', ',')}% ao mês (${v.tma_aa}% ao ano). Passa quem tiver lucro positivo <i>e</i> TIR acima da TMA.</div>
 
     <div class="ma-minis" style="margin-top:12px">
-      ${mini('🎯 LANCE MÁXIMO', brl(lm), `para ${num(i.analise?.margem_pct) || v.margem_alvo}% de margem · deságio ${base.aval ? Math.round((1 - lm / base.aval) * 100) : 0}% sobre a avaliação`, COR.dourado)}
+      ${(() => { const mp = i.analise?.margem_pct; const usado = (mp != null && mp !== '' && isFinite(num(mp))) ? num(mp) : v.margem_alvo;
+        return mini('🎯 LANCE MÁXIMO', brl(lm), usado === 0
+          ? 'ágio 0 — este é o lance que EMPATA, não o que dá lucro'
+          : `para ${String(usado).replace('.', ',')}% de ágio · deságio ${base.aval ? Math.round((1 - lm / base.aval) * 100) : 0}% sobre a avaliação`, COR.dourado); })()}
       ${mini(base.L <= lm ? '✅ Seu lance cabe' : '🚫 Lance acima do teto', brl(Math.abs(lm - base.L)), base.L <= lm ? 'de folga até o teto' : 'acima do que a conta suporta', base.L <= lm ? '#16a34a' : '#ef4444')}
       ${mini('💵 Custo total no lance', brl(base.inv), `desconto ${base.desconto}% vs mercado · break-even ${brl(base.breakeven)}${num(i.area) ? ` · mercado ${brl(base.merc / num(i.area))}/m²` : ''}`)}
       ${mini('🏯 Receita do grupo no giro', brl(base.receitaGrupo), `fee ${brl(base.feeGrupo)} + corretagem ${brl(base.corret)}`, COR.verde)}
@@ -926,7 +933,10 @@ export function renderSimulador() {
       <div class="ma-form" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
         ${cmp('Lance mínimo do edital (R$)', input('lance_min', s.lance_min, 'number'), 'Abaixo disso não existe lance. Se o teto ficar abaixo do mínimo, o imóvel é reprovado.')}
         ${cmp('Lance que você pretende dar (R$)', input('lance_base', A.lance_base, 'number'), 'É este que o simulador testa contra o teto.')}
-        ${cmp('Ágio esperado (%)', input('margem_pct', A.margem_pct, 'number'), 'Quanto você quer ganhar sobre o capital investido. É o que define o lance máximo.')}
+        ${cmp('Ágio esperado (%)', input('margem_pct', A.margem_pct != null && A.margem_pct !== '' ? A.margem_pct : v.margem_alvo, 'number', 'min="0"'),
+          num(A.margem_pct) === 0 && A.margem_pct != null
+            ? '<b style="color:#d97706">Com ágio 0 o teto vira o ponto de equilíbrio</b> — o lance máximo passa a ser o que empata, sem lucro. Use só para saber onde é o empate.'
+            : 'Quanto você quer ganhar sobre o capital investido. É o que define o lance máximo.')}
       </div>
     </div>
 
