@@ -143,6 +143,7 @@ export async function pageMorimatsu(ctx, root, tab) {
   if ((auth.user()?.lvl || 0) < 10) { root.innerHTML = '<div class="alert alert-warn">🔒 Morimatsu & Associados é restrito aos sócios.</div>'; return; }
   _tab = tab || _q.tab || 'visao';
   if (!TABS.some(t => t.id === _tab)) _tab = 'visao';
+  fecharModal();   // v87.53: trocar de rota (menu/abas) fecha o modal aberto — antes a ficha ficava por cima da aba nova
   injectCss();
   render();
   await load();
