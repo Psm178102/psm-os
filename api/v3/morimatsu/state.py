@@ -20,6 +20,8 @@ por tela, sem carregar tudo a cada clique):
   morimatsu_atividades     [ {id, tipo, investidor_id, imovel_id, operacao_id, texto,
                               quando, feito, feito_em, autor, criado_em} ]
   morimatsu_roteiro        [ {id, fase, quando, titulo_fase, t, quem, done, em} ]
+  morimatsu_minutas        [ {id, slug, cat, ordem, titulo, desc, corpo} ]  # v87.56: só as EDITADAS;
+                              # as não-editadas vêm de MINUTAS_PADRAO no front (voltar ao padrão = excluir)
   morimatsu_config         { honorarios:[{servico,valor,obs}], nao_incluso, notas }
 
 SÓ SÓCIO (lvl>=10) — GET e POST. Abrir pra alguém = baixar aqui E no ROUTE_MIN_LVL.
@@ -39,7 +41,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
 
 PREFIX = "morimatsu_"
-LISTAS = {"investidores", "imoveis", "operacoes", "atividades", "roteiro"}
+LISTAS = {"investidores", "imoveis", "operacoes", "atividades", "roteiro", "minutas"}
 OBJETOS = {"config"}
 COLS = LISTAS | OBJETOS
 MAX_BYTES = 900_000

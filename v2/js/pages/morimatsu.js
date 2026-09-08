@@ -21,6 +21,7 @@
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 import { renderInvestidores, renderImoveis, renderOperacoes, renderAgenda, wireOps, gerarContrato, gerarRecibo } from './morimatsu-ops.js';
+import { renderMinutas, wireMinutas } from './morimatsu-minutas.js';   // v87.56: biblioteca de minutas editável
 
 const API = '/api/v3/morimatsu/state';
 export const ASSETS = '/v2/assets/morimatsu/';
@@ -33,6 +34,7 @@ export const TABS = [
   { id: 'agenda',       rota: '/morimatsu-agenda',       lbl: '📅 Agenda' },
   { id: 'honorarios',   rota: '/morimatsu-honorarios',   lbl: '💰 Honorários' },
   { id: 'roteiro',      rota: '/morimatsu-roteiro',      lbl: '🗓 Roteiro' },
+  { id: 'minutas',      rota: '/morimatsu-minutas',      lbl: '📜 Minutas' },
   { id: 'documentos',   rota: '/morimatsu-documentos',   lbl: '📄 Documentos' },
   { id: 'marca',        rota: '/morimatsu-marca',        lbl: '🎨 Marca' },
 ];
@@ -133,7 +135,7 @@ const DOCS = [
 ];
 
 /* ─────────────────────────── store ─────────────────────────── */
-export const S = { investidores: [], imoveis: [], operacoes: [], atividades: [], roteiro: [], config: {}, loaded: false };
+export const S = { investidores: [], imoveis: [], operacoes: [], atividades: [], roteiro: [], minutas: [], config: {}, loaded: false };
 let _root = null, _tab = 'visao', _err = null, _q = {};
 export const ctxQuery = () => _q;
 export const tabAtual = () => _tab;
@@ -206,7 +208,7 @@ export function render() {
   if (!_root) return;
   const dark = document.documentElement.classList.contains('dark');
   const logo = dark ? '/v2/img/morimatsu-logo-negativa.png' : '/v2/img/morimatsu-logo-marfim.png';
-  const body = { visao, investidores: renderInvestidores, imoveis: renderImoveis, operacoes: renderOperacoes, agenda: renderAgenda, honorarios, roteiro, documentos, marca }[_tab];
+  const body = { visao, investidores: renderInvestidores, imoveis: renderImoveis, operacoes: renderOperacoes, agenda: renderAgenda, honorarios, roteiro, minutas: renderMinutas, documentos, marca }[_tab];
   const atrasadas = S.atividades.filter(a => !a.feito && a.quando && a.quando.slice(0, 10) < hojeISO()).length;
   _root.innerHTML = `
     <div class="ma-wrap">
@@ -225,6 +227,7 @@ export function render() {
   _root.querySelectorAll('.ma-tab').forEach(b => b.onclick = () => irPara(b.dataset.rota));
   if (!S.loaded) return;
   if (['investidores', 'imoveis', 'operacoes', 'agenda'].includes(_tab)) wireOps(_root, _tab);
+  else if (_tab === 'minutas') wireMinutas(_root);
   else wire();
 }
 
@@ -466,8 +469,8 @@ function documentos() {
       </div>
     </div>
     <div class="card">
-      <h2 class="card-title">Modelos oficiais (v1 · set/2026)</h2>
-      <p class="card-sub">Cópias servidas pelo House. Originais em <code>Desktop/MORIMATSU/MORIMATSU & ASSOCIADOS</code>.</p>
+      <h2 class="card-title">Arquivos-modelo (.docx em branco · set/2026)</h2>
+      <p class="card-sub">Cópias estáticas servidas pelo House; originais em <code>Desktop/MORIMATSU/MORIMATSU & ASSOCIADOS</code>. Para o texto <b>editável</b> e o documento <b>preenchido em Word</b>, use a aba <button class="btn btn-ghost" data-rota="/morimatsu-minutas" style="font-size:11.5px;padding:2px 8px">📜 Minutas</button>.</p>
       <div class="ma-docs">${DOCS.map(d => `<div class="ma-doc"><div class="ma-doc-ico">${d.ico}</div><div style="flex:1"><b>${esc(d.t)}</b><div class="tiny muted">${esc(d.d)}</div></div><a class="btn btn-ghost" href="${ASSETS}${d.arq}" download>⬇ .docx</a></div>`).join('')}</div>
     </div>
     <div class="card">
@@ -658,6 +661,9 @@ function injectCss() {
     .ma-chk label{display:flex;gap:8px;align-items:center;padding:6px 10px;border-radius:8px;background:var(--bg-2);border:1px solid var(--border);font-size:12.5px;cursor:pointer}
     .ma-sec{font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;opacity:.65;font-weight:800;margin:14px 0 6px;color:${COR.dourado}}
     .ma-drawer-tabs{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0 10px}
+    .ma-chips{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px}
+    .ma-chip{font-family:var(--font-mono,monospace);font-size:10.5px;padding:2px 7px;border-radius:6px;background:var(--bg-3);border:1px solid var(--border);color:inherit;cursor:pointer}
+    .ma-chip:hover{border-color:${COR.dourado};color:${COR.dourado}}
     #ma-modal{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:var(--z-modal,1000);display:flex;align-items:flex-start;justify-content:center;padding:24px 12px;overflow-y:auto}
     .ma-modal-box{background:var(--bg);color:var(--ink);border:1px solid var(--border);border-top:3px solid ${COR.dourado};border-radius:14px;width:100%;box-shadow:var(--shadow-lg,0 10px 40px rgba(0,0,0,.4))}
     .ma-modal-h{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);font-size:15px}

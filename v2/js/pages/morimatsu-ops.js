@@ -9,6 +9,7 @@
    (/api/v3/morimatsu/state, item a item).
 ============================================================================ */
 import { ativarDrag } from '../kanban-drag.js';
+import { gerarMinuta, minutaPorSlug, minutas } from './morimatsu-minutas.js';
 import {
   S, COR, COLUNAS, OBJETIVO, PAGAMENTO, FAIXA, CAPITAL, DISP, MODAL, RAIO, ORIGEM,
   scoreDe, porta2, alertaCapital, esc, uid, num, brl, dtBR, hojeISO, autorNome, cfg, feeExito,
@@ -630,93 +631,16 @@ export function wireOps(root, tab) {
   }
 }
 
-/* ═══════════════════════════ 📜 CONTRATO e 🧾 RECIBO (impressão) ═══════════════════════════ */
-const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-const extenso = dt => { const d = new Date(dt || Date.now()); return `${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`; };
-const bl = (v, n) => v ? esc(v) : '_'.repeat(n || 22);
-function janelaDoc(titulo, corpo) {
-  const w = window.open('', '_blank');
-  if (!w) return alert('O navegador bloqueou a janela. Libere pop-ups pra www.housepsm.com.br.');
-  w.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(titulo)}</title>
-  <style>
-    body{font-family:Georgia,'Times New Roman',serif;color:#1B201D;background:#fff;margin:0;padding:34px 48px;font-size:12.5pt;line-height:1.55}
-    .top{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #9C7A3C;padding-bottom:12px;margin-bottom:22px}
-    .top img{height:54px}.top .sub{font-size:9pt;letter-spacing:2px;text-transform:uppercase;color:#1F4A3D;text-align:right}
-    h1{font-size:15pt;text-align:center;letter-spacing:1px;margin:0 0 4px}h2{font-size:12pt;margin:18px 0 6px;color:#1F4A3D}
-    p{margin:6px 0;text-align:justify}table{border-collapse:collapse;width:100%;margin:8px 0;font-size:11.5pt}td,th{border:1px solid #bbb;padding:6px 8px;vertical-align:top;text-align:left}th{background:#F4F2EC}
-    .ass{display:flex;gap:40px;margin-top:44px}.ass div{flex:1;text-align:center;border-top:1px solid #333;padding-top:6px;font-size:11pt}
-    .foot{margin-top:30px;font-size:9.5pt;color:#555;border-top:1px solid #ddd;padding-top:8px}
-    .bar{position:fixed;top:0;left:0;right:0;background:#1F4A3D;color:#fff;padding:8px 16px;font-family:sans-serif;font-size:13px;display:flex;gap:12px;align-items:center}
-    .bar button{font-size:13px;padding:6px 14px;cursor:pointer}
-    @media print{.bar{display:none}body{padding:0}}
-    @page{margin:22mm 20mm}
-  </style></head><body>
-  <div class="bar"><b>Morimatsu & Associados</b> · ${esc(titulo)} <span style="flex:1"></span><button onclick="window.print()">🖨 Imprimir / salvar PDF</button><button onclick="window.close()">Fechar</button></div>
-  <div style="height:44px"></div>
-  <div class="top"><img src="${location.origin}/v2/img/morimatsu-logo-marfim.png" alt="Morimatsu & Associados"><div class="sub">Gestão Patrimonial Imobiliária<br>São José do Rio Preto/SP</div></div>
-  ${corpo}
-  <div class="foot">Morimatsu & Associados — Gestão Patrimonial Imobiliária · Documento gerado pelo House PSM em ${new Date().toLocaleString('pt-BR')}.</div>
-  </body></html>`);
-  w.document.close();
-}
+/* ═══════════ 📜 CONTRATO e 🧾 RECIBO — agora saem das MINUTAS do banco (v87.56) ═══════════
+   O texto vive na aba 📜 Minutas (editável pelo sócio); aqui só abrimos o gerador
+   já apontando pro investidor / operação certos. Word (.docx) e PDF saem de lá. */
 export function gerarContrato(inv) {
-  const f = cfg().fee;
-  const pessoa = inv.pj === 'pj' ? 'pessoa jurídica de direito privado' : '[nacionalidade], [estado civil], [profissão]';
-  const corpo = `
-    <h1>INSTRUMENTO PARTICULAR DE CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE ASSESSORIA TÉCNICA E COMERCIAL EM AQUISIÇÃO DE IMÓVEIS</h1>
-    <p style="text-align:center;font-size:10.5pt;color:#555">Contrato de Assessoria em Aquisição de Imóveis — modelo v1</p>
-    <h2>CLÁUSULA 1ª — DAS PARTES</h2>
-    <p><b>CONTRATANTE:</b> <b>${bl(inv.nome, 30)}</b>, ${pessoa}, CPF/CNPJ nº ${bl(inv.documento, 18)}, residente/estabelecido(a) em ${bl(inv.endereco, 60)}${inv.fone ? `, telefone ${esc(inv.fone)}` : ''}${inv.email ? `, e-mail ${esc(inv.email)}` : ''}, doravante “CONTRATANTE”.</p>
-    <p><b>CONTRATADA:</b> [RAZÃO SOCIAL DA MORIMATSU & ASSOCIADOS], pessoa jurídica de direito privado, CNPJ nº [___], com sede em São José do Rio Preto/SP, neste ato representada por Paulo Morimatsu, doravante “CONTRATADA” ou “MORIMATSU”.</p>
-    <h2>CLÁUSULA 2ª — DO OBJETO</h2>
-    <p>O presente contrato tem por objeto a prestação de serviços de assessoria técnica e comercial para aquisição de imóveis nas modalidades venda online, venda direta online, leilão extrajudicial e leilão judicial, compreendendo: I — diagnóstico do perfil patrimonial e dos critérios de aquisição do CONTRATANTE; II — curadoria e filtragem de oportunidades conforme perfil, região e faixa de valor; III — análise de viabilidade comercial do imóvel, com levantamento do custo total da operação; IV — coordenação da due diligence documental e processual, executada por sociedade de advocacia parceira; V — representação operacional e atuação estratégica no certame ou na compra direta; VI — acompanhamento pós-arrematação até a entrega das chaves, em conjunto com a assessoria jurídica contratada pelo CONTRATANTE; VII — orientação sobre o destino do ativo adquirido (revenda ou locação).</p>
-    <h2>CLÁUSULA 3ª — DA NATUREZA DOS SERVIÇOS</h2>
-    <p>Os serviços têm natureza consultiva, técnica e comercial, constituindo obrigação de meio, sem garantia de arrematação, de desocupação, de prazo ou de resultado econômico.</p>
-    <p>Parágrafo único. Este contrato NÃO abrange atos privativos de advocacia (Lei 8.906/94). Pareceres jurídicos, medidas judiciais e extrajudiciais — inclusive imissão na posse, embargos, anulações e negociações de desocupação — serão prestados por sociedade de advocacia parceira indicada pela CONTRATADA, mediante contrato de honorários próprio e autônomo entre o CONTRATANTE e aquela sociedade.</p>
-    <h2>CLÁUSULA 4ª — DOS HONORÁRIOS</h2>
-    <table><tr><th>Parcela</th><th>Valor e condição</th></tr>
-      <tr><td>(a) Análise por imóvel</td><td>${brl(f.analise)} por imóvel analisado, pagos antecipadamente.</td></tr>
-      <tr><td>(b) Participação em certame</td><td>${brl(f.certame)} por certame, pagos antecipadamente.</td></tr>
-      <tr><td>(c) Honorários de êxito</td><td>${esc(String(f.exito_pct).replace('.', ','))}% sobre o valor da arrematação ou da compra, observado o piso mínimo de ${brl(f.piso)}, devidos e exigíveis na data da arrematação/assinatura da compra.</td></tr></table>
-    <p>§1º Em caso de arrematação, o valor da parcela (b) será deduzido dos honorários de êxito (c). §2º Não havendo arrematação, as parcelas (a) e (b) permanecem com a CONTRATADA como remuneração dos serviços efetivamente executados. §3º O atraso no pagamento implicará multa de 10%, juros de 1% ao mês e correção monetária pelo IPCA. §4º Os honorários de êxito serão devidos ainda que o CONTRATANTE, diretamente ou por interposta pessoa, arremate ou adquira imóvel apresentado ou analisado pela CONTRATADA, no prazo de 12 (doze) meses contados da apresentação.</p>
-    <h2>CLÁUSULA 5ª — DAS DESPESAS DO CONTRATANTE</h2>
-    <p>Correm exclusivamente por conta do CONTRATANTE: valor do lance/arrematação, comissão do leiloeiro, ITBI, emolumentos de registro e cartório, certidões, débitos incidentes sobre o imóvel (tributários, condominiais e demais passivos propter rem), custas processuais, honorários da sociedade de advocacia e despesas de deslocamento fora da comarca de São José do Rio Preto/SP, estas últimas previamente comunicadas.</p>
-    <h2>CLÁUSULA 6ª — DA EXCLUSIVIDADE DE DESTINO DO ATIVO</h2>
-    <p>O CONTRATANTE outorga às empresas do grupo PSM (PSM Assessoria & Negócios Imobiliários e/ou PSM Imóveis), indicadas pela CONTRATADA, exclusividade na intermediação da revenda e/ou locação de todo imóvel adquirido com a assessoria objeto deste contrato, pelo prazo de 180 (cento e oitenta) dias contados da disponibilização do imóvel para revenda ou locação, prorrogável automaticamente por iguais períodos enquanto perdurar a oferta, nas condições de corretagem praticadas pelo mercado local.</p>
-    <p>Parágrafo único. A alienação ou locação do imóvel a terceiros no período de exclusividade, sem a intermediação das empresas indicadas, sujeitará o CONTRATANTE ao pagamento da corretagem integral que seria devida, a título de multa compensatória.</p>
-    <h2>CLÁUSULA 7ª — DAS OBRIGAÇÕES DO CONTRATANTE</h2>
-    <p>I — fornecer informações e documentos completos e verídicos, inclusive quanto à disponibilidade de recursos; II — manter recursos disponíveis para pagamento do lance nos prazos do edital (em regra, 24–48h); III — declarar eventual condição de empregado da instituição credora ou vínculo de parentesco, quando o edital o exigir (ex.: leilões CAIXA)${inv.caixa ? ' — <b>o CONTRATANTE declara possuir vínculo com a CAIXA Econômica Federal</b>' : ''}; IV — comunicar imediatamente fatos relevantes e mudanças de dados de contato; V — não utilizar as análises, pareceres e curadorias para aquisição sem a participação da CONTRATADA, sob pena da Cláusula 4ª, §4º.</p>
-    <h2>CLÁUSULA 8ª — DA CONFIDENCIALIDADE E DA PROTEÇÃO DE DADOS</h2>
-    <p>As partes manterão sigilo sobre informações negociais, financeiras e patrimoniais a que tiverem acesso, subsistindo o dever após o encerramento do contrato. O tratamento de dados pessoais observará a Lei 13.709/2018 (LGPD), limitado às finalidades deste contrato, garantidos ao titular os direitos de acesso, correção e eliminação, ressalvadas as hipóteses legais de retenção.</p>
-    <h2>CLÁUSULA 9ª — DA VIGÊNCIA E DA RESCISÃO</h2>
-    <p>O contrato vigora por 12 (doze) meses, renovando-se automaticamente por iguais períodos, podendo ser rescindido por qualquer das partes mediante aviso prévio de 30 (trinta) dias. Parágrafo único. A rescisão não afeta: (i) honorários devidos por serviços já executados; (ii) honorários de êxito de operações em curso ou enquadradas na Cláusula 4ª, §4º; (iii) a exclusividade da Cláusula 6ª quanto aos imóveis já adquiridos.</p>
-    <h2>CLÁUSULA 10ª — DAS DISPOSIÇÕES FINAIS</h2>
-    <p>As comunicações formais serão feitas por e-mail e WhatsApp indicados pelas partes. As partes reconhecem a validade das assinaturas eletrônicas. Fica eleito o foro da Comarca de São José do Rio Preto/SP. Este instrumento constitui título executivo extrajudicial, assinado em 2 (duas) vias na presença de 2 (duas) testemunhas.</p>
-    <p style="margin-top:22px">São José do Rio Preto/SP, ${extenso()}.</p>
-    <div class="ass"><div>${esc(inv.nome)}<br>CONTRATANTE</div><div>MORIMATSU & ASSOCIADOS · Paulo Morimatsu<br>CONTRATADA</div></div>
-    <p style="margin-top:34px"><b>TESTEMUNHAS:</b><br>1. Nome: ______________________________________ CPF: ____________________<br>2. Nome: ______________________________________ CPF: ____________________</p>`;
-  janelaDoc(`Contrato de Assessoria — ${inv.nome}`, corpo);
+  const m = minutaPorSlug('assessoria_aquisicao') || minutas()[0];
+  if (!m) return alert('Nenhuma minuta cadastrada.');
+  gerarMinuta(m, { inv: inv?.id });
 }
 export function gerarRecibo(o, parcela) {
-  const inv = invPorId(o.investidor_id) || {}, imv = imvPorId(o.imovel_id) || {};
-  const p = o.honorarios?.[parcela] || {}; const valor = num(p.valor);
-  const ref = { analise: 'Análise de imóvel', certame: 'Participação em certame', exito: 'Honorários de êxito' }[parcela] || parcela;
-  const seq = `${new Date().getFullYear()}-${String(S.operacoes.indexOf(S.operacoes.find(x => x.id === o.id)) + 1).padStart(3, '0')}${parcela[0].toUpperCase()}`;
-  const corpo = `
-    <h1>RECIBO DE PAGAMENTO</h1>
-    <p style="text-align:center;font-size:10.5pt;color:#555">Nº ${esc(seq)} · Assessoria em Aquisição — ${esc(MODAL[imv.modalidade] || '[MODALIDADE]')} · Matrícula nº ${bl(imv.matricula, 14)}</p>
-    <h2>1. VALOR DO PAGAMENTO</h2>
-    <p>Valor total: <b>${brl(valor)}</b> (${bl('', 50)}).</p>
-    <p>Referente a: ${['analise', 'certame', 'exito'].map(k => `${k === parcela ? '☑' : '☐'} ${{ analise: 'Análise de imóvel', certame: 'Participação em certame', exito: 'Honorários de êxito' }[k]}`).join('   ')}</p>
-    <h2>2. IDENTIFICAÇÃO DAS PARTES</h2>
-    <table><tr><th style="width:120px">Pagador</th><td>Nome: <b>${esc(inv.nome || '')}</b> · CPF/CNPJ: ${bl(inv.documento, 18)}<br>Endereço: ${bl(inv.endereco, 60)}</td></tr>
-    <tr><th>Recebedora</th><td>Empresa: MORIMATSU & ASSOCIADOS — [razão social] · CNPJ: [CNPJ]</td></tr></table>
-    <h2>3. DECLARAÇÃO E DESCRIÇÃO</h2>
-    <p>A MORIMATSU & ASSOCIADOS declara, para os devidos fins, que recebeu de <b>${esc(inv.nome || '')}</b> a importância acima mencionada, outorgando plena, geral e irrevogável quitação do valor recebido.</p>
-    <p>O pagamento refere-se à assessoria em aquisição de imóvel na modalidade ${esc(MODAL[imv.modalidade] || '[MODALIDADE]')}, junto a ${bl(imv.credor, 20)}, tendo por objeto o imóvel <b>${esc(imv.titulo || '')}</b>${imv.cidade ? `, ${esc(imv.cidade)}` : ''}, registrado sob a matrícula nº ${bl(imv.matricula, 14)} do ${bl(imv.cartorio, 30)}.${parcela === 'exito' ? ` Arrematação em ${dtBR(o.data_arrematacao)} pelo valor de ${brl(o.valor)}.` : ''}</p>
-    <h2>4. FORMA DE PAGAMENTO</h2>
-    <p>Favorecida: MORIMATSU & ASSOCIADOS — [razão social] · Modalidade: PIX · Chave (CNPJ): [CNPJ]${p.pago && p.em ? ` · Recebido em ${dtBR(p.em)}` : ''}</p>
-    <p style="margin-top:22px">São José do Rio Preto/SP, ${extenso(p.em)}.</p>
-    <div class="ass"><div>Paulo Morimatsu<br>MORIMATSU & ASSOCIADOS — Gestão Patrimonial Imobiliária</div></div>`;
-  janelaDoc(`Recibo ${seq} — ${inv.nome || ''}`, corpo);
+  const m = minutaPorSlug('recibo');
+  if (!m) return alert('Minuta de recibo não encontrada.');
+  gerarMinuta(m, { inv: o?.investidor_id, imv: o?.imovel_id, op: o?.id, parcela: parcela || 'exito', valor: num(o?.honorarios?.[parcela || 'exito']?.valor) || '' });
 }
