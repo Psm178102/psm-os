@@ -237,6 +237,15 @@ function userRow(u, isSocio, myId) {
         <div style="font-weight:700;font-size:13px">${escapeHtml(u.name || 'Sem nome')}${isMe ? ' <span style="font-size:9px;background:var(--psm-navy);color:#fff;padding:1px 6px;border-radius:3px;letter-spacing:1px;margin-left:6px">VOCÊ</span>' : ''}</div>
         <div class="tiny muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(u.email || 'sem email')}</div>
         ${lastAudit ? `<div class="tiny" style="color:var(--info);margin-top:2px"><a href="#/auditoria" data-link-audit="${u.id}">📜 ${escapeHtml(lastAudit)}</a></div>` : ''}
+        ${(() => {   // v87.64: cargos ADICIONAIS — um login pode ocupar mais de um
+          const cs = Array.isArray(u.cargos) ? u.cargos.filter(Boolean) : [];
+          if (!cs.length && !editable) return '';
+          const nome = id => { const r = allRolesList().find(x => x.id === id); return r ? `${r.ico} ${r.lbl}` : id; };
+          return `<div class="tiny" style="margin-top:3px;display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+            ${cs.map(c => `<span style="background:color-mix(in srgb, var(--psm-navy) 16%, transparent);color:var(--navy-txt,var(--ink));padding:1px 7px;border-radius:3px;font-weight:700">＋ ${escapeHtml(nome(c))}</span>`).join('')}
+            ${editable ? `<button class="btn btn-ghost" data-action="cargos" data-id="${u.id}" style="padding:2px 8px;font-size:10px" title="Um login pode ocupar mais de um cargo: o nível vale o maior e as permissões somam">🎭 ${cs.length ? 'Cargos' : '+ cargo'}</button>` : ''}
+          </div>`;
+        })()}
         ${Array.isArray(u.menu_groups) ? `<div class="tiny" style="margin-top:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
           <span style="background:color-mix(in srgb, var(--warn) 18%, transparent);color:var(--marrom);padding:1px 7px;border-radius:3px;font-weight:700" title="Esse usuário tem permissão INDIVIDUAL que IGNORA as Permissões por papel. Liberado só: ${escapeHtml((u.menu_groups || []).join(', ') || '(nada)')}">⚠️ Exceção de menu (${u.menu_groups.length})</span>
           ${editable ? `<button class="btn btn-ghost" data-action="clear-menu-override" data-id="${u.id}" style="padding:2px 8px;font-size:10px" title="Remover a exceção → passa a seguir as Permissões por papel">↩︎ voltar ao papel</button>` : ''}
@@ -256,6 +265,59 @@ function userRow(u, isSocio, myId) {
       ${editable ? `<button class="btn btn-ghost" data-action="reset-pwd" data-id="${u.id}" title="Resetar senha" style="padding:6px 10px;font-size:11px">🔑</button>` : '<span></span>'}
     </div>
   `;
+}
+
+
+/* ─── 🎭 CARGOS ADICIONAIS (v87.64) ──────────────────────────────────────────
+   Um login pode ocupar mais de um cargo. Regra: o NÍVEL vale o MAIOR entre eles
+   e as PERMISSÕES DE MENU são a UNIÃO — o usuário vê tudo que qualquer um dos
+   cargos dele enxerga. O cargo principal continua sendo o do seletor de papel
+   (é ele que manda em relatórios, ranking e nas regras que casam papel exato). */
+function abrirCargos(u) {
+  const atuais = Array.isArray(u.cargos) ? u.cargos.filter(Boolean) : [];
+  const lista = allRolesList().filter(r => !r.legacy && r.id !== u.role);
+  const box = document.createElement('div');
+  box.id = 'cargos-modal';
+  box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:32px 14px;overflow-y:auto';
+  box.innerHTML = `
+    <div style="background:var(--bg);color:var(--ink);border:1px solid var(--border);border-radius:14px;max-width:620px;width:100%;box-shadow:var(--shadow-lg)">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)">
+        <b>🎭 Cargos de ${escapeHtml(u.name || '')}</b>
+        <button class="btn btn-ghost" id="cg-x">✕</button>
+      </div>
+      <div style="padding:16px 18px">
+        <div class="tiny muted" style="margin-bottom:10px">
+          Cargo principal: <b>${escapeHtml((allRolesList().find(r => r.id === u.role) || {}).lbl || u.role || '')}</b>.
+          Marque abaixo os cargos <b>adicionais</b>. O nível efetivo passa a ser o mais alto entre eles,
+          e o menu mostra a soma do que cada cargo enxerga.
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:6px;max-height:44vh;overflow-y:auto">
+          ${lista.map(r => `<label style="display:flex;gap:8px;align-items:center;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg-2);font-size:12.5px;cursor:pointer">
+            <input type="checkbox" value="${r.id}" ${atuais.includes(r.id) ? 'checked' : ''}>
+            <span>${r.ico} ${escapeHtml(r.lbl)} <span class="tiny muted">L${r.lvl}</span></span>
+          </label>`).join('')}
+        </div>
+        <div class="tiny muted" style="margin-top:10px">Quem tem exceção de menu individual continua limitado por ela — os cargos não passam por cima disso.</div>
+        <div class="flex gap-2 mt-3">
+          <button class="btn btn-primary" id="cg-ok">💾 Salvar cargos</button>
+          <button class="btn btn-ghost" id="cg-cancel">Cancelar</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(box);
+  const fechar = () => box.remove();
+  box.addEventListener('click', e => { if (e.target === box) fechar(); });
+  box.querySelector('#cg-x').onclick = fechar;
+  box.querySelector('#cg-cancel').onclick = fechar;
+  box.querySelector('#cg-ok').onclick = async () => {
+    const cargos = [...box.querySelectorAll('input[type=checkbox]:checked')].map(c => c.value);
+    try {
+      await api.request('/api/v3/users/update', { method: 'POST', body: { id: u.id, fields: { cargos } } });
+      fechar();
+      toast(cargos.length ? `${u.name} agora ocupa ${cargos.length + 1} cargos ✓` : `${u.name} voltou a um cargo só ✓`, 'ok');
+      await reload();
+    } catch (e) { toast('Falha: ' + e.message, 'err'); }
+  };
 }
 
 function addUserBlock() {
@@ -329,6 +391,8 @@ async function handleClick(ev) {
       if (pwd.length < 6) { toast('Senha precisa ≥ 6 chars', 'err'); return; }
       await api.request('/api/v3/users/admin_reset_password', { method: 'POST', body: { user_id: id, new_password: pwd } });
       toast(`Senha de ${u.name} resetada.`, 'ok');
+    } else if (action === 'cargos') {
+      abrirCargos(u);
     } else if (action === 'clear-menu-override') {
       const itens = (u.menu_groups || []).join(', ') || '(nada)';
       if (!confirm(`Remover a exceção de menu de ${u.name}?\n\nHoje ele(a) vê só: ${itens}\n\nDepois passa a seguir as Permissões por papel do cargo "${u.role}".`)) return;

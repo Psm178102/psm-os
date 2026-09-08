@@ -9,6 +9,7 @@ Requer: o próprio user OU lvl >= 10 (Sócio).
 from http.server import BaseHTTPRequestHandler
 import json
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -17,7 +18,7 @@ from _auth_lib import supabase_client, current_user, enrich_user, audit  # type:
 
 # Campos que podem ser atualizados (whitelist)
 ALLOWED_FIELDS = {
-    "name", "email", "role", "team", "ini", "color", "rd_id", "meta_id",
+    "name", "email", "role", "cargos", "team", "ini", "color", "rd_id", "meta_id",
     "status", "hide_from_ranking",
 }
 
@@ -70,11 +71,24 @@ class handler(BaseHTTPRequestHandler):
         if is_self and not is_socio:
             # v86.67: e-mail/equipe/rd_id/meta_id/ocultar-do-ranking só pelo Sócio — o sync do
             # RD mapeia deals por e-mail, então trocar o próprio e-mail roubava a carteira de outro.
-            for forbidden in ("role", "status", "email", "team", "rd_id", "meta_id", "hide_from_ranking"):
+            for forbidden in ("role", "cargos", "status", "email", "team", "rd_id", "meta_id", "hide_from_ranking"):
                 if forbidden in fields:
                     return self._send(403, {"ok": False, "error": f"'{forbidden}' só pode ser alterado por um Sócio"})
 
         # Filtra whitelist
+        if "cargos" in fields:
+            # cargos ADICIONAIS (v87.64): lista de ids de papel, sem o principal e sem repetição
+            c = fields.get("cargos")
+            if isinstance(c, str):
+                c = [x for x in c.split(",")]
+            if not isinstance(c, list):
+                return self._send(400, {"ok": False, "error": "cargos precisa ser uma lista de papéis"})
+            limpos, vistos = [], set()
+            for x in c[:12]:
+                x = re.sub(r"[^a-z0-9_\-]", "", str(x or "").strip().lower())
+                if x and x not in vistos:
+                    vistos.add(x); limpos.append(x)
+            fields["cargos"] = limpos
         patch = {k: v for k, v in fields.items() if k in ALLOWED_FIELDS}
         if not patch:
             return self._send(400, {

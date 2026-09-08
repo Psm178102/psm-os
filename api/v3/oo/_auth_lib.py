@@ -212,15 +212,48 @@ def lvl_of(role: str) -> int:
     return _custom_levels().get(r, 2)
 
 
+def cargos_of(u: dict) -> list:
+    """Todos os cargos do login: o principal (users.role) + os adicionais
+    (users.cargos). Um login pode ocupar mais de um cargo — o nível efetivo é o
+    MAIOR deles e as permissões de menu são a UNIÃO. v87.64"""
+    if not u:
+        return []
+    principal = (u.get("role") or "corretor").strip().lower()
+    extras = u.get("cargos")
+    if isinstance(extras, str):
+        try:
+            import json as _json
+            extras = _json.loads(extras)
+        except Exception:
+            extras = []
+    if not isinstance(extras, list):
+        extras = []
+    out = [principal]
+    for c in extras:
+        c = str(c or "").strip().lower()
+        if c and c not in out:
+            out.append(c)
+    return out
+
+
 def enrich_user(u: dict) -> dict:
-    """Adiciona campos derivados (lvl, is_lider, is_diretor) sem persistir."""
+    """Adiciona campos derivados (roles, lvl, is_lider, is_diretor) sem persistir."""
     if not u:
         return u
-    role = (u.get("role") or "corretor").lower()
-    u["lvl"] = lvl_of(role)
-    u["is_lider"] = role in ("lider", "líder", "gerente", "socio", "diretor")
-    u["is_diretor"] = role in ("socio", "diretor")
+    roles = cargos_of(u)
+    role = roles[0]
+    u["roles"] = roles
+    u["cargos"] = roles[1:]
+    u["lvl"] = max((lvl_of(r) for r in roles), default=lvl_of(role))
+    u["is_lider"] = any(r in ("lider", "líder", "gerente", "socio", "diretor") for r in roles)
+    u["is_diretor"] = any(r in ("socio", "diretor") for r in roles)
     return u
+
+
+def tem_cargo(u: dict, *ids) -> bool:
+    """True se o login ocupa QUALQUER um dos cargos informados (principal ou adicional)."""
+    alvo = {str(i or "").strip().lower() for i in ids}
+    return bool(alvo & set(cargos_of(u)))
 
 
 def sign_jwt(user: dict, user_agent: str = "", ip: str = "") -> Tuple[str, str, int]:
@@ -296,11 +329,14 @@ def current_user(handler) -> Optional[dict]:
     try:
         base_cols = "id,name,email,role,team,ini,color,rd_id,meta_id,status,hide_from_ranking,last_login_at"
         try:
-            # menu_groups = override de menu por usuário (lista branca de grupos); v77.53
-            res = sb.table("users").select(base_cols + ",menu_groups").eq("id", claims.get("sub")).limit(1).execute()
+            # menu_groups = override de menu por usuário (v77.53) · cargos = multi-cargo (v87.64)
+            res = sb.table("users").select(base_cols + ",menu_groups,cargos").eq("id", claims.get("sub")).limit(1).execute()
         except Exception:
-            # coluna ainda não migrada em algum ambiente → não quebra o login
-            res = sb.table("users").select(base_cols).eq("id", claims.get("sub")).limit(1).execute()
+            try:
+                res = sb.table("users").select(base_cols + ",menu_groups").eq("id", claims.get("sub")).limit(1).execute()
+            except Exception:
+                # colunas ainda não migradas em algum ambiente → não quebra o login
+                res = sb.table("users").select(base_cols).eq("id", claims.get("sub")).limit(1).execute()
         rows = res.data or []
         if not rows:
             return None

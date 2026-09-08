@@ -64,7 +64,7 @@ class handler(BaseHTTPRequestHandler):
         show_all = (qs.get("all", ["0"])[0] or "").lower() in ("1", "true", "yes") and (viewer.get("lvl") or 0) >= 7
 
         try:
-            cols = "id,name,email,role,team,ini,color,rd_id,meta_id,status,hide_from_ranking,created_at,updated_at,last_login_at,menu_groups"
+            cols = "id,name,email,role,cargos,team,ini,color,rd_id,meta_id,status,hide_from_ranking,created_at,updated_at,last_login_at,menu_groups"
             res = sb.table("users").select(cols).order("name").execute()
             rows = res.data or []
             if not show_all:

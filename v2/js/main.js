@@ -322,11 +322,11 @@ async function loadRolePerms() {
   catch (_) { return false; }
 }
 
-function _allowedGroups(user) {
+function _allowedGroups(user, papel) {
   // Override por usuário (lista branca de grupos), setado no cadastro (menu_groups).
   // Quando presente, MANDA — vê só esses grupos + os sempre-visíveis (inicio/conta/academy). v77.53
   if (Array.isArray(user?.menu_groups)) return user.menu_groups;
-  const role = (user?.role || 'corretor').toLowerCase();
+  const role = (papel || user?.role || 'corretor').toLowerCase();
   const lvl = user?.lvl || 0;
   // v84.76: era `lvl >= 7` — TODO gerente ganhava '*' AQUI, antes de a tabela
   // de papéis ser consultada; a lista do gerente no ROLE_ALLOWED era letra
@@ -336,9 +336,25 @@ function _allowedGroups(user) {
   return ROLE_ALLOWED[role] || ROLE_ALLOWED.corretor;
 }
 
+/* Cargos do login: o principal (role) + os adicionais (cargos). Um login pode
+   ocupar mais de um cargo — nível efetivo é o maior (calculado no backend) e a
+   visibilidade é a UNIÃO do que cada cargo enxerga. v87.64 */
+export function cargosDe(user) {
+  const principal = (user?.role || 'corretor').toLowerCase();
+  const extras = Array.isArray(user?.cargos) ? user.cargos : [];
+  const out = [principal];
+  extras.forEach(c => { const x = String(c || '').trim().toLowerCase(); if (x && !out.includes(x)) out.push(x); });
+  return out;
+}
+
 function canSee(path, user) {
+  const cargos = cargosDe(user);
+  if (cargos.length > 1) return cargos.some(r => canSeeComoCargo(path, r, user));
+  return canSeeComoCargo(path, cargos[0], user);
+}
+
+function canSeeComoCargo(path, role, user) {
   const base = (path || '/').split('?')[0];
-  const role = (user?.role || 'corretor').toLowerCase();
   const grp = ROUTE_GROUP[base] || 'inicio';
 
   // 🔐 Cofre de Logins e Senhas: acessível a qualquer autenticado — o backend só
@@ -348,7 +364,7 @@ function canSee(path, user) {
   // 🔒 Consultoria Arch Leg (dado psicológico sensível): SÓ sócio/diretor
   // (lvl>=8) OU quem é da Arch Leg (role consultor_arch_leg). Trava explícita,
   // igual à do backend — não depende da matriz por papel. v84.78
-  if (base === '/rh-arch-leg') return (user?.lvl || 0) >= 8 || ['consultor_arch_leg', 'gerente_conquista'].includes((user?.role || '').toLowerCase());   // gerente_conquista: visão de equipe só-leitura (v84.94)
+  if (base === '/rh-arch-leg') return (user?.lvl || 0) >= 8 || ['consultor_arch_leg', 'gerente_conquista'].includes(role);   // gerente_conquista: visão de equipe só-leitura (v84.94)
 
   // override por PAPEL (matriz editável pelo sócio) — só quando o papel foi customizado.
   // socio nunca entra aqui (não dá pra se trancar fora). v77.81
@@ -362,7 +378,7 @@ function canSee(path, user) {
   }
 
   // ── comportamento ORIGINAL (sem customização de papel) ──
-  const allowed = _allowedGroups(user);
+  const allowed = _allowedGroups(user, role);
   if (allowed === '*') return true;
   if ((user?.lvl || 0) < routeMinLvl(base)) return false;   // trava editável (Central de Permissões). v83.9
   if (grp === 'inicio' || grp === 'conta' || grp === 'academy') return true;
@@ -466,7 +482,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '87.63';
+const APP_VERSION = '87.64';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -847,8 +863,10 @@ const APP_VERSION = '87.63';
       // (perms/layout vazios) recarregaria à toa ou com menu errado. v86.68
       if (okAll) {
         try {
-          const role = (user.role || '').toLowerCase();
-          const sig = JSON.stringify([role, user.lvl, user.menu_groups || null, _rolePerms[role] || null, layoutSig]);
+          // v87.64: a assinatura considera TODOS os cargos — ganhar ou perder um
+          // cargo adicional muda o menu e tem de disparar o reload igual ao papel.
+          const cargos = cargosDe(user);
+          const sig = JSON.stringify([cargos, user.lvl, user.menu_groups || null, cargos.map(r => _rolePerms[r] || null), layoutSig]);
           if (_permsSig !== null && sig !== _permsSig) {
             if (!_reloadBloqueado()) { location.reload(); return; }
             // digitando/modal aberto: adia — não atualiza a assinatura, tenta de novo depois

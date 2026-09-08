@@ -38,7 +38,19 @@ import json, os, sys, urllib.parse
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, audit, cargos_of  # type: ignore
+
+# Quem entra: sócio/diretor (lvl 10) e quem OCUPA o cargo de consultor da
+# Morimatsu — inclusive como cargo ADICIONAL (v87.64: um login pode ter vários).
+# Só nível não serve: gerente também é alto e não pode ler o funil de investidores.
+CARGOS_MORIMATSU = ("consultor_morimatsu",)
+
+
+def pode_morimatsu(u) -> bool:
+    if (u or {}).get("lvl", 0) >= 10:
+        return True
+    return bool(set(CARGOS_MORIMATSU) & set(cargos_of(u)))
+
 
 PREFIX = "morimatsu_"
 LISTAS = {"investidores", "imoveis", "operacoes", "atividades", "roteiro", "minutas"}
@@ -111,9 +123,11 @@ class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         try:
-            require_user(self, min_lvl=10)
+            actor = require_user(self, min_lvl=0)
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
+        if not pode_morimatsu(actor):
+            return self._send(403, {"ok": False, "error": "restrito aos sócios e ao consultor Morimatsu"})
         qs = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
         cols = [c.strip() for c in (qs.get("col") or "").split(",") if c.strip()] or sorted(COLS)
         bad = [c for c in cols if c not in COLS]
@@ -127,9 +141,11 @@ class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         try:
-            actor = require_user(self, min_lvl=10)
+            actor = require_user(self, min_lvl=0)
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
+        if not pode_morimatsu(actor):
+            return self._send(403, {"ok": False, "error": "restrito aos sócios e ao consultor Morimatsu"})
         try:
             length = int(self.headers.get("Content-Length") or 0)
             if length > MAX_BYTES:
