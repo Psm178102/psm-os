@@ -1096,8 +1096,21 @@ class handler(BaseHTTPRequestHandler):
                 hub_x = {"vendas": tv, "vgv": round(tvgv, 2), "linhas": n_linhas, "meses": meses_lbl,
                          "parcial": len(meses_hub) < len(meses_janela)}
                 if tv == 0 and tvgv == 0:
-                    avisos.append(f"esteira HUB devolveu {n_linhas} linha(s) mas tudo zerado em " +
-                                  ", ".join(meses_lbl) + " — confira o contrato de campos da esteira antes de confiar no número.")
+                    # v87.62: o contrato de campos foi CONFIRMADO em produção — a
+                    # janela de jun–set trouxe 23 vendas / R$ 5,85M pela esteira. Um
+                    # zero com linhas, portanto, não é mais sinal de campo errado:
+                    # em set/2026 a esteira traz 6 corretores e nenhuma venda, e o
+                    # RD concorda (0 ganhos no mês). Acusar "contrato quebrado" aí
+                    # seria alarme falso todo início de mês — e alarme falso ensina
+                    # o sócio a ignorar o aviso. Só é suspeito quando TODOS os meses
+                    # da janela já fecharam e mesmo assim não veio nada: mês fechado
+                    # sem nenhuma venda é a régua que mudou, não a operação parada.
+                    if all((y, m) != (hoje.year, hoje.month) for y, m in meses_hub):
+                        avisos.append("esteira HUB devolveu %d linha(s) e ZERO venda em %s — mês já fechado sem nenhuma venda é sinal de contrato de campos quebrado. Confira antes de confiar no número."
+                                      % (n_linhas, ", ".join(meses_lbl)))
+                    else:
+                        avisos.append("esteira HUB: %d corretor(es) no período (%s) e nenhuma venda lançada até agora."
+                                      % (n_linhas, ", ".join(meses_lbl)))
 
         # ── E) SAFRAS (mês de criação × resultado até hoje) ──
         safras = {}
