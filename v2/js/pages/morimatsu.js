@@ -1,60 +1,68 @@
-/* PSM-OS v2 — 🏯 MORIMATSU & ASSOCIADOS · Gestão Patrimonial Imobiliária  v87.51
+/* PSM-OS v2 — 🏯 MORIMATSU & ASSOCIADOS · Gestão Patrimonial Imobiliária  v87.52
    ----------------------------------------------------------------------------
    Escritório de patrimônio (boutique pessoal do Paulo — NÃO é imobiliária).
    Ciclo em 3 práticas: AQUISIÇÃO (leilão/venda direta Caixa, fee na arrematação)
-   → GESTÃO (carteira/locação 10%/mês via PSM) → DESINVESTIMENTO (saída pela PSM,
-   exclusividade contratada na entrada). Marca batida em 26/ago/2026; briefing,
-   contrato, recibo e ficha v2 em set/2026 (pasta Desktop/MORIMATSU/MORIMATSU &
-   ASSOCIADOS — cópias em /v2/assets/morimatsu/).
+   → GESTÃO (carteira/locação 10%/mês via PSM) → DESINVESTIMENTO (saída pela PSM).
 
-   SÓ SÓCIO (lvl>=10) — menu próprio "🏯 Morimatsu & Associados"; 6 rotas
-   (/morimatsu, -investidores, -honorarios, -roteiro, -documentos, -marca) que
-   abrem a MESMA página na aba certa. Estado (funil de investidores, checklist
-   do roteiro, notas) em shared_kv 'morimatsu_state' via /api/v3/morimatsu/state.
+   v87.52 — SISTEMA COMPLETO do ciclo dentro do House (pedido do Paulo, 07/set):
+   do pré-cadastro à saída do ativo, tudo com criar / editar / excluir / nutrir:
+     💼 Investidores  — kanban + ficha completa + linha do tempo + nutrição
+     🏠 Imóveis       — garimpo → análise (custo total, lance máximo) → certame
+     🔁 Operações     — arrematação → honorários → pós-arrematação → destino → saída
+     📅 Agenda        — tarefas e próximos contatos (atrasados / hoje / semana)
+     💰 Honorários    — tabela EDITÁVEL + calculadora de giro
+     🗓 Roteiro       — checklist EDITÁVEL (itens por fase)
+     📄 Documentos    — .docx + gerar CONTRATO e RECIBO preenchidos (imprimir/PDF)
+     🎨 Marca         — identidade, tom, bordões, compliance
+   Este arquivo = casca + abas estáticas. As abas operacionais moram em
+   morimatsu-ops.js. Banco: /api/v3/morimatsu/state (1 chave shared_kv por coleção).
+   SÓ SÓCIO (lvl>=10).
 ============================================================================ */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
-import { ativarDrag } from '../kanban-drag.js';
+import { renderInvestidores, renderImoveis, renderOperacoes, renderAgenda, wireOps, gerarContrato, gerarRecibo } from './morimatsu-ops.js';
 
 const API = '/api/v3/morimatsu/state';
-const ASSETS = '/v2/assets/morimatsu/';
+export const ASSETS = '/v2/assets/morimatsu/';
 
-const TABS = [
+export const TABS = [
   { id: 'visao',        rota: '/morimatsu',              lbl: '🏯 Visão' },
   { id: 'investidores', rota: '/morimatsu-investidores', lbl: '💼 Investidores' },
+  { id: 'imoveis',      rota: '/morimatsu-imoveis',      lbl: '🏠 Imóveis' },
+  { id: 'operacoes',    rota: '/morimatsu-operacoes',    lbl: '🔁 Operações' },
+  { id: 'agenda',       rota: '/morimatsu-agenda',       lbl: '📅 Agenda' },
   { id: 'honorarios',   rota: '/morimatsu-honorarios',   lbl: '💰 Honorários' },
-  { id: 'roteiro',      rota: '/morimatsu-roteiro',      lbl: '🗓 Roteiro 90 dias' },
+  { id: 'roteiro',      rota: '/morimatsu-roteiro',      lbl: '🗓 Roteiro' },
   { id: 'documentos',   rota: '/morimatsu-documentos',   lbl: '📄 Documentos' },
   { id: 'marca',        rota: '/morimatsu-marca',        lbl: '🎨 Marca' },
 ];
 
-/* Paleta oficial (IDENTIDADE v1): verde profundo, dourado, tinta, marfim */
-const COR = { verde: '#1F4A3D', dourado: '#9C7A3C', tinta: '#1B201D', marfim: '#F4F2EC' };
+/* Paleta oficial (IDENTIDADE v1) */
+export const COR = { verde: '#1F4A3D', dourado: '#9C7A3C', tinta: '#1B201D', marfim: '#F4F2EC' };
 
-/* ── Funil do investidor (etapas do ciclo, da ficha v2 até o destino do ativo) ── */
-const COLUNAS = [
-  { id: 'pre',        nome: 'Pré-cadastro',        emoji: '📥', cor: '#64748b', hint: 'ficha v2 recebida · SLA 48h úteis' },
-  { id: 'diagnostico', nome: 'Diagnóstico',        emoji: '🩺', cor: '#0ea5e9', hint: '20 min: objetivos + esteira de aquisição' },
-  { id: 'curadoria',  nome: 'Curadoria',           emoji: '🔎', cor: '#8b5cf6', hint: 'oportunidades filtradas por perfil' },
-  { id: 'analise',    nome: 'Análise · R$ 500',    emoji: '📑', cor: '#f59e0b', hint: 'viabilidade + risco + custo total' },
-  { id: 'certame',    nome: 'Certame · R$ 500',    emoji: '🔨', cor: '#ef4444', hint: 'representação no lance / compra direta' },
-  { id: 'arrematado', nome: 'Arrematado · fee',    emoji: '🏁', cor: COR.dourado, hint: '5% · piso R$ 6 mil · pago no ato' },
-  { id: 'destino',    nome: 'Destino do ativo',    emoji: '🔁', cor: COR.verde, hint: 'flip (Conquista/PSM) ou renda (Locação 10%)' },
-  { id: 'fora',       nome: 'Fora / Porta 2',      emoji: '⛔', cor: '#334155', hint: 'sem fit, ou moradia MCMV → PSM Conquista' },
+/* ── Dicionários da ficha v2 ── */
+export const COLUNAS = [
+  { id: 'pre',         nome: 'Pré-cadastro',     emoji: '📥', cor: '#64748b', hint: 'ficha recebida · SLA 48h úteis' },
+  { id: 'diagnostico', nome: 'Diagnóstico',      emoji: '🩺', cor: '#0ea5e9', hint: '20 min: objetivos + esteira' },
+  { id: 'curadoria',   nome: 'Curadoria',        emoji: '🔎', cor: '#8b5cf6', hint: 'oportunidades por perfil' },
+  { id: 'analise',     nome: 'Análise',          emoji: '📑', cor: '#f59e0b', hint: 'R$ 500/imóvel · viabilidade' },
+  { id: 'certame',     nome: 'Certame',          emoji: '🔨', cor: '#ef4444', hint: 'R$ 500 · representação' },
+  { id: 'arrematado',  nome: 'Arrematado',       emoji: '🏁', cor: COR.dourado, hint: 'fee 5% · piso R$ 6 mil' },
+  { id: 'carteira',    nome: 'Carteira ativa',   emoji: '🔁', cor: COR.verde, hint: 'ciclo rodando · recompra' },
+  { id: 'fora',        nome: 'Fora / Porta 2',   emoji: '⛔', cor: '#334155', hint: 'sem fit ou moradia MCMV' },
 ];
-const OBJETIVO  = { revenda: 'REVENDA', renda: 'RENDA', uso: 'USO PRÓPRIO', indef: 'INDEFINIDO' };
-const PAGAMENTO = { vista: 'À vista (próprio)', mobiliza: 'À vista (mobilizando)', financ: 'Financiamento', mcmv: 'FGTS + MCMV' };
-const FAIXA     = { f100: 'Até R$ 100 mil', f180: 'R$ 100–180 mil (foco CAIXA)', f300: 'R$ 180–300 mil', f500: 'R$ 300–500 mil', f1m: 'R$ 500 mil–1 mi', f1mp: 'Acima de R$ 1 mi' };
-const CAPITAL   = { c100: 'Até R$ 100 mil', c200: 'R$ 100–200 mil', c400: 'R$ 200–400 mil', c1m: 'R$ 400 mil–1 mi', c1mp: 'Acima de R$ 1 mi' };
-const DISP      = { imediato: 'Imediato', dias: 'Em dias', d30: 'Até 30 dias', d30p: 'Mais de 30 dias' };
-const MODAL     = { online: '01 Venda online', direta: '02 Venda direta', extra: '03 Leilão extrajudicial', judicial: '04 Leilão judicial' };
-const RAIO      = ['São José do Rio Preto', 'Mirassol', 'Bady Bassitt', 'Cedral', 'Guapiaçu', 'Bálsamo', 'Neves Paulista', 'Jaci', 'Ipiguá'];
-const ORIGEM    = ['Indicação', 'Instagram/LinkedIn', 'Canal P&A', 'Google', 'Apresentação/evento', 'Outro'];
+export const OBJETIVO  = { revenda: 'REVENDA', renda: 'RENDA', uso: 'USO PRÓPRIO', indef: 'INDEFINIDO' };
+export const PAGAMENTO = { vista: 'À vista (próprio)', mobiliza: 'À vista (mobilizando)', financ: 'Financiamento', mcmv: 'FGTS + MCMV' };
+export const FAIXA     = { f100: 'Até R$ 100 mil', f180: 'R$ 100–180 mil (foco CAIXA)', f300: 'R$ 180–300 mil', f500: 'R$ 300–500 mil', f1m: 'R$ 500 mil–1 mi', f1mp: 'Acima de R$ 1 mi' };
+export const CAPITAL   = { c100: 'Até R$ 100 mil', c200: 'R$ 100–200 mil', c400: 'R$ 200–400 mil', c1m: 'R$ 400 mil–1 mi', c1mp: 'Acima de R$ 1 mi' };
+export const DISP      = { imediato: 'Imediato', dias: 'Em dias', d30: 'Até 30 dias', d30p: 'Mais de 30 dias' };
+export const MODAL     = { online: '01 Venda online', direta: '02 Venda direta', extra: '03 Leilão extrajudicial', judicial: '04 Leilão judicial' };
+export const RAIO      = ['São José do Rio Preto', 'Mirassol', 'Bady Bassitt', 'Cedral', 'Guapiaçu', 'Bálsamo', 'Neves Paulista', 'Jaci', 'Ipiguá'];
+export const ORIGEM    = ['Indicação', 'Instagram/LinkedIn', 'Canal P&A', 'Google', 'Apresentação/evento', 'Outro'];
 const FAIXA_MAX = { f100: 100, f180: 180, f300: 300, f500: 500, f1m: 1000, f1mp: 9999 };
 const CAP_MAX   = { c100: 100, c200: 200, c400: 400, c1m: 1000, c1mp: 9999 };
 
-/* Score de fit (ficha v2): 25 faixa foco · 15 região · 10 modalidade · 30 capital≥faixa · 20 recurso ≤30d */
-function scoreDe(c) {
+export function scoreDe(c) {
   let s = 0;
   if (c.faixa === 'f180') s += 25;
   if (RAIO.includes(c.regiao)) s += 15;
@@ -63,40 +71,50 @@ function scoreDe(c) {
   if (['imediato', 'dias', 'd30'].includes(c.disp)) s += 20;
   return s;
 }
-/* Porta 2 = moradia MCMV: objetivo USO PRÓPRIO + financiamento/MCMV + faixa ≤ 400k → vitrine PSM Conquista */
-const porta2 = c => c.objetivo === 'uso' && ['financ', 'mcmv'].includes(c.pagamento) && (FAIXA_MAX[c.faixa] || 0) <= 500;
-const alertaCapital = c => c.capital && c.faixa && (CAP_MAX[c.capital] || 0) < (FAIXA_MAX[c.faixa] || 0);
+export const porta2 = c => c.objetivo === 'uso' && ['financ', 'mcmv'].includes(c.pagamento) && (FAIXA_MAX[c.faixa] || 0) <= 500;
+export const alertaCapital = c => !!(c.capital && c.faixa && (CAP_MAX[c.capital] || 0) < (FAIXA_MAX[c.faixa] || 0));
 
-/* ── Roteiro de retomada (artifact "Plano Morimatsu & Associados", 26/ago/2026) ── */
-const ROTEIRO = [
-  { id: 's1', quando: 'SEMANA 1', titulo: 'Fundações que não custam nada', itens: [
-    { id: 's1a', t: 'Registrar morimatsuassociados.com.br e morimatsu.com.br (registro.br) + reservar @morimatsuassociados no Instagram', quem: 'Paulo' },
-    { id: 's1b', t: 'Conversa com a Ariane: a FOLK vira a casca da Morimatsu — Folk 3.0 encerra ou muda de CNPJ', quem: 'Paulo + Ariane' },
-    { id: 's1c', t: 'Validar o plano com a Isabella: sociedade, papéis das PSMs, portões', quem: 'Paulo + Isabella' },
-    { id: 's1d', t: 'Isabella cria Login Caixa e vincula o CNPJ dela no Portal de Licitações (Área do Fornecedor → Cadastrar Novo CNPJ)', quem: 'Isabella' },
-    { id: 's1e', t: 'Publicar a vaga do advogado no ATS (Talentos) com o desenho de 3 fases', quem: 'Paulo' },
-  ] },
-  { id: 's2', quando: 'SEMANAS 2–3', titulo: 'Estrutura legal e identidade', itens: [
-    { id: 's2a', t: 'Contador: alteração contratual da FOLK — razão social Morimatsu & Associados, CNAE 7022-0/00, endereço (R$ 500–1.500)', quem: 'Contador' },
-    { id: 's2b', t: 'Identidade visual mínima: logotipo, papel timbrado, modelo de proposta e de parecer (código de firma)', quem: 'Paulo' },
-    { id: 's2c', t: 'Entrevistar advogados imobiliaristas com arrematação real; selecionar 2 pra Fase 1 ("me conta uma desocupação que você conduziu")', quem: 'Paulo' },
-  ] },
-  { id: 's3', quando: 'SEMANAS 3–4', titulo: 'Produto e esteira', itens: [
-    { id: 's3a', t: 'Fechar a tabela (5% · piso R$ 6 mil) e minutar o contrato de assessoria com a Trava 1; advogado Fase 1 revisa', quem: 'Paulo + advogado' },
-    { id: 's3b', t: 'Esteira de garimpo: rotina diária no portal da Caixa (Rio Preto e região) com ficha de análise padronizada', quem: 'Paulo' },
-    { id: 's3c', t: 'Ensaio geral: 2–3 imóveis reais rodando o ciclo completo sem cliente (garimpo → parecer → lance máximo → plano de saída)', quem: 'Time' },
-  ] },
-  { id: 'm2', quando: 'MÊS 2', titulo: 'Piloto com dinheiro de verdade', itens: [
-    { id: 'm2a', t: 'Selecionar 3–5 investidores fundadores na base MAP / P&A (condição especial por case e depoimento)', quem: 'Paulo' },
-    { id: 'm2b', t: 'Primeira aquisição assessorada (venda direta ou leilão) — o fee entra no ato', quem: 'Time' },
-    { id: 'm2c', t: 'Teste controlado da Porta 2: retomados financiáveis pros leads ATE_2250 da Conquista', quem: 'Conquista' },
-  ] },
-  { id: 'm3', quando: 'MÊS 3', titulo: 'Escala e formalização', itens: [
-    { id: 'm3a', t: 'Publicar os primeiros cases no canal P&A (formato "Ativo") e no IG Paulo Morimatsu', quem: 'Paulo' },
-    { id: 'm3b', t: 'Avaliar a passagem do advogado à Fase 2 (exclusividade + participação no fee)', quem: 'Paulo + Isabella' },
-    { id: 'm3c', t: 'Portão de investimento: os números do piloto decidem site, mídia e cadência de contratação', quem: 'Sócios' },
-  ] },
+/* ── Defaults editáveis (semeados no 1º uso; depois vivem no banco) ── */
+export const HONORARIOS_DEFAULT = [
+  { id: 'h1', servico: 'Análise comercial e jurídica por imóvel', valor: 'R$ 500 / imóvel', num: 500, obs: 'Viabilidade + risco + custas totais. Produto de entrada.' },
+  { id: 'h2', servico: 'Participação em certame (representação)', valor: 'R$ 500 / certame', num: 500, obs: 'Antecipada. Deduzida do êxito em caso de arrematação.' },
+  { id: 'h3', servico: 'Honorários de êxito', valor: '5% da arrematação · piso R$ 6.000', num: 0, obs: 'Pago na arrematação (caixa imediato). 3–5% negociável em tickets altos; o piso protege o ticket CAIXA.' },
+  { id: 'h4', servico: 'Curadoria de oportunidades (volume)', valor: 'Sob consulta', num: 0, obs: '10 imóveis/semana filtrados por perfil, pra investidor com volume.' },
+  { id: 'h5', servico: 'Gestão de carteira (mandato)', valor: '10% / mês sobre locação', num: 0, obs: 'Via bandeira de Locação PSM. Trava 3 do ciclo.' },
 ];
+export const NAO_INCLUSO_DEFAULT = 'Ações judiciais (imissão, embargos, anulações — sociedade de advocacia parceira), custas processuais e cartorárias, ITBI, registro, débitos do imóvel, comissão do leiloeiro, deslocamentos fora da comarca.';
+export const FEE_DEFAULT = { analise: 500, certame: 500, exito_pct: 5, piso: 6000, comissao_pct: 6, adm_pct: 10 };
+
+const ROTEIRO_DEFAULT = [
+  ['s1', 'SEMANA 1', 'Fundações que não custam nada', [
+    ['Registrar morimatsuassociados.com.br e morimatsu.com.br (registro.br) + reservar @morimatsuassociados no Instagram', 'Paulo'],
+    ['Conversa com a Ariane: a FOLK vira a casca da Morimatsu — Folk 3.0 encerra ou muda de CNPJ', 'Paulo + Ariane'],
+    ['Validar o plano com a Isabella: sociedade, papéis das PSMs, portões', 'Paulo + Isabella'],
+    ['Isabella cria Login Caixa e vincula o CNPJ dela no Portal de Licitações (Área do Fornecedor → Cadastrar Novo CNPJ)', 'Isabella'],
+    ['Publicar a vaga do advogado no ATS (Talentos) com o desenho de 3 fases', 'Paulo']]],
+  ['s2', 'SEMANAS 2–3', 'Estrutura legal e identidade', [
+    ['Contador: alteração contratual da FOLK — razão social Morimatsu & Associados, CNAE 7022-0/00, endereço (R$ 500–1.500)', 'Contador'],
+    ['Identidade visual mínima: logotipo, papel timbrado, modelo de proposta e de parecer (código de firma)', 'Paulo'],
+    ['Entrevistar advogados imobiliaristas com arrematação real; selecionar 2 pra Fase 1 ("me conta uma desocupação que você conduziu")', 'Paulo']]],
+  ['s3', 'SEMANAS 3–4', 'Produto e esteira', [
+    ['Fechar a tabela (5% · piso R$ 6 mil) e minutar o contrato de assessoria com a Trava 1; advogado Fase 1 revisa', 'Paulo + advogado'],
+    ['Esteira de garimpo: rotina diária no portal da Caixa (Rio Preto e região) com ficha de análise padronizada', 'Paulo'],
+    ['Ensaio geral: 2–3 imóveis reais rodando o ciclo completo sem cliente (garimpo → parecer → lance máximo → plano de saída)', 'Time']]],
+  ['m2', 'MÊS 2', 'Piloto com dinheiro de verdade', [
+    ['Selecionar 3–5 investidores fundadores na base MAP / P&A (condição especial por case e depoimento)', 'Paulo'],
+    ['Primeira aquisição assessorada (venda direta ou leilão) — o fee entra no ato', 'Time'],
+    ['Teste controlado da Porta 2: retomados financiáveis pros leads ATE_2250 da Conquista', 'Conquista']]],
+  ['m3', 'MÊS 3', 'Escala e formalização', [
+    ['Publicar os primeiros cases no canal P&A (formato "Ativo") e no IG Paulo Morimatsu', 'Paulo'],
+    ['Avaliar a passagem do advogado à Fase 2 (exclusividade + participação no fee)', 'Paulo + Isabella'],
+    ['Portão de investimento: os números do piloto decidem site, mídia e cadência de contratação', 'Sócios']]],
+];
+export const FASES = ROTEIRO_DEFAULT.map(([id, quando, titulo]) => ({ id, quando, titulo }));
+function roteiroSeed() {
+  const out = [];
+  ROTEIRO_DEFAULT.forEach(([fase, , , itens]) => itens.forEach(([t, quem], i) => out.push({ id: `${fase}_${i}`, fase, t, quem, done: false, em: null })));
+  return out;
+}
 const PORTOES = [
   { t: 'Portão A · fim da Semana 4', d: 'Contrato minutado, advogado Fase 1 ativo e ensaio geral rodado em 2–3 imóveis reais. Sem isso, não se fala com investidor.' },
   { t: 'Portão B · fim do Mês 2', d: 'Primeira aquisição concluída com fee pago e cliente satisfeito. Sem isso: revisar preço, esteira ou perfil — não escalar.' },
@@ -107,42 +125,88 @@ const ADV_FASES = [
   { t: 'Fase 2 · Exclusividade', d: 'Quem performa recebe percentual do fee de cada aquisição, com dedicação ao funil Morimatsu.' },
   { t: 'Fase 3 · Sociedade', d: 'Sócio minoritário na Morimatsu + sociedade OAB própria assinando o jurídico. Vesting por entrega.' },
 ];
-
 const DOCS = [
   { arq: 'Briefing-Posicionamento-Morimatsu-v1.docx', ico: '🧭', t: 'Briefing de Posicionamento v1', d: 'Marca, modelo em 3 práticas, duas portas, dores/objeções, tabela de honorários, vocabulário, tom de voz, compliance e métricas-norte. set/2026.' },
-  { arq: 'Contrato-Assessoria-Aquisicao-Morimatsu-v1.docx', ico: '📜', t: 'Contrato de Assessoria em Aquisição v1', d: 'Objeto (7 frentes), natureza consultiva (obrigação de meio, sem advocacia), honorários (a) R$ 500/imóvel (b) R$ 500/certame (c) 5% piso R$ 6 mil, §4º 12 meses, Cláusula 6ª exclusividade PSM 180 dias, vigência 12m, título executivo.' },
-  { arq: 'Recibo-Pagamento-Morimatsu-modelo-v1.docx', ico: '🧾', t: 'Recibo de Pagamento — modelo v1', d: 'Nº ANO-SEQ · modalidade · matrícula; quitação plena; PIX chave CNPJ.' },
-  { arq: 'Ficha-Pre-Cadastro-Investidor-v2.docx', ico: '📋', t: 'Ficha de Pré-Cadastro do Investidor v2', d: 'Etapa 01 do funil: 8 seções, roteio automático Porta 1 × Porta 2, validação capital × faixa, trava CAIXA, score de fit (≥70 qualificado · 40–69 nutrição · <40 fora). É a mesma ficha da aba Investidores.' },
+  { arq: 'Contrato-Assessoria-Aquisicao-Morimatsu-v1.docx', ico: '📜', t: 'Contrato de Assessoria em Aquisição v1', d: 'Modelo-base em branco. Pra emitir preenchido, use "Gerar contrato" acima ou na ficha do investidor.' },
+  { arq: 'Recibo-Pagamento-Morimatsu-modelo-v1.docx', ico: '🧾', t: 'Recibo de Pagamento — modelo v1', d: 'Modelo-base. O recibo preenchido sai da operação (Operações → honorários → 🧾).' },
+  { arq: 'Ficha-Pre-Cadastro-Investidor-v2.docx', ico: '📋', t: 'Ficha de Pré-Cadastro do Investidor v2', d: 'Etapa 01 do funil: 8 seções, roteio Porta 1 × Porta 2, validação capital × faixa, trava CAIXA, score de fit. É a mesma ficha da aba Investidores.' },
 ];
 
-let _root = null, _tab = 'visao', _state = null, _err = null, _edit = null, _busca = '';
+/* ─────────────────────────── store ─────────────────────────── */
+export const S = { investidores: [], imoveis: [], operacoes: [], atividades: [], roteiro: [], config: {}, loaded: false };
+let _root = null, _tab = 'visao', _err = null, _q = {};
+export const ctxQuery = () => _q;
+export const tabAtual = () => _tab;
 
 export async function pageMorimatsu(ctx, root, tab) {
-  _root = root;
+  _root = root; _q = ctx?.query || {};
   if ((auth.user()?.lvl || 0) < 10) { root.innerHTML = '<div class="alert alert-warn">🔒 Morimatsu & Associados é restrito aos sócios.</div>'; return; }
-  _tab = tab || (ctx?.query?.tab) || 'visao';
+  _tab = tab || _q.tab || 'visao';
   if (!TABS.some(t => t.id === _tab)) _tab = 'visao';
   injectCss();
   render();
   await load();
 }
 
-async function load() {
-  try { const r = await api.request(API); _state = r.state || { investidores: [], roteiro: {}, notas: '' }; _err = null; }
-  catch (e) { _err = e.message || 'falha ao carregar'; _state = _state || { investidores: [], roteiro: {}, notas: '' }; }
+export async function load() {
+  try {
+    const r = await api.request(API);
+    Object.assign(S, r.cols || {}); S.loaded = true; _err = null;
+  } catch (e) { _err = e.message || 'falha ao carregar'; }
   render();
 }
-async function salvar(patch) {
-  try { const r = await api.request(API, { method: 'POST', body: { patch } }); if (r?.state) _state = r.state; _err = null; }
-  catch (e) { _err = 'Não salvou: ' + (e.message || e); }
-  render();
+/* Operações no banco — item a item (não clobbera o que outro sócio salvou) */
+export async function upsert(col, item) { return op({ op: 'upsert', col, item }); }
+export async function remover(col, id) { return op({ op: 'delete', col, id }); }
+export async function setCol(col, value) { return op({ op: 'set', col, value }); }
+async function op(body) {
+  try {
+    const r = await api.request(API, { method: 'POST', body });
+    if (r?.col) S[r.col] = r.value;
+    _err = null; render(); return true;
+  } catch (e) { _err = 'Não salvou: ' + (e.message || e); render(); return false; }
 }
 
+/* ─────────────────────────── helpers ─────────────────────────── */
+export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+export const uid = p => (p || 'id') + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+export const num = v => { if (typeof v === 'number') return isNaN(v) ? 0 : v; const s = String(v ?? '').trim(); const n = parseFloat(/,\d{1,2}$/.test(s) ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '')); return isNaN(n) ? 0 : n; };
+export const brl = v => 'R$ ' + Math.round(num(v)).toLocaleString('pt-BR');
+export const dtBR = s => { if (!s) return ''; const d = new Date(String(s).length === 10 ? s + 'T12:00:00' : s); return isNaN(d) ? String(s) : d.toLocaleDateString('pt-BR'); };
+export const hojeISO = () => new Date().toISOString().slice(0, 10);
+export const autorNome = () => auth.user()?.nome || auth.user()?.name || auth.user()?.email || 'sócio';
+export const cfg = () => ({ fee: { ...FEE_DEFAULT, ...(S.config?.fee || {}) }, honorarios: (S.config?.honorarios?.length ? S.config.honorarios : HONORARIOS_DEFAULT), nao_incluso: S.config?.nao_incluso ?? NAO_INCLUSO_DEFAULT, notas: S.config?.notas || '' });
+export const invPorId = id => S.investidores.find(i => i.id === id);
+export const imvPorId = id => S.imoveis.find(i => i.id === id);
+export const feeExito = valor => { const f = cfg().fee; return Math.max(num(valor) * num(f.exito_pct) / 100, num(f.piso)); };
+
+/* Modal genérico (overlay); devolve o nó do conteúdo. fecharModal() remove. */
+export function abrirModal(titulo, html, aoMontar, largura) {
+  fecharModal();
+  const ov = document.createElement('div'); ov.id = 'ma-modal';
+  ov.innerHTML = `<div class="ma-modal-box" style="max-width:${largura || 760}px">
+    <div class="ma-modal-h"><b>${titulo}</b><button class="btn btn-ghost" id="ma-modal-x" type="button">✕</button></div>
+    <div class="ma-modal-b">${html}</div></div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) fecharModal(); });
+  ov.querySelector('#ma-modal-x').onclick = fecharModal;
+  const box = ov.querySelector('.ma-modal-b');
+  if (aoMontar) aoMontar(box);
+  return box;
+}
+export function fecharModal() { document.getElementById('ma-modal')?.remove(); }
+export const campo = (lbl, inner, span) => `<label class="field" ${span ? 'style="grid-column:1/-1"' : ''}><span class="tiny muted">${lbl}</span>${inner}</label>`;
+export const select = (name, map, val, extra) => `<select class="input" name="${name}" ${extra || ''}><option value="">—</option>${Object.entries(map).map(([k, v]) => `<option value="${esc(k)}" ${String(val) === String(k) ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select>`;
+export const input = (name, val, type, extra) => `<input class="input" name="${name}" type="${type || 'text'}" value="${esc(val ?? '')}" ${extra || ''}>`;
+export const irPara = rota => { location.hash = '#' + rota; };
+
 /* ─────────────────────────── render ─────────────────────────── */
-function render() {
+export function render() {
   if (!_root) return;
   const dark = document.documentElement.classList.contains('dark');
   const logo = dark ? '/v2/img/morimatsu-logo-negativa.png' : '/v2/img/morimatsu-logo-marfim.png';
+  const body = { visao, investidores: renderInvestidores, imoveis: renderImoveis, operacoes: renderOperacoes, agenda: renderAgenda, honorarios, roteiro, documentos, marca }[_tab];
+  const atrasadas = S.atividades.filter(a => !a.feito && a.quando && a.quando.slice(0, 10) < hojeISO()).length;
   _root.innerHTML = `
     <div class="ma-wrap">
       <div class="ma-head">
@@ -152,292 +216,275 @@ function render() {
           <div class="ma-frase">“O ciclo completo do patrimônio imobiliário: <b>comprar bem, gerir bem, sair melhor.</b>”</div>
         </div>
       </div>
-      <div class="ma-tabs">${TABS.map(t => `<button class="btn ${t.id === _tab ? 'btn-primary' : 'btn-ghost'} ma-tab" data-tab="${t.id}" data-rota="${t.rota}">${t.lbl}</button>`).join('')}</div>
+      <div class="ma-tabs">${TABS.map(t => `<button class="btn ${t.id === _tab ? 'btn-primary' : 'btn-ghost'} ma-tab" data-rota="${t.rota}">${t.lbl}${t.id === 'agenda' && atrasadas ? ` <span class="ma-badge">${atrasadas}</span>` : ''}</button>`).join('')}</div>
       ${_err ? `<div class="alert alert-err" style="margin-bottom:10px">${esc(_err)}</div>` : ''}
-      <div id="ma-body">${({ visao, investidores, honorarios, roteiro, documentos, marca })[_tab]()}</div>
+      ${!S.loaded ? '<div class="card"><span class="spinner"></span> <span class="muted">Carregando…</span></div>' : ''}
+      <div id="ma-body">${S.loaded ? body() : ''}</div>
     </div>`;
-  // trocar de aba = trocar de rota (o router re-renderiza na aba certa e o menu destaca o item)
-  _root.querySelectorAll('.ma-tab').forEach(b => b.onclick = () => { _edit = null; location.hash = '#' + b.dataset.rota; });
-  wire();
+  _root.querySelectorAll('.ma-tab').forEach(b => b.onclick = () => irPara(b.dataset.rota));
+  if (!S.loaded) return;
+  if (['investidores', 'imoveis', 'operacoes', 'agenda'].includes(_tab)) wireOps(_root, _tab);
+  else wire();
 }
 
-/* ─────────────────────────── 🏯 VISÃO ─────────────────────────── */
+export const mini = (l, v, h, cor) => `<div class="ma-mini" style="border-left-color:${cor || COR.verde}"><div class="tiny muted">${l}</div><div class="ma-mini-v">${v}</div>${h ? `<div class="tiny muted">${h}</div>` : ''}</div>`;
+
+/* ─────────────────────────── 🏯 VISÃO (cockpit do ciclo) ─────────────────────────── */
 function visao() {
-  const inv = _state?.investidores || [];
-  const ativos = inv.filter(c => !['fora'].includes(c.coluna));
-  const arrem = inv.filter(c => ['arrematado', 'destino'].includes(c.coluna)).length;
-  const feito = Object.values(_state?.roteiro || {}).filter(x => x?.done).length;
-  const total = ROTEIRO.reduce((n, f) => n + f.itens.length, 0);
-  const mini = (l, v, h) => `<div class="ma-mini"><div class="tiny muted">${l}</div><div class="ma-mini-v">${v}</div>${h ? `<div class="tiny muted">${h}</div>` : ''}</div>`;
+  const inv = S.investidores, imv = S.imoveis, ops = S.operacoes, atv = S.atividades;
+  const hoje = hojeISO(), mes = hoje.slice(0, 7);
+  const em15 = new Date(Date.now() + 15 * 864e5).toISOString().slice(0, 10);
+  const ativos = inv.filter(c => c.coluna !== 'fora');
+  const qual = ativos.filter(c => scoreDe(c) >= 70).length;
+  const certames = imv.filter(i => ['aprovado', 'certame'].includes(i.status) && i.data_certame && i.data_certame >= hoje && i.data_certame <= em15);
+  const feeMes = ops.reduce((s, o) => s + ['analise', 'certame', 'exito'].reduce((t, k) => t + ((o.honorarios?.[k]?.pago && (o.honorarios[k].em || '').slice(0, 7) === mes) ? num(o.honorarios[k].valor) : 0), 0), 0);
+  const feePend = ops.reduce((s, o) => s + ['analise', 'certame', 'exito'].reduce((t, k) => t + ((!o.honorarios?.[k]?.pago && num(o.honorarios?.[k]?.valor)) ? num(o.honorarios[k].valor) : 0), 0), 0);
+  const atrasadas = atv.filter(a => !a.feito && a.quando && a.quando.slice(0, 10) < hoje);
+  const deHoje = atv.filter(a => !a.feito && a.quando && a.quando.slice(0, 10) === hoje);
+  const semContato = ativos.filter(c => !atv.some(a => !a.feito && a.investidor_id === c.id));
+  const feito = S.roteiro.filter(r => r.done).length, total = (S.roteiro.length || roteiroSeed().length);
+  const porCol = COLUNAS.map(c => ({ ...c, n: inv.filter(i => (i.coluna || 'pre') === c.id).length }));
   return `
     <div class="ma-minis">
-      ${mini('💼 Investidores na esteira', ativos.length, `${inv.length} no total`)}
-      ${mini('🏁 Arrematações com fee', arrem, 'meta de rampa 1 → 2 → 4 giros/mês')}
+      ${mini('💼 Investidores na esteira', ativos.length, `${qual} qualificados (score ≥ 70) · ${inv.length} no total`)}
+      ${mini('🏠 Imóveis em análise / aprovados', `${imv.filter(i => i.status === 'analise').length} / ${imv.filter(i => i.status === 'aprovado').length}`, `${imv.length} garimpados`, '#8b5cf6')}
+      ${mini('🔨 Certames nos próximos 15 dias', certames.length, certames.slice(0, 2).map(i => `${dtBR(i.data_certame)} · ${esc(i.titulo)}`).join(' · ') || 'nenhum agendado', '#ef4444')}
+      ${mini('🔁 Operações em andamento', ops.filter(o => o.status !== 'concluida').length, `${ops.filter(o => o.status === 'concluida').length} concluídas`, COR.dourado)}
+      ${mini('💰 Fee recebido no mês', brl(feeMes), `${brl(feePend)} a receber`, '#16a34a')}
+      ${mini('📅 Nutrição', `${atrasadas.length} atrasadas · ${deHoje.length} hoje`, `${semContato.length} investidor(es) sem próximo passo`, atrasadas.length ? '#ef4444' : '#0ea5e9')}
       ${mini('🗓 Roteiro 90 dias', `${feito}/${total}`, 'itens concluídos')}
-      ${mini('🚫 Linha vermelha', 'R$ 0 fixo', 'nenhum custo fixo novo até dez/2026')}
+      ${mini('🚫 Linha vermelha', 'R$ 0 fixo', 'nenhum custo fixo novo até dez/2026', '#64748b')}
     </div>
 
-    <div class="card">
-      <h2 class="card-title">A tese</h2>
-      <p class="card-sub">Três frentes paradas (Terceiros, lançamentos MAP e Locações) viram um único ciclo com o <b>investidor no centro</b>: a Morimatsu assessora a compra (leilão e venda direta Caixa), a PSM executa a saída (venda ou locação) — e a exclusividade deixa de ser pedida pra ser consequência.</p>
-      <p class="card-sub">Alto padrão de verdade não acontece em imobiliária: acontece em <b>escritórios que gerem a vida patrimonial do cliente</b>. Em Rio Preto ninguém ocupa essa categoria. O qualificador "imobiliária" é inegociável — inaugura categoria própria e evita terreno CVM. Vocabulário de family office vive na copy, nunca no nome.</p>
-    </div>
-
-    <div class="ma-grid3">
-      <div class="ma-pratica"><div class="ma-pratica-n">01</div><b>AQUISIÇÃO</b><div class="ma-pratica-s">porta de entrada</div><p>Garimpo, análise e representação em leilões e compra direta de retomados. Foco: <b>CAIXA, ticket R$ 100–180 mil</b>. Fee de êxito pago na arrematação — caixa imediato.</p></div>
-      <div class="ma-pratica"><div class="ma-pratica-n">02</div><b>GESTÃO</b><div class="ma-pratica-s">recorrência</div><p>Carteira sob mandato: locação e administração <b>10%/mês</b> via bandeira de Locação PSM. Ativa quando o cliente acumula 3–4 ativos (Trava 3).</p></div>
-      <div class="ma-pratica"><div class="ma-pratica-n">03</div><b>DESINVESTIMENTO</b><div class="ma-pratica-s">saída pela PSM</div><p>Revenda com exclusividade contratada na entrada (Trava 1, Cláusula 6ª). A corretagem flui pelos CRECIs das PSMs; a Morimatsu fatura só o fee.</p></div>
-    </div>
-
-    <div class="card">
-      <h2 class="card-title">O ciclo — jornada do investidor com as 3 travas de exclusividade</h2>
-      <ol class="ma-ciclo">
-        <li><b>Etapa 0 · Entrada</b> — contrato de assessoria (canal P&A, IG Paulo Morimatsu, indicação). Reunião de tese: capital, retorno, flip ou renda. <span class="ma-trava">Trava 1 — cláusula de saída exclusiva pela PSM assinada aqui</span></li>
-        <li><b>Etapa 1 · Aquisição</b> — garimpo → parecer OAB → lance máximo com regra de deságio → posse. Fee no ato. Quem calculou o preço de entrada sabe o preço de saída.</li>
-        <li><b>Etapa 2 · Mesa de ciclo</b> — imóvel regularizado, decisão formal do destino: flip ou renda. <span class="ma-trava">Trava 2 — contrato padrão PSM (exclusividade, 6%, título executivo)</span></li>
-        <li><b>Etapa 3 · Saída</b> — flip pela Conquista (estoque exclusivo com deságio, vende rápido e vira case) · renda pela Locação (taxa de 1º aluguel + 10%/mês, investidor entra na régua de CS).</li>
-        <li><b>Etapa 4 · Reciclagem</b> — relatório de TIR → próximo edital. Quem acumula 3–4 ativos evolui de contrato. <span class="ma-trava">Trava 3 — mandato de gestão de carteira</span></li>
-      </ol>
-    </div>
-
-    <div class="card">
-      <h2 class="card-title">Duas portas, uma esteira</h2>
-      <div style="overflow-x:auto"><table class="ma-tbl">
-        <tr><th></th><th>Porta 1 · Investidor de giro</th><th>Porta 2 · Moradia final</th></tr>
-        <tr><td><b>Marca que atende</b></td><td>Morimatsu & Associados</td><td>PSM Conquista (a Morimatsu <b>nunca</b> fala com comprador MCMV)</td></tr>
-        <tr><td><b>Imóvel-alvo</b></td><td>Ocupado, à vista — deságio máximo; a desocupação é o serviço</td><td>Desocupado, financiável — MCMV + FGTS</td></tr>
-        <tr><td><b>Cliente</b></td><td>35–54 anos, capital próprio, carteira de 3 a 30 imóveis ou começando; base MAP / P&A; tese R$ 500k</td><td>Lead que a Conquista já tem — inclusive ATE_2250 da nutrição</td></tr>
-        <tr><td><b>Receita</b></td><td>Fee 5% · piso R$ 6 mil + saída pela PSM</td><td>Fee reduzido; comissão da Caixa (~5%) quando o credenciamento sair</td></tr>
-      </table></div>
-      <p class="tiny muted mt-2">Anti-público: quem quer "tentar a sorte", dica grátis, impulso sem reserva pra custas, promessa de retorno.</p>
+    <div class="ma-grid2" style="margin-bottom:12px">
+      <div class="card" style="margin:0">
+        <h2 class="card-title">Funil do investidor</h2>
+        <div class="ma-funil">${porCol.map(c => `<button class="ma-funil-i" data-rota="/morimatsu-investidores" style="border-left-color:${c.cor}"><span>${c.emoji} ${esc(c.nome)}</span><b>${c.n}</b></button>`).join('')}</div>
+      </div>
+      <div class="card" style="margin:0">
+        <h2 class="card-title">Próximos passos</h2>
+        ${(atrasadas.concat(deHoje)).slice(0, 8).map(a => `<div class="ma-linha"><span class="ma-tag" style="background:${a.quando.slice(0, 10) < hoje ? '#ef4444' : '#0ea5e9'}">${dtBR(a.quando)}</span> <span>${esc(a.texto)}</span> <span class="tiny muted">${esc(invPorId(a.investidor_id)?.nome || imvPorId(a.imovel_id)?.titulo || '')}</span></div>`).join('') || '<div class="tiny muted">Nada atrasado nem pra hoje. Veja a Agenda pra semana.</div>'}
+        ${semContato.length ? `<div class="alert alert-warn mt-2" style="font-size:12.5px">⚠️ Sem próximo passo agendado: ${semContato.slice(0, 4).map(c => esc(c.nome)).join(', ')}${semContato.length > 4 ? '…' : ''}</div>` : ''}
+        <div class="flex gap-2 mt-2"><button class="btn btn-ghost" data-rota="/morimatsu-agenda">📅 Abrir agenda</button><button class="btn btn-ghost" data-rota="/morimatsu-imoveis">🏠 Garimpo</button><button class="btn btn-ghost" data-rota="/morimatsu-investidores">💼 Investidores</button></div>
+      </div>
     </div>
 
     <div class="card">
       <h2 class="card-title">📝 Notas do sócio</h2>
-      <p class="card-sub">Bloco livre (decisões, contatos, próximos passos). Salva pra todos os sócios.</p>
-      <textarea id="ma-notas" class="input" rows="6" style="width:100%;font-family:inherit">${esc(_state?.notas || '')}</textarea>
-      <div class="flex gap-2 mt-2"><button class="btn btn-primary" id="ma-notas-save">💾 Salvar notas</button><span class="tiny muted" id="ma-notas-st"></span></div>
+      <textarea id="ma-notas" class="input" rows="4" style="width:100%;font-family:inherit">${esc(cfg().notas)}</textarea>
+      <div class="flex gap-2 mt-2"><button class="btn btn-primary" id="ma-notas-save">💾 Salvar notas</button></div>
     </div>
 
-    <div class="card">
-      <h2 class="card-title">Salvaguardas de operação</h2>
-      <ul class="ma-ul">
-        <li><b>Ocupação:</b> boa parte do estoque Caixa vem ocupado. Desocupação precificada <i>antes</i> do lance (acordo ~R$ 3–5 mil ou ação de imissão), dita ao cliente por escrito.</li>
-        <li><b>Débitos de condomínio:</b> o edital de cada unidade define quem paga o atrasado. Item obrigatório do parecer.</li>
-        <li><b>Estado do imóvel:</b> venda direta muitas vezes sem visita interna — reforma pelo pior cenário do padrão do prédio.</li>
-        <li><b>Marca pessoal na porta:</b> com "Morimatsu" no nome, um caso malconduzido custa reputação. Nenhum cliente antes do Portão A.</li>
-        <li><b>Enquadramento MCMV (Porta 2):</b> faixa de renda, teto por cidade e ficha do imóvel validados antes de o cliente se empolgar.</li>
-        <li><b>Credenciamento Caixa:</b> a PSM NÃO está na lista oficial; é por edital com janela (monitor diário 9h). O modelo Morimatsu não depende dele — o fee vem do comprador.</li>
-      </ul>
-    </div>`;
-}
-
-/* ─────────────────────────── 💼 INVESTIDORES ─────────────────────────── */
-function investidores() {
-  const inv = (_state?.investidores || []).filter(c => !_busca || (c.nome + ' ' + (c.cidade || '') + ' ' + (c.fone || '')).toLowerCase().includes(_busca.toLowerCase()));
-  const porCol = {};
-  inv.forEach(c => { (porCol[c.coluna || 'pre'] = porCol[c.coluna || 'pre'] || []).push(c); });
-  const qual = inv.filter(c => scoreDe(c) >= 70 && c.coluna !== 'fora').length;
-  const mini = (l, v, cor) => `<div class="ma-mini" style="border-left-color:${cor}"><div class="tiny muted">${l}</div><div class="ma-mini-v">${v}</div></div>`;
-  return `
-    <div class="card">
-      <div class="flex items-center gap-2" style="flex-wrap:wrap">
-        <div><h2 class="card-title" style="margin:0">💼 Funil do investidor</h2><div class="card-sub" style="margin:0">Ficha v2 → diagnóstico → curadoria → análise → certame → arrematação → destino. Arraste o card; clique pra abrir.</div></div>
-        <span class="h-spacer" style="flex:1"></span>
-        <input class="input" id="ma-busca" placeholder="🔍 nome, cidade, fone" value="${esc(_busca)}" style="max-width:220px">
-        <button class="btn btn-primary" id="ma-novo">＋ Novo investidor</button>
+    <details class="card"><summary class="card-title" style="cursor:pointer">A tese, o ciclo e as duas portas</summary>
+      <p class="card-sub">Três frentes paradas (Terceiros, lançamentos MAP e Locações) viram um único ciclo com o <b>investidor no centro</b>: a Morimatsu assessora a compra (leilão e venda direta Caixa), a PSM executa a saída (venda ou locação) — e a exclusividade deixa de ser pedida pra ser consequência. Alto padrão de verdade acontece em <b>escritórios que gerem a vida patrimonial do cliente</b>; em Rio Preto ninguém ocupa essa categoria.</p>
+      <div class="ma-grid3">
+        <div class="ma-pratica"><div class="ma-pratica-n">01</div><b>AQUISIÇÃO</b><div class="ma-pratica-s">porta de entrada</div><p>Garimpo, análise e representação em leilões e compra direta de retomados. Foco: <b>CAIXA, ticket R$ 100–180 mil</b>. Fee de êxito pago na arrematação.</p></div>
+        <div class="ma-pratica"><div class="ma-pratica-n">02</div><b>GESTÃO</b><div class="ma-pratica-s">recorrência</div><p>Carteira sob mandato: locação e administração <b>10%/mês</b> via Locação PSM. Ativa quando o cliente acumula 3–4 ativos (Trava 3).</p></div>
+        <div class="ma-pratica"><div class="ma-pratica-n">03</div><b>DESINVESTIMENTO</b><div class="ma-pratica-s">saída pela PSM</div><p>Revenda com exclusividade contratada na entrada (Trava 1, Cláusula 6ª). Corretagem pelos CRECIs das PSMs; a Morimatsu fatura só o fee.</p></div>
       </div>
-      <div class="ma-minis" style="margin-top:10px">
-        ${mini('📥 Na esteira', inv.filter(c => c.coluna !== 'fora').length, '#64748b')}
-        ${mini('✅ Qualificados (score ≥ 70)', qual, '#16a34a')}
-        ${mini('🏁 Arrematados', inv.filter(c => ['arrematado', 'destino'].includes(c.coluna)).length, COR.dourado)}
-        ${mini('🚪 Porta 2 → Conquista', inv.filter(porta2).length, '#0ea5e9')}
-      </div>
-    </div>
-    ${_edit ? formInvestidor(_edit) : ''}
-    <div class="ma-kanban" id="ma-kanban">
-      ${COLUNAS.map(col => {
-        const lista = (porCol[col.id] || []).slice().sort((a, b) => scoreDe(b) - scoreDe(a));
-        return `<div class="ma-col" data-col="${col.id}" style="border-top-color:${col.cor}">
-          <div class="ma-col-h"><b>${col.emoji} ${esc(col.nome)}</b><span class="muted">${lista.length}</span></div>
-          <div class="tiny muted" style="padding:0 4px 6px">${esc(col.hint)}</div>
-          <div class="ma-col-b">${lista.map(cardHtml).join('') || '<div class="tiny muted" style="text-align:center;padding:14px 0">vazio</div>'}</div>
-        </div>`;
-      }).join('')}
-    </div>`;
-}
-function cardHtml(c) {
-  const s = scoreDe(c);
-  const cor = s >= 70 ? '#16a34a' : s >= 40 ? '#d97706' : '#64748b';
-  return `<div class="ma-card" data-id="${esc(c.id)}">
-    <div class="flex items-center gap-2"><b style="flex:1">${esc(c.nome)}</b><span class="ma-score" style="background:${cor}">${s}</span></div>
-    <div class="tiny muted">${esc([OBJETIVO[c.objetivo], FAIXA[c.faixa], c.cidade].filter(Boolean).join(' · '))}</div>
-    <div class="ma-tags">
-      ${porta2(c) ? '<span class="ma-tag" style="background:#0ea5e9">🚪 Porta 2</span>' : ''}
-      ${c.caixa ? '<span class="ma-tag" style="background:#ef4444">🔴 vínculo CAIXA</span>' : ''}
-      ${alertaCapital(c) ? '<span class="ma-tag" style="background:#d97706">🟡 capital &lt; faixa</span>' : ''}
-      ${c.fone ? `<a class="ma-tag" style="background:#16a34a" href="https://wa.me/55${esc(String(c.fone).replace(/\D/g, ''))}" target="_blank" rel="noopener">💬 WhatsApp</a>` : ''}
-    </div>
-  </div>`;
-}
-function formInvestidor(c) {
-  const sel = (name, map, val, multi) => `<select class="input" name="${name}" ${multi ? 'multiple size="4"' : ''}>${!multi ? '<option value="">—</option>' : ''}${Object.entries(map).map(([k, v]) => `<option value="${k}" ${(multi ? (val || []).includes(k) : val === k) ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select>`;
-  const f = (lbl, inner) => `<label class="field"><span class="tiny muted">${lbl}</span>${inner}</label>`;
-  return `<div class="card" id="ma-form">
-    <h2 class="card-title">${c.id ? '✏️ Editar' : '＋ Novo'} investidor <span class="tiny muted">(ficha de pré-cadastro v2)</span></h2>
-    <form class="ma-form">
-      ${f('Nome completo *', `<input class="input" name="nome" required value="${esc(c.nome || '')}">`)}
-      ${f('WhatsApp (com DDD)', `<input class="input" name="fone" value="${esc(c.fone || '')}">`)}
-      ${f('Cidade onde mora', `<input class="input" name="cidade" value="${esc(c.cidade || '')}">`)}
-      ${f('Objetivo (roteio)', sel('objetivo', OBJETIVO, c.objetivo))}
-      ${f('Como pretende pagar', sel('pagamento', PAGAMENTO, c.pagamento))}
-      ${f('Faixa de valor do imóvel', sel('faixa', FAIXA, c.faixa))}
-      ${f('Capital disponível (lance + custas)', sel('capital', CAPITAL, c.capital))}
-      ${f('Disponibilidade do recurso', sel('disp', DISP, c.disp))}
-      ${f('Modalidades (ctrl/cmd p/ várias)', sel('modalidades', MODAL, c.modalidades, true))}
-      ${f('Região de interesse', `<select class="input" name="regiao"><option value="">—</option>${RAIO.map(r => `<option ${c.regiao === r ? 'selected' : ''}>${r}</option>`).join('')}<option value="Outra" ${c.regiao === 'Outra' ? 'selected' : ''}>Outra (fora do raio)</option></select>`)}
-      ${f('Ocupação aceita', `<select class="input" name="ocupacao"><option value="">—</option>${['Preferência por desocupado', 'Aceito ocupado', 'Indiferente'].map(o => `<option ${c.ocupacao === o ? 'selected' : ''}>${o}</option>`).join('')}</select>`)}
-      ${f('Como conheceu', `<select class="input" name="origem"><option value="">—</option>${ORIGEM.map(o => `<option ${c.origem === o ? 'selected' : ''}>${o}</option>`).join('')}</select>`)}
-      ${f('Etapa', `<select class="input" name="coluna">${COLUNAS.map(k => `<option value="${k.id}" ${(c.coluna || 'pre') === k.id ? 'selected' : ''}>${k.emoji} ${esc(k.nome)}</option>`).join('')}</select>`)}
-      ${f('Vínculo CAIXA (empregado ou parente)', `<select class="input" name="caixa"><option value="">Não</option><option value="1" ${c.caixa ? 'selected' : ''}>Sim — trava leilões CAIXA</option></select>`)}
-      <label class="field" style="grid-column:1/-1"><span class="tiny muted">Observações / histórico</span><textarea class="input" name="obs" rows="3">${esc(c.obs || '')}</textarea></label>
-      <div class="flex gap-2" style="grid-column:1/-1;align-items:center">
-        <button class="btn btn-primary" type="submit">💾 Salvar</button>
-        <button class="btn btn-ghost" type="button" id="ma-cancel">Cancelar</button>
-        ${c.id ? '<button class="btn btn-danger" type="button" id="ma-del" style="margin-left:auto">🗑 Excluir</button>' : ''}
-        <span class="tiny muted">Score de fit calculado ao salvar: 25 faixa foco · 15 região · 10 modalidade · 30 capital ≥ faixa · 20 recurso ≤ 30d</span>
-      </div>
-    </form>
-  </div>`;
-}
-
-/* ─────────────────────────── 💰 HONORÁRIOS ─────────────────────────── */
-function honorarios() {
-  return `
-    <div class="card">
-      <h2 class="card-title">Tabela de honorários — v1 aprovada (set/2026)</h2>
+      <ol class="ma-ciclo">
+        <li><b>Etapa 0 · Entrada</b> — contrato de assessoria. <span class="ma-trava">Trava 1 — cláusula de saída exclusiva pela PSM</span></li>
+        <li><b>Etapa 1 · Aquisição</b> — garimpo → parecer OAB → lance máximo → posse. Fee no ato.</li>
+        <li><b>Etapa 2 · Mesa de ciclo</b> — flip ou renda. <span class="ma-trava">Trava 2 — contrato padrão PSM</span></li>
+        <li><b>Etapa 3 · Saída</b> — flip pela Conquista · renda pela Locação (10%/mês).</li>
+        <li><b>Etapa 4 · Reciclagem</b> — relatório de TIR → próximo edital. <span class="ma-trava">Trava 3 — mandato de gestão de carteira</span></li>
+      </ol>
       <div style="overflow-x:auto"><table class="ma-tbl">
-        <tr><th>Serviço</th><th>Valor</th><th>Observação</th></tr>
-        <tr><td>Análise comercial e jurídica por imóvel</td><td class="ma-num">R$ 500 / imóvel</td><td>Viabilidade + risco + custas totais. Produto de entrada.</td></tr>
-        <tr><td>Participação em certame (representação)</td><td class="ma-num">R$ 500 / certame</td><td>Antecipada. Deduzida do êxito em caso de arrematação.</td></tr>
-        <tr><td><b>Honorários de êxito</b></td><td class="ma-num"><b>5% da arrematação · piso R$ 6.000</b></td><td>Pago na arrematação (caixa imediato). 3–5% negociável em tickets altos; o piso protege o ticket CAIXA.</td></tr>
-        <tr><td>Curadoria de oportunidades (volume)</td><td class="ma-num">Sob consulta</td><td>10 imóveis/semana filtrados por perfil, pra investidor com volume.</td></tr>
-        <tr><td>Gestão de carteira (mandato)</td><td class="ma-num">10% / mês sobre locação</td><td>Via bandeira de Locação PSM. Trava 3 do ciclo.</td></tr>
+        <tr><th></th><th>Porta 1 · Investidor de giro</th><th>Porta 2 · Moradia final</th></tr>
+        <tr><td><b>Marca</b></td><td>Morimatsu & Associados</td><td>PSM Conquista (a Morimatsu <b>nunca</b> fala com comprador MCMV)</td></tr>
+        <tr><td><b>Imóvel-alvo</b></td><td>Ocupado, à vista — deságio máximo; a desocupação é o serviço</td><td>Desocupado, financiável — MCMV + FGTS</td></tr>
+        <tr><td><b>Receita</b></td><td>Fee 5% · piso R$ 6 mil + saída pela PSM</td><td>Fee reduzido; comissão da Caixa (~5%) quando o credenciamento sair</td></tr>
       </table></div>
-      <p class="tiny muted mt-2"><b>Não incluso, cobrado à parte:</b> ações judiciais (imissão, embargos, anulações — sociedade de advocacia parceira), custas processuais e cartorárias, ITBI, registro, débitos do imóvel, comissão do leiloeiro, deslocamentos fora da comarca.</p>
+      <ul class="ma-ul mt-2">
+        <li><b>Ocupação:</b> desocupação precificada <i>antes</i> do lance (acordo ~R$ 3–5 mil ou imissão), dita ao cliente por escrito.</li>
+        <li><b>Débitos de condomínio:</b> o edital de cada unidade define quem paga. Item obrigatório do parecer.</li>
+        <li><b>Estado do imóvel:</b> venda direta sem visita interna — reforma pelo pior cenário.</li>
+        <li><b>Marca pessoal na porta:</b> nenhum cliente antes do Portão A.</li>
+      </ul>
+    </details>`;
+}
+
+/* ─────────────────────────── 💰 HONORÁRIOS (editável) ─────────────────────────── */
+function honorarios() {
+  const c = cfg();
+  return `
+    <div class="card">
+      <div class="flex items-center gap-2" style="flex-wrap:wrap"><h2 class="card-title" style="margin:0;flex:1">Tabela de honorários</h2><button class="btn btn-ghost" id="ma-fee-cfg">⚙️ Parâmetros do fee</button><button class="btn btn-primary" id="ma-hon-add">＋ Linha</button></div>
+      <p class="card-sub">Clique numa linha pra editar. Os parâmetros (%, piso, comissão) alimentam a calculadora, as operações e o contrato gerado.</p>
+      <div style="overflow-x:auto"><table class="ma-tbl">
+        <tr><th>Serviço</th><th>Valor</th><th>Observação</th><th></th></tr>
+        ${c.honorarios.map(h => `<tr class="ma-row" data-hon="${esc(h.id)}"><td>${esc(h.servico)}</td><td class="ma-num">${esc(h.valor)}</td><td>${esc(h.obs)}</td><td><button class="btn btn-ghost ma-hon-del" data-id="${esc(h.id)}" title="excluir">🗑</button></td></tr>`).join('')}
+      </table></div>
+      <div class="mt-2"><span class="tiny muted"><b>Não incluso, cobrado à parte:</b></span> <span class="tiny" id="ma-ninc">${esc(c.nao_incluso)}</span> <button class="btn btn-ghost" id="ma-ninc-edit" style="font-size:11px;padding:2px 8px">✏️</button></div>
+      <div class="tiny muted mt-2">Parâmetros atuais: análise ${brl(c.fee.analise)} · certame ${brl(c.fee.certame)} · êxito ${c.fee.exito_pct}% (piso ${brl(c.fee.piso)}) · comissão PSM ${c.fee.comissao_pct}% · adm locação ${c.fee.adm_pct}%</div>
     </div>
 
     <div class="card">
       <h2 class="card-title">🧮 Calculadora de giro</h2>
       <p class="card-sub">Quanto o grupo fatura num giro: fee Morimatsu na arrematação + comissão PSM na saída. Referência do plano: avaliação R$ 180k, compra R$ 120k, revenda R$ 175k → ~R$ 16,5k pro grupo.</p>
       <div class="ma-form" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
-        <label class="field"><span class="tiny muted">Avaliação Caixa (R$)</span><input class="input" id="g-aval" type="number" value="180000"></label>
-        <label class="field"><span class="tiny muted">Lance / compra (R$)</span><input class="input" id="g-lance" type="number" value="120000"></label>
-        <label class="field"><span class="tiny muted">Fee de êxito (%)</span><input class="input" id="g-fee" type="number" step="0.5" value="5"></label>
-        <label class="field"><span class="tiny muted">Piso do fee (R$)</span><input class="input" id="g-piso" type="number" value="6000"></label>
-        <label class="field"><span class="tiny muted">Custos do investidor (R$)</span><input class="input" id="g-custos" type="number" value="18000"></label>
-        <label class="field"><span class="tiny muted">Revenda pela PSM (R$)</span><input class="input" id="g-rev" type="number" value="175000"></label>
-        <label class="field"><span class="tiny muted">Comissão PSM na venda (%)</span><input class="input" id="g-com" type="number" step="0.5" value="6"></label>
-        <label class="field"><span class="tiny muted">Aluguel mensal se for renda (R$)</span><input class="input" id="g-alug" type="number" value="1200"></label>
+        ${campo('Avaliação Caixa (R$)', input('g-aval', 180000, 'number'))}
+        ${campo('Lance / compra (R$)', input('g-lance', 120000, 'number'))}
+        ${campo('Fee de êxito (%)', input('g-fee', c.fee.exito_pct, 'number', 'step="0.5"'))}
+        ${campo('Piso do fee (R$)', input('g-piso', c.fee.piso, 'number'))}
+        ${campo('Custos do investidor (R$)', input('g-custos', 18000, 'number'))}
+        ${campo('Revenda pela PSM (R$)', input('g-rev', 175000, 'number'))}
+        ${campo('Comissão PSM (%)', input('g-com', c.fee.comissao_pct, 'number', 'step="0.5"'))}
+        ${campo('Aluguel mensal se for renda (R$)', input('g-alug', 1200, 'number'))}
       </div>
       <div class="ma-minis" id="g-out" style="margin-top:12px"></div>
-      <p class="tiny muted mt-2">Trilha renda: taxa de 1º aluguel + 10%/mês perpétuos na administração. Três giros/mês ≈ R$ 50 mil/mês — o tamanho do buraco que o Plano de Resgate cobre hoje do bolso.</p>
+      <p class="tiny muted mt-2">Trilha renda: taxa de 1º aluguel + ${c.fee.adm_pct}%/mês perpétuos. Três giros/mês ≈ R$ 50 mil/mês — o buraco que o Plano de Resgate cobre hoje do bolso.</p>
     </div>
 
     <div class="card">
       <h2 class="card-title">Como o dinheiro flui na holding</h2>
       <ul class="ma-ul">
         <li><b>Morimatsu & Associados</b> (casca = CNPJ FOLK alterado, CNAE consultoria) fatura <b>só o fee de assessoria</b>.</li>
-        <li><b>Corretagem</b> (venda 6% e locação) flui pelas <b>PSM 180 / 152</b> — CRECIs jurídicos de Paulo e Isabella. Caixa segue no Plano de Resgate.</li>
-        <li><b>Advogado</b>: sócio minoritário na Morimatsu E sociedade OAB própria que assina due diligence e desocupação. OAB proíbe não-advogado como sócio de advocacia e proíbe advocacia de captar/anunciar/receber corretagem — advocacia é o <b>selo</b>, nunca o motor.</li>
+        <li><b>Corretagem</b> (venda e locação) flui pelas <b>PSM 180 / 152</b> — CRECIs de Paulo e Isabella. Caixa segue no Plano de Resgate.</li>
+        <li><b>Advogado</b>: sócio minoritário na Morimatsu E sociedade OAB própria que assina due diligence e desocupação — advocacia é o <b>selo</b>, nunca o motor.</li>
         <li><b>Linha vermelha:</b> nenhum custo fixo novo até dez/2026 — a vertical nasce 100% variável.</li>
       </ul>
     </div>`;
 }
 function calcGiro() {
-  const n = id => parseFloat(_root.querySelector('#' + id)?.value) || 0;
+  const n = name => num(_root.querySelector(`[name="${name}"]`)?.value);
   const aval = n('g-aval'), lance = n('g-lance'), feeP = n('g-fee'), piso = n('g-piso'), custos = n('g-custos'), rev = n('g-rev'), comP = n('g-com'), alug = n('g-alug');
-  const fee = Math.max(lance * feeP / 100, piso);
-  const com = rev * comP / 100;
-  const lucro = rev - lance - custos - fee - com;
-  const desc = aval ? Math.round((1 - lance / aval) * 100) : 0;
-  const brl = v => 'R$ ' + Math.round(v).toLocaleString('pt-BR');
-  const mini = (l, v, h, cor) => `<div class="ma-mini" style="border-left-color:${cor || COR.verde}"><div class="tiny muted">${l}</div><div class="ma-mini-v">${v}</div>${h ? `<div class="tiny muted">${h}</div>` : ''}</div>`;
+  const fee = Math.max(lance * feeP / 100, piso), com = rev * comP / 100, lucro = rev - lance - custos - fee - com;
+  const desc = aval ? Math.round((1 - lance / aval) * 100) : 0, adm = cfg().fee.adm_pct;
   const out = _root.querySelector('#g-out');
   if (out) out.innerHTML = [
-    mini('🏯 Fee Morimatsu (no ato)', brl(fee), fee === piso && lance * feeP / 100 < piso ? 'piso aplicado' : `${feeP}% do lance`, COR.dourado),
+    mini('🏯 Fee Morimatsu (no ato)', brl(fee), lance * feeP / 100 < piso ? 'piso aplicado' : `${feeP}% do lance`, COR.dourado),
     mini('🏘 Comissão PSM na saída', brl(com), `${comP}% de ${brl(rev)}`),
     mini('💼 Receita do grupo por giro', brl(fee + com), '', COR.verde),
     mini('📈 Lucro bruto do investidor', brl(lucro), `${lance ? Math.round(lucro / (lance + custos + fee) * 100) : 0}% sobre o capital · desconto ${desc}% vs avaliação`, lucro > 0 ? '#16a34a' : '#ef4444'),
-    mini('🔑 Se virar renda: adm 10%/mês', brl(alug * 0.10) + '/mês', `${brl(alug * 0.10 * 12)}/ano perpétuos + 1º aluguel`, '#0ea5e9'),
+    mini(`🔑 Se virar renda: adm ${adm}%/mês`, brl(alug * adm / 100) + '/mês', `${brl(alug * adm / 100 * 12)}/ano perpétuos + 1º aluguel`, '#0ea5e9'),
   ].join('');
 }
+function editarHonorario(h) {
+  abrirModal(h ? '✏️ Editar linha' : '＋ Nova linha de honorário', `<form class="ma-form" id="f-hon">
+    ${campo('Serviço *', input('servico', h?.servico, 'text', 'required'), true)}
+    ${campo('Valor (texto exibido)', input('valor', h?.valor))}
+    ${campo('Valor numérico (R$, opcional)', input('num', h?.num ?? '', 'number'))}
+    ${campo('Observação', `<textarea class="input" name="obs" rows="2">${esc(h?.obs || '')}</textarea>`, true)}
+    <div class="flex gap-2" style="grid-column:1/-1"><button class="btn btn-primary" type="submit">💾 Salvar</button><button class="btn btn-ghost" type="button" id="f-cancel">Cancelar</button></div></form>`, box => {
+    box.querySelector('#f-cancel').onclick = fecharModal;
+    box.querySelector('#f-hon').onsubmit = async ev => {
+      ev.preventDefault(); const fd = new FormData(ev.target);
+      const lista = cfg().honorarios.map(x => ({ ...x }));
+      const item = { id: h?.id || uid('h'), servico: fd.get('servico').trim(), valor: fd.get('valor').trim(), num: num(fd.get('num')), obs: fd.get('obs').trim() };
+      const i = lista.findIndex(x => x.id === item.id); if (i >= 0) lista[i] = item; else lista.push(item);
+      fecharModal(); await setCol('config', { ...S.config, honorarios: lista });
+    };
+  });
+}
+function editarFee() {
+  const f = cfg().fee;
+  abrirModal('⚙️ Parâmetros do fee', `<form class="ma-form" id="f-fee">
+    ${campo('Análise por imóvel (R$)', input('analise', f.analise, 'number'))}
+    ${campo('Participação em certame (R$)', input('certame', f.certame, 'number'))}
+    ${campo('Êxito (% da arrematação)', input('exito_pct', f.exito_pct, 'number', 'step="0.5"'))}
+    ${campo('Piso do êxito (R$)', input('piso', f.piso, 'number'))}
+    ${campo('Comissão PSM na venda (%)', input('comissao_pct', f.comissao_pct, 'number', 'step="0.5"'))}
+    ${campo('Administração de locação (%/mês)', input('adm_pct', f.adm_pct, 'number', 'step="0.5"'))}
+    <div class="flex gap-2" style="grid-column:1/-1"><button class="btn btn-primary" type="submit">💾 Salvar</button><button class="btn btn-ghost" type="button" id="f-cancel">Cancelar</button></div></form>`, box => {
+    box.querySelector('#f-cancel').onclick = fecharModal;
+    box.querySelector('#f-fee').onsubmit = async ev => {
+      ev.preventDefault(); const fd = new FormData(ev.target);
+      const fee = {}; ['analise', 'certame', 'exito_pct', 'piso', 'comissao_pct', 'adm_pct'].forEach(k => { fee[k] = num(fd.get(k)); });
+      fecharModal(); await setCol('config', { ...S.config, fee });
+    };
+  });
+}
 
-/* ─────────────────────────── 🗓 ROTEIRO ─────────────────────────── */
+/* ─────────────────────────── 🗓 ROTEIRO (editável) ─────────────────────────── */
+function roteiroLista() { return S.roteiro.length ? S.roteiro : roteiroSeed(); }
 function roteiro() {
-  const st = _state?.roteiro || {};
-  const total = ROTEIRO.reduce((n, f) => n + f.itens.length, 0);
-  const feito = ROTEIRO.reduce((n, f) => n + f.itens.filter(i => st[i.id]?.done).length, 0);
-  const pct = total ? Math.round(feito / total * 100) : 0;
+  const lista = roteiroLista();
+  const feito = lista.filter(i => i.done).length, total = lista.length, pct = total ? Math.round(feito / total * 100) : 0;
+  const fases = [...FASES]; lista.forEach(i => { if (!fases.some(f => f.id === i.fase)) fases.push({ id: i.fase, quando: '', titulo: i.fase }); });
   return `
     <div class="card">
-      <h2 class="card-title">Roteiro de retomada — 90 dias</h2>
-      <p class="card-sub">Do artifact "Plano Morimatsu & Associados" (26/ago/2026). Marque o que foi feito — fica salvo pra todos os sócios.</p>
+      <div class="flex items-center gap-2"><h2 class="card-title" style="margin:0;flex:1">Roteiro de retomada — 90 dias</h2><button class="btn btn-primary" id="ma-rot-add">＋ Item</button></div>
+      <p class="card-sub">Do artifact "Plano Morimatsu & Associados" (26/ago/2026). Marque, edite (✏️), exclua (🗑) ou adicione itens — fica salvo pra todos os sócios.</p>
       <div class="ma-bar"><div style="width:${pct}%"></div></div>
       <div class="tiny muted">${feito}/${total} concluídos · ${pct}%</div>
     </div>
-    ${ROTEIRO.map(f => `<div class="card">
-      <div class="flex items-center gap-2"><span class="ma-when">${f.quando}</span><h2 class="card-title" style="margin:0">${esc(f.titulo)}</h2></div>
+    ${fases.map(f => { const itens = lista.filter(i => i.fase === f.id); if (!itens.length) return ''; return `<div class="card">
+      <div class="flex items-center gap-2"><span class="ma-when">${esc(f.quando || f.id)}</span><h2 class="card-title" style="margin:0">${esc(f.titulo)}</h2></div>
       <div class="ma-check">
-        ${f.itens.map(i => { const d = st[i.id]; return `<label class="ma-item ${d?.done ? 'done' : ''}">
-          <input type="checkbox" data-rot="${i.id}" ${d?.done ? 'checked' : ''}>
-          <span>${esc(i.t)} <span class="ma-quem">${esc(i.quem)}</span>${d?.done && d.em ? `<span class="tiny muted"> · ✓ ${esc(String(d.em).slice(0, 10))}</span>` : ''}</span>
-        </label>`; }).join('')}
+        ${itens.map(i => `<label class="ma-item ${i.done ? 'done' : ''}">
+          <input type="checkbox" data-rot="${esc(i.id)}" ${i.done ? 'checked' : ''}>
+          <span style="flex:1">${esc(i.t)} <span class="ma-quem">${esc(i.quem || '')}</span>${i.done && i.em ? `<span class="tiny muted"> · ✓ ${dtBR(i.em)}</span>` : ''}</span>
+          <button class="btn btn-ghost ma-rot-edit" data-id="${esc(i.id)}" type="button" style="font-size:11px;padding:2px 6px">✏️</button>
+          <button class="btn btn-ghost ma-rot-del" data-id="${esc(i.id)}" type="button" style="font-size:11px;padding:2px 6px">🗑</button>
+        </label>`).join('')}
       </div>
-    </div>`).join('')}
-    <div class="card">
-      <h2 class="card-title">Trilhas paralelas — já rodando</h2>
-      <ul class="ma-ul">
-        <li>✓ Cadastro de fornecedor da PSM (50.741.349/0001-52) verificado no Portal Licitações — pronto pra próxima janela.</li>
-        <li>✓ Monitor diário do credenciamento Caixa às 9h — alerta com edital, prazo e passos no dia em que a janela abrir.</li>
-        <li>Locação Georgina + Platz segue em paralelo — é o destino da trilha renda, não espera o leilão maturar.</li>
-        <li>Documentos de habilitação: emitir só quando o edital abrir — lista de certidões mapeada pra emissão rápida.</li>
-      </ul>
-    </div>
+    </div>`; }).join('')}
     <div class="ma-grid3">${PORTOES.map(p => `<div class="ma-gate"><b>${esc(p.t)}</b><p>${esc(p.d)}</p></div>`).join('')}</div>
     <div class="card"><h2 class="card-title">O sócio jurídico — advogado em 3 fases</h2>
       <div class="ma-grid3">${ADV_FASES.map(p => `<div class="ma-gate"><b>${esc(p.t)}</b><p>${esc(p.d)}</p></div>`).join('')}</div>
-      <p class="tiny muted mt-2">Apresentação ao cliente: "análise jurídica por [Escritório X] Advocacia". Hoje a parceira de referência do briefing é a Dra. Rafaela.</p>
+      <p class="tiny muted mt-2">Apresentação ao cliente: "análise jurídica por [Escritório X] Advocacia". Parceira de referência do briefing: Dra. Rafaela.</p>
     </div>`;
+}
+function editarRoteiro(item) {
+  const fases = Object.fromEntries(FASES.map(f => [f.id, `${f.quando} — ${f.titulo}`]));
+  abrirModal(item ? '✏️ Editar item do roteiro' : '＋ Novo item do roteiro', `<form class="ma-form" id="f-rot">
+    ${campo('O que fazer *', `<textarea class="input" name="t" rows="2" required>${esc(item?.t || '')}</textarea>`, true)}
+    ${campo('Fase', select('fase', fases, item?.fase || 's1'))}
+    ${campo('Quem', input('quem', item?.quem))}
+    <div class="flex gap-2" style="grid-column:1/-1"><button class="btn btn-primary" type="submit">💾 Salvar</button><button class="btn btn-ghost" type="button" id="f-cancel">Cancelar</button></div></form>`, box => {
+    box.querySelector('#f-cancel').onclick = fecharModal;
+    box.querySelector('#f-rot').onsubmit = async ev => {
+      ev.preventDefault(); const fd = new FormData(ev.target);
+      const lista = roteiroLista().map(x => ({ ...x }));
+      const it = { ...(item || { id: uid('r'), done: false, em: null }), t: fd.get('t').trim(), fase: fd.get('fase') || 's1', quem: fd.get('quem').trim() };
+      const i = lista.findIndex(x => x.id === it.id); if (i >= 0) lista[i] = it; else lista.push(it);
+      fecharModal(); await setCol('roteiro', lista);
+    };
+  });
 }
 
 /* ─────────────────────────── 📄 DOCUMENTOS ─────────────────────────── */
 function documentos() {
+  const invs = S.investidores.filter(i => i.coluna !== 'fora');
+  const ops = S.operacoes;
   return `
-    <div class="card">
-      <h2 class="card-title">Documentos oficiais (v1 · set/2026)</h2>
-      <p class="card-sub">Cópias servidas pelo House. Os originais moram em <code>Desktop/MORIMATSU/MORIMATSU & ASSOCIADOS</code>. Ao revisar um documento, suba a versão nova na pasta e peça pra atualizar aqui.</p>
-      <div class="ma-docs">
-        ${DOCS.map(d => `<div class="ma-doc"><div class="ma-doc-ico">${d.ico}</div><div style="flex:1"><b>${esc(d.t)}</b><div class="tiny muted">${esc(d.d)}</div></div><a class="btn btn-ghost" href="${ASSETS}${d.arq}" download>⬇ .docx</a></div>`).join('')}
+    <div class="ma-grid2" style="margin-bottom:12px">
+      <div class="card" style="margin:0">
+        <h2 class="card-title">📜 Gerar contrato preenchido</h2>
+        <p class="card-sub">Contrato de Assessoria em Aquisição (modelo v1) com os dados do investidor e os honorários atuais. Abre pra imprimir / salvar em PDF.</p>
+        <div class="flex gap-2"><select class="input" id="ma-doc-inv" style="flex:1"><option value="">— escolha o investidor —</option>${invs.map(i => `<option value="${esc(i.id)}">${esc(i.nome)}</option>`).join('')}</select><button class="btn btn-primary" id="ma-doc-contrato">📜 Gerar</button></div>
+        <p class="tiny muted mt-2">Faltando CPF/CNPJ ou endereço na ficha, o contrato sai com o campo em branco pra preencher à mão.</p>
       </div>
+      <div class="card" style="margin:0">
+        <h2 class="card-title">🧾 Gerar recibo</h2>
+        <p class="card-sub">Recibo de pagamento (modelo v1) de uma parcela de honorários de uma operação.</p>
+        <div class="flex gap-2" style="flex-wrap:wrap"><select class="input" id="ma-doc-op" style="flex:1;min-width:200px"><option value="">— operação —</option>${ops.map(o => `<option value="${esc(o.id)}">${esc(invPorId(o.investidor_id)?.nome || '?')} · ${esc(imvPorId(o.imovel_id)?.titulo || '?')}</option>`).join('')}</select>
+        <select class="input" id="ma-doc-parc"><option value="analise">Análise</option><option value="certame">Certame</option><option value="exito" selected>Êxito</option></select><button class="btn btn-primary" id="ma-doc-recibo">🧾 Gerar</button></div>
+        ${ops.length ? '' : '<p class="tiny muted mt-2">Ainda não há operação. Uma operação nasce quando um imóvel é marcado como arrematado.</p>'}
+      </div>
+    </div>
+    <div class="card">
+      <h2 class="card-title">Modelos oficiais (v1 · set/2026)</h2>
+      <p class="card-sub">Cópias servidas pelo House. Originais em <code>Desktop/MORIMATSU/MORIMATSU & ASSOCIADOS</code>.</p>
+      <div class="ma-docs">${DOCS.map(d => `<div class="ma-doc"><div class="ma-doc-ico">${d.ico}</div><div style="flex:1"><b>${esc(d.t)}</b><div class="tiny muted">${esc(d.d)}</div></div><a class="btn btn-ghost" href="${ASSETS}${d.arq}" download>⬇ .docx</a></div>`).join('')}</div>
     </div>
     <div class="card">
       <h2 class="card-title">Pontos do contrato que sustentam o ciclo</h2>
       <ul class="ma-ul">
-        <li><b>Cláusula 3ª</b> — natureza consultiva, obrigação de meio, sem garantia de arrematação/desocupação/prazo. NÃO abrange atos privativos de advocacia (Lei 8.906/94): pareceres e ações são da sociedade parceira, contrato próprio.</li>
-        <li><b>Cláusula 4ª</b> — (a) R$ 500/imóvel antecipado · (b) R$ 500/certame antecipado, deduzido do êxito · (c) 5% sobre arrematação, piso R$ 6.000, devidos na arrematação. §4º: êxito devido mesmo se o cliente arrematar por fora imóvel apresentado, por 12 meses.</li>
-        <li><b>Cláusula 6ª (Trava 1)</b> — exclusividade às empresas PSM na revenda/locação de todo imóvel adquirido: 180 dias prorrogáveis; venda por fora = corretagem integral como multa.</li>
-        <li><b>Cláusula 7ª</b> — cliente mantém recurso pro lance (24–48h do edital) e declara vínculo com a instituição credora (leilões CAIXA).</li>
-        <li><b>Cláusula 9ª/10ª</b> — 12 meses renováveis, aviso 30 dias; foro Rio Preto; título executivo extrajudicial, 2 testemunhas.</li>
+        <li><b>Cláusula 3ª</b> — natureza consultiva, obrigação de meio. NÃO abrange atos privativos de advocacia (Lei 8.906/94).</li>
+        <li><b>Cláusula 4ª</b> — (a) análise antecipada · (b) certame antecipado, deduzido do êxito · (c) êxito % com piso, devido na arrematação. §4º: devido mesmo se o cliente arrematar por fora imóvel apresentado, por 12 meses.</li>
+        <li><b>Cláusula 6ª (Trava 1)</b> — exclusividade às empresas PSM na revenda/locação: 180 dias prorrogáveis; venda por fora = corretagem integral como multa.</li>
+        <li><b>Cláusula 7ª</b> — recurso pro lance em 24–48h; declaração de vínculo com a instituição credora (CAIXA).</li>
+        <li><b>Cláusula 9ª/10ª</b> — 12 meses renováveis, aviso 30 dias; foro Rio Preto; título executivo extrajudicial.</li>
       </ul>
     </div>
     <div class="card">
       <h2 class="card-title">Links e pendências</h2>
       <ul class="ma-ul">
-        <li>📐 Plano completo (artifact 26/ago): <a href="https://claude.ai/code/artifact/3a939795-b5af-4020-89ef-7af6945d1533" target="_blank" rel="noopener">Plano Morimatsu & Associados</a></li>
-        <li>🌐 Domínios livres em 26/ago (registro.br): <b>morimatsuassociados.com.br</b>, <b>morimatsueassociados.com.br</b>, <b>morimatsu.com.br</b> — registrar (item 1 do roteiro).</li>
-        <li>🏦 Credenciamento Caixa: <a href="https://licitacoes.caixa.gov.br" target="_blank" rel="noopener">licitacoes.caixa.gov.br</a> — modalidade Credenciamento, editais regionais por GILOG; PSM fora da lista oficial; Isabella ainda precisa vincular o CNPJ dela.</li>
-        <li>🗂 Ficha de pré-cadastro: hoje Google Form interino → nativo no House (aba Investidores já recebe manualmente; formulário público cai aqui na Onda 3).</li>
+        <li>📐 Plano completo: <a href="https://claude.ai/code/artifact/3a939795-b5af-4020-89ef-7af6945d1533" target="_blank" rel="noopener">Plano Morimatsu & Associados</a></li>
+        <li>🌐 Domínios livres em 26/ago (registro.br): <b>morimatsuassociados.com.br</b>, <b>morimatsueassociados.com.br</b>, <b>morimatsu.com.br</b>.</li>
+        <li>🏦 Credenciamento Caixa: <a href="https://licitacoes.caixa.gov.br" target="_blank" rel="noopener">licitacoes.caixa.gov.br</a> — por edital com janela; PSM fora da lista oficial; Isabella ainda precisa vincular o CNPJ dela.</li>
         <li>🧑‍⚖️ Vaga do advogado: publicar no ATS (<a href="#/talentos">Talentos</a>) com as 3 fases.</li>
       </ul>
     </div>`;
@@ -466,27 +513,27 @@ function marca() {
       <div class="ma-swatches">${sw('Verde profundo', COR.verde)}${sw('Dourado', COR.dourado)}${sw('Tinta', COR.tinta)}${sw('Marfim', COR.marfim)}</div>
       <p class="card-sub mt-2"><b>Display:</b> Didot (títulos, logotipo) · <b>Documentos:</b> Georgia · base herdada da GM, nome novo. Código de firma, não de imobiliária.</p>
     </div>
-    <div class="ma-grid2">
-      <div class="card"><h2 class="card-title">Tom de voz</h2><ul class="ma-ul">
+    <div class="ma-grid2" style="margin-bottom:12px">
+      <div class="card" style="margin:0"><h2 class="card-title">Tom de voz</h2><ul class="ma-ul">
         <li><b>Técnico</b> — domínio de edital, matrícula e processo sustenta a marca.</li>
         <li><b>Direto ao ponto</b> — investidor sério não tolera enrolação.</li>
         <li><b>Sóbrio</b> — código de escritório, não de imobiliária. Sem urgência artificial.</li>
         <li><b>Provocador com método</b> — derruba mitos do leilão sempre com base técnica.</li>
         <li><b>Acolhedor nos cases</b> — foco na transformação e no prejuízo evitado.</li>
       </ul></div>
-      <div class="card"><h2 class="card-title">Bordões</h2><ul class="ma-ul">
+      <div class="card" style="margin:0"><h2 class="card-title">Bordões</h2><ul class="ma-ul">
         <li>“Antes do lance, a análise. Depois do martelo, as chaves.”</li>
         <li>“Leilão não é sorte — é leitura técnica.”</li>
         <li>“Imóvel barato sem análise é dívida disfarçada.”</li>
         <li>“Patrimônio não se improvisa.”</li>
         <li>“Comprar bem, gerir bem, sair melhor.”</li>
       </ul></div>
-      <div class="card"><h2 class="card-title">Vocabulário próprio</h2><p class="card-sub">Análise antes do lance · custo total da operação · due diligence documental · mapeamento de ocupação · imissão na posse · curadoria por perfil · modalidades (venda online, venda direta, extrajudicial, judicial) · carta de arrematação · passivo propter rem · êxito sobre arrematação · ciclo do patrimônio · destino do ativo.</p></div>
-      <div class="card"><h2 class="card-title">🚫 Vocabulário proibido</h2><p class="card-sub">Gírias ("galera", "bora") · sensacionalismo ("metade do preço", "lucro garantido", "oportunidade do ano") · promessa de retorno ou de êxito · linguagem de coach ("fique rico", "liberdade financeira", "destrave") · clichê de IA ("no mundo dinâmico de hoje", "é importante destacar").</p></div>
+      <div class="card" style="margin:0"><h2 class="card-title">Vocabulário próprio</h2><p class="card-sub">Análise antes do lance · custo total da operação · due diligence documental · mapeamento de ocupação · imissão na posse · curadoria por perfil · modalidades (venda online, venda direta, extrajudicial, judicial) · carta de arrematação · passivo propter rem · êxito sobre arrematação · ciclo do patrimônio · destino do ativo.</p></div>
+      <div class="card" style="margin:0"><h2 class="card-title">🚫 Vocabulário proibido</h2><p class="card-sub">Gírias ("galera", "bora") · sensacionalismo ("metade do preço", "lucro garantido", "oportunidade do ano") · promessa de retorno ou de êxito · linguagem de coach ("fique rico", "liberdade financeira", "destrave") · clichê de IA ("no mundo dinâmico de hoje", "é importante destacar").</p></div>
     </div>
     <div class="card"><h2 class="card-title">Restrições e compliance</h2><ul class="ma-ul">
       <li>A Morimatsu presta assessoria técnica e comercial — <b>não</b> exerce atos privativos de advocacia. Pareceres, due diligence assinada e ações são da sociedade parceira, contratada à parte.</li>
-      <li>Peças com tese jurídica passam pela advogada antes de publicar. Vedações OAB (promessa de êxito, captação ostensiva, mercantilização) valem pra tudo que a sociedade dela assinar.</li>
+      <li>Peças com tese jurídica passam pela advogada antes de publicar. Vedações OAB valem pra tudo que a sociedade dela assinar.</li>
       <li>Nunca indicar imóvel específico em conteúdo aberto — análise pública é didática; recomendação é privada.</li>
       <li>Nunca citar credor, devedor ou processo nominal em conteúdo.</li>
     </ul></div>
@@ -498,63 +545,35 @@ function marca() {
     </ul></div>`;
 }
 
-/* ─────────────────────────── wire ─────────────────────────── */
+/* ─────────────────────────── wire (abas estáticas) ─────────────────────────── */
 function wire() {
   const $ = s => _root.querySelector(s);
+  _root.querySelectorAll('[data-rota]').forEach(b => { if (!b.classList.contains('ma-tab')) b.onclick = () => irPara(b.dataset.rota); });
   if (_tab === 'visao') {
     const b = $('#ma-notas-save');
-    if (b) b.onclick = async () => { $('#ma-notas-st').textContent = 'salvando…'; await salvar({ notas: $('#ma-notas').value }); };
+    if (b) b.onclick = () => setCol('config', { ...S.config, notas: $('#ma-notas').value });
   }
   if (_tab === 'honorarios') {
     _root.querySelectorAll('#ma-body input[type=number]').forEach(i => i.oninput = calcGiro);
     calcGiro();
+    $('#ma-hon-add').onclick = () => editarHonorario(null);
+    $('#ma-fee-cfg').onclick = editarFee;
+    _root.querySelectorAll('.ma-row').forEach(tr => tr.onclick = e => { if (e.target.closest('button')) return; editarHonorario(cfg().honorarios.find(h => h.id === tr.dataset.hon)); });
+    _root.querySelectorAll('.ma-hon-del').forEach(b => b.onclick = async () => { if (!confirm('Excluir esta linha da tabela?')) return; await setCol('config', { ...S.config, honorarios: cfg().honorarios.filter(h => h.id !== b.dataset.id) }); });
+    $('#ma-ninc-edit').onclick = () => { const v = prompt('Não incluso, cobrado à parte:', cfg().nao_incluso); if (v !== null) setCol('config', { ...S.config, nao_incluso: v.trim() }); };
   }
   if (_tab === 'roteiro') {
+    $('#ma-rot-add').onclick = () => editarRoteiro(null);
     _root.querySelectorAll('[data-rot]').forEach(cb => cb.onchange = () => {
-      const r = { ...(_state?.roteiro || {}) };
-      r[cb.dataset.rot] = { done: cb.checked, em: cb.checked ? new Date().toISOString() : null };
-      salvar({ roteiro: r });
+      const lista = roteiroLista().map(x => x.id === cb.dataset.rot ? { ...x, done: cb.checked, em: cb.checked ? new Date().toISOString() : null } : { ...x });
+      setCol('roteiro', lista);
     });
+    _root.querySelectorAll('.ma-rot-edit').forEach(b => b.onclick = e => { e.preventDefault(); editarRoteiro(roteiroLista().find(x => x.id === b.dataset.id)); });
+    _root.querySelectorAll('.ma-rot-del').forEach(b => b.onclick = e => { e.preventDefault(); if (!confirm('Excluir este item do roteiro?')) return; setCol('roteiro', roteiroLista().filter(x => x.id !== b.dataset.id)); });
   }
-  if (_tab === 'investidores') {
-    const busca = $('#ma-busca');
-    if (busca) busca.oninput = e => { _busca = e.target.value; render(); const el = _root.querySelector('#ma-busca'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } };
-    $('#ma-novo').onclick = () => { _edit = { coluna: 'pre' }; render(); _root.querySelector('#ma-form')?.scrollIntoView({ behavior: 'smooth' }); };
-    const form = _root.querySelector('.ma-form');
-    if (form && _edit) {
-      $('#ma-cancel').onclick = () => { _edit = null; render(); };
-      const del = $('#ma-del');
-      if (del) del.onclick = () => {
-        if (!confirm(`Excluir ${_edit.nome}? Não tem volta.`)) return;
-        const lista = (_state.investidores || []).filter(c => c.id !== _edit.id);
-        _edit = null; salvar({ investidores: lista });
-      };
-      form.onsubmit = ev => {
-        ev.preventDefault();
-        const fd = new FormData(form);
-        const c = { ..._edit };
-        ['nome', 'fone', 'cidade', 'objetivo', 'pagamento', 'faixa', 'capital', 'disp', 'regiao', 'ocupacao', 'origem', 'coluna', 'obs'].forEach(k => { c[k] = String(fd.get(k) || '').trim(); });
-        c.modalidades = fd.getAll('modalidades');
-        c.caixa = !!fd.get('caixa');
-        if (!c.nome) return;
-        const agora = new Date().toISOString();
-        c.atualizado_em = agora;
-        if (!c.id) { c.id = 'inv_' + Date.now().toString(36); c.criado_em = agora; c.hist = [{ em: agora, o: 'criado' }]; }
-        c.score = scoreDe(c); c.porta = porta2(c) ? 2 : 1;
-        const lista = (_state.investidores || []).filter(x => x.id !== c.id).concat([c]);
-        _edit = null; salvar({ investidores: lista });
-      };
-    }
-    ativarDrag({
-      host: $('#ma-kanban'), card: '.ma-card', coluna: '.ma-col',
-      colDe: col => col.dataset.col,
-      aoClicar: id => { _edit = { ...((_state.investidores || []).find(c => c.id === id) || {}) }; render(); _root.querySelector('#ma-form')?.scrollIntoView({ behavior: 'smooth' }); },
-      aoSoltar: async (id, destino) => {
-        const lista = (_state.investidores || []).map(c => c.id === id && c.coluna !== destino
-          ? { ...c, coluna: destino, atualizado_em: new Date().toISOString(), hist: [...(c.hist || []), { em: new Date().toISOString(), o: 'mover:' + destino }] } : c);
-        await salvar({ investidores: lista });
-      },
-    });
+  if (_tab === 'documentos') {
+    $('#ma-doc-contrato').onclick = () => { const inv = invPorId($('#ma-doc-inv').value); if (!inv) return alert('Escolha o investidor.'); gerarContrato(inv); };
+    $('#ma-doc-recibo').onclick = () => { const o = S.operacoes.find(x => x.id === $('#ma-doc-op').value); if (!o) return alert('Escolha a operação.'); gerarRecibo(o, $('#ma-doc-parc').value); };
   }
 }
 
@@ -563,24 +582,25 @@ function injectCss() {
   if (document.getElementById('ma-css')) return;
   const st = document.createElement('style'); st.id = 'ma-css';
   st.textContent = `
-    .ma-wrap{max-width:1180px}
-    .ma-head{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:14px 18px;border-radius:14px;background:var(--bg-2);border:1px solid var(--border);border-left:4px solid ${COR.dourado};margin-bottom:12px}
-    .ma-logo{height:64px;max-width:100%;object-fit:contain}
+    .ma-wrap{max-width:1240px}
+    .ma-head{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:12px 18px;border-radius:14px;background:var(--bg-2);border:1px solid var(--border);border-left:4px solid ${COR.dourado};margin-bottom:12px}
+    .ma-logo{height:56px;max-width:100%;object-fit:contain}
     .ma-kicker{font-size:10.5px;letter-spacing:1.6px;text-transform:uppercase;opacity:.6;font-weight:800}
-    .ma-frase{font-family:Georgia,'Times New Roman',serif;font-size:15px;margin-top:4px}
+    .ma-frase{font-family:Georgia,'Times New Roman',serif;font-size:14.5px;margin-top:4px}
     .ma-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
-    .ma-tab{font-size:12.5px;padding:7px 12px}
-    .ma-minis{display:flex;gap:8px;flex-wrap:wrap}
+    .ma-tab{font-size:12.5px;padding:7px 11px}
+    .ma-badge{background:#ef4444;color:#fff;font-size:10.5px;font-weight:900;padding:0 6px;border-radius:999px}
+    .ma-minis{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
     .ma-mini{flex:1;min-width:150px;background:var(--bg-2);border:1px solid var(--border);border-left:3px solid ${COR.verde};border-radius:10px;padding:8px 12px}
     .ma-mini-v{font-weight:900;font-size:18px;line-height:1.2;margin:2px 0}
     .ma-grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin:0 0 12px}
-    .ma-grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px}
+    .ma-grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:10px}
     .ma-pratica{background:var(--bg-2);border:1px solid var(--border);border-top:3px solid ${COR.verde};border-radius:12px;padding:14px 16px}
     .ma-pratica-n{font-family:Georgia,serif;color:${COR.dourado};font-size:22px;font-weight:700}
     .ma-pratica-s{font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;opacity:.6;font-weight:800;margin:2px 0 8px}
     .ma-pratica p{margin:0;font-size:13px;opacity:.85;line-height:1.5}
-    .ma-ciclo{padding-left:22px;margin:6px 0 0;line-height:1.55;font-size:13.5px}
-    .ma-ciclo li{margin:8px 0}
+    .ma-ciclo{padding-left:22px;margin:6px 0 10px;line-height:1.55;font-size:13.5px}
+    .ma-ciclo li{margin:6px 0}
     .ma-ciclo li::marker,.ma-ul li::marker{color:${COR.dourado}}
     .ma-trava{display:inline-block;margin-top:4px;font-size:11px;font-weight:700;color:${COR.dourado};border:1px solid ${COR.dourado};padding:1px 8px;border-radius:4px}
     .ma-ul{padding-left:20px;margin:6px 0 0;font-size:13.5px;line-height:1.55}
@@ -588,6 +608,7 @@ function injectCss() {
     .ma-tbl{border-collapse:collapse;width:100%;font-size:13px;min-width:520px}
     .ma-tbl th{text-align:left;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:${COR.dourado};padding:8px 10px;border-bottom:2px solid var(--border)}
     .ma-tbl td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+    .ma-row{cursor:pointer}.ma-row:hover td{background:var(--bg-3)}
     .ma-num{font-family:var(--font-mono,monospace);white-space:nowrap}
     .ma-kanban{display:flex;gap:10px;overflow-x:auto;align-items:flex-start;padding-bottom:8px}
     .ma-col{flex:0 0 250px;background:var(--bg-3);border-radius:12px;padding:8px;border-top:3px solid}
@@ -597,15 +618,15 @@ function injectCss() {
     .ma-card:hover{border-color:${COR.dourado}}
     .ma-score{color:#fff;font-weight:900;font-size:11px;padding:1px 7px;border-radius:999px}
     .ma-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
-    .ma-tag{color:#fff;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:999px;text-decoration:none}
-    .ma-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+    .ma-tag{color:#fff;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:999px;text-decoration:none;white-space:nowrap}
+    .ma-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
     .ma-form .field{display:flex;flex-direction:column;gap:3px}
     .ma-bar{height:8px;background:var(--bg-3);border-radius:999px;overflow:hidden;margin:8px 0 4px}
     .ma-bar>div{height:100%;background:linear-gradient(90deg,${COR.verde},${COR.dourado})}
     .ma-when{font-family:var(--font-mono,monospace);font-size:11.5px;color:${COR.dourado};font-weight:700;white-space:nowrap;border:1px solid ${COR.dourado};padding:2px 8px;border-radius:4px}
     .ma-check{display:flex;flex-direction:column;gap:4px;margin-top:8px}
     .ma-item{display:flex;gap:10px;align-items:flex-start;padding:7px 10px;border-radius:8px;background:var(--bg-2);border:1px solid var(--border);font-size:13.5px;cursor:pointer;line-height:1.45}
-    .ma-item.done{opacity:.6;text-decoration:line-through}
+    .ma-item.done>span{opacity:.6;text-decoration:line-through}
     .ma-item input{margin-top:3px}
     .ma-quem{font-size:10.5px;letter-spacing:1px;text-transform:uppercase;opacity:.6;font-weight:800;margin-left:6px;text-decoration:none;display:inline-block}
     .ma-gate{background:var(--bg-2);border:1px solid var(--border);border-left:3px solid ${COR.dourado};border-radius:12px;padding:12px 14px}
@@ -620,9 +641,27 @@ function injectCss() {
     .ma-swatches{display:flex;gap:10px;flex-wrap:wrap}
     .ma-swatch{flex:1;min-width:120px;display:flex;flex-direction:column;gap:4px;font-size:12.5px}
     .ma-swatch>div{height:64px;border-radius:10px}
-    @media(max-width:640px){.ma-logo{height:44px}.ma-col{flex-basis:220px}}
+    .ma-funil{display:flex;flex-direction:column;gap:4px}
+    .ma-funil-i{display:flex;justify-content:space-between;align-items:center;background:var(--bg-2);border:1px solid var(--border);border-left:3px solid;border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer;color:inherit;text-align:left}
+    .ma-funil-i:hover{border-color:${COR.dourado}}
+    .ma-linha{display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;flex-wrap:wrap}
+    .ma-timeline{display:flex;flex-direction:column;gap:6px;margin-top:8px;max-height:46vh;overflow-y:auto}
+    .ma-tl{display:flex;gap:10px;padding:7px 10px;border-radius:8px;background:var(--bg-2);border:1px solid var(--border);font-size:13px;align-items:flex-start}
+    .ma-tl.feito{opacity:.6}.ma-tl.atrasada{border-color:#ef4444}
+    .ma-tl .ma-tl-ico{font-size:16px}
+    .ma-list{display:flex;flex-direction:column;gap:6px}
+    .ma-li{display:grid;grid-template-columns:1fr auto;gap:8px;padding:9px 12px;border-radius:10px;background:var(--bg-2);border:1px solid var(--border);font-size:13px;cursor:pointer;align-items:center}
+    .ma-li:hover{border-color:${COR.dourado}}
+    .ma-status{color:#fff;font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;white-space:nowrap}
+    .ma-chk{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:6px}
+    .ma-chk label{display:flex;gap:8px;align-items:center;padding:6px 10px;border-radius:8px;background:var(--bg-2);border:1px solid var(--border);font-size:12.5px;cursor:pointer}
+    .ma-sec{font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;opacity:.65;font-weight:800;margin:14px 0 6px;color:${COR.dourado}}
+    .ma-drawer-tabs{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0 10px}
+    #ma-modal{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:var(--z-modal,1000);display:flex;align-items:flex-start;justify-content:center;padding:24px 12px;overflow-y:auto}
+    .ma-modal-box{background:var(--bg);color:var(--ink);border:1px solid var(--border);border-top:3px solid ${COR.dourado};border-radius:14px;width:100%;box-shadow:var(--shadow-lg,0 10px 40px rgba(0,0,0,.4))}
+    .ma-modal-h{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);font-size:15px}
+    .ma-modal-b{padding:14px 16px}
+    @media(max-width:640px){.ma-logo{height:40px}.ma-col{flex-basis:220px}}
   `;
   document.head.appendChild(st);
 }
-
-function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

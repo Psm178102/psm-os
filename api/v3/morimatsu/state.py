@@ -1,52 +1,99 @@
 """
-GET/POST /api/v3/morimatsu/state — estado do módulo 🏯 Morimatsu & Associados. v87.51
+GET/POST /api/v3/morimatsu/state — banco do módulo 🏯 Morimatsu & Associados. v87.52
 
 Escritório de Gestão Patrimonial Imobiliária (boutique pessoal do Paulo — não é
-imobiliária). Tudo vive numa ÚNICA chave do shared_kv, 'morimatsu_state':
-  { investidores: [ {id, nome, fone, cidade, objetivo, pagamento, faixa, capital,
-                     disp, modalidades[], regiao, ocupacao, origem, caixa, obs,
-                     coluna, hist[], criado_em, atualizado_em} ],
-    roteiro:      { <item_id>: {done:bool, em:iso} },      # checklist 90 dias
-    notas:        "texto livre do sócio" }
+imobiliária). SISTEMA COMPLETO do ciclo, do pré-cadastro à saída do ativo, tudo
+dentro do House: cada coleção é uma chave própria do shared_kv (payload pequeno
+por tela, sem carregar tudo a cada clique):
 
-SÓ SÓCIO (lvl>=10) — GET e POST. O módulo carrega honorários, tese e funil
-de investidor do Paulo; nada disso é pra corretor/gerente. Abrir pra alguém =
-baixar aqui E no ROUTE_MIN_LVL do main.js juntos.
+  morimatsu_investidores   [ {id, nome, fone, email, documento, endereco, cidade, pj,
+                              objetivo, pagamento, faixa, capital, disp, modalidades[],
+                              regiao, ocupacao, origem, caixa, obs, coluna, responsavel,
+                              proximo_contato, tags[], criado_em, atualizado_em, hist[]} ]
+  morimatsu_imoveis        [ {id, titulo, cidade, bairro, tipo, matricula, cartorio,
+                              modalidade, credor, leiloeiro, link, avaliacao, lance_min,
+                              data_certame, ocupado, debitos_cond, aceita_fin, obs, status,
+                              investidor_id, analise{...}, criado_em, atualizado_em} ]
+  morimatsu_operacoes      [ {id, investidor_id, imovel_id, data_arrematacao, valor,
+                              honorarios{analise,certame,exito}, checklist{...}, destino,
+                              saida{...}, status, obs, criado_em, atualizado_em} ]
+  morimatsu_atividades     [ {id, tipo, investidor_id, imovel_id, operacao_id, texto,
+                              quando, feito, feito_em, autor, criado_em} ]
+  morimatsu_roteiro        [ {id, fase, quando, titulo_fase, t, quem, done, em} ]
+  morimatsu_config         { honorarios:[{servico,valor,obs}], nao_incluso, notas }
 
-GET                  → { ok, state, updated_at }
-POST { patch:{...} } → merge de 1º nível (só as chaves acima) → { ok, state }
+SÓ SÓCIO (lvl>=10) — GET e POST. Abrir pra alguém = baixar aqui E no ROUTE_MIN_LVL.
+
+GET  ?col=a,b            → { ok, cols:{a:[...], b:[...]}, updated_at:{a:..} }  (sem col = todas)
+POST { op:'upsert', col, item }   → grava/atualiza 1 item (por id) — não clobbera o resto
+POST { op:'delete', col, id }     → remove 1 item
+POST { op:'set',    col, value }  → substitui a coleção inteira (config / roteiro reordenado)
+POST { patch:{...} }              → legado v87.51 (investidores/roteiro/notas) — ainda aceito
+Resposta: { ok, col, value } com a coleção já atualizada.
 """
 from http.server import BaseHTTPRequestHandler
-import json, os, sys
+import json, os, sys, urllib.parse
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
 
-KEY = "morimatsu_state"
-CAMPOS = {"investidores": list, "roteiro": dict, "notas": str}
-MAX_BYTES = 400_000
-DEFAULT = {"investidores": [], "roteiro": {}, "notas": ""}
+PREFIX = "morimatsu_"
+LISTAS = {"investidores", "imoveis", "operacoes", "atividades", "roteiro"}
+OBJETOS = {"config"}
+COLS = LISTAS | OBJETOS
+MAX_BYTES = 900_000
+MAX_ITENS = 5000
 
 
-def _load(sb):
+def _now():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _default(col):
+    return [] if col in LISTAS else {}
+
+
+def _load(sb, cols):
+    keys = [PREFIX + c for c in cols]
+    out, ups = {}, {}
     try:
-        rows = sb.table("shared_kv").select("value,updated_at").eq("key", KEY).limit(1).execute().data or []
+        rows = sb.table("shared_kv").select("key,value,updated_at").in_("key", keys).execute().data or []
     except Exception:
         rows = []
-    val = rows[0]["value"] if rows else {}
-    if isinstance(val, str):
+    by = {r["key"]: r for r in rows}
+    # compat v87.51: chave única morimatsu_state (investidores/roteiro/notas) — migra na leitura
+    legado = None
+    if any(c in ("investidores", "config") for c in cols) and not any(k in by for k in (PREFIX + "investidores", PREFIX + "config")):
         try:
-            val = json.loads(val)
+            lr = sb.table("shared_kv").select("value").eq("key", PREFIX + "state").limit(1).execute().data or []
+            legado = lr[0]["value"] if lr else None
+            if isinstance(legado, str):
+                legado = json.loads(legado)
         except Exception:
-            val = {}
-    if not isinstance(val, dict):
-        val = {}
-    st = dict(DEFAULT)
-    for k, t in CAMPOS.items():
-        v = val.get(k)
-        st[k] = v if isinstance(v, t) else DEFAULT[k]
-    return st, (rows[0].get("updated_at") if rows else None)
+            legado = None
+    for c in cols:
+        r = by.get(PREFIX + c)
+        val = r["value"] if r else None
+        if isinstance(val, str):
+            try:
+                val = json.loads(val)
+            except Exception:
+                val = None
+        if val is None and isinstance(legado, dict):
+            if c == "investidores":
+                val = legado.get("investidores")
+            elif c == "config":
+                val = {"notas": legado.get("notas") or ""}
+        want = list if c in LISTAS else dict
+        out[c] = val if isinstance(val, want) else _default(c)
+        ups[c] = r.get("updated_at") if r else None
+    return out, ups
+
+
+def _save(sb, col, value):
+    sb.table("shared_kv").upsert({"key": PREFIX + col, "value": value, "updated_at": _now()},
+                                 on_conflict="key").execute()
 
 
 class handler(BaseHTTPRequestHandler):
@@ -65,11 +112,16 @@ class handler(BaseHTTPRequestHandler):
             require_user(self, min_lvl=10)
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
+        qs = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
+        cols = [c.strip() for c in (qs.get("col") or "").split(",") if c.strip()] or sorted(COLS)
+        bad = [c for c in cols if c not in COLS]
+        if bad:
+            return self._send(400, {"ok": False, "error": f"coleção desconhecida: {bad}", "cols": sorted(COLS)})
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
-        st, up = _load(sb)
-        return self._send(200, {"ok": True, "state": st, "updated_at": up})
+        data, ups = _load(sb, cols)
+        return self._send(200, {"ok": True, "cols": data, "updated_at": ups})
 
     def do_POST(self):
         try:
@@ -83,26 +135,65 @@ class handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(length).decode("utf-8") if length > 0 else "{}")
         except Exception:
             return self._send(400, {"ok": False, "error": "JSON inválido"})
-        patch = body.get("patch")
-        if not isinstance(patch, dict) or not patch:
-            return self._send(400, {"ok": False, "error": "patch precisa ser um objeto"})
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
-        st, _ = _load(sb)
-        tocou = []
-        for k, t in CAMPOS.items():
-            if k in patch:
-                if not isinstance(patch[k], t):
-                    return self._send(400, {"ok": False, "error": f"{k} com tipo inválido"})
-                st[k] = patch[k]; tocou.append(k)
-        if not tocou:
-            return self._send(400, {"ok": False, "error": "nada pra salvar", "chaves": list(CAMPOS)})
+
+        # ── legado v87.51: { patch: {investidores|roteiro|notas} } ──
+        patch = body.get("patch")
+        if isinstance(patch, dict) and patch and not body.get("op"):
+            tocou = []
+            try:
+                if isinstance(patch.get("investidores"), list):
+                    _save(sb, "investidores", patch["investidores"]); tocou.append("investidores")
+                if isinstance(patch.get("notas"), str):
+                    cfg = _load(sb, ["config"])[0]["config"]; cfg["notas"] = patch["notas"]
+                    _save(sb, "config", cfg); tocou.append("config")
+            except Exception as e:
+                return self._send(500, {"ok": False, "error": str(e)})
+            audit(self, actor, "morimatsu.update", target_type="shared_kv", target_id=",".join(tocou))
+            return self._send(200, {"ok": True, "tocou": tocou})
+
+        op = (body.get("op") or "").strip()
+        col = (body.get("col") or "").strip()
+        if col not in COLS:
+            return self._send(400, {"ok": False, "error": "col inválida", "cols": sorted(COLS)})
+        if op not in ("upsert", "delete", "set"):
+            return self._send(400, {"ok": False, "error": "op precisa ser upsert | delete | set"})
+        cur = _load(sb, [col])[0][col]
         try:
-            sb.table("shared_kv").upsert({"key": KEY, "value": st,
-                                          "updated_at": datetime.now(timezone.utc).isoformat()},
-                                         on_conflict="key").execute()
+            if op == "set":
+                value = body.get("value")
+                want = list if col in LISTAS else dict
+                if not isinstance(value, want):
+                    return self._send(400, {"ok": False, "error": f"value precisa ser {'lista' if want is list else 'objeto'}"})
+                if want is list and len(value) > MAX_ITENS:
+                    return self._send(413, {"ok": False, "error": "itens demais"})
+                cur = value
+            elif col in OBJETOS:
+                return self._send(400, {"ok": False, "error": f"{col} é objeto — use op:'set'"})
+            elif op == "upsert":
+                item = body.get("item")
+                if not isinstance(item, dict) or not str(item.get("id") or "").strip():
+                    return self._send(400, {"ok": False, "error": "item precisa ser objeto com id"})
+                iid = str(item["id"])
+                item["atualizado_em"] = _now()
+                item.setdefault("criado_em", item["atualizado_em"])
+                idx = next((i for i, x in enumerate(cur) if str(x.get("id")) == iid), -1)
+                if idx >= 0:
+                    item.setdefault("criado_em", cur[idx].get("criado_em"))
+                    cur[idx] = item
+                else:
+                    if len(cur) >= MAX_ITENS:
+                        return self._send(413, {"ok": False, "error": "itens demais"})
+                    cur.append(item)
+            else:  # delete
+                iid = str(body.get("id") or "").strip()
+                if not iid:
+                    return self._send(400, {"ok": False, "error": "id obrigatório"})
+                cur = [x for x in cur if str(x.get("id")) != iid]
+            _save(sb, col, cur)
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)})
-        audit(self, actor, "morimatsu.update", target_type="shared_kv", target_id=KEY)
-        return self._send(200, {"ok": True, "state": st, "tocou": tocou})
+        audit(self, actor, f"morimatsu.{op}", target_type="shared_kv", target_id=PREFIX + col)
+        return self._send(200, {"ok": True, "col": col, "value": cur})

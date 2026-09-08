@@ -181,6 +181,7 @@ export const ROUTE_GROUP = {
   // (leilão/venda direta Caixa → gestão → saída pela PSM). Fora de TODO ROLE_ALLOWED: só sócio/diretor ('*').
   '/morimatsu': 'morimatsu', '/morimatsu-investidores': 'morimatsu', '/morimatsu-honorarios': 'morimatsu',
   '/morimatsu-roteiro': 'morimatsu', '/morimatsu-documentos': 'morimatsu', '/morimatsu-marca': 'morimatsu',
+  '/morimatsu-imoveis': 'morimatsu', '/morimatsu-operacoes': 'morimatsu', '/morimatsu-agenda': 'morimatsu',   // v87.52: sistema completo do ciclo
   // IA
   '/agentes': 'ia', '/ia': 'ia', '/sr-performance': 'ia', '/sr-gerencia': 'ia',
   // PSM Academy — menu próprio, visível a todos (a "faculdade" da PSM)
@@ -287,6 +288,7 @@ export const ROUTE_MIN_LVL = {
   // espelha o require_user(min_lvl=10) de api/v3/morimatsu/state). Abrir = baixar aqui E no backend.
   '/morimatsu': 10, '/morimatsu-investidores': 10, '/morimatsu-honorarios': 10,
   '/morimatsu-roteiro': 10, '/morimatsu-documentos': 10, '/morimatsu-marca': 10,
+  '/morimatsu-imoveis': 10, '/morimatsu-operacoes': 10, '/morimatsu-agenda': 10,
   // RH + Sucesso do Cliente (v81.58): piso 2 (corretor) — quem vê isso é decidido
   // 100% na matriz por papel (Configurações → Permissões), sem trava de nível.
   '/onboarding': 2, '/offboarding': 2,
@@ -462,7 +464,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '87.51';
+const APP_VERSION = '87.52';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -589,7 +591,8 @@ const APP_VERSION = '87.51';
   // 🏯 Morimatsu & Associados (v87.51): 6 rotas = 6 itens do menu, mesma página na aba certa
   [['/morimatsu', 'visao', 'Morimatsu & Associados'], ['/morimatsu-investidores', 'investidores', 'Morimatsu · Investidores'],
    ['/morimatsu-honorarios', 'honorarios', 'Morimatsu · Honorários & Giro'], ['/morimatsu-roteiro', 'roteiro', 'Morimatsu · Roteiro 90 dias'],
-   ['/morimatsu-documentos', 'documentos', 'Morimatsu · Documentos'], ['/morimatsu-marca', 'marca', 'Morimatsu · Marca']]
+   ['/morimatsu-documentos', 'documentos', 'Morimatsu · Documentos'], ['/morimatsu-marca', 'marca', 'Morimatsu · Marca'],
+   ['/morimatsu-imoveis', 'imoveis', 'Morimatsu · Imóveis & Garimpo'], ['/morimatsu-operacoes', 'operacoes', 'Morimatsu · Operações'], ['/morimatsu-agenda', 'agenda', 'Morimatsu · Agenda']]
     .forEach(([rota, tab, titulo]) => router.register(rota, { render: async (ctx, root) => { setHeader(titulo); highlight(rota); await pageMorimatsu(ctx, root, tab); } }));
   router.register('/minutas', { render: async (ctx, root) => { setHeader('Minutas padrão'); highlight('/minutas'); await pageMinutasJuridico(ctx, root); } });
   router.register('/cnds',    { render: async (ctx, root) => { setHeader("CND's"); highlight('/cnds'); await pageCnds(ctx, root); } });
@@ -1062,6 +1065,9 @@ function shellHTML(user) {
         <div class="sb-sec">🏯 Morimatsu & Associados</div>
         <button class="sb-link" data-nav="/morimatsu"><span class="sb-ico">🏯</span> Visão do Escritório</button>
         <button class="sb-link" data-nav="/morimatsu-investidores"><span class="sb-ico">💼</span> Investidores</button>
+        <button class="sb-link" data-nav="/morimatsu-imoveis"><span class="sb-ico">🏠</span> Imóveis & Garimpo</button>
+        <button class="sb-link" data-nav="/morimatsu-operacoes"><span class="sb-ico">🔁</span> Operações</button>
+        <button class="sb-link" data-nav="/morimatsu-agenda"><span class="sb-ico">📅</span> Agenda</button>
         <button class="sb-link" data-nav="/morimatsu-honorarios"><span class="sb-ico">💰</span> Honorários & Giro</button>
         <button class="sb-link" data-nav="/morimatsu-roteiro"><span class="sb-ico">🗓</span> Roteiro 90 dias</button>
         <button class="sb-link" data-nav="/morimatsu-documentos"><span class="sb-ico">📄</span> Documentos</button>
