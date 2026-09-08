@@ -100,7 +100,8 @@ export const VARS = [
   ['vpl', 'VPL pela TMA', 'parecer'],
   ['lance_maximo', 'LANCE MÁXIMO', 'parecer'],
   ['desagio_necessario', 'Deságio necessário', 'parecer'],
-  ['veredito', 'Veredito', 'parecer'],
+  ['veredito', 'Veredito (viável/condicionado/reprovado)', 'parecer'],
+  ['condicoes', 'Condições que destravam a operação', 'parecer'],
   ['risco', 'Grau de risco', 'parecer'],
   ['parecer_tecnico', 'Parecer técnico do analista', 'parecer'],
   ['pes_venda', 'Cenário pessimista · venda', 'parecer'], ['pes_prazo', 'Pessimista · prazo', 'parecer'],
@@ -218,7 +219,8 @@ Pontos verificados nesta análise, que devem ser confirmados na due diligence ju
 ---
 ## 9. CONCLUSÃO
 No cenário base, a operação projeta resultado de **{{lucro}}** em {{prazo}}, com retorno de {{roi}} sobre o investimento. O lance máximo compatível com a margem exigida é de **{{lance_maximo}}**, contra os {{lance}} analisados.
-**Recomendação:** {{veredito}}.
+**Recomendação:** {{veredito}}
+{{condicoes}}
 ---
 ## 10. RESSALVAS
 Os valores de mercado, reforma, prazo de desocupação e débitos são **estimativas** baseadas nas informações disponíveis na data deste parecer e nos documentos do edital. Alterações no estado do imóvel, no valor de mercado, no prazo de desocupação ou na existência de débitos não informados modificam o resultado projetado.

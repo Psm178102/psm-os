@@ -263,11 +263,12 @@ export function renderImoveis() {
 function liImovel(i) {
   const st = IMV_STATUS.find(s => s.id === i.status) || IMV_STATUS[0];
   const an = analise(i);
+  const _v = veredito(i, {}); const V = _v.status === 'sem_dados' ? null : _v;
   const inv = invPorId(i.investidor_id);
   const hoje = hojeISO();
   return `<div class="ma-li" data-abrir-imv="${esc(i.id)}">
     <div>
-      <div class="flex items-center gap-2" style="flex-wrap:wrap"><b>${esc(i.titulo)}</b><span class="ma-status" style="background:${st.cor}">${st.emoji} ${esc(st.nome)}</span>${i.data_certame ? `<span class="ma-tag" style="background:${i.data_certame < hoje ? '#64748b' : '#ef4444'}">🔨 ${dtBR(i.data_certame)}</span>` : ''}${i.ocupado ? '<span class="ma-tag" style="background:#d97706">ocupado</span>' : ''}${i.aceita_fin ? '<span class="ma-tag" style="background:#0ea5e9">financiável · Porta 2</span>' : ''}${i.analise?.risco ? `<span class="ma-tag" style="background:#334155">${RISCO[i.analise.risco]}</span>` : ''}</div>
+      <div class="flex items-center gap-2" style="flex-wrap:wrap"><b>${esc(i.titulo)}</b><span class="ma-status" style="background:${st.cor}">${st.emoji} ${esc(st.nome)}</span>${i.data_certame ? `<span class="ma-tag" style="background:${i.data_certame < hoje ? '#64748b' : '#ef4444'}">🔨 ${dtBR(i.data_certame)}</span>` : ''}${i.ocupado ? '<span class="ma-tag" style="background:#d97706">ocupado</span>' : ''}${i.aceita_fin ? '<span class="ma-tag" style="background:#0ea5e9">financiável · Porta 2</span>' : ''}${i.analise?.risco ? `<span class="ma-tag" style="background:#334155">${RISCO[i.analise.risco]}</span>` : ''}${V ? `<span class="ma-tag" style="background:${V.cor}">${V.rotulo}</span>` : ''}</div>
       <div class="tiny muted">${esc([IMV_TIPO[i.tipo], i.bairro, i.cidade, MODAL[i.modalidade], i.credor].filter(Boolean).join(' · '))}${i.matricula ? ' · matr. ' + esc(i.matricula) : ''}</div>
       <div class="tiny" style="margin-top:3px">Avaliação ${brl(i.avaliacao)} · lance mín. ${brl(i.lance_min)}${an.lance_max ? ` · <b>lance máx. ${brl(an.lance_max)}</b>` : ''}${an.desconto ? ` · desconto ${an.desconto}%` : ''}${inv ? ` · 💼 ${esc(inv.nome)}` : ' · <span class="muted">sem investidor</span>'}</div>
     </div>
@@ -398,6 +399,56 @@ export function lanceMax(i, o, margemPct) {
   return Math.max(0, Math.floor(L / 500) * 500);
 }
 
+
+/* ═══════════ ⚖️ VEREDITO — viável · condicionado · reprovado ═══════════
+   Um imóvel raramente é um sim ou um não seco. Na mesa, a pergunta é
+   "fecha em alguma hipótese?". Então o motor devolve três estados:
+     VIÁVEL       — fecha no lance analisado, do jeito que o imóvel está
+     CONDICIONADO — não fecha assim, mas existe condição concreta que destrava
+                    (comprar por até X, desocupado, sem os débitos, reforma menor…)
+     REPROVADO    — não existe lance possível: o teto fica abaixo do lance mínimo
+                    do edital, ou não sobra nada nem no melhor arranjo
+   Cada condição é testada mexendo em UMA alavanca de cada vez e rodando o motor. */
+export function veredito(i, o) {
+  o = o || {};
+  const base = motor(i, o);
+  const lm = lanceMax(i, o);
+  const minEdital = num(i.lance_min) || 0;
+  if (!base.L || !base.merc) return { status: 'sem_dados', rotulo: 'SEM DADOS', cor: '#64748b', lm, base, cond: [], motivo: 'informe ao menos o valor de mercado e o lance para o motor rodar' };
+  if (base.viavel) return { status: 'viavel', rotulo: 'VIÁVEL', cor: '#16a34a', lm, base, cond: [], motivo: '' };
+
+  const cond = [];
+  const alt = mod => motor({ ...i, analise: { ...(i.analise || {}), ...(mod.analise || {}) } }, { ...o, ...(mod.opts || {}) });
+  const A = { ...(i.analise || {}) };
+
+  // 1) preço: existe lance que fecha?
+  const precoPossivel = lm > 0 && (!minEdital || lm >= minEdital);   // abaixo do mínimo do edital não há lance a dar
+  if (precoPossivel && lm < base.L) cond.push(`comprar por até ${brl(lm)} — você analisou ${brl(base.L)}`);
+
+  // 2) ocupação
+  if (i.ocupado && alt({ opts: { desocupado: true } }).viavel) cond.push('comprar desocupado, ou fechar a desocupação antes do lance');
+
+  // 3) débitos do edital
+  const deb = num(A.debitos) || num(i.debitos_cond) || 0;
+  if (deb > 0 && alt({ analise: { debitos: 0 } }).viavel) cond.push(`os ${brl(deb)} de débitos ficarem por conta do credor — conferir na ficha da unidade`);
+
+  // 4) reforma
+  const ref = num(A.reforma) || 0;
+  if (ref > 0 && alt({ analise: { reforma: ref / 2 } }).viavel) cond.push(`reforma sair por até ${brl(ref / 2)} — orçar antes de cobrir o lance`);
+
+  // 5) velocidade de venda
+  const mv = A.m_venda != null ? num(A.m_venda) : 3;
+  if (mv > 1 && alt({ analise: { m_venda: 1 } }).viavel) cond.push('vender em até 1 mês após a reforma — só com preço de liquidez');
+
+  if (cond.length && precoPossivel) return { status: 'condicionado', rotulo: 'CONDICIONADO', cor: '#d97706', lm, base, cond, motivo: '' };
+  if (cond.length) return { status: 'condicionado', rotulo: 'CONDICIONADO', cor: '#d97706', lm, base,
+    cond: cond.concat([`atenção: mesmo assim o teto (${brl(lm)}) fica abaixo do lance mínimo do edital (${brl(minEdital)})`]), motivo: '' };
+  const motivo = (minEdital && lm < minEdital)
+    ? `o lance máximo (${brl(lm)}) fica abaixo do lance mínimo do edital (${brl(minEdital)}) — não há preço que feche`
+    : 'nem mexendo em preço, ocupação, débitos, reforma ou prazo a operação entrega o retorno exigido';
+  return { status: 'reprovado', rotulo: 'REPROVADO', cor: '#ef4444', lm, base, cond: [], motivo };
+}
+
 /* Compat: liImovel e criarOperacao continuam chamando analise(i) */
 export function analise(i) {
   const r = motor(i, {});
@@ -526,7 +577,20 @@ function anOut(i, cen, lm, rotaOcup, rotaDeso, custoOcupacao) {
       <div class="tiny muted">lucro do investidor · ROI ${pct(R.r.roi)} em ${R.r.prazo}m</div>
       <div class="tiny" style="margin-top:6px">Lance máximo <b>${brl(R.lm)}</b> <span class="muted">(deságio ${R.r.aval ? Math.round((1 - R.lm / R.r.aval) * 100) : 0}% sobre a avaliação)</span></div>
     </div>`;
+  const V = veredito(i, {});
   return `
+    <div class="ma-veredito" style="border-color:${V.cor}">
+      <div class="ma-ver-selo" style="background:${V.cor}">${V.rotulo}</div>
+      <div style="flex:1;min-width:220px">
+        ${V.status === 'sem_dados'
+          ? `<div>${esc(V.motivo)}.</div>`
+          : V.status === 'viavel'
+          ? `<div>Fecha no lance de <b>${brl(V.base.L)}</b>: lucro de <b>${brl(V.base.lucro)}</b> em ${V.base.prazo} meses, ${(V.base.roi * 100).toFixed(1).replace('.', ',')}% sobre o investimento. Teto: ${brl(V.lm)}.</div>`
+          : V.status === 'condicionado'
+            ? `<div>Não fecha do jeito que está, mas fecha <b>se</b>:</div><ul class="ma-cond">${V.cond.map(c => `<li>${esc(c)}</li>`).join('')}</ul>`
+            : `<div>Não fecha em nenhuma hipótese testada — ${esc(V.motivo)}.</div>`}
+      </div>
+    </div>
     <div class="ma-sec">As duas rotas — a conta decide, não a estratégia</div>
     <div class="ma-rotas">
       ${rota('🔒 Ocupado', rotaOcup, !i.ocupado === false)}
@@ -544,7 +608,7 @@ function anOut(i, cen, lm, rotaOcup, rotaDeso, custoOcupacao) {
       ${linha('ROI', r => r.roi, pct)}
       ${linha('TIR ao mês', r => r.tir, x => (x * 100).toFixed(2).replace('.', ',') + '%')}
       ${linha('VPL pela TMA', r => r.vpl, brl)}
-      <tr><td><b>Veredito</b></td>${cen.map(c => `<td style="text-align:right"><span class="ma-status" style="background:${c.r.viavel ? '#16a34a' : '#ef4444'}">${c.r.viavel ? 'VIÁVEL' : 'INVIÁVEL'}</span></td>`).join('')}</tr>
+      <tr><td><b>Fecha neste cenário?</b></td>${cen.map(c => `<td style="text-align:right"><span class="ma-status" style="background:${c.r.viavel ? '#16a34a' : '#94a3b8'}">${c.r.viavel ? 'SIM' : 'NÃO'}</span></td>`).join('')}</tr>
     </table></div>
     <div class="tiny muted">TMA exigida: ${(tmaMes() * 100).toFixed(2).replace('.', ',')}% ao mês (${v.tma_aa}% ao ano). Passa quem tiver lucro positivo <i>e</i> TIR acima da TMA.</div>
 
@@ -633,6 +697,7 @@ export function gerarParecer(i) {
   const cen = { pes: motor(i, { fator: fb - 7, multRef: 1.3, extra: 3 }), base: motor(i, {}), oti: motor(i, { fator: fb + 3, multRef: 0.85, extra: -1 }) };
   const ro = motor(i, { desocupado: false }), rd = motor(i, { desocupado: true });
   const lm = lanceMax(i, {});
+  const V = veredito(i, {});
   const b = cen.base;
   const pc = x => (x * 100).toFixed(1).replace('.', ',') + '%';
   const mm = x => (num(x) < 0 ? '−' : '') + 'R$ ' + Math.abs(num(x)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -650,7 +715,13 @@ export function gerarParecer(i) {
     lucro: mm(b.lucro), roi: pc(b.roi), tir: (b.tir * 100).toFixed(2).replace('.', ',') + '% ao mês',
     prazo: meses(b.prazo), breakeven: mm(b.breakeven), vpl: mm(b.vpl),
     lance_maximo: mm(lm), desagio_necessario: b.aval ? pc(1 - lm / b.aval) : '—',
-    veredito: b.L <= lm ? 'Lance dentro do teto — operação recomendada' : 'Lance ACIMA do teto — não recomendada neste valor',
+    veredito: ({ viavel: 'VIÁVEL — operação recomendada no lance analisado',
+                 condicionado: 'CONDICIONADO — recomendada apenas nas condições abaixo',
+                 reprovado: 'REPROVADO — não recomendada',
+                 sem_dados: 'SEM DADOS SUFICIENTES' })[V.status] || '—',
+    condicoes: V.status === 'condicionado' ? V.cond.map(c => '· ' + c).join('\n')
+      : V.status === 'reprovado' ? '· ' + V.motivo
+      : '· Nenhuma condição adicional: a operação fecha no lance analisado.',
     risco: ({ baixo: 'Baixo', medio: 'Médio', alto: 'Alto' })[A.risco] || 'não classificado',
     parecer_tecnico: A.parecer || 'Sem observações técnicas registradas nesta análise.',
     rota_oc_lucro: mm(ro.lucro), rota_oc_lm: mm(lanceMax(i, { desocupado: false })), rota_oc_prazo: meses(ro.prazo),
