@@ -680,6 +680,8 @@ function injectCss() {
     .ma-chk label{display:flex;gap:8px;align-items:center;padding:6px 10px;border-radius:8px;background:var(--bg-2);border:1px solid var(--border);font-size:12.5px;cursor:pointer}
     .ma-sec{font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;opacity:.65;font-weight:800;margin:14px 0 6px;color:${COR.dourado}}
     .ma-drawer-tabs{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0 10px}
+    .ma-bloco{display:flex;gap:12px;align-items:center;margin:-2px 0 12px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+    .ma-bloco-n{flex:0 0 30px;height:30px;border-radius:50%;background:var(--bg-3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;color:#9C7A3C}
     .ma-veredito{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;margin-top:12px;padding:12px 14px;background:var(--bg-2);border:1px solid var(--border);border-left:4px solid;border-radius:12px;font-size:13.5px;line-height:1.5}
     .ma-ver-selo{color:#fff;font-weight:900;font-size:11.5px;letter-spacing:1.2px;padding:4px 12px;border-radius:6px;white-space:nowrap}
     .ma-cond{margin:6px 0 0;padding-left:18px}

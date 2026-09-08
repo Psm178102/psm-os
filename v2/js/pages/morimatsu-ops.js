@@ -299,6 +299,7 @@ export const VIAB_DEFAULT = {
   margem_alvo: 20,      // % sobre o investimento — base do lance máximo
   tma_aa: 15,           // % ao ano
   itbi: 2, registro: 1.5, escritura: 1, leiloeiro: 5, banco: 2, plataforma: 3,
+  fee_tabela: [{ ate: 450000, pct: 6 }, { ate: null, pct: 5 }],   // comissão da assessoria por faixa de arremate
   ir_pf: 15, carga_pj: 5.93,
   iptu_ano: 2400, cond_mes: 600, util_mes: 150, seguro_ano: 800, manut_mes: 200,
 };
@@ -309,24 +310,74 @@ const ehLeilao = i => ['extra', 'judicial'].includes(i.modalidade);
 const canalPct = i => { const v = viab(); return i.modalidade === 'direta' ? v.banco / 100 : i.modalidade === 'online' ? v.plataforma / 100 : 0; };
 
 /* Parâmetros do imóvel, com os padrões de quem ainda não preencheu */
+/* Tabela de comissão da assessoria por FAIXA de arremate (v87.67).
+   Regra do Paulo: até R$ 450.000 → 6% do valor de arremate. Acima disso a faixa
+   é editável nas Premissas (padrão 5%, a tabela v1). O piso protege ticket baixo. */
+export const FEE_TABELA_DEFAULT = [{ ate: 450000, pct: 6 }, { ate: null, pct: 5 }];
+export const tabelaFee = () => {
+  const t = viab().fee_tabela;
+  return (Array.isArray(t) && t.length) ? t : FEE_TABELA_DEFAULT;
+};
+export function feeAssessoria(L) {
+  L = num(L);
+  if (L <= 0) return 0;
+  const f = cfg().fee, t = tabelaFee();
+  const faixa = t.find(x => !num(x.ate) || L <= num(x.ate)) || t[t.length - 1];
+  return Math.max(L * num(faixa.pct) / 100, num(f.piso));
+}
+export const faixaFee = L => {
+  const t = tabelaFee();
+  return t.find(x => !num(x.ate) || num(L) <= num(x.ate)) || t[t.length - 1];
+};
+
+/* Rótulos didáticos — a tela, o parecer e a cascata falam a mesma língua */
+export const CUSTO_LABEL = {
+  lance: 'Arrematação (lance)',
+  leiloeiro: 'Comissão do leiloeiro',
+  canal: 'Taxa do banco ou da plataforma',
+  itbi: 'ITBI',
+  registro: 'Registro e emolumentos',
+  escritura: 'Documentação e escritura',
+  fee: 'Comissão da assessoria',
+  dd: 'Due diligence (custas processuais e taxas)',
+  advogado: 'Advogado e custas da imissão',
+  ocupacao: 'Taxa de ocupação do credor',
+  debitos_iptu: 'Débitos de IPTU',
+  debitos_cond: 'Débitos de condomínio',
+  reforma: 'Reforma',
+  mobilia: 'Mobília',
+  posse: 'Custos correntes de posse no período',
+};
+
 function par(i, o) {
   const v = viab(), A = { ...(i.analise || {}) };
   const aval = num(i.avaliacao) || num(i.lance_min) || 0;
   const desoc = (o.desocupado != null) ? o.desocupado : !i.ocupado;
   const m_oc = desoc ? 0 : (A.m_ocup != null ? num(A.m_ocup) : 3);
+  const merc = num(A.mercado) || aval;
+  // débitos: split IPTU × condomínio (v87.67). O campo antigo `debitos` vira condomínio.
+  const dIptu = A.debitos_iptu != null ? num(A.debitos_iptu) : 0;
+  const dCond = A.debitos_cond != null ? num(A.debitos_cond) : (num(A.debitos) || num(i.debitos_cond) || 0);
   return {
-    v, A, aval, desoc, m_oc,
-    merc: num(A.mercado) || aval,
+    v, A, aval, desoc, m_oc, merc,
     venal: num(A.venal) || aval,
     L: num(o.lance != null ? o.lance : (A.lance_base || i.lance_min)),
+    m_doc: A.m_docs != null ? num(A.m_docs) : 1,
     m_ref: A.m_reforma != null ? num(A.m_reforma) : 2,
     m_ven: A.m_venda != null ? num(A.m_venda) : 3,
     reforma: (num(A.reforma) || 0) * (o.multRef || 1),
     mobilia: num(A.mobilia) || 0,
     dd: A.dd != null ? num(A.dd) : 1500,
     advogado: desoc ? 0 : (A.advogado != null ? num(A.advogado) : 8000),
-    debitos: num(A.debitos) || num(i.debitos_cond) || 0,
-    fator: (o.fator != null ? o.fator : (num(A.fator_venda) || v.fator_venda)) / 100,
+    dIptu, dCond,
+    // valor de venda esperado: valor direto vence o "% do mercado"
+    vendaBase: num(A.venda_esperada) || merc * ((o.fator != null ? o.fator : (num(A.fator_venda) || v.fator_venda)) / 100),
+    multVenda: o.multVenda != null ? o.multVenda : 1,
+    // overrides em R$ (o usuário digitou o valor exato do carnê/guia)
+    itbiValor: num(A.itbi_valor) || 0,
+    escrituraValor: num(A.escritura_valor) || 0,
+    // comissão de revenda: pode ser 0 (venda sem corretor)
+    comRevenda: A.comissao_revenda != null ? num(A.comissao_revenda) : num(cfg().fee.comissao_pct),
   };
 }
 
@@ -334,71 +385,93 @@ export function motor(i, o) {
   o = o || {};
   const P = par(i, o), v = P.v, f = cfg().fee;
   const L = P.L;
-  const prazo = Math.max(1, P.m_oc + P.m_ref + P.m_ven + (o.extra || 0));
+  const prazo = Math.max(1, P.m_oc + P.m_doc + P.m_ref + P.m_ven + (o.extra || 0));
   const feeEntra = v.fee_no_custo !== false;
   const c = {
     lance: L,
     leiloeiro: ehLeilao(i) ? L * v.leiloeiro / 100 : 0,
     canal: L * canalPct(i),
-    escritura: ehLeilao(i) ? 0 : L * v.escritura / 100,
-    itbi: Math.max(P.venal, L) * v.itbi / 100,
+    itbi: P.itbiValor || Math.max(P.venal, L) * v.itbi / 100,
     registro: L * v.registro / 100,
-    fee: (feeEntra && L > 0) ? Math.max(L * f.exito_pct / 100, num(f.piso)) + num(f.analise) + num(f.certame) : 0,
+    escritura: P.escrituraValor || (ehLeilao(i) ? 0 : L * v.escritura / 100),
+    fee: (feeEntra && L > 0) ? feeAssessoria(L) + num(f.analise) + num(f.certame) : 0,
     dd: P.dd,
     advogado: P.advogado,
     ocupacao: P.desoc ? 0 : P.aval * v.taxa_ocup_mes / 100 * P.m_oc,
-    debitos: P.debitos,
+    debitos_iptu: P.dIptu,
+    debitos_cond: P.dCond,
     reforma: P.reforma,
     mobilia: P.mobilia,
     posse: posseMes() * prazo,
   };
   const inv = Object.values(c).reduce((s, x) => s + x, 0);
-  const venda = P.merc * P.fator;
-  const corret = venda * f.comissao_pct / 100;
+  const venda = P.vendaBase * P.multVenda;
+  const corret = venda * P.comRevenda / 100;
+  // custo de aquisição para o IR: lance + transmissão + benfeitorias comprovadas
   const cf = c.lance + c.leiloeiro + c.itbi + c.registro + c.escritura + c.reforma + c.mobilia;
   const ganho = Math.max(0, venda - cf);
   const imposto = v.regime === 'PJ' ? venda * v.carga_pj / 100 : ganho * v.ir_pf / 100;
   const lucro = venda - corret - imposto - inv;
-  const roi = inv ? lucro / inv : 0;
-  const tir = roi <= -1 ? -1 : Math.pow(1 + roi, 1 / prazo) - 1;
+  const agio = inv ? lucro / inv : 0;            // ágio total sobre o capital investido
+  const agioMes = prazo ? agio / prazo : 0;      // ágio dividido pelos meses até a venda
+  const tir = agio <= -1 ? -1 : Math.pow(1 + agio, 1 / prazo) - 1;
   const tm = tmaMes();
-  const feeGrupo = L > 0 ? Math.max(L * f.exito_pct / 100, num(f.piso)) + num(f.analise) + num(f.certame) : 0;
+  const feeGrupo = L > 0 ? feeAssessoria(L) + num(f.analise) + num(f.certame) : 0;
   return {
     L, lance_base: L, prazo, custos: c, inv, custo_total: inv, venda, corret, cf, ganho, imposto,
-    lucro, roi, tir, tma_m: tm, fee: c.fee, feeGrupo, receitaGrupo: feeGrupo + corret,
+    lucro, roi: agio, agio, agioMes, tir, tma_m: tm, fee: c.fee, feeGrupo, receitaGrupo: feeGrupo + corret,
+    meses: { ocupacao: P.m_oc, documentacao: P.m_doc, reforma: P.m_ref, venda: P.m_ven },
     vpl: -inv + (venda - corret - imposto) / Math.pow(1 + tm, prazo),
-    breakeven: inv / (1 - f.comissao_pct / 100),
+    breakeven: inv / (1 - P.comRevenda / 100),
     desconto: P.merc && L ? Math.round((1 - L / P.merc) * 100) : 0,
     desconto_aval: P.aval && L ? Math.round((1 - L / P.aval) * 100) : 0,
     viavel: lucro > 0 && tir >= tm, desoc: P.desoc, merc: P.merc, aval: P.aval,
+    faixaFee: faixaFee(L), comRevenda: P.comRevenda,
   };
 }
 
-/* Lance máximo: dada a saída provável e a margem exigida, quanto dá para cobrir.
-   Fórmula fechada (assume venal ≥ lance, o caso normal em arrematação com deságio);
-   se o piso do fee passar a valer, resolve de novo com o fee fixo. */
+/* Lance máximo: dada a saída esperada e o ágio exigido, quanto dá para cobrir.
+   A comissão da assessoria é POR FAIXA, então a equação é resolvida faixa a faixa
+   (mais o caso do piso) e fica o maior lance que cai dentro da própria faixa. */
 export function lanceMax(i, o, margemPct) {
   o = o || {};
   const P = par(i, o), v = P.v, f = cfg().fee;
   const m = (margemPct != null ? margemPct : (num(P.A.margem_pct) || v.margem_alvo)) / 100;
-  const prazo = Math.max(1, P.m_oc + P.m_ref + P.m_ven + (o.extra || 0));
+  const prazo = Math.max(1, P.m_oc + P.m_doc + P.m_ref + P.m_ven + (o.extra || 0));
   const feeEntra = v.fee_no_custo !== false;
-  const V = P.merc * P.fator, cor = f.comissao_pct / 100;
-  const ITBI = P.venal * v.itbi / 100;
+  const V = P.vendaBase * P.multVenda, cor = P.comRevenda / 100;
+  const ITBI = P.itbiValor || P.venal * v.itbi / 100;   // fixo: assume venal ≥ lance
   const B = P.reforma + P.mobilia;
   const F = P.dd + P.advogado + (P.desoc ? 0 : P.aval * v.taxa_ocup_mes / 100 * P.m_oc)
-    + P.debitos + B + posseMes() * prazo + (feeEntra ? num(f.analise) + num(f.certame) : 0);
-  const k = 1 + (ehLeilao(i) ? v.leiloeiro / 100 : 0) + v.registro / 100 + (ehLeilao(i) ? 0 : v.escritura / 100);
+    + P.dIptu + P.dCond + B + posseMes() * prazo + (feeEntra ? num(f.analise) + num(f.certame) : 0)
+    + (P.escrituraValor || 0);
+  // parcelas proporcionais ao lance
+  const kFiscal = 1 + (ehLeilao(i) ? v.leiloeiro / 100 : 0) + v.registro / 100
+    + (P.escrituraValor ? 0 : (ehLeilao(i) ? 0 : v.escritura / 100));
+  const canal = canalPct(i);
   const pj = v.regime === 'PJ';
   const tau = pj ? 0 : v.ir_pf / 100;
   const solve = (K, Ff) => pj
     ? (V * (1 - cor - v.carga_pj / 100) / (1 + m) - ITBI - Ff) / K
-    : (V * (1 - cor - tau) + tau * (ITBI + B) - (1 + m) * (ITBI + Ff)) / ((1 + m) * K - tau * k);
-  let L = solve(k + canalPct(i) + (feeEntra ? f.exito_pct / 100 : 0), F);
-  if (feeEntra && L * f.exito_pct / 100 < num(f.piso)) L = solve(k + canalPct(i), F + num(f.piso));
-  return Math.max(0, Math.floor(L / 500) * 500);
-}
+    : (V * (1 - cor - tau) + tau * (ITBI + B) - (1 + m) * (ITBI + Ff)) / ((1 + m) * K - tau * kFiscal);
 
+  const cand = [];
+  if (feeEntra) {
+    for (const faixa of tabelaFee()) {
+      const L = solve(kFiscal + canal + num(faixa.pct) / 100, F);
+      const teto = num(faixa.ate) || Infinity;
+      // vale se cai dentro da faixa E o percentual supera o piso
+      if (L > 0 && L <= teto && L * num(faixa.pct) / 100 >= num(f.piso)) cand.push(L);
+    }
+    const Lpiso = solve(kFiscal + canal, F + num(f.piso));   // piso mandando
+    if (Lpiso > 0 && feeAssessoria(Lpiso) <= num(f.piso) + 0.01) cand.push(Lpiso);
+  } else {
+    const L = solve(kFiscal + canal, F);
+    if (L > 0) cand.push(L);
+  }
+  if (!cand.length) return 0;
+  return Math.max(0, Math.floor(Math.max(...cand) / 500) * 500);
+}
 
 /* ═══════════ ⚖️ VEREDITO — viável · condicionado · reprovado ═══════════
    Um imóvel raramente é um sim ou um não seco. Na mesa, a pergunta é
@@ -457,9 +530,12 @@ export function analise(i) {
 }
 
 const CENARIOS = [
-  { id: 'pes', nome: 'Pessimista', dFator: -7, multRef: 1.3, extra: 3, cor: '#ef4444' },
-  { id: 'base', nome: 'Base', dFator: 0, multRef: 1, extra: 0, cor: '#9C7A3C' },   // literal: import circular proíbe COR no top-level
-  { id: 'oti', nome: 'Otimista', dFator: 3, multRef: 0.85, extra: -1, cor: '#16a34a' },
+  { id: 'pes', nome: 'Pessimista', multVenda: 0.93, multRef: 1.3, extra: 3, cor: '#ef4444',
+    ajuda: 'vende 7% abaixo do esperado · reforma 30% maior · 3 meses a mais' },
+  { id: 'base', nome: 'Realista', multVenda: 1, multRef: 1, extra: 0, cor: '#9C7A3C',   // literal: import circular proíbe COR no top-level
+    ajuda: 'exatamente os números que você digitou' },
+  { id: 'oti', nome: 'Otimista', multVenda: 1.03, multRef: 0.85, extra: -1, cor: '#16a34a',
+    ajuda: 'vende 3% acima · reforma 15% menor · 1 mês a menos' },
 ];
 
 export function abrirImovel(i, aba) {
@@ -536,7 +612,7 @@ function wireDadosImv(box, i) {
 function analiseImv(i) {
   const v = viab(), A = { ...(i.analise || {}) }, f = cfg().fee;
   const fatorBase = num(A.fator_venda) || v.fator_venda;
-  const cen = CENARIOS.map(c => ({ ...c, r: motor(i, { fator: fatorBase + c.dFator, multRef: c.multRef, extra: c.extra }) }));
+  const cen = CENARIOS.map(c => ({ ...c, r: motor(i, { multVenda: c.multVenda, multRef: c.multRef, extra: c.extra }) }));
   const base = cen[1].r;
   const rotaOcup = { r: motor(i, { desocupado: false }), lm: lanceMax(i, { desocupado: false }) };
   const rotaDeso = { r: motor(i, { desocupado: true }), lm: lanceMax(i, { desocupado: true }) };
@@ -547,13 +623,19 @@ function analiseImv(i) {
     ${campo('Venal de referência — base do ITBI', input('venal', A.venal || i.avaliacao, 'number'))}
     ${campo('Lance / preço de compra (R$)', input('lance_base', A.lance_base || i.lance_min, 'number'))}
     ${campo('Meses até desocupar', input('m_ocup', A.m_ocup != null ? A.m_ocup : 3, 'number'))}
+    ${campo('Meses de desembaraço da documentação', input('m_docs', A.m_docs != null ? A.m_docs : 1, 'number'))}
     ${campo('Meses de reforma', input('m_reforma', A.m_reforma != null ? A.m_reforma : 2, 'number'))}
     ${campo('Meses de comercialização', input('m_venda', A.m_venda != null ? A.m_venda : 3, 'number'))}
     ${campo('Reforma (R$)', input('reforma', A.reforma, 'number'))}
     ${campo('Mobília (R$)', input('mobilia', A.mobilia, 'number'))}
     ${campo('Due diligence (R$)', input('dd', A.dd != null ? A.dd : 1500, 'number'))}
     ${campo('Advogado + imissão (R$)', input('advogado', A.advogado != null ? A.advogado : 8000, 'number'))}
-    ${campo('Débitos do edital (R$)', input('debitos', A.debitos || i.debitos_cond, 'number'))}
+    ${campo('Débitos de IPTU (R$)', input('debitos_iptu', A.debitos_iptu, 'number'))}
+    ${campo('Débitos de condomínio (R$)', input('debitos_cond', A.debitos_cond != null ? A.debitos_cond : (A.debitos || i.debitos_cond), 'number'))}
+    ${campo('ITBI (R$) — zero calcula', input('itbi_valor', A.itbi_valor, 'number'))}
+    ${campo('Documentação/escritura (R$) — zero calcula', input('escritura_valor', A.escritura_valor, 'number'))}
+    ${campo('Valor de venda esperado (R$) — zero usa o %', input('venda_esperada', A.venda_esperada, 'number'))}
+    ${campo('Comissão de revenda (%)', input('comissao_revenda', A.comissao_revenda != null ? A.comissao_revenda : cfg().fee.comissao_pct, 'number', 'step="0.5"'))}
     ${campo('Preço de saída (% do mercado)', input('fator_venda', fatorBase, 'number', 'step="0.5"'))}
     ${campo('Margem alvo (%)', input('margem_pct', A.margem_pct || v.margem_alvo, 'number'))}
     ${campo('Risco', select('risco', RISCO, A.risco))}
@@ -605,7 +687,8 @@ function anOut(i, cen, lm, rotaOcup, rotaDeso, custoOcupacao) {
       ${linha('Prazo (meses)', r => r.prazo, x => x)}
       ${linha('Investimento total', r => r.inv, brl)}
       ${linha('Lucro do investidor', r => r.lucro, brl)}
-      ${linha('ROI', r => r.roi, pct)}
+      ${linha('Ágio total', r => r.agio, pct)}
+      ${linha('Ágio ao mês', r => r.agioMes, x => (x * 100).toFixed(2).replace('.', ',') + '%')}
       ${linha('TIR ao mês', r => r.tir, x => (x * 100).toFixed(2).replace('.', ',') + '%')}
       ${linha('VPL pela TMA', r => r.vpl, brl)}
       <tr><td><b>Fecha neste cenário?</b></td>${cen.map(c => `<td style="text-align:right"><span class="ma-status" style="background:${c.r.viavel ? '#16a34a' : '#94a3b8'}">${c.r.viavel ? 'SIM' : 'NÃO'}</span></td>`).join('')}</tr>
@@ -625,14 +708,15 @@ function wireAnaliseImv(box, i) {
   const form = box.querySelector('#f-an'); if (!form) return;
   const ler = () => {
     const fd = new FormData(form), a = { ...(i.analise || {}) };
-    ['mercado', 'venal', 'lance_base', 'm_ocup', 'm_reforma', 'm_venda', 'reforma', 'mobilia', 'dd', 'advogado', 'debitos', 'fator_venda', 'margem_pct']
-      .forEach(k => { a[k] = num(fd.get(k)); });
+    ['mercado', 'venal', 'lance_base', 'm_ocup', 'm_docs', 'm_reforma', 'm_venda', 'reforma', 'mobilia', 'dd', 'advogado',
+     'debitos_iptu', 'debitos_cond', 'itbi_valor', 'escritura_valor', 'venda_esperada', 'comissao_revenda', 'fator_venda', 'margem_pct']
+      .forEach(k => { if (fd.get(k) !== null) a[k] = num(fd.get(k)); });
     a.risco = fd.get('risco'); a.parecer = String(fd.get('parecer') || '').trim();
     return a;
   };
   const redesenhar = () => {
     const it = { ...i, analise: ler() }, fb = num(ler().fator_venda) || viab().fator_venda;
-    const cen = CENARIOS.map(c => ({ ...c, r: motor(it, { fator: fb + c.dFator, multRef: c.multRef, extra: c.extra }) }));
+    const cen = CENARIOS.map(c => ({ ...c, r: motor(it, { multVenda: c.multVenda, multRef: c.multRef, extra: c.extra }) }));
     const ro = { r: motor(it, { desocupado: false }), lm: lanceMax(it, { desocupado: false }) };
     const rd = { r: motor(it, { desocupado: true }), lm: lanceMax(it, { desocupado: true }) };
     box.querySelector('#an-out').innerHTML = anOut(it, cen, lanceMax(it, {}), ro, rd, ro.r.inv - rd.r.inv);
@@ -655,7 +739,10 @@ export function editarViab(depois) {
     ${campo('Regime tributário', select('regime', { PF: 'PF — 15% sobre o ganho', PJ: 'PJ — carga sobre a receita' }, v.regime))}
     ${campo('Fee da assessoria entra no custo?', select('fee_no_custo', { sim: 'SIM — o investidor vê o custo real', nao: 'NÃO — viabilidade antes do fee' }, v.fee_no_custo === false ? 'nao' : 'sim'))}
     ${campo('Taxa de ocupação da Caixa (%/mês)', input('taxa_ocup_mes', v.taxa_ocup_mes, 'number', 'step="0.1"'))}
-    ${campo('Margem alvo padrão (%)', input('margem_alvo', v.margem_alvo, 'number'))}
+    ${campo('Ágio alvo padrão (%)', input('margem_alvo', v.margem_alvo, 'number'))}
+    ${campo('Assessoria — até R$ (1ª faixa)', input('fx1_ate', tabelaFee()[0]?.ate ?? 450000, 'number'), true)}
+    ${campo('Assessoria — % da 1ª faixa', input('fx1_pct', tabelaFee()[0]?.pct ?? 6, 'number', 'step="0.5"'))}
+    ${campo('Assessoria — % acima disso', input('fx2_pct', tabelaFee()[1]?.pct ?? 5, 'number', 'step="0.5"'))}
     ${campo('TMA (% ao ano)', input('tma_aa', v.tma_aa, 'number'))}
     ${campo('ITBI (%)', input('itbi', v.itbi, 'number', 'step="0.1"'))}
     ${campo('Registro (%)', input('registro', v.registro, 'number', 'step="0.1"'))}
@@ -678,6 +765,7 @@ export function editarViab(depois) {
       ev.preventDefault(); const fd = new FormData(ev.target), o = {};
       ['fator_venda', 'taxa_ocup_mes', 'margem_alvo', 'tma_aa', 'itbi', 'registro', 'escritura', 'leiloeiro', 'banco', 'plataforma', 'ir_pf', 'carga_pj', 'iptu_ano', 'cond_mes', 'util_mes', 'seguro_ano', 'manut_mes']
         .forEach(k => { o[k] = num(fd.get(k)); });
+      o.fee_tabela = [{ ate: num(fd.get('fx1_ate')) || 450000, pct: num(fd.get('fx1_pct')) || 6 }, { ate: null, pct: num(fd.get('fx2_pct')) || 5 }];
       o.regime = fd.get('regime') || 'PF';
       o.fee_no_custo = fd.get('fee_no_custo') !== 'nao';
       fecharModal(); await setCol('config', { ...S.config, viab: o }); if (depois) depois();
@@ -694,7 +782,7 @@ export function gerarParecer(i) {
   if (!m) return alert('Minuta de parecer não encontrada.');
   const v = viab(), A = { ...(i.analise || {}) };
   const fb = num(A.fator_venda) || v.fator_venda;
-  const cen = { pes: motor(i, { fator: fb - 7, multRef: 1.3, extra: 3 }), base: motor(i, {}), oti: motor(i, { fator: fb + 3, multRef: 0.85, extra: -1 }) };
+  const cen = { pes: motor(i, { multVenda: 0.93, multRef: 1.3, extra: 3 }), base: motor(i, {}), oti: motor(i, { multVenda: 1.03, multRef: 0.85, extra: -1 }) };
   const ro = motor(i, { desocupado: false }), rd = motor(i, { desocupado: true });
   const lm = lanceMax(i, {});
   const V = veredito(i, {});
@@ -760,36 +848,49 @@ export function gerarParecer(i) {
    Na mesa do leilão não dá para cadastrar imóvel antes de fazer conta. Aqui o
    simulador roda solto: digita os números e o veredito sai na hora. Se quiser,
    puxa um imóvel já cadastrado, mexe à vontade e só grava se decidir gravar.
-   A simulação fica no navegador (localStorage), então recarregar não perde. */
+   A simulação fica no navegador (localStorage), então recarregar não perde.
+   v87.67: campos completos (prazos separados, débitos separados, comissão da
+   assessoria por faixa) e cascata didática mostrando para onde vai cada real. */
 const SIM_KEY = 'psm.morimatsu.sim';
 const simVazia = () => ({
   id: '__sim', titulo: '', modalidade: 'extra', credor: 'Caixa Econômica Federal',
   cidade: '', bairro: '', matricula: '', cartorio: '', area: 0,
-  avaliacao: 0, lance_min: 0, ocupado: true, debitos_cond: 0, vinculo: null,
-  analise: { mercado: 0, venal: 0, lance_base: 0, m_ocup: 3, m_reforma: 2, m_venda: 3, reforma: 0, mobilia: 0, dd: 1500, advogado: 8000, debitos: 0, risco: '', parecer: '' },
+  avaliacao: 0, lance_min: 0, ocupado: true, vinculo: null,
+  analise: {
+    mercado: 0, venal: 0, lance_base: 0,
+    m_ocup: 3, m_docs: 1, m_reforma: 2, m_venda: 3,
+    reforma: 0, mobilia: 0, dd: 1500, advogado: 8000,
+    debitos_iptu: 0, debitos_cond: 0, itbi_valor: 0, escritura_valor: 0,
+    venda_esperada: 0, comissao_revenda: 6, margem_pct: 20,
+  },
 });
 let _sim = null;
 function sim() {
   if (_sim) return _sim;
-  try { const g = JSON.parse(localStorage.getItem(SIM_KEY) || 'null'); if (g && g.analise) _sim = g; } catch (_) { _sim = null; }
+  try { const g = JSON.parse(localStorage.getItem(SIM_KEY) || 'null'); if (g && g.analise) _sim = { ...simVazia(), ...g, analise: { ...simVazia().analise, ...g.analise } }; } catch (_) { _sim = null; }
   return (_sim = _sim || simVazia());
 }
 function salvarSim() { try { localStorage.setItem(SIM_KEY, JSON.stringify(_sim)); } catch (_) { /* modo anônimo */ } }
-/* Copia um imóvel cadastrado para dentro da simulação, sem alterar o original */
 function carregarImovel(id) {
   const o = imvPorId(id);
   if (!o) { _sim = simVazia(); return salvarSim(); }
   _sim = JSON.parse(JSON.stringify({ ...simVazia(), ...o, id: '__sim', vinculo: o.id, analise: { ...simVazia().analise, ...(o.analise || {}) } }));
-  if (!num(_sim.analise.mercado)) _sim.analise.mercado = num(o.avaliacao);
-  if (!num(_sim.analise.venal)) _sim.analise.venal = num(o.avaliacao);
-  if (!num(_sim.analise.lance_base)) _sim.analise.lance_base = num(o.lance_min);
+  const A = _sim.analise;
+  if (!num(A.mercado)) A.mercado = num(o.avaliacao);
+  if (!num(A.venal)) A.venal = num(o.avaliacao);
+  if (!num(A.lance_base)) A.lance_base = num(o.lance_min);
+  if (!num(A.debitos_cond) && num(o.debitos_cond)) A.debitos_cond = num(o.debitos_cond);
   salvarSim();
 }
+
+const ajuda = t => `<span class="tiny muted" style="display:block;margin-top:2px;line-height:1.35">${t}</span>`;
+const bloco = (n, titulo, sub) => `<div class="ma-bloco"><div class="ma-bloco-n">${n}</div><div><b>${titulo}</b>${sub ? `<div class="tiny muted">${sub}</div>` : ''}</div></div>`;
 
 export function renderSimulador() {
   const s = sim(), A = s.analise, v = viab(), f = cfg().fee;
   const vinc = s.vinculo ? imvPorId(s.vinculo) : null;
-  const opcoes = Object.fromEntries(S.imoveis.map(i => [i.id, i.titulo]));
+  const cmp = (lbl, campoHtml, dica) => `<label class="field">${lbl ? `<span class="tiny muted">${lbl}</span>` : ''}${campoHtml}${dica ? ajuda(dica) : ''}</label>`;
+  const faixas = tabelaFee().map(x => `${num(x.ate) ? 'até ' + brl(x.ate) : 'acima disso'} → ${x.pct}%`).join(' · ');
   return `
     <div class="card">
       <div class="flex items-center gap-2" style="flex-wrap:wrap">
@@ -797,9 +898,9 @@ export function renderSimulador() {
           <h2 class="card-title" style="margin:0">🧮 Simulador de arremate</h2>
           <div class="card-sub" style="margin:0">Digite os números e o veredito sai na hora. Não precisa cadastrar imóvel — se quiser, puxe um já cadastrado ou grave a simulação como imóvel novo.</div>
         </div>
-        <select class="input" id="sim-imv" style="max-width:260px">
+        <select class="input" id="sim-imv" style="max-width:250px">
           <option value="">🧮 Simulação avulsa</option>
-          ${Object.entries(opcoes).map(([id, t]) => `<option value="${esc(id)}" ${s.vinculo === id ? 'selected' : ''}>🏠 ${esc(t)}</option>`).join('')}
+          ${S.imoveis.map(i => `<option value="${esc(i.id)}" ${s.vinculo === i.id ? 'selected' : ''}>🏠 ${esc(i.titulo)}</option>`).join('')}
         </select>
         <button class="btn btn-ghost" id="sim-cfg">⚙️ Premissas</button>
         <button class="btn btn-ghost" id="sim-zerar">🔄 Limpar</button>
@@ -807,55 +908,136 @@ export function renderSimulador() {
       ${vinc ? `<div class="tiny muted mt-2">Vinculado a <b>${esc(vinc.titulo)}</b>. Mexer aqui não altera o imóvel — use “Salvar no imóvel” para gravar.</div>` : ''}
     </div>
 
+    <form id="f-sim">
     <div class="card">
-      <div class="ma-sec" style="margin-top:0">O imóvel</div>
-      <form class="ma-form" id="f-sim" style="grid-template-columns:repeat(auto-fit,minmax(155px,1fr))">
-        ${campo('Identificação', input('titulo', s.titulo, 'text', 'placeholder="Ap. 32 · Ed. Solar"'), true)}
-        ${campo('Modalidade', `<select class="input" name="modalidade">${Object.entries(MODAL).map(([k, l]) => `<option value="${k}" ${s.modalidade === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`)}
-        ${campo('Cidade', input('cidade', s.cidade))}
-        ${campo('Área útil (m²)', input('area', s.area, 'number'))}
-        ${campo('Valor de avaliação (R$)', input('avaliacao', s.avaliacao, 'number'))}
-        ${campo('Valor de mercado (R$)', input('mercado', A.mercado, 'number'))}
-        ${campo('Venal de referência — ITBI', input('venal', A.venal, 'number'))}
-        ${campo('Lance mínimo do edital (R$)', input('lance_min', s.lance_min, 'number'))}
-        ${campo('LANCE QUE VOCÊ PENSA EM DAR', input('lance_base', A.lance_base, 'number'))}
-        ${campo('Ocupado?', `<select class="input" name="ocupado"><option value="1" ${s.ocupado ? 'selected' : ''}>Sim</option><option value="" ${s.ocupado ? '' : 'selected'}>Não</option></select>`)}
-        ${campo('Meses até desocupar', input('m_ocup', A.m_ocup, 'number'))}
-        ${campo('Meses de reforma', input('m_reforma', A.m_reforma, 'number'))}
-        ${campo('Meses de comercialização', input('m_venda', A.m_venda, 'number'))}
-        ${campo('Reforma (R$)', input('reforma', A.reforma, 'number'))}
-        ${campo('Mobília (R$)', input('mobilia', A.mobilia, 'number'))}
-        ${campo('Due diligence (R$)', input('dd', A.dd, 'number'))}
-        ${campo('Advogado + imissão (R$)', input('advogado', A.advogado, 'number'))}
-        ${campo('Débitos do edital (R$)', input('debitos', A.debitos, 'number'))}
-        ${campo('Preço de saída (% do mercado)', input('fator_venda', A.fator_venda || v.fator_venda, 'number', 'step="0.5"'))}
-        ${campo('Margem alvo (%)', input('margem_pct', A.margem_pct || v.margem_alvo, 'number'))}
-      </form>
-      <div class="flex gap-2 mt-2" style="flex-wrap:wrap;align-items:center">
-        ${vinc ? `<button class="btn btn-primary" id="sim-save">💾 Salvar no imóvel</button>` : `<button class="btn btn-primary" id="sim-novo">＋ Criar imóvel com estes dados</button>`}
-        <button class="btn btn-gold" id="sim-parecer">📄 Gerar parecer</button>
-        <span class="tiny muted">Fee ${f.exito_pct}% (piso ${brl(f.piso)}) · corretagem ${f.comissao_pct}% · ITBI ${v.itbi}% · ocupação ${v.taxa_ocup_mes}%/mês · ${v.regime}</span>
+      ${bloco(1, 'Os valores de referência', 'Três valores diferentes que quase sempre são confundidos — e cada um serve para uma coisa.')}
+      <div class="ma-form" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
+        ${cmp('Identificação do imóvel', input('titulo', s.titulo, 'text', 'placeholder="Ap. 32 · Ed. Solar"'))}
+        ${cmp('Modalidade', `<select class="input" name="modalidade">${Object.entries(MODAL).map(([k, l]) => `<option value="${k}" ${s.modalidade === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`, 'Leilão não tem escritura; venda direta e online têm taxa do canal.')}
+        ${cmp('Valor de avaliação (R$)', input('avaliacao', s.avaliacao, 'number'), 'O que o credor diz que vale. Base da taxa de ocupação.')}
+        ${cmp('Valor de mercado local (R$)', input('mercado', A.mercado, 'number'), 'O que vale de verdade na região. É o número mais importante da conta.')}
+        ${cmp('Valor venal de referência (R$)', input('venal', A.venal, 'number'), 'Base do ITBI. O município cobra sobre o MAIOR entre este e o lance.')}
+        ${cmp('Área útil (m²)', input('area', s.area, 'number'), num(s.area) && num(A.mercado) ? `Mercado a <b>${brl(num(A.mercado) / num(s.area))}/m²</b> — confira contra o bairro.` : 'Serve para checar o R$/m² do valor de mercado.')}
       </div>
     </div>
-    <div id="sim-out">${simOut(s)}</div>`;
+
+    <div class="card">
+      ${bloco(2, 'O lance', 'O que o edital pede e o que você pretende dar. O teto quem calcula é o motor.')}
+      <div class="ma-form" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
+        ${cmp('Lance mínimo do edital (R$)', input('lance_min', s.lance_min, 'number'), 'Abaixo disso não existe lance. Se o teto ficar abaixo do mínimo, o imóvel é reprovado.')}
+        ${cmp('Lance que você pretende dar (R$)', input('lance_base', A.lance_base, 'number'), 'É este que o simulador testa contra o teto.')}
+        ${cmp('Ágio esperado (%)', input('margem_pct', A.margem_pct, 'number'), 'Quanto você quer ganhar sobre o capital investido. É o que define o lance máximo.')}
+      </div>
+    </div>
+
+    <div class="card">
+      ${bloco(3, 'Os prazos', 'Cada mês custa dinheiro: condomínio, IPTU, luz e o seu capital parado. O prazo total é a soma dos quatro.')}
+      <div class="ma-form" style="grid-template-columns:repeat(auto-fit,minmax(165px,1fr))">
+        ${cmp('Imóvel ocupado?', `<select class="input" name="ocupado"><option value="1" ${s.ocupado ? 'selected' : ''}>Sim</option><option value="" ${s.ocupado ? '' : 'selected'}>Não</option></select>`, 'Ocupado liga advogado, taxa de ocupação e os meses de desocupação.')}
+        ${cmp('Meses de desocupação', input('m_ocup', A.m_ocup, 'number'), 'Da arrematação até a posse na mão.')}
+        ${cmp('Meses de desembaraço da documentação', input('m_docs', A.m_docs, 'number'), 'Carta de arrematação, registro na matrícula, certidões.')}
+        ${cmp('Meses de reforma', input('m_reforma', A.m_reforma, 'number'), 'Da chave na mão até o imóvel pronto para anunciar.')}
+        ${cmp('Meses até a venda acontecer', input('m_venda', A.m_venda, 'number'), 'Tempo de vitrine até assinar. É o mais subestimado dos quatro.')}
+      </div>
+    </div>
+
+    <div class="card">
+      ${bloco(4, 'Os custos de aquisição', 'Tudo o que sai do bolso para o imóvel ser seu. O lance é menos da metade da história.')}
+      <div class="ma-form" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
+        ${cmp('ITBI (R$)', input('itbi_valor', A.itbi_valor, 'number'), `Deixe zero para calcular ${v.itbi}% sobre a maior base. Preencha se já tem a guia.`)}
+        ${cmp('Documentação e escritura (R$)', input('escritura_valor', A.escritura_valor, 'number'), 'Deixe zero para calcular pela tabela. Leilão sai por carta de arrematação.')}
+        ${cmp('Due diligence (R$)', input('dd', A.dd, 'number'), 'Custas processuais, certidões e taxas da análise documental.')}
+        ${cmp('Advogado e imissão (R$)', input('advogado', A.advogado, 'number'), 'Só entra se o imóvel estiver ocupado.')}
+        ${cmp('Débitos de IPTU (R$)', input('debitos_iptu', A.debitos_iptu, 'number'), 'O atrasado que vem junto. O edital da unidade diz quem paga.')}
+        ${cmp('Débitos de condomínio (R$)', input('debitos_cond', A.debitos_cond, 'number'), 'Idem. É o passivo que mais surpreende no ticket baixo.')}
+      </div>
+      <div class="tiny muted mt-2">Calculados automaticamente: comissão do leiloeiro ${v.leiloeiro}% · registro ${v.registro}% · taxa de ocupação ${v.taxa_ocup_mes}% ao mês sobre a avaliação · <b>comissão da assessoria pela tabela (${esc(faixas)}, piso ${brl(f.piso)})</b>.</div>
+    </div>
+
+    <div class="card">
+      ${bloco(5, 'Os custos até a venda', 'O que você gasta com o imóvel na mão, antes de alguém comprar.')}
+      <div class="ma-form" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
+        ${cmp('Custo de reforma (R$)', input('reforma', A.reforma, 'number'), 'Orce pelo pior cenário do padrão do prédio — venda direta costuma ser sem visita interna.')}
+        ${cmp('Custo de mobília (R$)', input('mobilia', A.mobilia, 'number'), 'Decoração para foto e visita, quando houver.')}
+      </div>
+      <div class="tiny muted mt-2">Calculado automaticamente: posse corrente de ${brl(posseMes())} ao mês (IPTU, condomínio, água e luz, seguro e manutenção) multiplicada pelo prazo total.</div>
+    </div>
+
+    <div class="card">
+      ${bloco(6, 'A saída', 'Por quanto sai e o que ainda é descontado na venda.')}
+      <div class="ma-form" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
+        ${cmp('Valor de venda esperado (R$)', input('venda_esperada', A.venda_esperada, 'number'), `Deixe zero para usar ${v.fator_venda}% do valor de mercado. É a premissa que mais mexe no resultado.`)}
+        ${cmp('Comissão de revenda (%)', input('comissao_revenda', A.comissao_revenda, 'number', 'step="0.5"'), 'Zere se a venda for sem corretor.')}
+      </div>
+      <div class="tiny muted mt-2">Calculado automaticamente: imposto sobre o ganho — ${v.regime === 'PJ' ? `pessoa jurídica, ${v.carga_pj}% sobre a receita` : `pessoa física, ${v.ir_pf}% sobre o ganho de capital`}.</div>
+    </div>
+    </form>
+
+    <div class="card">
+      <div class="flex gap-2" style="flex-wrap:wrap;align-items:center">
+        ${vinc ? `<button class="btn btn-primary" id="sim-save">💾 Salvar no imóvel</button>` : `<button class="btn btn-primary" id="sim-novo">＋ Criar imóvel com estes dados</button>`}
+        <button class="btn btn-gold" id="sim-parecer">📄 Gerar parecer</button>
+        <span class="tiny muted">Tudo recalcula a cada tecla. Nada é gravado até você mandar.</span>
+      </div>
+    </div>
+    <div id="sim-out">${simOut(sim())}</div>`;
+}
+
+/* Cascata: para onde vai cada real, em ordem, com o peso de cada linha */
+function cascata(r) {
+  const linhas = Object.entries(r.custos).filter(([k, val]) => k !== 'lance' && num(val) > 0);
+  const pc = x => (x * 100).toFixed(1).replace('.', ',') + '%';
+  return `<div style="overflow-x:auto"><table class="ma-tbl">
+    <tr><th>De onde sai o dinheiro</th><th style="text-align:right">Valor</th><th style="text-align:right">% do total</th></tr>
+    <tr><td><b>${CUSTO_LABEL.lance}</b></td><td class="ma-num" style="text-align:right"><b>${brl(r.custos.lance)}</b></td><td class="ma-num" style="text-align:right">${pc(r.custos.lance / r.inv)}</td></tr>
+    ${linhas.map(([k, val]) => `<tr><td>${esc(CUSTO_LABEL[k] || k)}</td><td class="ma-num" style="text-align:right">${brl(val)}</td><td class="ma-num" style="text-align:right">${pc(val / r.inv)}</td></tr>`).join('')}
+    <tr style="background:var(--bg-3)"><td><b>INVESTIMENTO TOTAL</b></td><td class="ma-num" style="text-align:right"><b>${brl(r.inv)}</b></td><td class="ma-num" style="text-align:right">100%</td></tr>
+    <tr><td colspan="3" style="padding-top:12px"><b>E o que volta na venda</b></td></tr>
+    <tr><td>Valor de venda</td><td class="ma-num" style="text-align:right">${brl(r.venda)}</td><td></td></tr>
+    <tr><td>− Comissão de revenda (${String(r.comRevenda).replace('.', ',')}%)</td><td class="ma-num" style="text-align:right">−${brl(r.corret)}</td><td></td></tr>
+    <tr><td>− Imposto sobre o ganho</td><td class="ma-num" style="text-align:right">−${brl(r.imposto)}</td><td></td></tr>
+    <tr><td>− Investimento total</td><td class="ma-num" style="text-align:right">−${brl(r.inv)}</td><td></td></tr>
+    <tr style="background:var(--bg-3)"><td><b>= LUCRO LÍQUIDO</b></td><td class="ma-num" style="text-align:right"><b style="color:${r.lucro > 0 ? '#16a34a' : '#ef4444'}">${brl(r.lucro)}</b></td><td class="ma-num" style="text-align:right"><b>${pc(r.agio)}</b></td></tr>
+  </table></div>`;
 }
 
 function simOut(s) {
   const v = viab(), A = s.analise;
-  if (!num(A.lance_base) || !num(A.mercado)) {
+  if (!num(A.lance_base) || !(num(A.mercado) || num(A.venda_esperada))) {
     return `<div class="card"><div class="ma-veredito" style="border-color:#64748b">
       <div class="ma-ver-selo" style="background:#64748b">AGUARDANDO</div>
-      <div style="flex:1">Informe pelo menos o <b>valor de mercado</b> e o <b>lance</b> para o motor rodar.</div></div></div>`;
+      <div style="flex:1">Preencha pelo menos o <b>valor de mercado</b> (ou o valor de venda esperado) e o <b>lance</b> para o motor rodar.</div></div></div>`;
   }
-  const fb = num(A.fator_venda) || v.fator_venda;
-  const cen = [
-    { id: 'pes', nome: 'Pessimista', dFator: -7, multRef: 1.3, extra: 3, cor: '#ef4444' },
-    { id: 'base', nome: 'Base', dFator: 0, multRef: 1, extra: 0, cor: '#9C7A3C' },
-    { id: 'oti', nome: 'Otimista', dFator: 3, multRef: 0.85, extra: -1, cor: '#16a34a' },
-  ].map(c => ({ ...c, r: motor(s, { fator: fb + c.dFator, multRef: c.multRef, extra: c.extra }) }));
+  const cen = CENARIOS.map(c => ({ ...c, r: motor(s, { multVenda: c.multVenda, multRef: c.multRef, extra: c.extra }) }));
   const ro = { r: motor(s, { desocupado: false }), lm: lanceMax(s, { desocupado: false }) };
   const rd = { r: motor(s, { desocupado: true }), lm: lanceMax(s, { desocupado: true }) };
-  return `<div class="card">${anOut(s, cen, lanceMax(s, {}), ro, rd, ro.r.inv - rd.r.inv)}</div>`;
+  const b = cen[1].r, lm = lanceMax(s, {});
+  const pc = x => (x * 100).toFixed(1).replace('.', ',') + '%';
+  const pc2 = x => (x * 100).toFixed(2).replace('.', ',') + '%';
+  return `
+    <div class="card">${anOut(s, cen, lm, ro, rd, ro.r.inv - rd.r.inv)}</div>
+    <div class="card">
+      <h2 class="card-title">🧾 A conta aberta — cenário realista</h2>
+      <p class="card-sub">Prazo total de <b>${b.prazo} meses</b>: ${b.meses.ocupacao} de desocupação, ${b.meses.documentacao} de documentação, ${b.meses.reforma} de reforma e ${b.meses.venda} até vender. Comissão da assessoria pela faixa ${num(b.faixaFee.ate) ? 'até ' + brl(b.faixaFee.ate) : 'acima da última faixa'} → <b>${b.faixaFee.pct}%</b>.</p>
+      ${cascata(b)}
+    </div>
+    <div class="card">
+      <h2 class="card-title">📈 Ágio — total e por mês</h2>
+      <p class="card-sub">O ágio total dividido pelos meses até a venda mostra o quanto o capital rende por mês nesta operação. É o número que compara este imóvel com qualquer outra aplicação.</p>
+      <div style="overflow-x:auto"><table class="ma-tbl">
+        <tr><th>Cenário</th><th style="text-align:right">Venda</th><th style="text-align:right">Prazo</th><th style="text-align:right">Lucro</th><th style="text-align:right">Ágio total</th><th style="text-align:right">Ágio ao mês</th><th>Fecha?</th></tr>
+        ${cen.map(c => `<tr>
+          <td><b style="color:${c.cor}">${c.nome}</b><div class="tiny muted">${esc(c.ajuda)}</div></td>
+          <td class="ma-num" style="text-align:right">${brl(c.r.venda)}</td>
+          <td class="ma-num" style="text-align:right">${c.r.prazo}m</td>
+          <td class="ma-num" style="text-align:right;color:${c.r.lucro > 0 ? '#16a34a' : '#ef4444'}">${brl(c.r.lucro)}</td>
+          <td class="ma-num" style="text-align:right"><b>${pc(c.r.agio)}</b></td>
+          <td class="ma-num" style="text-align:right"><b>${pc2(c.r.agioMes)}</b></td>
+          <td><span class="ma-status" style="background:${c.r.viavel ? '#16a34a' : '#94a3b8'}">${c.r.viavel ? 'SIM' : 'NÃO'}</span></td>
+        </tr>`).join('')}
+      </table></div>
+      <div class="tiny muted mt-2">Referência: a TMA exigida é de <b>${pc2(tmaMes())} ao mês</b> (${v.tma_aa}% ao ano). Ágio ao mês abaixo disso significa que o capital rende menos parado do que nesta operação.</div>
+    </div>`;
 }
 
 export function wireSimulador(root) {
@@ -863,12 +1045,12 @@ export function wireSimulador(root) {
   const form = $('#f-sim');
   const ler = () => {
     const fd = new FormData(form), s = sim();
-    ['titulo', 'cidade', 'modalidade'].forEach(k => { s[k] = String(fd.get(k) || '').trim(); });
+    ['titulo', 'modalidade'].forEach(k => { s[k] = String(fd.get(k) || '').trim(); });
     ['area', 'avaliacao', 'lance_min'].forEach(k => { s[k] = num(fd.get(k)); });
     s.ocupado = !!fd.get('ocupado');
-    ['mercado', 'venal', 'lance_base', 'm_ocup', 'm_reforma', 'm_venda', 'reforma', 'mobilia', 'dd', 'advogado', 'debitos', 'fator_venda', 'margem_pct']
-      .forEach(k => { s.analise[k] = num(fd.get(k)); });
-    s.debitos_cond = s.analise.debitos;
+    ['mercado', 'venal', 'lance_base', 'm_ocup', 'm_docs', 'm_reforma', 'm_venda', 'reforma', 'mobilia',
+     'dd', 'advogado', 'debitos_iptu', 'debitos_cond', 'itbi_valor', 'escritura_valor',
+     'venda_esperada', 'comissao_revenda', 'margem_pct'].forEach(k => { s.analise[k] = num(fd.get(k)); });
     salvarSim();
     return s;
   };
@@ -883,6 +1065,7 @@ export function wireSimulador(root) {
     if (!s.titulo) return alert('Dê um nome ao imóvel antes de cadastrar.');
     const novo = { ...JSON.parse(JSON.stringify(s)), id: uid('imv'), status: 'analise', criado_em: new Date().toISOString() };
     delete novo.vinculo;
+    novo.debitos_cond = s.analise.debitos_cond;
     await upsert('imoveis', novo);
     _sim.vinculo = novo.id; salvarSim(); render();
   };
@@ -891,8 +1074,8 @@ export function wireSimulador(root) {
     const s = ler(), o = imvPorId(s.vinculo);
     if (!o) return alert('O imóvel vinculado não existe mais.');
     if (!confirm(`Gravar estes números em "${o.titulo}"?`)) return;
-    await upsert('imoveis', { ...o, titulo: s.titulo || o.titulo, cidade: s.cidade, area: s.area, modalidade: s.modalidade,
-      avaliacao: s.avaliacao, lance_min: s.lance_min, ocupado: s.ocupado, debitos_cond: s.analise.debitos,
+    await upsert('imoveis', { ...o, titulo: s.titulo || o.titulo, area: s.area, modalidade: s.modalidade,
+      avaliacao: s.avaliacao, lance_min: s.lance_min, ocupado: s.ocupado, debitos_cond: s.analise.debitos_cond,
       analise: { ...(o.analise || {}), ...s.analise } });
   };
 }
