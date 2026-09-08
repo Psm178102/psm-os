@@ -174,6 +174,28 @@ def _num(v, d=0.0):
         return d
 
 
+def _first(d, *keys):
+    """1º campo presente e não-vazio do dict (payload de terceiro com nome de
+    campo incerto). v87.57 — usado na esteira do HUB, que é camelCase."""
+    for k in keys:
+        v = (d or {}).get(k)
+        if v not in (None, ""):
+            return v
+    return 0
+
+
+# 👔 GESTÃO (sócio/diretor/gerente): a decisão do Paulo (08/set) é que ela NÃO
+# vira "membro" de uma equipe só porque tem deal no funil dela — senão a meta
+# pessoal do sócio era somada em toda equipe que ele tocou (a Isabella entrava
+# em Conquista + MAP + Locação e a meta dela contava 3×). A VENDA dele continua
+# contando no total da equipe (real_vgv sai de `eds`, não desta lista).
+_GESTAO_RE = re.compile(r"socio|s[óo]cio|diretor|gerente|gestor", re.I)
+
+
+def eh_gestao(u):
+    return bool(_GESTAO_RE.search((u or {}).get("role") or ""))
+
+
 def _hoje():
     try:
         from _auth_lib import hoje_brt  # type: ignore
@@ -924,17 +946,29 @@ class handler(BaseHTTPRequestHandler):
                 r["v"] += 1
                 r["vgv"] += e["vgv"]
         for tk, lbl in TEAMS:
+            # v87.57 (decisão do Paulo 08/set): a GESTÃO (sócio/diretor/gerente)
+            # não vira membro de uma equipe por ter deal no funil dela. A venda
+            # dela continua no total da equipe — o que sai é a meta pessoal e a
+            # linha no ranking de corretor.
             membros = sorted({uid for uid, u in users.items()
                               if team_de(uid, u.get("team")) == tk and (u.get("status") or "ativo") == "ativo"}
                              | {uid for uid in uids_por_team_deal.get(tk, set())
-                                if (users.get(uid, {}).get("status") or "ativo") == "ativo"})
+                                if (users.get(uid, {}).get("status") or "ativo") == "ativo"
+                                and not eh_gestao(users.get(uid))})
             meta_v = meta_vgv = proj_v = 0.0
             com_meta = 0
             por_corr_v = []
             for uid in membros:
+                # v87.57: a meta (e a projeção do Norte) contam na equipe de
+                # CADASTRO do corretor e em mais nenhuma. Antes bastava ter um
+                # deal no funil da equipe pra a meta mensal INTEIRA ser somada lá
+                # também: quem atua em dois funis tinha a meta contada 2× e 3×.
+                # Auditoria 08/set: a meta da empresa saía R$3,38M (+19,9%) acima
+                # do Painel Metas por causa disso.
+                meta_aqui = team_de(uid, (users.get(uid) or {}).get("team")) == tk
                 # meta = soma dos meses da janela (mês único → aquele mês; período → todos)
-                mv = sum(_num((metas_idx.get((uid, _y, _m)) or {}).get("meta_vendas")) for _y, _m in meses_janela)
-                mvgv = sum(_num((metas_idx.get((uid, _y, _m)) or {}).get("meta_vgv")) for _y, _m in meses_janela)
+                mv = sum(_num((metas_idx.get((uid, _y, _m)) or {}).get("meta_vendas")) for _y, _m in meses_janela) if meta_aqui else 0.0
+                mvgv = sum(_num((metas_idx.get((uid, _y, _m)) or {}).get("meta_vgv")) for _y, _m in meses_janela) if meta_aqui else 0.0
                 if mv or mvgv:
                     com_meta += 1
                 meta_v += mv
@@ -942,7 +976,7 @@ class handler(BaseHTTPRequestHandler):
                 pu = 0.0
                 cfg = None
                 # projeção (Norte) só faz sentido pro mês corrente
-                if janela_eh_mes:
+                if janela_eh_mes and meta_aqui:
                     cfg, _okc = _kv_read(sb, f"oo_norte:{uid}:{ym}")
                     if cfg:
                         at = _num(cfg.get("atendimentos_mes"))
@@ -981,6 +1015,28 @@ class handler(BaseHTTPRequestHandler):
                           "corretores_com_meta": com_meta, "por_corretor": por_corr_v[:15],
                           "poisson": pois_faixa(meta_v) if meta_v > 0 else None})
 
+        # v87.57: a Visão só conta corretor ATIVO (regra v86.33) — mas o Painel
+        # Metas soma a tabela inteira. Sem dizer isso em voz alta, o sócio compara
+        # os dois totais de "meta do mês", vê números diferentes e conclui, com
+        # razão, que um dos dois está mentindo. Agora a diferença vem nomeada.
+        meta_fora, nomes_fora = 0.0, []
+        for (_cid, _y, _m), _mrow in metas_idx.items():
+            if (_y, _m) not in meses_janela:
+                continue
+            _u = users.get(_cid)
+            if _u and (_u.get("status") or "ativo") == "ativo":
+                continue
+            _v = _num(_mrow.get("meta_vgv"))
+            if _v <= 0:
+                continue
+            meta_fora += _v
+            _nm = (_u or {}).get("name") or _cid
+            if _nm not in nomes_fora:
+                nomes_fora.append(_nm)
+        if meta_fora > 0:
+            avisos.append("R$ %s de meta é de corretor inativo/sem cadastro (%s): fica FORA da Visão e DENTRO do total do Painel Metas — é exatamente essa a diferença entre os dois."
+                          % (format(int(round(meta_fora)), ",d").replace(",", "."), ", ".join(sorted(nomes_fora)[:6])))
+
         # v86.72: vendas FORA dos 4 funis (team "outros") não podem sumir do total —
         # entram como linha própria na Visão quando existem na janela.
         _outros = [e for e in eds if e["team"] == "outros" and e["win"] and e["closed"]
@@ -998,20 +1054,50 @@ class handler(BaseHTTPRequestHandler):
                           "poisson": None})
 
         # Conquista: vendas oficiais da esteira do HUB (cruzamento RD × HUB)
+        # v87.57 — auditoria 08/set. Dois defeitos corrigidos aqui:
+        # (1) ZERO MUDO: a esteira do HUB é camelCase (vendaCount/vendaTotal —
+        #     é o contrato que o reconcile.py usa desde a v77.77). Os nomes
+        #     genéricos de antes (vendas/vgv/total) não existem no payload, então
+        #     a soma dava 0/0 SEM erro — e o cockpit exibia "HUB: 0 vendas · R$ 0"
+        #     como se fosse o número oficial da Conquista (assim desde ≥27/ago).
+        #     Agora: nomes certos com os antigos de fallback, e "veio vazio" ou
+        #     "veio zerado" viram AVISO na tela em vez de zero silencioso.
+        # (2) MÊS FIXO: buscava sempre hoje.year/hoje.month, mesmo com a tela em
+        #     agosto ou nos últimos 90 dias. Agora segue os meses da janela.
         hub_x, hub_err = None, None
-        est, hub_err = hub_esteira_mes(sb, hoje.year, hoje.month)
-        if isinstance(est, (list, dict)):
-            try:
-                rows = est if isinstance(est, list) else (est.get("esteira") or est.get("rows") or est.get("data") or [])
-                tv = tvgv = 0
-                for r in rows if isinstance(rows, list) else []:
-                    tv += int(_num(r.get("vendas") or r.get("sales") or r.get("qtd")))
-                    tvgv += _num(r.get("vgv") or r.get("total"))
-                hub_x = {"vendas": tv, "vgv": round(tvgv, 2)}
-            except Exception:
-                hub_x = None
-        if hub_err:
-            avisos.append(f"esteira HUB indisponível ({hub_err}) — Conquista mostrando só o RD")
+        MAX_MESES_HUB = 6   # teto de chamadas à ponte (cada mês = 1 GET)
+        meses_hub = meses_janela[-MAX_MESES_HUB:]
+        if not hub.configured():
+            avisos.append("ponte PSM HUB sem credenciais (PSMHUB_EMAIL/PASSWORD no Vercel) — Conquista mostrando só o RD")
+        else:
+            tv, tvgv, n_linhas = 0, 0.0, 0
+            for _y, _m in meses_hub:
+                est, err = hub_esteira_mes(sb, _y, _m)
+                if err:
+                    hub_err = err
+                    break
+                rows = est if isinstance(est, list) else (
+                    _first(est, "rows", "esteira", "data") if isinstance(est, dict) else [])
+                if not isinstance(rows, list):
+                    rows = []
+                for r in rows:
+                    if not isinstance(r, dict):
+                        continue
+                    n_linhas += 1
+                    tv += int(_num(_first(r, "vendaCount", "vendas", "sales", "qtd")))
+                    tvgv += _num(_first(r, "vendaTotal", "vgv", "total"))
+            meses_lbl = ["%04d-%02d" % (y, m) for y, m in meses_hub]
+            if hub_err:
+                avisos.append(f"esteira HUB indisponível ({hub_err}) — Conquista mostrando só o RD")
+            elif not n_linhas:
+                avisos.append("esteira HUB respondeu SEM LINHAS em " + ", ".join(meses_lbl) +
+                              " — o bloco do HUB foi omitido (não é zero real). Confira a permissão do usuário de serviço no Hub.")
+            else:
+                hub_x = {"vendas": tv, "vgv": round(tvgv, 2), "linhas": n_linhas, "meses": meses_lbl,
+                         "parcial": len(meses_hub) < len(meses_janela)}
+                if tv == 0 and tvgv == 0:
+                    avisos.append(f"esteira HUB devolveu {n_linhas} linha(s) mas tudo zerado em " +
+                                  ", ".join(meses_lbl) + " — confira o contrato de campos da esteira antes de confiar no número.")
 
         # ── E) SAFRAS (mês de criação × resultado até hoje) ──
         safras = {}

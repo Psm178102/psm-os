@@ -316,7 +316,7 @@ function cockpit() {
     : `${_d.janela.since} → ${_d.janela.until} · ${_team ? tLbl(_team) : 'todas as equipes'} · <b>período selecionado</b> (meta = soma dos meses da janela)`;
   return `<div class="gc-q"><h3>${titulo}</h3><span class="tiny muted">${subt}</span></div>
     <div class="gc-kpis">${kpis}</div>${cards}${alerts}
-    ${hub && hub.vendas != null && hub.vendas !== real && _team !== null && _team !== 'conquista' ? '' : (hub && hub.vendas != null ? `<div class="tiny muted" style="margin-top:8px">🌉 PSM HUB (esteira Conquista) marca ${fN(hub.vendas)} venda(s) · R$ ${kR$(hub.vgv)} no mês — divergência com o RD = lançamento pendente num dos dois.</div>` : '')}
+    ${hub && hub.vendas != null ? `<div class="tiny muted" style="margin-top:8px">🌉 PSM HUB (esteira Conquista) marca ${fN(hub.vendas)} venda(s) · R$ ${kR$(hub.vgv)} em ${esc((hub.meses || []).map(mesNome).join(' + ') || 'período')}${hub.parcial ? ' <b>(parcial — só os últimos meses da janela)</b>' : ''} — divergência com o RD = lançamento pendente num dos dois.</div>` : ''}
     <div class="gc-sr"><b>🧠 Sr. Performance:</b> <span class="gc-sr-txt" style="opacity:.7">analisando os números…</span></div>`;
 }
 

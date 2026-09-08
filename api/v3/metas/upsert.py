@@ -10,6 +10,7 @@ from http.server import BaseHTTPRequestHandler
 import json
 import os
 import sys
+from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
@@ -81,6 +82,11 @@ class handler(BaseHTTPRequestHandler):
         if "meta_agendamentos" in body: payload["meta_agendamentos"] = int(body.get("meta_agendamentos") or 0)
         if "observacoes" in body: payload["observacoes"] = body.get("observacoes") or None
         payload["criado_por"] = actor["id"]
+        # v87.57 (auditoria 08/set): sem isto o upsert nunca mexia em updated_at
+        # e a tabela seguia marcando a data de CRIAÇÃO como última alteração —
+        # quem consultasse `metas` direto via SQL via data falsa. (O upsert é
+        # tolerante: se a coluna não existir, ela é removida e o resto salva.)
+        payload["updated_at"] = datetime.now(timezone.utc).isoformat()
 
         # Pega valor atual pra audit
         try:
