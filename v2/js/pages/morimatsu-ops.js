@@ -635,7 +635,7 @@ export function gerarParecer(i) {
   const lm = lanceMax(i, {});
   const b = cen.base;
   const pc = x => (x * 100).toFixed(1).replace('.', ',') + '%';
-  const mm = x => 'R$ ' + num(x).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const mm = x => (num(x) < 0 ? '−' : '') + 'R$ ' + Math.abs(num(x)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const meses = n => n + (n === 1 ? ' mês' : ' meses');
   const extra = {
     imovel_titulo: i.titulo || '', imovel_bairro: i.bairro || '', imovel_cidade: i.cidade || '',

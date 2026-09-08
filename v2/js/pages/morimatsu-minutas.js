@@ -217,7 +217,8 @@ Pontos verificados nesta análise, que devem ser confirmados na due diligence ju
 | Reforma estimada | {{c_reforma}} |
 ---
 ## 9. CONCLUSÃO
-No cenário base, a operação apresenta lucro projetado de **{{lucro}}** em {{prazo}}, com retorno de {{roi}} sobre o investimento — **{{veredito}}** para o lance de {{lance}}.
+No cenário base, a operação projeta resultado de **{{lucro}}** em {{prazo}}, com retorno de {{roi}} sobre o investimento. O lance máximo compatível com a margem exigida é de **{{lance_maximo}}**, contra os {{lance}} analisados.
+**Recomendação:** {{veredito}}.
 ---
 ## 10. RESSALVAS
 Os valores de mercado, reforma, prazo de desocupação e débitos são **estimativas** baseadas nas informações disponíveis na data deste parecer e nos documentos do edital. Alterações no estado do imóvel, no valor de mercado, no prazo de desocupação ou na existência de débitos não informados modificam o resultado projetado.
