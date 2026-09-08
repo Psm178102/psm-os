@@ -756,6 +756,147 @@ export function gerarParecer(i) {
   }, 640);
 }
 
+/* ═══════════ 🧮 SIMULADOR — tela própria, avulsa ou vinculada ═══════════
+   Na mesa do leilão não dá para cadastrar imóvel antes de fazer conta. Aqui o
+   simulador roda solto: digita os números e o veredito sai na hora. Se quiser,
+   puxa um imóvel já cadastrado, mexe à vontade e só grava se decidir gravar.
+   A simulação fica no navegador (localStorage), então recarregar não perde. */
+const SIM_KEY = 'psm.morimatsu.sim';
+const simVazia = () => ({
+  id: '__sim', titulo: '', modalidade: 'extra', credor: 'Caixa Econômica Federal',
+  cidade: '', bairro: '', matricula: '', cartorio: '', area: 0,
+  avaliacao: 0, lance_min: 0, ocupado: true, debitos_cond: 0, vinculo: null,
+  analise: { mercado: 0, venal: 0, lance_base: 0, m_ocup: 3, m_reforma: 2, m_venda: 3, reforma: 0, mobilia: 0, dd: 1500, advogado: 8000, debitos: 0, risco: '', parecer: '' },
+});
+let _sim = null;
+function sim() {
+  if (_sim) return _sim;
+  try { const g = JSON.parse(localStorage.getItem(SIM_KEY) || 'null'); if (g && g.analise) _sim = g; } catch (_) { _sim = null; }
+  return (_sim = _sim || simVazia());
+}
+function salvarSim() { try { localStorage.setItem(SIM_KEY, JSON.stringify(_sim)); } catch (_) { /* modo anônimo */ } }
+/* Copia um imóvel cadastrado para dentro da simulação, sem alterar o original */
+function carregarImovel(id) {
+  const o = imvPorId(id);
+  if (!o) { _sim = simVazia(); return salvarSim(); }
+  _sim = JSON.parse(JSON.stringify({ ...simVazia(), ...o, id: '__sim', vinculo: o.id, analise: { ...simVazia().analise, ...(o.analise || {}) } }));
+  if (!num(_sim.analise.mercado)) _sim.analise.mercado = num(o.avaliacao);
+  if (!num(_sim.analise.venal)) _sim.analise.venal = num(o.avaliacao);
+  if (!num(_sim.analise.lance_base)) _sim.analise.lance_base = num(o.lance_min);
+  salvarSim();
+}
+
+export function renderSimulador() {
+  const s = sim(), A = s.analise, v = viab(), f = cfg().fee;
+  const vinc = s.vinculo ? imvPorId(s.vinculo) : null;
+  const opcoes = Object.fromEntries(S.imoveis.map(i => [i.id, i.titulo]));
+  return `
+    <div class="card">
+      <div class="flex items-center gap-2" style="flex-wrap:wrap">
+        <div style="flex:1;min-width:240px">
+          <h2 class="card-title" style="margin:0">🧮 Simulador de arremate</h2>
+          <div class="card-sub" style="margin:0">Digite os números e o veredito sai na hora. Não precisa cadastrar imóvel — se quiser, puxe um já cadastrado ou grave a simulação como imóvel novo.</div>
+        </div>
+        <select class="input" id="sim-imv" style="max-width:260px">
+          <option value="">🧮 Simulação avulsa</option>
+          ${Object.entries(opcoes).map(([id, t]) => `<option value="${esc(id)}" ${s.vinculo === id ? 'selected' : ''}>🏠 ${esc(t)}</option>`).join('')}
+        </select>
+        <button class="btn btn-ghost" id="sim-cfg">⚙️ Premissas</button>
+        <button class="btn btn-ghost" id="sim-zerar">🔄 Limpar</button>
+      </div>
+      ${vinc ? `<div class="tiny muted mt-2">Vinculado a <b>${esc(vinc.titulo)}</b>. Mexer aqui não altera o imóvel — use “Salvar no imóvel” para gravar.</div>` : ''}
+    </div>
+
+    <div class="card">
+      <div class="ma-sec" style="margin-top:0">O imóvel</div>
+      <form class="ma-form" id="f-sim" style="grid-template-columns:repeat(auto-fit,minmax(155px,1fr))">
+        ${campo('Identificação', input('titulo', s.titulo, 'text', 'placeholder="Ap. 32 · Ed. Solar"'), true)}
+        ${campo('Modalidade', `<select class="input" name="modalidade">${Object.entries(MODAL).map(([k, l]) => `<option value="${k}" ${s.modalidade === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`)}
+        ${campo('Cidade', input('cidade', s.cidade))}
+        ${campo('Área útil (m²)', input('area', s.area, 'number'))}
+        ${campo('Valor de avaliação (R$)', input('avaliacao', s.avaliacao, 'number'))}
+        ${campo('Valor de mercado (R$)', input('mercado', A.mercado, 'number'))}
+        ${campo('Venal de referência — ITBI', input('venal', A.venal, 'number'))}
+        ${campo('Lance mínimo do edital (R$)', input('lance_min', s.lance_min, 'number'))}
+        ${campo('LANCE QUE VOCÊ PENSA EM DAR', input('lance_base', A.lance_base, 'number'))}
+        ${campo('Ocupado?', `<select class="input" name="ocupado"><option value="1" ${s.ocupado ? 'selected' : ''}>Sim</option><option value="" ${s.ocupado ? '' : 'selected'}>Não</option></select>`)}
+        ${campo('Meses até desocupar', input('m_ocup', A.m_ocup, 'number'))}
+        ${campo('Meses de reforma', input('m_reforma', A.m_reforma, 'number'))}
+        ${campo('Meses de comercialização', input('m_venda', A.m_venda, 'number'))}
+        ${campo('Reforma (R$)', input('reforma', A.reforma, 'number'))}
+        ${campo('Mobília (R$)', input('mobilia', A.mobilia, 'number'))}
+        ${campo('Due diligence (R$)', input('dd', A.dd, 'number'))}
+        ${campo('Advogado + imissão (R$)', input('advogado', A.advogado, 'number'))}
+        ${campo('Débitos do edital (R$)', input('debitos', A.debitos, 'number'))}
+        ${campo('Preço de saída (% do mercado)', input('fator_venda', A.fator_venda || v.fator_venda, 'number', 'step="0.5"'))}
+        ${campo('Margem alvo (%)', input('margem_pct', A.margem_pct || v.margem_alvo, 'number'))}
+      </form>
+      <div class="flex gap-2 mt-2" style="flex-wrap:wrap;align-items:center">
+        ${vinc ? `<button class="btn btn-primary" id="sim-save">💾 Salvar no imóvel</button>` : `<button class="btn btn-primary" id="sim-novo">＋ Criar imóvel com estes dados</button>`}
+        <button class="btn btn-gold" id="sim-parecer">📄 Gerar parecer</button>
+        <span class="tiny muted">Fee ${f.exito_pct}% (piso ${brl(f.piso)}) · corretagem ${f.comissao_pct}% · ITBI ${v.itbi}% · ocupação ${v.taxa_ocup_mes}%/mês · ${v.regime}</span>
+      </div>
+    </div>
+    <div id="sim-out">${simOut(s)}</div>`;
+}
+
+function simOut(s) {
+  const v = viab(), A = s.analise;
+  if (!num(A.lance_base) || !num(A.mercado)) {
+    return `<div class="card"><div class="ma-veredito" style="border-color:#64748b">
+      <div class="ma-ver-selo" style="background:#64748b">AGUARDANDO</div>
+      <div style="flex:1">Informe pelo menos o <b>valor de mercado</b> e o <b>lance</b> para o motor rodar.</div></div></div>`;
+  }
+  const fb = num(A.fator_venda) || v.fator_venda;
+  const cen = [
+    { id: 'pes', nome: 'Pessimista', dFator: -7, multRef: 1.3, extra: 3, cor: '#ef4444' },
+    { id: 'base', nome: 'Base', dFator: 0, multRef: 1, extra: 0, cor: '#9C7A3C' },
+    { id: 'oti', nome: 'Otimista', dFator: 3, multRef: 0.85, extra: -1, cor: '#16a34a' },
+  ].map(c => ({ ...c, r: motor(s, { fator: fb + c.dFator, multRef: c.multRef, extra: c.extra }) }));
+  const ro = { r: motor(s, { desocupado: false }), lm: lanceMax(s, { desocupado: false }) };
+  const rd = { r: motor(s, { desocupado: true }), lm: lanceMax(s, { desocupado: true }) };
+  return `<div class="card">${anOut(s, cen, lanceMax(s, {}), ro, rd, ro.r.inv - rd.r.inv)}</div>`;
+}
+
+export function wireSimulador(root) {
+  const $ = q => root.querySelector(q);
+  const form = $('#f-sim');
+  const ler = () => {
+    const fd = new FormData(form), s = sim();
+    ['titulo', 'cidade', 'modalidade'].forEach(k => { s[k] = String(fd.get(k) || '').trim(); });
+    ['area', 'avaliacao', 'lance_min'].forEach(k => { s[k] = num(fd.get(k)); });
+    s.ocupado = !!fd.get('ocupado');
+    ['mercado', 'venal', 'lance_base', 'm_ocup', 'm_reforma', 'm_venda', 'reforma', 'mobilia', 'dd', 'advogado', 'debitos', 'fator_venda', 'margem_pct']
+      .forEach(k => { s.analise[k] = num(fd.get(k)); });
+    s.debitos_cond = s.analise.debitos;
+    salvarSim();
+    return s;
+  };
+  form.querySelectorAll('input,select').forEach(el => el.oninput = el.onchange = () => { $('#sim-out').innerHTML = simOut(ler()); });
+  $('#sim-imv').onchange = e => { e.target.value ? carregarImovel(e.target.value) : (_sim = simVazia(), salvarSim()); render(); };
+  $('#sim-zerar').onclick = () => { if (!confirm('Limpar a simulação?')) return; _sim = simVazia(); salvarSim(); render(); };
+  $('#sim-cfg').onclick = () => editarViab(() => render());
+  $('#sim-parecer').onclick = () => { const s = ler(); if (!num(s.analise.lance_base)) return alert('Informe o lance antes de gerar o parecer.'); gerarParecer({ ...s, titulo: s.titulo || 'Imóvel simulado' }); };
+  const nv = $('#sim-novo');
+  if (nv) nv.onclick = async () => {
+    const s = ler();
+    if (!s.titulo) return alert('Dê um nome ao imóvel antes de cadastrar.');
+    const novo = { ...JSON.parse(JSON.stringify(s)), id: uid('imv'), status: 'analise', criado_em: new Date().toISOString() };
+    delete novo.vinculo;
+    await upsert('imoveis', novo);
+    _sim.vinculo = novo.id; salvarSim(); render();
+  };
+  const sv = $('#sim-save');
+  if (sv) sv.onclick = async () => {
+    const s = ler(), o = imvPorId(s.vinculo);
+    if (!o) return alert('O imóvel vinculado não existe mais.');
+    if (!confirm(`Gravar estes números em "${o.titulo}"?`)) return;
+    await upsert('imoveis', { ...o, titulo: s.titulo || o.titulo, cidade: s.cidade, area: s.area, modalidade: s.modalidade,
+      avaliacao: s.avaliacao, lance_min: s.lance_min, ocupado: s.ocupado, debitos_cond: s.analise.debitos,
+      analise: { ...(o.analise || {}), ...s.analise } });
+  };
+}
+
 /* ═══════════════════════════ 🔁 OPERAÇÕES ═══════════════════════════ */
 function criarOperacao(i) {
   const invs = Object.fromEntries(S.investidores.filter(c => c.coluna !== 'fora').map(c => [c.id, c.nome]));

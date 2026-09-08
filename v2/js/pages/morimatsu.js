@@ -20,7 +20,7 @@
 ============================================================================ */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
-import { renderInvestidores, renderImoveis, renderOperacoes, renderAgenda, wireOps, gerarContrato, gerarRecibo } from './morimatsu-ops.js';
+import { renderInvestidores, renderImoveis, renderOperacoes, renderAgenda, wireOps, gerarContrato, gerarRecibo, renderSimulador, wireSimulador } from './morimatsu-ops.js';
 import { renderMinutas, wireMinutas } from './morimatsu-minutas.js';   // v87.56: biblioteca de minutas editável
 
 const API = '/api/v3/morimatsu/state';
@@ -30,6 +30,7 @@ export const TABS = [
   { id: 'visao',        rota: '/morimatsu',              lbl: '🏯 Visão' },
   { id: 'investidores', rota: '/morimatsu-investidores', lbl: '💼 Investidores' },
   { id: 'imoveis',      rota: '/morimatsu-imoveis',      lbl: '🏠 Imóveis' },
+  { id: 'simulador',    rota: '/morimatsu-simulador',    lbl: '🧮 Simulador' },
   { id: 'operacoes',    rota: '/morimatsu-operacoes',    lbl: '🔁 Operações' },
   { id: 'agenda',       rota: '/morimatsu-agenda',       lbl: '📅 Agenda' },
   { id: 'honorarios',   rota: '/morimatsu-honorarios',   lbl: '💰 Honorários' },
@@ -208,7 +209,7 @@ export function render() {
   if (!_root) return;
   const dark = document.documentElement.classList.contains('dark');
   const logo = dark ? '/v2/img/morimatsu-logo-negativa.png' : '/v2/img/morimatsu-logo-marfim.png';
-  const body = { visao, investidores: renderInvestidores, imoveis: renderImoveis, operacoes: renderOperacoes, agenda: renderAgenda, honorarios, roteiro, minutas: renderMinutas, documentos, marca }[_tab];
+  const body = { visao, investidores: renderInvestidores, imoveis: renderImoveis, simulador: renderSimulador, operacoes: renderOperacoes, agenda: renderAgenda, honorarios, roteiro, minutas: renderMinutas, documentos, marca }[_tab];
   const atrasadas = S.atividades.filter(a => !a.feito && a.quando && a.quando.slice(0, 10) < hojeISO()).length;
   _root.innerHTML = `
     <div class="ma-wrap">
@@ -227,6 +228,7 @@ export function render() {
   _root.querySelectorAll('.ma-tab').forEach(b => b.onclick = () => irPara(b.dataset.rota));
   if (!S.loaded) return;
   if (['investidores', 'imoveis', 'operacoes', 'agenda'].includes(_tab)) wireOps(_root, _tab);
+  else if (_tab === 'simulador') wireSimulador(_root);
   else if (_tab === 'minutas') wireMinutas(_root);
   else wire();
 }
@@ -269,7 +271,7 @@ function visao() {
         <h2 class="card-title">Próximos passos</h2>
         ${(atrasadas.concat(deHoje)).slice(0, 8).map(a => `<div class="ma-linha"><span class="ma-tag" style="background:${a.quando.slice(0, 10) < hoje ? '#ef4444' : '#0ea5e9'}">${dtBR(a.quando)}</span> <span>${esc(a.texto)}</span> <span class="tiny muted">${esc(invPorId(a.investidor_id)?.nome || imvPorId(a.imovel_id)?.titulo || '')}</span></div>`).join('') || '<div class="tiny muted">Nada atrasado nem pra hoje. Veja a Agenda pra semana.</div>'}
         ${semContato.length ? `<div class="alert alert-warn mt-2" style="font-size:12.5px">⚠️ Sem próximo passo agendado: ${semContato.slice(0, 4).map(c => esc(c.nome)).join(', ')}${semContato.length > 4 ? '…' : ''}</div>` : ''}
-        <div class="flex gap-2 mt-2"><button class="btn btn-ghost" data-rota="/morimatsu-agenda">📅 Abrir agenda</button><button class="btn btn-ghost" data-rota="/morimatsu-imoveis">🏠 Garimpo</button><button class="btn btn-ghost" data-rota="/morimatsu-investidores">💼 Investidores</button></div>
+        <div class="flex gap-2 mt-2"><button class="btn btn-ghost" data-rota="/morimatsu-agenda">📅 Abrir agenda</button><button class="btn btn-ghost" data-rota="/morimatsu-imoveis">🏠 Garimpo</button><button class="btn btn-ghost" data-rota="/morimatsu-simulador">🧮 Simulador</button><button class="btn btn-ghost" data-rota="/morimatsu-investidores">💼 Investidores</button></div>
       </div>
     </div>
 
