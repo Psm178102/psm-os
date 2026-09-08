@@ -62,7 +62,7 @@ class handler(BaseHTTPRequestHandler):
             sb = supabase_client()
             # v87.37: o cockpit mostra TODO o estado interno do CMO — relatórios,
             # Placar de Notas do Auditor, backlog ICE e Decision Log (4 chaves).
-            extras = ["cmo_notas", "cmo_backlog", "cmo_decisoes", "cmo_depto_status"]
+            extras = ["cmo_notas", "cmo_backlog", "cmo_decisoes", "cmo_depto_status", "cmo_pecas"]
             rows = (sb.table("shared_kv").select("key,value")
                     .in_("key", [KV_KEY] + extras).execute().data or [])
             kv = {}
@@ -89,6 +89,8 @@ class handler(BaseHTTPRequestHandler):
                 # {slug: true} — sessões que criam agentes marcam aqui (SQL upsert),
                 # e o cockpit acende a cadeira sem precisar de deploy.
                 "depto_status": kv.get("cmo_depto_status", {}),
+                # v87.66: fila de validação do sócio (peças aguardando aprova/ajusta/reprova)
+                "pecas": itens_de("cmo_pecas"),
             })
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)})
@@ -103,6 +105,44 @@ class handler(BaseHTTPRequestHandler):
             body = json.loads(raw or b"{}")
         except Exception:
             return self._send(400, {"ok": False, "error": "JSON inválido"})
+
+        # ── v87.66: VALIDAÇÃO DO SÓCIO (o portão da esteira) ──────────────
+        # body: { acao:"validar", peca_id, veredito:"aprovada|ajustar|reprovada", motivo? }
+        # Grava o veredito na própria peça em shared_kv cmo_pecas. Lei 5 da
+        # esteira: nada vai ao ar sem passar por aqui.
+        if (body.get("acao") or "").strip() == "validar":
+            peca_id = str(body.get("peca_id") or "").strip()
+            veredito = str(body.get("veredito") or "").strip().lower()
+            motivo = str(body.get("motivo") or "").strip()[:1000]
+            if veredito not in ("aprovada", "ajustar", "reprovada"):
+                return self._send(400, {"ok": False, "error": "veredito deve ser aprovada|ajustar|reprovada"})
+            if veredito in ("ajustar", "reprovada") and not motivo:
+                return self._send(400, {"ok": False, "error": "ajuste/reprovação exige motivo (vira regra em 24h)"})
+            try:
+                sb = supabase_client()
+                rows = sb.table("shared_kv").select("value").eq("key", "cmo_pecas").limit(1).execute().data or []
+                v = rows[0]["value"] if rows else {}
+                if isinstance(v, str):
+                    v = json.loads(v or "{}")
+                itens = [i for i in ((v or {}).get("itens") or []) if isinstance(i, dict)]
+                alvo = next((i for i in itens if i.get("id") == peca_id), None)
+                if not alvo:
+                    return self._send(404, {"ok": False, "error": "peça não encontrada"})
+                alvo["status"] = veredito
+                alvo["motivo"] = motivo
+                alvo["validado_por"] = actor.get("login") or actor.get("nome") or "sócio"
+                alvo["validado_em"] = datetime.now(timezone.utc).isoformat()
+                sb.table("shared_kv").upsert({
+                    "key": "cmo_pecas", "value": {"itens": itens},
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                }).execute()
+                audit(self, actor, "cmo.peca_validada", target_type="cmo_peca", target_id=peca_id,
+                      notes=f"{veredito} {motivo[:120]}")
+                pend = len([i for i in itens if (i.get("status") or "pendente") == "pendente"])
+                return self._send(200, {"ok": True, "peca": alvo, "pendentes": pend})
+            except Exception as e:
+                return self._send(500, {"ok": False, "error": str(e)})
+
         tipo = str(body.get("tipo") or "").strip().lower()
         texto = str(body.get("texto") or "").strip()
         if tipo not in ALLOWED_TIPO:

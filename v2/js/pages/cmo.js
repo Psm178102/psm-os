@@ -14,12 +14,13 @@ import { auth } from '../auth.js';
 const TIPO_LBL = { diario: '📅 Diário (19h15)', semanal: '🗓 Placar Semanal (seg)', mensal: '📊 Fechamento de mês', trimestral: '♟️ Plano do trimestre' };
 const TIPO_COR = { diario: '#fb923c', semanal: '#38bdf8', mensal: '#22c55e', trimestral: '#a855f7' };
 const TABS = [
-  { id: 'status', lbl: '🚦 Status' },
-  { id: 'painel', lbl: '🎛 Painel' },
-  { id: 'esteira', lbl: '🏭 Esteira' },
-  { id: 'depto', lbl: '🏢 Departamento' },
+  { id: 'status', lbl: '📖 Como funciona' },
+  { id: 'validar', lbl: '✅ Validar peças' },
+  { id: 'painel', lbl: '🎛 Números' },
+  { id: 'esteira', lbl: '🏭 O fluxo' },
+  { id: 'depto', lbl: '🏢 A equipe' },
   { id: 'relatorios', lbl: '📜 Relatórios' },
-  { id: 'monitor', lbl: '📊 Monitoramento' },
+  { id: 'monitor', lbl: '📊 Notas e testes' },
 ];
 
 /* Organograma oficial (espelho do cmo-psm.md + artifact Esteira Conquista). */
@@ -101,6 +102,7 @@ function md(txt) {
 
 function fmtTs(ts) { return esc(String(ts || '').slice(0, 16).replace('T', ' ')) + ' UTC'; }
 function rels() { return Array.isArray(_dados?.relatorios) ? _dados.relatorios : []; }
+function pecas() { return Array.isArray(_dados?.pecas) ? _dados.pecas : []; }
 function deptoVivo() {
   const st = (_dados && _dados.depto_status) || {};
   return DEPTO.map(d => ({ ...d, ok: st[d.key] !== undefined ? !!st[d.key] : d.ok }));
@@ -162,6 +164,7 @@ function render() {
   if (_dados === null) { body.innerHTML = '<div class="muted tiny"><span class="spinner"></span> Carregando cockpit do CMO…</div>'; return; }
   if (_dados.erro) { body.innerHTML = `<div class="muted">⚠️ ${esc(_dados.erro)}</div>`; return; }
   if (_tab === 'status') renderStatus(body);
+  else if (_tab === 'validar') renderValidar(body);
   else if (_tab === 'painel') renderPainel(body);
   else if (_tab === 'esteira') renderEsteira(body);
   else if (_tab === 'depto') renderDepto(body);
@@ -223,45 +226,90 @@ const STATUS_VOCE = [
 ];
 
 function renderStatus(body) {
-  const r = rels(), ns = notas();
-  const pecasOk = ns.filter(n => (+n.nota || 0) >= 8).length;
-  const conta = k => STATUS_BLOCOS.reduce((a, b) => a + b.itens.filter(i => i[1] === k).length, 0);
+  const ns = notas();
+  const pend = pecas().filter(p => (p.status || 'pendente') === 'pendente').length;
+  const D = STATUS_BLOCOS;
+
+  // linha do tempo da fábrica, em linguagem de gente
+  const LINHA = [
+    { n: 1, ico: '🔎', quem: 'Curador',    faz: 'Garimpa o que está bombando no Brasil e transforma em temas pra semana',        st: 'ok',     saiu: '13 temas entregues, todos com prova de que funcionam' },
+    { n: 2, ico: '🎯', quem: 'CMO',        faz: 'Escolhe quais temas valem a pena e escreve o pedido pra equipe',                st: 'ok',     saiu: '5 temas escolhidos e briefados' },
+    { n: 3, ico: '✍️', quem: 'Copywriter', faz: 'Escreve o roteiro e a legenda de cada peça',                                    st: 'ok',     saiu: '5 roteiros prontos, nota 9,5' },
+    { n: 4, ico: '🎨', quem: 'Design',     faz: 'Faz as artes no Canva com a identidade da marca',                               st: 'off',    saiu: 'TRAVADO: o Canva está sem permissão de editar/exportar' },
+    { n: 5, ico: '🎥', quem: 'Vídeo',      faz: 'Gera ou grava o material bruto e monta o vídeo final',                          st: 'meio',   saiu: 'Roteiro de gravação pronto; falta crédito pra gerar por IA' },
+    { n: 6, ico: '⚖️', quem: 'Auditor',    faz: 'Dá nota 0-10 em tudo. Abaixo de 8 volta pra refazer sozinho',                   st: 'ok',     saiu: '6 entregas avaliadas, 3 erros pegos antes de irem ao ar' },
+    { n: 7, ico: '👤', quem: 'VOCÊ',       faz: 'Aprova, pede ajuste ou reprova cada peça. Nada vai ao ar sem isso',             st: 'espera', saiu: pend ? (pend + ' peças esperando na aba "Validar peças"') : 'nada pendente' },
+    { n: 8, ico: '📆', quem: 'Agendador',  faz: 'Publica no Instagram, Facebook, TikTok e YouTube e confere se saiu certo',      st: 'espera', saiu: 'Esperando peça aprovada' },
+  ];
+
   body.innerHTML = `
-  <div class="cmo-card" style="border-left:4px solid #38bdf8;margin-bottom:14px">
-    <b>🚦 Onde a máquina está agora</b>
-    <div class="tiny" style="margin-top:6px;line-height:1.6">
-      A estrutura está <b>pronta</b> (14 agentes, fluxograma, rotina na nuvem, cockpit).
-      A esteira <b>já girou uma volta completa</b> e produziu pauta + 5 peças auditadas.
-      O que falta é <b>ferramenta destravada</b> e <b>sua validação</b> — nenhum post foi ao ar,
-      e nada vai sem o seu OK (lei 5 da esteira).
+  <style>
+    .fb-hero{background:linear-gradient(135deg,rgba(34,197,94,.12),transparent);border:1px solid var(--bd);border-radius:14px;padding:18px 20px;margin-bottom:16px}
+    .fb-step{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:12px;background:var(--bg-3);border:1px solid var(--bd);position:relative}
+    .fb-num{width:26px;height:26px;border-radius:99px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;flex:0 0 26px;background:var(--bd)}
+    .fb-arrow{text-align:center;color:var(--muted);font-size:15px;line-height:1;padding:3px 0}
+    .fb-eu{border-color:#eab308;box-shadow:0 0 0 1px #eab308}
+    .fb-acao{background:var(--bg-3);border:1px solid var(--bd);border-radius:12px;padding:14px 16px}
+    .fb-acao b{display:block;font-size:13.5px;margin-bottom:3px}
+    .fb-onde{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd);font-size:12.5px;align-items:baseline}
+    .fb-onde b{min-width:130px}
+  </style>
+
+  <div class="fb-hero">
+    <div style="font-weight:900;font-size:17px">📖 O que é isto aqui</div>
+    <div class="tiny" style="margin-top:6px;line-height:1.7;max-width:70ch">
+      Uma <b>fábrica de conteúdo</b> pra PSM Conquista. São 14 assistentes de IA, cada um com uma função,
+      trabalhando em fila: um acha o assunto, outro escreve, outro desenha, outro dá nota — e no fim
+      <b>você aprova</b>. Só depois disso alguma coisa vai pro Instagram, TikTok, Facebook ou YouTube.<br><br>
+      <b>O seu trabalho é um só: dizer sim ou não.</b> O resto acontece sozinho.
     </div>
-    <div class="cmo-grid" style="margin-top:12px">
-      <div class="cmo-kpi"><div class="v" style="color:#22c55e">${conta('ok')}</div><div class="l">funcionando</div></div>
-      <div class="cmo-kpi"><div class="v" style="color:#eab308">${conta('meio')}</div><div class="l">parcial</div></div>
-      <div class="cmo-kpi"><div class="v" style="color:#f43f5e">${conta('off')}</div><div class="l">travado</div></div>
-      <div class="cmo-kpi"><div class="v" style="color:#38bdf8">${conta('espera')}</div><div class="l">aguarda você</div></div>
-      <div class="cmo-kpi"><div class="v">${pecasOk}</div><div class="l">entregáveis nota ≥8</div></div>
-      <div class="cmo-kpi"><div class="v">0</div><div class="l">posts no ar</div></div>
+    <div class="cmo-grid" style="margin-top:14px">
+      <div class="cmo-kpi"><div class="v" style="color:#eab308">${pend}</div><div class="l">peças esperando você</div></div>
+      <div class="cmo-kpi"><div class="v" style="color:#22c55e">${ns.filter(n => (+n.nota||0) >= 8).length}</div><div class="l">entregas aprovadas pelo auditor</div></div>
+      <div class="cmo-kpi"><div class="v">0</div><div class="l">posts publicados</div></div>
+      <div class="cmo-kpi"><div class="v" style="color:#f43f5e">${D.reduce((a,b)=>a+b.itens.filter(i=>i[1]==='off').length,0)}</div><div class="l">coisas travadas</div></div>
     </div>
   </div>
 
-  <div class="cmo-card" style="border-left:4px solid #f43f5e;margin-bottom:14px">
-    <b>⏳ A VEZ É SUA — 6 coisas, ~40 minutos</b>
-    <div class="tiny muted" style="margin-top:2px">Enquanto isso não acontece, a esteira fica parada no portão.</div>
-    <div style="margin-top:10px">
-      ${STATUS_VOCE.map(v => `
-      <div style="display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--bd)">
-        <span style="font-size:17px">${v[0]}</span>
-        <div style="flex:1">
-          <b style="font-size:13px">${esc(v[1])}</b>
-          <div class="tiny muted" style="margin-top:2px;line-height:1.5">${esc(v[2])}</div>
+  <div style="font-weight:800;font-size:15px;margin:20px 0 10px">🏭 Como uma peça nasce (o caminho completo)</div>
+  <div style="display:flex;flex-direction:column;gap:0">
+    ${LINHA.map((e, i) => {
+      const c = ST[e.st];
+      return `
+      <div class="fb-step ${e.quem === 'VOCÊ' ? 'fb-eu' : ''}">
+        <div class="fb-num" style="background:${c[0]};color:#04121f">${e.n}</div>
+        <div style="flex:1;min-width:0">
+          <div class="flex" style="gap:8px;align-items:baseline;flex-wrap:wrap">
+            <b style="font-size:13.5px">${e.ico} ${esc(e.quem)}</b>
+            <span class="tiny" style="color:${c[0]};font-weight:700">${c[1]}</span>
+          </div>
+          <div class="tiny muted" style="margin-top:2px;line-height:1.5">${esc(e.faz)}</div>
+          <div class="tiny" style="margin-top:4px;color:${c[0]}">→ ${esc(e.saiu)}</div>
         </div>
-        <span class="tiny" style="white-space:nowrap;align-self:center;color:#eab308;font-weight:700">${esc(v[3])}</span>
-      </div>`).join('')}
+      </div>
+      ${i < LINHA.length - 1 ? '<div class="fb-arrow">↓</div>' : ''}`;
+    }).join('')}
+  </div>
+
+  <div style="font-weight:800;font-size:15px;margin:22px 0 10px">👤 O que VOCÊ faz (e só você pode fazer)</div>
+  <div class="cmo-grid3">
+    <div class="fb-acao" style="border-left:4px solid #eab308">
+      <b>1. Aprovar as peças</b>
+      <div class="tiny muted" style="line-height:1.55">Na aba <b>✅ Validar peças</b>. Você lê o gancho e o resumo, e clica: aprovar, pedir ajuste ou reprovar. Se pedir ajuste, escreve 1 linha do motivo — e isso vira regra pra equipe não repetir o erro.</div>
+      ${pend ? `<div class="tiny" style="margin-top:6px"><a href="#" data-ir2="validar" style="color:#eab308;font-weight:800">→ ${pend} esperando agora</a></div>` : ''}
+    </div>
+    <div class="fb-acao" style="border-left:4px solid #38bdf8">
+      <b>2. Decidir o que só você decide</b>
+      <div class="tiny muted" style="line-height:1.55">Verba, confirmar números oficiais (faixas do MCMV), quem aparece nos vídeos, autorizar ferramenta nova. A equipe recomenda com número; a palavra final é sua.</div>
+    </div>
+    <div class="fb-acao" style="border-left:4px solid #22c55e">
+      <b>3. Ler o placar de segunda</b>
+      <div class="tiny muted" style="line-height:1.55">Toda segunda 8h chega um resumo de 1 tela: o que funcionou, o que não, e 3 decisões pra semana. Fica na aba <b>📜 Relatórios</b>.</div>
     </div>
   </div>
 
-  ${STATUS_BLOCOS.map(b => `
+  <div style="font-weight:800;font-size:15px;margin:22px 0 10px">🚦 O que está funcionando e o que não está</div>
+  ${D.map(b => `
   <div class="cmo-card" style="margin-bottom:12px">
     <b>${esc(b.titulo)}</b>
     <div style="margin-top:8px">
@@ -282,19 +330,135 @@ function renderStatus(body) {
     </div>
   </div>`).join('')}
 
+  <div class="cmo-card" style="border-left:4px solid #f43f5e;margin-bottom:12px">
+    <b>⏳ Suas pendências — ~40 minutos no total</b>
+    <div style="margin-top:8px">
+      ${STATUS_VOCE.map(v => `
+      <div style="display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--bd)">
+        <span style="font-size:16px">${v[0]}</span>
+        <div style="flex:1"><b style="font-size:13px">${esc(v[1])}</b>
+          <div class="tiny muted" style="margin-top:2px;line-height:1.5">${esc(v[2])}</div></div>
+        <span class="tiny" style="white-space:nowrap;align-self:center;color:#eab308;font-weight:700">${esc(v[3])}</span>
+      </div>`).join('')}
+    </div>
+  </div>
+
   <div class="cmo-card">
-    <b>🧭 Onde acompanhar cada coisa</b>
-    <div class="tiny muted" style="margin-top:6px;line-height:1.8">
-      <b>Esta página (Diretoria → 🎯 CMO)</b> é o seu posto: <b>🚦 Status</b> (esta aba, o que funciona) ·
-      <b>🎛 Painel</b> (KPIs e último relatório de cada rito) · <b>🏭 Esteira</b> (o fluxograma e os prazos) ·
-      <b>🏢 Departamento</b> (as 14 cadeiras e o que cada uma faz) · <b>📜 Relatórios</b> (as rodadas automáticas) ·
-      <b>📊 Monitoramento</b> (notas do Auditor, backlog de testes, decisões).<br>
-      <b>Marketing → 🏭 Equipe de Marketing</b>: conversar com qualquer um dos 14 agentes.<br>
-      <b>Marketing → 🚦 Gestor de Tráfego</b>: mídia paga e relatório das 19h.<br>
-      As peças e pautas ficam em <code>Documentos/Claude/Projects/CONTEUDOS</code> no seu Mac.
+    <b>🧭 Para que serve cada aba desta página</b>
+    <div style="margin-top:8px">
+      <div class="fb-onde"><b>📖 Como funciona</b><span class="tiny muted">esta tela: o que é a fábrica e o que está de pé</span></div>
+      <div class="fb-onde"><b>✅ Validar peças</b><span class="tiny muted">onde você aprova ou reprova — o portão</span></div>
+      <div class="fb-onde"><b>🎛 Números</b><span class="tiny muted">indicadores e o último relatório de cada tipo</span></div>
+      <div class="fb-onde"><b>🏭 O fluxo</b><span class="tiny muted">o desenho detalhado com prazos e regras</span></div>
+      <div class="fb-onde"><b>🏢 A equipe</b><span class="tiny muted">os 14 assistentes e o que cada um faz</span></div>
+      <div class="fb-onde"><b>📜 Relatórios</b><span class="tiny muted">o que a IA escreveu sozinha (diário, semanal, mensal)</span></div>
+      <div class="fb-onde" style="border:0"><b>📊 Notas e testes</b><span class="tiny muted">notas do auditor, ideias em teste e decisões tomadas</span></div>
+    </div>
+    <div class="tiny muted" style="margin-top:10px;line-height:1.6">
+      Fora desta página: <b>Marketing → 🏭 Equipe de Marketing</b> pra conversar com qualquer assistente ·
+      <b>Marketing → 🚦 Gestor de Tráfego</b> pra anúncios pagos.
     </div>
   </div>`;
+
+  body.querySelectorAll('[data-ir2]').forEach(el => el.onclick = e => { e.preventDefault(); _tab = el.dataset.ir2; render(); });
 }
+
+/* ─────────────────────── ✅ Validar (o portão do sócio) ───────────────────────
+   Paulo (08/set): "onde eu valido?". Aqui. Nenhuma peça vai ao ar sem passar
+   por esta tela — lei 5 da esteira. Grava em shared_kv cmo_pecas via
+   POST /api/v3/diretoria/cmo {acao:"validar"}. */
+
+const VER = {
+  pendente:  ['#eab308', '⏳ aguardando você'],
+  aprovada:  ['#22c55e', '✅ aprovada'],
+  ajustar:   ['#fb923c', '✏️ ajustar'],
+  reprovada: ['#f43f5e', '🚫 reprovada'],
+};
+let _vAberta = null, _vBusy = false;
+
+async function validarPeca(id, veredito, motivo) {
+  if (_vBusy) return;
+  if (veredito !== 'aprovada' && !motivo) { alert('Ajuste e reprovação exigem 1 linha de motivo — ela vira regra da esteira em 24h.'); return; }
+  _vBusy = true; render();
+  try {
+    await api.request('/api/v3/diretoria/cmo', { method: 'POST', body: { acao: 'validar', peca_id: id, veredito, motivo: motivo || '' } });
+    _vAberta = null; _dados = null; _vBusy = false; render(); await load(true);
+  } catch (e) { _vBusy = false; alert('Falha: ' + e.message); render(); }
+}
+
+function renderValidar(body) {
+  const lista = pecas();
+  const pend = lista.filter(p => (p.status || 'pendente') === 'pendente');
+  const feitas = lista.filter(p => (p.status || 'pendente') !== 'pendente');
+
+  body.innerHTML = `
+  <div class="cmo-card" style="border-left:4px solid ${pend.length ? '#eab308' : '#22c55e'};margin-bottom:14px">
+    <b>${pend.length ? `⏳ ${pend.length} peça${pend.length > 1 ? 's' : ''} esperando seu veredito` : '✅ Nada pendente — fila limpa'}</b>
+    <div class="tiny muted" style="margin-top:4px;line-height:1.6">
+      Este é o portão da esteira: <b>nenhuma peça vai ao ar sem passar por aqui</b> (lei 5).
+      Cada peça já veio com nota do Auditor (corte 8) — você decide o que é a cara da marca.
+      <b>Ajustar</b> e <b>reprovar</b> pedem 1 linha de motivo, que vira regra escrita em 24h: assim você nunca corrige o mesmo detalhe duas vezes.
+    </div>
+  </div>
+
+  ${pend.length ? pend.map(p => {
+    const aberta = _vAberta === p.id;
+    return `
+    <div class="cmo-card" style="border-left:4px solid #eab308;margin-bottom:12px">
+      <div class="flex" style="align-items:baseline;gap:8px;flex-wrap:wrap">
+        <b style="font-size:14px">${esc(p.titulo || 'Peça sem título')}</b>
+        ${p.nota ? `<span class="cmo-nota" style="${notaCor(+p.nota)}">${esc(p.nota)}</span>` : ''}
+        ${p.serie ? `<span class="tiny" style="color:#38bdf8">${esc(p.serie)}</span>` : ''}
+        ${p.canal ? `<span class="tiny muted">· ${esc(p.canal)}</span>` : ''}
+      </div>
+      ${p.gancho ? `<div class="tiny" style="margin-top:6px;padding:8px 10px;background:var(--bg-2,rgba(255,255,255,.04));border-radius:8px;line-height:1.5"><b>Gancho 0-2s:</b> ${esc(p.gancho)}</div>` : ''}
+      ${p.resumo ? `<div class="tiny muted" style="margin-top:6px;line-height:1.55">${esc(p.resumo)}</div>` : ''}
+      ${p.cta ? `<div class="tiny" style="margin-top:5px"><b>CTA:</b> ${esc(p.cta)}</div>` : ''}
+      ${p.pendencia ? `<div class="tiny" style="margin-top:5px;color:#fb923c">⚠️ ${esc(p.pendencia)}</div>` : ''}
+      ${p.arquivo ? `<div class="tiny muted" style="margin-top:5px">📄 texto completo: <code>${esc(p.arquivo)}</code></div>` : ''}
+      <div class="flex gap-2" style="margin-top:10px;flex-wrap:wrap">
+        <button class="btn tiny" style="background:#22c55e;color:#04170c;font-weight:800" data-ap="${esc(p.id)}" ${_vBusy ? 'disabled' : ''}>✅ Aprovar</button>
+        <button class="btn btn-ghost tiny" data-aj="${esc(p.id)}" ${_vBusy ? 'disabled' : ''}>✏️ Ajustar</button>
+        <button class="btn btn-ghost tiny" data-rp="${esc(p.id)}" ${_vBusy ? 'disabled' : ''}>🚫 Reprovar</button>
+      </div>
+      ${aberta ? `
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bd)">
+        <div class="tiny muted" style="margin-bottom:5px">O que precisa mudar? (1 linha — vira regra da esteira)</div>
+        <div class="flex gap-2">
+          <input class="input" id="v-motivo" style="flex:1" placeholder="ex.: o gancho está fraco, começa com o número" autofocus>
+          <button class="btn btn-primary tiny" id="v-enviar">Enviar</button>
+        </div>
+      </div>` : ''}
+    </div>`;
+  }).join('') : `<div class="cmo-card tiny muted" style="text-align:center;padding:18px">
+      Sem peças na fila. Quando a esteira produzir, elas aparecem aqui automaticamente.
+    </div>`}
+
+  ${feitas.length ? `<div style="font-weight:800;margin:18px 0 8px">Já decididas (${feitas.length})</div>
+    ${feitas.map(p => {
+      const v = VER[p.status] || VER.pendente;
+      return `<div class="cmo-card" style="border-left:4px solid ${v[0]};margin-bottom:8px;padding:10px 14px">
+        <div class="flex" style="gap:8px;align-items:baseline;flex-wrap:wrap">
+          <b style="font-size:13px">${esc(p.titulo || '')}</b>
+          <span class="tiny" style="color:${v[0]};font-weight:700">${v[1]}</span>
+          <span class="tiny muted">· ${fmtTs(p.validado_em)}</span>
+        </div>
+        ${p.motivo ? `<div class="tiny muted" style="margin-top:3px">💬 ${esc(p.motivo)}</div>` : ''}
+      </div>`;
+    }).join('')}` : ''}`;
+
+  body.querySelectorAll('[data-ap]').forEach(el => el.onclick = () => validarPeca(el.dataset.ap, 'aprovada', ''));
+  body.querySelectorAll('[data-aj]').forEach(el => el.onclick = () => { _vAberta = el.dataset.aj; _vAcao = 'ajustar'; render(); });
+  body.querySelectorAll('[data-rp]').forEach(el => el.onclick = () => { _vAberta = el.dataset.rp; _vAcao = 'reprovada'; render(); });
+  const env = body.querySelector('#v-enviar');
+  if (env) {
+    const go = () => validarPeca(_vAberta, _vAcao || 'ajustar', (body.querySelector('#v-motivo')?.value || '').trim());
+    env.onclick = go;
+    const inp = body.querySelector('#v-motivo');
+    if (inp) { inp.onkeydown = e => { if (e.key === 'Enter') go(); }; inp.focus(); }
+  }
+}
+let _vAcao = 'ajustar';
 
 /* ─────────────────────────── 🎛 Painel ─────────────────────────── */
 function renderPainel(body) {
