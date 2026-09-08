@@ -263,7 +263,14 @@ def _sales_summary(sb, scope, user):
             b["sem_valor"] += 1
 
     def in_period(r, iso_start):
-        d = r.get("closed_at") or r.get("created_at_rd") or ""
+        # 📅 v87.59 (auditoria 08/set) — RÉGUA ÚNICA DE DATA: o mês do negócio é o
+        # closed_at, SEM cair pro created_at_rd. O fallback nasceu de quando o RD
+        # deixava closed_at vazio; hoje 100%% dos deals fechados (ganhos E perdidos)
+        # têm closed_at, e o fallback só servia pra jogar negócio antigo no mês em que
+        # o LEAD nasceu — divergindo da Gestão Comercial, do Painel Metas, da
+        # Produtividade Real e da Arena, que sempre exigiram closed_at.
+        # Vigiado por /api/v3/system/consistency (check venda_sem_data).
+        d = r.get("closed_at") or ""
         return bool(d) and d >= iso_start
 
     def sum_vgv(arr):

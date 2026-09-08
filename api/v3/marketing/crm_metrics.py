@@ -475,11 +475,17 @@ class handler(BaseHTTPRequestHandler):
             owner_email = (d.get("user_email") or "").lower()
             owner_name = name_by_email.get(owner_email) or (raw.get("user") or {}).get("name") or owner_email or "—"
 
-            # Data EFETIVA do fechamento: usa closed_at, mas cai p/ created_at_rd quando
-            # o RD não preenche closed_at (a maioria das vendas!). Sem esse fallback o
-            # crm_metrics subcontava feio (3 vendas em vez de 25) e divergia do
-            # /metrics/overview e /metas/atingimento, que já usam closed||created.
-            eff_close = closed or created
+            # 📅 v87.59 (auditoria 08/set) — RÉGUA ÚNICA DE DATA: só closed_at.
+            # O comentário antigo aqui ("a maioria das vendas não tem closed_at",
+            # "3 vendas em vez de 25") descrevia a base de quando o fallback foi
+            # criado, e afirmava que /metas/atingimento usava closed||created — o
+            # que nunca foi verdade: o Painel Metas sempre filtrou closed_at
+            # estrito. Ou seja, o fallback não alinhava nada, criava a divergência.
+            # Hoje 100% dos deals fechados têm closed_at (172/172 ganhos, 4.482/4.482
+            # perdidos), então tirar o fallback não muda número nenhum e passa a
+            # valer a mesma régua do resto do sistema.
+            # Vigiado por /api/v3/system/consistency (check venda_sem_data).
+            eff_close = closed
             in_close_win = eff_close is not None and since_dt <= eff_close <= until_dt
             in_create_win = created is not None and since_dt <= created <= until_dt
 

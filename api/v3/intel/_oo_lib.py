@@ -102,13 +102,22 @@ MILESTONES = [
     ("pasta", "Pasta / Lançamento"),
     ("venda", "Venda"),
 ]
+# ⚠️ BLOCO ESPELHADO — tem que ficar IDÊNTICO ao _MS_RE de api/v3/oo/_oo_lib.py.
+# (A Vercel empacota cada pasta de api/v3/* isolada, então a lib é copiada em vez
+# de importada; o ci.yml compara os dois blocos e quebra o build se divergirem.)
 # regex por marco (do mais avançado pro mais básico — primeiro match vence)
 _MS_RE = [
     (5, re.compile(r"pasta|lan[çc]ament", re.I)),
-    (4, re.compile(r"proposta|aprova", re.I)),
-    (3, re.compile(r"realizad", re.I)),                       # VISITA REALIZADA
-    (2, re.compile(r"agendad|agendar", re.I)),               # VISITA AGENDADA
-    (1, re.compile(r"cont|qualific|atend|tent|oport|negocia", re.I)),
+    (4, re.compile(r"proposta|negocia|aprova", re.I)),
+    # v86.65 (só chegou aqui na v87.59 — auditoria 08/set): marco 3 EXIGE
+    # "visita" (com `realizad` sozinho, "CONTATO REALIZADO" virava VISITA) e
+    # marco 1 usa "contato" inteiro (`cont` casava em CONTRATO e em
+    # "Construtores"); "negocia" é proposta (4), não contato. Enquanto esta
+    # cópia ficou pra trás, o Sales Brain, o briefing diário e a fila do dia
+    # contavam visita e contato diferente da Gestão Comercial e do 1:1.
+    (3, re.compile(r"visita.*realizad|realizad.*visita", re.I)),   # VISITA REALIZADA
+    (2, re.compile(r"agendad|agendar|agendamento", re.I)),         # VISITA AGENDADA
+    (1, re.compile(r"contato|qualific|atend|tentativ|oport", re.I)),
 ]
 
 

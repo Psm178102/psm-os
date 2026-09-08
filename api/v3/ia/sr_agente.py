@@ -28,6 +28,21 @@ from datetime import datetime, timezone, timedelta
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit, notify, send_web_push, lvl_of  # type: ignore
 
+def _amt(d):
+    """💰 v87.59 (auditoria 08/set) — RÉGUA ÚNICA DE VALOR DA VENDA: `amount`
+    com fallback em `rd_raw.amount_total`, igual a api/v3/oo/_oo_lib.amount() e
+    a /metrics/overview. Sem o fallback esta tela somava R$ 0 justamente nas
+    vendas em que o RD grava o valor só no amount_total — e divergia do
+    Dashboard, do Painel Metas e do 1:1 pro mesmo período."""
+    for v in (d.get("amount"), d.get("amt_total")):
+        try:
+            if v not in (None, "") and float(v) > 0:
+                return float(v)
+        except (TypeError, ValueError):
+            pass
+    return 0.0
+
+
 KV_STATE = "sr_agente_state"
 KV_DOSSIES = "sr_agente_dossies"
 CICLO_DIAS = 7
@@ -113,7 +128,7 @@ def _dados_pessoa(sb, u, now):
     mes_ini = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
     out = {"nome": u.get("name"), "funcao": u.get("role")}
     try:
-        deals = (sb.table("deals").select("id,name,amount,stage_name,win,updated_at_rd,created_at_rd,closed_at")
+        deals = (sb.table("deals").select("id,name,amount,stage_name,win,updated_at_rd,created_at_rd,closed_at,amt_total:rd_raw->amount_total")
                  .eq("user_id", uid).order("updated_at_rd", desc=True).limit(300).execute().data or [])
         abertos = [d for d in deals if d.get("win") is None]
         parados = [d for d in abertos if str(d.get("updated_at_rd") or "") < d7]
@@ -126,7 +141,7 @@ def _dados_pessoa(sb, u, now):
             "parados_7d_sem_toque": len(parados),
             "parados_exemplos": [str(d.get("name") or "")[:40] for d in parados[:5]],
             "novos_7d": sum(1 for d in deals if str(d.get("created_at_rd") or "") >= d7),
-            "ganhos_no_mes": {"qtd": len(ganhos_mes), "vgv": sum(float(d.get("amount") or 0) for d in ganhos_mes)},
+            "ganhos_no_mes": {"qtd": len(ganhos_mes), "vgv": sum(_amt(d) for d in ganhos_mes)},
         }
     except Exception:
         out["funil"] = None

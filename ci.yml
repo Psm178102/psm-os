@@ -19,6 +19,12 @@ jobs:
       - run: npm ci
       - name: Validar sintaxe HTML+JS
         run: node scripts/validate-syntax.js
+      # v87.59: a régua do funil é COPIADA em cada pasta de api/v3 (a Vercel
+      # empacota isolado). Este check quebra o build se as cópias divergirem —
+      # foi assim que a de api/v3/intel ficou 1 versão atrás e o Sales Brain
+      # passou a contar visita diferente da Gestão Comercial.
+      - name: Régua do funil idêntica entre as cópias
+        run: python3 scripts/check-reguas.py
       - name: ESLint libs
         run: npx eslint lib/*.js --no-eslintrc --parser-options=ecmaVersion:2022
 

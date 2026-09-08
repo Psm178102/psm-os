@@ -7,7 +7,9 @@ por /api/v3/crm/sync). Se a tabela deals estiver vazia OU fallback_rd=1,
 busca direto da RD API (mais lento, mas funciona sem sync).
 
 Match deal → corretor via user_id já resolvido na tabela deals.
-Mês de atingimento = mês de `closed_at`.
+Mês de atingimento = mês de `closed_at` (BRT) — nos DOIS caminhos.
+v87.59: o fallback RD usava `closed_at or updated_at` e descartava venda de
+corretor não cadastrado; agora segue a mesma régua do caminho Postgres.
 
 Cache 5min por (ano, user_id).
 """
@@ -209,9 +211,19 @@ class handler(BaseHTTPRequestHandler):
                     rd_error = r["error"]
                 else:
                     source = "rd_live"
+                    # v87.59 (auditoria 08/set): este caminho de emergência contava
+                    # DIFERENTE do caminho normal — mesmo endpoint, mesmo mês, dois
+                    # números. Duas correções pra alinhar:
+                    #   (a) data: era `closed_at or updated_at`. O updated_at muda a
+                    #       cada toque no deal, então uma venda de março reeditada em
+                    #       agosto virava venda de agosto. Agora é closed_at estrito,
+                    #       igual ao caminho Postgres e ao resto do sistema.
+                    #   (b) dono: venda de corretor não cadastrado era DESCARTADA
+                    #       (`continue`), sumindo do total da empresa. Agora cai no
+                    #       balde "__sem_corretor", que é o que a v86.72 já fazia do
+                    #       lado do Postgres.
                     for d in r["deals"]:
-                        # Mês do closed
-                        ca = d.get("closed_at") or d.get("updated_at")
+                        ca = d.get("closed_at")
                         if not ca: continue
                         try:
                             dt = datetime.fromisoformat(str(ca).replace("Z", "+00:00"))
@@ -225,10 +237,10 @@ class handler(BaseHTTPRequestHandler):
                         user_d = d.get("user") or {}
                         email = (user_d.get("email") or "").lower() if isinstance(user_d, dict) else ""
                         u = users_by_email.get(email)
-                        if not u: continue
+                        uid = u["id"] if u else "__sem_corretor"
                         amt = float(d.get("amount_total") or d.get("amount_unique") or 0)
-                        atingido_idx[(u["id"], mes)]["vgv"] += amt
-                        atingido_idx[(u["id"], mes)]["count"] += 1
+                        atingido_idx[(uid, mes)]["vgv"] += amt
+                        atingido_idx[(uid, mes)]["count"] += 1
 
         # 4. Compose grid
         grid = []

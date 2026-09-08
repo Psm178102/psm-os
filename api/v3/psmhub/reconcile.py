@@ -20,6 +20,21 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
 from _psmhub_lib import get as hub_get, configured             # type: ignore
 
+def _amt(d):
+    """💰 v87.59 (auditoria 08/set) — RÉGUA ÚNICA DE VALOR DA VENDA: `amount`
+    com fallback em `rd_raw.amount_total`, igual a api/v3/oo/_oo_lib.amount() e
+    a /metrics/overview. Sem o fallback esta tela somava R$ 0 justamente nas
+    vendas em que o RD grava o valor só no amount_total — e divergia do
+    Dashboard, do Painel Metas e do 1:1 pro mesmo período."""
+    for v in (d.get("amount"), d.get("amt_total")):
+        try:
+            if v not in (None, "") and float(v) > 0:
+                return float(v)
+        except (TypeError, ValueError):
+            pass
+    return 0.0
+
+
 
 def _norm(s):
     s = unicodedata.normalize("NFKD", str(s or "")).encode("ascii", "ignore").decode("ascii")
@@ -81,7 +96,7 @@ class handler(BaseHTTPRequestHandler):
         # 3) deals win=true do MÊS → VGV/contagem por user_id e por email
         deals, page = [], 0
         while True:
-            chunk = (sb.table("deals").select("amount,closed_at,created_at_rd,user_id,user_email,win")
+            chunk = (sb.table("deals").select("amount,closed_at,created_at_rd,user_id,user_email,win,amt_total:rd_raw->amount_total")
                      .eq("win", True).order("id").range(page * 1000, page * 1000 + 999).execute().data or [])
             deals.extend(chunk)
             if len(chunk) < 1000 or page >= 50:
@@ -89,13 +104,19 @@ class handler(BaseHTTPRequestHandler):
             page += 1
 
         def in_month(r):
-            d = (r.get("closed_at") or r.get("created_at_rd") or "")
-            return str(d)[:7] == ym
+            # 📅 v87.59 (auditoria 08/set) — RÉGUA ÚNICA DE DATA: o mês do negócio é o
+            # closed_at, SEM cair pro created_at_rd. O fallback nasceu de quando o RD
+            # deixava closed_at vazio; hoje 100%% dos deals fechados (ganhos E perdidos)
+            # têm closed_at, e o fallback só servia pra jogar negócio antigo no mês em que
+            # o LEAD nasceu — divergindo da Gestão Comercial, do Painel Metas, da
+            # Produtividade Real e da Arena, que sempre exigiram closed_at.
+            # Vigiado por /api/v3/system/consistency (check venda_sem_data).
+            return str(r.get("closed_at") or "")[:7] == ym
 
         wins = [r for r in deals if in_month(r)]
         rd_by_uid, rd_by_email = {}, {}
         for r in wins:
-            amt = float(r.get("amount") or 0)
+            amt = _amt(r)
             uid = r.get("user_id")
             em = (r.get("user_email") or "").lower()
             if uid:
@@ -145,7 +166,7 @@ class handler(BaseHTTPRequestHandler):
         tot_ph_n = sum(r["psmhub_vendas"] for r in rows)
         tot_rd_conq = sum(r["rd_vgv"] for r in rows)
         tot_rd_conq_n = sum(r["rd_vendas"] for r in rows)
-        rd_empresa = sum(float(r.get("amount") or 0) for r in wins)
+        rd_empresa = sum(_amt(r) for r in wins)
         rd_empresa_n = len(wins)
         basis_counts = {}
         for r in rows:

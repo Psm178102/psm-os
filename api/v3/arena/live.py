@@ -6,6 +6,21 @@ from datetime import datetime, timezone, timedelta
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
 
+def _amt(d):
+    """💰 v87.59 (auditoria 08/set) — RÉGUA ÚNICA DE VALOR DA VENDA: `amount`
+    com fallback em `rd_raw.amount_total`, igual a api/v3/oo/_oo_lib.amount() e
+    a /metrics/overview. Sem o fallback esta tela somava R$ 0 justamente nas
+    vendas em que o RD grava o valor só no amount_total — e divergia do
+    Dashboard, do Painel Metas e do 1:1 pro mesmo período."""
+    for v in (d.get("amount"), d.get("amt_total")):
+        try:
+            if v not in (None, "") and float(v) > 0:
+                return float(v)
+        except (TypeError, ValueError):
+            pass
+    return 0.0
+
+
 
 class handler(BaseHTTPRequestHandler):
     def _send(self, s, b):
@@ -26,13 +41,13 @@ class handler(BaseHTTPRequestHandler):
         events = []
         # 1. Vendas RD (deals win=true closed last 7d)
         try:
-            d = sb.table("deals").select("id,name,amount,closed_at,user_id,user_email,stage_name") \
+            d = sb.table("deals").select("id,name,amount,closed_at,user_id,user_email,stage_name,amt_total:rd_raw->amount_total") \
                 .eq("win", True).gte("closed_at", since).order("closed_at", desc=True).limit(20).execute().data or []
             for x in d:
                 events.append({
                     "type": "venda", "ico": "🏆", "color": "#16a34a",
                     "ts": x["closed_at"], "title": "VENDA fechada",
-                    "subtitle": f"R$ {float(x.get('amount') or 0):,.0f} · {x.get('name') or 'sem nome'}",
+                    "subtitle": f"R$ {_amt(x):,.0f} · {x.get('name') or 'sem nome'}",
                     "actor_id": x.get("user_id"), "meta": x.get("stage_name"),
                 })
         except Exception as e: print(f"[arena] deals err: {e}")

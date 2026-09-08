@@ -30,6 +30,21 @@ from datetime import datetime, timezone, timedelta
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit, frente_of, agora_brt  # type: ignore
 
+def _amt(d):
+    """💰 v87.59 (auditoria 08/set) — RÉGUA ÚNICA DE VALOR DA VENDA: `amount`
+    com fallback em `rd_raw.amount_total`, igual a api/v3/oo/_oo_lib.amount() e
+    a /metrics/overview. Sem o fallback esta tela somava R$ 0 justamente nas
+    vendas em que o RD grava o valor só no amount_total — e divergia do
+    Dashboard, do Painel Metas e do 1:1 pro mesmo período."""
+    for v in (d.get("amount"), d.get("amt_total")):
+        try:
+            if v not in (None, "") and float(v) > 0:
+                return float(v)
+        except (TypeError, ValueError):
+            pass
+    return 0.0
+
+
 # ── linhas (mesmas ids da tela de viabilidade) + defaults de premissa ──
 LINHAS = [
     {"id": "map",       "nome": "PSM M.A.P",     "icon": "🏢", "cor": "#7c3aed"},
@@ -318,7 +333,7 @@ def realizado_ano(sb, ano):
         # v86.70: ano em BRT (1º/jan 00:00 BRT = 03:00Z) + paginação (PostgREST corta em 1000)
         dd, pg = [], 0
         while True:
-            rows = (sb.table("deals").select("id,amount,closed_at,pipeline_name").eq("win", True)
+            rows = (sb.table("deals").select("id,amount,closed_at,pipeline_name,amt_total:rd_raw->amount_total").eq("win", True)
                     .gte("closed_at", f"{ano}-01-01T03:00:00+00:00")
                     .lt("closed_at", f"{ano+1}-01-01T03:00:00+00:00")
                     .order("id").range(pg * 1000, pg * 1000 + 999).execute().data or [])
@@ -331,7 +346,7 @@ def realizado_ano(sb, ano):
             except Exception: continue
             ln = _frente_of(d.get("pipeline_name"))
             if ln not in real or not (1 <= dt.month <= 12): continue
-            real[ln][str(dt.month)]["vgv"] += float(d.get("amount") or 0)
+            real[ln][str(dt.month)]["vgv"] += _amt(d)
             real[ln][str(dt.month)]["vendas"] += 1
     except Exception:
         pass

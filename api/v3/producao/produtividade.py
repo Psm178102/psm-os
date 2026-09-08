@@ -22,6 +22,21 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
 from _prod_lib import first_touch_map, email_local, METAS_CORRETOR  # type: ignore
 
+def _amt(d):
+    """💰 v87.59 (auditoria 08/set) — RÉGUA ÚNICA DE VALOR DA VENDA: `amount`
+    com fallback em `rd_raw.amount_total`, igual a api/v3/oo/_oo_lib.amount() e
+    a /metrics/overview. Sem o fallback esta tela somava R$ 0 justamente nas
+    vendas em que o RD grava o valor só no amount_total — e divergia do
+    Dashboard, do Painel Metas e do 1:1 pro mesmo período."""
+    for v in (d.get("amount"), d.get("amt_total")):
+        try:
+            if v not in (None, "") and float(v) > 0:
+                return float(v)
+        except (TypeError, ValueError):
+            pass
+    return 0.0
+
+
 KV_CACHE = "prod_real_cache_v3"   # v86.80: payload ganhou sem_registro_producao
 CACHE_MIN = 10
 PASTA_BOAS = ("aprovada", "aprovado")
@@ -49,11 +64,11 @@ def _compute(sb, janela):
 
     # deals da janela (safra: lead NASCIDO na janela) — base do rendimento
     deals = _fetch_all(lambda: sb.table("deals")
-                       .select("id,user_email,pipeline_name,win,amount,created_at_rd")
+                       .select("id,user_email,pipeline_name,win,amount,created_at_rd,amt_total:rd_raw->amount_total")
                        .gte("created_at_rd", desde).order("created_at_rd", desc=True))
     # vendas fechadas na janela (independente da safra) — camada resultado
     wins = _fetch_all(lambda: sb.table("deals")
-                      .select("id,user_email,amount,closed_at")
+                      .select("id,user_email,amount,closed_at,amt_total:rd_raw->amount_total")
                       .eq("win", True).gte("closed_at", desde))
     # eventos de produção da janela
     evs = _fetch_all(lambda: sb.table("producao_eventos")

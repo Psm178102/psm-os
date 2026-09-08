@@ -18,6 +18,21 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit, can_route  # type: ignore
 
+def _amt(d):
+    """💰 v87.59 (auditoria 08/set) — RÉGUA ÚNICA DE VALOR DA VENDA: `amount`
+    com fallback em `rd_raw.amount_total`, igual a api/v3/oo/_oo_lib.amount() e
+    a /metrics/overview. Sem o fallback esta tela somava R$ 0 justamente nas
+    vendas em que o RD grava o valor só no amount_total — e divergia do
+    Dashboard, do Painel Metas e do 1:1 pro mesmo período."""
+    for v in (d.get("amount"), d.get("amt_total")):
+        try:
+            if v not in (None, "") and float(v) > 0:
+                return float(v)
+        except (TypeError, ValueError):
+            pass
+    return 0.0
+
+
 # v86.67: a alçada desta tela é decidida pela MATRIZ por papel (como no menu), não só por nível.
 _GATE_ROUTES = ['/sucesso-cliente', '/cs-onboarding', '/cs-carteira', '/cs-suporte', '/cs-retencao', '/cs-metricas', '/cs-upsell', '/cs-marketing', '/cs-avaliacoes', '/cs-indicacoes']
 _GATE_GROUP = 'sucesso'
@@ -68,7 +83,7 @@ def _fetch_won(sb):
     out, page, size = [], 0, 1000
     while page < 30:
         try:
-            rows = (sb.table("deals").select("name,amount,closed_at,pipeline_name,user_email,user_id")
+            rows = (sb.table("deals").select("name,amount,closed_at,pipeline_name,user_email,user_id,amt_total:rd_raw->amount_total")
                     .eq("win", True).range(page * size, page * size + size - 1).execute().data or [])
         except Exception:
             break
@@ -98,7 +113,7 @@ def _build_clientes(sb):
             c = by_key[k] = {"key": k, "nome": nome, "ltv": 0.0, "n_negocios": 0,
                              "ultima_compra": None, "cat_rd": categoria_de(d.get("pipeline_name")),
                              "corretor": d.get("user_email"), "ltv_por_cat": {}}
-        amt = _money(d.get("amount"))
+        amt = _amt(d)   # v87.59: amount com fallback em amount_total (LTV divergia do VGV)
         c["ltv"] += amt
         c["n_negocios"] += 1
         # LTV atribuído à categoria DO PRÓPRIO DEAL (não à do negócio mais recente):

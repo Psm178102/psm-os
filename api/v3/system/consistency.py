@@ -11,6 +11,8 @@ Checks:
   3. meta_descolada  — meta anual × realizado (atingimento < 25% depois de abril = recalibrar)
   4. frentes_orfas   — deals ganhos do ano caindo em 'outros' (funil sem frente mapeada)
   5. cenarios_locais — sempre ok (cenários agora são backend; check é lembrete histórico)
+  6. venda_sem_data  — venda ganha sem closed_at? (v87.59) as telas discordam do MÊS
+  7. venda_valor_divergente — amount=0 com amount_total>0? (v87.59) discordam do VGV
 
 Requer lvl>=7. Usado pelo painel de saúde e pelo cron de alertas.
 """
@@ -86,6 +88,45 @@ def run_checks(sb):
             else "Funis SEM frente mapeada (VGV caindo em 'outros'): " + "; ".join(f"{k} (R$ {v:,.0f})" for k, v in list(estranhos.items())[:5]), "warn")
     except Exception as e:
         add("frentes_orfas", True, f"check indisponível: {e}")
+
+    # 5+6. v87.59 (auditoria 08/set) — DETECTORES DAS DUAS BOMBAS ARMADAS.
+    # O sistema tem regras diferentes espalhadas pra "em que mês caiu a venda"
+    # (closed_at estrito × closed_at||created_at_rd) e pra "quanto ela valeu"
+    # (amount × amount com fallback em rd_raw.amount_total). Hoje as regras dão
+    # o MESMO resultado só porque 100% das vendas têm closed_at e nenhuma tem
+    # amount zerado com amount_total cheio. No dia em que o RD gravar uma venda
+    # fora desse padrão, as telas passam a discordar em silêncio. Estes dois
+    # checks acusam o primeiro caso, antes de virar número errado no cockpit.
+    try:
+        wins = sb.table("deals").select("closed_at,amount,amt_total:rd_raw->amount_total") \
+            .eq("win", True).limit(5000).execute().data or []
+        sem_data = [d for d in wins if not d.get("closed_at")]
+        add("venda_sem_data", not sem_data,
+            f"Todas as {len(wins)} vendas têm closed_at — as telas concordam no mês"
+            if not sem_data else
+            f"{len(sem_data)} venda(s) SEM closed_at: Gestão Comercial, Metas, Produtividade e Arena "
+            f"vão IGNORAR essas vendas enquanto Dashboard e Marketing contam pelo created_at_rd. "
+            f"Unificar a régua de data antes de confiar no mês.", "err")
+
+        def _zerado(d):
+            try:
+                a = float(d.get("amount") or 0)
+            except (TypeError, ValueError):
+                a = 0.0
+            try:
+                t = float(d.get("amt_total") or 0)
+            except (TypeError, ValueError):
+                t = 0.0
+            return a <= 0 < t
+
+        sem_valor = [d for d in wins if _zerado(d)]
+        add("venda_valor_divergente", not sem_valor,
+            "Nenhuma venda com amount zerado e amount_total cheio — o VGV bate entre as telas"
+            if not sem_valor else
+            f"{len(sem_valor)} venda(s) com amount=0 mas amount_total>0: Reconcile, Produtividade, Arena, "
+            f"Viabilidade e CS vão somar R$ 0 nelas enquanto Dashboard, Metas e 1:1 somam o valor cheio.", "err")
+    except Exception as e:
+        add("venda_sem_data", True, f"check indisponível: {e}")
 
     falhas = [c for c in checks if not c["ok"]]
     return {"ok": not falhas, "checks": checks, "falhas": len(falhas), "ts": now.isoformat()}
