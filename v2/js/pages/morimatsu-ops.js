@@ -915,6 +915,8 @@ export function renderSimulador() {
       ${vinc ? `<div class="tiny muted mt-2">Vinculado a <b>${esc(vinc.titulo)}</b>. Mexer aqui não altera o imóvel — use “Salvar no imóvel” para gravar.</div>` : ''}
     </div>
 
+    <div id="sim-resposta">${simResposta(sim())}</div>
+
     <form id="f-sim">
     <div class="card">
       ${bloco(1, 'Os valores de referência', 'Três valores diferentes que quase sempre são confundidos — e cada um serve para uma coisa.')}
@@ -933,7 +935,7 @@ export function renderSimulador() {
       <div class="ma-form" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
         ${cmp('Lance mínimo do edital (R$)', input('lance_min', s.lance_min, 'number'), 'Abaixo disso não existe lance. Se o teto ficar abaixo do mínimo, o imóvel é reprovado.')}
         ${cmp('Lance que você pretende dar (R$)', input('lance_base', A.lance_base, 'number'), 'É este que o simulador testa contra o teto.')}
-        ${cmp('Ágio esperado (%)', input('margem_pct', A.margem_pct != null && A.margem_pct !== '' ? A.margem_pct : v.margem_alvo, 'number', 'min="0"'),
+        ${cmp('Quanto você quer ganhar (%)', input('margem_pct', A.margem_pct != null && A.margem_pct !== '' ? A.margem_pct : v.margem_alvo, 'number', 'min="0"'),
           num(A.margem_pct) === 0 && A.margem_pct != null
             ? '<b style="color:#d97706">Com ágio 0 o teto vira o ponto de equilíbrio</b> — o lance máximo passa a ser o que empata, sem lucro. Use só para saber onde é o empate.'
             : 'Quanto você quer ganhar sobre o capital investido. É o que define o lance máximo.')}
@@ -956,7 +958,7 @@ export function renderSimulador() {
       <div class="ma-form" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
         ${cmp('ITBI (R$)', input('itbi_valor', A.itbi_valor, 'number'), `Deixe zero para calcular ${v.itbi}% sobre a maior base. Preencha se já tem a guia.`)}
         ${cmp('Documentação e escritura (R$)', input('escritura_valor', A.escritura_valor, 'number'), 'Deixe zero para calcular pela tabela. Leilão sai por carta de arrematação.')}
-        ${cmp('Due diligence (R$)', input('dd', A.dd, 'number'), 'Custas processuais, certidões e taxas da análise documental.')}
+        ${cmp('Custas e certidões (R$)', input('dd', A.dd, 'number'), 'Custas processuais, certidões e taxas da análise documental.')}
         ${cmp('Advogado e imissão (R$)', input('advogado', A.advogado, 'number'), 'Só entra se o imóvel estiver ocupado.')}
         ${cmp('Débitos de IPTU (R$)', input('debitos_iptu', A.debitos_iptu, 'number'), 'O atrasado que vem junto. O edital da unidade diz quem paga.')}
         ${cmp('Débitos de condomínio (R$)', input('debitos_cond', A.debitos_cond, 'number'), 'Idem. É o passivo que mais surpreende no ticket baixo.')}
@@ -1011,28 +1013,116 @@ function cascata(r) {
   </table></div>`;
 }
 
+/* ═══════════ 🎯 A RESPOSTA — o topo do simulador ═══════════
+   A conta detalhada estava respondendo tudo, menos a pergunta que se faz na mesa
+   do leilão: "posso dar esse lance ou não, e até quanto?". Este bloco responde
+   isso em uma frase, com uma régua mostrando onde o seu lance cai em relação ao
+   mínimo do edital e ao teto que a conta suporta. O resto virou "ver detalhes". */
+function regua(minEdital, teto, lance) {
+  const vals = [minEdital, teto, lance].filter(x => num(x) > 0);
+  if (vals.length < 2) return '';
+  const lo = Math.min(...vals) * 0.9, hi = Math.max(...vals) * 1.08;
+  const pos = v => Math.max(0, Math.min(100, (num(v) - lo) / (hi - lo) * 100));
+  const pTeto = pos(teto), pLance = pos(lance), pMin = pos(minEdital);
+  const cabe = num(lance) <= num(teto);
+  return `<div class="ma-regua">
+    <div class="ma-regua-trilho">
+      <div class="ma-regua-ok" style="width:${pTeto}%"></div>
+      <div class="ma-regua-nao" style="left:${pTeto}%;width:${100 - pTeto}%"></div>
+      ${num(minEdital) > 0 ? `<div class="ma-regua-marca" style="left:${pMin}%"><span>mínimo do edital<br><b>${brl(minEdital)}</b></span></div>` : ''}
+      <div class="ma-regua-marca teto" style="left:${pTeto}%"><span>teto da conta<br><b>${brl(teto)}</b></span></div>
+      ${num(lance) > 0 ? `<div class="ma-regua-pin ${cabe ? 'ok' : 'nao'}" style="left:${pLance}%" title="seu lance">▼<span>seu lance<br><b>${brl(lance)}</b></span></div>` : ''}
+    </div>
+    <div class="ma-regua-leg"><span>◀ verde: dá lucro</span><span>vermelho: dá prejuízo ▶</span></div>
+  </div>`;
+}
+
+function resumoSimples(s, b, lm, V) {
+  const minEdital = num(s.lance_min), lance = num(b.L);
+  const cabe = lance > 0 && lance <= lm;
+  const semLance = !lance;
+  const impossivel = minEdital > 0 && lm < minEdital;
+  const dif = Math.abs(lm - lance);
+  const pc2 = x => (x * 100).toFixed(2).replace('.', ',') + '%';
+  const liquido = b.venda - b.corret - b.imposto;
+
+  let selo, cor, frase;
+  if (impossivel) {
+    selo = 'NÃO DÁ'; cor = '#ef4444';
+    frase = `A conta só suporta até <b>${brl(lm)}</b>, e o edital pede no mínimo <b>${brl(minEdital)}</b>.
+      Não existe lance que feche: o banco está pedindo mais do que o imóvel comporta. <b>Passe este imóvel.</b>`;
+  } else if (semLance) {
+    selo = 'PODE DAR ATÉ'; cor = '#9C7A3C';
+    frase = `Você pode cobrir até <b>${brl(lm)}</b> e ainda ganhar o que pediu. Coloque o lance que pretende dar para comparar.`;
+  } else if (cabe) {
+    selo = 'PODE DAR'; cor = '#16a34a';
+    frase = `Seu lance de <b>${brl(lance)}</b> cabe. O teto é <b>${brl(lm)}</b> — você ainda tem <b>${brl(dif)}</b> de folga para disputar.`;
+  } else {
+    selo = 'NÃO COBRIR'; cor = '#ef4444';
+    frase = `Seu lance de <b>${brl(lance)}</b> passa <b>${brl(dif)}</b> do teto. O máximo que fecha é <b>${brl(lm)}</b>.
+      Acima disso você compra o prejuízo.`;
+  }
+
+  const cartao = (ico, titulo, valor, nota, corV) => `<div class="ma-resumo-c">
+    <div class="tiny muted">${ico} ${titulo}</div>
+    <div class="ma-resumo-v" ${corV ? `style="color:${corV}"` : ''}>${valor}</div>
+    <div class="tiny muted">${nota}</div></div>`;
+
+  return `
+    <div class="card ma-resposta" style="border-color:${cor}">
+      <div class="ma-resposta-topo">
+        <div class="ma-resposta-selo" style="background:${cor}">${selo}</div>
+        <div class="ma-resposta-valor">${brl(lm)}</div>
+        <div class="tiny muted" style="width:100%">é o máximo que você pode dar neste imóvel</div>
+      </div>
+      <p class="ma-resposta-frase">${frase}</p>
+      ${regua(minEdital, lm, lance)}
+    </div>
+
+    ${lance ? `<div class="card">
+      <h2 class="card-title">Se você arrematar por ${brl(lance)}</h2>
+      <div class="ma-resumo">
+        ${cartao('💸', 'Você coloca', brl(b.inv), 'lance + taxas + reforma + os meses até vender')}
+        ${cartao('💰', 'Você recebe', brl(liquido), 'venda já sem a comissão e o imposto')}
+        ${cartao(b.lucro > 0 ? '✅' : '🔻', b.lucro > 0 ? 'Sobra' : 'Falta', brl(Math.abs(b.lucro)), b.lucro > 0 ? 'no seu bolso, no fim' : 'você põe mais do que tira', b.lucro > 0 ? '#16a34a' : '#ef4444')}
+        ${cartao('📈', 'Rende', pc2(b.agioMes) + ' ao mês', `em ${b.prazo} meses · seu piso é ${pc2(b.tma_m)} ao mês`, b.agioMes >= b.tma_m ? '#16a34a' : '#ef4444')}
+      </div>
+      ${V && V.status === 'condicionado' && V.cond.length ? `<div class="alert alert-warn mt-2" style="font-size:13px">
+        <b>Fecharia se:</b><ul class="ma-cond">${V.cond.map(c => `<li>${esc(c)}</li>`).join('')}</ul></div>` : ''}
+    </div>` : ''}`;
+}
+
+const semDados = A => !num(A.lance_base) || !(num(A.mercado) || num(A.venda_esperada));
+const aguardando = txt => `<div class="card"><div class="ma-veredito" style="border-color:#64748b">
+  <div class="ma-ver-selo" style="background:#64748b">AGUARDANDO</div>
+  <div style="flex:1">${txt}</div></div></div>`;
+
+/* Topo: a resposta. Fica acima do formulário — é o que se olha na mesa do leilão. */
+function simResposta(s) {
+  if (semDados(s.analise)) return aguardando('Preencha o <b>valor de mercado</b> e o <b>lance</b> lá embaixo para o simulador responder.');
+  return resumoSimples(s, motor(s, {}), lanceMax(s, {}), veredito(s, {}));
+}
+
 function simOut(s) {
   const v = viab(), A = s.analise;
-  if (!num(A.lance_base) || !(num(A.mercado) || num(A.venda_esperada))) {
-    return `<div class="card"><div class="ma-veredito" style="border-color:#64748b">
-      <div class="ma-ver-selo" style="background:#64748b">AGUARDANDO</div>
-      <div style="flex:1">Preencha pelo menos o <b>valor de mercado</b> (ou o valor de venda esperado) e o <b>lance</b> para o motor rodar.</div></div></div>`;
-  }
+  if (semDados(A)) return '';
   const cen = CENARIOS.map(c => ({ ...c, r: motor(s, { multVenda: c.multVenda, multRef: c.multRef, extra: c.extra }) }));
   const ro = { r: motor(s, { desocupado: false }), lm: lanceMax(s, { desocupado: false }) };
   const rd = { r: motor(s, { desocupado: true }), lm: lanceMax(s, { desocupado: true }) };
   const b = cen[1].r, lm = lanceMax(s, {});
+  const V = veredito(s, {});
   const pc = x => (x * 100).toFixed(1).replace('.', ',') + '%';
   const pc2 = x => (x * 100).toFixed(2).replace('.', ',') + '%';
   return `
-    <div class="card">${anOut(s, cen, lm, ro, rd, ro.r.inv - rd.r.inv)}</div>
-    <div class="card">
-      <h2 class="card-title">🧾 A conta aberta — cenário realista</h2>
+    <details class="card ma-detalhes"><summary><b>Ver a conta detalhada</b> <span class="tiny muted">— cascata de custos, cenários e as duas rotas</span></summary>
+    <div style="margin-top:10px">${anOut(s, cen, lm, ro, rd, ro.r.inv - rd.r.inv)}</div>
+    <div class="ma-sec">🧾 A conta aberta — cenário realista</div>
+    <div>
       <p class="card-sub">Prazo total de <b>${b.prazo} meses</b>: ${b.meses.ocupacao} de desocupação, ${b.meses.documentacao} de documentação, ${b.meses.reforma} de reforma e ${b.meses.venda} até vender. Comissão da assessoria pela faixa ${num(b.faixaFee.ate) ? 'até ' + brl(b.faixaFee.ate) : 'acima da última faixa'} → <b>${b.faixaFee.pct}%</b>.</p>
       ${cascata(b)}
     </div>
-    <div class="card">
-      <h2 class="card-title">📈 Ágio — total e por mês</h2>
+    <div class="ma-sec">📈 Ágio — total e por mês</div>
+    <div>
       <p class="card-sub">O ágio total dividido pelos meses até a venda mostra o quanto o capital rende por mês nesta operação. É o número que compara este imóvel com qualquer outra aplicação.</p>
       <div style="overflow-x:auto"><table class="ma-tbl">
         <tr><th>Cenário</th><th style="text-align:right">Venda</th><th style="text-align:right">Prazo</th><th style="text-align:right">Lucro</th><th style="text-align:right">Ágio total</th><th style="text-align:right">Ágio ao mês</th><th>Fecha?</th></tr>
@@ -1047,7 +1137,7 @@ function simOut(s) {
         </tr>`).join('')}
       </table></div>
       <div class="tiny muted mt-2">Referência: a TMA exigida é de <b>${pc2(tmaMes())} ao mês</b> (${v.tma_aa}% ao ano). Ágio ao mês abaixo disso significa que o capital rende menos parado do que nesta operação.</div>
-    </div>`;
+    </div></details>`;
 }
 
 export function wireSimulador(root) {
@@ -1064,7 +1154,8 @@ export function wireSimulador(root) {
     salvarSim();
     return s;
   };
-  form.querySelectorAll('input,select').forEach(el => el.oninput = el.onchange = () => { $('#sim-out').innerHTML = simOut(ler()); });
+  const repintar = () => { const s = ler(); $('#sim-resposta').innerHTML = simResposta(s); $('#sim-out').innerHTML = simOut(s); };
+  form.querySelectorAll('input,select').forEach(el => el.oninput = el.onchange = repintar);
   $('#sim-imv').onchange = e => { e.target.value ? carregarImovel(e.target.value) : (_sim = simVazia(), salvarSim()); render(); };
   $('#sim-zerar').onclick = () => { if (!confirm('Limpar a simulação?')) return; _sim = simVazia(); salvarSim(); render(); };
   $('#sim-cfg').onclick = () => editarViab(() => render());
