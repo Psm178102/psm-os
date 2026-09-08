@@ -14,6 +14,7 @@ import { auth } from '../auth.js';
 const TIPO_LBL = { diario: '📅 Diário (19h15)', semanal: '🗓 Placar Semanal (seg)', mensal: '📊 Fechamento de mês', trimestral: '♟️ Plano do trimestre' };
 const TIPO_COR = { diario: '#fb923c', semanal: '#38bdf8', mensal: '#22c55e', trimestral: '#a855f7' };
 const TABS = [
+  { id: 'status', lbl: '🚦 Status' },
   { id: 'painel', lbl: '🎛 Painel' },
   { id: 'esteira', lbl: '🏭 Esteira' },
   { id: 'depto', lbl: '🏢 Departamento' },
@@ -68,7 +69,7 @@ let _root = null, _tab = 'painel', _dados = null, _filtro = 'todos', _formAberto
 
 export async function pageCMO(ctx, root) {
   _root = root;
-  _tab = (ctx?.query?.tab) || 'painel';
+  _tab = (ctx?.query?.tab) || 'status';
   render();
   await load(true);
 }
@@ -160,11 +161,139 @@ function render() {
   const body = _root.querySelector('#cmo-body');
   if (_dados === null) { body.innerHTML = '<div class="muted tiny"><span class="spinner"></span> Carregando cockpit do CMO…</div>'; return; }
   if (_dados.erro) { body.innerHTML = `<div class="muted">⚠️ ${esc(_dados.erro)}</div>`; return; }
-  if (_tab === 'painel') renderPainel(body);
+  if (_tab === 'status') renderStatus(body);
+  else if (_tab === 'painel') renderPainel(body);
   else if (_tab === 'esteira') renderEsteira(body);
   else if (_tab === 'depto') renderDepto(body);
   else if (_tab === 'relatorios') renderRelatorios(body);
   else renderMonitor(body);
+}
+
+
+/* ─────────────────────── 🚦 Status (semáforo honesto) ───────────────────────
+   Pedido do Paulo (08/set): "não ficou claro o que está funcionando e o que não
+   está, no House não sei nem onde acompanhar". Esta aba é a resposta: uma tela,
+   verde/amarelo/vermelho, com o que destrava cada item e de quem é a vez. */
+
+const ST = { ok: ['#22c55e', '✅ funcionando'], meio: ['#eab308', '🟡 parcial'], off: ['#f43f5e', '🔴 travado'], espera: ['#38bdf8', '⏳ aguarda você'] };
+
+const STATUS_BLOCOS = [
+  { titulo: '🏭 A ESTEIRA (as 8 estações produzindo)', itens: [
+    ['Curador — pauta da semana', 'ok', 'Entregou a Pauta S37: 13 itens com evidência, nota 8,5 do Auditor.', ''],
+    ['Copywriter — copy das peças', 'ok', 'Entregou as 5 peças do golden set, nota 9,5 cada. Já corrigidas na v2 (regra da Sol).', ''],
+    ['Auditor — nota e fiscalização', 'ok', 'Estreou dando nota em 6 entregáveis e pegou 3 erros reais. Notas gravadas no banco.', ''],
+    ['SEO — hashtags, keywords, baseline', 'ok', 'Pacote completo entregue + baseline local medido (o número que vamos mover).', ''],
+    ['Tráfego Orgânico — manual do algoritmo', 'ok', 'Manual Vivo ed.1: 5 regras com dado, 2 testes com kill criteria, 5 colabs mapeados.', ''],
+    ['Vídeo IA — matéria-prima', 'meio', 'Shotlist e estrutura do banco prontos. Não gerou vídeo: vidIQ sem crédito e upload do Cloudinary quebrado.', 'Créditos vidIQ (ou esperar 06/10) + gravar a peça do caderno (não depende de nada)'],
+    ['Design — artes finais', 'off', '8 rascunhos no Canva, nenhum pronto. As ferramentas de editar/exportar estão quebradas e o gerador INVENTOU texto (preço falso R$200.000, desconto falso de 20%).', 'Reautorizar o conector Canva com escopos de escrita/export'],
+    ['Editor / Social Media / Community / Agendador', 'espera', 'Ainda não rodaram: dependem de peça pronta e da sua validação.', 'Sua validação das 5 peças + arte pronta'],
+  ]},
+  { titulo: '⚙️ A MÁQUINA (o que roda sozinho)', itens: [
+    ['Rotina do CMO na nuvem', 'ok', 'Diário 19h15, Placar segunda 8h, fechamento dia 1º — cron do Vercel, roda com tudo desligado.', ''],
+    ['Cockpit no House (esta página)', 'ok', 'Relatórios, notas, backlog e decisões gravando no banco.', ''],
+    ['Vigia de Concorrência', 'ok', 'Coleta 3x/dia + IA a cada 6h. Achado forte: ninguém paga anúncio de MCMV em Rio Preto.', ''],
+    ['Gestor de Tráfego (Meta)', 'ok', 'Módulo próprio com relatório 19h.', ''],
+    ['Tarefas do Windows (7 de navegador)', 'off', 'Radares de WhatsApp, Vigia da Ad Library, CEO e CFO não foram criados no PC ainda.', '2 min no PC Windows: colar a mensagem do LEIA-ME da pasta MIGRACAO-WINDOWS'],
+  ]},
+  { titulo: '🔌 FERRAMENTAS', itens: [
+    ['Firecrawl (busca na web)', 'ok', 'Testado: achou os 29 lançamentos da Redentora e as notícias de Rio Preto.', ''],
+    ['Cloudinary (banco de brutos)', 'meio', 'Estrutura de 7 pastas criada. O upload pelo agente está quebrado.', 'Subir bruto pelo painel web do Cloudinary por enquanto'],
+    ['Zapier (ponte com o RD)', 'ok', 'Conectado e o app RD Station existe lá (5 ações). Só habilitar quando o MRR precisar — com seu OK.', ''],
+    ['Metricool (agendamento/analytics)', 'off', 'Conta criada, mas NENHUMA rede conectada: a matriz de melhor horário está 100% zerada.', '5 min: conectar IG, FB, TikTok e YouTube dentro do painel do Metricool'],
+    ['vidIQ (garimpo de virais)', 'off', 'Créditos zerados (0 de 150). Volta sozinho em 06/10 — 4 semanas sem Radar de Virais.', 'Comprar créditos ou aceitar 4 semanas cegas'],
+    ['Ahrefs (SEO)', 'off', 'Conectado, mas o plano da sua conta não inclui acesso via API.', 'Upgrade do plano Ahrefs (ou seguir com vidIQ+Firecrawl, que já cobrem)'],
+    ['Canva (artes)', 'off', 'Editar e exportar quebrados; o gerador inventa texto sozinho.', 'Reautorizar o conector com escopos de escrita/export'],
+    ['ElevenLabs (voz da Sol)', 'off', 'Não instalado — é o que daria uma voz fixa pra Sol.', 'Instalar o conector (ver checklist INSTALAR-CONECTORES-MARKETING.md)'],
+  ]},
+  { titulo: '📉 ONDE A MARCA ESTÁ HOJE (medido em 08/set)', itens: [
+    ['Busca no Google', 'off', 'PSM Conquista aparece em 0 de 5 buscas-chave locais. Sem site, sem ficha do Google confirmada, sem entidade indexada.', 'Ativar/reivindicar o Google Meu Negócio — é o ativo mais barato que existe'],
+    ['Oportunidade rara', 'ok', '"minha casa minha vida rio preto" não tem NENHUMA imobiliária no top 10, e ninguém paga anúncio no nicho. Território vago nos dois canais.', ''],
+    ['Redes sociais', 'espera', 'Nenhum post no ar ainda — a esteira está parada no seu portão de validação.', 'Validar as 5 peças'],
+    ['Baseline de alcance', 'off', 'Não existe: sem Metricool conectado e sem registro manual, a semana não é medível.', 'Conectar Metricool + registrar Insights do IG na terça 15/09 às 10h'],
+  ]},
+];
+
+const STATUS_VOCE = [
+  ['🚨', 'Validar as 5 peças do golden set (v2)', 'Nada vai ao ar sem isso. Aprova / ajusta / reprova, peça a peça.', 'destrava a semana inteira'],
+  ['📋', 'Confirmar os números do MCMV', 'A CAIXA mostra Faixa 1 até R$2.850 (a peça usa 3.200), Faixa 3 até R$9.600 e uma 4ª faixa até R$13.000. A peça 1 está segurada.', '20 min seus ou da corretora'],
+  ['👤', 'Quem grava as peças da Sol', 'A Sol é IA e não pode ter biografia. Recomendação: uma corretora real assume as peças de conversão, com cessão de imagem por escrito.', 'decisão de marca'],
+  ['🔌', 'Metricool: conectar as 4 redes', 'Cada semana sem conectar atrasa em uma semana o dado real de horário.', '5 min'],
+  ['🖥', 'Windows: criar as 7 tarefas', 'Colar a mensagem do LEIA-ME da pasta MIGRACAO-WINDOWS no app Claude do PC.', '2 min'],
+  ['🎨', 'Reautorizar o Canva', 'Sem os escopos de escrita/export, a estação de Design não fecha sozinha.', '2 min'],
+];
+
+function renderStatus(body) {
+  const r = rels(), ns = notas();
+  const pecasOk = ns.filter(n => (+n.nota || 0) >= 8).length;
+  const conta = k => STATUS_BLOCOS.reduce((a, b) => a + b.itens.filter(i => i[1] === k).length, 0);
+  body.innerHTML = `
+  <div class="cmo-card" style="border-left:4px solid #38bdf8;margin-bottom:14px">
+    <b>🚦 Onde a máquina está agora</b>
+    <div class="tiny" style="margin-top:6px;line-height:1.6">
+      A estrutura está <b>pronta</b> (14 agentes, fluxograma, rotina na nuvem, cockpit).
+      A esteira <b>já girou uma volta completa</b> e produziu pauta + 5 peças auditadas.
+      O que falta é <b>ferramenta destravada</b> e <b>sua validação</b> — nenhum post foi ao ar,
+      e nada vai sem o seu OK (lei 5 da esteira).
+    </div>
+    <div class="cmo-grid" style="margin-top:12px">
+      <div class="cmo-kpi"><div class="v" style="color:#22c55e">${conta('ok')}</div><div class="l">funcionando</div></div>
+      <div class="cmo-kpi"><div class="v" style="color:#eab308">${conta('meio')}</div><div class="l">parcial</div></div>
+      <div class="cmo-kpi"><div class="v" style="color:#f43f5e">${conta('off')}</div><div class="l">travado</div></div>
+      <div class="cmo-kpi"><div class="v" style="color:#38bdf8">${conta('espera')}</div><div class="l">aguarda você</div></div>
+      <div class="cmo-kpi"><div class="v">${pecasOk}</div><div class="l">entregáveis nota ≥8</div></div>
+      <div class="cmo-kpi"><div class="v">0</div><div class="l">posts no ar</div></div>
+    </div>
+  </div>
+
+  <div class="cmo-card" style="border-left:4px solid #f43f5e;margin-bottom:14px">
+    <b>⏳ A VEZ É SUA — 6 coisas, ~40 minutos</b>
+    <div class="tiny muted" style="margin-top:2px">Enquanto isso não acontece, a esteira fica parada no portão.</div>
+    <div style="margin-top:10px">
+      ${STATUS_VOCE.map(v => `
+      <div style="display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--bd)">
+        <span style="font-size:17px">${v[0]}</span>
+        <div style="flex:1">
+          <b style="font-size:13px">${esc(v[1])}</b>
+          <div class="tiny muted" style="margin-top:2px;line-height:1.5">${esc(v[2])}</div>
+        </div>
+        <span class="tiny" style="white-space:nowrap;align-self:center;color:#eab308;font-weight:700">${esc(v[3])}</span>
+      </div>`).join('')}
+    </div>
+  </div>
+
+  ${STATUS_BLOCOS.map(b => `
+  <div class="cmo-card" style="margin-bottom:12px">
+    <b>${esc(b.titulo)}</b>
+    <div style="margin-top:8px">
+      ${b.itens.map(i => {
+        const c = ST[i[1]];
+        return `<div style="display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--bd)">
+          <span style="width:9px;border-radius:99px;background:${c[0]};flex:0 0 9px"></span>
+          <div style="flex:1">
+            <div class="flex" style="gap:8px;align-items:baseline;flex-wrap:wrap">
+              <b style="font-size:13px">${esc(i[0])}</b>
+              <span class="tiny" style="color:${c[0]};font-weight:700">${c[1]}</span>
+            </div>
+            <div class="tiny muted" style="margin-top:2px;line-height:1.5">${esc(i[2])}</div>
+            ${i[3] ? `<div class="tiny" style="margin-top:3px;color:#eab308">🔑 destrava com: ${esc(i[3])}</div>` : ''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`).join('')}
+
+  <div class="cmo-card">
+    <b>🧭 Onde acompanhar cada coisa</b>
+    <div class="tiny muted" style="margin-top:6px;line-height:1.8">
+      <b>Esta página (Diretoria → 🎯 CMO)</b> é o seu posto: <b>🚦 Status</b> (esta aba, o que funciona) ·
+      <b>🎛 Painel</b> (KPIs e último relatório de cada rito) · <b>🏭 Esteira</b> (o fluxograma e os prazos) ·
+      <b>🏢 Departamento</b> (as 14 cadeiras e o que cada uma faz) · <b>📜 Relatórios</b> (as rodadas automáticas) ·
+      <b>📊 Monitoramento</b> (notas do Auditor, backlog de testes, decisões).<br>
+      <b>Marketing → 🏭 Equipe de Marketing</b>: conversar com qualquer um dos 14 agentes.<br>
+      <b>Marketing → 🚦 Gestor de Tráfego</b>: mídia paga e relatório das 19h.<br>
+      As peças e pautas ficam em <code>Documentos/Claude/Projects/CONTEUDOS</code> no seu Mac.
+    </div>
+  </div>`;
 }
 
 /* ─────────────────────────── 🎛 Painel ─────────────────────────── */
