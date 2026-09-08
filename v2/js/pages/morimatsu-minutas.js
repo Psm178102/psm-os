@@ -63,6 +63,59 @@ export const VARS = [
   ['escritorio_pix', 'Chave PIX', 'escritório'],
   ['data_extenso', 'Data por extenso', 'data'],
   ['cidade_foro', 'Cidade do foro', 'escritório'],
+  ['imovel_tipo', 'Tipo do imóvel', 'parecer'],
+  ['imovel_bairro', 'Bairro', 'parecer'],
+  ['imovel_ocupacao', 'Ocupado ou desocupado', 'parecer'],
+  ['imovel_link', 'Link do edital', 'parecer'],
+  ['aval', 'Valor de avaliação', 'parecer'],
+  ['mercado', 'Valor de mercado estimado', 'parecer'],
+  ['venal', 'Venal de referência', 'parecer'],
+  ['rs_m2', 'R$/m² de mercado', 'parecer'],
+  ['lance', 'Lance analisado', 'parecer'],
+  ['desagio_aval', 'Deságio sobre a avaliação', 'parecer'],
+  ['desagio_merc', 'Deságio sobre o mercado', 'parecer'],
+  ['c_lance', 'Custo · arrematação', 'parecer'],
+  ['c_leiloeiro', 'Custo · leiloeiro', 'parecer'],
+  ['c_itbi', 'Custo · ITBI', 'parecer'],
+  ['c_registro', 'Custo · registro', 'parecer'],
+  ['c_escritura', 'Custo · escritura', 'parecer'],
+  ['c_canal', 'Custo · banco ou plataforma', 'parecer'],
+  ['c_fee', 'Custo · assessoria', 'parecer'],
+  ['c_dd', 'Custo · due diligence', 'parecer'],
+  ['c_advogado', 'Custo · advogado e imissão', 'parecer'],
+  ['c_ocupacao', 'Custo · taxa de ocupação', 'parecer'],
+  ['c_debitos', 'Custo · débitos do edital', 'parecer'],
+  ['c_reforma', 'Custo · reforma', 'parecer'],
+  ['c_mobilia', 'Custo · mobília', 'parecer'],
+  ['c_posse', 'Custo · posse no período', 'parecer'],
+  ['investimento', 'INVESTIMENTO TOTAL', 'parecer'],
+  ['venda', 'Preço de venda projetado', 'parecer'],
+  ['corretagem', 'Corretagem na saída', 'parecer'],
+  ['imposto', 'Imposto sobre a venda', 'parecer'],
+  ['lucro', 'Lucro líquido projetado', 'parecer'],
+  ['roi', 'ROI', 'parecer'],
+  ['tir', 'TIR ao mês', 'parecer'],
+  ['prazo', 'Prazo estimado', 'parecer'],
+  ['breakeven', 'Preço de equilíbrio', 'parecer'],
+  ['vpl', 'VPL pela TMA', 'parecer'],
+  ['lance_maximo', 'LANCE MÁXIMO', 'parecer'],
+  ['desagio_necessario', 'Deságio necessário', 'parecer'],
+  ['veredito', 'Veredito', 'parecer'],
+  ['risco', 'Grau de risco', 'parecer'],
+  ['parecer_tecnico', 'Parecer técnico do analista', 'parecer'],
+  ['pes_venda', 'Cenário pessimista · venda', 'parecer'], ['pes_prazo', 'Pessimista · prazo', 'parecer'],
+  ['pes_lucro', 'Pessimista · lucro', 'parecer'], ['pes_roi', 'Pessimista · ROI', 'parecer'], ['pes_ver', 'Pessimista · veredito', 'parecer'],
+  ['base_venda', 'Base · venda', 'parecer'], ['base_prazo', 'Base · prazo', 'parecer'],
+  ['base_lucro', 'Base · lucro', 'parecer'], ['base_roi', 'Base · ROI', 'parecer'], ['base_ver', 'Base · veredito', 'parecer'],
+  ['oti_venda', 'Otimista · venda', 'parecer'], ['oti_prazo', 'Otimista · prazo', 'parecer'],
+  ['oti_lucro', 'Otimista · lucro', 'parecer'], ['oti_roi', 'Otimista · ROI', 'parecer'], ['oti_ver', 'Otimista · veredito', 'parecer'],
+  ['rota_oc_lucro', 'Rota ocupado · lucro', 'parecer'], ['rota_oc_lm', 'Rota ocupado · lance máximo', 'parecer'], ['rota_oc_prazo', 'Rota ocupado · prazo', 'parecer'],
+  ['rota_de_lucro', 'Rota desocupado · lucro', 'parecer'], ['rota_de_lm', 'Rota desocupado · lance máximo', 'parecer'], ['rota_de_prazo', 'Rota desocupado · prazo', 'parecer'],
+  ['custo_ocupacao', 'Custo da ocupação', 'parecer'],
+  ['p_fator', 'Premissa · preço de saída', 'parecer'],
+  ['p_regime', 'Premissa · regime tributário', 'parecer'],
+  ['p_tma', 'Premissa · TMA', 'parecer'],
+  ['p_margem', 'Premissa · margem alvo', 'parecer'],
 ];
 export const ESCRITORIO_DEFAULT = {
   nome: 'MORIMATSU & ASSOCIADOS — [razão social]',
@@ -76,6 +129,102 @@ export const escritorio = () => ({ ...ESCRITORIO_DEFAULT, ...(S.config?.escritor
 
 /* ─────────────────────── minutas padrão (adaptadas da GM) ─────────────────────── */
 export const MINUTAS_PADRAO = [
+  {
+    id: 'parecer', slug: 'parecer', cat: 'Parecer', ordem: 0,
+    titulo: 'Parecer de Viabilidade do Imóvel',
+    desc: 'O produto de R$ 500. Sai da aba Imóveis → Gerar parecer, já com os números da análise: custo total, lance máximo, cenários, as duas rotas e os riscos.',
+    corpo: `# PARECER DE VIABILIDADE
+
+**Imóvel:** {{imovel_titulo}} · {{imovel_bairro}} · {{imovel_cidade}}
+**Matrícula:** {{imovel_matricula}} — {{imovel_cartorio}} · **Modalidade:** {{imovel_modalidade}} · **Credor:** {{imovel_credor}}
+**Destinatário:** {{cliente_nome}} · **Data:** {{data_extenso}}
+---
+## 1. OBJETO E ALCANCE
+Este parecer analisa a viabilidade econômica da aquisição do imóvel acima, na modalidade {{imovel_modalidade}}, e indica o **lance máximo** compatível com a margem exigida pelo investidor. A análise é técnica e comercial, de natureza consultiva, e **não constitui parecer jurídico**: a due diligence documental e processual é executada por sociedade de advocacia parceira, contratada à parte pelo interessado.
+---
+## 2. VALORES DE REFERÊNCIA
+| Referência | Valor |
+| Valor de avaliação | {{aval}} |
+| Valor de mercado estimado | {{mercado}} |
+| Valor venal de referência (base do ITBI) | {{venal}} |
+| Valor por metro quadrado (mercado) | {{rs_m2}} |
+| Lance analisado | {{lance}} |
+| Deságio sobre a avaliação | {{desagio_aval}} |
+| Deságio sobre o mercado | {{desagio_merc}} |
+| Situação de ocupação | {{imovel_ocupacao}} |
+---
+## 3. CUSTO TOTAL DA OPERAÇÃO
+O custo de uma arrematação não é o lance. Abaixo, o desembolso completo até a revenda:
+| Item | Valor |
+| Arrematação / preço de compra | {{c_lance}} |
+| Comissão do leiloeiro | {{c_leiloeiro}} |
+| Taxa do banco ou da plataforma | {{c_canal}} |
+| ITBI | {{c_itbi}} |
+| Registro e emolumentos | {{c_registro}} |
+| Escritura pública | {{c_escritura}} |
+| Honorários de assessoria | {{c_fee}} |
+| Due diligence e certidões | {{c_dd}} |
+| Advogado e custas da imissão | {{c_advogado}} |
+| Taxa de ocupação do credor | {{c_ocupacao}} |
+| Débitos assumidos do edital | {{c_debitos}} |
+| Reforma | {{c_reforma}} |
+| Mobília e decoração | {{c_mobilia}} |
+| Custos de posse no período | {{c_posse}} |
+| **INVESTIMENTO TOTAL** | **{{investimento}}** |
+---
+## 4. RESULTADO PROJETADO
+| Linha | Valor |
+| Preço de venda projetado | {{venda}} |
+| Corretagem na saída | {{corretagem}} |
+| Imposto sobre a venda | {{imposto}} |
+| **Lucro líquido do investidor** | **{{lucro}}** |
+| Retorno sobre o investimento | {{roi}} |
+| Taxa interna de retorno ao mês | {{tir}} |
+| Prazo estimado até a venda | {{prazo}} |
+| Preço de equilíbrio (não vender abaixo) | {{breakeven}} |
+| Valor presente líquido pela TMA | {{vpl}} |
+---
+## 5. CENÁRIOS
+Nenhuma projeção é um número só. Abaixo, o mesmo imóvel sob três hipóteses de preço de saída, prazo e reforma:
+| Cenário | Venda | Prazo | Lucro | ROI | Veredito |
+| Pessimista | {{pes_venda}} | {{pes_prazo}} | {{pes_lucro}} | {{pes_roi}} | {{pes_ver}} |
+| Base | {{base_venda}} | {{base_prazo}} | {{base_lucro}} | {{base_roi}} | {{base_ver}} |
+| Otimista | {{oti_venda}} | {{oti_prazo}} | {{oti_lucro}} | {{oti_roi}} | {{oti_ver}} |
+---
+## 6. AS DUAS ROTAS — OCUPADO E DESOCUPADO
+| Rota | Prazo | Lucro projetado | Lance máximo |
+| Comprando ocupado | {{rota_oc_prazo}} | {{rota_oc_lucro}} | {{rota_oc_lm}} |
+| Comprando desocupado | {{rota_de_prazo}} | {{rota_de_lucro}} | {{rota_de_lm}} |
+A ocupação acrescenta **{{custo_ocupacao}}** ao custo da operação — advogado, custas da imissão, taxa de ocupação do credor e os meses adicionais de posse até a desocupação. Em imóveis de ticket menor, esse valor costuma consumir a margem inteira.
+---
+## 7. LANCE MÁXIMO RECOMENDADO
+Considerando o preço de saída de {{p_fator}} do valor de mercado e a margem alvo de {{p_margem}} sobre o investimento, o lance máximo é:
+| Recomendação | Valor |
+| **LANCE MÁXIMO** | **{{lance_maximo}}** |
+| Deságio necessário sobre a avaliação | {{desagio_necessario}} |
+| Lance analisado neste parecer | {{lance}} |
+| Situação | {{veredito}} |
+Acima desse valor, a operação deixa de entregar o retorno exigido. **Não cubra lance acima do teto** — em leilão, disputa vencida com preço errado é prejuízo contratado.
+---
+## 8. RISCOS MAPEADOS
+**Grau de risco atribuído:** {{risco}}
+{{parecer_tecnico}}
+Pontos verificados nesta análise, que devem ser confirmados na due diligence jurídica:
+| Ponto | Situação |
+| Ocupação do imóvel | {{imovel_ocupacao}} |
+| Débitos de condomínio e IPTU previstos no edital | {{c_debitos}} |
+| Taxa de ocupação do credor | {{c_ocupacao}} |
+| Reforma estimada | {{c_reforma}} |
+---
+## 9. CONCLUSÃO
+No cenário base, a operação apresenta lucro projetado de **{{lucro}}** em {{prazo}}, com retorno de {{roi}} sobre o investimento — **{{veredito}}** para o lance de {{lance}}.
+---
+## 10. RESSALVAS
+Os valores de mercado, reforma, prazo de desocupação e débitos são **estimativas** baseadas nas informações disponíveis na data deste parecer e nos documentos do edital. Alterações no estado do imóvel, no valor de mercado, no prazo de desocupação ou na existência de débitos não informados modificam o resultado projetado.
+Este documento tem natureza consultiva e constitui obrigação de meio: não há garantia de arrematação, de desocupação, de prazo ou de resultado econômico. Não abrange atos privativos de advocacia (Lei 8.906/94) — pareceres jurídicos, due diligence assinada e medidas judiciais são de responsabilidade da sociedade de advocacia parceira, contratada à parte pelo interessado.
+A decisão de ofertar lance é exclusiva do investidor.
+[[ASSINATURAS]]{{escritorio_nome}}|{{escritorio_socio}} — Gestão Patrimonial Imobiliária`,
+  },
   {
     id: 'assessoria_aquisicao', slug: 'assessoria_aquisicao', cat: 'Contrato', ordem: 1,
     titulo: 'Contrato de Assessoria em Aquisição (por operação)',
@@ -394,6 +543,8 @@ export function contexto({ inv, imv, op, extra } = {}) {
     cliente_qualificacao: inv?.qualificacao || (inv?.pj === 'pj' ? 'pessoa jurídica de direito privado' : 'brasileiro(a)'),
     imovel_titulo: imv?.titulo || '', imovel_matricula: imv?.matricula || '', imovel_cartorio: imv?.cartorio || '',
     imovel_cidade: imv?.cidade || '', imovel_modalidade: MODAL_LBL[imv?.modalidade] || '', imovel_credor: imv?.credor || '',
+    imovel_bairro: imv?.bairro || '', imovel_tipo: imv?.tipo || '', imovel_link: imv?.link || '',
+    imovel_ocupacao: imv ? (imv.ocupado ? 'Ocupado' : 'Desocupado') : '',
     arremat_valor: op ? moeda(op.valor) : '', arremat_data: op ? dtBR(op.data_arrematacao) : '',
     fee_analise: moeda(f.analise), fee_certame: moeda(f.certame), fee_exito_pct: String(f.exito_pct).replace('.', ','),
     fee_piso: moeda(f.piso), comissao_pct: String(f.comissao_pct).replace('.', ','), adm_pct: String(f.adm_pct).replace('.', ','),
@@ -446,11 +597,34 @@ function runs(txt, base) {
     return `<w:r><w:rPr><w:rFonts w:ascii="Georgia" w:hAnsi="Georgia"/><w:sz w:val="${base}"/>${b ? '<w:b/>' : ''}</w:rPr><w:t xml:space="preserve">${xml(t)}</w:t></w:r>`;
   }).join('');
 }
+const celulas = l => l.replace(/^\||\|$/g, '').split('|').map(x => x.trim());
+function tabelaDocx(linhas) {
+  const bord = '<w:tblBorders>' + ['top', 'left', 'bottom', 'right', 'insideH', 'insideV']
+    .map(b => `<w:${b} w:val="single" w:sz="4" w:space="0" w:color="C9D2CD"/>`).join('') + '</w:tblBorders>';
+  const tr = (cs, head) => '<w:tr>' + cs.map(t => {
+    const dir = /^R\$|^-?[\d.,]+%?$/.test(t.trim());
+    return `<w:tc><w:tcPr><w:tcW w:w="0" w:type="auto"/>${head ? '<w:shd w:val="clear" w:fill="F1F3F5"/>' : ''}</w:tcPr>`
+      + `<w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/>${dir ? '<w:jc w:val="right"/>' : ''}</w:pPr>`
+      + runs(head ? '**' + t + '**' : t, 20) + '</w:p></w:tc>';
+  }).join('') + '</w:tr>';
+  return '<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/>' + bord + '</w:tblPr>'
+    + linhas.map((c, i) => tr(c, i === 0)).join('') + '</w:tbl>';
+}
 function paras(corpo) {
   const out = [];
   const P = (inner, jc, spacing) => out.push(`<w:p><w:pPr>${jc ? `<w:jc w:val="${jc}"/>` : ''}<w:spacing w:after="${spacing ?? 120}" w:line="276" w:lineRule="auto"/></w:pPr>${inner}</w:p>`);
-  for (const raw of String(corpo).split('\n')) {
+  const linhas = String(corpo).split('\n');
+  for (let n = 0; n < linhas.length; n++) {
+    const raw = linhas[n];
     const l = raw.trimEnd();
+    if (l.startsWith('|')) {                      // bloco de tabela: consome as linhas seguintes
+      const bloco = [];
+      while (n < linhas.length && linhas[n].trim().startsWith('|')) bloco.push(celulas(linhas[n].trim())), n++;
+      n--;
+      out.push(tabelaDocx(bloco));
+      P('', null, 120);
+      continue;
+    }
     if (l.startsWith('[[ASSINATURAS]]')) {
       const cols = l.slice(15).split('||').map(c => c.split('|'));
       P('', null, 480);
@@ -488,8 +662,18 @@ export function baixarDocx(nomeArquivo, corpo) {
 export function imprimirDoc(titulo, corpo) {
   const w = window.open('', '_blank');
   if (!w) return alert('O navegador bloqueou a janela. Libere pop-ups para www.housepsm.com.br.');
-  const html = String(corpo).split('\n').map(l => {
+  const _linhas = String(corpo).split('\n');
+  const html = _linhas.map((l, idx) => {
     const t = l.trimEnd();
+    if (t.startsWith('|')) {                      // 1ª linha do bloco desenha a tabela inteira
+      if (idx > 0 && _linhas[idx - 1].trim().startsWith('|')) return '';
+      const bloco = [];
+      for (let k = idx; k < _linhas.length && _linhas[k].trim().startsWith('|'); k++) bloco.push(celulas(_linhas[k].trim()));
+      return '<table>' + bloco.map((cs, i) => '<tr>' + cs.map(x => {
+        const dir = /^R\$|^-?[\d.,]+%?$/.test(x.trim());
+        return i === 0 ? `<th>${esc(x)}</th>` : `<td${dir ? ' class="n"' : ''}>${esc(x).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')}</td>`;
+      }).join('') + '</tr>').join('') + '</table>';
+    }
     if (t.startsWith('[[ASSINATURAS]]')) return '<div class="ass">' + t.slice(15).split('||').map(c => `<div>${c.split('|').map(x => esc(x)).join('<br>')}</div>`).join('') + '</div>';
     if (t === '---') return '<div style="height:6px"></div>';
     if (t.startsWith('## ')) return `<h2>${esc(t.slice(3))}</h2>`;
@@ -503,6 +687,10 @@ export function imprimirDoc(titulo, corpo) {
     .top img{height:52px}.top .sub{font-size:9pt;letter-spacing:2px;text-transform:uppercase;color:#1F4A3D;text-align:right}
     h1{font-size:14pt;text-align:center;letter-spacing:.5px;margin:0 0 14px}h2{font-size:11.5pt;margin:16px 0 4px;color:#1F4A3D}
     p{margin:5px 0;text-align:justify}
+    table{border-collapse:collapse;width:100%;margin:8px 0;font-size:10.5pt;page-break-inside:avoid}
+    th{background:#F1F3F5;text-align:left;font-size:9.5pt;letter-spacing:.5px;text-transform:uppercase;color:#1F4A3D;padding:6px 9px;border:1px solid #C9D2CD}
+    td{padding:6px 9px;border:1px solid #C9D2CD;vertical-align:top}
+    td.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
     .ass{display:flex;gap:40px;margin-top:44px;page-break-inside:avoid}.ass div{flex:1;text-align:center;border-top:1px solid #333;padding-top:6px;font-size:10.5pt}
     .bar{position:fixed;top:0;left:0;right:0;background:#1F4A3D;color:#fff;padding:8px 16px;font-family:sans-serif;font-size:13px;display:flex;gap:12px;align-items:center}
     .bar button{font-size:13px;padding:6px 14px;cursor:pointer}
@@ -564,12 +752,30 @@ export function wireMinutas(root) {
   $('#ma-min-nova').onclick = () => editarMinuta(null);
   $('#ma-esc').onclick = editarEscritorio;
   root.querySelectorAll('.m-edit').forEach(b => b.onclick = () => editarMinuta(minutas().find(m => m.id === b.dataset.id)));
-  root.querySelectorAll('.m-gerar').forEach(b => b.onclick = () => gerarMinuta(minutas().find(m => m.id === b.dataset.id)));
+  root.querySelectorAll('.m-gerar').forEach(b => b.onclick = () => {
+    const m = minutas().find(x => x.id === b.dataset.id);
+    if (m?.slug === 'parecer') return escolherImovelParaParecer();   // o parecer precisa dos números de um imóvel
+    gerarMinuta(m);
+  });
   root.querySelectorAll('.m-docx').forEach(b => { const m = minutas().find(x => x.id === b.dataset.id); b.onclick = () => baixarDocx(m.titulo + ' — modelo', preencher(m.corpo, contexto({}))); });
   root.querySelectorAll('.m-del').forEach(b => b.onclick = async () => {
     const padrao = MINUTAS_PADRAO.some(p => p.id === b.dataset.id);
     if (!confirm(padrao ? 'Descartar suas edições e voltar ao texto padrão desta minuta?' : 'Excluir esta minuta? Não tem volta.')) return;
     await setCol('minutas', (S.minutas || []).filter(m => m.id !== b.dataset.id));
+  });
+}
+
+/* O parecer não se preenche sozinho: pede o imóvel e usa o gerador da aba Imóveis.
+   Import dinâmico de propósito — evita o ciclo estático entre minutas e ops. */
+function escolherImovelParaParecer() {
+  if (!S.imoveis.length) return alert('Cadastre e analise um imóvel primeiro (aba 🏠 Imóveis).');
+  abrirModal('📄 Parecer — de qual imóvel?', `<div class="ma-list">${S.imoveis.map(i => `<div class="ma-li" data-pick="${esc(i.id)}"><div><b>${esc(i.titulo)}</b><div class="tiny muted">${esc([i.cidade, i.matricula && ('matr. ' + i.matricula)].filter(Boolean).join(' · '))}</div></div><span>→</span></div>`).join('')}</div>`, box => {
+    box.querySelectorAll('[data-pick]').forEach(b => b.onclick = async () => {
+      const imv = S.imoveis.find(x => x.id === b.dataset.pick);
+      fecharModal();
+      const ops = await import('./morimatsu-ops.js');
+      ops.gerarParecer(imv);
+    });
   });
 }
 

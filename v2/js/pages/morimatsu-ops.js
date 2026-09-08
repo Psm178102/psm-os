@@ -9,7 +9,7 @@
    (/api/v3/morimatsu/state, item a item).
 ============================================================================ */
 import { ativarDrag } from '../kanban-drag.js';
-import { gerarMinuta, minutaPorSlug, minutas } from './morimatsu-minutas.js';
+import { gerarMinuta, minutaPorSlug, minutas, contexto, preencher, imprimirDoc, baixarDocx } from './morimatsu-minutas.js';
 import {
   S, COR, COLUNAS, OBJETIVO, PAGAMENTO, FAIXA, CAPITAL, DISP, MODAL, RAIO, ORIGEM,
   scoreDe, porta2, alertaCapital, esc, uid, num, brl, dtBR, hojeISO, autorNome, cfg, feeExito,
@@ -342,7 +342,7 @@ export function motor(i, o) {
     escritura: ehLeilao(i) ? 0 : L * v.escritura / 100,
     itbi: Math.max(P.venal, L) * v.itbi / 100,
     registro: L * v.registro / 100,
-    fee: feeEntra ? Math.max(L * f.exito_pct / 100, num(f.piso)) + num(f.analise) + num(f.certame) : 0,
+    fee: (feeEntra && L > 0) ? Math.max(L * f.exito_pct / 100, num(f.piso)) + num(f.analise) + num(f.certame) : 0,
     dd: P.dd,
     advogado: P.advogado,
     ocupacao: P.desoc ? 0 : P.aval * v.taxa_ocup_mes / 100 * P.m_oc,
@@ -361,7 +361,7 @@ export function motor(i, o) {
   const roi = inv ? lucro / inv : 0;
   const tir = roi <= -1 ? -1 : Math.pow(1 + roi, 1 / prazo) - 1;
   const tm = tmaMes();
-  const feeGrupo = Math.max(L * f.exito_pct / 100, num(f.piso)) + num(f.analise) + num(f.certame);
+  const feeGrupo = L > 0 ? Math.max(L * f.exito_pct / 100, num(f.piso)) + num(f.analise) + num(f.certame) : 0;
   return {
     L, lance_base: L, prazo, custos: c, inv, custo_total: inv, venda, corret, cf, ganho, imposto,
     lucro, roi, tir, tma_m: tm, fee: c.fee, feeGrupo, receitaGrupo: feeGrupo + corret,
@@ -420,7 +420,8 @@ export function abrirImovel(i, aba) {
   const titulo = novo ? '＋ Novo imóvel (garimpo)' : `<span style="font-family:Georgia,serif">${esc(i.titulo)}</span> <span class="ma-status" style="background:${st.cor}">${st.emoji} ${esc(st.nome)}</span>`;
   const html = `
     ${novo ? '' : `<div class="flex gap-2" style="flex-wrap:wrap">
-      ${i.link ? `<a class="btn btn-ghost" href="${esc(i.link)}" target="_blank" rel="noopener">🔗 Edital / anúncio</a>` : ''}
+      ${/^https?:\/\//i.test(i.link || '') ? `<a class="btn btn-ghost" href="${esc(i.link)}" target="_blank" rel="noopener">🔗 Edital / anúncio</a>` : ''}
+      <button class="btn btn-ghost" id="d-parecer">📄 Gerar parecer</button>
       <button class="btn btn-ghost" id="d-tarefa">📅 Agendar passo</button>
       ${i.status !== 'arrematado' ? `<button class="btn btn-gold" id="d-arrematar">🏁 Arrematado → criar operação</button>` : `<button class="btn btn-ghost" data-abrir-op="${esc((S.operacoes.find(o => o.imovel_id === i.id) || {}).id || '')}">🔁 Abrir operação</button>`}
       <button class="btn btn-danger" id="d-del" style="margin-left:auto">🗑 Excluir</button>
@@ -430,6 +431,7 @@ export function abrirImovel(i, aba) {
   abrirModal(titulo, html, box => {
     box.querySelectorAll('.d-tab').forEach(b => b.onclick = () => abrirImovel(i, b.dataset.tab));
     if (!novo) {
+      box.querySelector('#d-parecer').onclick = () => gerarParecer(i);
       box.querySelector('#d-tarefa').onclick = () => editarAtividade(null, { imovel_id: i.id, investidor_id: i.investidor_id || undefined, tipo: 'tarefa' }, () => abrirImovel(imvPorId(i.id), 'timeline'));
       const arr = box.querySelector('#d-arrematar'); if (arr) arr.onclick = () => criarOperacao(i);
       const ao = box.querySelector('[data-abrir-op]'); if (ao) ao.onclick = () => { const o = S.operacoes.find(x => x.id === ao.dataset.abrirOp); if (o) abrirOperacao(o); };
@@ -446,6 +448,7 @@ function dadosImv(i) {
     ${campo('Tipo', select('tipo', IMV_TIPO, i.tipo))}
     ${campo('Cidade', input('cidade', i.cidade || 'São José do Rio Preto'))}
     ${campo('Bairro', input('bairro', i.bairro))}
+    ${campo('Área útil (m²)', input('area', i.area, 'number'))}
     ${campo('Matrícula nº', input('matricula', i.matricula))}
     ${campo('Cartório / CRI', input('cartorio', i.cartorio))}
     ${campo('Modalidade', select('modalidade', MODAL, i.modalidade))}
@@ -470,7 +473,7 @@ function wireDadosImv(box, i) {
     ev.preventDefault(); const fd = new FormData(form);
     const it = { ...i };
     ['titulo', 'tipo', 'cidade', 'bairro', 'matricula', 'cartorio', 'modalidade', 'credor', 'leiloeiro', 'link', 'data_certame', 'status', 'investidor_id', 'obs'].forEach(k => { it[k] = String(fd.get(k) || '').trim(); });
-    ['avaliacao', 'lance_min', 'debitos_cond'].forEach(k => { it[k] = num(fd.get(k)); });
+    ['avaliacao', 'lance_min', 'debitos_cond', 'area'].forEach(k => { it[k] = num(fd.get(k)); });
     it.ocupado = !!fd.get('ocupado'); it.aceita_fin = !!fd.get('aceita_fin');
     if (!it.titulo) return;
     if (!it.id) { it.id = uid('imv'); it.criado_em = new Date().toISOString(); it.analise = { ...CUSTOS_DEFAULT, debitos: it.debitos_cond || 0 }; }
@@ -548,7 +551,7 @@ function anOut(i, cen, lm, rotaOcup, rotaDeso, custoOcupacao) {
     <div class="ma-minis" style="margin-top:12px">
       ${mini('🎯 LANCE MÁXIMO', brl(lm), `para ${num(i.analise?.margem_pct) || v.margem_alvo}% de margem · deságio ${base.aval ? Math.round((1 - lm / base.aval) * 100) : 0}% sobre a avaliação`, COR.dourado)}
       ${mini(base.L <= lm ? '✅ Seu lance cabe' : '🚫 Lance acima do teto', brl(Math.abs(lm - base.L)), base.L <= lm ? 'de folga até o teto' : 'acima do que a conta suporta', base.L <= lm ? '#16a34a' : '#ef4444')}
-      ${mini('💵 Custo total no lance', brl(base.inv), `desconto ${base.desconto}% vs mercado · break-even ${brl(base.breakeven)}`)}
+      ${mini('💵 Custo total no lance', brl(base.inv), `desconto ${base.desconto}% vs mercado · break-even ${brl(base.breakeven)}${num(i.area) ? ` · mercado ${brl(base.merc / num(i.area))}/m²` : ''}`)}
       ${mini('🏯 Receita do grupo no giro', brl(base.receitaGrupo), `fee ${brl(base.feeGrupo)} + corretagem ${brl(base.corret)}`, COR.verde)}
     </div>
     ${base.lucro <= 0 && base.receitaGrupo > 0 ? `<div class="alert alert-warn" style="font-size:12.5px;margin-top:8px">⚠️ O grupo fatura ${brl(base.receitaGrupo)} neste giro mesmo com o investidor no prejuízo. Não leve este imóvel ao cliente — com o sobrenome na porta, um caso malconduzido custa mais que o fee.</div>` : ''}`;
@@ -616,6 +619,70 @@ export function editarViab(depois) {
       fecharModal(); await setCol('config', { ...S.config, viab: o }); if (depois) depois();
     };
   }, 860);
+}
+
+
+/* ═══════════ 📄 PARECER DE VIABILIDADE — o produto de R$ 500 ═══════════
+   Junta o imóvel, a análise e as premissas num documento para o investidor.
+   Os números vêm do motor; o texto é a minuta 'parecer', editável em Minutas. */
+export function gerarParecer(i) {
+  const m = minutaPorSlug('parecer');
+  if (!m) return alert('Minuta de parecer não encontrada.');
+  const v = viab(), A = { ...(i.analise || {}) };
+  const fb = num(A.fator_venda) || v.fator_venda;
+  const cen = { pes: motor(i, { fator: fb - 7, multRef: 1.3, extra: 3 }), base: motor(i, {}), oti: motor(i, { fator: fb + 3, multRef: 0.85, extra: -1 }) };
+  const ro = motor(i, { desocupado: false }), rd = motor(i, { desocupado: true });
+  const lm = lanceMax(i, {});
+  const b = cen.base;
+  const pc = x => (x * 100).toFixed(1).replace('.', ',') + '%';
+  const mm = x => 'R$ ' + num(x).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const meses = n => n + (n === 1 ? ' mês' : ' meses');
+  const extra = {
+    imovel_titulo: i.titulo || '', imovel_bairro: i.bairro || '', imovel_cidade: i.cidade || '',
+    imovel_matricula: i.matricula || '', imovel_cartorio: i.cartorio || '', imovel_credor: i.credor || '',
+    imovel_modalidade: ({ online: 'venda online', direta: 'venda direta online', extra: 'leilão extrajudicial', judicial: 'leilão judicial' })[i.modalidade] || '',
+    imovel_tipo: i.tipo || '', imovel_link: i.link || '',
+    imovel_ocupacao: i.ocupado ? 'Ocupado' : 'Desocupado',
+    aval: mm(b.aval), mercado: mm(b.merc), venal: mm(num(A.venal) || i.avaliacao),
+    rs_m2: num(i.area) ? mm(b.merc / num(i.area)) : '—',
+    lance: mm(b.L), desagio_aval: pc(b.desconto_aval / 100), desagio_merc: pc(b.desconto / 100),
+    investimento: mm(b.inv), venda: mm(b.venda), corretagem: mm(b.corret), imposto: mm(b.imposto),
+    lucro: mm(b.lucro), roi: pc(b.roi), tir: (b.tir * 100).toFixed(2).replace('.', ',') + '% ao mês',
+    prazo: meses(b.prazo), breakeven: mm(b.breakeven), vpl: mm(b.vpl),
+    lance_maximo: mm(lm), desagio_necessario: b.aval ? pc(1 - lm / b.aval) : '—',
+    veredito: b.L <= lm ? 'Lance dentro do teto — operação recomendada' : 'Lance ACIMA do teto — não recomendada neste valor',
+    risco: ({ baixo: 'Baixo', medio: 'Médio', alto: 'Alto' })[A.risco] || 'não classificado',
+    parecer_tecnico: A.parecer || 'Sem observações técnicas registradas nesta análise.',
+    rota_oc_lucro: mm(ro.lucro), rota_oc_lm: mm(lanceMax(i, { desocupado: false })), rota_oc_prazo: meses(ro.prazo),
+    rota_de_lucro: mm(rd.lucro), rota_de_lm: mm(lanceMax(i, { desocupado: true })), rota_de_prazo: meses(rd.prazo),
+    custo_ocupacao: mm(ro.inv - rd.inv),
+    p_fator: fb.toString().replace('.', ',') + '%', p_regime: v.regime === 'PJ' ? 'pessoa jurídica' : 'pessoa física',
+    p_tma: v.tma_aa + '% ao ano', p_margem: (num(A.margem_pct) || v.margem_alvo) + '%',
+  };
+  Object.entries(b.custos).forEach(([k, val]) => { extra['c_' + (k === 'leiloeiro' ? 'leiloeiro' : k)] = mm(val); });
+  ['pes', 'base', 'oti'].forEach(k => {
+    const r = cen[k];
+    extra[k + '_venda'] = mm(r.venda); extra[k + '_prazo'] = meses(r.prazo); extra[k + '_lucro'] = mm(r.lucro);
+    extra[k + '_roi'] = pc(r.roi); extra[k + '_ver'] = r.viavel ? 'Viável' : 'Inviável';
+  });
+  const invs = Object.fromEntries(S.investidores.map(c => [c.id, c.nome]));
+  abrirModal(`📄 Parecer de viabilidade — ${esc(i.titulo)}`, `<div class="ma-form">
+    ${campo('Destinatário (opcional)', select('inv', invs, i.investidor_id), true)}
+    <div class="tiny muted" style="grid-column:1/-1">Sai com os números da análise salva. O texto do parecer é editável na aba 📜 Minutas.</div>
+    <div class="flex gap-2" style="grid-column:1/-1;flex-wrap:wrap">
+      <button class="btn btn-gold" id="pa-pdf">🖨 Imprimir / PDF</button>
+      <button class="btn btn-primary" id="pa-doc">⬇ Baixar Word (.docx)</button>
+      <button class="btn btn-ghost" id="pa-x">Cancelar</button>
+    </div></div>`, box => {
+    const montar = () => {
+      const inv = invPorId(box.querySelector('[name=inv]').value);
+      const ctx = contexto({ inv, imv: i, extra });
+      return { texto: preencher(m.corpo, ctx), nome: `Parecer de Viabilidade — ${i.titulo || 'imóvel'}` };
+    };
+    box.querySelector('#pa-x').onclick = fecharModal;
+    box.querySelector('#pa-pdf').onclick = () => { const r = montar(); imprimirDoc(r.nome, r.texto); };
+    box.querySelector('#pa-doc').onclick = () => { const r = montar(); baixarDocx(r.nome, r.texto); };
+  }, 640);
 }
 
 /* ═══════════════════════════ 🔁 OPERAÇÕES ═══════════════════════════ */
