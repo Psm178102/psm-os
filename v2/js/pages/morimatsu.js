@@ -26,6 +26,7 @@ import { api } from '../api.js';
 import { auth } from '../auth.js';
 import { renderInvestidores, renderImoveis, renderOperacoes, renderAgenda, wireOps, gerarContrato, gerarRecibo, renderSimulador, wireSimulador } from './morimatsu-ops.js';
 import { renderMinutas, wireMinutas } from './morimatsu-minutas.js';   // v87.56: biblioteca de minutas editável
+import { renderViabilidade, wireViabilidade } from './morimatsu-viabilidade.js';   // v87.71: ⚖️ etapa de viabilidade (saída · financiabilidade · dívidas)
 
 const API = '/api/v3/morimatsu/state';
 export const ASSETS = '/v2/assets/morimatsu/';
@@ -34,6 +35,7 @@ export const TABS = [
   { id: 'visao',        rota: '/morimatsu',              lbl: '🏯 Visão' },
   { id: 'investidores', rota: '/morimatsu-investidores', lbl: '💼 Investidores' },
   { id: 'imoveis',      rota: '/morimatsu-imoveis',      lbl: '🏠 Imóveis' },
+  { id: 'viabilidade',  rota: '/morimatsu-viabilidade',  lbl: '⚖️ Viabilidade' },
   { id: 'simulador',    rota: '/morimatsu-simulador',    lbl: '🧮 Simulador' },
   { id: 'operacoes',    rota: '/morimatsu-operacoes',    lbl: '🔁 Operações' },
   { id: 'agenda',       rota: '/morimatsu-agenda',       lbl: '📅 Agenda' },
@@ -226,7 +228,7 @@ export function render() {
   if (!_root) return;
   const dark = document.documentElement.classList.contains('dark');
   const logo = dark ? '/v2/img/morimatsu-logo-negativa.png' : '/v2/img/morimatsu-logo-marfim.png';
-  const body = { visao, investidores: renderInvestidores, imoveis: renderImoveis, simulador: renderSimulador, operacoes: renderOperacoes, agenda: renderAgenda, honorarios, roteiro, minutas: renderMinutas, documentos, marca }[_tab];
+  const body = { visao, investidores: renderInvestidores, imoveis: renderImoveis, viabilidade: renderViabilidade, simulador: renderSimulador, operacoes: renderOperacoes, agenda: renderAgenda, honorarios, roteiro, minutas: renderMinutas, documentos, marca }[_tab];
   const atrasadas = S.atividades.filter(a => !a.feito && a.quando && a.quando.slice(0, 10) < hojeISO()).length;
   _root.innerHTML = `
     <div class="ma-wrap">
@@ -245,6 +247,7 @@ export function render() {
   _root.querySelectorAll('.ma-tab').forEach(b => b.onclick = () => irPara(b.dataset.rota));
   if (!S.loaded) return;
   if (['investidores', 'imoveis', 'operacoes', 'agenda'].includes(_tab)) wireOps(_root, _tab);
+  else if (_tab === 'viabilidade') wireViabilidade(_root);
   else if (_tab === 'simulador') wireSimulador(_root);
   else if (_tab === 'minutas') wireMinutas(_root);
   else wire();

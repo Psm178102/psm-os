@@ -183,6 +183,7 @@ export const ROUTE_GROUP = {
   '/morimatsu-roteiro': 'morimatsu', '/morimatsu-documentos': 'morimatsu', '/morimatsu-marca': 'morimatsu',
   '/morimatsu-imoveis': 'morimatsu', '/morimatsu-operacoes': 'morimatsu', '/morimatsu-agenda': 'morimatsu',   // v87.52: sistema completo do ciclo
   '/morimatsu-minutas': 'morimatsu', '/morimatsu-simulador': 'morimatsu',   // minutas + simulador avulso
+  '/morimatsu-viabilidade': 'morimatsu',   // v87.71: ⚖️ etapa de viabilidade de leilões (saída · financiabilidade · dívidas)
   // IA
   '/agentes': 'ia', '/ia': 'ia', '/sr-performance': 'ia', '/sr-gerencia': 'ia',
   // PSM Academy — menu próprio, visível a todos (a "faculdade" da PSM)
@@ -295,6 +296,7 @@ export const ROUTE_MIN_LVL = {
   '/morimatsu': 2, '/morimatsu-investidores': 2, '/morimatsu-honorarios': 2,
   '/morimatsu-roteiro': 2, '/morimatsu-documentos': 2, '/morimatsu-marca': 2,
   '/morimatsu-imoveis': 2, '/morimatsu-operacoes': 2, '/morimatsu-agenda': 2, '/morimatsu-minutas': 2, '/morimatsu-simulador': 2,
+  '/morimatsu-viabilidade': 2,
   // RH + Sucesso do Cliente (v81.58): piso 2 (corretor) — quem vê isso é decidido
   // 100% na matriz por papel (Configurações → Permissões), sem trava de nível.
   '/onboarding': 2, '/offboarding': 2,
@@ -486,7 +488,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '87.70';
+const APP_VERSION = '87.71';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -615,7 +617,8 @@ const APP_VERSION = '87.70';
    ['/morimatsu-honorarios', 'honorarios', 'Morimatsu · Honorários & Giro'], ['/morimatsu-roteiro', 'roteiro', 'Morimatsu · Roteiro 90 dias'],
    ['/morimatsu-documentos', 'documentos', 'Morimatsu · Documentos'], ['/morimatsu-marca', 'marca', 'Morimatsu · Marca'],
    ['/morimatsu-imoveis', 'imoveis', 'Morimatsu · Imóveis & Garimpo'], ['/morimatsu-operacoes', 'operacoes', 'Morimatsu · Operações'], ['/morimatsu-agenda', 'agenda', 'Morimatsu · Agenda'],
-   ['/morimatsu-minutas', 'minutas', 'Morimatsu · Minutas'], ['/morimatsu-simulador', 'simulador', 'Morimatsu · Simulador']]
+   ['/morimatsu-minutas', 'minutas', 'Morimatsu · Minutas'], ['/morimatsu-simulador', 'simulador', 'Morimatsu · Simulador'],
+   ['/morimatsu-viabilidade', 'viabilidade', 'Morimatsu · Viabilidade de Leilões']]
     .forEach(([rota, tab, titulo]) => router.register(rota, { render: async (ctx, root) => { setHeader(titulo); highlight(rota); await pageMorimatsu(ctx, root, tab); } }));
   router.register('/minutas', { render: async (ctx, root) => { setHeader('Minutas padrão'); highlight('/minutas'); await pageMinutasJuridico(ctx, root); } });
   router.register('/cnds',    { render: async (ctx, root) => { setHeader("CND's"); highlight('/cnds'); await pageCnds(ctx, root); } });
@@ -1093,6 +1096,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/morimatsu"><span class="sb-ico">🏯</span> Visão do Escritório</button>
         <button class="sb-link" data-nav="/morimatsu-investidores"><span class="sb-ico">💼</span> Investidores</button>
         <button class="sb-link" data-nav="/morimatsu-imoveis"><span class="sb-ico">🏠</span> Imóveis & Garimpo</button>
+        <button class="sb-link" data-nav="/morimatsu-viabilidade"><span class="sb-ico">⚖️</span> Viabilidade de Leilões</button>
         <button class="sb-link" data-nav="/morimatsu-simulador"><span class="sb-ico">🧮</span> Simulador</button>
         <button class="sb-link" data-nav="/morimatsu-operacoes"><span class="sb-ico">🔁</span> Operações</button>
         <button class="sb-link" data-nav="/morimatsu-agenda"><span class="sb-ico">📅</span> Agenda</button>

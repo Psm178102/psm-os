@@ -878,7 +878,7 @@ function sim() {
   return (_sim = _sim || simVazia());
 }
 function salvarSim() { try { localStorage.setItem(SIM_KEY, JSON.stringify(_sim)); } catch (_) { /* modo anônimo */ } }
-function carregarImovel(id) {
+export function carregarImovel(id) {   // v87.71: a aba Viabilidade manda o imóvel para o Simulador
   const o = imvPorId(id);
   if (!o) { _sim = simVazia(); return salvarSim(); }
   _sim = JSON.parse(JSON.stringify({ ...simVazia(), ...o, id: '__sim', vinculo: o.id, analise: { ...simVazia().analise, ...(o.analise || {}) } }));
