@@ -3,7 +3,7 @@ GET/POST /api/v3/tabelas/lancamentos — Tabelas de lançamentos NATIVAS (editor
 
 Em vez de subir xlsx (que renderizava feio), o gestor monta a tabela direto no sistema:
 linhas e colunas editáveis. Organizado por MARCA (conquista | imoveis) e CATEGORIA livre
-(ex.: MAP dentro de PSM Imóveis). Pode importar xlsx só pra preencher a grade.
+(ex.: MAP dentro de PSM Imóveis; ZONA SUL/OESTE/... dentro de SP Capital — v87.55). Pode importar xlsx só pra preencher a grade.
 
 shared_kv 'tabelas_lancamentos' = { "tabelas": [
    { id, marca: 'conquista'|'imoveis', categoria, colunas:[str], linhas:[[cell]],
@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
 
 KV_KEY = "tabelas_lancamentos"
-MARCAS = ("conquista", "imoveis")
+MARCAS = ("conquista", "imoveis", "spcapital")   # v87.55: spcapital = Tabela SP Capital (zonas)
 MAX_TABELAS = 60
 MAX_COLS = 60
 MAX_LINHAS = 5000

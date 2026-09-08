@@ -11,7 +11,7 @@ let _canEdit = false;
 let _edit = null;      // id da tabela em edição, ou 'new:conquista' / 'new:imoveis'
 let _draft = null;     // {id, marca, categoria, colunas:[], linhas:[[]]}
 let _msg = '';
-let _marcaFilter = null;  // null = ambas; 'conquista' | 'imoveis' (MAP)
+let _marcaFilter = null;  // null = todas; 'conquista' | 'imoveis' (MAP) | 'spcapital' (SP Capital)
 let _filtros = null;      // v86.88: filtros do MAP (Sets por categoria) — só em memória, zera a cada abertura
 let _renaming = null;     // id da tabela com título em edição inline
 
@@ -19,14 +19,21 @@ const MARCAS = [
   { id: 'conquista', label: '🏆 PSM Conquista', cor: '#dc2626', blue: false },
   // PSM Imóveis = MAP — paleta AZUL (igual à planilha): header azul + linhas zebradas
   { id: 'imoveis', label: '🗺 PSM MAP', cor: '#5b7fb4', blue: true },
+  // v87.55 (Paulo 08/set): Tabela SP CAPITAL — igual ao MAP, dividida por ZONA
+  // (Zona Sul / Oeste / Leste / Norte / ABC / Cotia / Porto Feliz). Verde-petróleo.
+  { id: 'spcapital', label: '🏙 SP Capital', cor: '#0f766e', blue: true },
 ];
+// marcas que se comportam como o MAP: ordem crescente por valor + barra de filtros
+const COMO_MAP = new Set(['imoveis', 'spcapital']);
+// cabeçalho padrão de toda tabela nova do SP Capital (pedido do Paulo, 08/set)
+const SP_COLUNAS = ['EMPREENDIMENTO', 'INCORPORADORA', 'BAIRRO', 'TIPOLOGIA', 'TAMANHO DE PLANTA (M²)', 'VALOR A PARTIR DE', 'Nº DORMS', 'ENTREGA', 'CONDIÇÃO COMERCIAL', 'ATO', 'LINK DRIVE'];
 // paleta de cores prontas pra colorir cada tabela (cor personalizada via seletor também)
 const SWATCHES = ['#dc2626', '#ea580c', '#d4a843', '#16a34a', '#0891b2', '#5b7fb4', '#2563eb', '#7c3aed', '#db2777', '#475569'];
 
 export async function pageTabelaImoveis(ctx, root, marcaFilter = null) {
   _root = root; _edit = null; _draft = null; _msg = ''; _renaming = null;
   _filtros = filtrosVazios();   // v86.88: filtros do MAP SEMPRE zerados ao abrir a página (nunca persistem)
-  _marcaFilter = (marcaFilter === 'conquista' || marcaFilter === 'imoveis') ? marcaFilter : null;
+  _marcaFilter = (marcaFilter === 'conquista' || marcaFilter === 'imoveis' || marcaFilter === 'spcapital') ? marcaFilter : null;
   root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando…</div></div>';
   await load();
   render();
@@ -54,8 +61,11 @@ function render() {
   const marcas = _marcaFilter ? MARCAS.filter(m => m.id === _marcaFilter) : MARCAS;
   const titulo = _marcaFilter === 'conquista' ? '🏆 Tabela de Lançamentos Conquista'
     : _marcaFilter === 'imoveis' ? '🗺 Tabela de Lançamentos MAP'
-      : '📊 Tabela de Lançamentos PSM';
-  const sub = _marcaFilter === 'imoveis'
+      : _marcaFilter === 'spcapital' ? '🏙 Tabela de Empreendimentos SP Capital'
+        : '📊 Tabela de Lançamentos PSM';
+  const sub = _marcaFilter === 'spcapital'
+    ? 'Empreendimentos de São Paulo capital e região, divididos por ZONA (Sul, Oeste, Leste, Norte, ABC, Cotia, Porto Feliz). Tipologia: studio = <b>NR</b>; demais = residencial / comercial / casa etc. ' + (_canEdit ? 'Edite linhas/colunas, o título e o mês de vigência; importe xlsx pra preencher (links viram clicáveis).' : 'Somente leitura.')
+    : _marcaFilter === 'imoveis'
     ? 'Lançamentos do MAP, divididos por categoria. ' + (_canEdit ? 'Edite linhas/colunas, o título e o mês de vigência; importe xlsx pra preencher (links viram clicáveis).' : 'Somente leitura.')
     : _marcaFilter === 'conquista'
       ? 'Lançamentos da Conquista por categoria. ' + (_canEdit ? 'Edite linhas/colunas, o título e o mês de vigência aqui.' : 'Somente leitura.')
@@ -85,7 +95,7 @@ function marcaSection(m) {
           <button class="btn btn-primary btn-sm" data-new="${m.id}">➕ Nova tabela</button>
         </div>` : ''}
       </div>
-      ${m.id === 'imoveis' && !_edit ? filtroBarHTML(tabs) : ''}
+      ${COMO_MAP.has(m.id) && !_edit ? filtroBarHTML(tabs, m) : ''}
       ${editingNew ? editorCard(m.cor) : ''}
       ${tabs.map((t, i) => (_edit === t.id ? editorCard(m.cor) : viewCard(t, m, i, tabs.length))).join('')
         || (editingNew ? '' : `<div class="tiny muted" style="padding:6px 2px">Nenhuma tabela ainda${_canEdit ? ' — clique em ➕ Nova tabela.' : '.'}</div>`)}
@@ -270,7 +280,9 @@ function filtroResultado(t) {
   }
   return { linhas: vis, semDado, ativo: true };
 }
-function filtroBarHTML(tabs) {
+function filtroBarHTML(tabs, m) {
+  const corF = (m && m.cor) || '#5b7fb4';
+  const nomeF = m && m.id === 'spcapital' ? 'SP Capital' : 'MAP';
   const dados = tabs.filter(tb => tb.tipo !== 'pdf' && (tb.linhas || []).length);
   if (!dados.length) return '';
   const ativo = filtrosAtivos();
@@ -278,12 +290,12 @@ function filtroBarHTML(tabs) {
   dados.forEach(tb => { const fr = filtroResultado(tb); totAll += (tb.linhas || []).length; totV += fr.linhas.length; if (fr.linhas.length) totT++; });
   const chip = (def, o) => {
     const sel = _filtros[def.cat].has(o.id);
-    return `<button type="button" data-fcat="${def.cat}" data-fchip="${o.id}" style="border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:700;margin:2px 3px 2px 0;cursor:pointer;${sel ? 'background:#5b7fb4;color:#fff;border:1px solid #5b7fb4' : 'background:transparent;color:var(--text,inherit);border:1px solid var(--border)'}">${esc(o.lbl)}</button>`;
+    return `<button type="button" data-fcat="${def.cat}" data-fchip="${o.id}" style="border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:700;margin:2px 3px 2px 0;cursor:pointer;${sel ? `background:${corF};color:#fff;border:1px solid ${corF}` : 'background:transparent;color:var(--text,inherit);border:1px solid var(--border)'}">${esc(o.lbl)}</button>`;
   };
   return `
-    <div style="background:var(--bg-2);border:1px solid #5b7fb455;border-radius:10px;padding:10px 12px;margin-bottom:12px">
+    <div style="background:var(--bg-2);border:1px solid ${corF}55;border-radius:10px;padding:10px 12px;margin-bottom:12px">
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-        <b style="font-size:13px;color:#5b7fb4">🔎 Filtros do MAP</b>
+        <b style="font-size:13px;color:${corF}">🔎 Filtros do ${nomeF}</b>
         <span class="flex" style="align-items:center;gap:8px;flex-wrap:wrap">
           ${ativo ? `<span class="tiny" style="font-weight:800">${totV} de ${totAll} imóveis · ${totT} tabela(s) com resultado</span>
                      <button class="btn btn-ghost btn-sm" data-flimpar="1" style="padding:2px 10px">✕ Limpar filtros</button>`
@@ -316,7 +328,7 @@ function viewCard(t, m, idx, total) {
   // v86.87: no MAP a ordem é AUTOMÁTICA (crescente por valor) — sem arrastar linha.
   // v86.88: filtros do MAP — filtra as linhas ANTES de ordenar; tabela zerada
   // pelo filtro vira um card recolhido em vez de ocupar a tela.
-  const mapOrdenado = !isPdf && m.id === 'imoveis';
+  const mapOrdenado = !isPdf && COMO_MAP.has(m.id);   // v87.55: SP Capital segue o MAP
   const fr = mapOrdenado ? filtroResultado(t) : null;
   const linhas = mapOrdenado
     ? linhasOrdenadasPorValor({ colunas: t.colunas, linhas: fr.linhas })
@@ -423,7 +435,8 @@ function syncDraft() {
 function wire() {
   _root.querySelectorAll('[data-new]').forEach(b => b.onclick = () => {
     _edit = 'new:' + b.dataset.new;
-    _draft = { id: '', marca: b.dataset.new, categoria: '', vigencia: '', cor: '', ordem: proximaOrdem(b.dataset.new), colunas: ['Coluna 1', 'Coluna 2'], linhas: [['', '']] };
+    const spc = b.dataset.new === 'spcapital';   // v87.55: SP Capital já nasce com o cabeçalho padrão
+    _draft = { id: '', marca: b.dataset.new, categoria: '', vigencia: '', cor: '', ordem: proximaOrdem(b.dataset.new), colunas: spc ? SP_COLUNAS.slice() : ['Coluna 1', 'Coluna 2'], linhas: [spc ? SP_COLUNAS.map(() => '') : ['', '']] };
     render();
   });
   _root.querySelectorAll('[data-importall]').forEach(inp => inp.addEventListener('change', () => importAllSheets(inp.dataset.importall, inp)));

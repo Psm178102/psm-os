@@ -151,7 +151,7 @@ export const ROUTE_GROUP = {
   '/crm-house': 'vendas', '/central-sol': 'vendas',
   // Imóveis & Vendas (+ Metas/Equipes/Plantões e simuladores VPL/INCC/Repasse/Energia migrados)
   '/crm': 'vendas', '/oportunidades': 'vendas', '/cadencia': 'vendas', '/scripts': 'vendas', '/form-captacao': 'vendas',
-  '/imoveis': 'vendas', '/mapa': 'vendas', '/estoque-kenlo': 'vendas', '/tabela-imoveis': 'vendas', '/tabela-conquista': 'vendas', '/tabela-map': 'vendas', '/lancamentos': 'vendas',
+  '/imoveis': 'vendas', '/mapa': 'vendas', '/estoque-kenlo': 'vendas', '/tabela-imoveis': 'vendas', '/tabela-conquista': 'vendas', '/tabela-map': 'vendas', '/tabela-sp-capital': 'vendas', '/lancamentos': 'vendas',
   '/metas': 'vendas', '/equipe': 'vendas', '/plantoes': 'vendas',
   '/sim-vpl': 'vendas', '/sim-incc': 'vendas', '/sim-repasse': 'vendas', '/sim-energia': 'vendas', '/sim-amortizacao': 'vendas',
   '/cockpit-conquista': 'vendas', '/minha-comissao': 'vendas', '/meu-cerebro': 'vendas', '/sim-conquista': 'vendas',  // ferramentas Conquista (v81.44)
@@ -248,6 +248,7 @@ export const ROUTE_MIN_LVL = {
   '/tabela-imoveis': 5,   // upload de tabelas — não p/ corretor
   '/tabela-conquista': 2, // Tabela Conquista: VISÍVEL p/ corretor (read-only; upload é travado por can_edit lvl>=5 na página). Quem vê = matriz por papel. v81.40
   '/tabela-map': 2,       // Tabela MAP: idem
+  '/tabela-sp-capital': 2, // Tabela SP Capital (v87.55): idem — corretor lê, edição lvl>=5
   '/locacao-dash': 2, '/locacao-estoque': 2,  // Locação: dashboard + estoque (leitura, corretor+)
   '/fiscalizacao': 7,     // Painel de Fiscalização (Diretoria): os 3 cards — só gestão
   '/ponte': 7,            // Fila da Ponte: fechamento próprio Paulo/Isa
@@ -464,7 +465,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '87.54';
+const APP_VERSION = '87.55';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -729,6 +730,7 @@ const APP_VERSION = '87.54';
   router.register('/tabela-imoveis', { render: async (ctx, root) => { setHeader('Tabela de Imóveis'); highlight('/tabela-imoveis'); await pageTabelaImoveis(ctx, root); } });
   router.register('/tabela-conquista', { render: async (ctx, root) => { setHeader('Tabela de Lançamentos Conquista'); highlight('/tabela-conquista'); await pageTabelaImoveis(ctx, root, 'conquista'); } });
   router.register('/tabela-map', { render: async (ctx, root) => { setHeader('Tabela de Lançamentos MAP'); highlight('/tabela-map'); await pageTabelaImoveis(ctx, root, 'imoveis'); } });
+  router.register('/tabela-sp-capital', { render: async (ctx, root) => { setHeader('Tabela de Empreendimentos SP Capital'); highlight('/tabela-sp-capital'); await pageTabelaImoveis(ctx, root, 'spcapital'); } });
   router.register('/usuarios',  { render: async (ctx, root) => { setHeader('Usuários');  highlight('/usuarios');  await pageUsuariosV2(ctx, root); } });
   router.register('/auditoria', { render: async (ctx, root) => { setHeader('Auditoria'); highlight('/auditoria'); await pageAuditoria(ctx, root); } });
   router.register('/conta',     { render: pageConta });
@@ -960,6 +962,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/estoque-kenlo"><span class="sb-ico">🏠</span> Estoque Kenlo</button>
         <button class="sb-link" data-nav="/tabela-conquista"><span class="sb-ico">🏆</span> Tabela Lançamentos Conquista</button>
         <button class="sb-link" data-nav="/tabela-map"><span class="sb-ico">🗺</span> Tabela Lançamentos MAP</button>
+        <button class="sb-link" data-nav="/tabela-sp-capital"><span class="sb-ico">🏙</span> Tabela Empreendimentos SP Capital</button>
         <button class="sb-link" data-nav="/lancamentos"><span class="sb-ico">🏗</span> Lançamentos</button>
         <button class="sb-link" data-nav="/metas"><span class="sb-ico">🎯</span> Metas</button>
         <button class="sb-link" data-nav="/equipe"><span class="sb-ico">🛡</span> Equipes</button>
