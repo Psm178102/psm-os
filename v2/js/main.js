@@ -288,9 +288,13 @@ export const ROUTE_MIN_LVL = {
   '/cmo': 10, '/sr-cfo': 10, '/diretoria-ceo': 10,
   // v87.51: 🏯 Morimatsu & Associados — SÓ sócio (honorários, funil de investidor, notas do sócio;
   // espelha o require_user(min_lvl=10) de api/v3/morimatsu/state). Abrir = baixar aqui E no backend.
-  '/morimatsu': 10, '/morimatsu-investidores': 10, '/morimatsu-honorarios': 10,
-  '/morimatsu-roteiro': 10, '/morimatsu-documentos': 10, '/morimatsu-marca': 10,
-  '/morimatsu-imoveis': 10, '/morimatsu-operacoes': 10, '/morimatsu-agenda': 10, '/morimatsu-minutas': 10, '/morimatsu-simulador': 10,
+  // v87.66: quem vê o módulo é decidido pelo CARGO (consultor_morimatsu) + matriz,
+  // não pelo nível — assim o consultor tem autonomia aqui sem ganhar carona nos
+  // backends de outros módulos, que liberam por nível. A página e o state.py
+  // conferem o cargo; o piso 2 só permite que a matriz mostre o item no menu.
+  '/morimatsu': 2, '/morimatsu-investidores': 2, '/morimatsu-honorarios': 2,
+  '/morimatsu-roteiro': 2, '/morimatsu-documentos': 2, '/morimatsu-marca': 2,
+  '/morimatsu-imoveis': 2, '/morimatsu-operacoes': 2, '/morimatsu-agenda': 2, '/morimatsu-minutas': 2, '/morimatsu-simulador': 2,
   // RH + Sucesso do Cliente (v81.58): piso 2 (corretor) — quem vê isso é decidido
   // 100% na matriz por papel (Configurações → Permissões), sem trava de nível.
   '/onboarding': 2, '/offboarding': 2,
@@ -482,7 +486,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '87.65';
+const APP_VERSION = '87.66';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {

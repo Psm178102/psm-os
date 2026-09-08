@@ -24,7 +24,9 @@ por tela, sem carregar tudo a cada clique):
                               # as não-editadas vêm de MINUTAS_PADRAO no front (voltar ao padrão = excluir)
   morimatsu_config         { honorarios:[{servico,valor,obs}], nao_incluso, notas }
 
-SÓ SÓCIO (lvl>=10) — GET e POST. Abrir pra alguém = baixar aqui E no ROUTE_MIN_LVL.
+ACESSO POR CARGO (v87.66): sócio/diretor (lvl 10) ou quem ocupa 'consultor_morimatsu'.
+Nível NÃO libera — de propósito: gerente também é nível alto e não pode ler o funil de
+investidores. Assim o consultor tem autonomia aqui sem carona nos outros módulos.
 
 GET  ?col=a,b            → { ok, cols:{a:[...], b:[...]}, updated_at:{a:..} }  (sem col = todas)
 POST { op:'upsert', col, item }   → grava/atualiza 1 item (por id) — não clobbera o resto

@@ -16,7 +16,11 @@
      🎨 Marca         — identidade, tom, bordões, compliance
    Este arquivo = casca + abas estáticas. As abas operacionais moram em
    morimatsu-ops.js. Banco: /api/v3/morimatsu/state (1 chave shared_kv por coleção).
-   SÓ SÓCIO (lvl>=10).
+   ACESSO POR CARGO, não por nível (v87.66): sócio/diretor (lvl 10) e quem ocupa
+   o cargo 'consultor_morimatsu' — inclusive como cargo ADICIONAL. O consultor tem
+   AUTONOMIA TOTAL aqui dentro sem precisar de nível alto: nível alto abriria de
+   carona os backends de outros módulos (Gestão Comercial, Fiscalização, Ponte…),
+   que liberam por require_user(min_lvl=). Espelha pode_morimatsu() do state.py.
 ============================================================================ */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
@@ -136,6 +140,19 @@ const DOCS = [
 ];
 
 /* ─────────────────────────── store ─────────────────────────── */
+/* Quem entra no módulo: sócio/diretor OU quem ocupa o cargo de consultor.
+   Autonomia dentro do escritório sem inflar o nível de hierarquia global. */
+export const CARGOS_MORIMATSU = ['consultor_morimatsu'];
+/* Cargos do login sem importar main.js: importar daqui criaria ciclo
+   main → morimatsu → main, que já derrubou a página duas vezes neste módulo.
+   Fonte de verdade da regra é cargosDe() no main.js — 3 linhas, mesma lógica. */
+export const podeMorimatsu = (u) => {
+  const user = u || auth.user() || {};
+  if ((user.lvl || 0) >= 10) return true;
+  const cargos = [(user.role || '').toLowerCase(), ...(Array.isArray(user.cargos) ? user.cargos : [])].filter(Boolean);
+  return cargos.some(c => CARGOS_MORIMATSU.includes(String(c).toLowerCase()));
+};
+
 export const S = { investidores: [], imoveis: [], operacoes: [], atividades: [], roteiro: [], minutas: [], config: {}, loaded: false };
 let _root = null, _tab = 'visao', _err = null, _q = {};
 export const ctxQuery = () => _q;
@@ -143,7 +160,7 @@ export const tabAtual = () => _tab;
 
 export async function pageMorimatsu(ctx, root, tab) {
   _root = root; _q = ctx?.query || {};
-  if ((auth.user()?.lvl || 0) < 10) { root.innerHTML = '<div class="alert alert-warn">🔒 Morimatsu & Associados é restrito aos sócios.</div>'; return; }
+  if (!podeMorimatsu()) { root.innerHTML = '<div class="alert alert-warn">🔒 Morimatsu & Associados é restrito aos sócios e ao consultor do escritório.</div>'; return; }
   _tab = tab || _q.tab || 'visao';
   if (!TABS.some(t => t.id === _tab)) _tab = 'visao';
   fecharModal();   // v87.53: trocar de rota (menu/abas) fecha o modal aberto — antes a ficha ficava por cima da aba nova
