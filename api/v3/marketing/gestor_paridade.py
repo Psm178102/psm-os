@@ -1,20 +1,25 @@
 """
 GET /api/v3/marketing/gestor_paridade            → { ok, estado } (lvl>=5)
 GET /api/v3/marketing/gestor_paridade?cron=1     → avalia e alerta (CRON_SECRET ou lvl>=7)
+POST                                             → força avaliação (sócio)
 
-🔔 ALERTA DE PARIDADE META×RD (v87.53 — pedido do Paulo 08/09/2026, após o
-vazamento de set: integração RD Lead Ads caiu, 59 leads no Meta e só ~15 no RD,
-4 dias no escuro). Compara os leads que o Meta reporta HOJE (cache last_7d,
-dailySeries, 3 contas) com as negociações NOVAS que entraram no RD hoje com
-fonte de mídia paga (deal_source contendo Ads/Facebook/Busca Paga). Se o RD
-recebeu MENOS que o piso (default 70%), push imediato nos sócios.
+🔔 PARIDADE META×RD **POR MARCA** (v87.72 — reescrito 09/09 após o vazamento do
+LUX JK). Compara, na janela de 7 dias, os leads que o Meta reporta POR CONTA com
+as negociações que entraram no RD com fonte de mídia paga POR MARCA. Se qualquer
+marca cair abaixo do piso (70%), push nos sócios NOMEANDO a marca.
 
-Guardas anti-falso-positivo: só avalia após as 12h BRT (de manhã a amostra é
-pequena) e com pelo menos 5 leads no Meta no dia. Dedupe: 1 alerta por dia.
-Estado em shared_kv gt_paridade. Limiar editável em gt_alertas.limiares
-(paridade_min_pct). Roda pelo heartbeat (~30min).
+Por que por marca: em 09/09 o agregado dava 60% (limítrofe) enquanto a PSM Imóveis
+estava em 16% — 26 leads do LUX JK presos por formulário não combinado no RD. Um
+número só, somando as duas marcas, esconde exatamente o tipo de falha que a gente
+quer pegar.
+
+Fonte Meta: meta_ads_cache last_7d, campo accounts[].results (o cache NÃO traz
+dailySeries nessa chave — a v87.53 dependia dele e nunca avaliava).
+Guardas: amostra mínima de 5 leads no Meta por marca; 1 alerta por marca por dia.
+Estado em shared_kv gt_paridade. Piso editável em gt_alertas.limiares.paridade_min_pct.
 """
 from http.server import BaseHTTPRequestHandler
+from urllib.parse import urlparse, parse_qs
 import json
 import os
 import sys
@@ -28,27 +33,50 @@ from gestor import kv_get, kv_set  # type: ignore
 KV = "gt_paridade"
 FONTES_PAGA = ("ads", "facebook", "busca paga")
 
+# conta Meta → marca. Conquista tem conta própria; Imóveis e Paulo alimentam MAP.
+CONTA_MARCA = {
+    "act_1851397782164698": "conquista",
+    "act_1413862082678408": "imoveis",
+    "act_2321924467923057": "imoveis",
+}
+MARCA_LBL = {"conquista": "PSM Conquista", "imoveis": "PSM Imóveis / MAP"}
+
+
+def _marca_do_pipeline(nome):
+    return "conquista" if "CONQUISTA" in (nome or "").upper() else "imoveis"
+
 
 def _avaliar(sb):
     agora = agora_brt()
     hoje = agora.date().isoformat()
     estado = kv_get(sb, KV, {}) or {}
 
-    # 1) leads do Meta hoje (série diária agregada das contas)
+    # 1) Meta: leads por marca (janela 7d do cache compartilhado)
     payload, _age, _src = read_cache(sb, build_cache_key("last_7d", "", ""), 10 ** 9)
-    meta_hoje = None
-    for d in (payload or {}).get("dailySeries") or []:
-        if str(d.get("date") or d.get("date_start") or "")[:10] == hoje:
-            meta_hoje = int(d.get("results") or 0)
-    if meta_hoje is None:
-        estado.update({"ts": agora.isoformat(), "obs": "sem série diária do dia no cache"})
+    meta = {"conquista": 0, "imoveis": 0}
+    contas_vistas = 0
+    for a in ((payload or {}).get("accounts") or []):
+        if a.get("_error"):
+            continue
+        marca = CONTA_MARCA.get(str(a.get("id") or ""))
+        if not marca:
+            continue
+        contas_vistas += 1
+        try:
+            meta[marca] += int(float(a.get("results") or 0))
+        except Exception:
+            pass
+    if not contas_vistas:
+        estado.update({"ts": agora.isoformat(), "obs": "cache Meta sem contas legíveis"})
         kv_set(sb, KV, estado)
-        return {"ok": True, "avaliado": False, "motivo": "cache sem o dia de hoje"}
+        return {"ok": True, "avaliado": False, "motivo": "cache Meta indisponível"}
 
-    # 2) negociações novas de HOJE no RD com fonte de mídia paga
-    rows = (sb.table("deals").select("rd_raw")
-            .gte("created_at_rd", hoje).limit(1000).execute().data or [])
-    rd_hoje = 0
+    # 2) RD: negociações dos últimos 7 dias com fonte de mídia paga, por marca
+    from datetime import timedelta
+    desde = (agora - timedelta(days=7)).date().isoformat()
+    rows = (sb.table("deals").select("pipeline_name,rd_raw")
+            .gte("created_at_rd", desde).limit(3000).execute().data or [])
+    rd = {"conquista": 0, "imoveis": 0}
     for d in rows:
         raw = d.get("rd_raw") or {}
         if isinstance(raw, str):
@@ -58,41 +86,51 @@ def _avaliar(sb):
                 raw = {}
         fonte = str(((raw.get("deal_source") or {}).get("name")) or "").lower()
         if any(f in fonte for f in FONTES_PAGA):
-            rd_hoje += 1
+            rd[_marca_do_pipeline(d.get("pipeline_name"))] += 1
 
-    pct = round(rd_hoje / meta_hoje * 100, 1) if meta_hoje else None
     limiares = (kv_get(sb, "gt_alertas", {}) or {}).get("limiares") or {}
     piso = float(limiares.get("paridade_min_pct") or 70)
 
-    estado.update({"ts": agora.isoformat(), "dia": hoje, "meta_leads": meta_hoje,
-                   "rd_leads": rd_hoje, "pct": pct, "piso_pct": piso, "obs": None})
+    # 3) diagnóstico por marca + quem está furando o piso
+    por_marca, furando = {}, []
+    for m in ("conquista", "imoveis"):
+        pct = round(rd[m] / meta[m] * 100, 1) if meta[m] else None
+        por_marca[m] = {"meta": meta[m], "rd": rd[m], "pct": pct}
+        if meta[m] >= 5 and pct is not None and pct < piso:
+            furando.append(m)
 
-    # guardas: amostra mínima + hora do dia + dedupe diário
-    alertar = (meta_hoje >= 5 and pct is not None and pct < piso
-               and agora.hour >= 12 and estado.get("ultimo_alerta_dia") != hoje)
+    estado.update({"ts": agora.isoformat(), "janela": "7d", "piso_pct": piso,
+                   "por_marca": por_marca, "obs": None})
 
-    if alertar:
-        estado["ultimo_alerta_dia"] = hoje
-        titulo = f"🚨 Leads do Meta não estão chegando no RD ({pct:.0f}%)"
-        body = (f"Hoje o Meta reporta {meta_hoje} leads e só {rd_hoje} entraram no RD "
-                f"com fonte de mídia paga (piso {piso:.0f}%). Cheque a integração "
-                "Meta Lead Ads do RD e recupere os leads pelo formulário (ficam 90 dias no Meta).")
+    # dedupe: 1 alerta por marca por dia
+    ja = estado.get("ultimo_alerta") or {}
+    novas = [m for m in furando if ja.get(m) != hoje]
+
+    if novas:
+        for m in novas:
+            ja[m] = hoje
+        estado["ultimo_alerta"] = ja
+        det = " · ".join(
+            f"{MARCA_LBL[m]}: {por_marca[m]['rd']}/{por_marca[m]['meta']} ({por_marca[m]['pct']:.0f}%)"
+            for m in novas)
+        titulo = "🚨 Leads do Meta não estão chegando no RD — " + ", ".join(MARCA_LBL[m] for m in novas)
+        body = (f"Últimos 7 dias — {det}. Piso {piso:.0f}%. Causa mais comum: formulário "
+                "novo criado no Meta e NÃO combinado na integração do RD (Meta Lead Ads → "
+                "Combinar campos). Os leads ficam 90 dias no Meta e dá pra recuperar.")
         try:
             us = sb.table("users").select("id,role,status").execute().data or []
             socios = [u["id"] for u in us
                       if (u.get("status") or "ativo") == "ativo"
                       and lvl_of((u.get("role") or "").lower()) >= 10]
             if socios:
-                notify(socios, "gt_paridade", titulo, body=body,
-                       link="#/gestor-trafego")
-                send_web_push(socios, titulo, body=body, link="#/gestor-trafego",
-                              tag="gt_paridade")
+                notify(socios, "gt_paridade", titulo, body=body, link="#/gestor-trafego")
+                send_web_push(socios, titulo, body=body, link="#/gestor-trafego", tag="gt_paridade")
         except Exception:
             pass
 
     kv_set(sb, KV, estado)
-    return {"ok": True, "avaliado": True, "alertou": bool(alertar), **{
-        k: estado[k] for k in ("meta_leads", "rd_leads", "pct", "piso_pct")}}
+    return {"ok": True, "avaliado": True, "alertou": [MARCA_LBL[m] for m in novas],
+            "furando": [MARCA_LBL[m] for m in furando], "por_marca": por_marca, "piso_pct": piso}
 
 
 class handler(BaseHTTPRequestHandler):
@@ -106,8 +144,8 @@ class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         try:
-            qs = urllib_parse_qs(self.path)
-            cron = qs.get("cron") == "1"
+            q = parse_qs(urlparse(self.path).query)
+            cron = (q.get("cron") or [""])[0] == "1"
             if cron:
                 secret = os.environ.get("CRON_SECRET") or ""
                 auth = self.headers.get("Authorization") or ""
@@ -127,7 +165,6 @@ class handler(BaseHTTPRequestHandler):
             return self._send(500, {"ok": False, "error": str(e)[:300]})
 
     def do_POST(self):
-        # sócio força uma avaliação agora (testes)
         try:
             require_user(self, min_lvl=10)
             sb = supabase_client()
@@ -138,9 +175,3 @@ class handler(BaseHTTPRequestHandler):
             return self._send(e.code, {"ok": False, "error": e.msg})
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)[:300]})
-
-
-def urllib_parse_qs(path):
-    from urllib.parse import urlparse, parse_qs
-    q = parse_qs(urlparse(path).query)
-    return {k: v[0] for k, v in q.items()}
