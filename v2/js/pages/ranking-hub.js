@@ -53,7 +53,9 @@ function CICLO_ATUAL() { return ['vendas', ..._cfg.telas]; }
    • + 🗓️ CRONOGRAMA DA SEMANA (Rotina de Ações Direcionadas, foto do quadro). */
 /* v87.75 (Paulo 10/set, 2ª rodada):
    • 📣 Timeline de recados = 1/4 da tela (faixa fixa de 25vh fora do corpo que
-     troca a cada tela — antes o letreiro recomeçava a cada 20s).
+     troca a cada tela — antes o letreiro recomeçava a cada 20s). v87.76: o
+     Paulo preferiu o tamanho anterior — voltou a faixa fina de uma linha; ficam
+     o letreiro contínuo (não recomeça) e os recados intercalados.
    • "comercial" e Yara fora de TODOS os rankings (lista de ocultos da ⚙) —
      inclusive gongo/atividade e Corrida, que não passavam pelo filtro.
    • Placar: projeção PELO FUNIL (antes era só o ritmo do vendido → mês sem
@@ -837,14 +839,15 @@ function rowCard(a, cat) {
     </div>`;
 }
 
-/* ── 📣 TIMELINE DE RECADOS (v87.75, Paulo 10/set: "1/4 da tela") ─────────
-   Faixa FIXA de 25% da altura, fora do _root: o corpo troca a cada tela e a
-   faixa segue rodando (antes o letreiro era redesenhado a cada 20s e voltava
-   pro começo). Só é refeita quando os itens mudam. Os recados da Timeline
-   voltam a cada 4 itens — a fila tem ~55 oportunidades do Radar, e sem isso um
-   recado passava 1× a cada ~10 min; das oportunidades, só as 12 primeiras. */
+/* ── 📣 TIMELINE DE RECADOS — letreiro fixo no rodapé, FORA do _root: o corpo
+   troca a cada tela e o letreiro segue rodando (antes era redesenhado a cada
+   20s e voltava pro começo). Só é refeito quando os itens mudam. Os recados da
+   Timeline voltam a cada 4 itens — a fila tem ~55 oportunidades do Radar, e
+   sem isso um recado passava 1× a cada ~10 min; das oportunidades, só as 12
+   primeiras. v87.75 tinha 1/4 da tela; v87.76 (Paulo: "o tamanho anterior fica
+   melhor") voltou pra faixa fina de uma linha, com os chips de antes. */
 const OP_ICO = { lead: '🎯', imovel: '🏠', parceria: '🤝', investidor: '💼', outro: '📌' };
-const TK_ALTURA = '25vh';
+const TK_ALTURA = '56px';
 const TK_OPORT_MAX = 12;
 let _tkItems = [], _tkSig = '';
 function tickerItems() {
@@ -858,15 +861,13 @@ function tickerItems() {
   outros.forEach((x, i) => { its.push(x); if (rec.length && (i + 1) % 4 === 0 && i < outros.length - 1) its.push(...rec); });
   return its;
 }
-function tkCard(i, idx) {
+function tkChip(i, idx) {
   return `
-    <button class="rh-item" data-tk="${idx}" style="flex:none;display:flex;flex-direction:column;justify-content:center;gap:1vh;height:20.5vh;min-width:22vw;max-width:42vw;margin-right:1.6vw;padding:1.4vh 1.8vw;border-radius:18px;white-space:normal;text-align:left;cursor:pointer;border:2px solid ${i.cor}88;background:linear-gradient(180deg,${i.cor}33,${i.cor}0d);color:#f1f5f9;font-family:inherit">
-      <span style="display:flex;align-items:center;gap:.8vw;white-space:nowrap">
-        <span style="font-size:3.6vh;line-height:1">${i.ico}</span>
-        <span style="font-size:1.5vh;font-weight:900;letter-spacing:.14em;color:${i.cor};background:${i.cor}22;padding:.4vh .8vw;border-radius:99px">${i.tag}</span>
-        ${i.extra ? `<span style="font-size:2.1vh;font-weight:800;color:${i.kind === 'oportunidade' ? '#4ade80' : '#94a3b8'}">${escapeHtml(i.extra)}</span>` : ''}
-      </span>
-      <span style="font-size:3vh;font-weight:800;line-height:1.2;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${escapeHtml(i.texto)}</span>
+    <button class="rh-item" data-tk="${idx}" style="flex:none;display:inline-flex;align-items:center;gap:10px;margin-right:22px;padding:7px 16px;border-radius:99px;white-space:nowrap;cursor:pointer;border:1px solid ${i.cor}66;background:linear-gradient(180deg,${i.cor}2e,${i.cor}14);color:#f1f5f9;font-family:inherit">
+      <span style="font-size:20px;line-height:1">${i.ico}</span>
+      <span style="font-size:10px;font-weight:900;letter-spacing:.12em;color:${i.cor};background:${i.cor}22;padding:2px 8px;border-radius:99px">${i.tag}</span>
+      <span style="font-size:19px;font-weight:700">${escapeHtml(i.texto)}</span>
+      ${i.extra ? `<span style="font-size:16px;font-weight:800;color:${i.kind === 'oportunidade' ? '#4ade80' : '#94a3b8'}">${escapeHtml(i.extra)}</span>` : ''}
     </button>`;
 }
 function tkEstilo() {
@@ -890,25 +891,24 @@ function syncTicker() {
   if (!el) {
     el = document.createElement('div');
     el.id = 'rh-timeline';
-    el.style.cssText = `position:fixed;left:0;right:0;bottom:0;height:${TK_ALTURA};z-index:55;display:flex;background:#0d1120;border-top:2px solid rgba(234,179,8,.4);color:#e2e8f0;font-family:inherit;overflow:hidden`;
+    el.style.cssText = `position:fixed;left:0;right:0;bottom:0;height:${TK_ALTURA};z-index:55;display:flex;align-items:stretch;background:#0d1120;border-top:1px solid rgba(71,85,105,.3);color:#e2e8f0;font-family:inherit;overflow:hidden`;
     el.addEventListener('click', e => { const b = e.target.closest('[data-tk]'); const it = b && _tkItems[+b.dataset.tk]; if (it) showTickerItem(it); });
     document.body.appendChild(el);
   }
-  const chunk = its.map(tkCard).join('');
+  const chunk = its.map(tkChip).join('');
   el.innerHTML = `
-    <div style="flex:none;width:12vw;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.2vh;background:linear-gradient(90deg,#1c1917,#0d1120);border-right:2px solid rgba(234,179,8,.4)">
-      <span style="font-size:6vh;line-height:1">📣</span>
-      <span style="font-size:2.6vh;font-weight:900;letter-spacing:.12em;color:#facc15">RECADOS</span>
-      <span style="display:flex;align-items:center;gap:.5vw;font-size:1.5vh;font-weight:800;letter-spacing:.16em;color:#fca5a5"><span style="width:1.1vh;height:1.1vh;border-radius:99px;background:#ef4444;animation:rhTkLive 1.4s ease infinite"></span>AO VIVO</span>
+    <div style="flex:none;display:flex;align-items:center;gap:8px;padding:0 18px;background:linear-gradient(90deg,#1c1917,#0d1120);border-right:1px solid rgba(234,179,8,.35)">
+      <span style="width:10px;height:10px;border-radius:99px;background:#ef4444;animation:rhTkLive 1.4s ease infinite"></span>
+      <span style="font-size:13px;font-weight:900;letter-spacing:.14em;color:#facc15">AGORA</span>
     </div>
     <div style="flex:1;min-width:0;display:flex;align-items:center;overflow:hidden">
-      <div class="rh-track" style="display:flex;width:max-content;will-change:transform;animation:rhTkMove 60s linear infinite">
-        <div style="display:flex;padding-left:1.6vw">${chunk}</div><div style="display:flex;padding-left:1.6vw">${chunk}</div>
+      <div class="rh-track" style="display:flex;align-items:center;width:max-content;will-change:transform;animation:rhTkMove 60s linear infinite">
+        <div style="display:flex;align-items:center;padding-left:22px">${chunk}</div><div style="display:flex;align-items:center;padding-left:22px">${chunk}</div>
       </div>
     </div>`;
-  // velocidade constante (~7% da altura da tela por segundo), qualquer tamanho de fila
+  // velocidade constante (~65 px/s, a do letreiro original), qualquer tamanho de fila
   const tr = el.querySelector('.rh-track');
-  tr.style.animationDuration = `${Math.max(20, Math.round((tr.scrollWidth / 2) / (window.innerHeight * 0.07)))}s`;
+  tr.style.animationDuration = `${Math.max(15, Math.round((tr.scrollWidth / 2) / 65))}s`;
   return true;
 }
 
@@ -986,7 +986,7 @@ function shell(body) {
     .rh-bar { transform-origin:left; animation:rhBar ${SLIDE_MS()}ms linear; }
     .rh-live { animation:rhLive 1.4s ease infinite; }
     .rh-item { transition:transform .15s ease, box-shadow .15s ease; }
-    .rh-item:hover { transform:scale(1.03); box-shadow:0 0 22px rgba(250,204,21,.25); }
+    .rh-item:hover { transform:scale(1.06); box-shadow:0 0 22px rgba(250,204,21,.25); }
     @media (prefers-reduced-motion: reduce) { .rh-live { animation:none !important } }
   </style>
   <div style="position:fixed;inset:0 0 ${_tkOn ? TK_ALTURA : '0'} 0;z-index:50;background:#0a0d16;color:#e2e8f0;display:flex;flex-direction:column;overflow:hidden;font-family:inherit">
