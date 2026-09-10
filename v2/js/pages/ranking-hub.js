@@ -29,14 +29,11 @@ const REFRESH_MS = 30000;
    volta a cada N" vêm do /api/v3/arena/tv2_config (shared_kv) — calibra sem
    deploy; a TV pega no próximo poll. (87.26 = hotfix: a definição não tinha
    entrado no 87.25 e a TV quebrou com CICLO_ATUAL undefined.) */
-let _cfg = { slide_s: 20, vendas_cada: 5, telas: ['recado', 'duelo', 'doc', 'aten', 'prosp', 'corrida', 'premiacoes', 'placar'], ocultar_nomes: ['Isabella', 'Paulo'] };
+let _cfg = { slide_s: 20, telas: ['recado', 'duelo', 'doc', 'aten', 'prosp', 'placar', 'cronograma', 'corrida', 'premiacoes'], ocultar_nomes: ['Isabella', 'Paulo'] };
 let _cfgCanEdit = false, _cfgAt = 0;
 const SLIDE_MS = () => _cfg.slide_s * 1000;
-function CICLO_ATUAL() {
-  const out = ['vendas'];
-  _cfg.telas.forEach((t, i) => { out.push(t); if ((i + 1) % _cfg.vendas_cada === 0 && i < _cfg.telas.length - 1) out.push('vendas'); });
-  return out;
-}
+// v87.73: ranking geral abre a volta e NÃO volta no meio (Paulo: "2 telas gerais")
+function CICLO_ATUAL() { return ['vendas', ..._cfg.telas]; }
 /* v87.23 (pacote 'vida imediata' + corrida, aprovado pelo Paulo): duelo pela
    liderança e Corrida da Meta entram no ciclo; voz no gongo; streaks/secas;
    Modo Fechamento na última semana; abertura do dia às 8h30; ticker de
@@ -44,18 +41,33 @@ function CICLO_ATUAL() {
 /* v87.24 (Paulo): criativos SAI do ciclo; entra 📣 RECADO em tela cheia (recados
    da Timeline marcados c/ 📺 pelo gestor); navegação manual ‹ › + setas do
    teclado/controle; rankings mostram QUANTIDADE real + pontos em sequência. */
+/* v87.73 (Paulo 10/set) — FONTE POR TELA + nenhuma tela repetida:
+   • Ranking geral e Duelo → ranking do HUB (/api/v3/psmhub/ranking).
+   • Pastas, Visitas, Prospecção e Placar do mês → ESTEIRA DE PRODUTIVIDADE do
+     HUB (/api/v3/psmhub/esteira: prospeccao/qualificacao/agendamento/
+     atendimento/pasta/vendaCount/vendaTotal por corretor), não mais o
+     ruleBreakdown de pontos do ranking.
+   • A geral passa 1× por volta (o "vendas volta a cada N" a duplicava) e tela
+     sem conteúdo é PULADA — antes a Corrida sem meta caía no Placar (placar 2×)
+     e o Duelo/Recado vazios caíam na geral.
+   • + 🗓️ CRONOGRAMA DA SEMANA (Rotina de Ações Direcionadas, foto do quadro). */
 const CELEB_MS = 10000;
 const TELAS_SEC = [
-  { id: 'doc',        lbl: '🗂 Ranking de Pastas',       sub: 'quantidade de pastas/propostas no HUB · pontos em sequência', un: 'pasta(s)' },
-  { id: 'aten',       lbl: '🚶 Ranking de Visitas',      sub: 'quantidade de visitas realizadas no HUB · pontos em sequência', un: 'visita(s)' },
-  { id: 'prosp',      lbl: '📞 Ranking de Prospecções',  sub: 'quantidade de prospecções no HUB · pontos em sequência', un: 'prospecção(ões)' },
+  { id: 'doc',        lbl: '🗂 Ranking de Pastas',       sub: 'pastas no mês · Esteira de Produtividade do PSM HUB', un: 'pasta(s)', campo: 'pasta' },
+  { id: 'aten',       lbl: '🚶 Ranking de Visitas',      sub: 'visitas realizadas no mês (coluna Atendimento) · Esteira de Produtividade do PSM HUB', un: 'visita(s)', campo: 'atendimento' },
+  { id: 'prosp',      lbl: '📞 Ranking de Prospecções',  sub: 'prospecções no mês · Esteira de Produtividade do PSM HUB', un: 'prospecção(ões)', campo: 'prospeccao' },
   { id: 'criativos',  lbl: '🎨 Criativos do mês' },
   { id: 'premiacoes', lbl: '🏆 Premiações ativas' },
   { id: 'placar',     lbl: '🎯 Placar do mês' },
   { id: 'duelo',      lbl: '⚔️ Duelo pela liderança' },
   { id: 'corrida',    lbl: '🏁 Corrida da Meta' },
   { id: 'recado',     lbl: '📣 Recado da gestão' },
+  { id: 'cronograma', lbl: '🗓️ Cronograma da semana' },
 ];
+// v87.73: origem de cada tela no rodapé — a gestão quer a fonte explícita
+const EST_HUB = 'Esteira de Produtividade do PSM HUB';
+const FONTE_TELA = { vendas: 'Ranking do PSM HUB', duelo: 'Ranking do PSM HUB', doc: EST_HUB, aten: EST_HUB,
+  prosp: EST_HUB, placar: `${EST_HUB} (meta: HUB)`, cronograma: 'Rotina de Ações Direcionadas' };
 
 let _root = null, _data = null, _err = '', _pending = false;
 let _team = 'GERAL';
@@ -66,6 +78,7 @@ let _screen = 'vendas', _secIdx = 0, _rotTimer = null, _rotPauseAte = 0;
 let _criativos = [], _ov = null, _metas = null, _extraAt = 0;
 let _prevVendas = null, _celeb = null, _celebTimer = null;
 let _ritmo = {}, _ritmoAt = 0;
+let _est = null, _estErr = '', _estAt = 0;   // 🧮 esteira de produtividade do HUB (v87.73)
 let _recTvIdx = 0;               // alterna entre recados 📺 a cada passada        // streaks/secas (GC ritmo_vendas, 1º nome → dias)
 let _atividade = [];                  // ticker ao vivo: deltas de pontos entre polls
 
@@ -106,9 +119,7 @@ function mudaTela(passo) {
   for (let t = 0; t < CICLO.length; t++) {
     _secIdx = ((_secIdx + passo) % CICLO.length + CICLO.length) % CICLO.length;
     const id = CICLO[_secIdx];
-    if (id === 'recado' && !_recados.some(r => r.tv)) continue;
-    if (id === 'premiacoes' && !_oport.length) continue;
-    if (id === 'criativos' && !_criativos.length) continue;
+    if (!temConteudo(id)) continue;
     _screen = id; break;
   }
   render();
@@ -120,13 +131,11 @@ function agendaRotacao() {
   _rotTimer = setTimeout(() => {
     if (_celeb || Date.now() < _rotPauseAte || document.getElementById('rh-overlay')) { agendaRotacao(); return; }
     const CICLO = CICLO_ATUAL();
-    // avança no ciclo pulando telas sem conteúdo (sem recado 📺/premiação/criativo)
+    // avança no ciclo pulando telas sem conteúdo (ver temConteudo)
     for (let t = 0; t < CICLO.length; t++) {
       _secIdx = (_secIdx + 1) % CICLO.length;
       const id = CICLO[_secIdx];
-      if (id === 'recado' && !_recados.some(r => r.tv)) continue;
-      if (id === 'premiacoes' && !_oport.length) continue;
-      if (id === 'criativos' && !_criativos.length) continue;
+      if (!temConteudo(id)) continue;
       _screen = id; break;
     }
     render();
@@ -134,14 +143,31 @@ function agendaRotacao() {
   }, SLIDE_MS());
 }
 
+/* v87.73: tela sem conteúdo é PULADA — nunca cai em outra tela (era isso que
+   repetia o Placar via Corrida sem meta, e a geral via Duelo/Recado vazios) */
+function temConteudo(id) {
+  if (id === 'recado') return _recados.some(r => r.tv);
+  if (id === 'premiacoes') return _oport.length > 0;
+  if (id === 'criativos') return _criativos.length > 0;
+  if (id === 'duelo') return ranked().length >= 2;
+  if (id === 'corrida') return corridaLanes().length > 0;
+  return true;
+}
+
 async function reload() {
-  const [r, rec, op] = await Promise.all([
+  // 🧮 esteira do HUB a cada 60s (a tela da própria esteira no HUB usa staleTime de 60s)
+  const querEst = Date.now() - _estAt > 60000;
+  if (querEst) _estAt = Date.now();
+  const [r, rec, op, est] = await Promise.all([
     api.request('/api/v3/psmhub/ranking').catch(e => ({ _err: e.message })),
     api.request('/api/v3/timeline/recados').catch(() => null),
     api.request('/api/v3/crm_extra/oportunidades').catch(() => null),
+    querEst ? api.request('/api/v3/psmhub/esteira').catch(e => ({ _err: e.message })) : null,
   ]);
   if (r && r.ok) { _data = r.data; _fetchedAt = new Date(); _err = ''; }
   else if (r) { _err = r.error || r._err || 'PSM HUB indisponível'; if (r.pending_config) _pending = true; }
+  if (est && est.ok) { _est = est.data; _estErr = ''; }
+  else if (est) _estErr = est.error || est._err || 'Esteira do PSM HUB indisponível';
   if (rec) _recados = rec.items || [];
   if (op) _oport = (op.oportunidades || []).filter(o => o.status === 'aberta');
 
@@ -209,7 +235,7 @@ async function reload() {
   aberturaDoDia();
 
   // só re-renderiza se o DADO mudou — senão o letreiro reiniciava a cada 30s
-  const sig = JSON.stringify([_data, _recados.map(x => x.id + (x.texto || '')), _oport.map(x => x.id + (x.titulo || '')), _err]);
+  const sig = JSON.stringify([_data, _est, _recados.map(x => x.id + (x.texto || '')), _oport.map(x => x.id + (x.titulo || '')), _err, _estErr]);
   if (sig !== _sig) { _sig = sig; render(); }
   else { const el = document.getElementById('rh-upd'); if (el && _fetchedAt) el.textContent = `Atualizado às ${_fetchedAt.toLocaleTimeString('pt-BR')}`; }
 }
@@ -281,7 +307,7 @@ function aberturaDoDia() {
 /* ── 📣 tela: recado da gestão em TELA CHEIA (Timeline c/ flag 📺) ── */
 function telaRecado() {
   const tvs = _recados.filter(r => r.tv);
-  if (!tvs.length) return telaRanking(null);
+  if (!tvs.length) return vazio('📣', 'Nenhum recado 📺 ativo na Timeline.');
   const r = tvs[_recTvIdx % tvs.length];
   _recTvIdx++;
   const cor = r.cor && r.cor !== '#0f172a' ? r.cor : '#eab308';
@@ -300,7 +326,7 @@ function telaRecado() {
 function telaDuelo() {
   const l = ranked();
   const [a, b] = [l[0], l[1]];
-  if (!a || !b) return telaRanking(null);
+  if (!a || !b) return vazio('⚔️', 'O duelo começa quando 2 corretores pontuarem no mês.');
   const diff = (a.totalPoints || 0) - (b.totalPoints || 0);
   const lado = (x, cor, coroa) => `
     <div style="flex:1;text-align:center;border-radius:20px;padding:34px 20px;background:${coroa ? 'radial-gradient(120% 120% at 50% 0%,rgba(234,179,8,.16),#0d1120)' : 'rgba(30,41,59,.4)'};border:2px solid ${cor}">
@@ -329,14 +355,17 @@ function telaDuelo() {
 }
 
 /* ── 🏁 tela: Corrida da Meta (% da meta individual do ano, com linha de pace) ── */
-function telaCorrida() {
+function corridaLanes() {
   // sócio/diretor NUNCA na TV da Arena (Paulo, 05/set: 'retire ela daquilo imediatamente')
-  const pc = ((_metas && _metas.por_corretor) || []).filter(c => !c.inativo && (c.meta_vgv || 0) > 0
-    && !/socio|diretor/i.test(String(c.role || '')));
-  if (!pc.length) return telaPlacar();
-  const paceAno = Math.round(((Date.now() - new Date(new Date().getFullYear(), 0, 1)) / 864e5) / 365 * 100);
-  const lanes = pc.map(c => ({ ...c, pct: Math.min(120, Math.round((c.vgv_atingido || 0) / c.meta_vgv * 100)) }))
+  return ((_metas && _metas.por_corretor) || []).filter(c => !c.inativo && (c.meta_vgv || 0) > 0
+    && !/socio|diretor/i.test(String(c.role || '')))
+    .map(c => ({ ...c, pct: Math.min(120, Math.round((c.vgv_atingido || 0) / c.meta_vgv * 100)) }))
     .sort((a, b2) => b2.pct - a.pct).slice(0, 8);
+}
+function telaCorrida() {
+  const lanes = corridaLanes();
+  if (!lanes.length) return vazio('🏁', 'Sem metas individuais de VGV cadastradas para a Corrida.');
+  const paceAno = Math.round(((Date.now() - new Date(new Date().getFullYear(), 0, 1)) / 864e5) / 365 * 100);
   return `
     <div style="text-align:center;padding:18px 0 0">
       <span style="font-size:30px;font-weight:900;color:#facc15">🏁 Corrida da Meta ${new Date().getFullYear()}</span>
@@ -404,26 +433,45 @@ function teams() {
   return [...set];
 }
 function shortTeam(t) { return t.replace(/^EQUIPE\s+/i, '').toUpperCase(); }
-function catPts(a, cat) {
-  return (a.ruleBreakdown || []).filter(rb => classifyRule(rb) === cat)
-    .reduce((t, rb) => t + (rb.totalPoints || 0), 0);
-}
-function catCount(a, cat) {
-  return (a.ruleBreakdown || []).filter(rb => classifyRule(rb) === cat)
-    .reduce((t, rb) => t + (rb.count || 0), 0);
-}
 function ocultoNaTV(nome) {
   // sócios (e quem mais a gestão listar na ⚙) nunca aparecem na TV pública
   const alvo = String(nome || '').split(' ')[0].toLowerCase();
   return (_cfg.ocultar_nomes || []).some(n => String(n).split(' ')[0].toLowerCase() === alvo);
 }
-function ranked(cat) {
+// ranking do HUB (pontos) — tela geral, duelo e a meta individual (vgvMeta) do placar
+function ranked() {
   let list = (_data?.ranking || []).filter(a => !ocultoNaTV(a.agentName));
   if (_team !== 'GERAL') list = list.filter(a => (a.teamName || '').trim() === _team);
-  const val = a => cat ? catPts(a, cat) : (a.totalPoints || 0);
-  list = [...list].sort((a, b) => (cat ? catCount(b, cat) : val(b)) - (cat ? catCount(a, cat) : val(a)) || val(b) - val(a));
-  if (cat) list = list.filter(a => catCount(a, cat) > 0 || val(a) > 0);
-  return list.map((a, i) => ({ ...a, pos: i + 1, _val: val(a), _n: cat ? catCount(a, cat) : null }));
+  return [...list].sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0)).map((a, i) => ({ ...a, pos: i + 1 }));
+}
+
+/* ── 🧮 esteira de produtividade do HUB (v87.73) — uma linha por corretor ── */
+const normNome = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+function noRanking(row) {
+  // a esteira não traz equipe nem meta: herda do ranking do HUB (agentId; senão nome)
+  return (_data?.ranking || []).find(a => (row.agentId != null && a.agentId != null && String(a.agentId) === String(row.agentId))
+    || normNome(a.agentName) === normNome(row.agentName));
+}
+function estRows() {
+  let list = ((_est && _est.rows) || []).filter(r => !ocultoNaTV(r.agentName));
+  if (_team !== 'GERAL') list = list.filter(r => ((noRanking(r) || {}).teamName || '').trim() === _team);
+  return list;
+}
+function rankedEst(cat) {
+  const campo = (TELAS_SEC.find(t => t.id === cat) || {}).campo;
+  return estRows().map(r => ({ agentName: r.agentName, _n: Number(r[campo]) || 0 }))
+    .filter(a => a._n > 0)
+    .sort((a, b) => b._n - a._n || normNome(a.agentName).localeCompare(normNome(b.agentName)))
+    .map((a, i) => ({ ...a, pos: i + 1 }));
+}
+function semEsteira() {
+  return `<div style="text-align:center;padding:120px 40px">
+    <div style="font-size:26px;margin-bottom:12px">⚠️ Sem dados da Esteira de Produtividade do PSM HUB</div>
+    <div style="opacity:.6;font-size:16px">${escapeHtml(_estErr || 'carregando…')}</div></div>`;
+}
+function vazio(ico, msg) {
+  return `<div style="text-align:center;padding:140px 40px;opacity:.7">
+    <div style="font-size:54px">${ico}</div><div style="font-size:24px;margin-top:10px">${escapeHtml(msg)}</div></div>`;
 }
 
 /* ── render ── */
@@ -442,13 +490,15 @@ function render() {
   else if (_screen === 'corrida') corpo = telaCorrida();
   else if (_screen === 'premiacoes') corpo = telaPremiacoes();
   else if (_screen === 'placar') corpo = telaPlacar();
+  else if (_screen === 'cronograma') corpo = telaCronograma();
   else corpo = telaRanking(_screen === 'vendas' ? null : _screen);
   _root.innerHTML = shell(corpo);
   bind();
 }
 
 function telaRanking(cat) {
-  const list = ranked(cat);
+  if (cat && !_est) return semEsteira();
+  const list = cat ? rankedEst(cat) : ranked();
   const podium = list.slice(0, 3);
   const rest = list.slice(3, cat ? 7 : list.length);   // telas extras: top 7 (cabe sem rolar)
   const ord = [podium[1], podium[0], podium[2]].filter(Boolean);   // 2º · 1º · 3º
@@ -507,19 +557,80 @@ function telaPremiacoes() {
     </div>`;
 }
 
+/* ── 🗓️ tela: CRONOGRAMA DA SEMANA (v87.73) — Rotina de Ações Direcionadas,
+   transcrita da foto do quadro que o Paulo mandou em 10/set (inclui o que foi
+   anotado à caneta: ONE ON ONE de segunda e os TREINOs de quarta e sexta).
+   Hoje fica em destaque e o horário em curso ganha o selo AGORA. ── */
+const CRONO_DIAS = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+const CRONO_COR = { reuniao: '#facc15', oneonone: '#a78bfa', ligacao: '#38bdf8', indicacao: '#4ade80',
+  treino: '#f472b6', decorado: '#fb923c', market: '#2dd4bf', corujao: '#818cf8', atend: '#22c55e' };
+const LIG_AGENDOU = 'Clientes atuais e os que agendaram mas não vieram (foco em encher o sábado → eventos)';
+const DECORADO = 'Escala de gravação: 3 corretores no decorado gravam os criativos';
+const CORUJAO = 'Leads atuais > listas · 1h → 20min → 1h';
+const CRONOGRAMA = [
+  { h: '08:30 às 09:30', ini: '08:30', fim: '09:30', dias: [{ t: 'REUNIÃO SEMANAL', k: 'reuniao' }, null, null, null, null, { t: 'MARKETPLACE', k: 'market' }] },
+  { h: '10:00 às 11:00', ini: '10:00', fim: '11:00', dias: [{ t: 'ONE ON ONE (2)', k: 'oneonone' }, { t: 'ONE ON ONE (1)', k: 'oneonone' },
+    { t: 'ONE ON ONE (1)', k: 'oneonone' }, { t: 'ONE ON ONE (2)', k: 'oneonone' }, null, { t: 'ATENDIMENTOS', k: 'atend' }] },
+  { h: '11:00 às 12:00', ini: '11:00', fim: '12:00', dias: [null, { t: 'SALA DE LIGAÇÃO', d: 'Reativação — leads +90 dias', k: 'ligacao' },
+    { t: 'SALA DA INDICAÇÃO', d: 'Pedir indicações a clientes ativos e a quem já comprou', k: 'indicacao' },
+    { t: 'SALA DE LIGAÇÃO', d: LIG_AGENDOU, k: 'ligacao' }, { t: 'SALA DE LIGAÇÃO', d: LIG_AGENDOU, k: 'ligacao' }, { t: 'ATENDIMENTOS', k: 'atend' }] },
+  { h: '14:00 às 14:30', ini: '14:00', fim: '14:30', dias: [null, null, { t: 'TREINO', k: 'treino' }, null, { t: 'TREINO', k: 'treino' }, null] },
+  { h: '15:00 às 17:00', ini: '15:00', fim: '17:00', dias: [null, { t: 'VISITAS EM DECORADOS', d: DECORADO, k: 'decorado' },
+    { t: 'VISITAS EM DECORADOS', d: DECORADO, k: 'decorado' }, null, null, null] },
+  { h: 'Fim de tarde · 17:30 às 18:00', ini: '17:30', fim: '18:00', dias: [null, null, { t: 'MARKETPLACE', k: 'market' }, { t: 'MARKETPLACE', k: 'market' }, null, null] },
+  { h: '17:30 às 20:00', ini: '17:30', fim: '20:00', dias: [null, { t: 'CORUJÃO', d: CORUJAO, k: 'corujao' }, null,
+    { t: 'CORUJÃO', d: CORUJAO, k: 'corujao' }, null, null] },
+];
+function telaCronograma() {
+  const agora = new Date();
+  const hojeIdx = agora.getDay() - 1;                 // seg=0 … sáb=5 (domingo: nenhum)
+  const hm = `${String(agora.getHours()).padStart(2, '0')}:${String(agora.getMinutes()).padStart(2, '0')}`;
+  const th = (dia, i) => `<div style="padding:10px 8px;text-align:center;font-size:17px;font-weight:900;letter-spacing:.06em;border-radius:10px;${i === hojeIdx ? 'background:#eab308;color:#1c1917' : 'background:#141a2c;color:#cbd5e1'}">${dia.toUpperCase()}${i === hojeIdx ? ' · HOJE' : ''}</div>`;
+  const cel = (c, i, emCurso) => {
+    const hoje = i === hojeIdx;
+    if (!c) return `<div style="border-radius:10px;background:${hoje ? 'rgba(234,179,8,.06)' : 'rgba(30,41,59,.25)'};border:1px dashed rgba(71,85,105,.35)"></div>`;
+    const cor = CRONO_COR[c.k] || '#94a3b8';
+    const agoraAqui = hoje && emCurso;
+    return `<div style="border-radius:10px;padding:10px 12px;background:linear-gradient(180deg,${cor}${hoje ? '33' : '1f'},#0d1120);border:${agoraAqui ? `3px solid ${cor}` : `1px solid ${cor}77`};border-left:6px solid ${cor};${agoraAqui ? `box-shadow:0 0 28px ${cor}66;` : ''}${hoje ? '' : 'opacity:.82;'}">
+      ${agoraAqui ? `<div style="display:inline-block;font-size:11px;font-weight:900;letter-spacing:.14em;color:#1c1917;background:${cor};padding:2px 8px;border-radius:99px;margin-bottom:4px">● AGORA</div>` : ''}
+      <div style="font-size:16px;font-weight:900;color:#f8fafc;line-height:1.2">${escapeHtml(c.t)}</div>
+      ${c.d ? `<div style="font-size:13px;color:#cbd5e1;line-height:1.35;margin-top:4px">${escapeHtml(c.d)}</div>` : ''}
+    </div>`;
+  };
+  return `
+    <div style="text-align:center;padding:16px 0 0">
+      <span style="font-size:30px;font-weight:900;color:#facc15">🗓️ Rotina de Ações Direcionadas</span>
+      <div style="font-size:14px;color:#64748b;margin-top:2px">cronograma da semana · hoje em destaque</div>
+    </div>
+    <div style="display:grid;grid-template-columns:150px repeat(6,1fr);gap:8px;padding:16px 30px 8px">
+      <div style="padding:10px 8px;font-size:13px;font-weight:800;letter-spacing:.1em;color:#64748b;align-self:end">HORÁRIO</div>
+      ${CRONO_DIAS.map(th).join('')}
+      ${CRONOGRAMA.map(l => {
+        const emCurso = hm >= l.ini && hm < l.fim;
+        return `<div style="display:flex;align-items:center;padding:10px 12px;border-radius:10px;font-size:15px;font-weight:900;${emCurso ? 'background:rgba(234,179,8,.15);color:#facc15' : 'background:#0d1120;color:#e2e8f0'}">${escapeHtml(l.h)}</div>
+          ${l.dias.map((c, i) => cel(c, i, emCurso)).join('')}`;
+      }).join('')}
+    </div>
+    <div style="margin:6px 30px 16px;padding:12px 18px;border-radius:12px;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.35);font-size:16px;font-weight:700;color:#fde68a;text-align:center">
+      ⚠️ “Sem rotina, não existe organização &amp; sem organização, não existe nada além do curto prazo.”
+    </div>`;
+}
+
 /* ── 🎯 tela: PLACAR DO MÊS 2.0 (v87.27, pedido do Paulo: produtividade +
-   projeção/meta detalhada + individuais). Meta individual = vgvMeta do HUB;
-   projeção = run-rate (real ÷ dias decorridos × dias do mês). ── */
+   projeção/meta detalhada + individuais). v87.73: VGV, vendas e produtividade
+   saem da ESTEIRA DE PRODUTIVIDADE do HUB; a esteira não traz meta, então a
+   meta individual segue a do HUB (vgvMeta do ranking). Projeção = run-rate
+   (real ÷ dias decorridos × dias do mês). ── */
 function telaPlacar() {
-  const sv = (_ov && _ov.sales) || {};
-  const agentes = ranked();                          // já respeita o filtro de equipe
+  if (!_est) return semEsteira();
+  const rows = estRows();                            // já respeita o filtro de equipe
   const hj = new Date(); const dia = hj.getDate();
   const diasMes = new Date(hj.getFullYear(), hj.getMonth() + 1, 0).getDate();
   const fator = dia > 0 ? diasMes / dia : 1;
   // meta do mês: soma das metas individuais do HUB; fallback meta anual ÷12
-  const metaHub = agentes.reduce((t, a) => t + (a.vgvMeta || 0), 0);
+  const metaHub = ranked().reduce((t, a) => t + (a.vgvMeta || 0), 0);
   const metaMes = metaHub || ((_metas && _metas.totals && _metas.totals.meta_vgv) ? _metas.totals.meta_vgv / 12 : 0);
-  const vgvMes = agentes.reduce((t, a) => t + (a.vgvReal || 0), 0) || sv.vgv_mes || 0;
+  const vgvMes = rows.reduce((t, r) => t + (Number(r.vendaTotal) || 0), 0);
   const proj = vgvMes * fator;
   const pct = metaMes ? Math.min(999, Math.round(100 * vgvMes / metaMes)) : 0;
   const pctProj = metaMes ? Math.round(100 * proj / metaMes) : 0;
@@ -527,24 +638,26 @@ function telaPlacar() {
   let uteis = 0; const fimMes = new Date(hj.getFullYear(), hj.getMonth() + 1, 0);
   for (let d = new Date(hj); d <= fimMes; d.setDate(d.getDate() + 1)) { const w = d.getDay(); if (w !== 0 && w !== 6) uteis++; }
   const corProj = pctProj >= 100 ? '#4ade80' : pctProj >= 70 ? '#facc15' : '#f87171';
-  // produtividade do mês (quantidades reais do HUB, todas as categorias)
-  const prod = { prosp: 0, agend: 0, aten: 0, doc: 0, venda: 0 };
-  agentes.forEach(a => { const c = catAgg(a); Object.keys(prod).forEach(k => { prod[k] += (c[k] && c[k].n) || 0; }); });
+  // produtividade do mês — as colunas da esteira do HUB
+  const prod = { prospeccao: 0, qualificacao: 0, agendamento: 0, atendimento: 0, pasta: 0, vendaCount: 0 };
+  rows.forEach(r => Object.keys(prod).forEach(k => { prod[k] += Number(r[k]) || 0; }));
   const pCard = (ico, lbl, n) => `
     <div style="background:#0d1120;border:1px solid rgba(71,85,105,.4);border-radius:12px;padding:12px 8px;text-align:center">
       <div style="font-size:22px">${ico}</div>
       <div style="font-size:30px;font-weight:900;color:#f8fafc;line-height:1.1">${n}</div>
       <div style="font-size:11px;letter-spacing:.08em;color:#64748b;text-transform:uppercase">${lbl}</div>
     </div>`;
-  // individuais: real × meta (HUB) × projeção com farol
-  const linhas = agentes.filter(a => (a.vgvMeta || 0) > 0 || (a.vgvReal || 0) > 0).slice(0, 9).map(a => {
-    const real = a.vgvReal || 0, meta = a.vgvMeta || 0;
+  // individuais: real (esteira) × meta (HUB) × projeção com farol
+  const linhas = rows.map(r => ({ nome: r.agentName, real: Number(r.vendaTotal) || 0, vendas: Number(r.vendaCount) || 0,
+                                  meta: (noRanking(r) || {}).vgvMeta || 0 }))
+    .filter(x => x.meta > 0 || x.real > 0)
+    .sort((x, y) => y.real - x.real || y.meta - x.meta)
+    .slice(0, 9).map(({ nome, real, vendas, meta }) => {
     const pInd = meta ? Math.round(100 * real / meta) : null;
     const projInd = real * fator;
     const okInd = meta ? (projInd >= meta ? '#4ade80' : projInd >= meta * 0.7 ? '#facc15' : '#f87171') : '#64748b';
-    const vendas = (catAgg(a).venda || {}).n || 0;
     return `<div style="display:flex;align-items:center;gap:10px;background:rgba(30,41,59,.35);border:1px solid rgba(71,85,105,.35);border-radius:10px;padding:8px 14px">
-      <span style="flex:1;font-size:17px;font-weight:800;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(a.agentName || '')}</span>
+      <span style="flex:1;font-size:17px;font-weight:800;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(nome || '')}</span>
       <span style="font-size:13px;color:#94a3b8;width:70px;text-align:center">${vendas} venda(s)</span>
       <div style="width:230px">
         <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700"><span style="color:#e2e8f0">${fmtBRL(real)}</span><span style="color:#64748b">${meta ? fmtBRL(meta) : 'sem meta'}</span></div>
@@ -557,7 +670,7 @@ function telaPlacar() {
   return `
     <div style="text-align:center;padding:14px 0 0">
       <span style="font-size:28px;font-weight:900;color:#facc15">🎯 Placar de ${hj.toLocaleDateString('pt-BR', { month: 'long' })}</span>
-      <span style="font-size:13px;color:#64748b;margin-left:10px">dia ${dia}/${diasMes} · ${uteis} dia(s) útil(eis) restando</span>
+      <span style="font-size:13px;color:#64748b;margin-left:10px">dia ${dia}/${diasMes} · ${uteis} dia(s) útil(eis) restando · ${EST_HUB}</span>
     </div>
     <div style="padding:14px 40px 4px">
       <div style="display:flex;justify-content:space-between;font-size:15px;font-weight:700;color:#cbd5e1">
@@ -573,12 +686,12 @@ function telaPlacar() {
         ${falta > 0 ? `<span>faltam <b style="color:#fb923c">${fmtBRL(falta)}</b> · ${uteis ? `<b style="color:#fde047">${fmtBRL(falta / uteis)}/dia útil</b>` : ''}</span>` : '<span style="color:#4ade80">✅ meta batida — agora é recorde</span>'}
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:8px 40px">
-      ${pCard('📞', 'atendimentos', prod.prosp)}${pCard('📅', 'agendamentos', prod.agend)}${pCard('🚶', 'visitas', prod.aten)}${pCard('🗂', 'pastas', prod.doc)}${pCard('💰', 'vendas', prod.venda)}
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;padding:8px 40px">
+      ${pCard('📞', 'prospecções', prod.prospeccao)}${pCard('✅', 'qualificações', prod.qualificacao)}${pCard('📅', 'agendamentos', prod.agendamento)}${pCard('🚶', 'visitas', prod.atendimento)}${pCard('🗂', 'pastas', prod.pasta)}${pCard('💰', 'vendas', prod.vendaCount)}
     </div>
     <div style="padding:6px 40px 14px;display:grid;gap:7px">
-      <div style="font-size:13px;font-weight:800;color:#94a3b8;letter-spacing:.08em">INDIVIDUAIS — real × meta do mês (HUB) · → projeção no ritmo atual</div>
-      ${linhas || '<div style="color:#64748b;font-size:14px">sem metas individuais cadastradas no HUB</div>'}
+      <div style="font-size:13px;font-weight:800;color:#94a3b8;letter-spacing:.08em">INDIVIDUAIS — real (esteira) × meta do mês (HUB) · → projeção no ritmo atual</div>
+      ${linhas || '<div style="color:#64748b;font-size:14px">nenhum corretor com venda ou meta no mês</div>'}
     </div>`;
 }
 
@@ -595,7 +708,7 @@ function podiumCard(a, cat) {
       <div style="font-size:${first ? '30px' : '24px'};font-weight:800;color:${posColor}">${a.pos}°</div>
       <div style="font-size:${first ? '28px' : '22px'};font-weight:700;color:#f1f5f9;margin-top:2px">${escapeHtml(a.agentName || '—')}</div>
       <div style="font-size:${first ? '84px' : '58px'};font-weight:900;line-height:1.1;color:${posColor}">${cat ? a._n : fmtPts(a.totalPoints)}</div>
-      <div style="font-size:${cat ? '15px' : '12px'};letter-spacing:.08em;color:${posColor};opacity:.85">${cat ? `${(TELAS_SEC.find(t => t.id === cat) || {}).un || ''} · ${fmtPts(a._val)} pts` : 'pontos'}</div>
+      <div style="font-size:${cat ? '15px' : '12px'};letter-spacing:.08em;color:${posColor};opacity:.85">${cat ? (TELAS_SEC.find(t => t.id === cat) || {}).un || '' : 'pontos'}</div>
       ${a.vgvReal ? `<div style="margin-top:6px;color:#86efac;font-weight:700">VGV ${fmtBRL(a.vgvReal)}</div>` : ''}
       <div style="height:1px;background:rgba(148,163,184,.25);margin:14px 40px"></div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;min-height:26px">${cat ? '' : badgesOf(a) + ' ' + streakChip(a)}</div>
@@ -618,7 +731,7 @@ function rowCard(a, cat) {
       <div style="display:flex;flex-wrap:wrap;gap:6px">${cat ? '' : badgesOf(a) + ' ' + streakChip(a)}</div>
       <div style="margin-left:auto;text-align:right">
         <div style="font-size:26px;font-weight:900;color:#f1f5f9;line-height:1">${cat ? a._n : fmtPts(a.totalPoints)}</div>
-        <div style="font-size:11px;color:#64748b">${cat ? `${(TELAS_SEC.find(t => t.id === cat) || {}).un || ''} · ${fmtPts(a._val)} pts` : `pts${a.vgvReal ? ` · VGV ${fmtBRL(a.vgvReal)}` : ''}`}</div>
+        <div style="font-size:11px;color:#64748b">${cat ? (TELAS_SEC.find(t => t.id === cat) || {}).un || '' : `pts${a.vgvReal ? ` · VGV ${fmtBRL(a.vgvReal)}` : ''}`}</div>
       </div>
     </div>`;
 }
@@ -779,7 +892,7 @@ function shell(body) {
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 26px;background:#0d1120;border-top:1px solid rgba(71,85,105,.3)">
       ${Object.values(BADGES).map(b => `<span style="padding:3px 10px;border-radius:99px;font-size:11px;background:${b.bg};color:${b.fg}">${b.ab} <b>${b.lbl}</b></span>`).join('')}
       <span style="font-size:11px;color:#475569">💲 VGV Real</span>
-      <span style="margin-left:auto;font-size:11px;color:#475569">Dados do PSM HUB · atualização automática a cada 30 segundos</span>
+      <span style="margin-left:auto;font-size:11px;color:#475569">Fonte desta tela: ${FONTE_TELA[_screen] || 'House PSM'} · atualização automática a cada 30 segundos</span>
     </div>
   </div>`;
 }
@@ -813,7 +926,8 @@ function bind() {
 /* ── ⚙️ engrenagem: modal de configuração da TV (gestão, salva no banco) ── */
 const CFG_LBL = { recado: '📣 Recado da gestão', duelo: '⚔️ Duelo pela liderança', doc: '🗂 Ranking de Pastas',
   aten: '🚶 Ranking de Visitas', prosp: '📞 Ranking de Prospecções', corrida: '🏁 Corrida da Meta',
-  premiacoes: '🏆 Premiações', placar: '🎯 Placar do mês', criativos: '🎨 Criativos do mês' };
+  premiacoes: '🏆 Premiações', placar: '🎯 Placar do mês', cronograma: '🗓️ Cronograma da semana',
+  criativos: '🎨 Criativos do mês' };
 function abrirConfig() {
   _rotPauseAte = Date.now() + 600000;   // pausa a rotação enquanto configura
   const todas = [..._cfg.telas, ...Object.keys(CFG_LBL).filter(t => !_cfg.telas.includes(t))];
@@ -837,12 +951,10 @@ function abrirConfig() {
       <div style="display:flex;gap:18px;margin:18px 0">
         <label style="flex:1;font-size:13px;color:#94a3b8">Segundos por tela
           <input id="rhc-slide" type="number" min="8" max="120" value="${_cfg.slide_s}" style="width:100%;margin-top:4px;background:#141a2c;border:1px solid rgba(71,85,105,.5);border-radius:8px;color:#f8fafc;padding:8px 10px;font-size:16px"></label>
-        <label style="flex:1;font-size:13px;color:#94a3b8">Vendas volta a cada X telas
-          <input id="rhc-cada" type="number" min="1" max="8" value="${_cfg.vendas_cada}" style="width:100%;margin-top:4px;background:#141a2c;border:1px solid rgba(71,85,105,.5);border-radius:8px;color:#f8fafc;padding:8px 10px;font-size:16px"></label>
       </div>
       <label style="display:block;font-size:13px;color:#94a3b8;margin-bottom:12px">🙈 Ocultar da TV (nomes separados por vírgula — sócios ficam de fora dos rankings)
         <input id="rhc-ocultar" value="${escapeHtml((_cfg.ocultar_nomes || []).join(', '))}" style="width:100%;margin-top:4px;background:#141a2c;border:1px solid rgba(71,85,105,.5);border-radius:8px;color:#f8fafc;padding:8px 10px;font-size:15px"></label>
-      <div style="font-size:13px;color:#94a3b8;margin-bottom:8px">Telas extras — ligue/desligue e arraste a ordem (▲▼). O ranking de vendas é fixo e intercala sozinho.</div>
+      <div style="font-size:13px;color:#94a3b8;margin-bottom:8px">Telas extras — ligue/desligue e arraste a ordem (▲▼). O ranking geral é fixo e abre cada volta (1× por volta); tela sem conteúdo é pulada.</div>
       <div id="rhc-list" style="display:grid;gap:8px">${todas.map(linha).join('')}</div>
       <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:20px">
         <button id="rhc-cancel" style="border:1px solid rgba(148,163,184,.4);background:transparent;color:#e2e8f0;border-radius:10px;padding:10px 20px;font-size:15px;font-weight:700;cursor:pointer">Cancelar</button>
@@ -862,8 +974,7 @@ function abrirConfig() {
   });
   ov.querySelector('#rhc-save').onclick = async () => {
     const telas = [...ov.querySelectorAll('.rhc-row')].filter(r => r.querySelector('.rhc-on').checked).map(r => r.dataset.tela);
-    const cfg = { slide_s: Number(ov.querySelector('#rhc-slide').value) || 20,
-                  vendas_cada: Number(ov.querySelector('#rhc-cada').value) || 5, telas,
+    const cfg = { slide_s: Number(ov.querySelector('#rhc-slide').value) || 20, telas,
                   ocultar_nomes: String(ov.querySelector('#rhc-ocultar').value || '').split(',').map(x => x.trim()).filter(Boolean) };
     if (!telas.length) { ov.querySelector('#rhc-msg').textContent = 'Ligue ao menos uma tela extra.'; return; }
     ov.querySelector('#rhc-save').disabled = true;

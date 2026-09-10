@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-GET/POST /api/v3/arena/tv2_config — Config da ARENA TV 2.0 (shared_kv 'arena_tv2_config'). v87.25
+GET/POST /api/v3/arena/tv2_config — Config da ARENA TV 2.0 (shared_kv 'arena_tv2_config'). v87.73
 
-A engrenagem da própria TV (ranking-hub) edita: tempo por tela, de quantas em
-quantas telas o ranking de vendas volta, e quais telas extras giram (e em que
-ordem). Sem deploy pra calibrar — pedido do Paulo (05/set).
+A engrenagem da própria TV (ranking-hub) edita: tempo por tela e quais telas
+extras giram (e em que ordem). Sem deploy pra calibrar — pedido do Paulo (05/set).
+v87.73 (Paulo 10/set): o ranking geral passa 1× por volta — o "vendas volta a
+cada N" (vendas_cada) saiu, era ele que duplicava a tela geral. + tela 🗓️ cronograma.
 
 GET  (qualquer autenticado): { ok, config, can_edit }
 POST (lvl >= 5): { config } → valida e salva; todas as TVs pegam no próximo poll.
@@ -17,11 +18,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
 
 KV_KEY = "arena_tv2_config"
-TELAS_VALIDAS = ["recado", "duelo", "doc", "aten", "prosp", "corrida", "premiacoes", "placar", "criativos"]
+TELAS_VALIDAS = ["recado", "duelo", "doc", "aten", "prosp", "placar", "cronograma", "corrida", "premiacoes", "criativos"]
 DEFAULT = {
     "slide_s": 20,
-    "vendas_cada": 5,   # ranking de vendas volta a cada N telas extras
-    "telas": ["recado", "duelo", "doc", "aten", "prosp", "corrida", "premiacoes", "placar"],
+    "telas": ["recado", "duelo", "doc", "aten", "prosp", "placar", "cronograma", "corrida", "premiacoes"],
     # v87.36: sócios NUNCA na TV pública (Paulo, 05/set) — vale pra TODOS os
     # rankings/placar (o HUB não sabe quem é sócio; o filtro é por 1º nome).
     "ocultar_nomes": ["Isabella", "Paulo"],
@@ -39,16 +39,11 @@ def _norm(v):
     except Exception:
         slide = DEFAULT["slide_s"]
     slide = max(8, min(120, slide))
-    try:
-        cada = int(v.get("vendas_cada") or DEFAULT["vendas_cada"])
-    except Exception:
-        cada = DEFAULT["vendas_cada"]
-    cada = max(1, min(8, cada))
     ocultar = v.get("ocultar_nomes")
     if not isinstance(ocultar, list):
         ocultar = DEFAULT["ocultar_nomes"][:]
     ocultar = [str(x).strip()[:40] for x in ocultar if str(x).strip()][:20]
-    return {"slide_s": slide, "vendas_cada": cada, "telas": telas, "ocultar_nomes": ocultar}
+    return {"slide_s": slide, "telas": telas, "ocultar_nomes": ocultar}
 
 
 class handler(BaseHTTPRequestHandler):
@@ -103,5 +98,5 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)[:180]})
         audit(self, user, "arena.tv2_config", target_type="shared_kv", target_id=KV_KEY,
-              notes=f"slide {cfg['slide_s']}s · vendas a cada {cfg['vendas_cada']} · {len(cfg['telas'])} telas")
+              notes=f"slide {cfg['slide_s']}s · {len(cfg['telas'])} telas")
         return self._send(200, {"ok": True, "config": cfg})
