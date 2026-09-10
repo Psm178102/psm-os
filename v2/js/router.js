@@ -39,6 +39,8 @@ export const router = {
   mount(el) { mountEl = el; window.addEventListener('hashchange', tick); tick(); },
   register(path, handler) { routes.set(path, handler); },
   setGuard(fn) { guardFn = fn; },
+  // v87.79: consulta (só leitura) da MESMA regra do guard — pra página esconder link de rota bloqueada
+  pode(path) { try { return !guardFn || path === '/' || !!guardFn(path); } catch (_) { return true; } },
   // Páginas com setInterval/timers registram aqui sua limpeza; o router roda
   // tudo ANTES de renderizar a próxima rota — evita auto-refresh de uma página
   // (ex.: Marketing 60s, Arena, TV) "carimbar" o conteúdo da página seguinte.

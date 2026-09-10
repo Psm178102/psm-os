@@ -12,6 +12,7 @@
 ============================================================================ */
 import { api, selectableUsers, hojeISO } from '../api.js';
 import { auth } from '../auth.js';
+import { router } from '../router.js';
 import { CURRICULUM } from './academy.js';
 import { HABILIDADES, habilidade, diagnosticar } from '../habilidades.js';
 
@@ -91,6 +92,7 @@ const vazio = txt => `<div class="trn-vazio">${txt}</div>`;
 const kpi = (ico, l, v, c) => `<div class="trn-kpi"${c ? ` style="border-top-color:${c}"` : ''}><span class="tiny muted">${ico} ${l}</span><b${c ? ` style="color:${c}"` : ''}>${v}</b></div>`;
 const irPara = (id, extra = '') => { location.hash = '#/rh-treinamentos' + (id ? '?id=' + encodeURIComponent(id) + extra : ''); };
 const recarregarLista = () => pageTreinamentos({ query: {} }, _root);
+const podeAbrir = p => { try { return typeof router.pode === 'function' ? router.pode(p) : true; } catch (_) { return true; } };
 
 function toast(txt) {
   const el = document.createElement('div');
@@ -428,6 +430,17 @@ function linhaMinha(t) {
     <span class="tiny muted" style="min-width:42px;text-align:right">${fmtHoras(cargaMin(t))}</span>
   </div>`;
 }
+// Formação PSM (Kiwify) saiu do menu (v87.78). Vários papéis de corretor não enxergam a Academy
+// na matriz — chegam na Formação por aqui. Só aparece pra quem pode abrir /formacao.
+function formacaoCard() {
+  if (!podeAbrir('/formacao')) return '';
+  return `<div class="trn-sec-t">📚 Mais formação</div>
+    <a class="trn-card" href="#/formacao" style="--c:#7c3aed;text-decoration:none;color:inherit">
+      <div class="trn-date" style="font-size:24px;padding:10px 0">📚</div>
+      <div class="trn-main"><div class="trn-t">Formação PSM · Kiwify</div><div class="tiny muted">Onboarding, tutoriais, mercado básico, mentorias e MCMV na plataforma externa.</div></div>
+      <span class="tiny muted">Abrir →</span>
+    </a>`;
+}
 function renderMeus(host) {
   const me = eu();
   const ts = meusTreinos().filter(t => t.status !== 'cancelado');
@@ -451,7 +464,8 @@ function renderMeus(host) {
     ${prox.length ? prox.map(cardMeu).join('') : vazio('Nenhum treino marcado pra você agora.')}
     ${pend.length ? `<div class="trn-sec-t">❗ Pra repor</div><div class="tiny muted" style="margin:-4px 2px 8px">Treinos obrigatórios em que você faltou. Combine a reposição com o seu gestor.</div><div class="card" style="padding:6px">${pend.map(linhaMinha).join('')}</div>` : ''}
     <div class="trn-sec-t">🗂 Histórico</div>
-    ${real.length ? `<div class="card" style="padding:6px">${real.map(linhaMinha).join('')}</div>` : vazio('Seu histórico aparece aqui depois da chamada de cada treino.')}`;
+    ${real.length ? `<div class="card" style="padding:6px">${real.map(linhaMinha).join('')}</div>` : vazio('Seu histórico aparece aqui depois da chamada de cada treino.')}
+    ${formacaoCard()}`;
   bindAbrir(host);
   bindConfirmar(host, recarregarLista);
 }
