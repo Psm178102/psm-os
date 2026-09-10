@@ -2,7 +2,8 @@
    O fluxo aparece IGUAL à planilha oficial (faixa amarela, N°/Data, colunas
    ENTRADA/MENSAIS/SEMESTRAIS/ANUAIS/FINANCIAMENTO-CHAVES/TOTAL, linhas verdes,
    chaves em azul, pós-chaves em vermelho, rodapé Total) — e Imprimir/Compartilhar
-   abrem a MESMA via em janela limpa (PDF pelo diálogo do navegador). */
+   abrem a MESMA via em janela limpa (PDF pelo diálogo do navegador).
+   v87.77: Desc. VPL = VPL proposta ÷ VPL da TABELA PADRÃO − 1 (planilha R9), com sinal e 2 casas. */
 import { parseNum, numCampo } from '../sim-campos.js';
 
 const KEY = 'psm_v2_sim_vpl';
@@ -20,6 +21,11 @@ const DEFAULTS = {
   pctBalao: 0, numBaloes: 0, intervaloBalao: 10, inicioBalao: 0,   // inicioBalao 0 = 1º balão cai no próprio intervalo
   mesesExibidos: 0,                                 // 0 = até as chaves (igual planilha: pode exibir além, zerado em vermelho)
   desconto: 0,
+  // v87.77 — TABELA PADRÃO da incorporadora (a "TABELA FLUXO PADRÃO" da planilha): é a
+  // referência do Desc. VPL. Nasce igual à proposta padrão → Desc. VPL 0,00%.
+  padAto: 5, padNumAto: 1, padMensal: 14, padSemestral: 0, padNumSemestrais: 0,
+  padAnual: 6, padNumAnuais: 3, padMesesAnuais: '', padFinanc: 75,
+  expVPL: false,                                    // Valor VPL / Desc. VPL também na foto e na impressão
 };
 
 export async function pageSimVPL(ctx, root) {
@@ -108,13 +114,87 @@ function compute() {
     fluxo.push({ mes: i, ent, m, a, s, b, f, total, pv, chaves: i === v.prazoObra && v.prazoObra > 0 });
   }
   const vpl = fluxo.reduce((sum, x) => sum + x.pv, 0);
-  const descVPL = v.valorTabela > 0 ? ((1 - vpl / v.valorTabela) * 100).toFixed(2) : '0.00';
+  // Desc. VPL = VPL da proposta ÷ VPL da TABELA PADRÃO − 1 (planilha: R9 = V66/L66 − 1). Dá zero,
+  // positivo (a proposta vale mais que a tabela, a valor de hoje) ou negativo (desconto real).
+  // v87.77: antes comparava com o valor NOMINAL da tabela — saía sempre um "desconto" alto e
+  // positivo (16%+) que ninguém sabia interpretar.
+  const pad = fluxoPadrao(v, taxaM);
+  const descVPL = pad.pv > 0 ? vpl / pad.pv - 1 : 0;
   const m2VPL = v.m2 > 0 ? (vpl / v.m2).toFixed(0) : 0;
   const m2Tabela = v.m2 > 0 ? (v.valorTabela / v.m2).toFixed(0) : 0;
   const tot = fluxo.reduce((acc, x) => ({ ent: acc.ent + x.ent, m: acc.m + x.m, s: acc.s + x.s, a: acc.a + x.a, b: acc.b + (x.b || 0), f: acc.f + x.f, total: acc.total + x.total }),
     { ent: 0, m: 0, s: 0, a: 0, b: 0, f: 0, total: 0 });
-  return { taxaM, ato, atoTotal, nAto, mensaisAparadas, parcelasAparadas, nAnuais, nSemestrais, mensal, anual, semestral, financ, pctTotal, fluxo, tot, vpl, descVPL, m2VPL, m2Tabela, totalMensal, totalAnual, valorFinal, nMensais,
+  return { taxaM, ato, atoTotal, nAto, mensaisAparadas, parcelasAparadas, nAnuais, nSemestrais, mensal, anual, semestral, financ, pctTotal, fluxo, tot, vpl, descVPL, pad, descNominal: (+v.valorTabela || 0) - tot.total, m2VPL, m2Tabela, totalMensal, totalAnual, valorFinal, nMensais,
     temBalao, nBaloes, balao, totalBalao, baloesAparados, intervaloBalao: intervalo, inicioBalao: inicioB };
+}
+
+/* TABELA PADRÃO da incorporadora — espelha as colunas F:L ("TABELA FLUXO PADRÃO") da aba VPL:
+   entrada à vista ou em N parcelas (meses 0..N−1), mensais iguais até as chaves, semestrais de
+   6 em 6 meses, anuais de 12 em 12 (ou nos meses informados) e o financiamento no mês das chaves,
+   tudo sobre o valor de TABELA cheio e trazido a valor presente pela mesma taxa da proposta.
+   Como na planilha (XFD25 = total ÷ Nº de anuais), a anual que passa das chaves NÃO é aparada:
+   entra no VPL no mês em que cai — e a tela avisa. */
+function fluxoPadrao(v, taxaM) {
+  const T = +v.valorTabela || 0;
+  const prazo = Math.max(0, Math.round(+v.prazoObra || 0));
+  const nAto = Math.max(1, Math.min(Math.round(+v.padNumAto || 1), Math.max(1, prazo)));
+  const nMens = Math.max(0, prazo - nAto + 1);
+  const nSem = Math.max(0, Math.round(+v.padNumSemestrais || 0));
+  const mesesInformados = String(v.padMesesAnuais || '').split(/[^0-9]+/).map(Number).filter(m => m > 0);
+  const mesesAnuais = mesesInformados.length ? mesesInformados
+    : Array.from({ length: Math.max(0, Math.round(+v.padNumAnuais || 0)) }, (_, k) => 12 * (k + 1));
+  const ato = T * (+v.padAto || 0) / 100 / nAto;
+  const mensal = nMens > 0 ? T * (+v.padMensal || 0) / 100 / nMens : 0;
+  const sem = nSem > 0 ? T * (+v.padSemestral || 0) / 100 / nSem : 0;
+  const an = mesesAnuais.length ? T * (+v.padAnual || 0) / 100 / mesesAnuais.length : 0;
+  const fin = T * (+v.padFinanc || 0) / 100;
+  const parc = [];                                   // [mês, valor]
+  for (let i = 0; i < nAto; i++) parc.push([i, ato]);
+  for (let i = nAto; i < nAto + nMens; i++) parc.push([i, mensal]);
+  for (let k = 1; k <= nSem; k++) parc.push([6 * k, sem]);
+  mesesAnuais.forEach(m => parc.push([m, an]));
+  parc.push([prazo, fin]);
+  const pv = parc.reduce((t, [m, x]) => t + x / Math.pow(1 + taxaM, m), 0);
+  const total = parc.reduce((t, [, x]) => t + x, 0);
+  const aposChaves = [...new Set(parc.filter(([m, x]) => m > prazo && x > 0.005).map(([m]) => m))];
+  const pct = (+v.padAto || 0) + (+v.padMensal || 0) + (+v.padSemestral || 0) + (+v.padAnual || 0) + (+v.padFinanc || 0);
+  return { pv, total, pct, nAto, ato, nMens, mensal, nSem, sem, nAn: mesesAnuais.length, an, mesesAnuais, fin, aposChaves };
+}
+
+/* ── Desc. VPL: formato e leitura (zero, positivo ou negativo, sempre com 2 casas) ── */
+function pctSinal(f) {
+  const r = Math.round((Number(f) || 0) * 10000) / 100;   // em %, 2 casas
+  if (r === 0) return '0,00%';
+  return (r > 0 ? '+' : '−') + Math.abs(r).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+}
+function sinalDesc(c) { return c.pad.pv > 0 ? Math.sign(Math.round(c.descVPL * 10000)) : null; }
+function corDesc(c) { const s = sinalDesc(c); return s === 1 ? '#0f766e' : s === -1 ? '#b45309' : '#475569'; }
+function leituraCurta(c) {
+  const s = sinalDesc(c);
+  return s == null ? 'preencha a tabela padrão' : s === 0 ? 'igual à tabela padrão' : s > 0 ? 'acima da tabela padrão' : 'desconto sobre a tabela padrão';
+}
+function leituraDescHTML(c) {
+  const s = sinalDesc(c);
+  const r$ = n => 'R$ ' + fmt2(n);
+  const dif = c.vpl - c.pad.pv;
+  let t;
+  if (s == null) t = 'Preencha a <b>tabela padrão da incorporadora</b> (no fim do formulário) para calcular o Desc. VPL.';
+  else if (s === 0) t = `<b>Desc. VPL 0,00%</b> — a valor de hoje, a proposta vale o mesmo que a tabela padrão da incorporadora (${r$(c.vpl)}). Não há desconto nem acréscimo.`;
+  else if (s > 0) t = `<b>Desc. VPL ${pctSinal(c.descVPL)}</b> — a valor de hoje, a proposta vale <b>${r$(dif)} a mais</b> que a tabela padrão (${r$(c.vpl)} × ${r$(c.pad.pv)}). Não é desconto: para a incorporadora, este fluxo é melhor que o da tabela.`;
+  else t = `<b>Desc. VPL ${pctSinal(c.descVPL)}</b> — a valor de hoje, a proposta vale <b>${r$(-dif)} a menos</b> que a tabela padrão (${r$(c.vpl)} × ${r$(c.pad.pv)}). Esse é o desconto real que a incorporadora concede ao aceitar este fluxo.`;
+  const taxaM = (c.taxaM * 100).toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+  return t + `<div class="tiny muted" style="margin-top:4px">Conta da planilha: Desc. VPL = VPL da proposta ÷ VPL da tabela padrão − 1, os dois trazidos a valor presente por ${taxaM}% a.m. Positivo = acima da tabela · 0,00% = igual · negativo = desconto.</div>`;
+}
+function padAvisoHTML(c) {
+  const p = c.pad, r$ = n => 'R$ ' + fmt2(n), out = [];
+  if (Math.abs(p.pct - 100) > 0.1) out.push(`<span style="color:var(--warn)">⚠ a tabela padrão soma ${p.pct.toLocaleString('pt-BR', { maximumFractionDigits: 4 })}% (deve ser 100%)</span>`);
+  if (p.nAto > 1) out.push(`entrada em ${p.nAto}x de ${r$(p.ato)}`);
+  if (p.nMens > 0 && p.mensal > 0) out.push(`${p.nMens} mensais de ${r$(p.mensal)}`);
+  if (p.nSem > 0 && p.sem > 0) out.push(`${p.nSem} semestrais de ${r$(p.sem)}`);
+  if (p.nAn > 0 && p.an > 0) out.push(`${p.nAn} anuais de ${r$(p.an)} (meses ${p.mesesAnuais.join(', ')})`);
+  if (p.aposChaves.length) out.push(`<span style="color:var(--warn)">⚠ parcela da tabela padrão depois das chaves (mês ${p.aposChaves.join(', ')}) — entra no VPL no mês em que cai, como na planilha</span>`);
+  out.push(`VPL da tabela padrão: <b>${r$(p.pv)}</b>`);
+  return out.join(' · ');
 }
 
 /* ═══════════ A TABELA DA PLANILHA (idêntica na tela, na impressão e no share) ═══════════ */
@@ -233,7 +313,8 @@ function cabecalhoHTML(c) {
     _s.cliente && `<b>Cliente:</b> ${escHtml(_s.cliente)}`,
     `<b>Valor:</b> R$ ${fmt2(c.valorFinal)}${_s.desconto ? ` (tabela R$ ${fmt2(_s.valorTabela)} − ${_s.desconto}%)` : ''}`,
     `<b>Data:</b> ${new Date().toLocaleDateString('pt-BR')}`,
-  ].filter(Boolean).join(' &nbsp;·&nbsp; ');
+  ].filter(Boolean).join(' &nbsp;·&nbsp; ')
+    + (_s.expVPL ? `<br><b>Valor VPL:</b> R$ ${fmt2(c.vpl)} &nbsp;·&nbsp; <b>Desc. VPL:</b> ${c.pad.pv > 0 ? pctSinal(c.descVPL) : '—'} (${leituraCurta(c)})` : '');
 }
 
 /* 📷 A proposta como FOTO (PNG 2×): desenho DIRETO no canvas — a tabela é
@@ -251,7 +332,9 @@ function desenharPropostaCanvas(c, scale) {
   const cols = c.temBalao ? [...PPC.cols.slice(0, 6), 118, ...PPC.cols.slice(6)] : PPC.cols;
   const W = cols.reduce((a, b) => a + b, 0);
   const n = c.fluxo.length;
-  const H = PPC.hCab + PPC.hTit + PPC.hHead + n * PPC.hRow + PPC.hFoot;
+  const cab2 = _s.expVPL ? `Valor VPL: R$ ${fmt2(c.vpl)}  ·  Desc. VPL: ${c.pad.pv > 0 ? pctSinal(c.descVPL) : '—'} (${leituraCurta(c)})` : '';
+  const hCab = PPC.hCab + (cab2 ? 18 : 0);
+  const H = hCab + PPC.hTit + PPC.hHead + n * PPC.hRow + PPC.hFoot;
   const cv = document.createElement('canvas');
   cv.width = (W + PPC.pad * 2) * scale; cv.height = (H + PPC.pad * 2) * scale;
   const g = cv.getContext('2d');
@@ -273,7 +356,8 @@ function desenharPropostaCanvas(c, scale) {
   const cab = [_s.empreendimento && `Empreendimento: ${_s.empreendimento}`, _s.torreUnidade && `Torre/Unidade: ${_s.torreUnidade}`,
     _s.cliente && `Cliente: ${_s.cliente}`, `Valor: R$ ${fmtv(c.valorFinal)}`, new Date().toLocaleDateString('pt-BR')].filter(Boolean).join('  ·  ');
   txt(cab, 0, PPC.hCab / 2 - 3, { size: 11.5 });
-  let y = PPC.hCab;
+  if (cab2) txt(cab2, 0, PPC.hCab / 2 - 3 + 18, { size: 11.5, bold: true });
+  let y = hCab;
   // título amarelo + N°/Data com altura dupla
   cell(X[0], y, cols[0], PPC.hTit + PPC.hHead, '#fff'); txt('N°', X[0] + cols[0] / 2, y + (PPC.hTit + PPC.hHead) / 2, { al: 'center', bold: true, size: 11.5 });
   cell(X[1], y, cols[1], PPC.hTit + PPC.hHead, '#fff'); txt('Data', X[1] + cols[1] / 2, y + (PPC.hTit + PPC.hHead) / 2, { al: 'center', bold: true, size: 11.5 });
@@ -342,12 +426,12 @@ async function baixarFoto() {
 function render() {
   const c = compute();
   _root.innerHTML = `
-    <style>${PP_CSS}</style>
+    <style>${PP_CSS}${VPL_TELA}</style>
     <div class="card">
       <h2 class="card-title">📐 Simulador VPL · Proposta Personalizada</h2>
       <p class="card-sub">Valor Presente Líquido — o fluxo sai IGUAL à planilha oficial (na tela, na impressão e no compartilhamento)</p>
 
-      <div style="display:grid;grid-template-columns:320px 1fr;gap:14px;margin-top:12px" id="vpl-grid">
+      <div class="vpl-grid" id="vpl-grid">
         <div style="background:var(--bg-3);border-radius:10px;padding:14px">
           ${section('Dados do Imóvel', [
             inp('Empreendimento', 'empreendimento', 'text'),
@@ -381,17 +465,31 @@ function render() {
             inp('Meses exibidos (0 = até chaves)', 'mesesExibidos', 'num'),
           ])}
           <div id="vpl-alerta"></div>
+          ${section('📋 Tabela padrão da incorporadora <span style="font-weight:400;text-transform:none;letter-spacing:0">(referência do Desc. VPL)</span>', [
+            inp('Entrada (%)', 'padAto', 'num', '%'),
+            inp('Entrada em quantas vezes (1 = à vista)', 'padNumAto', 'num', 'x'),
+            inp('Mensais até as chaves (%)', 'padMensal', 'num', '%'),
+            inp('Semestrais (%)', 'padSemestral', 'num', '%'),
+            inp('Nº semestrais', 'padNumSemestrais', 'num'),
+            inp('Anuais (%)', 'padAnual', 'num', '%'),
+            inp('Nº anuais', 'padNumAnuais', 'num'),
+            inp('Meses das anuais (opcional, ex.: 12, 24, 36)', 'padMesesAnuais', 'text'),
+            inp('Financiamento/Chaves (%)', 'padFinanc', 'num', '%'),
+            `<div class="tiny muted" id="vpl-pad-aviso"></div>`,
+            `<button class="btn btn-ghost btn-sm" id="vpl-padcopy" type="button">📋 Usar a proposta atual como tabela padrão</button>`,
+          ])}
         </div>
 
         <div>
-          <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:10px;margin-bottom:14px" id="vpl-kpis">${kpisHTML(c)}</div>
-
-          <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:8px;margin-bottom:14px" id="vpl-minis">${minisHTML(c)}</div>
+          <div class="vpl-kpis" id="vpl-kpis">${kpisHTML(c)}</div>
+          <div class="vpl-leitura" id="vpl-leitura"></div>
+          <div class="vpl-minis" id="vpl-minis">${minisHTML(c)}</div>
 
           <div class="flex gap-2" style="margin-bottom:10px;flex-wrap:wrap">
             <button class="btn btn-primary" id="vpl-print">🖨 Imprimir / PDF</button>
             <button class="btn btn-ghost" id="vpl-share">📤 Compartilhar (via limpa)</button>
             <button class="btn btn-ghost" id="vpl-foto">📷 Baixar foto (PNG)</button>
+            <label class="tiny" style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="vpl-expvpl"${_s.expVPL ? ' checked' : ''}> Valor VPL e Desc. VPL na foto/impressão</label>
             <button class="btn btn-ghost" data-back style="margin-left:auto">← Voltar Simuladores</button>
           </div>
 
@@ -409,11 +507,19 @@ function render() {
 }
 
 function kpisHTML(c) {
-  return kpi('Valor VPL', fmt(c.vpl), 'var(--psm-navy)', '#fff')
-    + kpi('Desconto VPL', c.descVPL + '%', '#22c55e')
-    + kpi('R$/m² VPL', 'R$ ' + Number(c.m2VPL).toLocaleString('pt-BR'), '#3b82f6')
-    + kpi('R$/m² Tabela', 'R$ ' + Number(c.m2Tabela).toLocaleString('pt-BR'), 'var(--muted)');
+  return kpi('Valor VPL', fmt(c.vpl), 'var(--psm-navy)', '#fff', 'proposta a valor de hoje')
+    + kpi('Desc. VPL', c.pad.pv > 0 ? pctSinal(c.descVPL) : '—', corDesc(c), '#fff', leituraCurta(c))
+    + kpi('VPL tabela padrão', fmt(c.pad.pv), '#334155', '#fff', 'referência da incorporadora')
+    + kpi('R$/m² VPL', 'R$ ' + Number(c.m2VPL).toLocaleString('pt-BR'), '#3b82f6', '#fff', `tabela: R$ ${Number(c.m2Tabela).toLocaleString('pt-BR')}/m²`);
 }
+
+const VPL_TELA = `
+  .vpl-grid{display:grid;grid-template-columns:320px minmax(0,1fr);gap:14px;margin-top:12px;align-items:start}
+  @media(max-width:900px){.vpl-grid{grid-template-columns:minmax(0,1fr)}}
+  .vpl-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:10px}
+  .vpl-minis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:14px}
+  .vpl-leitura{background:var(--bg-3);border-left:4px solid #475569;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;line-height:1.5}
+`;
 
 function minisHTML(c) {
   const atoLbl = c.nAto > 1 ? `Ato ${c.nAto}x` : 'Ato';
@@ -424,7 +530,8 @@ function minisHTML(c) {
     + miniKpi('Anuais ' + _s.numAnuais + 'x', fmt(c.anual), '')
     + (c.temBalao ? miniKpi('🎈 Balões ' + c.nBaloes + 'x', fmt(c.balao), `a cada ${c.intervaloBalao}m · total ${fmt(c.totalBalao)}`) : '')
     + miniKpi('Financiamento/Chaves', fmt(c.financ), _s.pctFinanc + '%')
-    + miniKpi('Total do fluxo', fmt(c.tot.total), '');
+    + miniKpi('Total do fluxo', fmt(c.tot.total), '')
+    + miniKpi('Desconto sobre tabela', fmt(c.descNominal), 'tabela − total do fluxo (nominal)');
 }
 
 /* Repinta SÓ o resultado (KPIs, avisos e a proposta) — nunca o painel da
@@ -438,7 +545,10 @@ function pintaSaida() {
   set('#vpl-kpis', kpisHTML(c));
   set('#vpl-minis', minisHTML(c));
   set('#vpl-proposta', propostaTableHTML(c));
-  set('#vpl-taxam', `Taxa mensal: ${(c.taxaM * 100).toFixed(4)}% a.m.`);
+  set('#vpl-taxam', `Taxa mensal: ${(c.taxaM * 100).toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}% a.m.`);
+  set('#vpl-leitura', leituraDescHTML(c));
+  const lb = _root.querySelector('#vpl-leitura'); if (lb) lb.style.borderLeftColor = corDesc(c);
+  set('#vpl-pad-aviso', padAvisoHTML(c));
   set('#vpl-alerta', Math.abs(c.pctTotal - 100) > 0.1
     ? `<div class="alert alert-warn tiny">⚠ Total: ${c.pctTotal.toFixed(1)}% (deve ser 100%)</div>` : '');
   const aparou = c.mensaisAparadas > 0
@@ -468,6 +578,12 @@ function bind() {
   _root.querySelector('#vpl-print')?.addEventListener('click', () => abrirVia(true));
   _root.querySelector('#vpl-share')?.addEventListener('click', () => abrirVia(false));
   _root.querySelector('#vpl-foto')?.addEventListener('click', baixarFoto);
+  _root.querySelector('#vpl-expvpl')?.addEventListener('change', e => { _s.expVPL = !!e.target.checked; save(); });
+  _root.querySelector('#vpl-padcopy')?.addEventListener('click', () => {
+    Object.assign(_s, { padAto: _s.pctAto, padNumAto: _s.numAto, padMensal: _s.pctMensal, padSemestral: _s.pctSemestral,
+      padNumSemestrais: _s.numSemestrais, padAnual: _s.pctAnual, padNumAnuais: _s.numAnuais, padMesesAnuais: '', padFinanc: _s.pctFinanc });
+    save(); render();   // clique de botão: redesenhar o formulário aqui não atrapalha digitação
+  });
   const back = _root.querySelector('[data-back]');
   if (back) back.addEventListener('click', () => location.hash = '/simuladores');
 }
@@ -501,11 +617,12 @@ function inp(label, key, type, suffix) {
   `;
 }
 
-function kpi(label, value, bg, color) {
+function kpi(label, value, bg, color, sub) {
   return `
     <div style="background:${bg};color:${color || '#fff'};padding:12px;border-radius:8px;text-align:center">
       <div style="font-size:9px;text-transform:uppercase;opacity:.7;font-weight:700">${label}</div>
       <div style="font-size:16px;font-weight:800;margin-top:4px">${value}</div>
+      ${sub ? `<div style="font-size:10.5px;opacity:.85;margin-top:2px">${sub}</div>` : ''}
     </div>
   `;
 }
