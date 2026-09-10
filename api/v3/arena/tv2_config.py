@@ -24,7 +24,8 @@ DEFAULT = {
     "telas": ["recado", "duelo", "doc", "aten", "prosp", "placar", "cronograma", "corrida", "premiacoes"],
     # v87.36: sócios NUNCA na TV pública (Paulo, 05/set) — vale pra TODOS os
     # rankings/placar (o HUB não sabe quem é sócio; o filtro é por 1º nome).
-    "ocultar_nomes": ["Isabella", "Paulo"],
+    # v87.75 (Paulo 10/set): + a conta genérica "comercial" e a Yara.
+    "ocultar_nomes": ["Isabella", "Paulo", "Comercial", "Yara"],
 }
 
 

@@ -29,7 +29,7 @@ const REFRESH_MS = 30000;
    volta a cada N" vêm do /api/v3/arena/tv2_config (shared_kv) — calibra sem
    deploy; a TV pega no próximo poll. (87.26 = hotfix: a definição não tinha
    entrado no 87.25 e a TV quebrou com CICLO_ATUAL undefined.) */
-let _cfg = { slide_s: 20, telas: ['recado', 'duelo', 'doc', 'aten', 'prosp', 'placar', 'cronograma', 'corrida', 'premiacoes'], ocultar_nomes: ['Isabella', 'Paulo'] };
+let _cfg = { slide_s: 20, telas: ['recado', 'duelo', 'doc', 'aten', 'prosp', 'placar', 'cronograma', 'corrida', 'premiacoes'], ocultar_nomes: ['Isabella', 'Paulo', 'Comercial', 'Yara'] };
 let _cfgCanEdit = false, _cfgAt = 0;
 const SLIDE_MS = () => _cfg.slide_s * 1000;
 // v87.73: ranking geral abre a volta e NÃO volta no meio (Paulo: "2 telas gerais")
@@ -51,6 +51,14 @@ function CICLO_ATUAL() { return ['vendas', ..._cfg.telas]; }
      sem conteúdo é PULADA — antes a Corrida sem meta caía no Placar (placar 2×)
      e o Duelo/Recado vazios caíam na geral.
    • + 🗓️ CRONOGRAMA DA SEMANA (Rotina de Ações Direcionadas, foto do quadro). */
+/* v87.75 (Paulo 10/set, 2ª rodada):
+   • 📣 Timeline de recados = 1/4 da tela (faixa fixa de 25vh fora do corpo que
+     troca a cada tela — antes o letreiro recomeçava a cada 20s).
+   • "comercial" e Yara fora de TODOS os rankings (lista de ocultos da ⚙) —
+     inclusive gongo/atividade e Corrida, que não passavam pelo filtro.
+   • Placar: projeção PELO FUNIL (antes era só o ritmo do vendido → mês sem
+     venda lançada = todo mundo 0% mesmo produzindo) + o que falta pra meta por
+     corretor e o gargalo do time. */
 const CELEB_MS = 10000;
 const TELAS_SEC = [
   { id: 'doc',        lbl: '🗂 Ranking de Pastas',       sub: 'pastas no mês · Esteira de Produtividade do PSM HUB', un: 'pasta(s)', campo: 'pasta' },
@@ -67,7 +75,7 @@ const TELAS_SEC = [
 // v87.73: origem de cada tela no rodapé — a gestão quer a fonte explícita
 const EST_HUB = 'Esteira de Produtividade do PSM HUB';
 const FONTE_TELA = { vendas: 'Ranking do PSM HUB', duelo: 'Ranking do PSM HUB', doc: EST_HUB, aten: EST_HUB,
-  prosp: EST_HUB, placar: `${EST_HUB} (meta: HUB)`, cronograma: 'Rotina de Ações Direcionadas' };
+  prosp: EST_HUB, placar: `${EST_HUB} · meta do HUB · projeção pelo funil`, cronograma: 'Rotina de Ações Direcionadas' };
 
 let _root = null, _data = null, _err = '', _pending = false;
 let _team = 'GERAL';
@@ -81,6 +89,8 @@ let _ritmo = {}, _ritmoAt = 0;
 let _est = null, _estErr = '', _estAt = 0;   // 🧮 esteira de produtividade do HUB (v87.73)
 let _recTvIdx = 0;               // alterna entre recados 📺 a cada passada        // streaks/secas (GC ritmo_vendas, 1º nome → dias)
 let _atividade = [];                  // ticker ao vivo: deltas de pontos entre polls
+let _taxas = null, _taxasAt = 0;      // 📐 conversão real do funil (esteira dos 3 meses fechados) — v87.75
+let _tkOn = false;                    // 📣 timeline de recados visível (reserva 1/4 da tela)
 
 export async function pageRankingHub(ctx, root) {
   _root = root; _err = ''; _data = null; _team = 'GERAL';
@@ -95,6 +105,9 @@ export async function pageRankingHub(ctx, root) {
 
 function cleanup() {
   closeTickerOverlay();
+  document.getElementById('rh-timeline')?.remove();
+  document.getElementById('rh-tk-style')?.remove();
+  _tkSig = ''; _tkOn = false;
   document.body.classList.remove('tv-mode');
   [_pollTimer, _clock].forEach(t => t && clearInterval(t));
   if (_rotTimer) clearTimeout(_rotTimer);
@@ -168,6 +181,20 @@ async function reload() {
   else if (r) { _err = r.error || r._err || 'PSM HUB indisponível'; if (r.pending_config) _pending = true; }
   if (est && est.ok) { _est = est.data; _estErr = ''; }
   else if (est) _estErr = est.error || est._err || 'Esteira do PSM HUB indisponível';
+
+  // 📐 base da projeção do placar: esteira dos 3 meses fechados anteriores (1×/6h;
+  // se nenhum mês voltar, tenta de novo em 10 min)
+  if (Date.now() - _taxasAt > 6 * 3600e3) {
+    _taxasAt = Date.now();
+    const hj = new Date();
+    const meses = [1, 2, 3].map(k => { const d = new Date(hj.getFullYear(), hj.getMonth() - k, 1); return { m: d.getMonth() + 1, y: d.getFullYear() }; });
+    Promise.all(meses.map(({ m, y }) => api.request(`/api/v3/psmhub/esteira?month=${m}&year=${y}`).catch(() => null))).then(rs => {
+      const base = rs.map((x, i) => ({ ...meses[i], rows: x && x.ok && x.data && Array.isArray(x.data.rows) ? x.data.rows : null }));
+      if (!base.some(b => b.rows)) _taxasAt = Date.now() - 6 * 3600e3 + 600e3;
+      _taxas = calcTaxas(base);
+      if (_screen === 'placar') render();
+    }).catch(() => {});
+  }
   if (rec) _recados = rec.items || [];
   if (op) _oport = (op.oportunidades || []).filter(o => o.status === 'aberta');
 
@@ -207,7 +234,8 @@ async function reload() {
   if (_data && _data.ranking) {
     const ATIV_LBL = { prosp: 'Prospecção', agend: 'Visita agendada', aten: 'Visita realizada', doc: 'Pasta/Proposta' };
     const atual = {};
-    _data.ranking.forEach(a => {
+    // ocultos da TV (sócios, conta comercial…) também não tocam o gongo nem entram no letreiro
+    _data.ranking.filter(a => !ocultoNaTV(a.agentName)).forEach(a => {
       const cats = { v: 0, vgv: a.vgvReal || 0, prosp: 0, agend: 0, aten: 0, doc: 0 };
       (a.ruleBreakdown || []).forEach(rb => {
         const k = classifyRule(rb);
@@ -358,7 +386,7 @@ function telaDuelo() {
 function corridaLanes() {
   // sócio/diretor NUNCA na TV da Arena (Paulo, 05/set: 'retire ela daquilo imediatamente')
   return ((_metas && _metas.por_corretor) || []).filter(c => !c.inativo && (c.meta_vgv || 0) > 0
-    && !/socio|diretor/i.test(String(c.role || '')))
+    && !/socio|diretor/i.test(String(c.role || '')) && !ocultoNaTV(c.name))
     .map(c => ({ ...c, pct: Math.min(120, Math.round((c.vgv_atingido || 0) / c.meta_vgv * 100)) }))
     .sort((a, b2) => b2.pct - a.pct).slice(0, 8);
 }
@@ -477,6 +505,7 @@ function vazio(ico, msg) {
 /* ── render ── */
 function render() {
   if (!_root) return;
+  _tkOn = syncTicker();      // a timeline vive fora do _root; o quadro reserva 1/4 da tela pra ela
   if (!_data) {
     _root.innerHTML = shell(`<div style="text-align:center;padding:120px">
       <div style="font-size:26px;margin-bottom:12px">${_pending ? '🔌 Ponte com o PSM HUB não configurada' : '⚠️ Sem dados do PSM HUB'}</div>
@@ -585,113 +614,185 @@ function telaCronograma() {
   const agora = new Date();
   const hojeIdx = agora.getDay() - 1;                 // seg=0 … sáb=5 (domingo: nenhum)
   const hm = `${String(agora.getHours()).padStart(2, '0')}:${String(agora.getMinutes()).padStart(2, '0')}`;
-  const th = (dia, i) => `<div style="padding:10px 8px;text-align:center;font-size:17px;font-weight:900;letter-spacing:.06em;border-radius:10px;${i === hojeIdx ? 'background:#eab308;color:#1c1917' : 'background:#141a2c;color:#cbd5e1'}">${dia.toUpperCase()}${i === hojeIdx ? ' · HOJE' : ''}</div>`;
+  const th = (dia, i) => `<div style="padding:8px 8px;text-align:center;font-size:17px;font-weight:900;letter-spacing:.06em;border-radius:10px;${i === hojeIdx ? 'background:#eab308;color:#1c1917' : 'background:#141a2c;color:#cbd5e1'}">${dia.toUpperCase()}${i === hojeIdx ? ' · HOJE' : ''}</div>`;
   const cel = (c, i, emCurso) => {
     const hoje = i === hojeIdx;
     if (!c) return `<div style="border-radius:10px;background:${hoje ? 'rgba(234,179,8,.06)' : 'rgba(30,41,59,.25)'};border:1px dashed rgba(71,85,105,.35)"></div>`;
     const cor = CRONO_COR[c.k] || '#94a3b8';
     const agoraAqui = hoje && emCurso;
-    return `<div style="border-radius:10px;padding:10px 12px;background:linear-gradient(180deg,${cor}${hoje ? '33' : '1f'},#0d1120);border:${agoraAqui ? `3px solid ${cor}` : `1px solid ${cor}77`};border-left:6px solid ${cor};${agoraAqui ? `box-shadow:0 0 28px ${cor}66;` : ''}${hoje ? '' : 'opacity:.82;'}">
+    return `<div style="border-radius:10px;padding:8px 12px;background:linear-gradient(180deg,${cor}${hoje ? '33' : '1f'},#0d1120);border:${agoraAqui ? `3px solid ${cor}` : `1px solid ${cor}77`};border-left:6px solid ${cor};${agoraAqui ? `box-shadow:0 0 28px ${cor}66;` : ''}${hoje ? '' : 'opacity:.82;'}">
       ${agoraAqui ? `<div style="display:inline-block;font-size:11px;font-weight:900;letter-spacing:.14em;color:#1c1917;background:${cor};padding:2px 8px;border-radius:99px;margin-bottom:4px">● AGORA</div>` : ''}
       <div style="font-size:16px;font-weight:900;color:#f8fafc;line-height:1.2">${escapeHtml(c.t)}</div>
       ${c.d ? `<div style="font-size:13px;color:#cbd5e1;line-height:1.35;margin-top:4px">${escapeHtml(c.d)}</div>` : ''}
     </div>`;
   };
   return `
-    <div style="text-align:center;padding:16px 0 0">
+    <div style="text-align:center;padding:10px 0 0">
       <span style="font-size:30px;font-weight:900;color:#facc15">🗓️ Rotina de Ações Direcionadas</span>
       <div style="font-size:14px;color:#64748b;margin-top:2px">cronograma da semana · hoje em destaque</div>
     </div>
-    <div style="display:grid;grid-template-columns:150px repeat(6,1fr);gap:8px;padding:16px 30px 8px">
+    <div style="display:grid;grid-template-columns:150px repeat(6,1fr);gap:7px;padding:10px 30px 6px">
       <div style="padding:10px 8px;font-size:13px;font-weight:800;letter-spacing:.1em;color:#64748b;align-self:end">HORÁRIO</div>
       ${CRONO_DIAS.map(th).join('')}
       ${CRONOGRAMA.map(l => {
         const emCurso = hm >= l.ini && hm < l.fim;
-        return `<div style="display:flex;align-items:center;padding:10px 12px;border-radius:10px;font-size:15px;font-weight:900;${emCurso ? 'background:rgba(234,179,8,.15);color:#facc15' : 'background:#0d1120;color:#e2e8f0'}">${escapeHtml(l.h)}</div>
+        return `<div style="display:flex;align-items:center;padding:8px 12px;border-radius:10px;font-size:15px;font-weight:900;${emCurso ? 'background:rgba(234,179,8,.15);color:#facc15' : 'background:#0d1120;color:#e2e8f0'}">${escapeHtml(l.h)}</div>
           ${l.dias.map((c, i) => cel(c, i, emCurso)).join('')}`;
       }).join('')}
     </div>
-    <div style="margin:6px 30px 16px;padding:12px 18px;border-radius:12px;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.35);font-size:16px;font-weight:700;color:#fde68a;text-align:center">
+    <div style="margin:4px 30px 10px;padding:9px 18px;border-radius:12px;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.35);font-size:16px;font-weight:700;color:#fde68a;text-align:center">
       ⚠️ “Sem rotina, não existe organização &amp; sem organização, não existe nada além do curto prazo.”
     </div>`;
 }
 
-/* ── 🎯 tela: PLACAR DO MÊS 2.0 (v87.27, pedido do Paulo: produtividade +
-   projeção/meta detalhada + individuais). v87.73: VGV, vendas e produtividade
-   saem da ESTEIRA DE PRODUTIVIDADE do HUB; a esteira não traz meta, então a
-   meta individual segue a do HUB (vgvMeta do ranking). Projeção = run-rate
-   (real ÷ dias decorridos × dias do mês). ── */
+/* ── 🎯 tela: PLACAR DO MÊS 3.0 (v87.75) — vendido (esteira) × meta (HUB) ×
+   PROJEÇÃO PELO FUNIL. Pedido do Paulo (10/set): "tá tudo 0%… ninguém tá
+   projetando nada? não tá produzindo nada? fica contraditório". A projeção era
+   só o ritmo do VENDIDO (real ÷ dias × dias do mês): mês sem venda lançada = 0
+   pra todo mundo, mesmo com o funil cheio. Agora cada corretor é projetado pelo
+   que JÁ PRODUZIU no mês (agendamentos, visitas e pastas no ritmo atual até o
+   fim do mês) × conversão real do TIME nos 3 meses fechados anteriores ×
+   ticket médio — nunca abaixo do já vendido — e ganha "o que falta pra meta".
+   Rendimento individual NÃO vai pra TV (spec): a taxa é sempre a do time. ── */
+const ETAPAS_PROJ = [['agendamento', 'agendamentos'], ['atendimento', 'visitas'], ['pasta', 'pastas']];
+const PROP_PADRAO_HUB = { agendamento: 8, atendimento: 5, pasta: 5 };   // X por 1 venda — padrão da tela de Metas do HUB
+const FOCO_ETAPA = { agendamento: 'encher a agenda (Sala de Ligação e Corujão)',
+  atendimento: 'virar agendamento em visita (confirmar na véspera)',
+  pasta: 'virar visita em pasta (pedir a documentação já na visita)' };
+function calcTaxas(meses) {
+  const ok = meses.filter(x => Array.isArray(x.rows));
+  const soma = { vendaCount: 0, vendaTotal: 0, agendamento: 0, atendimento: 0, pasta: 0 };
+  ok.forEach(x => x.rows.filter(r => !ocultoNaTV(r.agentName))
+    .forEach(r => Object.keys(soma).forEach(k => { soma[k] += Number(r[k]) || 0; })));
+  const r = {};
+  ETAPAS_PROJ.forEach(([k]) => { if (soma.vendaCount > 0 && soma[k] > 0) r[k] = Math.min(1, soma.vendaCount / soma[k]); });
+  const historico = Object.keys(r).length > 0;
+  if (!historico) ETAPAS_PROJ.forEach(([k]) => { r[k] = 1 / PROP_PADRAO_HUB[k]; });
+  return { r, historico, vendas: soma.vendaCount,
+           ticket: soma.vendaCount > 0 ? soma.vendaTotal / soma.vendaCount : null,
+           meses: ok.map(x => `${String(x.m).padStart(2, '0')}/${String(x.y).slice(2)}`) };
+}
+function projecao(row, tx, fator) {
+  const vend = Number(row.vendaCount) || 0, real = Number(row.vendaTotal) || 0;
+  // média do que agendamento, visita e pasta indicam (cada um no ritmo até o fim do mês × conversão do time)
+  const est = ETAPAS_PROJ.filter(([k]) => tx.r[k]).map(([k]) => (Number(row[k]) || 0) * fator * tx.r[k]);
+  const funil = est.length ? est.reduce((a, b) => a + b, 0) / est.length : 0;
+  const vendas = Math.max(vend, funil);
+  const ticket = vend > 0 ? real / vend : tx.ticket;
+  return { vendas, vgv: ticket ? Math.max(real, vendas * ticket) : real, semTicket: !ticket };
+}
+function paraMeta(row, meta, tx, fator) {
+  if (!meta || !tx.ticket) return null;
+  if ((Number(row.vendaTotal) || 0) >= meta) return { batida: true };
+  const n = Math.ceil(meta / tx.ticket);                        // vendas que a meta pede no mês
+  return { n, itens: [['atendimento', 'visitas'], ['pasta', 'pastas']].filter(([k]) => tx.r[k]).map(([k, lbl]) => {
+    const precisa = Math.ceil(n / tx.r[k]), feito = Number(row[k]) || 0;
+    return { lbl, faltam: Math.max(0, precisa - feito), noRitmo: feito * fator >= precisa };
+  }) };
+}
+function fmtMi(n) {
+  n = n || 0;
+  if (n >= 1e6) return `R$ ${(n / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} mi`;
+  if (n >= 1e3) return `R$ ${Math.round(n / 1e3).toLocaleString('pt-BR')} mil`;
+  return fmtBRL(n);
+}
 function telaPlacar() {
   if (!_est) return semEsteira();
-  const rows = estRows();                            // já respeita o filtro de equipe
+  const rows = estRows();                            // já respeita o filtro de equipe e os ocultos
+  const tx = _taxas || calcTaxas([]);
   const hj = new Date(); const dia = hj.getDate();
   const diasMes = new Date(hj.getFullYear(), hj.getMonth() + 1, 0).getDate();
   const fator = dia > 0 ? diasMes / dia : 1;
+  let uteis = 0; const fimMes = new Date(hj.getFullYear(), hj.getMonth() + 1, 0);
+  for (let d = new Date(hj); d <= fimMes; d.setDate(d.getDate() + 1)) { const w = d.getDay(); if (w !== 0 && w !== 6) uteis++; }
   // meta do mês: soma das metas individuais do HUB; fallback meta anual ÷12
   const metaHub = ranked().reduce((t, a) => t + (a.vgvMeta || 0), 0);
   const metaMes = metaHub || ((_metas && _metas.totals && _metas.totals.meta_vgv) ? _metas.totals.meta_vgv / 12 : 0);
-  const vgvMes = rows.reduce((t, r) => t + (Number(r.vendaTotal) || 0), 0);
-  const proj = vgvMes * fator;
-  const pct = metaMes ? Math.min(999, Math.round(100 * vgvMes / metaMes)) : 0;
+  const pessoas = rows.map(r => ({ r, nome: r.agentName, meta: (noRanking(r) || {}).vgvMeta || 0,
+                                   real: Number(r.vendaTotal) || 0, vendas: Number(r.vendaCount) || 0, p: projecao(r, tx, fator) }));
+  const vendido = pessoas.reduce((t, x) => t + x.real, 0);
+  const nVend = pessoas.reduce((t, x) => t + x.vendas, 0);
+  const proj = pessoas.reduce((t, x) => t + x.p.vgv, 0);
+  const projVendas = pessoas.reduce((t, x) => t + x.p.vendas, 0);
+  const pct = metaMes ? Math.round(100 * vendido / metaMes) : 0;
   const pctProj = metaMes ? Math.round(100 * proj / metaMes) : 0;
-  const falta = Math.max(0, metaMes - vgvMes);
-  let uteis = 0; const fimMes = new Date(hj.getFullYear(), hj.getMonth() + 1, 0);
-  for (let d = new Date(hj); d <= fimMes; d.setDate(d.getDate() + 1)) { const w = d.getDay(); if (w !== 0 && w !== 6) uteis++; }
-  const corProj = pctProj >= 100 ? '#4ade80' : pctProj >= 70 ? '#facc15' : '#f87171';
-  // produtividade do mês — as colunas da esteira do HUB
+  const falta = Math.max(0, metaMes - vendido);
+  const farol = p => p >= 100 ? '#4ade80' : p >= 70 ? '#facc15' : '#f87171';
+  // produção do mês — as colunas da esteira do HUB
   const prod = { prospeccao: 0, qualificacao: 0, agendamento: 0, atendimento: 0, pasta: 0, vendaCount: 0 };
   rows.forEach(r => Object.keys(prod).forEach(k => { prod[k] += Number(r[k]) || 0; }));
-  const pCard = (ico, lbl, n) => `
-    <div style="background:#0d1120;border:1px solid rgba(71,85,105,.4);border-radius:12px;padding:12px 8px;text-align:center">
-      <div style="font-size:22px">${ico}</div>
-      <div style="font-size:30px;font-weight:900;color:#f8fafc;line-height:1.1">${n}</div>
-      <div style="font-size:11px;letter-spacing:.08em;color:#64748b;text-transform:uppercase">${lbl}</div>
+  // gargalo do time: a etapa mais longe do que a meta pede, no ritmo atual
+  let gargalo = null;
+  if (metaMes && tx.ticket && falta > 0) {
+    const nTime = Math.ceil(metaMes / tx.ticket);
+    ETAPAS_PROJ.filter(([k]) => tx.r[k]).forEach(([k, lbl]) => {
+      const precisa = Math.ceil(nTime / tx.r[k]), ritmo = Math.round(prod[k] * fator);
+      const g = { k, lbl, precisa, ritmo, pct: ritmo / precisa };
+      if (g.pct < 1 && (!gargalo || g.pct < gargalo.pct)) gargalo = g;
+    });
+  }
+  const kpi = (lbl, v, sub, cor) => `
+    <div style="background:#0d1120;border:1px solid rgba(71,85,105,.45);border-radius:12px;padding:8px 16px">
+      <div style="font-size:11px;font-weight:800;letter-spacing:.1em;color:#64748b">${lbl}</div>
+      <div style="font-size:28px;font-weight:900;color:${cor};line-height:1.15">${v}</div>
+      <div style="font-size:12px;color:#94a3b8">${sub}</div>
     </div>`;
-  // individuais: real (esteira) × meta (HUB) × projeção com farol
-  const linhas = rows.map(r => ({ nome: r.agentName, real: Number(r.vendaTotal) || 0, vendas: Number(r.vendaCount) || 0,
-                                  meta: (noRanking(r) || {}).vgvMeta || 0 }))
-    .filter(x => x.meta > 0 || x.real > 0)
-    .sort((x, y) => y.real - x.real || y.meta - x.meta)
-    .slice(0, 9).map(({ nome, real, vendas, meta }) => {
-    const pInd = meta ? Math.round(100 * real / meta) : null;
-    const projInd = real * fator;
-    const okInd = meta ? (projInd >= meta ? '#4ade80' : projInd >= meta * 0.7 ? '#facc15' : '#f87171') : '#64748b';
-    return `<div style="display:flex;align-items:center;gap:10px;background:rgba(30,41,59,.35);border:1px solid rgba(71,85,105,.35);border-radius:10px;padding:8px 14px">
-      <span style="flex:1;font-size:17px;font-weight:800;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(nome || '')}</span>
-      <span style="font-size:13px;color:#94a3b8;width:70px;text-align:center">${vendas} venda(s)</span>
-      <div style="width:230px">
-        <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700"><span style="color:#e2e8f0">${fmtBRL(real)}</span><span style="color:#64748b">${meta ? fmtBRL(meta) : 'sem meta'}</span></div>
-        <div style="height:8px;background:#1e293b;border-radius:99px;overflow:hidden"><div style="height:100%;width:${Math.min(100, pInd || 0)}%;background:${okInd}"></div></div>
-      </div>
-      <span style="width:52px;text-align:right;font-size:16px;font-weight:900;color:${okInd}">${pInd != null ? pInd + '%' : '—'}</span>
-      <span style="width:120px;text-align:right;font-size:13px;color:${okInd}" title="projeção run-rate">→ ${fmtBRL(projInd)}</span>
-    </div>`;
-  }).join('');
+  const chip = (ico, lbl, n) => `<span style="display:inline-flex;align-items:baseline;gap:6px;background:#0d1120;border:1px solid rgba(71,85,105,.4);border-radius:10px;padding:5px 12px"><span style="font-size:15px">${ico}</span><b style="font-size:19px;color:#f8fafc">${n}</b><span style="font-size:11px;letter-spacing:.06em;color:#64748b;text-transform:uppercase">${lbl}</span></span>`;
+  const baseTxt = tx.historico
+    ? `conversão real do time em ${tx.meses.join(', ')} (${tx.vendas} venda${tx.vendas === 1 ? '' : 's'})`
+    : 'proporções padrão do funil do HUB (sem histórico da esteira)';
+  const linhas = pessoas.filter(x => x.meta > 0 || x.real > 0 || x.p.vendas > 0)
+    .sort((a, b) => b.p.vgv - a.p.vgv || b.meta - a.meta).slice(0, 9).map(x => {
+      const pP = x.meta && !x.p.semTicket ? Math.round(100 * x.p.vgv / x.meta) : null;   // sem ticket não há R$ pra comparar
+      const cor = pP != null ? farol(pP) : '#94a3b8';
+      const pm = paraMeta(x.r, x.meta, tx, fator);
+      const sug = !pm ? '' : pm.batida ? '<span style="color:#4ade80">✅ meta batida</span>'
+        : pm.itens.every(i => !i.faltam) ? '<span style="color:#4ade80">✅ produção já cobre a meta</span>'
+        : `faltam ${pm.itens.filter(i => i.faltam).map(i => `<b style="color:${i.noRitmo ? '#4ade80' : '#fde047'}">${i.faltam}</b> ${i.lbl}`).join(' · ')}`;
+      const wReal = x.meta ? Math.min(100, 100 * x.real / x.meta) : 0;
+      const wProj = x.meta ? Math.min(100, 100 * x.p.vgv / x.meta) : 0;
+      return `<div style="display:flex;align-items:center;gap:12px;background:rgba(30,41,59,.35);border:1px solid rgba(71,85,105,.35);border-radius:10px;padding:6px 14px">
+        <span style="flex:1;min-width:0;font-size:17px;font-weight:800;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(x.nome || '')}</span>
+        <span style="width:150px;font-size:13px;color:#94a3b8" title="agendamentos · visitas · pastas no mês">📅 ${Number(x.r.agendamento) || 0} · 🚶 ${Number(x.r.atendimento) || 0} · 🗂 ${Number(x.r.pasta) || 0}</span>
+        <span style="width:115px;font-size:13px;color:#cbd5e1">${fmtMi(x.real)} <span style="color:#64748b">· ${x.vendas} vd</span></span>
+        <div style="width:210px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:700"><span style="color:${cor}">→ ${x.p.semTicket ? `${x.p.vendas.toFixed(1).replace('.', ',')} venda(s)` : fmtMi(x.p.vgv)}</span><span style="color:#64748b">${x.meta ? `meta ${fmtMi(x.meta)}` : 'sem meta'}</span></div>
+          <div style="position:relative;height:9px;background:#1e293b;border-radius:99px;overflow:hidden">
+            <div style="position:absolute;top:0;bottom:0;left:0;width:${wProj}%;background:${cor};opacity:.35"></div>
+            <div style="position:absolute;top:0;bottom:0;left:0;width:${wReal}%;background:${cor}"></div>
+          </div>
+        </div>
+        <span style="width:56px;text-align:right;font-size:18px;font-weight:900;color:${cor}">${pP != null ? pP + '%' : '—'}</span>
+        <span style="width:250px;font-size:13px;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sug}</span>
+      </div>`;
+    }).join('');
   return `
-    <div style="text-align:center;padding:14px 0 0">
-      <span style="font-size:28px;font-weight:900;color:#facc15">🎯 Placar de ${hj.toLocaleDateString('pt-BR', { month: 'long' })}</span>
-      <span style="font-size:13px;color:#64748b;margin-left:10px">dia ${dia}/${diasMes} · ${uteis} dia(s) útil(eis) restando · ${EST_HUB}</span>
+    <div style="display:flex;align-items:baseline;justify-content:center;gap:12px;padding:10px 0 0">
+      <span style="font-size:26px;font-weight:900;color:#facc15">🎯 Placar de ${hj.toLocaleDateString('pt-BR', { month: 'long' })}</span>
+      <span style="font-size:13px;color:#64748b">dia ${dia}/${diasMes} · ${uteis} dia(s) útil(eis) restando · ${EST_HUB}</span>
     </div>
-    <div style="padding:14px 40px 4px">
-      <div style="display:flex;justify-content:space-between;font-size:15px;font-weight:700;color:#cbd5e1">
-        <span>VGV: <b style="color:#f8fafc">${fmtBRL(vgvMes)}</b> <span style="color:#64748b">/ meta ${fmtBRL(metaMes)}${metaHub ? '' : ' (anual ÷12)'}</span></span>
-        <span style="color:${corProj}">projeção do mês: <b>${fmtBRL(proj)}</b> (${pctProj}% da meta)</span>
-      </div>
-      <div style="position:relative;height:22px;background:#1e293b;border-radius:99px;margin-top:6px;overflow:hidden">
-        <div style="height:100%;width:${Math.min(100, pct)}%;background:linear-gradient(90deg,#facc15,#4ade80)"></div>
-        <div style="position:absolute;top:0;bottom:0;left:${Math.min(100, Math.round(dia / diasMes * 100))}%;width:0;border-left:2px dashed rgba(226,232,240,.55)" title="pace do mês"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:12px;color:#64748b;margin-top:3px">
-        <span>${pct}% da meta · linha tracejada = pace do mês (${Math.round(dia / diasMes * 100)}%)</span>
-        ${falta > 0 ? `<span>faltam <b style="color:#fb923c">${fmtBRL(falta)}</b> · ${uteis ? `<b style="color:#fde047">${fmtBRL(falta / uteis)}/dia útil</b>` : ''}</span>` : '<span style="color:#4ade80">✅ meta batida — agora é recorde</span>'}
-      </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:8px 36px 0">
+      ${kpi('VENDIDO', fmtMi(vendido), `${nVend} venda(s) · ${pct}% da meta`, '#f8fafc')}
+      ${tx.ticket ? kpi('PROJEÇÃO DO MÊS', fmtMi(proj), `${pctProj}% da meta · pelo funil`, farol(pctProj))
+        : kpi('PROJEÇÃO DO MÊS', `≈ ${projVendas.toFixed(1).replace('.', ',')} vendas`, 'pelo funil · sem ticket médio no histórico pra virar R$', '#facc15')}
+      ${kpi('META DO MÊS', fmtMi(metaMes), metaHub ? 'soma das metas do HUB' : 'meta anual ÷ 12', '#cbd5e1')}
+      ${kpi('FALTA VENDER', falta > 0 ? fmtMi(falta) : '✅', falta > 0 ? `${tx.ticket ? `≈ ${Math.ceil(falta / tx.ticket)} venda(s) · ` : ''}${uteis ? `${fmtMi(falta / uteis)}/dia útil` : ''}` : 'meta batida — agora é recorde', '#fb923c')}
     </div>
-    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;padding:8px 40px">
-      ${pCard('📞', 'prospecções', prod.prospeccao)}${pCard('✅', 'qualificações', prod.qualificacao)}${pCard('📅', 'agendamentos', prod.agendamento)}${pCard('🚶', 'visitas', prod.atendimento)}${pCard('🗂', 'pastas', prod.pasta)}${pCard('💰', 'vendas', prod.vendaCount)}
+    <div style="padding:8px 36px 0">
+      <div style="position:relative;height:12px;background:#1e293b;border-radius:99px;overflow:hidden">
+        <div style="position:absolute;top:0;bottom:0;left:0;width:${Math.min(100, pctProj)}%;background:${farol(pctProj)};opacity:.3"></div>
+        <div style="position:absolute;top:0;bottom:0;left:0;width:${Math.min(100, pct)}%;background:linear-gradient(90deg,#facc15,#4ade80)"></div>
+        <div style="position:absolute;top:0;bottom:0;left:${Math.min(100, Math.round(dia / diasMes * 100))}%;width:0;border-left:2px dashed rgba(226,232,240,.6)"></div>
+      </div>
+      <div style="font-size:11.5px;color:#64748b;margin-top:3px">cheio = vendido · claro = projeção · tracejado = pace do mês (${Math.round(dia / diasMes * 100)}%) — <b style="color:#94a3b8">projeção</b> = agendamentos, visitas e pastas do mês no ritmo atual até o dia ${diasMes} × ${baseTxt}${tx.ticket ? ` × ticket médio ${fmtMi(tx.ticket)}` : ''}; nunca abaixo do já vendido</div>
     </div>
-    <div style="padding:6px 40px 14px;display:grid;gap:7px">
-      <div style="font-size:13px;font-weight:800;color:#94a3b8;letter-spacing:.08em">INDIVIDUAIS — real (esteira) × meta do mês (HUB) · → projeção no ritmo atual</div>
-      ${linhas || '<div style="color:#64748b;font-size:14px">nenhum corretor com venda ou meta no mês</div>'}
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 36px 0">
+      ${chip('📞', 'prospecções', prod.prospeccao)}${chip('✅', 'qualificações', prod.qualificacao)}${chip('📅', 'agendamentos', prod.agendamento)}${chip('🚶', 'visitas', prod.atendimento)}${chip('🗂', 'pastas', prod.pasta)}${chip('💰', 'vendas', prod.vendaCount)}
+      ${gargalo ? `<span style="margin-left:auto;font-size:13px;color:#fed7aa">🎯 <b style="color:#fb923c">Gargalo do time: ${gargalo.lbl}</b> — no ritmo atual o mês fecha com ${gargalo.ritmo} de ${gargalo.precisa} · foco: ${FOCO_ETAPA[gargalo.k]}</span>` : ''}
+    </div>
+    <div style="padding:8px 36px 10px;display:grid;gap:5px">
+      <div style="font-size:12px;font-weight:800;color:#94a3b8;letter-spacing:.08em">INDIVIDUAIS — 📅 agendamentos · 🚶 visitas · 🗂 pastas do mês · vendido · → projeção × meta (HUB) · o que falta pra meta (verde = já no ritmo)</div>
+      ${linhas || '<div style="color:#64748b;font-size:14px">nenhum corretor com produção, venda ou meta no mês</div>'}
     </div>`;
 }
 
@@ -736,53 +837,79 @@ function rowCard(a, cat) {
     </div>`;
 }
 
-/* ── letreiro de jornal: recados da timeline + oportunidades abertas ── */
+/* ── 📣 TIMELINE DE RECADOS (v87.75, Paulo 10/set: "1/4 da tela") ─────────
+   Faixa FIXA de 25% da altura, fora do _root: o corpo troca a cada tela e a
+   faixa segue rodando (antes o letreiro era redesenhado a cada 20s e voltava
+   pro começo). Só é refeita quando os itens mudam. Os recados da Timeline
+   voltam a cada 4 itens — a fila tem ~55 oportunidades do Radar, e sem isso um
+   recado passava 1× a cada ~10 min; das oportunidades, só as 12 primeiras. */
 const OP_ICO = { lead: '🎯', imovel: '🏠', parceria: '🤝', investidor: '💼', outro: '📌' };
-let _tkItems = [];
+const TK_ALTURA = '25vh';
+const TK_OPORT_MAX = 12;
+let _tkItems = [], _tkSig = '';
 function tickerItems() {
-  const its = [];
-  _atividade.slice(0, 6).forEach(a => its.push({
-    kind: 'atividade', tag: 'ATIVIDADE', ico: '⚡', cor: '#38bdf8',
-    texto: `${a.nome} · ${a.lbl}`, extra: a.hora,
-  }));
-  _recados.forEach(r => its.push({
-    kind: 'recado', tag: 'RECADO', ico: '📣', cor: r.cor || '#eab308',
-    texto: r.texto || '', extra: r.autor || '',
-  }));
-  _oport.forEach(o => its.push({
-    kind: 'oportunidade', tag: 'OPORTUNIDADE', ico: OP_ICO[o.tipo] || '💡', cor: '#22c55e',
-    texto: o.titulo || '', extra: o.valor_est ? fmtBRL(o.valor_est) : '',
-    desc: o.descricao || '',
-  }));
+  const rec = _recados.map(r => ({ kind: 'recado', tag: 'RECADO', ico: '📣', cor: r.cor || '#eab308', texto: r.texto || '', extra: r.autor || '' }));
+  const outros = [
+    ..._atividade.slice(0, 6).map(a => ({ kind: 'atividade', tag: 'ATIVIDADE', ico: '⚡', cor: '#38bdf8', texto: `${a.nome} · ${a.lbl}`, extra: a.hora })),
+    ..._oport.slice(0, TK_OPORT_MAX).map(o => ({ kind: 'oportunidade', tag: 'OPORTUNIDADE', ico: OP_ICO[o.tipo] || '💡', cor: '#22c55e',
+      texto: o.titulo || '', extra: o.valor_est ? fmtBRL(o.valor_est) : '', desc: o.descricao || '' })),
+  ];
+  const its = [...rec];
+  outros.forEach((x, i) => { its.push(x); if (rec.length && (i + 1) % 4 === 0 && i < outros.length - 1) its.push(...rec); });
   return its;
 }
-function tkChip(i, idx) {
+function tkCard(i, idx) {
   return `
-    <button class="rh-item" data-tk="${idx}" style="display:inline-flex;align-items:center;gap:10px;margin-right:22px;padding:7px 16px;border-radius:99px;white-space:nowrap;cursor:pointer;border:1px solid ${i.cor}66;background:linear-gradient(180deg,${i.cor}2e,${i.cor}14);color:#f1f5f9;font-family:inherit">
-      <span style="font-size:20px;line-height:1">${i.ico}</span>
-      <span style="font-size:10px;font-weight:900;letter-spacing:.12em;color:${i.cor};background:${i.cor}22;padding:2px 8px;border-radius:99px">${i.tag}</span>
-      <span style="font-size:19px;font-weight:700">${escapeHtml(i.texto)}</span>
-      ${i.extra ? `<span style="font-size:16px;font-weight:800;color:${i.kind === 'oportunidade' ? '#4ade80' : '#94a3b8'}">${escapeHtml(i.extra)}</span>` : ''}
+    <button class="rh-item" data-tk="${idx}" style="flex:none;display:flex;flex-direction:column;justify-content:center;gap:1vh;height:20.5vh;min-width:22vw;max-width:42vw;margin-right:1.6vw;padding:1.4vh 1.8vw;border-radius:18px;white-space:normal;text-align:left;cursor:pointer;border:2px solid ${i.cor}88;background:linear-gradient(180deg,${i.cor}33,${i.cor}0d);color:#f1f5f9;font-family:inherit">
+      <span style="display:flex;align-items:center;gap:.8vw;white-space:nowrap">
+        <span style="font-size:3.6vh;line-height:1">${i.ico}</span>
+        <span style="font-size:1.5vh;font-weight:900;letter-spacing:.14em;color:${i.cor};background:${i.cor}22;padding:.4vh .8vw;border-radius:99px">${i.tag}</span>
+        ${i.extra ? `<span style="font-size:2.1vh;font-weight:800;color:${i.kind === 'oportunidade' ? '#4ade80' : '#94a3b8'}">${escapeHtml(i.extra)}</span>` : ''}
+      </span>
+      <span style="font-size:3vh;font-weight:800;line-height:1.2;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${escapeHtml(i.texto)}</span>
     </button>`;
 }
-function ticker() {
-  _tkItems = tickerItems();
-  if (!_tkItems.length) return '';
-  const chunk = _tkItems.map(tkChip).join('');
-  const chars = _tkItems.reduce((a, i) => a + i.texto.length + (i.extra || '').length + 16, 0);
-  const dur = Math.max(10, Math.round(chars * 0.16));   // bem mais rápido, mínimo 10s por volta
-  return `
-    <div class="rh-ticker" style="display:flex;align-items:center;background:#0d1120;border-top:1px solid rgba(71,85,105,.3)">
-      <div style="flex:none;display:flex;align-items:center;gap:8px;padding:12px 18px;background:linear-gradient(90deg,#1c1917,#0d1120);border-right:1px solid rgba(234,179,8,.35)">
-        <span class="rh-live" style="width:10px;height:10px;border-radius:99px;background:#ef4444"></span>
-        <span style="font-size:13px;font-weight:900;letter-spacing:.14em;color:#facc15">AGORA</span>
-      </div>
-      <div style="flex:1;overflow:hidden;padding:8px 0">
-        <div class="rh-track" style="display:inline-flex;white-space:nowrap;will-change:transform;animation:rhTicker ${dur}s linear infinite">
-          <span style="display:inline-flex">${chunk}</span><span style="display:inline-flex">${chunk}</span>
-        </div>
+function tkEstilo() {
+  if (document.getElementById('rh-tk-style')) return;
+  const st = document.createElement('style');
+  st.id = 'rh-tk-style';
+  st.textContent = `@keyframes rhTkMove { from { transform:translateX(0) } to { transform:translateX(-50%) } }
+    @keyframes rhTkLive { 0%,100% { opacity:1 } 50% { opacity:.35 } }
+    #rh-timeline:hover .rh-track { animation-play-state:paused; }
+    @media (prefers-reduced-motion: reduce) { #rh-timeline .rh-track { animation:none !important } }`;
+  document.head.appendChild(st);
+}
+function syncTicker() {
+  const its = tickerItems();
+  let el = document.getElementById('rh-timeline');
+  if (!its.length) { el?.remove(); _tkItems = []; _tkSig = ''; return false; }
+  const sig = JSON.stringify(its.map(i => [i.kind, i.texto, i.extra]));
+  if (el && sig === _tkSig) return true;         // mesma fila: não mexe (a faixa segue de onde está)
+  _tkItems = its; _tkSig = sig;
+  tkEstilo();
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'rh-timeline';
+    el.style.cssText = `position:fixed;left:0;right:0;bottom:0;height:${TK_ALTURA};z-index:55;display:flex;background:#0d1120;border-top:2px solid rgba(234,179,8,.4);color:#e2e8f0;font-family:inherit;overflow:hidden`;
+    el.addEventListener('click', e => { const b = e.target.closest('[data-tk]'); const it = b && _tkItems[+b.dataset.tk]; if (it) showTickerItem(it); });
+    document.body.appendChild(el);
+  }
+  const chunk = its.map(tkCard).join('');
+  el.innerHTML = `
+    <div style="flex:none;width:12vw;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.2vh;background:linear-gradient(90deg,#1c1917,#0d1120);border-right:2px solid rgba(234,179,8,.4)">
+      <span style="font-size:6vh;line-height:1">📣</span>
+      <span style="font-size:2.6vh;font-weight:900;letter-spacing:.12em;color:#facc15">RECADOS</span>
+      <span style="display:flex;align-items:center;gap:.5vw;font-size:1.5vh;font-weight:800;letter-spacing:.16em;color:#fca5a5"><span style="width:1.1vh;height:1.1vh;border-radius:99px;background:#ef4444;animation:rhTkLive 1.4s ease infinite"></span>AO VIVO</span>
+    </div>
+    <div style="flex:1;min-width:0;display:flex;align-items:center;overflow:hidden">
+      <div class="rh-track" style="display:flex;width:max-content;will-change:transform;animation:rhTkMove 60s linear infinite">
+        <div style="display:flex;padding-left:1.6vw">${chunk}</div><div style="display:flex;padding-left:1.6vw">${chunk}</div>
       </div>
     </div>`;
+  // velocidade constante (~7% da altura da tela por segundo), qualquer tamanho de fila
+  const tr = el.querySelector('.rh-track');
+  tr.style.animationDuration = `${Math.max(20, Math.round((tr.scrollWidth / 2) / (window.innerHeight * 0.07)))}s`;
+  return true;
 }
 
 /* overlay grande (pra TV): clique no item amplia; Esc/✕/fora fecha */
@@ -851,7 +978,6 @@ function shell(body) {
     body.tv-mode .app-sidebar, body.tv-mode .app-header { display:none !important; }
     body.tv-mode .app-shell { grid-template-columns:1fr; grid-template-rows:1fr; grid-template-areas:"main"; }
     body.tv-mode .app-main { padding:0; }
-    @keyframes rhTicker { from { transform:translateX(0) } to { transform:translateX(-50%) } }
     @keyframes rhLive { 0%,100% { opacity:1; box-shadow:0 0 0 0 rgba(239,68,68,.6) } 50% { opacity:.5; box-shadow:0 0 0 6px rgba(239,68,68,0) } }
     @keyframes rhPop { from { transform:scale(.9); opacity:0 } to { transform:scale(1); opacity:1 } }
     @keyframes rhFade { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:none } }
@@ -859,12 +985,11 @@ function shell(body) {
     .rh-body { animation:rhFade .45s ease; }
     .rh-bar { transform-origin:left; animation:rhBar ${SLIDE_MS()}ms linear; }
     .rh-live { animation:rhLive 1.4s ease infinite; }
-    .rh-ticker:hover .rh-track { animation-play-state:paused; }
     .rh-item { transition:transform .15s ease, box-shadow .15s ease; }
-    .rh-item:hover { transform:scale(1.06); box-shadow:0 0 22px rgba(250,204,21,.25); }
-    @media (prefers-reduced-motion: reduce) { .rh-track, .rh-live { animation:none !important } }
+    .rh-item:hover { transform:scale(1.03); box-shadow:0 0 22px rgba(250,204,21,.25); }
+    @media (prefers-reduced-motion: reduce) { .rh-live { animation:none !important } }
   </style>
-  <div style="position:fixed;inset:0;z-index:50;background:#0a0d16;color:#e2e8f0;display:flex;flex-direction:column;overflow:hidden;font-family:inherit">
+  <div style="position:fixed;inset:0 0 ${_tkOn ? TK_ALTURA : '0'} 0;z-index:50;background:#0a0d16;color:#e2e8f0;display:flex;flex-direction:column;overflow:hidden;font-family:inherit">
     <div style="display:flex;align-items:center;gap:18px;padding:14px 26px;background:#0d1120;border-bottom:1px solid rgba(71,85,105,.3);position:sticky;top:0;z-index:2">
       <div style="font-weight:800;font-size:18px;color:#f8fafc">🏆 PSM HUB</div>
       <div style="color:#475569">|</div>
@@ -888,7 +1013,6 @@ function shell(body) {
     ${modoFechamento()}
     <div class="rh-bar" style="height:3px;background:linear-gradient(90deg,#facc15,#fb923c);flex:none"></div>
     <div class="rh-body" style="flex:1;min-height:0;overflow:auto">${body}</div>
-    ${ticker()}
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 26px;background:#0d1120;border-top:1px solid rgba(71,85,105,.3)">
       ${Object.values(BADGES).map(b => `<span style="padding:3px 10px;border-radius:99px;font-size:11px;background:${b.bg};color:${b.fg}">${b.ab} <b>${b.lbl}</b></span>`).join('')}
       <span style="font-size:11px;color:#475569">💲 VGV Real</span>
@@ -911,12 +1035,6 @@ function bind() {
     });
   }
   _root.querySelectorAll('[data-team]').forEach(b => b.addEventListener('click', () => { _team = b.dataset.team; _rotPauseAte = Date.now() + 90000; render(); }));
-  _root.querySelector('.rh-ticker')?.addEventListener('click', e => {
-    const b = e.target.closest('[data-tk]');
-    if (!b) return;
-    const it = _tkItems[+b.dataset.tk];
-    if (it) showTickerItem(it);
-  });
   document.getElementById('rh-fs')?.addEventListener('click', () => {
     if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
     else document.documentElement.requestFullscreen?.().catch(() => {});
