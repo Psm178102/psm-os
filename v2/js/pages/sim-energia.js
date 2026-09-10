@@ -1,5 +1,7 @@
-/* PSM-OS v2 — Simulador Energia (produtividade corretor por canal) (Sprint 8.4) */
-import { renderSemPerderFoco } from '../sim-foco.js';
+/* PSM-OS v2 — Simulador Energia (produtividade corretor por canal) (Sprint 8.4)
+   v87.73: formulário desenhado UMA vez — digitar só repinta KPIs e tabela
+   (o campo parava de apagar enquanto se digitava; ver sim-campos.js). */
+import { ATTR_NUM, parseNum, numCampo } from '../sim-campos.js';
 
 const KEY = 'psm_v2_sim_energia';
 
@@ -31,84 +33,50 @@ function save() { try { localStorage.setItem(KEY, JSON.stringify(_s)); } catch {
 function compute() {
   // sumproduct(energia * txBase) → divisor pra normalizar mix
   let sumProdu = 0;
-  CANAIS.forEach(c => { sumProdu += (_s['en_' + c.id] / 100) * c.tx; });
+  CANAIS.forEach(c => { sumProdu += ((+_s['en_' + c.id] || 0) / 100) * c.tx; });
 
   let totalVendas = 0, totalVGV = 0;
   const linhas = CANAIS.map(c => {
-    const en = _s['en_' + c.id] || 0;
+    const en = +_s['en_' + c.id] || 0;
     const mixPct = sumProdu > 0 ? ((en / 100) * c.tx) / sumProdu : 0;
-    const atendCanal = _s.atend * mixPct;
-    const fator = _s.fMin + (_s.fMax - _s.fMin) * en / 100;
+    const atendCanal = (+_s.atend || 0) * mixPct;
+    const fator = (+_s.fMin || 0) + ((+_s.fMax || 0) - (+_s.fMin || 0)) * en / 100;
     const txAjust = c.tx * fator;
     const vendas = atendCanal * txAjust;
-    const vgv = vendas * _s.ticket;
+    const vgv = vendas * (+_s.ticket || 0);
     totalVendas += vendas;
     totalVGV += vgv;
     return { c, en, mixPct, atendCanal, txAjust, vendas, vgv };
   });
 
-  const cumprimentoMeta = _s.metaVendas > 0 ? (totalVendas / _s.metaVendas * 100).toFixed(1) : '0';
+  const cumprimentoMeta = +_s.metaVendas > 0 ? totalVendas / _s.metaVendas * 100 : 0;
   return { linhas, totalVendas, totalVGV, cumprimentoMeta };
 }
 
 function render() {
-  const c = compute();
   _root.innerHTML = `
+    <style>@media(max-width:900px){.en-grid{grid-template-columns:minmax(0,1fr) !important}}</style>
     <div class="card">
       <h2 class="card-title">⚡ Simulador Energia</h2>
       <p class="card-sub">Produtividade do corretor por canal — onde investir sua energia gera mais resultado?</p>
 
-      <div style="display:grid;grid-template-columns:300px 1fr;gap:14px;margin-top:12px">
+      <div class="en-grid" style="display:grid;grid-template-columns:300px minmax(0,1fr);gap:14px;margin-top:12px;align-items:start">
         <div style="background:var(--bg-3);border-radius:10px;padding:14px">
           <div class="tiny muted" style="text-transform:uppercase;font-weight:800;margin-bottom:6px">Parâmetros Gerais</div>
-          ${inp('Atendimentos / mês', 'atend', 'num')}
-          ${inp('Ticket Médio (R$)', 'ticket', 'num')}
-          ${inp('Meta Vendas / mês', 'metaVendas', 'num')}
-          ${inp('Fator Mínimo Energia', 'fMin', 'num')}
-          ${inp('Fator Máximo Energia', 'fMax', 'num')}
+          ${inp('Atendimentos / mês', 'atend')}
+          ${inp('Ticket Médio (R$)', 'ticket')}
+          ${inp('Meta Vendas / mês', 'metaVendas')}
+          ${inp('Fator Mínimo Energia', 'fMin')}
+          ${inp('Fator Máximo Energia', 'fMax')}
 
           <div class="tiny muted" style="text-transform:uppercase;font-weight:800;margin:14px 0 6px">Energia por Canal (0-100%)</div>
-          ${CANAIS.map(can => inp(can.lbl, 'en_' + can.id, 'num', '%')).join('')}
+          ${CANAIS.map(can => inp(can.lbl, 'en_' + can.id, '%')).join('')}
         </div>
 
         <div>
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
-            ${kpi('Vendas Previstas', c.totalVendas.toFixed(2), 'var(--psm-navy)', '#fff')}
-            ${kpi('VGV Previsto', fmt(c.totalVGV), '#22c55e')}
-            ${kpi('Cumprimento Meta', c.cumprimentoMeta + '%', c.cumprimentoMeta >= 100 ? '#22c55e' : '#f59e0b')}
-          </div>
+          <div id="en-kpis" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px"></div>
 
-          <div class="card" style="padding:0;overflow:auto">
-            <table style="width:100%;border-collapse:collapse;font-size:12px">
-              <thead><tr style="background:var(--psm-navy);color:#fff">
-                <th style="padding:8px;text-align:left">Canal</th>
-                <th style="padding:8px;text-align:right">Energia</th>
-                <th style="padding:8px;text-align:right">Mix %</th>
-                <th style="padding:8px;text-align:right">Atend.</th>
-                <th style="padding:8px;text-align:right">Conv.</th>
-                <th style="padding:8px;text-align:right">Vendas</th>
-                <th style="padding:8px;text-align:right">VGV</th>
-              </tr></thead>
-              <tbody>
-                ${c.linhas.sort((a,b)=>b.vendas-a.vendas).map(l => `
-                  <tr style="border-bottom:1px solid var(--bd)">
-                    <td style="padding:6px 8px;font-weight:700">${l.c.lbl}</td>
-                    <td style="padding:6px 8px;text-align:right">${l.en}%</td>
-                    <td style="padding:6px 8px;text-align:right">${(l.mixPct * 100).toFixed(1)}%</td>
-                    <td style="padding:6px 8px;text-align:right">${l.atendCanal.toFixed(1)}</td>
-                    <td style="padding:6px 8px;text-align:right">${(l.txAjust * 100).toFixed(2)}%</td>
-                    <td style="padding:6px 8px;text-align:right;font-weight:800;color:#22c55e">${l.vendas.toFixed(2)}</td>
-                    <td style="padding:6px 8px;text-align:right;color:var(--psm-gold)">${fmt(l.vgv)}</td>
-                  </tr>
-                `).join('')}
-                <tr style="background:var(--psm-navy);color:#fff;font-weight:800">
-                  <td colspan="5" style="padding:8px">TOTAL</td>
-                  <td style="padding:8px;text-align:right">${c.totalVendas.toFixed(2)}</td>
-                  <td style="padding:8px;text-align:right">${fmt(c.totalVGV)}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <div class="card" style="padding:0;overflow:auto" id="en-tabela"></div>
 
           <div class="alert" style="background:rgba(168, 85, 247, .1);color:var(--lilas);border:1px solid rgba(168, 85, 247, .3);margin-top:14px;padding:12px;border-radius:8px">
             <b>💡 Como usar:</b> ajuste a energia (0-100%) em cada canal pra simular onde investir tempo/atenção. O sistema calcula automaticamente o mix ideal de atendimentos, conversão e VGV previsto.
@@ -122,21 +90,59 @@ function render() {
     </div>
   `;
   bind();
+  pintaSaida();
+}
+
+/* Repinta SÓ os KPIs e a tabela — os <input> ficam vivos do começo ao fim */
+function pintaSaida() {
+  const c = compute();
+  const k = _root.querySelector('#en-kpis');
+  if (k) k.innerHTML = kpi('Vendas Previstas', dec(c.totalVendas, 2), 'var(--psm-navy)', '#fff')
+    + kpi('VGV Previsto', fmt(c.totalVGV), '#22c55e')
+    + kpi('Cumprimento Meta', dec(c.cumprimentoMeta, 1) + '%', c.cumprimentoMeta >= 100 ? '#22c55e' : '#f59e0b');
+  const t = _root.querySelector('#en-tabela');
+  if (t) t.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="background:var(--psm-navy);color:#fff">
+        <th style="padding:8px;text-align:left">Canal</th>
+        <th style="padding:8px;text-align:right">Energia</th>
+        <th style="padding:8px;text-align:right">Mix %</th>
+        <th style="padding:8px;text-align:right">Atend.</th>
+        <th style="padding:8px;text-align:right">Conv.</th>
+        <th style="padding:8px;text-align:right">Vendas</th>
+        <th style="padding:8px;text-align:right">VGV</th>
+      </tr></thead>
+      <tbody>
+        ${c.linhas.sort((a, b) => b.vendas - a.vendas).map(l => `
+          <tr style="border-bottom:1px solid var(--bd)">
+            <td style="padding:6px 8px;font-weight:700">${l.c.lbl}</td>
+            <td style="padding:6px 8px;text-align:right">${dec(l.en, 1)}%</td>
+            <td style="padding:6px 8px;text-align:right">${dec(l.mixPct * 100, 1)}%</td>
+            <td style="padding:6px 8px;text-align:right">${dec(l.atendCanal, 1)}</td>
+            <td style="padding:6px 8px;text-align:right">${dec(l.txAjust * 100, 2)}%</td>
+            <td style="padding:6px 8px;text-align:right;font-weight:800;color:#22c55e">${dec(l.vendas, 2)}</td>
+            <td style="padding:6px 8px;text-align:right;color:var(--psm-gold)">${fmt(l.vgv)}</td>
+          </tr>
+        `).join('')}
+        <tr style="background:var(--psm-navy);color:#fff;font-weight:800">
+          <td colspan="5" style="padding:8px">TOTAL</td>
+          <td style="padding:8px;text-align:right">${dec(c.totalVendas, 2)}</td>
+          <td style="padding:8px;text-align:right">${fmt(c.totalVGV)}</td>
+        </tr>
+      </tbody>
+    </table>`;
 }
 
 function bind() {
-  _root.querySelectorAll('[data-key]').forEach(el => el.addEventListener('input', e => {
-    const k = el.dataset.key, t = el.dataset.type;
-    _s[k] = t === 'num' ? (parseFloat(e.target.value) || 0) : e.target.value;
-    save();
-    clearTimeout(window._enrTimer); window._enrTimer = setTimeout(() => renderSemPerderFoco(_root, render), 250);
-  }));
+  _root.querySelectorAll('[data-key]').forEach(el => {
+    el.addEventListener('input', () => { _s[el.dataset.key] = parseNum(el.value); save(); pintaSaida(); });
+    el.addEventListener('blur', () => { el.value = numCampo(_s[el.dataset.key]); });
+  });
   const back = _root.querySelector('[data-back]'); if (back) back.addEventListener('click', () => location.hash = '/simuladores');
 }
 
-function inp(label, key, type, suffix) {
-  const val = _s[key] ?? '';
-  return `<div style="margin-bottom:6px"><label class="tiny muted" style="font-weight:600;display:block;margin-bottom:2px">${label}</label><div class="flex gap-1">${(/R\$/.test(label) || suffix === 'R$') ? '<span class="tiny muted" style="align-self:center;font-weight:700">R$</span>' : ''}<input type="${type === 'text' ? 'text' : 'number'}" class="input" data-key="${key}" data-type="${type}" value="${val}" style="flex:1;font-size:12px;padding:6px 8px">${(suffix && suffix !== 'R$') ? `<span class="tiny muted" style="align-self:center">${suffix}</span>` : ''}</div></div>`;
+function inp(label, key, suffix) {
+  return `<div style="margin-bottom:6px"><label class="tiny muted" style="font-weight:600;display:block;margin-bottom:2px">${label}</label><div class="flex gap-1">${/R\$/.test(label) ? '<span class="tiny muted" style="align-self:center;font-weight:700">R$</span>' : ''}<input ${ATTR_NUM} class="input" data-key="${key}" value="${numCampo(_s[key])}" style="flex:1;min-width:0;font-size:12px;padding:6px 8px">${suffix ? `<span class="tiny muted" style="align-self:center">${suffix}</span>` : ''}</div></div>`;
 }
 
 function kpi(label, value, bg, color) {
@@ -144,3 +150,4 @@ function kpi(label, value, bg, color) {
 }
 
 function fmt(n) { return 'R$ ' + Math.round(n).toLocaleString('pt-BR'); }
+function dec(n, casas) { return (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas }); }

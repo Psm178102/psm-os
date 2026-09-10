@@ -3,6 +3,7 @@
    ENTRADA/MENSAIS/SEMESTRAIS/ANUAIS/FINANCIAMENTO-CHAVES/TOTAL, linhas verdes,
    chaves em azul, pós-chaves em vermelho, rodapé Total) — e Imprimir/Compartilhar
    abrem a MESMA via em janela limpa (PDF pelo diálogo do navegador). */
+import { parseNum, numCampo } from '../sim-campos.js';
 
 const KEY = 'psm_v2_sim_vpl';
 let _root = null;
@@ -478,19 +479,12 @@ function section(title, items) {
   `;
 }
 
-/* Aceita o jeito brasileiro de digitar: "1.500,50" e "1500.5" dão o mesmo
-   número, e o campo NÃO é reformatado enquanto se digita. Ponto só é tratado
-   como milhar quando vem seguido de exatamente 3 dígitos ("1.500"); "1.5"
-   continua sendo um e meio. */
-function parseNum(txt) {
-  if (typeof txt !== 'string') return Number(txt) || 0;
-  const t = txt.trim().replace(/\s/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.');
-  const n = parseFloat(t);
-  return isFinite(n) ? n : 0;
-}
-
+/* parseNum (sim-campos.js) aceita o jeito brasileiro: "1.500,50" e "1500.5"
+   dão o mesmo número, e o campo NÃO é reformatado enquanto se digita. O valor
+   inicial sai com vírgula (numCampo): a taxa padrão aparecia "6.168" e, ao
+   editar sem mexer nas 3 casas, o parser a lia como 6168% a.a. (v87.73). */
 function inp(label, key, type, suffix) {
-  const val = _s[key] ?? '';
+  const val = type === 'num' ? numCampo(_s[key]) : (_s[key] ?? '');
   // numérico é type=text + inputmode decimal: type=number engole vírgula no
   // pt-BR, muda de valor com a roda do mouse e não deixa posicionar o cursor.
   const attrs = type === 'text' ? 'type="text"'

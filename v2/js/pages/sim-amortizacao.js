@@ -7,10 +7,15 @@
      • Amortização adicional: mantém a parcela do contrato + extra, sobre o saldo
        corrigido (paga mais rápido). Compara Contrato × Com amortização: economia
        de juros e redução de prazo. Valores exatos pt-BR (sem arredondar).
+   v87.73: o resultado atualiza enquanto se digita (antes só no botão Calcular)
+   e os campos nunca são redesenhados — o botão Calcular redesenhava tudo e
+   apagava o que estava escrito "no jeito brasileiro" (ver sim-campos.js).
 ============================================================================ */
+import { ATTR_NUM, parseNum, numCampo } from '../sim-campos.js';
+
 const KEY = 'psm_v2_sim_amort';
 const DEFAULTS = { sistema: 'SAC', valorFinanciado: 180000, prazo: 420, jurosAA: 8, extraMensal: 0, aportes: [] };
-let _root, _s, _view = 'sim';
+let _root, _s, _view = 'sim', _tOut = null;
 
 export async function pageSimAmortizacao(ctx, root) {
   _root = root;
@@ -77,13 +82,13 @@ function simular() {
   };
 }
 
-/* ───────── render ───────── */
+/* ───────── render (formulário UMA vez; digitar só repinta #amort-out) ───────── */
 function render() {
   _root.innerHTML = `
     <div class="card">
       <h2 class="card-title">🏦 Simulador de Amortização</h2>
       <p class="card-sub">Financiamento <b>SAC</b> ou <b>PRICE</b> + simulação de <b>amortização extra</b> — veja a economia de juros e a redução de prazo. Lógica da planilha PSM.</p>
-      <div style="display:grid;grid-template-columns:340px 1fr;gap:16px;margin-top:12px;align-items:start" class="amort-grid">
+      <div style="display:grid;grid-template-columns:340px minmax(0,1fr);gap:16px;margin-top:12px;align-items:start" class="amort-grid">
         <div style="background:var(--bg-3);border-radius:12px;padding:16px">
           <div class="tiny muted" style="text-transform:uppercase;font-weight:800;margin-bottom:8px">Sistema de amortização</div>
           <div class="flex gap-2" style="margin-bottom:12px">
@@ -93,7 +98,7 @@ function render() {
           ${inp('Valor financiado', 'valorFinanciado', 'R$')}
           ${inp('Prazo', 'prazo', 'meses')}
           ${inp('Juros efetivos', 'jurosAA', '% ao ano')}
-          <div class="tiny muted" style="margin:2px 0 8px">Taxa mensal equivalente: <b>${pct4(taxaMensal(_s.jurosAA))}</b></div>
+          <div class="tiny muted" style="margin:2px 0 8px" id="amort-taxam">${taxaTxt()}</div>
 
           <div class="tiny muted" style="text-transform:uppercase;font-weight:800;margin:12px 0 6px">💰 Amortização extra</div>
           ${inp('Extra todo mês', 'extraMensal', 'R$')}
@@ -101,7 +106,7 @@ function render() {
           <div id="amort-aportes">${aportesHTML()}</div>
           <button class="btn btn-ghost btn-sm btn-block mt-1" id="amort-addap">➕ adicionar aporte</button>
 
-          <button class="btn btn-primary btn-block mt-3" id="amort-calc">🔄 Calcular</button>
+          <div class="tiny muted" style="margin-top:12px">↻ O resultado atualiza enquanto você digita.</div>
         </div>
         <div id="amort-out"></div>
       </div>
@@ -119,27 +124,53 @@ function inp(label, key, suffix) {
   const isMoney = suffix === 'R$';
   return `<div style="margin-bottom:8px"><label class="tiny muted" style="font-weight:600;display:block;margin-bottom:2px">${label}</label>
     <div class="flex gap-1">${isMoney ? '<span class="tiny muted" style="align-self:center;font-weight:700">R$</span>' : ''}
-      <input type="number" step="any" class="input" data-key="${key}" value="${_s[key] ?? ''}" style="flex:1;font-size:13px;padding:7px 9px">
+      <input ${ATTR_NUM} class="input" data-key="${key}" value="${numCampo(_s[key])}" style="flex:1;min-width:0;font-size:13px;padding:7px 9px">
       ${!isMoney && suffix ? `<span class="tiny muted" style="align-self:center;white-space:nowrap">${suffix}</span>` : ''}</div></div>`;
 }
 function aportesHTML() {
   if (!_s.aportes.length) return '<div class="tiny muted" style="padding:2px 0">Nenhum aporte pontual.</div>';
   return _s.aportes.map((a, idx) => `<div class="flex gap-1" style="margin-bottom:5px;align-items:center">
     <span class="tiny muted">mês</span>
-    <input type="number" class="input" data-ap="${idx}" data-apk="mes" value="${a.mes ?? ''}" style="width:64px;font-size:12px;padding:5px 6px">
+    <input ${ATTR_NUM} class="input" data-ap="${idx}" data-apk="mes" value="${numCampo(a.mes)}" style="width:64px;font-size:12px;padding:5px 6px">
     <span class="tiny muted">R$</span>
-    <input type="number" class="input" data-ap="${idx}" data-apk="valor" value="${a.valor ?? ''}" style="flex:1;font-size:12px;padding:5px 6px">
+    <input ${ATTR_NUM} class="input" data-ap="${idx}" data-apk="valor" value="${numCampo(a.valor)}" style="flex:1;min-width:0;font-size:12px;padding:5px 6px">
     <button class="btn btn-ghost btn-sm" data-apdel="${idx}" style="color:var(--err);padding:3px 7px">✕</button></div>`).join('');
 }
+function taxaTxt() { return `Taxa mensal equivalente: <b>${pct4(taxaMensal(_s.jurosAA))}</b>`; }
 
 function wireInputs() {
-  _root.querySelectorAll('[data-sis]').forEach(b => b.onclick = () => { _s.sistema = b.dataset.sis; save(); render(); });
-  _root.querySelectorAll('[data-key]').forEach(el => el.addEventListener('input', () => { _s[el.dataset.key] = el.value === '' ? '' : +el.value; save(); }));
-  _root.querySelectorAll('[data-ap]').forEach(el => el.addEventListener('input', () => { const i = +el.dataset.ap; _s.aportes[i][el.dataset.apk] = el.value === '' ? '' : +el.value; save(); }));
-  _root.querySelectorAll('[data-apdel]').forEach(b => b.onclick = () => { _s.aportes.splice(+b.dataset.apdel, 1); save(); render(); });
-  const add = _root.querySelector('#amort-addap'); if (add) add.onclick = () => { _s.aportes.push({ mes: '', valor: '' }); save(); render(); };
-  const calc = _root.querySelector('#amort-calc'); if (calc) calc.onclick = () => render();
+  _root.querySelectorAll('[data-sis]').forEach(b => b.onclick = () => {
+    _s.sistema = b.dataset.sis; save();
+    _root.querySelectorAll('[data-sis]').forEach(x => { const on = x.dataset.sis === _s.sistema; x.classList.toggle('btn-primary', on); x.classList.toggle('btn-ghost', !on); });
+    renderOut();
+  });
+  _root.querySelectorAll('[data-key]').forEach(el => {
+    el.addEventListener('input', () => {
+      _s[el.dataset.key] = el.value.trim() === '' ? '' : parseNum(el.value);
+      save();
+      if (el.dataset.key === 'jurosAA') { const t = _root.querySelector('#amort-taxam'); if (t) t.innerHTML = taxaTxt(); }
+      agendaOut();
+    });
+    el.addEventListener('blur', () => { el.value = numCampo(_s[el.dataset.key]); });
+  });
+  wireAportes();
+  const add = _root.querySelector('#amort-addap');
+  if (add) add.onclick = () => {
+    _s.aportes.push({ mes: '', valor: '' }); save(); pintaAportes();
+    const meses = _root.querySelectorAll('[data-apk="mes"]'); if (meses.length) meses[meses.length - 1].focus();
+  };
 }
+function wireAportes() {
+  _root.querySelectorAll('[data-ap]').forEach(el => el.addEventListener('input', () => {
+    const a = _s.aportes[+el.dataset.ap]; if (!a) return;
+    a[el.dataset.apk] = el.value.trim() === '' ? '' : parseNum(el.value);
+    save(); agendaOut();
+  }));
+  _root.querySelectorAll('[data-apdel]').forEach(b => b.onclick = () => { _s.aportes.splice(+b.dataset.apdel, 1); save(); pintaAportes(); renderOut(); });
+}
+// só a lista de aportes é redesenhada (ao adicionar/remover) — nunca durante a digitação
+function pintaAportes() { const box = _root.querySelector('#amort-aportes'); if (box) box.innerHTML = aportesHTML(); wireAportes(); }
+function agendaOut() { clearTimeout(_tOut); _tOut = setTimeout(renderOut, 80); }
 
 function renderOut() {
   const out = _root.querySelector('#amort-out'); if (!out) return;

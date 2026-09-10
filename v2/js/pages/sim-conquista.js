@@ -9,7 +9,7 @@
    faixa são REFERÊNCIA MCMV 2024 (editáveis aqui em cima — confira os vigentes).
    100% frontend, sem backend. Gated em sócio por enquanto (ROUTE_MIN_LVL=10).
 ============================================================================ */
-import { renderSemPerderFoco } from '../sim-foco.js';
+import { parseNum } from '../sim-campos.js';
 import { api } from '../api.js';
 
 // ⚠️ REFERÊNCIA MCMV urbano 2024 — confira sempre os valores vigentes (mudam por ano/região).
@@ -58,7 +58,8 @@ function avisoFaixas() {
 
 const BRL = v => (isFinite(v) ? v : 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
-const num = id => parseFloat((document.getElementById(id)?.value || '0').toString().replace(/\./g, '').replace(',', '.')) || 0;
+// v87.73: tirar TODO ponto transformava "8.16" de juros em 816% — agora ponto só é milhar em "3.000"
+const num = id => parseNum(document.getElementById(id)?.value || '0');
 
 function faixaDe(renda) {
   for (const f of FAIXAS) if (renda <= f.rendaMax) return f;
@@ -120,7 +121,7 @@ export async function pageSimConquista(ctx, root) {
       <div class="tiny muted" style="margin-top:8px">⚠️ Limites de faixa, juros e subsídio são <b>referência</b> e mudam por ano/região — confira a tabela MCMV vigente. O cálculo de parcela/financiamento (Tabela Price) é exato sobre os parâmetros informados.</div>
     </div>`;
   _root.querySelectorAll('input').forEach(i => i.addEventListener('input', () => {
-    clearTimeout(window._scqTimer); window._scqTimer = setTimeout(() => renderSemPerderFoco(_root, render), 200);
+    clearTimeout(window._scqTimer); window._scqTimer = setTimeout(render, 120);   // render só repinta #sc-result; os campos ficam intactos
   }));
   render();
 }
