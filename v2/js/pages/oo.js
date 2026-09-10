@@ -1,6 +1,7 @@
 /* PSM-OS v2 — One-on-One · Cockpit de Gestão Individual do Corretor */
 import { api, selectableUsers, hojeISO } from '../api.js';
 import { auth } from '../auth.js';
+import { montarBlocoOO } from './treinamentos.js';   // 🎓 treinos + habilidade prioritária no 1:1 (v87.77)
 
 let _root = null;
 let _view = 'list';            // 'list' | 'detail'
@@ -220,6 +221,7 @@ function renderDetail() {
       </div>
       <div id="oo-ranking" class="mt-3"></div>
       ${trendPanel(d, escapeHtml(c.name))}
+      <div id="oo-treinos" class="mt-3"></div>
       ${selfView ? '' : meetingsPanel()}
       ${selfView ? '' : '<div id="oo-rh360" class="mt-3"><div class="muted tiny"><span class="spinner"></span> Cruzando dados de RH…</div></div>'}
       <div id="modal-oo" style="display:none"></div>
@@ -296,6 +298,8 @@ function wireDetailCommon() {
   wirePeriod(loadDetail);
   loadDefasagem();   // ⏳ MAP: venda de hoje ↔ atividade de N meses atrás (v86.1)
   loadOORanking();   // 🏅 ranking geral + da equipe do corretor (v86.3)
+  const hTr = document.getElementById('oo-treinos');   // 🎓 treinos + habilidade prioritária (v87.77)
+  if (hTr && _det && _det.corretor) montarBlocoOO(hTr, { det: _det, gestor: !isSelfView() });
   _root.querySelectorAll('[data-member]').forEach(el => el.addEventListener('click', () => { _selId = el.dataset.member; loadDetail(); }));
   _root.querySelectorAll('[data-meet]').forEach(el => el.addEventListener('click', () => openMeeting(parseInt(el.dataset.meet))));
   _root.querySelectorAll('[data-pdi]').forEach(el => el.addEventListener('change', () => togglePdi(parseInt(el.dataset.pdi), parseInt(el.dataset.idx), el.checked)));

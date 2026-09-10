@@ -488,7 +488,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '87.77';
+const APP_VERSION = '87.78';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -1007,7 +1007,6 @@ function shellHTML(user) {
         <div class="sb-sec">🎓 PSM Academy</div>
         <button class="sb-link" data-nav="/academy-studio"><span class="sb-ico">🎬</span> Academy · Produção</button>
         <button class="sb-link" data-nav="/academy"><span class="sb-ico">🎓</span> PSM Academy (aulas)</button>
-        <button class="sb-link" data-nav="/formacao"><span class="sb-ico">🎓</span> Formação PSM</button>
 
         <div class="sb-sec">🗂 Secretaria de Vendas & Backoffice</div>
         <button class="sb-link" data-nav="/sdr"><span class="sb-ico">📞</span> Prospecção SDR</button>

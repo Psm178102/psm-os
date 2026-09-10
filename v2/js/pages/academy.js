@@ -349,6 +349,19 @@ function renderJourney() {
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px" id="ac-grid">
         ${trilhas.map(trilhaCard).join('')}
       </div>`}
+    <div class="tiny muted" style="margin:18px 2px 6px;text-transform:uppercase;letter-spacing:2px;font-weight:700">Mais formação</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">
+      <a class="ac-tcard" href="#/rh-treinamentos" style="display:flex;gap:14px;align-items:center;text-decoration:none;color:inherit">
+        <div style="font-size:30px">🎓</div>
+        <div style="flex:1;min-width:0"><div style="font-weight:800">Meus treinamentos</div><div class="tiny muted">Treinos ao vivo: o que vem aí, sua presença e suas horas de formação.</div></div>
+        <span class="tiny muted">Abrir →</span>
+      </a>
+      <a class="ac-tcard" href="#/formacao" style="display:flex;gap:14px;align-items:center;text-decoration:none;color:inherit">
+        <div style="font-size:30px">📚</div>
+        <div style="flex:1;min-width:0"><div style="font-weight:800">Formação PSM · Kiwify</div><div class="tiny muted">Onboarding, tutoriais, mercado básico, mentorias e MCMV na plataforma externa.</div></div>
+        <span class="tiny muted">Abrir →</span>
+      </a>
+    </div>
     <div id="ac-modal"></div>
   `;
   bindHeader();

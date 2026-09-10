@@ -112,11 +112,17 @@ class handler(BaseHTTPRequestHandler):
                         kind, origem, ico, link = "academy", "Academy", "🎬", "#/academy-studio"
                     elif desc.startswith("Projeto"):
                         kind, origem, ico, link = "projeto", "Projeto", "📌", "#/projetos"
+                elif eid.startswith("evt_"):
+                    # 🎓 cópia pessoal de um treinamento (v87.77) → abre a ficha do treino
+                    kind, origem, ico, link = "treino", "Treinamento", "🎓", "#/rh-treinamentos?id=" + eid[4:].split("__")[0]
                 st = (e.get("status") or "agendado")
+                done = st in EVENTO_DONE
+                if kind == "treino" and (_d(e.get("data")) or "") < _today_brt().isoformat():
+                    done = True   # já passou: a chamada é da gestão, não pendência de quem participou
                 items.append({"kind": kind, "id": eid, "titulo": e.get("titulo") or "(evento)",
                               "sub": desc or e.get("local"), "data": _d(e.get("data")), "status": st,
                               "prioridade": None, "origem": origem, "ico": ico, "link": link,
-                              "done": st in EVENTO_DONE,
+                              "done": done,
                               "quem": umap.get(e.get("corretor_id")) or umap.get(e.get("criado_por")) or "—"})
         except Exception as e:
             print(f"[feed] eventos: {e}")

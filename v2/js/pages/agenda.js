@@ -12,7 +12,30 @@ const TIPOS = [
   { id: 'tarefa',  lbl: 'Tarefa',    color: '#d97706', ico: '✅' },
   { id: 'evento',  lbl: 'Evento',    color: '#dc2626', ico: '🎉' },
   { id: 'outro',   lbl: 'Outro',     color: '#64748b', ico: '·' },
+  // v87.77: gerado pelo módulo Treinamentos (1 cópia por participante) — não se cria à mão aqui
+  { id: 'treinamento', lbl: 'Treinamento', color: '#0d9488', ico: '🎓', auto: true },
 ];
+
+// evt_<treino>__<pessoa> → id do treinamento
+const treinoDoEvento = id => (String(id || '').startsWith('evt_') ? String(id).slice(4).split('__')[0] : null);
+
+// Na visão do time, as N cópias de um mesmo treino viram 1 linha só
+function agruparTreinos(evs) {
+  const vistos = new Map();
+  return evs.filter(e => {
+    const tid = treinoDoEvento(e.id);
+    if (!tid) return true;
+    const ja = vistos.get(tid);
+    if (ja) { ja._n = (ja._n || 1) + 1; ja.titulo = `${ja._t} · ${ja._n} pessoas`; return false; }
+    e._t = e.titulo; vistos.set(tid, e); return true;
+  });
+}
+
+function abrirEvento(id) {
+  const tid = treinoDoEvento(id);
+  if (tid) { location.hash = '#/rh-treinamentos?id=' + encodeURIComponent(tid); return; }
+  openModal(id);
+}
 
 const STATUS_LBL = {
   agendado:   { lbl: 'Agendado',   color: '#64748b' },
@@ -64,6 +87,7 @@ async function reload() {
       _users.length ? Promise.resolve({ users: _users }) : api.request('/api/v3/users/list').catch(() => ({ users: [] })),
     ]);
     _eventos = evRes.eventos || [];
+    if (evRes.scope === 'time') _eventos = agruparTreinos(_eventos);
     _convites = evRes.convites || [];
     _podeVerTime = !!evRes.pode_ver_time;
     if (usrRes.users) _users = usrRes.users;
@@ -257,7 +281,7 @@ function render(scope) {
     });
   }
 
-  document.querySelectorAll('[data-evento]').forEach(el => el.addEventListener('click', () => openModal(el.dataset.evento)));
+  document.querySelectorAll('[data-evento]').forEach(el => el.addEventListener('click', () => abrirEvento(el.dataset.evento)));
 
   // alterna minha agenda ⇄ agenda do time (só sócio/gerente têm o botão)
   const bEsc = document.getElementById('ag-escopo');
@@ -431,7 +455,7 @@ function openModal(evId) {
       <div class="field">
         <label>Tipo *</label>
         <select id="ev-tipo" class="select">
-          ${TIPOS.map(t => `<option value="${t.id}"${ev?.tipo === t.id ? ' selected' : (!ev && t.id === 'reuniao' ? ' selected' : '')}>${t.ico} ${t.lbl}</option>`).join('')}
+          ${TIPOS.filter(t => !t.auto).map(t => `<option value="${t.id}"${ev?.tipo === t.id ? ' selected' : (!ev && t.id === 'reuniao' ? ' selected' : '')}>${t.ico} ${t.lbl}</option>`).join('')}
         </select>
       </div>
       <div class="field">

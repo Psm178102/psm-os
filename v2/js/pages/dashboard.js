@@ -238,7 +238,7 @@ export async function pageDashboard(ctx, root) {
 function _todayBRT() { return hojeISO(); } // v86.68: hoje local (BRT)
 
 /* ═══ PLANO DO MÊS — cockpit pessoal (metas + produtividade + planner + 4W) ═══ */
-const ORIG_COR = { 'Tarefa': '#2563eb', 'Agenda': '#0891b2', 'Academy': '#7c3aed', 'Projeto': '#f59e0b', 'Captação': '#16a34a', 'One-on-One': '#d6249f', 'Plantão': '#64748b', 'Criativo': '#db2777', 'Conteúdo': '#9333ea' };
+const ORIG_COR = { 'Tarefa': '#2563eb', 'Agenda': '#0891b2', 'Academy': '#7c3aed', 'Projeto': '#f59e0b', 'Captação': '#16a34a', 'One-on-One': '#d6249f', 'Plantão': '#64748b', 'Criativo': '#db2777', 'Conteúdo': '#9333ea', 'Treinamento': '#0d9488' };
 const corOrigem = o => ORIG_COR[o] || '#64748b';
 const _ymOffset = off => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth() + off, 1); }; // v86.68: local (o -3h dobrava o fuso no Brasil)
 
