@@ -904,12 +904,12 @@ export async function openTreinoEditor(seed = {}, onSaved) {
 function itemDiag(it, i, podeAgendar, treinado) {
   const hb = it.hab;
   const evid = it.taxa != null
-    ? `${esc(it.etapa)}: <b style="color:#dc2626">${pctTxt(it.taxa)}</b>${it.ref != null ? ` <span class="muted">· média da equipe</span> <b>${pctTxt(it.ref)}</b>` : ''}`
+    ? `${esc(it.etapa)}: <b style="color:#dc2626">${pctTxt(it.taxa)}</b>${it.ref != null ? ` <span class="muted">· ${esc(it.refLbl || 'média da equipe')}</span> <b>${pctTxt(it.ref)}</b>` : ''}`
     : `${esc(it.etapa)}: <b style="color:#dc2626">${esc(it.texto || '')}</b>`;
   return `<div class="trn-diag"${i ? ' style="border-left-color:#f59e0b"' : ''}>
     <div class="flex items-center gap-1" style="flex-wrap:wrap"><span class="trn-rank"${i ? ' style="background:#f59e0b"' : ''}>${i + 1}º</span> <span style="font-size:15px">${hb.ico}</span> <b>${esc(hb.nome)}</b></div>
     <div class="tiny" style="margin-top:4px">${evid}</div>
-    ${it.vendas != null && it.vendas >= 0.05 ? `<div class="tiny" style="margin-top:2px;color:#16a34a">≈ +${fmt1(it.vendas)} ${it.vendas >= 2 ? 'vendas' : 'venda'} no período se chegar na média${it.vgv ? ` (≈ R$ ${Math.round(it.vgv).toLocaleString('pt-BR')})` : ''}</div>` : ''}
+    ${it.vendas != null && it.vendas >= 0.05 ? `<div class="tiny" style="margin-top:2px;color:#16a34a">≈ +${fmt1(it.vendas)} ${it.vendas >= 2 ? 'vendas' : 'venda'} no período se chegar no nível da equipe${it.vgv ? ` (≈ R$ ${Math.round(it.vgv).toLocaleString('pt-BR')})` : ''}</div>` : ''}
     ${treinado ? `<div class="tiny" style="margin-top:2px;color:#0d9488">✔ Treinou isso em ${fmtData(treinado.data)} — acompanhe se a taxa sobe.</div>` : ''}
     <div class="flex items-center gap-2" style="margin-top:6px;flex-wrap:wrap">
       ${hb.trilha ? `<a class="tiny" href="#/academy">📚 ${esc(hb.trilha)} › ${esc(hb.modulo)}</a>` : ''}
@@ -941,8 +941,10 @@ export async function montarBlocoOO(host, { det, gestor }) {
   const nomeCurto = String(c.name || '').split(' ')[0];
   const equipe = EQUIPES.includes(equipeLbl(c.team)) ? equipeLbl(c.team) : '';
   const treinou = id => real.find(t => t.habilidade === id && presente(t.eu));
-  const fonteTxt = diag.fonte === 'equipe' ? '· comparado com a média da equipe no período'
-    : diag.fonte === 'funil' ? '· maior perda do funil dele (a média da equipe não vem nesta visão)' : '';
+  const fonteTxt = diag.fonte === 'equipe' ? '· comparado com a equipe no período'
+    : diag.fonte === 'funil' ? (diag.semEquipe
+      ? '· maior perda do funil dele (a comparação com a equipe não vem nesta visão)'
+      : '· maior perda do funil dele (a equipe ainda não tem volume no período pra comparar)') : '';
   host.innerHTML = `${CSS}
     <div class="card">
       <div class="flex items-center" style="justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px">
@@ -976,7 +978,7 @@ export async function montarBlocoOO(host, { det, gestor }) {
     b.onclick = () => {
       const it = diag.itens[+b.dataset.trHab]; if (!it) return;
       const hb = it.hab;
-      const evid = it.taxa != null ? `${it.etapa}: ${pctTxt(it.taxa)}${it.ref != null ? ` (média da equipe ${pctTxt(it.ref)})` : ''}` : `${it.etapa}: ${it.texto || ''}`;
+      const evid = it.taxa != null ? `${it.etapa}: ${pctTxt(it.taxa)}${it.ref != null ? ` (${it.refLbl || 'média da equipe'} ${pctTxt(it.ref)})` : ''}` : `${it.etapa}: ${it.texto || ''}`;
       openTreinoEditor({
         formato: 'individual', participantes: [c.id], habilidade: hb.id, trilha: hb.trilha || '', modulo: hb.modulo || '', equipe,
         titulo: `${hb.nome} · ${nomeCurto}`, descricao: `Gargalo apontado no 1:1 — ${evid}.`, origem: 'one-on-one',

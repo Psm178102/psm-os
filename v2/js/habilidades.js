@@ -33,22 +33,30 @@ const GAP_MIN = 0.15;   // 15% abaixo da média da equipe já é gargalo
 
 /* Diagnóstico do corretor a partir do payload do 1:1 (/api/v3/oo/corretor).
    • Com a equipe no payload (sócio ou o próprio corretor): compara cada etapa com a
-     MÉDIA DOS COLEGAS e estima quantas vendas o gargalo custa no período
+     MÉDIA DOS COLEGAS (≥2 com dado) ou, sem isso, com a TAXA DA EQUIPE inteira (funil
+     somado — v87.80) e estima quantas vendas o gargalo custa no período
      (gente a mais que passaria da etapa × o resto do funil dele).
-   • Sem a equipe (líder/gerente abrindo um corretor): aponta a etapa em que ELE
-     mais perde — e diz isso, pra ninguém confundir com comparação.
-   Devolve { itens:[{hab, etapa, taxa, ref, vendas, vgv, texto}], fonte:'equipe'|'funil'|null }. */
+   • Sem referência (líder/gerente abrindo um corretor, ou equipe sem volume): aponta a
+     etapa em que ELE mais perde — e diz o porquê (semEquipe), sem fingir comparação.
+   Devolve { itens:[{hab, etapa, taxa, ref, refLbl, vendas, vgv, texto}], fonte:'equipe'|'funil'|null, semEquipe }. */
 export function diagnosticar(det) {
   const f = (det && det.funnel) || [];
   if (f.length < 7) return { itens: [], fonte: null };
   const own = f.slice(1).map(s => (s.conv_from_prev == null ? null : Number(s.conv_from_prev)));
   const vol = f.slice(0, 6).map(s => Number(s.n) || 0);
   const selfId = det.corretor && det.corretor.id;
+  const tm = det.team && det.team.metrics;
   const pares = ((det.team && det.team.members) || []).filter(m => m.id !== selfId && Array.isArray(m.conv));
-  const bench = ETAPA_HAB.map((_, j) => {
+  const tf = tm && Array.isArray(tm.funnel) && tm.funnel.length >= 7 ? tm.funnel : null;
+  // referência por etapa: média dos colegas (≥2 com dado); senão a taxa da equipe inteira
+  // (volume somado — começo de mês quase ninguém tem volume sozinho em cada etapa)
+  const refs = ETAPA_HAB.map((_, j) => {
     const vals = pares.map(m => m.conv[j]).filter(v => v != null).map(Number);
-    return vals.length >= 2 ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+    if (vals.length >= 2) return { v: vals.reduce((a, b) => a + b, 0) / vals.length, lbl: 'média da equipe' };
+    const pool = tf && tf[j + 1] ? tf[j + 1].conv_from_prev : null;
+    return pool != null ? { v: Number(pool), lbl: 'taxa da equipe' } : null;
   });
+  const bench = refs.map(r => (r ? r.v : null));
   const temBench = bench.some(v => v != null);
   const taxa = j => (own[j] != null ? own[j] : bench[j]);
   const vendasExtra = (j, alvo) => {
@@ -56,7 +64,6 @@ export function diagnosticar(det) {
     for (let k = j + 1; k < 6; k++) { const r = taxa(k); if (r == null) return null; x *= r / 100; }
     return x;
   };
-  const tm = det.team && det.team.metrics;
   const ticket = det.ticket_medio || (tm && tm.ticket_medio) || null;
   const itens = [];
   ETAPA_HAB.forEach((hid, j) => {
@@ -64,7 +71,7 @@ export function diagnosticar(det) {
     const gap = bench[j] - own[j];
     if (gap <= 0 || gap / bench[j] < GAP_MIN) return;
     const v = vendasExtra(j, bench[j]);
-    itens.push({ hab: habilidade(hid), etapa: ETAPA_LBL[j], taxa: own[j], ref: bench[j], vendas: v,
+    itens.push({ hab: habilidade(hid), etapa: ETAPA_LBL[j], taxa: own[j], ref: bench[j], refLbl: refs[j].lbl, vendas: v,
                  vgv: v != null && ticket ? v * ticket : null, peso: v != null ? v : gap / 100 });
   });
   let fonte = itens.length ? 'equipe' : null;
@@ -91,7 +98,7 @@ export function diagnosticar(det) {
     fonte = fonte || 'equipe';
   }
   itens.sort((a, b) => (b.peso || 0) - (a.peso || 0));
-  return { itens: itens.slice(0, 3), fonte };
+  return { itens: itens.slice(0, 3), fonte, semEquipe: !det.team };
 }
 
 function fmt1(v) { return (Math.round(Number(v) * 10) / 10).toLocaleString('pt-BR'); }
