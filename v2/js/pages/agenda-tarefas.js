@@ -64,6 +64,7 @@ const S = {
   root: null, mont: 0,
   itens: [], convites: [], prod: {}, janela: null, podeTime: false, carregando: false,
   users: null, forms: null,
+  overview: null, resumo: null, projAt: 0, projPessoa: '',   // 📈 projeção do mês + avisos (v87.82)
   view: lerPref('view', 'dia'), cursor: hoje(), filtro: 'tudo', busca: '', feitos: false,
   escopo: 'self', pessoa: '', quickTipo: null, aberto: null,
 };
@@ -78,6 +79,7 @@ export async function pageAgendaTarefas(ctx, root) {
   root.innerHTML = casca();
   ligarEventos(root, mont);
   pintarVisaoCarregando();
+  carregarProjecao().then(() => { if (mont === S.mont) { renderProjecao(); renderAvisos(); } });
   await Promise.all([
     carregar(),
     S.users ? null : api.request('/api/v3/users/list').then(r => { S.users = r.users || []; }).catch(() => { S.users = []; }),
@@ -106,6 +108,7 @@ function casca() {
         <div><h2 class="at-hello">${saud}, ${esc((me.name || '').split(' ')[0])}</h2><div class="at-date">${esc(dataLonga)}</div></div>
         <div class="at-kpis" id="at-kpis"></div>
       </div>
+      <div id="at-proj" class="at-proj" aria-live="polite"><div class="at-proj-skel"><span class="spinner"></span> Calculando o seu mês…</div></div>
       <form class="at-quick" id="at-quick" autocomplete="off">
         <div class="at-seg" role="radiogroup" aria-label="Tipo do item">
           <button type="button" data-qt="tarefa" role="radio">✅ Tarefa</button>
@@ -118,6 +121,7 @@ function casca() {
       </form>
       <div class="at-preview" id="at-preview" aria-live="polite"></div>
     </section>
+    <section class="at-card at-avisos" id="at-avisos" hidden aria-label="Avisos"></section>
     <section class="at-card at-conv" id="at-conv" hidden></section>
     <div class="at-grid">
       <section class="at-card at-main" aria-label="Agenda">
@@ -243,7 +247,7 @@ function contagens(lista = S.itens) {
 /* ═══════════════════════════ render ═══════════════════════════ */
 function renderTudo() {
   if (!S.root || !S.root.isConnected) return;
-  renderKpis(); renderConvites(); renderBarra(); renderChips(); renderVisao(); renderMini(); renderPreview();
+  renderKpis(); renderConvites(); renderBarra(); renderChips(); renderVisao(); renderMini(); renderPreview(); renderAvisos();
   if (S.aberto) { const i = achar(S.aberto); if (i) desenharDrawer(i); else fecharDrawer(); }
 }
 
@@ -558,7 +562,7 @@ function ligarEventos(root, mont) {
     const ds = t.dataset;
     if (ds.view) return trocarVisao(ds.view);
     if (ds.nav) return navegar(Number(ds.nav));
-    if (ds.escopo) { if (S.escopo !== ds.escopo) { S.escopo = ds.escopo; S.pessoa = ''; pintarVisaoCarregando(); await carregar(); if (vivo()) renderTudo(); } return; }
+    if (ds.escopo) { if (S.escopo !== ds.escopo) { S.escopo = ds.escopo; S.pessoa = ''; pintarVisaoCarregando(); await carregar(); if (vivo()) renderTudo(); carregarProjecao({ force: true }).then(() => { if (vivo()) { renderProjecao(); renderAvisos(); } }); } return; }
     if (ds.filtro) { S.filtro = ds.filtro; renderChips(); renderVisao(); return; }
     if (ds.qt) { S.quickTipo = ds.qt; renderPreview(); root.querySelector('#at-quick-txt').focus(); return; }
     if (ds.go) return irPara(ds.go);
@@ -583,7 +587,7 @@ function ligarEventos(root, mont) {
   });
   root.addEventListener('change', async ev => {
     if (ev.target.id === 'at-feitos') { S.feitos = ev.target.checked; renderVisao(); }
-    if (ev.target.id === 'at-pessoa') { S.pessoa = ev.target.value; pintarVisaoCarregando(); await carregar(); if (vivo()) renderTudo(); }
+    if (ev.target.id === 'at-pessoa') { S.pessoa = ev.target.value; pintarVisaoCarregando(); await carregar(); if (vivo()) renderTudo(); carregarProjecao({ force: true }).then(() => { if (vivo()) { renderProjecao(); renderAvisos(); } }); }
   });
   let tBusca = null;
   root.addEventListener('input', ev => {
@@ -663,6 +667,9 @@ function irPara(go) {
 function acaoGeral(act, btn) {
   if (act === 'novo') { const r = lerRapido(); return abrirForm({ preset: r ? presetDeRapido(r) : { data: S.view === 'dia' ? S.cursor : null } }); }
   if (act === 'recarregar') { pintarVisaoCarregando(); return carregar().then(renderTudo); }
+  if (act === 'forecast') return abrirForecast();
+  if (act === 'proj-refresh') { return carregarProjecao({ force: true, fresh: true }).then(() => { renderProjecao(); renderAvisos(); toast('📈 Projeção atualizada'); }); }
+  if (act === 'avisos-todos') { gravarPref('avisos_todos', lerPref('avisos_todos', '0') === '1' ? '0' : '1'); return renderAvisos(); }
   if (act === 'ver-feitos') { S.feitos = true; renderChips(); return renderVisao(); }
   if (act === 'atr-todos') { gravarPref('atr_todos', lerPref('atr_todos', '0') === '1' ? '0' : '1'); return renderVisao(); }
   if (act === 'lista-mais') { gravarPref('lista_lim', String((Number(lerPref('lista_lim', '40')) || 40) + 40)); return renderVisao(); }
@@ -682,7 +689,7 @@ function abrirIndicadoresSeAberto() {
   const aberto = lerPref('ind', comercial ? '1' : '0') === '1';
   b.hidden = !aberto;
   seta.textContent = aberto ? 'ocultar' : 'mostrar';
-  if (aberto && !b.dataset.montado) { b.dataset.montado = '1'; montarIndicadores(b, { prod: S.prod }); }
+  if (aberto && !b.dataset.montado) { b.dataset.montado = '1'; montarIndicadores(b, { prod: S.prod, overview: S.overview }); }
 }
 function montarSalasSeAberto() {
   const box = S.root.querySelector('#at-salas'), seta = S.root.querySelector('#at-salas-seta'); if (!box) return;
@@ -1137,6 +1144,194 @@ function abrirForm({ item, preset = {} } = {}) {
     else if (e.key === 'Enter' && e.target.id === 'f-titulo') { e.preventDefault(); salvar(); }
   });
   setTimeout(() => { const t = $('#f-titulo'); if (t && !t.disabled) { t.focus(); t.setSelectionRange(t.value.length, t.value.length); } }, 30);
+}
+
+/* ═══════════════════════ 📈 projeção do mês + ⚠️ avisos (v87.82) ═══════════════════════
+   Dinheiro (vendido/meta/pipeline/ticket) vem de /metrics/overview — a mesma fonte do
+   Dashboard, do Painel Metas e da Gestão Comercial. O que é do corretor (fila quente,
+   forecast declarado, ritmo do Norte) vem de /agenda/resumo. A conta do ritmo é feita
+   aqui, em dias ÚTEIS (segunda a sábado): projeção = vendido ÷ dias úteis passados ×
+   dias úteis do mês. Simples de explicar na Reunião Semanal — sem caixa-preta. */
+const COMERCIAL = /^(corretor|lider|líder|gerente|socio|sócio|diretor)/;
+const ehComercial = () => COMERCIAL.test(String((auth.user() || {}).role || '').toLowerCase());
+const brl = v => 'R$ ' + (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const brlCurto = v => { const n = Number(v) || 0; return n >= 1e6 ? 'R$ ' + (n / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' mi' : n >= 1e3 ? 'R$ ' + (n / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' mil' : brl(n); };
+const MES_NOME = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
+function diasUteisMes(hIso) {   // seg–sáb (imobiliária trabalha sábado; sem feriados)
+  const d = deIso(hIso), y = d.getFullYear(), m = d.getMonth(), n = new Date(y, m + 1, 0).getDate();
+  let total = 0, passados = 0;
+  for (let k = 1; k <= n; k++) { if (new Date(y, m, k).getDay() === 0) continue; total++; if (k <= d.getDate()) passados++; }
+  return { total, passados, restantes: total - passados, diaMes: d.getDate(), diasMes: n };
+}
+
+async function carregarProjecao({ force, fresh } = {}) {
+  if (!force && S.overview && Date.now() - S.projAt < 3 * 60 * 1000) return;
+  const pessoa = S.escopo === 'time' && S.pessoa ? S.pessoa : '';
+  const qs = new URLSearchParams(); if (pessoa) qs.set('pessoa', pessoa); if (fresh) qs.set('fresh', '1');
+  const [ov, rs] = await Promise.all([
+    api.request('/api/v3/metrics/overview').catch(() => S.overview),
+    api.request('/api/v3/agenda/resumo' + (qs.toString() ? '?' + qs : '')).catch(() => null),
+  ]);
+  if (ov) S.overview = ov;
+  S.resumo = rs; S.projPessoa = pessoa; S.projAt = Date.now();
+}
+
+function calcProjecao() {
+  const d = S.overview || {}, s = d.sales || {}, m = d.metas || {}, r = S.resumo || {};
+  const u = diasUteisMes(hoje());
+  const vendido = +s.vgv_mes || 0, meta = +m.meta_vgv || 0, vendas = +s.vendas_mes || 0;
+  const ritmo = u.passados ? vendido / u.passados : 0, proj = ritmo * u.total;
+  const faltam = Math.max(0, meta - vendido);
+  const ticket = (m.meta_vendas > 0 && meta > 0) ? meta / m.meta_vendas : (+s.ticket_medio_mes || 0);
+  const vendasFaltam = ticket > 0 && faltam > 0 ? Math.max(1, Math.ceil(faltam / ticket - 1e-9)) : (faltam > 0 ? null : 0);
+  const semanas = Math.max(1, Math.round(u.restantes / 6 * 10) / 10);
+  const pct = meta > 0 ? vendido / meta * 100 : null, projPct = meta > 0 ? proj / meta * 100 : null;
+  const esperadoPct = u.total ? u.passados / u.total * 100 : 0;
+  const quem = d.scope === 'self' ? 'você' : (d.scope === 'team' ? 'a equipe' : 'a empresa');
+  const fecha = d.scope === 'self' ? 'você fecha' : (d.scope === 'team' ? 'a equipe fecha' : 'a empresa fecha');
+  const mes = MES_NOME[deIso(hoje()).getMonth()];
+  const porSemana = vendasFaltam ? Math.max(1, Math.ceil(vendasFaltam / semanas)) : 0;
+  const nv = n => `${n} venda${n === 1 ? '' : 's'}`;
+  let cor, titulo, sub;
+  if (!meta) {
+    cor = 'cinza'; titulo = `${mes.replace(/^./, c => c.toUpperCase())} sem meta definida.`;
+    sub = `Sem meta não tem ritmo — ${d.scope === 'self' ? 'peça a sua no One-on-One' : 'cadastre as metas em Metas'}. Vendido até agora: ${brl(vendido)} (${nv(vendas)}) · em atendimento: ${brl(s.pipeline_vgv)}.`;
+  } else if (pct >= 100) {
+    cor = 'verde'; titulo = `🏆 Meta batida: ${brl(vendido)} — ${Math.round(pct)}% de ${mes}.`;
+    sub = `Cada venda daqui pra frente é bônus. Não solta o pé: ${brl(s.pipeline_vgv)} em atendimento (${s.pipeline_count || 0} negócios).`;
+  } else if (!vendido && u.passados >= 6) {
+    cor = 'vermelho'; titulo = `🔴 Zero venda em ${mes} — ${u.restantes} dias úteis pra virar o jogo.`;
+    sub = `Faltam ${brl(faltam)}${vendasFaltam ? ` (≈ ${nv(vendasFaltam)})` : ''}. ${porSemana ? `Isso é ${nv(porSemana)} por semana até o fim do mês.` : ''} Comece pelos leads quentes nos avisos.`;
+  } else if (projPct >= 100) {
+    cor = 'verde'; titulo = `🟢 No ritmo: projeção de ${brl(proj)} (${Math.round(projPct)}% da meta).`;
+    sub = `Faltam ${brl(faltam)}${vendasFaltam ? ` — ≈ ${nv(vendasFaltam)}` : ''} em ${u.restantes} dias úteis. Segura o pé no acelerador.`;
+  } else if (projPct >= 70) {
+    cor = 'amarelo'; titulo = `🟡 Abaixo do ritmo: no passo atual ${fecha} em ${Math.round(projPct)}% da meta.`;
+    sub = `Faltam ${brl(faltam)}${vendasFaltam ? ` (≈ ${nv(vendasFaltam)})` : ''} em ${u.restantes} dias úteis${porSemana ? ` — ${nv(porSemana)} por semana` : ''}. Dá pra virar, mas não na inércia.`;
+  } else {
+    cor = 'vermelho'; titulo = `🔴 Fora do ritmo: no passo atual ${fecha} em ${Math.round(projPct)}% da meta.`;
+    sub = `Faltam ${brl(faltam)}${vendasFaltam ? ` (≈ ${nv(vendasFaltam)})` : ''} em ${u.restantes} dias úteis${porSemana ? ` — ${nv(porSemana)} por semana` : ''}. Ou muda o ritmo esta semana, ou o mês já era.`;
+  }
+  return { u, vendido, vendas, meta, faltam, proj, pct, projPct, esperadoPct, ticket, vendasFaltam, cor, titulo, sub, quem, mes,
+    pipeline: +s.pipeline_vgv || 0, pipelineN: +s.pipeline_count || 0, ponderado: +r.pipeline_ponderado_vgv || 0,
+    quentes: +r.quentes_n || 0, parados: +r.parados_n || 0, forecast: r.forecast || null, norte: r.norte || null, scope: d.scope };
+}
+
+function renderProjecao() {
+  const el = S.root && S.root.querySelector('#at-proj'); if (!el) return;
+  if (!S.overview) { el.innerHTML = '<div class="at-proj-skel">Não consegui calcular o mês agora. <button class="at-mini-b" data-act="proj-refresh">Tentar de novo</button></div>'; return; }
+  const me = auth.user() || {};
+  if (!ehComercial()) {   // backoffice / marketing / financeiro: produtividade, não VGV
+    const p = S.prod || {}; const u = diasUteisMes(hoje());
+    const atr = p.atrasadas || 0, pend = p.pendentes || 0, sol = p.solicitadas || 0, conc = p.concluidas || 0;
+    const cor = atr ? 'vermelho' : (pend ? 'verde' : 'verde');
+    const titulo = atr ? `🔴 ${atr} tarefa${atr === 1 ? '' : 's'} atrasada${atr === 1 ? '' : 's'}. Resolve hoje — ${u.restantes} dias úteis pra fechar o mês.`
+      : pend ? `🟢 Em dia: ${pend} pendente${pend === 1 ? '' : 's'}, nenhuma atrasada.` : '🎉 Tudo entregue. Bora puxar o próximo.';
+    const pct = p.pct != null ? Math.round(p.pct) : null;
+    el.innerHTML = `<div class="at-proj-h ${cor}"><b>${esc(titulo)}</b><span>${sol ? `${conc} de ${sol} concluídas no período${pct != null ? ` · ${pct}% de produtividade` : ''}` : 'Sem tarefas atribuídas ainda.'}</span></div>`;
+    return;
+  }
+  const c = calcProjecao();
+  const num = (lbl, val, sub, cls = '') => `<div class="at-pn ${cls}"><small>${lbl}</small><b>${val}</b>${sub ? `<span>${sub}</span>` : ''}</div>`;
+  const chips = [];
+  if (S.resumo && S.resumo.rd) {
+    chips.push(`<span class="at-pill">${c.quentes ? '🔥 ' + c.quentes + ' quente' + (c.quentes === 1 ? '' : 's') : '🔥 nenhum lead quente'}</span>`);
+    if (c.parados) chips.push(`<span class="at-pill warn">⏸ ${c.parados} parado${c.parados === 1 ? '' : 's'} há 3+ dias</span>`);
+    if (c.ponderado) chips.push(`<span class="at-pill">⚖️ ${brlCurto(c.ponderado)} ponderado</span>`);
+  }
+  if (c.forecast) chips.push(`<span class="at-pill">📣 forecast: ${c.forecast.comprometido}/${c.forecast.provavel}/${c.forecast.pipeline}</span>`);
+  if (c.norte && c.norte.atend_dia) chips.push(`<span class="at-pill">🎯 Norte: ${c.norte.atend_dia} atend./dia · ${c.norte.atend_esperado_ate_hoje} esperados até hoje</span>`);
+  el.innerHTML = `
+    <div class="at-proj-h ${c.cor}"><b>${esc(c.titulo)}</b><span>${esc(c.sub)}</span></div>
+    <div class="at-pnums">
+      ${num('Meta', c.meta ? brlCurto(c.meta) : '—', c.meta ? MES_NOME[deIso(hoje()).getMonth()] : 'sem meta')}
+      ${num('Vendido', brlCurto(c.vendido), `${c.vendas} venda${c.vendas === 1 ? '' : 's'}${c.pct != null ? ' · ' + Math.round(c.pct) + '%' : ''}`, c.cor === 'verde' ? 'ok' : '')}
+      ${num('Faltam', c.meta ? brlCurto(c.faltam) : '—', c.vendasFaltam ? `≈ ${c.vendasFaltam} venda${c.vendasFaltam === 1 ? '' : 's'}` : (c.meta ? 'meta batida' : ''), c.cor === 'vermelho' ? 'err' : '')}
+      ${num('Projeção', brlCurto(c.proj), `ritmo de ${c.u.passados} dia${c.u.passados === 1 ? '' : 's'} úteis${c.projPct != null ? ' · ' + Math.round(c.projPct) + '%' : ''}`, c.cor === 'vermelho' ? 'err' : c.cor === 'amarelo' ? 'warn' : c.cor === 'verde' ? 'ok' : '')}
+      ${num('Pipeline', brlCurto(c.pipeline), `${c.pipelineN} negócio${c.pipelineN === 1 ? '' : 's'} em atendimento`)}
+    </div>
+    ${c.meta ? `<div class="at-pbar" title="Vendido ${Math.round(c.pct)}% · esperado até hoje ${Math.round(c.esperadoPct)}%"><i style="width:${Math.min(100, c.pct)}%" class="${c.cor}"></i><em style="left:${Math.min(100, c.esperadoPct)}%"><small>hoje</small></em></div>` : ''}
+    <div class="at-pchips">${chips.join('')}<span class="at-sp"></span>
+      ${c.scope === 'self' ? '<button type="button" class="at-mini-b" data-act="forecast">📣 Declarar forecast</button>' : ''}
+      <button type="button" class="at-mini-b" data-act="proj-refresh" title="Recalcular agora">↻</button></div>`;
+}
+
+/* ⚠️ AVISOS — o que exige ação AGORA, do mais grave pro menos. Cada linha tem um botão
+   que resolve (não é lista de leitura: é lista de trabalho). */
+function listaAvisos() {
+  const h = hoje(), me = auth.user() || {}, r = S.resumo || {}, out = [];
+  const feed = S.itens.filter(i => !i.done);
+  const atr = feed.filter(atrasado).sort((a, b) => a.data.localeCompare(b.data));
+  if (atr.length) {
+    const dias = Math.round((deIso(h) - deIso(atr[0].data)) / 864e5);
+    out.push({ n: 0, ico: '🔴', txt: `${atr.length} tarefa${atr.length === 1 ? '' : 's'} atrasada${atr.length === 1 ? '' : 's'} — a mais antiga há ${dias} dia${dias === 1 ? '' : 's'} (${atr[0].titulo}).`, btn: 'Resolver', on: () => irPara('atrasados') });
+  }
+  if (S.escopo === 'self' && ehComercial() && r.rd) {
+    const quentes = (r.fila || []).filter(f => f.temp === 'quente' || /🔥|URGENTE/.test(f.acao || ''));
+    quentes.slice(0, 3).forEach(f => {
+      const parado = f.dias_parado != null && f.dias_parado >= 2 ? ` · parado há ${f.dias_parado}d` : '';
+      out.push({ n: 1, ico: '🔥', txt: `${f.title} · ${f.ms_label || ''}${parado} — ${f.acao || 'próxima ação pendente'}${f.amount ? ` (${brlCurto(f.amount)})` : ''}`,
+        btn: f.phone ? 'WhatsApp' : 'Ver fila', on: () => { if (f.phone) window.open(`https://wa.me/${f.phone}?text=${encodeURIComponent('Olá! Aqui é ' + (me.name || '').split(' ')[0] + ', da PSM. Tudo bem? Passando pra dar continuidade ao seu atendimento.')}`, '_blank', 'noopener'); else location.hash = '#/painel'; } });
+    });
+    if (r.parados_n > 3) out.push({ n: 2, ico: '⏸', txt: `${r.parados_n} leads quentes/mornos sem movimento há 3+ dias. Lead parado esfria — e esfriou, perdeu.`, btn: 'Ver fila', on: () => { location.hash = '#/painel'; } });
+  }
+  const agora = new Date(); const agoraHM = `${String(agora.getHours()).padStart(2, '0')}:${String(agora.getMinutes()).padStart(2, '0')}`;
+  const prox = ordenar(feed.filter(i => i.data === h && horario(i) && i.hora_inicio >= agoraHM)).filter(i => diffMin(agoraHM, i.hora_inicio) <= 90)[0];
+  if (prox) out.push({ n: 1, ico: '⏰', txt: `${prox.titulo} às ${prox.hora_inicio} — em ${diffMin(agoraHM, prox.hora_inicio)} min${prox.local ? ' · 📍 ' + prox.local : ''}.`, btn: 'Abrir', on: () => abrirItem(prox.key) });
+  if (S.escopo === 'self' && S.convites.length) out.push({ n: 3, ico: '📨', txt: `${S.convites.length} convite${S.convites.length === 1 ? '' : 's'} esperando a sua resposta — quem convidou não sabe se pode contar com você.`, btn: 'Responder', on: () => irPara('convites') });
+  const dow = deIso(h).getDay();
+  if (S.escopo === 'self' && ehComercial() && (me.lvl || 0) < 7 && r.rd && !r.forecast_semana && (dow === 1 || dow === 2)) {
+    out.push({ n: 3, ico: '📣', txt: 'Forecast da semana não declarado — a Reunião Semanal vai cobrar. Quantas vendas você garante este mês?', btn: 'Declarar', on: () => abrirForecast() });
+  }
+  feed.filter(i => i.kind === 'captacao' && i.desde).forEach(i => {
+    const d = Math.round((deIso(h) - deIso(i.desde)) / 864e5);
+    if (d >= 7) out.push({ n: 4, ico: '📥', txt: `Captação ${i.titulo} parada há ${d} dias. Proprietário sem retorno procura outra imobiliária.`, btn: 'Abrir', on: () => { location.hash = '#/captacoes'; } });
+  });
+  const pl = feed.find(i => i.kind === 'plantao' && i.data === h);
+  if (pl) out.push({ n: 5, ico: '🛡', txt: `${pl.titulo} hoje${pl.sub ? ' · ' + pl.sub : ''}. Chegue antes, tabela e simulador na mão.`, btn: 'Abrir', on: () => abrirItem(pl.key) });
+  if (S.escopo === 'self' && ehComercial() && S.overview && !((S.overview.metas || {}).meta_vgv > 0)) {
+    out.push({ n: 6, ico: '⚪', txt: `${MES_NOME[deIso(h).getMonth()].replace(/^./, c => c.toUpperCase())} sem meta definida — sem meta não tem ritmo pra cobrar nem pra comemorar.`, btn: (me.lvl || 0) >= 5 ? 'Metas' : 'One-on-One', on: () => { location.hash = (me.lvl || 0) >= 5 ? '#/metas' : '#/one-on-one'; } });
+  }
+  return out.sort((a, b) => a.n - b.n);
+}
+
+function renderAvisos() {
+  const el = S.root && S.root.querySelector('#at-avisos'); if (!el) return;
+  const avisos = listaAvisos();
+  if (!avisos.length) { el.hidden = true; el.innerHTML = ''; return; }
+  const todos = lerPref('avisos_todos', '0') === '1';
+  const mostrar = todos ? avisos : avisos.slice(0, 4);
+  el.hidden = false;
+  el.innerHTML = `<div class="at-av-h"><b>⚠️ ${avisos.length === 1 ? '1 aviso' : avisos.length + ' avisos'}</b><span class="at-muted">o que precisa da sua ação agora</span>
+      ${avisos.length > 4 ? `<button type="button" class="at-mini-b" data-act="avisos-todos">${todos ? 'mostrar menos' : 'ver todos'}</button>` : ''}</div>
+    ${mostrar.map((a, i) => `<div class="at-av"><span class="at-av-i">${a.ico}</span><div class="at-av-t">${esc(a.txt)}</div><button type="button" class="at-mini-b at-av-b" data-av="${i}">${esc(a.btn)}</button></div>`).join('')}`;
+  el.querySelectorAll('[data-av]').forEach(b => b.onclick = () => mostrar[+b.dataset.av].on());
+}
+
+function abrirForecast() {
+  const f = (S.resumo && S.resumo.forecast) || {};
+  const { el, fechar } = abrirModal({
+    titulo: '📣 Forecast do mês',
+    corpo: `<p class="at-muted" style="margin:0 0 10px;font-size:12.5px">Quantas <b>vendas</b> você fecha em ${MES_NOME[deIso(hoje()).getMonth()]}? A acurácia é comparada no Fecho do Mês — declare o que você sustenta na Reunião Semanal.</p>
+      <div class="at-f">
+        <label class="c2 keep">Comprometido<input type="number" min="0" step="1" id="fc-c" value="${esc(f.comprometido ?? '')}" placeholder="garantidas"></label>
+        <label class="c2 keep">Provável<input type="number" min="0" step="1" id="fc-p" value="${esc(f.provavel ?? '')}" placeholder="prováveis"></label>
+        <label class="c2 keep">Pipeline<input type="number" min="0" step="1" id="fc-l" value="${esc(f.pipeline ?? '')}" placeholder="no funil"></label>
+        <div class="c6 at-err" id="fc-err"></div></div>`,
+    rodape: `<span class="at-sp"></span><button class="btn btn-ghost" data-x>Cancelar</button><button class="btn btn-primary" data-ok>Declarar</button>`, largura: 460,
+  });
+  el.querySelector('[data-x]').onclick = fechar;
+  el.querySelector('[data-ok]').onclick = async ev => {
+    const b = ev.currentTarget; b.disabled = true;
+    try {
+      await api.request('/api/v3/oo/forecast_corretor', { method: 'POST', body: {
+        comprometido: +el.querySelector('#fc-c').value || 0, provavel: +el.querySelector('#fc-p').value || 0, pipeline: +el.querySelector('#fc-l').value || 0 } });
+      fechar(); toast('📣 Forecast declarado');
+      await carregarProjecao({ force: true, fresh: true }); renderProjecao(); renderAvisos();
+    } catch (e) { b.disabled = false; el.querySelector('#fc-err').textContent = e.message || String(e); }
+  };
+  setTimeout(() => el.querySelector('#fc-c').focus(), 30);
 }
 
 export { fecharModal };

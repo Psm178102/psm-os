@@ -36,13 +36,14 @@ const CSS = `<style>
 </style>`;
 
 /** Monta os indicadores dentro de `host`. `prod` = produtividade que o feed já trouxe. */
-export async function montarIndicadores(host, { prod } = {}) {
+export async function montarIndicadores(host, { prod, overview } = {}) {
   if (!host) return;
   host.innerHTML = '<div class="flex items-center gap-2 muted" style="padding:8px 0"><span class="spinner"></span> Carregando indicadores…</div>';
   const isGestor = (auth.user()?.lvl || 0) >= 5;
   let d = null, oo = null;
   try {
-    const calls = [api.request('/api/v3/metrics/overview')];
+    // a tela já carregou o overview pra faixa de projeção → não busca 2x (v87.82)
+    const calls = [overview ? Promise.resolve(overview) : api.request('/api/v3/metrics/overview')];
     // Ranking de vendas real (mês) — só gestor (o endpoint exige lvl>=5)
     if (isGestor) calls.push(api.request('/api/v3/oo/overview?date_preset=this_month').catch(() => null));
     const res = await Promise.all(calls);
