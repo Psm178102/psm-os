@@ -1,20 +1,28 @@
 """
 POST /api/v3/agenda/upsert
 Body: { id?, tipo, titulo, descricao?, data, hora_inicio?, hora_fim?, all_day?,
-        corretor_id?, participantes?[], local?, cor?, status? }
+        corretor_id?, participantes?[], local?, cor?, status?, lembrete_min? }
 Header: Authorization: Bearer <token>
 
 Cria ou atualiza evento. Todos podem criar.
 Update: apenas Sócio/Gerente OU criador OU corretor_id do evento.
+
+v87.81 — avisos (sino + push), sempre só pra quem é afetado (regra de alçada):
+  • convidado NOVO recebe o convite na hora (antes ele só descobria abrindo a Agenda);
+  • quem vira responsável por um compromisso criado por outra pessoa é avisado;
+  • mudou data/horário/local ou cancelou → avisa responsável e convidados que aceitaram.
+lembrete_min: minutos antes do horário (-1 = sem lembrete; null = padrão de cada um).
+Escrita tolerante: se a coluna lembrete_min ainda não existir no banco, o save segue sem ela.
 """
 from http.server import BaseHTTPRequestHandler
 import json
 import os
+import re
 import sys
 import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, audit, notify_all  # type: ignore
 from _zoho_push import push_evento  # type: ignore
 
 
@@ -54,6 +62,63 @@ def _push_zoho(sb, ev, antes):
         return patch
     except Exception:
         return {}
+
+
+def _safe_write(build, row):
+    """insert/update tolerante a coluna ausente (PGRST204): tira a coluna e tenta
+    de novo. Mesmo padrão do tasks/upsert."""
+    r = dict(row)
+    for _ in range(8):
+        try:
+            return build(r).execute()
+        except Exception as e:
+            m = re.search(r"Could not find the '([^']+)' column", str(e))
+            if m and m.group(1) in r:
+                r.pop(m.group(1), None)
+                continue
+            raise
+    return build(r).execute()
+
+
+def _quando(ev):
+    d = str(ev.get("data") or "")[:10]
+    dd = "/".join(reversed(d.split("-"))) if d else ""
+    hi = str(ev.get("hora_inicio") or "")[:5]
+    return f"{dd} {hi}".strip() if hi else f"{dd} · dia todo"
+
+
+def _avisar(uids, actor, tipo, title, ev):
+    alvo = [u for u in set(uids or []) if u and u != actor.get("id")]
+    if not alvo:
+        return
+    try:
+        corpo = f"{ev.get('titulo') or 'Compromisso'} · {_quando(ev)}"
+        if ev.get("local"):
+            corpo += f" · {ev.get('local')}"
+        link = "#/?convites=1" if tipo == "evento.convite" else f"#/?item=evento:{ev.get('id')}"
+        notify_all(alvo, tipo=tipo, title=title, body=corpo, link=link,
+                   target_type="evento", target_id=ev.get("id"))
+    except Exception as e:
+        print(f"[agenda] notify err: {e}")
+
+
+def _aceitos(ev):
+    """Responsável + convidados que não estão pendentes nem recusaram."""
+    ac = ev.get("aceites") or {}
+    out = {ev.get("corretor_id")}
+    for p in (ev.get("participantes") or []):
+        if ac.get(p) not in ("pendente", "recusado"):
+            out.add(p)
+    return out - {None, ""}
+
+
+def _lembrete_ok(v):
+    if v is None or v == "":
+        return True
+    try:
+        return -1 <= int(v) <= 10080
+    except Exception:
+        return False
 
 
 ALLOWED_TIPO = {"plantao", "reuniao", "visita", "tarefa", "evento", "outro"}
@@ -109,6 +174,8 @@ class handler(BaseHTTPRequestHandler):
             return self._send(400, {"ok": False, "error": "titulo obrigatório"})
         if not body.get("data") and not evento_id:
             return self._send(400, {"ok": False, "error": "data obrigatória (YYYY-MM-DD)"})
+        if not _lembrete_ok(body.get("lembrete_min")):
+            return self._send(400, {"ok": False, "error": "lembrete inválido"})
 
         # Update
         if evento_id:
@@ -126,23 +193,54 @@ class handler(BaseHTTPRequestHandler):
 
             patch = {}
             for k in ("tipo", "titulo", "descricao", "data", "hora_inicio", "hora_fim",
-                      "all_day", "corretor_id", "participantes", "local", "cor", "status"):
+                      "all_day", "corretor_id", "participantes", "local", "cor", "status", "lembrete_min"):
                 if k in body:
                     patch[k] = body[k]
+            if "titulo" in patch and not str(patch["titulo"] or "").strip():
+                return self._send(400, {"ok": False, "error": "titulo não pode ficar vazio"})
+            if "data" in patch and not patch["data"]:
+                return self._send(400, {"ok": False, "error": "data obrigatória (YYYY-MM-DD)"})
+            for k in ("descricao", "hora_inicio", "hora_fim", "corretor_id", "local", "cor", "lembrete_min"):
+                if k in patch and patch[k] == "":
+                    patch[k] = None
+            if patch.get("lembrete_min") is not None:
+                patch["lembrete_min"] = int(patch["lembrete_min"])
 
             if "participantes" in patch:   # mexeu na lista → recalcula convites
                 base = {**cur, **patch}
                 patch["aceites"] = _marcar_pendentes(base, cur.get("criado_por") or actor["id"])["aceites"]
             try:
-                sb.table("eventos").update(patch).eq("id", evento_id).execute()
+                _safe_write(lambda r: sb.table("eventos").update(r).eq("id", evento_id), patch)
             except Exception as e:
                 return self._send(500, {"ok": False, "error": f"update: {e}"})
 
             audit(self, actor, "evento.update", target_type="evento", target_id=evento_id,
                   before={k: cur.get(k) for k in patch.keys()}, after=patch)
 
+            novo = {**cur, **patch, "id": evento_id}
+            # 📨 convidados novos (pendentes que não estavam pendentes antes)
+            antes_ac = cur.get("aceites") or {}
+            antes_parts = set(cur.get("participantes") or [])
+            novos_conv = [p for p, m in (novo.get("aceites") or {}).items()
+                          if m == "pendente" and (p not in antes_parts or antes_ac.get(p) != "pendente")]
+            _avisar(novos_conv, actor, "evento.convite", f"📨 {actor.get('name')} te convidou", novo)
+            # 👤 responsável novo
+            if patch.get("corretor_id") and patch.get("corretor_id") != cur.get("corretor_id"):
+                _avisar([patch["corretor_id"]], actor, "evento.atribuido",
+                        f"📅 {actor.get('name')} marcou na sua agenda", novo)
+            # 🔁 mudou quando/onde, ou cancelou → quem já contava com o compromisso
+            mudou = any(str(novo.get(k) or "") != str(cur.get(k) or "") for k in ("data", "hora_inicio", "hora_fim", "local"))
+            cancelou = novo.get("status") == "cancelado" and cur.get("status") != "cancelado"
+            if mudou or cancelou:
+                ja_avisados = set(novos_conv) | ({patch.get("corretor_id")} if patch.get("corretor_id") != cur.get("corretor_id") else set())
+                alvo = (_aceitos(cur) | _aceitos(novo)) - ja_avisados
+                if cancelou:
+                    _avisar(alvo, actor, "evento.alterado", "❌ Compromisso cancelado", novo)
+                else:
+                    _avisar(alvo, actor, "evento.alterado", "🔁 Compromisso alterado", novo)
+
             # espelha no Zoho NA HORA (edição inclusa) — best-effort
-            zres = _push_zoho(sb, {**cur, **patch, "id": evento_id}, cur)
+            zres = _push_zoho(sb, novo, cur)
             return self._send(200, {"ok": True, "id": evento_id, "updated": True, "zoho": zres})
 
         # Create
@@ -162,14 +260,20 @@ class handler(BaseHTTPRequestHandler):
             "cor": body.get("cor") or None,
             "status": status,
             "criado_por": actor["id"],
+            "lembrete_min": (int(body["lembrete_min"]) if body.get("lembrete_min") not in (None, "") else None),
         }
         row = _marcar_pendentes(row, actor["id"])
         try:
-            res = sb.table("eventos").insert(row).execute()
+            res = _safe_write(lambda r: sb.table("eventos").insert(r), row)
             inserted = (res.data or [row])[0]
         except Exception as e:
             return self._send(500, {"ok": False, "error": f"insert: {e}"})
 
         audit(self, actor, "evento.create", target_type="evento", target_id=new_id, after=row)
+        _avisar([p for p, m in (row.get("aceites") or {}).items() if m == "pendente"], actor,
+                "evento.convite", f"📨 {actor.get('name')} te convidou", row)
+        if row.get("corretor_id"):
+            _avisar([row["corretor_id"]], actor, "evento.atribuido",
+                    f"📅 {actor.get('name')} marcou na sua agenda", row)
         zres = _push_zoho(sb, row, None)
         return self._send(200, {"ok": True, "evento": {**inserted, **zres}, "created": True, "zoho": zres})

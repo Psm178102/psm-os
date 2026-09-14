@@ -95,7 +95,7 @@ class handler(BaseHTTPRequestHandler):
                 notify_all([dono], tipo="evento.convite",
                            title=("✅ Convite aceito" if acao == "aceitar" else "❌ Convite recusado"),
                            body=f"{user.get('name')} · {ev.get('titulo')}",
-                           link="#/", target_type="evento", target_id=eid)
+                           link=f"#/?item=evento:{eid}", target_type="evento", target_id=eid)
         except Exception:
             pass
         return self._send(200, {"ok": True, "id": eid, "acao": acao, "zoho": zoho})

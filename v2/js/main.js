@@ -10,16 +10,14 @@ import { initPush, enablePush, pushSupported, pushPermission } from './push.js';
 import { loadFrentes, frentesAtivas, FRENTES } from './frentes.js';
 import { pageUsuarios as pageUsuariosV2 } from './pages/usuarios.js';
 import { pageAuditoria } from './pages/auditoria.js';
-import { pageDashboard as pageDashboardV2 } from './pages/dashboard.js';
+import { pageAgendaTarefas } from './pages/agenda-tarefas.js';   // 📅 Agenda & Tarefas = tela inicial (v87.81)
 import { pagePainel } from './pages/painel.js';
 import { pageFinanceiro } from './pages/financeiro.js';
 import { pageGestaoComercial } from './pages/gestao-comercial.js';
 import { pageProdutividadeReal } from './pages/produtividade-real.js';   // v86.78
 import { pageCrm } from './pages/crm.js';
 import { pageEquipe } from './pages/equipe.js';
-import { pageTarefas } from './pages/tarefas.js';
 import { pageMetas } from './pages/metas.js';
-import { pageAgenda } from './pages/agenda.js';
 import { pageDiretoria } from './pages/diretoria.js';
 import { pageCockpitHub } from './pages/cockpit-hub.js';
 import { pagePauloNegocios } from './pages/paulo-negocios.js';
@@ -488,7 +486,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '87.80';
+const APP_VERSION = '87.81';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -596,14 +594,17 @@ const APP_VERSION = '87.80';
   } catch {}
 
   // 4) Registra rotas (Sprint 7.3: dashboard + painel modulares)
-  router.register('/',          { render: async (ctx, root) => { setHeader('Dashboard'); highlight('/');          await pageDashboardV2(ctx, root); } });
+  router.register('/',          { render: async (ctx, root) => { setHeader('Agenda & Tarefas'); highlight('/');  await pageAgendaTarefas(ctx, root); } });
   router.register('/painel',    { render: async (ctx, root) => { setHeader('Meu Painel'); highlight('/painel');   await pagePainel(ctx, root); } });
   router.register('/financeiro',{ render: async (ctx, root) => { setHeader('Financeiro');highlight('/financeiro');await pageFinanceiro(ctx, root); } });
   router.register('/crm',       { render: async (ctx, root) => { setHeader('CRM');       highlight('/crm');       await pageCrm(ctx, root); } });
   router.register('/equipe',    { render: async (ctx, root) => { setHeader('Equipe');    highlight('/equipe');    await pageEquipe(ctx, root); } });
-  router.register('/tarefas',   { render: async (ctx, root) => { setHeader('Tarefas');   highlight('/tarefas');   await pageTarefas(ctx, root); } });
+  // v87.81: /tarefas e /agenda viraram a MESMA tela da rota '/' (links antigos do sino,
+  // de e-mails e do Zoho continuam funcionando — só trocam pro hash novo, com a query).
+  const _paraInicio = () => { const q = (location.hash.split('?')[1] || ''); location.replace('#/' + (q ? '?' + q : '')); };
+  router.register('/tarefas',   { render: async () => { _paraInicio(); } });
   router.register('/metas',     { render: async (ctx, root) => { setHeader('Metas');     highlight('/metas');     await pageMetas(ctx, root); } });
-  router.register('/agenda',    { render: async (ctx, root) => { setHeader('Agenda');    highlight('/agenda');    await pageAgenda(ctx, root); } });
+  router.register('/agenda',    { render: async () => { _paraInicio(); } });
   router.register('/cockpit', { render: async (ctx, root) => { setHeader('Sala de Comando'); highlight('/cockpit'); await pageCockpitHub(ctx, root); } });
   router.register('/cmo', { render: async (ctx, root) => { setHeader('CMO · Marketing'); highlight('/cmo'); await pageCMO(ctx, root); } });
   router.register('/diretoria-ceo', { render: async (ctx, root) => { setHeader('Diretoria'); highlight('/diretoria-ceo'); await pageDiretoriaCeo(ctx, root); } });
@@ -962,9 +963,8 @@ function shellHTML(user) {
         </div>
 
         <div class="sb-sec">🏠 Início</div>
-        <button class="sb-link on" data-nav="/"><span class="sb-ico">📅</span> Agenda</button>
+        <button class="sb-link on" data-nav="/"><span class="sb-ico">📅</span> Agenda & Tarefas</button>
         <button class="sb-link" data-nav="/painel"><span class="sb-ico">👤</span> Meu Painel</button>
-        <button class="sb-link" data-nav="/tarefas"><span class="sb-ico">🗂</span> Tarefas</button>
         <button class="sb-link" data-nav="/checkin"><span class="sb-ico">📍</span> Check-in</button>
         <button class="sb-link" data-nav="/ranking"><span class="sb-ico">🏆</span> Ranking</button>
         <button class="sb-link" data-nav="/one-on-one"><span class="sb-ico">👥</span> One-on-One</button>

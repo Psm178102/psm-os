@@ -7,6 +7,8 @@ inscrição de push, calcula as pendências do dia e manda 1 notificação no ce
   • plantão de hoje (plantoes)
   • captação parada há ≥7 dias (captacoes)
   • 1:1 atrasado (one_on_ones)
+  • compromissos de hoje (eventos) — v87.81, com a Agenda & Tarefas unificada
+Quem desligou o "Resumo do dia" nos lembretes da Agenda (agenda_prefs) não recebe.
 
 Também aceita ser disparado por um SÓCIO logado (lvl 10) pra testar:
   ?dry=1  → calcula e mostra quem seria avisado, sem enviar
@@ -20,6 +22,7 @@ from datetime import datetime, timezone, timedelta
 from urllib.parse import urlparse, parse_qs
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "agenda"))
 from _auth_lib import supabase_client, require_user, AuthError, send_web_push  # type: ignore
 
 TAREFA_DONE = ("concluida", "cancelada")
@@ -49,7 +52,7 @@ def _compute(sb, subs_uids):
     hoje = _today_brt()
     hoje_iso = hoje.isoformat()
     corte = (hoje - timedelta(days=PARADA_DIAS)).isoformat()
-    acc = {u: {"atrasadas": 0, "hoje": 0, "plantao": 0, "paradas": 0, "oo": 0} for u in subs_uids}
+    acc = {u: {"atrasadas": 0, "hoje": 0, "plantao": 0, "paradas": 0, "oo": 0, "compromissos": 0} for u in subs_uids}
     sset = set(subs_uids)
 
     # Tarefas (dir_tasks) — por responsável
@@ -66,6 +69,22 @@ def _compute(sb, subs_uids):
                 acc[uid]["atrasadas"] += 1
             elif pz == hoje_iso:
                 acc[uid]["hoje"] += 1
+    except Exception:
+        pass
+
+    # Compromissos de hoje (eventos) — responsável/criador + convidados que aceitaram.
+    # evtk_ é o espelho de tarefa (já contado acima) e evt_ cópia de treino (conta: é compromisso).
+    try:
+        for e in (sb.table("eventos").select("id,data,status,corretor_id,criado_por,owner_id,participantes,aceites")
+                  .eq("data", hoje_iso).limit(3000).execute().data or []):
+            if str(e.get("id") or "").startswith("evtk_") or (e.get("status") or "") in ("cancelado", "realizado"):
+                continue
+            ac = e.get("aceites") or {}
+            quem = {e.get("corretor_id") or e.get("criado_por") or e.get("owner_id")}
+            quem |= {p for p in (e.get("participantes") or []) if ac.get(p) not in ("pendente", "recusado")}
+            for uid in quem:
+                if uid in sset:
+                    acc[uid]["compromissos"] += 1
     except Exception:
         pass
 
@@ -112,6 +131,8 @@ def _compute(sb, subs_uids):
 
 def _msg(c):
     parts = []
+    if c.get("compromissos"):
+        parts.append(f"{c['compromissos']} compromisso(s) hoje")
     if c["atrasadas"]:
         parts.append(f"{c['atrasadas']} tarefa(s) atrasada(s)")
     if c["hoje"]:
@@ -162,12 +183,19 @@ class handler(BaseHTTPRequestHandler):
             return self._send(200, {"ok": True, "notified": 0, "motivo": "ninguém com push ativo" + (" (ative em 📲)" if actor else "")})
 
         acc = _compute(sb, subs_uids)
+        try:
+            import _agenda_prefs as AP  # type: ignore
+            desligou = {u for u, p in AP.ler_todos(sb).items() if p.get("resumo_diario") is False}
+        except Exception:
+            desligou = set()
         notified, detalhe = 0, []
         for uid in subs_uids:
+            if str(uid) in desligou:
+                continue
             parts = _msg(acc[uid])
             if not parts:
                 continue
-            body = "; ".join(parts) + " — abra o painel."
+            body = "; ".join(parts) + " — abra a Agenda."
             detalhe.append({"uid": uid, "resumo": body})
             if not dry:
                 try:

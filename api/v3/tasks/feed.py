@@ -10,9 +10,21 @@ independente da aba que criou. Agrega, pro usuário logado: v77.69
 Cada fonte é best-effort (try/except → []), então uma tabela ausente nunca quebra o feed.
 Resposta: { ok, items:[{kind,id,titulo,sub,data,status,prioridade,origem,ico,link,done}], counts }.
 lvl>=0 (cada um vê o seu).
+
+v87.81 — fonte única da tela 📅 Agenda & Tarefas (que unificou a Home e a Central):
+  • Parâmetros opcionais: since/until (janela da Agenda e dos Plantões; default -30..+180),
+    escopo=time (lvl>=7: compromissos, tarefas e plantões da equipe) e pessoa=<uid>.
+  • O espelho da tarefa na Agenda (evtk_) NÃO entra mais: a tarefa já vem de dir_tasks.
+    Antes toda tarefa com prazo aparecia DUAS vezes.
+  • Convite pendente sai de items e vai pra `convites` (antes aparecia como compromisso
+    aceito); convite recusado some — mesma regra do agenda/list (v84.57).
+  • Captação não tem prazo: a data dela era a última movimentação e contava como
+    "atrasado". Agora vai em `desde` e a captação fica sem data.
+  • Cada item traz horário/local/tipo e `pode` {editar, reagendar, concluir, excluir},
+    calculado com as MESMAS regras dos endpoints que executam a ação.
 """
 from http.server import BaseHTTPRequestHandler
-import os, sys, json
+import os, sys, json, urllib.parse
 from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -22,6 +34,7 @@ TAREFA_DONE = ("concluida", "cancelada")
 EVENTO_DONE = ("realizado", "concluido", "concluida", "cancelado", "cancelada")
 PLANTAO_DONE = ("concluido", "realizado", "cancelado")
 CAPT_DONE = ("concluido", "concluida", "arquivado", "arquivada", "perdido", "perdida", "publicada")
+NADA = {"editar": False, "reagendar": False, "concluir": False, "excluir": False}
 
 
 def _today_brt():
@@ -30,6 +43,141 @@ def _today_brt():
 
 def _d(s):
     return str(s)[:10] if s else None
+
+
+def _h(s):
+    return str(s)[:5] if s else None
+
+
+def _iso_ok(s):
+    try:
+        return datetime.strptime(str(s)[:10], "%Y-%m-%d").date().isoformat()
+    except Exception:
+        return None
+
+
+def _pode_tarefa(t, uid, lvl):
+    """Espelha tasks/upsert (sócio ou criador editam tudo; o responsável edita
+    progresso/horário, mas não mexe no prazo), tasks/conclude (lvl>=7 também
+    conclui) e tasks/delete (sócio; ou quem criou a tarefa PRA SI)."""
+    criador = t.get("criado_por") == uid
+    resp = t.get("responsavel") == uid
+    socio = lvl >= 10
+    return {
+        "editar": socio or criador or resp,
+        "editar_tudo": socio or criador,
+        "reagendar": socio or criador,
+        "concluir": lvl >= 7 or criador or resp,
+        "excluir": socio or (criador and t.get("responsavel") in (None, "", uid)),
+    }
+
+
+def _pode_evento(e, uid, lvl):
+    """Espelha agenda/upsert e agenda/delete. Evento que veio do Zoho, cópia de
+    treinamento (evt_), espelho de Academy/Projeto (evp_) ou de tarefa (evtk_) é
+    só leitura aqui: quem manda nele é a origem."""
+    eid = str(e.get("id") or "")
+    if (e.get("origem") or "") == "zoho" or eid.startswith(("evzo_", "evt_", "evp_", "evtk_")):
+        return dict(NADA)
+    dono = e.get("criado_por") == uid or e.get("corretor_id") == uid
+    gestao = lvl >= 7
+    return {"editar": gestao or dono, "reagendar": gestao or dono, "concluir": gestao or dono,
+            "excluir": gestao or e.get("criado_por") == uid}
+
+
+def _relacao(e, uid):
+    if e.get("criado_por") == uid or e.get("corretor_id") == uid or e.get("owner_id") == uid:
+        return "dono"
+    parts = e.get("participantes") or []
+    if isinstance(parts, list) and uid in parts:
+        return "convidado"
+    return None
+
+
+def _item_tarefa(t, uid, lvl, umap, user):
+    st = (t.get("status") or "aberta")
+    tid = t.get("id")
+    return {"kind": "tarefa", "id": tid, "titulo": t.get("titulo") or "(sem título)",
+            "sub": t.get("descricao"), "data": _d(t.get("prazo")), "status": st,
+            "prioridade": t.get("prioridade"), "origem": "Tarefa", "ico": "📋",
+            "link": f"#/?item=tarefa:{tid}", "done": st in TAREFA_DONE,
+            # campos p/ editar a tarefa direto na tela (v81.84 / horas v81.88)
+            "responsavel": t.get("responsavel"), "criado_por": t.get("criado_por"),
+            "categoria": t.get("categoria"), "descricao": t.get("descricao"),
+            "observacoes": t.get("observacoes"), "inicio": _d(t.get("inicio")),
+            "hora_inicio": _h(t.get("hora_inicio")), "hora_fim": _h(t.get("hora_fim")),
+            "lembrete_min": t.get("lembrete_min"),
+            "historico_n": len(t.get("historico") or []) if isinstance(t.get("historico"), list) else 0,
+            "quem_id": t.get("responsavel"),
+            "quem": umap.get(t.get("responsavel")) or (user.get("name") if t.get("responsavel") == uid else "—"),
+            "pode": _pode_tarefa(t, uid, lvl)}
+
+
+def _item_evento(e, uid, lvl, umap):
+    eid = str(e.get("id") or "")
+    desc = (e.get("descricao") or "")
+    kind, origem, ico, link = "evento", "Agenda", "📅", f"#/?item=evento:{eid}"
+    if eid.startswith("evp_"):
+        if desc.startswith("Gravação Academy"):
+            kind, origem, ico, link = "academy", "Academy", "🎬", "#/academy-studio"
+        elif desc.startswith("Projeto"):
+            kind, origem, ico, link = "projeto", "Projeto", "📌", "#/projetos"
+    elif eid.startswith("evt_"):
+        # 🎓 cópia pessoal de um treinamento (v87.77) → abre a ficha do treino
+        kind, origem, ico, link = "treino", "Treinamento", "🎓", "#/rh-treinamentos?id=" + eid[4:].split("__")[0]
+    st = (e.get("status") or "agendado")
+    done = st in EVENTO_DONE
+    if kind == "treino" and (_d(e.get("data")) or "") < _today_brt().isoformat():
+        done = True   # já passou: a chamada é da gestão, não pendência de quem participou
+    quem_id = e.get("corretor_id") or e.get("criado_por") or e.get("owner_id")
+    return {"kind": kind, "id": eid, "titulo": e.get("titulo") or "(evento)",
+            "sub": desc or e.get("local"), "data": _d(e.get("data")), "status": st,
+            "prioridade": None, "origem": origem, "ico": ico, "link": link, "done": done,
+            "tipo": e.get("tipo") or "evento", "descricao": e.get("descricao"),
+            "hora_inicio": _h(e.get("hora_inicio")), "hora_fim": _h(e.get("hora_fim")),
+            "all_day": bool(e.get("all_day")) or not e.get("hora_inicio"),
+            "local": e.get("local"), "corretor_id": e.get("corretor_id"),
+            "criado_por": e.get("criado_por"), "participantes": e.get("participantes") or [],
+            "aceites": e.get("aceites") or {}, "lembrete_min": e.get("lembrete_min"),
+            "fonte": "zoho" if (e.get("origem") or "") == "zoho" else "house",
+            "no_zoho": bool(e.get("zoho_uid")),
+            "quem_id": quem_id, "quem": umap.get(quem_id) or "—",
+            "pode": _pode_evento(e, uid, lvl)}
+
+
+def _item_plantao(p, uid, lvl, umap):
+    st = (p.get("status") or "agendado")
+    per = p.get("periodo")
+    return {"kind": "plantao", "id": p.get("id"),
+            "titulo": "Plantão" + (f" · {per}" if per else ""),
+            "sub": p.get("observacoes"), "data": _d(p.get("data")), "status": st,
+            "prioridade": None, "origem": "Plantão", "ico": "🛡",
+            "link": "#/plantoes", "done": st in PLANTAO_DONE,
+            "quem_id": p.get("corretor_id"), "quem": umap.get(p.get("corretor_id")) or "—",
+            "pode": {**NADA, "concluir": lvl >= 7 or p.get("corretor_id") == uid}}
+
+
+def _agrupar_treinos(items):
+    """Na visão da equipe, as N cópias de um mesmo treino (evt_<treino>__<pessoa>)
+    viram 1 linha só."""
+    vistos, out = {}, []
+    for i in items:
+        if i.get("kind") != "treino":
+            out.append(i)
+            continue
+        tid = str(i.get("id"))[4:].split("__")[0]
+        if tid in vistos:
+            v = vistos[tid]
+            v["_n"] = v.get("_n", 1) + 1
+            v["titulo"] = f"{v['_t']} · {v['_n']} pessoas"
+            continue
+        i["_t"] = i["titulo"]
+        vistos[tid] = i
+        out.append(i)
+    for i in out:
+        i.pop("_t", None)
+        i.pop("_n", None)
+    return out
 
 
 class handler(BaseHTTPRequestHandler):
@@ -51,12 +199,32 @@ class handler(BaseHTTPRequestHandler):
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
+        try:
+            params = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
+        except Exception:
+            params = {}
         uid = user.get("id")
+        lvl = user.get("lvl") or 0
         uname = (user.get("name") or "").strip().lower()
         uemail = (user.get("email") or "").strip().lower()
         items = []
+        convites = []
         prod = {"solicitadas": 0, "concluidas": 0, "pendentes": 0, "atrasadas": 0, "pct": None}
-        hoje_iso = _today_brt().isoformat()
+        hoje_d = _today_brt()
+        hoje_iso = hoje_d.isoformat()
+
+        pode_ver_time = lvl >= 7
+        escopo = "time" if (pode_ver_time and (params.get("escopo") or "").lower() == "time") else "self"
+        pessoa = (params.get("pessoa") or "").strip() if escopo == "time" else ""
+        dflt_since = hoje_d - timedelta(days=7 if escopo == "time" else 30)
+        dflt_until = hoje_d + timedelta(days=30 if escopo == "time" else 180)
+        since = _iso_ok(params.get("since")) or dflt_since.isoformat()
+        until = _iso_ok(params.get("until")) or dflt_until.isoformat()
+        if until < since:
+            since, until = until, since
+        # teto de 400 dias por chamada: janela maior é navegação errada, não uso real
+        if (datetime.fromisoformat(until) - datetime.fromisoformat(since)).days > 400:
+            until = (datetime.fromisoformat(since) + timedelta(days=400)).date().isoformat()
 
         # mapa id->nome (pra resolver QUEM)
         umap = {}
@@ -66,23 +234,16 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             pass
 
+        if escopo == "time":
+            return self._feed_time(sb, user, uid, lvl, umap, since, until, pessoa, hoje_iso)
+
         # 1) dir_tasks (minhas) + cálculo de PRODUTIVIDADE (tarefas atribuídas a mim)
         try:
             rows = (sb.table("dir_tasks").select("*")
                     .or_(f"responsavel.eq.{uid},criado_por.eq.{uid}")
                     .order("updated_at", desc=True).limit(500).execute().data or [])
             for t in rows:
-                st = (t.get("status") or "aberta")
-                items.append({"kind": "tarefa", "id": t.get("id"), "titulo": t.get("titulo") or "(sem título)",
-                              "sub": t.get("descricao"), "data": _d(t.get("prazo")), "status": st,
-                              "prioridade": t.get("prioridade"), "origem": "Tarefa", "ico": "📋",
-                              "link": "#/tarefas", "done": st in TAREFA_DONE,
-                              # campos p/ editar a tarefa direto no dashboard (v81.84 / horas v81.88)
-                              "responsavel": t.get("responsavel"), "categoria": t.get("categoria"),
-                              "descricao": t.get("descricao"), "observacoes": t.get("observacoes"),
-                              "inicio": _d(t.get("inicio")), "hora_inicio": t.get("hora_inicio"),
-                              "hora_fim": t.get("hora_fim"),
-                              "quem": umap.get(t.get("responsavel")) or (user.get("name") if t.get("responsavel") == uid else "—")})
+                items.append(_item_tarefa(t, uid, lvl, umap, user))
             # produtividade = concluídas ÷ solicitadas (tarefas atribuídas a mim; canceladas fora)
             mine = [t for t in rows if t.get("responsavel") == uid and (t.get("status") or "") != "cancelada"]
             sol = len(mine)
@@ -94,40 +255,33 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             print(f"[feed] dir_tasks: {e}")
 
-        # 2) eventos (Agenda + Academy/Projetos espelhados) — janela -30..+180
+        # 2) eventos (Agenda + Academy/Projetos espelhados + treinamentos)
         try:
-            since = (_today_brt() - timedelta(days=30)).isoformat()
-            until = (_today_brt() + timedelta(days=180)).isoformat()
             evs = (sb.table("eventos").select("*").gte("data", since).lte("data", until)
-                   .order("data").limit(900).execute().data or [])
+                   .order("data").limit(1500).execute().data or [])
             for e in evs:
-                parts = e.get("participantes") or []
-                if not (e.get("corretor_id") == uid or e.get("criado_por") == uid or (isinstance(parts, list) and uid in parts)):
-                    continue
                 eid = str(e.get("id") or "")
-                desc = (e.get("descricao") or "")
-                kind, origem, ico, link = "evento", "Agenda", "📅", "#/agenda"
-                if eid.startswith("evp_"):
-                    if desc.startswith("Gravação Academy"):
-                        kind, origem, ico, link = "academy", "Academy", "🎬", "#/academy-studio"
-                    elif desc.startswith("Projeto"):
-                        kind, origem, ico, link = "projeto", "Projeto", "📌", "#/projetos"
-                elif eid.startswith("evt_"):
-                    # 🎓 cópia pessoal de um treinamento (v87.77) → abre a ficha do treino
-                    kind, origem, ico, link = "treino", "Treinamento", "🎓", "#/rh-treinamentos?id=" + eid[4:].split("__")[0]
-                st = (e.get("status") or "agendado")
-                done = st in EVENTO_DONE
-                if kind == "treino" and (_d(e.get("data")) or "") < _today_brt().isoformat():
-                    done = True   # já passou: a chamada é da gestão, não pendência de quem participou
-                items.append({"kind": kind, "id": eid, "titulo": e.get("titulo") or "(evento)",
-                              "sub": desc or e.get("local"), "data": _d(e.get("data")), "status": st,
-                              "prioridade": None, "origem": origem, "ico": ico, "link": link,
-                              "done": done,
-                              "quem": umap.get(e.get("corretor_id")) or umap.get(e.get("criado_por")) or "—"})
+                if eid.startswith("evtk_"):
+                    continue   # espelho de tarefa: a tarefa já entrou pelo dir_tasks
+                rel = _relacao(e, uid)
+                if not rel:
+                    continue
+                if rel == "convidado":
+                    marca = (e.get("aceites") or {}).get(uid)
+                    if marca == "recusado":
+                        continue
+                    if marca == "pendente":
+                        it = _item_evento(e, uid, lvl, umap)
+                        it["convite"] = True
+                        it["de"] = umap.get(e.get("criado_por")) or "—"
+                        it["pode"] = dict(NADA)
+                        convites.append(it)
+                        continue
+                items.append(_item_evento(e, uid, lvl, umap))
         except Exception as e:
             print(f"[feed] eventos: {e}")
 
-        # 3) captacoes (minhas, não concluídas)
+        # 3) captacoes (minhas, não concluídas) — sem prazo: `desde` = última movimentação
         try:
             caps = (sb.table("captacoes").select("*").order("updated_at", desc=True).limit(1000).execute().data or [])
             for c in caps:
@@ -139,45 +293,43 @@ class handler(BaseHTTPRequestHandler):
                     continue
                 titulo = c.get("condominio") or c.get("endereco") or "Captação"
                 items.append({"kind": "captacao", "id": c.get("id"), "titulo": titulo,
-                              "sub": c.get("proprietario"), "data": _d(c.get("stage_changed_at") or c.get("updated_at")),
+                              "sub": c.get("proprietario"), "data": None,
+                              "desde": _d(c.get("stage_changed_at") or c.get("updated_at")),
                               "status": st or "em andamento", "prioridade": None, "origem": "Captação",
                               "ico": "📥", "link": "#/captacoes", "done": False,
-                              "quem": c.get("responsavel") or umap.get(c.get("responsavel_id")) or user.get("name")})
+                              "quem_id": c.get("responsavel_id"),
+                              "quem": c.get("responsavel") or umap.get(c.get("responsavel_id")) or user.get("name"),
+                              "pode": {**NADA, "concluir": True}})
         except Exception as e:
             print(f"[feed] captacoes: {e}")
 
         # 4) one_on_ones (próximo 1:1 pendente)
         try:
-            hoje = _today_brt().isoformat()
             oos = (sb.table("one_on_ones").select("*")
                    .or_(f"corretor_id.eq.{uid},lider_id.eq.{uid}")
                    .order("data", desc=True).limit(300).execute().data or [])
             for o in oos:
                 prox = _d(o.get("proxima_data"))
-                if not prox or prox < hoje:   # só os com retorno marcado pra hoje/futuro
+                if not prox or prox < hoje_iso:   # só os com retorno marcado pra hoje/futuro
                     continue
                 items.append({"kind": "oneonone", "id": o.get("id"), "titulo": "Próximo One-on-One",
                               "sub": (o.get("acoes") or "")[:120] or None, "data": prox, "status": "agendado",
                               "prioridade": None, "origem": "One-on-One", "ico": "👥",
                               "link": "#/one-on-one", "done": False,
-                              "quem": umap.get(o.get("corretor_id")) or user.get("name")})
+                              "quem_id": o.get("corretor_id"),
+                              "quem": umap.get(o.get("corretor_id")) or user.get("name"),
+                              "pode": dict(NADA)})
         except Exception as e:
             print(f"[feed] one_on_ones: {e}")
 
-        # 5) plantoes (minhas escalas de hoje em diante)
+        # 5) plantoes (minhas escalas na janela, nunca antes de ontem)
         try:
-            ontem = (_today_brt() - timedelta(days=1)).isoformat()
+            ontem = (hoje_d - timedelta(days=1)).isoformat()
             pls = (sb.table("plantoes").select("*").eq("corretor_id", uid)
-                   .gte("data", ontem).order("data").limit(200).execute().data or [])
+                   .gte("data", max(ontem, since)).lte("data", until)
+                   .order("data").limit(200).execute().data or [])
             for p in pls:
-                st = (p.get("status") or "agendado")
-                per = p.get("periodo")
-                items.append({"kind": "plantao", "id": p.get("id"),
-                              "titulo": "Plantão" + (f" · {per}" if per else ""),
-                              "sub": p.get("observacoes"), "data": _d(p.get("data")), "status": st,
-                              "prioridade": None, "origem": "Plantão", "ico": "🛡",
-                              "link": "#/plantoes", "done": st in PLANTAO_DONE,
-                              "quem": user.get("name")})
+                items.append(_item_plantao(p, uid, lvl, umap))
         except Exception as e:
             print(f"[feed] plantoes: {e}")
 
@@ -212,7 +364,8 @@ class handler(BaseHTTPRequestHandler):
                               "sub": c.get("formato") or c.get("plataforma"), "data": d,
                               "status": st or "solicitado", "prioridade": None, "origem": origem,
                               "ico": ico, "link": link, "done": done,
-                              "quem": c.get("responsavel") or user.get("name")})
+                              "quem_id": uid, "quem": c.get("responsavel") or user.get("name"),
+                              "pode": {**NADA, "concluir": not done}})
                 # produtividade: cada card é uma "solicitação" minha (canceladas/arquivadas fora)
                 if st not in CARD_CANCEL:
                     csol += 1
@@ -232,21 +385,72 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             print(f"[feed] cards: {e}")
 
-        # counts
-        hoje = _today_brt().isoformat()
-        sem = (_today_brt() + timedelta(days=7)).isoformat()
-        pend = [i for i in items if not i.get("done")]
-        counts = {
-            "total": len(items),
-            "pendentes": len(pend),
-            "atrasados": sum(1 for i in pend if i.get("data") and i["data"] < hoje),
-            "hoje": sum(1 for i in pend if i.get("data") == hoje),
-            "semana": sum(1 for i in pend if i.get("data") and hoje < i["data"] <= sem),
-            "por_origem": {},
-        }
-        for i in items:
-            counts["por_origem"][i["origem"]] = counts["por_origem"].get(i["origem"], 0) + 1
-
-        return self._send(200, {"ok": True, "items": items, "counts": counts, "prod": prod,
+        return self._send(200, {"ok": True, "items": items, "convites": convites,
+                                "counts": _counts(items, hoje_iso, len(convites)), "prod": prod,
                                 "role": (user.get("role") or "corretor"), "lvl": user.get("lvl"),
+                                "escopo": "self", "pode_ver_time": pode_ver_time,
+                                "since": since, "until": until,
                                 "fetched_at": datetime.now(timezone.utc).isoformat()})
+
+    # ── 👥 visão da EQUIPE (gestão, lvl>=7): quem está onde e o que vence ──────
+    def _feed_time(self, sb, user, uid, lvl, umap, since, until, pessoa, hoje_iso):
+        items = []
+        try:
+            evs = (sb.table("eventos").select("*").gte("data", since).lte("data", until)
+                   .order("data").limit(2000).execute().data or [])
+            for e in evs:
+                if str(e.get("id") or "").startswith("evtk_"):
+                    continue
+                if pessoa and pessoa not in (e.get("corretor_id"), e.get("criado_por"), e.get("owner_id")) \
+                        and pessoa not in (e.get("participantes") or []):
+                    continue
+                items.append(_item_evento(e, uid, lvl, umap))
+            items = _agrupar_treinos(items)
+        except Exception as e:
+            print(f"[feed/time] eventos: {e}")
+        try:
+            vistos = set()
+            q1 = sb.table("dir_tasks").select("*").gte("prazo", since).lte("prazo", until)
+            q2 = sb.table("dir_tasks").select("*").lt("prazo", hoje_iso).not_.in_("status", list(TAREFA_DONE))
+            if pessoa:
+                q1 = q1.eq("responsavel", pessoa)
+                q2 = q2.eq("responsavel", pessoa)
+            for q in (q1.limit(1000), q2.limit(500)):
+                for t in (q.execute().data or []):
+                    if t.get("id") in vistos:
+                        continue
+                    vistos.add(t.get("id"))
+                    items.append(_item_tarefa(t, uid, lvl, umap, user))
+        except Exception as e:
+            print(f"[feed/time] dir_tasks: {e}")
+        try:
+            q = sb.table("plantoes").select("*").gte("data", since).lte("data", until)
+            if pessoa:
+                q = q.eq("corretor_id", pessoa)
+            for p in (q.order("data").limit(1000).execute().data or []):
+                items.append(_item_plantao(p, uid, lvl, umap))
+        except Exception as e:
+            print(f"[feed/time] plantoes: {e}")
+        return self._send(200, {"ok": True, "items": items, "convites": [],
+                                "counts": _counts(items, hoje_iso, 0), "prod": {},
+                                "role": (user.get("role") or "corretor"), "lvl": user.get("lvl"),
+                                "escopo": "time", "pessoa": pessoa or None, "pode_ver_time": True,
+                                "since": since, "until": until,
+                                "fetched_at": datetime.now(timezone.utc).isoformat()})
+
+
+def _counts(items, hoje, n_convites):
+    sem = (datetime.fromisoformat(hoje) + timedelta(days=7)).date().isoformat()
+    pend = [i for i in items if not i.get("done")]
+    counts = {
+        "total": len(items),
+        "pendentes": len(pend),
+        "atrasados": sum(1 for i in pend if i.get("data") and i["data"] < hoje),
+        "hoje": sum(1 for i in pend if i.get("data") == hoje),
+        "semana": sum(1 for i in pend if i.get("data") and hoje < i["data"] <= sem),
+        "convites": n_convites,
+        "por_origem": {},
+    }
+    for i in items:
+        counts["por_origem"][i["origem"]] = counts["por_origem"].get(i["origem"], 0) + 1
+    return counts

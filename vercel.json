@@ -65,6 +65,10 @@
       "schedule": "*/30 * * * *"
     },
     {
+      "path": "/api/v3/agenda/lembretes_cron",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/api/v3/leads/lp_recon",
       "schedule": "*/30 11-22 * * 1-6"
     },

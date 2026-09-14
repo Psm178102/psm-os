@@ -1,7 +1,11 @@
 """
 POST /api/v3/tasks/upsert
 Body: { id?, titulo, descricao?, status?, prioridade?, categoria?,
-        responsavel?, prazo?, inicio?, observacoes? }
+        responsavel?, prazo?, inicio?, observacoes?, hora_inicio?, hora_fim?, lembrete_min? }
+
+v87.81: "" (string vazia) LIMPA um campo opcional (ex.: tirar o prazo = "Sem data";
+tirar o horário). null/ausente continua significando "não mexer".
+lembrete_min: minutos antes do horário (-1 = sem lembrete; null = padrão do usuário).
 Header: Authorization: Bearer <token>
 
 - Sem id → cria nova (qualquer autenticado, criado_por = user logado)
@@ -81,6 +85,19 @@ def _safe_write(build, row):
 
 
 ALLOWED_STATUS = {"aberta", "em_andamento", "concluida", "cancelada", "atrasada"}
+# campos que aceitam "" como "limpar" (v87.81)
+LIMPAVEIS = {"descricao", "categoria", "responsavel", "prazo", "inicio", "hora_inicio",
+             "hora_fim", "observacoes", "lembrete_min"}
+
+
+def _lembrete_ok(v):
+    """None (padrão do usuário) ou inteiro entre -1 (sem lembrete) e 7 dias."""
+    if v is None:
+        return True
+    try:
+        return -1 <= int(v) <= 10080
+    except Exception:
+        return False
 ALLOWED_PRIORIDADE = {"baixa", "media", "alta", "critica"}
 
 
@@ -142,16 +159,17 @@ class handler(BaseHTTPRequestHandler):
             # observacoes/categoria → ao comentar/editar dava "nada para atualizar". v81.88
             patch = {}
             FULL_KEYS = ["titulo", "descricao", "status", "prioridade", "categoria",
-                         "responsavel", "prazo", "inicio", "hora_inicio", "hora_fim", "observacoes"]
+                         "responsavel", "prazo", "inicio", "hora_inicio", "hora_fim", "observacoes",
+                         "lembrete_min"]
             is_criador = cur.get("criado_por") == actor["id"]
             if is_socio or is_criador:
                 allowed_keys = FULL_KEYS
             else:  # responsável
                 allowed_keys = ["status", "observacoes", "descricao", "categoria",
-                                "hora_inicio", "hora_fim"]
+                                "hora_inicio", "hora_fim", "lembrete_min"]
             for k in allowed_keys:
                 if k in body and body[k] is not None:
-                    patch[k] = body[k]
+                    patch[k] = None if (body[k] == "" and k in LIMPAVEIS) else body[k]
 
             if not patch:
                 return self._send(400, {"ok": False, "error": "nada para atualizar"})
@@ -161,6 +179,12 @@ class handler(BaseHTTPRequestHandler):
                 return self._send(400, {"ok": False, "error": f"status inválido. Use: {sorted(ALLOWED_STATUS)}"})
             if "prioridade" in patch and patch["prioridade"] not in ALLOWED_PRIORIDADE:
                 return self._send(400, {"ok": False, "error": f"prioridade inválida. Use: {sorted(ALLOWED_PRIORIDADE)}"})
+            if "titulo" in patch and not str(patch["titulo"] or "").strip():
+                return self._send(400, {"ok": False, "error": "titulo não pode ficar vazio"})
+            if "lembrete_min" in patch and not _lembrete_ok(patch["lembrete_min"]):
+                return self._send(400, {"ok": False, "error": "lembrete inválido"})
+            if patch.get("lembrete_min") is not None:
+                patch["lembrete_min"] = int(patch["lembrete_min"])
             # 🔒 Hierarquia ao reatribuir
             if "responsavel" in patch and patch["responsavel"] != cur.get("responsavel") \
                     and not _pode_atribuir(sb, actor, patch.get("responsavel") or None):
@@ -199,7 +223,7 @@ class handler(BaseHTTPRequestHandler):
                 if new_resp and new_resp != cur.get("responsavel") and new_resp != actor["id"]:
                     notify_all([new_resp], tipo="task.assigned",
                            title=f"📋 {actor.get('name')} te atribuiu uma tarefa",
-                           body=cur.get("titulo") or "", link="#/tarefas",
+                           body=cur.get("titulo") or "", link=f"#/?item=tarefa:{task_id}",
                            target_type="task", target_id=task_id)
                 if "status" in patch and patch["status"] != cur.get("status"):
                     targets = {cur.get("responsavel"), cur.get("criado_por")} - {actor["id"], None}
@@ -207,7 +231,7 @@ class handler(BaseHTTPRequestHandler):
                         notify_all(list(targets), tipo="task.status",
                                title=f"📋 Tarefa: {patch['status']}",
                                body=f"{cur.get('titulo')} · alterada por {actor.get('name')}",
-                               link="#/tarefas", target_type="task", target_id=task_id)
+                               link=f"#/?item=tarefa:{task_id}", target_type="task", target_id=task_id)
             except Exception as e:
                 print(f"[task] notify err: {e}")
 
@@ -226,6 +250,8 @@ class handler(BaseHTTPRequestHandler):
                 return self._send(400, {"ok": False, "error": "status inválido"})
             if prior not in ALLOWED_PRIORIDADE:
                 return self._send(400, {"ok": False, "error": "prioridade inválida"})
+            if not _lembrete_ok(body.get("lembrete_min")):
+                return self._send(400, {"ok": False, "error": "lembrete inválido"})
 
             # 🔒 Hierarquia: só pode atribuir a si ou a quem está abaixo (regra _pode_atribuir).
             if not _pode_atribuir(sb, actor, body.get("responsavel") or None):
@@ -247,6 +273,7 @@ class handler(BaseHTTPRequestHandler):
                 "hora_inicio": body.get("hora_inicio") or None,
                 "hora_fim":    body.get("hora_fim") or None,
                 "observacoes": body.get("observacoes") or None,
+                "lembrete_min": (int(body["lembrete_min"]) if body.get("lembrete_min") not in (None, "") else None),
                 "historico":   [{
                     "ts": datetime.now(timezone.utc).isoformat(),
                     "actor_id": actor["id"],
@@ -268,7 +295,7 @@ class handler(BaseHTTPRequestHandler):
                 if resp and resp != actor["id"]:
                     notify_all([resp], tipo="task.assigned",
                            title=f"📋 Nova tarefa de {actor.get('name')}",
-                           body=titulo, link="#/tarefas",
+                           body=titulo, link=f"#/?item=tarefa:{new_id}",
                            target_type="task", target_id=new_id)
             except Exception as e:
                 print(f"[task] notify err: {e}")
