@@ -117,11 +117,37 @@ def log_acao(sb, user, op, alvo, params, ok, resp):
 
 
 # ─── Avaliação de alertas contra o cache Meta ──────────────────────────
-def _metricas_do_payload(payload):
-    """Extrai métricas agregadas de um payload do /api/meta-ads (cacheado)."""
+def _totais_do_payload(payload):
+    """(tot, fonte) de um payload do /api/meta-ads.
+
+    v87.83: o /api/meta-ads NÃO devolve `totals` nas chaves de preset (as chaves
+    são errors/period/partial/success/accounts/campaigns/fetchedAt). Quem lia
+    `totals.cur` recebia zero — de 10/09 a 14/09 o relatório diário, os alertas,
+    o Vigia e o CMO afirmaram "gasto R$ 0 / 0 leads" com R$ 400+/dia no ar.
+    Agora soma as contas (bate centavo a centavo com a soma das campanhas) e,
+    sem contas, as campanhas. Sem nenhuma das duas → ({}, None) = SEM DADO, que
+    é diferente de ZERO."""
     if not isinstance(payload, dict):
-        return None
+        return {}, None
     tot = ((payload.get("totals") or {}).get("cur")) or {}
+    if tot:
+        return tot, "totals"
+    contas = [a for a in (payload.get("accounts") or []) if isinstance(a, dict) and not a.get("_error")]
+    camps = [c for c in (payload.get("campaigns") or []) if isinstance(c, dict)]
+    fonte, linhas = ("contas", contas) if contas else ("campanhas", camps) if camps else (None, [])
+    if not fonte:
+        return {}, None
+    soma = lambda k: sum(float(x.get(k) or 0) for x in linhas)
+    return {"spend": soma("spend"), "results": int(soma("results")),
+            "clicks": int(soma("clicks")), "impressions": int(soma("impressions"))}, fonte
+
+
+def _metricas_do_payload(payload):
+    """Extrai métricas agregadas de um payload do /api/meta-ads (cacheado).
+    None quando o payload não tem dado nenhum (≠ gasto zero)."""
+    tot, fonte = _totais_do_payload(payload)
+    if not fonte:
+        return None
     spend = float(tot.get("spend") or 0)
     results = int(tot.get("results") or 0)
     clicks = int(tot.get("clicks") or 0)
@@ -138,7 +164,33 @@ def _metricas_do_payload(payload):
         "impressions": imps,
         "period": payload.get("period"),
         "fetchedAt": payload.get("fetchedAt"),
+        "fonte": fonte,
     }
+
+
+def metricas_por_conta(payload):
+    """[{conta, spend, leads, cpl}] das contas com gasto — separa Conquista × Imóveis."""
+    out = []
+    for a in ((payload or {}).get("accounts") or []) if isinstance(payload, dict) else []:
+        if not isinstance(a, dict) or a.get("_error"):
+            continue
+        sp, rs = float(a.get("spend") or 0), int(a.get("results") or 0)
+        if sp <= 0 and rs <= 0:
+            continue
+        out.append({"conta": a.get("label") or a.get("name") or a.get("id"), "spend": round(sp, 2),
+                    "leads": rs, "cpl": round(sp / rs, 2) if rs else None})
+    return out
+
+
+def serie_diaria_cache(sb, dias=30):
+    """Série diária [{date, spend, results,...}] do cache da rota meta_timeseries
+    (chave 'ts:last_30d||'). As chaves de preset do /api/meta-ads não trazem série."""
+    try:
+        payload, _a, _s = read_cache(sb, "ts:" + build_cache_key("last_30d", "", ""), 10 ** 9)
+        serie = (payload or {}).get("series") or (payload or {}).get("dailySeries") or []
+        return [d for d in serie if isinstance(d, dict)][-dias:]
+    except Exception:
+        return []
 
 
 def ddd_fora_pct(sb, dias=7):
@@ -208,19 +260,15 @@ def _mes_atual(sb, payload30, limiares=None, metas=None):
     hoje = agora_brt().date()
     ini_mes = hoje.replace(day=1).isoformat()
     out = {"mes": hoje.strftime("%m/%Y"), "dias_corridos": hoje.day}
-    # gasto/leads do mês pela série diária (quando o payload traz dailySeries)
+    # gasto/leads do mês — v87.83: pelo cache 'this_month' (aquecido pelo cron).
+    # A versão anterior somava payload30.dailySeries, que não existe nessa chave:
+    # o cockpit nunca mostrou gasto do mês nem custo por pasta.
     try:
-        spend = leads = 0.0
-        achou = False
-        for d in (payload30 or {}).get("dailySeries") or []:
-            dt = str(d.get("date") or d.get("date_start") or "")[:10]
-            if dt >= ini_mes:
-                achou = True
-                spend += float(d.get("spend") or 0)
-                leads += int(d.get("results") or 0)
-        if achou:
-            out["spend"] = round(spend, 2)
-            out["leads"] = int(leads)
+        pm, _a, _s = read_cache(sb, build_cache_key("this_month", "", ""), 10 ** 9)
+        mm = _metricas_do_payload(pm)
+        if mm:
+            out["spend"] = mm["spend"]
+            out["leads"] = mm["leads"]
     except Exception:
         pass
     # funil Conquista criado no mês
@@ -452,9 +500,17 @@ class handler(BaseHTTPRequestHandler):
             diags = diagnosticos_campanhas(payload7, limiares, ddd_pct=ddd7)
             # v87.15: deltas (cur vs prev) por janela pro cockpit
             deltas = {}
+            serie30 = serie_diaria_cache(sb, 30)
             for jan, pl in (("last_7d", payload7), ("last_30d", payload30)):
                 try:
                     prev = ((pl or {}).get("totals") or {}).get("prev") or {}
+                    if not prev and jan == "last_7d" and len(serie30) >= 14:
+                        # v87.83: sem totals.prev no payload → 7 dias anteriores da série
+                        ant = serie30[-14:-7]
+                        prev = {"spend": sum(float(d.get("spend") or 0) for d in ant),
+                                "results": sum(int(d.get("results") or 0) for d in ant)}
+                    if not prev:
+                        continue          # sem período anterior ≠ período anterior zerado
                     ps, pr = float(prev.get("spend") or 0), int(prev.get("results") or 0)
                     deltas[jan] = {"spend": round(ps, 2), "leads": pr,
                                    "cpl": round(ps / pr, 2) if pr else None}
@@ -470,7 +526,7 @@ class handler(BaseHTTPRequestHandler):
                 "diagnosticos": diags,
                 "metricas": caches,
                 "deltas_prev": deltas,
-                "serie_diaria": ((payload30 or {}).get("dailySeries") or [])[-30:],
+                "serie_diaria": ((payload30 or {}).get("dailySeries") or serie30)[-30:],
                 "mes_atual": _mes_atual(sb, payload30, limiares, metas=cfg.get("metas")),
                 "concorrencia": _concorrencia_resumo(sb),
                 "contas": [{"id": i, "label": l} for i, l in zip(ids, labels)],

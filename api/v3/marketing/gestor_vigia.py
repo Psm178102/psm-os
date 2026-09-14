@@ -34,7 +34,7 @@ import uuid
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import (require_user, AuthError, audit, supabase_client,  # type: ignore
                        lvl_of, notify, send_web_push)
-from gestor import kv_get, kv_set  # type: ignore
+from gestor import kv_get, kv_set, _metricas_do_payload  # type: ignore
 from gestor_relatorio import _ia, KV_RELATORIOS  # type: ignore
 from _meta_cache_lib import build_cache_key, read_cache  # type: ignore
 
@@ -143,10 +143,14 @@ def _contexto(sb):
         pass
     try:
         payload, _a, _s = read_cache(sb, build_cache_key("last_7d", "", ""), 10 ** 9)
-        tot = ((payload or {}).get("totals") or {}).get("cur") or {}
-        spend, res = float(tot.get("spend") or 0), int(tot.get("results") or 0)
-        linhas = [f"NOSSAS CAMPANHAS (7d): gasto total R$ {spend:,.0f} · {res} leads"
-                  + (" · ⚠️ SEM ENTREGA no período" if spend == 0 else "")]
+        # v87.83: `totals` não existe no payload — lia zero e afirmava "SEM ENTREGA"
+        m = _metricas_do_payload(payload)
+        if not m:
+            linhas = ["NOSSAS CAMPANHAS (7d): SEM DADO no cache (não afirmar que não houve entrega)"]
+        else:
+            spend, res = m["spend"], m["leads"]
+            linhas = [f"NOSSAS CAMPANHAS (7d): gasto total R$ {spend:,.0f} · {res} leads"
+                      + (" · ⚠️ SEM ENTREGA no período" if spend == 0 else "")]
         for c in ((payload or {}).get("campaigns") or [])[:15]:
             sp = float(c.get("spend") or 0)
             ld = int(c.get("results") or 0)

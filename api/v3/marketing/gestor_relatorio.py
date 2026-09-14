@@ -35,7 +35,7 @@ from _auth_lib import (require_user, AuthError, audit, supabase_client,  # type:
                        lvl_of, notify, send_web_push, agora_brt)
 # helpers do módulo irmão (mesmo padrão de comercial_analise.py → simulador.py)
 from gestor import (kv_get, kv_set, avaliar_alertas, _metricas_do_payload,  # type: ignore
-                    KV_CONFIG, KV_ALERTAS, KV_LOG)
+                    metricas_por_conta, KV_CONFIG, KV_ALERTAS, KV_LOG)
 from _meta_cache_lib import build_cache_key, read_cache  # type: ignore
 
 KV_RELATORIOS = "gt_relatorios"
@@ -45,7 +45,10 @@ TIPOS = ("diario", "semanal", "quinzenal", "mensal")
 INSTRUCOES = {
     "diario": (
         "RELATÓRIO DIÁRIO (pulso do dia, máx ~220 palavras). Estrutura: "
-        "1) 📊 Números do dia (gasto, leads, CPL de hoje/ontem da série diária; compare com a média 7d); "
+        "1) 📊 Números: ONTEM (dia fechado — gasto, leads, CPL, por marca) e HOJE PARCIAL (até a hora do relatório, "
+        "não é dia fechado); compare ONTEM com a média diária dos 7d. Use SOMENTE os números da seção META ADS. "
+        "Se uma janela vier marcada SEM DADO, escreva que o dado não chegou — NUNCA transforme ausência de dado em "
+        "'gasto zero' nem em alerta de campanha parada; "
         "2) 🚨 Alertas (só os disparados; se nenhum, uma linha dizendo que está tudo dentro); "
         "3) 🎯 3 destaques (campanha melhor, pior, movimento relevante); "
         "4) ⚡ Ação de amanhã (1 a 2 ações concretas e priorizadas)."
@@ -143,12 +146,37 @@ def _contexto(sb):
         parts.append("MÉTRICAS PERSONALIZADAS:\n" + "\n".join(
             f"- {m.get('nome')}: {m.get('descricao')}" for m in mc[:20] if isinstance(m, dict)))
 
+    # v87.83: ONTEM (dia fechado) e HOJE (parcial) vêm das chaves de preset que o
+    # cron aquece. A leitura antiga usava payload.dailySeries/totals, que o
+    # /api/meta-ads não devolve — daí os relatórios "R$ 0 (sem dado)" de 10 a 14/09.
+    rotulos = {"yesterday": "ONTEM (dia fechado)", "today": "HOJE (parcial, dia em andamento)"}
+    for preset in ("yesterday", "today"):
+        payload, _age, _src = read_cache(sb, build_cache_key(preset, "", ""), 10 ** 9)
+        m = _metricas_do_payload(payload)
+        if not m:
+            parts.append(f"META ADS {rotulos[preset]}: SEM DADO (cache vazio — não afirmar gasto zero)")
+            continue
+        per = ((payload or {}).get("period") or {}).get("label") or ""
+        linha = (f"META ADS {rotulos[preset]} {per}: gasto R$ {m['spend']:,.2f} · {m['leads']} leads · "
+                 f"CPL {'R$ %.2f' % m['cpl'] if m['leads'] else '—'} · CTR {m['ctr']}%")
+        contas = metricas_por_conta(payload)
+        if contas:
+            linha += "\n" + "\n".join(
+                f"  · {c['conta']}: R$ {c['spend']:,.2f} · {c['leads']} leads · CPL {'R$ %.2f' % c['cpl'] if c['cpl'] else '—'}"
+                for c in contas)
+        parts.append(linha)
+
     for preset in ("last_7d", "last_30d"):
         payload, _age, _src = read_cache(sb, build_cache_key(preset, "", ""), 10 ** 9)
         m = _metricas_do_payload(payload)
         if not m:
+            parts.append(f"META ADS ({preset}): SEM DADO (cache vazio — não afirmar gasto zero)")
             continue
         linhas = [f"{preset}: gasto R$ {m['spend']:,.0f} · {m['leads']} leads · CPL R$ {m['cpl']:,.2f} · CTR {m['ctr']}% · freq máx {m['frequency']}"]
+        if preset == "last_7d":
+            linhas.append(f"  média diária 7d: R$ {m['spend'] / 7:,.2f} · {m['leads'] / 7:.1f} leads/dia")
+        for c in metricas_por_conta(payload):
+            linhas.append(f"  · {c['conta']}: R$ {c['spend']:,.0f} · {c['leads']} leads · CPL {'R$ %.2f' % c['cpl'] if c['cpl'] else '—'}")
         prev = ((payload.get("totals") or {}).get("prev")) or {}
         if prev.get("spend"):
             ps, pr = float(prev.get("spend") or 0), int(prev.get("results") or 0)
@@ -159,11 +187,6 @@ def _contexto(sb):
             cs, cr = float(c.get("spend") or 0), int(c.get("results") or 0)
             linhas.append(f"  - [{c.get('account') or ''}] {str(c.get('name') or '')[:60]} ({c.get('status')}): "
                           f"R$ {cs:,.0f} · {cr} leads · CPL {'R$ %.2f' % (cs / cr) if cr else '—'} · CTR {c.get('ctr') or 0}")
-        if preset == "last_7d":
-            daily = (payload.get("dailySeries") or [])[-3:]
-            for d in daily:
-                ds, dr = float(d.get("spend") or 0), int(d.get("results") or 0)
-                linhas.append(f"  dia {d.get('date') or ''}: R$ {ds:,.0f} · {dr} leads")
         parts.append("META ADS (" + preset + "):\n" + "\n".join(linhas))
 
     regras = (kv_get(sb, KV_ALERTAS, {}) or {}).get("regras") or []

@@ -52,10 +52,15 @@ PERSONA = (
 INSTRUCOES = {
     "diario": (
         "RITO DIÁRIO — LEITURA DE EXCEÇÃO (máx ~120 palavras). A PRIMEIRA LINHA é obrigatoriamente "
-        "'✅ CMO diário: nada a reportar' OU '🚨 ALERTA CMO' — decida pelos 3 alarmes: "
-        "(a) CPL do dia/48h acima de ~150% do padrão recente; (b) campanha pausada ou gasto zerado "
-        "sem registro; (c) queda brusca de leads vs média 7d. "
-        "Se ✅: complete com 1 linha de números (gasto, leads, CPL do dia) e PARE — o diário existe "
+        "'✅ CMO diário: nada a reportar' OU '🚨 ALERTA CMO' OU '🔧 CMO: DADO QUEBRADO' — decida assim: "
+        "FONTE: os números da seção 'META ADS VERIFICADO' são a verdade; o relatório do Gestor de Tráfego é "
+        "leitura secundária. Se a seção 'DIVERGÊNCIA DETECTADA' existir, a primeira linha é '🔧 CMO: DADO QUEBRADO' "
+        "(diga o que o relatório afirmou × o que o Meta mostra e que o dono é o técnico do House) — e em seguida "
+        "faça a leitura normal com os números verificados. NUNCA declare campanha parada/gasto zero se o "
+        "VERIFICADO mostra gasto. Alarmes de 🚨 (só com número verificado): "
+        "(a) CPL de ONTEM acima de ~150% da média 7d; (b) gasto verificado zerado ontem; "
+        "(c) leads de ONTEM muito abaixo da média diária 7d. "
+        "Se ✅: complete com 1 linha de números de ONTEM (gasto, leads, CPL, por marca) e PARE — o diário existe "
         "pra pegar incêndio, não pra produzir relatório. "
         "Se 🚨: número que estourou + causa provável + ação recomendada + qual executor age."
     ),
@@ -143,19 +148,103 @@ def _kv_set(sb, key, value):
                                   "updated_at": datetime.now(timezone.utc).isoformat()}).execute()
 
 
+# ─── Meta verificado (v87.83) ──────────────────────────────────────────
+# De 10 a 14/09 o diário do CMO disparou "🚨 gasto zerado, 0 leads" com R$ 400+/dia
+# no ar: ele repetia o relatório do Tráfego, que lia um campo inexistente. Agora o
+# CMO lê o cache do Meta DIRETO (mesma tabela que o cron aquece) e trata o relatório
+# do Tráfego como opinião — nunca como fonte do número.
+def _meta_verificado(sb, preset):
+    """{spend, leads, cpl, por_conta:[...], label} ou None (sem dado ≠ zero)."""
+    try:
+        rows = (sb.table("meta_ads_cache").select("payload")
+                .eq("cache_key", preset + "||").limit(1).execute().data or [])
+        p = rows[0].get("payload") if rows else None
+        if not isinstance(p, dict):
+            return None
+        tot = ((p.get("totals") or {}).get("cur")) or {}
+        contas = [a for a in (p.get("accounts") or []) if isinstance(a, dict) and not a.get("_error")]
+        base = [tot] if tot else (contas or [c for c in (p.get("campaigns") or []) if isinstance(c, dict)])
+        if not base:
+            return None
+        sp = sum(float(x.get("spend") or 0) for x in base)
+        ld = int(sum(float(x.get("results") or 0) for x in base))
+        por = [{"conta": a.get("label") or a.get("id"), "spend": float(a.get("spend") or 0),
+                "leads": int(a.get("results") or 0)} for a in contas
+               if float(a.get("spend") or 0) > 0 or int(a.get("results") or 0) > 0]
+        return {"spend": round(sp, 2), "leads": ld, "cpl": round(sp / ld, 2) if ld else None,
+                "por_conta": por, "label": ((p.get("period") or {}).get("label") or preset)}
+    except Exception:
+        return None
+
+
+def _fmt_meta(nome, m):
+    if not m:
+        return f"{nome}: SEM DADO no cache (não afirmar gasto zero)"
+    linha = (f"{nome} [{m['label']}]: gasto R$ {m['spend']:,.2f} · {m['leads']} leads · "
+             f"CPL {'R$ %.2f' % m['cpl'] if m['cpl'] else '—'}")
+    for c in m["por_conta"]:
+        cpl = f"R$ {c['spend'] / c['leads']:,.2f}" if c["leads"] else "—"
+        linha += f"\n  · {c['conta']}: R$ {c['spend']:,.2f} · {c['leads']} leads · CPL {cpl}"
+    return linha
+
+
+_ZERO_RX = None
+
+
+def _divergencia(gt_item, ontem):
+    """Checagem em CÓDIGO (não na IA): relatório diário do Tráfego das últimas 30h
+    afirmando gasto zero / sem dado enquanto o Meta verificado de ontem tem gasto."""
+    global _ZERO_RX
+    import re
+    if not gt_item or not ontem or ontem["spend"] < 50:
+        return None
+    try:
+        ts = datetime.fromisoformat(str(gt_item.get("ts")).replace("Z", "+00:00"))
+        if datetime.now(timezone.utc) - ts > timedelta(hours=30):
+            return None
+    except Exception:
+        return None
+    # só a seção de NÚMEROS (antes de alertas/destaques): uma campanha com 0 leads
+    # ou um "sem dado" do CRM mais abaixo não podem virar falsa divergência
+    t = str(gt_item.get("texto") or "")
+    ini = max(t.find("📊"), 0)
+    corte = re.search(r"(🚨|🎯|⚡|🏆|alertas|destaques)", t[ini + 1:], re.I)
+    t = t[: (ini + 1 + corte.start()) if corte else 900][:900]
+    # o valor da métrica é zero ou "sem dado": "Gasto: R$ 0", "Leads: 0 (sem dado)", "CPL R$ 0,00 (sem dado)"
+    _ZERO_RX = _ZERO_RX or re.compile(
+        r"(gasto|leads|cpl)[:*\s]{0,8}(R\$\s*)?(0(?:[.,]0+)?(?![\d.,])\s*)?(\(?\s*sem dado|(?<=0)(?!\s*[\d.,]))", re.I)
+    m = _ZERO_RX.search(t)
+    if not m:
+        return None
+    return (f"relatório do Tráfego ({str(gt_item.get('ts'))[:16]}) diz \"{m.group(0)}\"; "
+            f"o Meta verificado de {ontem['label']} mostra R$ {ontem['spend']:,.2f} e {ontem['leads']} leads")
+
+
 # ─── Contexto (fontes diretas do banco) ────────────────────────────────
 def _contexto(sb, tipo):
     parts = []
 
+    # 0) Meta VERIFICADO — fonte primária do número
+    ontem = _meta_verificado(sb, "yesterday")
+    parts.append("META ADS VERIFICADO (cache do Meta aquecido pelo cron — FONTE DO NÚMERO):\n" + "\n".join([
+        _fmt_meta("ONTEM (dia fechado)", ontem),
+        _fmt_meta("HOJE (parcial)", _meta_verificado(sb, "today")),
+        _fmt_meta("ÚLTIMOS 7 DIAS", _meta_verificado(sb, "last_7d")),
+    ] + ([_fmt_meta("ÚLTIMOS 30 DIAS", _meta_verificado(sb, "last_30d"))] if tipo != "diario" else [])))
+
     # 1) Relatórios do Sr. Gestor de Tráfego (carregam os números do Meta)
-    gt = (_kv_get(sb, "gt_relatorios", {}).get("itens") or [])
+    gt = sorted([i for i in (_kv_get(sb, "gt_relatorios", {}).get("itens") or []) if isinstance(i, dict)],
+                key=lambda i: str(i.get("ts") or ""), reverse=True)   # o mais recente de cada tipo
+    div = _divergencia(next((i for i in gt if i.get("tipo") == "diario"), None), ontem)
+    if div:
+        parts.insert(1, "🔧 DIVERGÊNCIA DETECTADA PELO SISTEMA (checagem em código): " + div)
     quer = {"diario": ["diario"], "semanal": ["semanal", "diario"], "mensal": ["mensal", "semanal"]}[tipo]
     usados = 0
     for q in quer:
         for it in gt:
             if it.get("tipo") == q and usados < 3:
-                parts.append(f"RELATÓRIO {q.upper()} DO GESTOR DE TRÁFEGO ({str(it.get('ts'))[:16]}):\n"
-                             + str(it.get("texto") or "")[:4000])
+                parts.append(f"LEITURA {q.upper()} DO GESTOR DE TRÁFEGO — secundária, os números valem do "
+                             f"VERIFICADO ({str(it.get('ts'))[:16]}):\n" + str(it.get("texto") or "")[:4000])
                 usados += 1
                 break
     if not usados:
@@ -253,22 +342,24 @@ def _gerar(sb, tipo, periodo, actor_name="cmo-cron"):
     if not texto:
         return None, err
     alerta = tipo == "diario" and "🚨" in texto[:120]
+    dado_quebrado = "🔧" in texto[:120]
     box = _kv_get(sb, KV_RELATORIOS, {"itens": []})
     itens = [i for i in (box.get("itens") or []) if isinstance(i, dict)]
     item = {"id": "cmo_" + uuid.uuid4().hex[:10], "tipo": tipo, "periodo": periodo,
             "ts": datetime.now(timezone.utc).isoformat(), "texto": texto,
-            "alerta": alerta, "provider": provider, "gerado_por": actor_name}
+            "alerta": alerta, "dado_quebrado": dado_quebrado, "provider": provider, "gerado_por": actor_name}
     itens.insert(0, item)
     itens.sort(key=lambda i: str(i.get("ts") or ""), reverse=True)
     _kv_set(sb, KV_RELATORIOS, {"itens": itens[:120]})
 
     # notifica sócios — diário SÓ quando é alerta (regra do rito: dia normal = 1 linha, sem barulho)
-    if tipo != "diario" or alerta:
+    if tipo != "diario" or alerta or dado_quebrado:
         try:
             us = sb.table("users").select("id,role,status").execute().data or []
             socios = [u["id"] for u in us
                       if (u.get("status") or "ativo") == "ativo" and lvl_of((u.get("role") or "").lower()) >= 10]
-            titulo = ("🚨 ALERTA do CMO" if alerta else TITULOS[tipo])
+            titulo = ("🚨 ALERTA do CMO" if alerta else
+                      "🔧 CMO: dado quebrado no relatório do Tráfego" if dado_quebrado else TITULOS[tipo])
             preview = texto.replace("\n", " ")[:180]
             notify(socios, "cmo_relatorio", titulo, body=preview, link="#/cmo?tab=relatorios",
                    target_type="cmo_relatorio", target_id=item["id"])

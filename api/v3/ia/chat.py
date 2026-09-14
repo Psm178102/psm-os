@@ -595,6 +595,23 @@ def _professor_context(sb):
     return ("\n\n".join(parts))[:22000]
 
 
+def _meta_totais(p):
+    """v87.83: totais de um payload do /api/meta-ads. O payload não traz `totals`
+    (os agentes liam R$ 0) — soma as contas; sem contas, as campanhas.
+    Espelha gestor._totais_do_payload. Retorna (spend, results) ou None = sem dado."""
+    if not isinstance(p, dict):
+        return None
+    tot = ((p.get("totals") or {}).get("cur")) or {}
+    if tot:
+        return float(tot.get("spend") or 0), int(tot.get("results") or 0)
+    linhas = [a for a in (p.get("accounts") or []) if isinstance(a, dict) and not a.get("_error")] \
+        or [c for c in (p.get("campaigns") or []) if isinstance(c, dict)]
+    if not linhas:
+        return None
+    return (sum(float(x.get("spend") or 0) for x in linhas),
+            int(sum(float(x.get("results") or 0) for x in linhas)))
+
+
 def _gestor_context(sb):
     """Contexto vivo do Sr. Tráfego: config editável (gt_config), métricas Meta
     do cache compartilhado (7d/30d), regras de alerta, públicos/listas e um
@@ -652,9 +669,10 @@ def _gestor_context(sb):
             p = rows[0].get("payload") if rows else None
             if not isinstance(p, dict):
                 return None
-            tot = ((p.get("totals") or {}).get("cur")) or {}
-            spend = float(tot.get("spend") or 0)
-            res = int(tot.get("results") or 0)
+            t = _meta_totais(p)
+            if t is None:
+                return f"{preset}: SEM DADO no cache"
+            spend, res = t
             linhas = [f"{preset}: gasto R$ {spend:,.0f} · {res} leads · CPL R$ {spend / res:,.2f}" if res
                       else f"{preset}: gasto R$ {spend:,.0f} · 0 leads"]
             camps = sorted([c for c in (p.get("campaigns") or []) if float(c.get("spend") or 0) > 0],
@@ -882,9 +900,11 @@ def _diretoria_context(sb, agent_id):
                     .eq("cache_key", preset + "||").limit(1).execute().data or [])
             p = rows[0].get("payload") if rows else None
             if isinstance(p, dict):
-                tot = ((p.get("totals") or {}).get("cur")) or {}
-                spend = float(tot.get("spend") or 0)
-                res = int(tot.get("results") or 0)
+                t = _meta_totais(p)
+                if t is None:
+                    linhas.append(f"  - {preset}: SEM DADO no cache")
+                    continue
+                spend, res = t
                 linhas.append(f"  - {preset}: gasto R$ {spend:,.0f} · {res} leads · CPL " +
                               (f"R$ {spend / res:,.2f}" if res else "—"))
         if linhas:
