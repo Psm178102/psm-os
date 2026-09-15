@@ -84,6 +84,13 @@ def _meta_sum_for(mrows, cid, wanted):
     return acc
 
 
+# v87.84: papel de gestor por PREFIXO — a PSM usa gerente_conquista / gerente_map /
+# gerente_locacao / gerente_terceiros (não só "gerente"). Sem isso o Kaue sumia do 1:1.
+def _is_gestor(role):
+    r = (role or "").strip().lower()
+    return r.startswith("lider") or r.startswith("gerente") or r == "líder"
+
+
 class handler(BaseHTTPRequestHandler):
 
     def _send(self, status, body):
@@ -221,7 +228,7 @@ class handler(BaseHTTPRequestHandler):
         }
 
         # ── Visão de EQUIPE (se o alvo é líder/gerente) — visível ao próprio gestor e sócios ──
-        if (u.get("role") or "").lower() in ("lider", "gerente"):
+        if _is_gestor(u.get("role")):
             can_team = (user.get("id") == cid) or ((user.get("lvl") or 0) >= 10)
             resp["team_allowed"] = bool(can_team)
             team = u.get("team")
@@ -230,7 +237,7 @@ class handler(BaseHTTPRequestHandler):
                     tkey = (team or "").strip().lower()
                     members = [m for m in (sb.table("users").select("id,name,email,role,team,ini,color,status").execute().data or [])
                                if (m.get("status") or "ativo") == "ativo"
-                               and ((m.get("role") or "").lower().startswith("corretor") or (m.get("role") or "").lower() in ("lider", "gerente"))
+                               and ((m.get("role") or "").lower().startswith("corretor") or _is_gestor(m.get("role")))
                                and (m.get("team") or "").strip().lower() == tkey]
                 except Exception:
                     members = []
@@ -300,7 +307,7 @@ class handler(BaseHTTPRequestHandler):
                     pass
                 membros = []
                 for m in members:
-                    if (m.get("role") or "").lower() in ("lider", "gerente"):
+                    if _is_gestor(m.get("role")):
                         continue  # o gestor não aparece como corretor da própria equipe
                     mm = broker_metrics(deals_by_owner.get(m.get("id"), []), tevents, meta_for_period(all_metas, m.get("id"), since_d, until_d), since_d, until_d, today, detail=True, stage_maps=stage_maps)
                     _fn = mm.get("funnel") or []

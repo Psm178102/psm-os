@@ -92,6 +92,13 @@ def _cache_write(sb, key, data):
         pass
 
 
+# v87.84: papel de gestor por PREFIXO — a PSM usa gerente_conquista / gerente_map /
+# gerente_locacao / gerente_terceiros (não só "gerente"). Sem isso o Kaue sumia do 1:1.
+def _is_gestor(role):
+    r = (role or "").strip().lower()
+    return r.startswith("lider") or r.startswith("gerente") or r == "líder"
+
+
 class handler(BaseHTTPRequestHandler):
 
     def _send(self, status, body):
@@ -161,7 +168,7 @@ class handler(BaseHTTPRequestHandler):
             return self._send(500, {"ok": False, "error": f"users: {e}"})
         team_f = (params.get("team") or "").strip().lower()
         people = [u for u in users
-                  if ((u.get("role") or "").lower().startswith("corretor") or (u.get("role") or "").lower() in ("lider", "gerente"))
+                  if ((u.get("role") or "").lower().startswith("corretor") or _is_gestor(u.get("role")))
                   and (u.get("status") or "ativo") == "ativo"
                   and (not team_f or (u.get("team") or "").lower() == team_f)]
 
@@ -216,7 +223,7 @@ class handler(BaseHTTPRequestHandler):
         out = []
         for u in people:
             cid = u.get("id")
-            is_manager = (u.get("role") or "").lower() in ("lider", "gerente")
+            is_manager = _is_gestor(u.get("role"))
             # Líder/Gerente vê o agregado da SUA equipe (e sócios veem de todos). Os demais
             # enxergam o gestor como individual (privacidade da visão de equipe).
             show_team = is_manager and (is_socio or user.get("id") == cid)

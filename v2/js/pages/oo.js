@@ -80,6 +80,9 @@ export async function pageOO(ctx, root) {
 }
 
 const isSelfView = () => (auth.user()?.lvl || 0) < 5;
+// v87.84: gestor por PREFIXO do papel (gerente_conquista, gerente_map, lider…) — antes só
+// 'gerente'/'lider' exatos, e o Kaue (gerente_conquista) sumia do 1:1.
+const isGestorRole = (r) => { r = (r || '').toLowerCase(); return r.startsWith('lider') || r.startsWith('gerente') || r === 'líder'; };
 
 /* ───────────────────────── LISTA ───────────────────────── */
 async function loadList() {
@@ -93,7 +96,7 @@ async function loadList() {
 
 function renderList() {
   const cs = _ov?.corretores || [];
-  const isManager = (c) => ['lider', 'gerente'].includes((c.role || '').toLowerCase());
+  const isManager = (c) => isGestorRole(c.role);
   const gestores = cs.filter(isManager);          // gerente/líder: visão de EQUIPE
   const corretores = cs.filter(c => !isManager(c)); // individual
   const totalVendas = corretores.reduce((a, c) => a + (c.vendas || 0), 0);
@@ -128,7 +131,7 @@ function brokerCard(c) {
         <div style="width:40px;height:40px;border-radius:50%;background:${c.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">${escapeHtml((c.ini || (c.name||'?').slice(0,2)).toUpperCase())}</div>
         <div style="min-width:0;flex:1">
           <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(c.name || c.id)}${c.is_team ? ` <span class="tiny" style="background:color-mix(in srgb, var(--info) 18%, transparent);color:var(--azul-forte);padding:1px 6px;border-radius:999px;font-weight:700">👥 equipe</span>` : ''}</div>
-          <div class="tiny muted">${escapeHtml(c.team || '—')} · ${(() => { const r = (c.role || '').toLowerCase(); if (r === 'lider' || r === 'gerente') { const lbl = r === 'gerente' ? 'Gerente' : 'Líder'; return c.is_team ? `🛡 ${lbl} · agregado da equipe` : `🛡 ${lbl}`; } return '🏠 Corretor'; })()}</div>
+          <div class="tiny muted">${escapeHtml(c.team || '—')} · ${(() => { const r = (c.role || '').toLowerCase(); if (isGestorRole(r)) { const lbl = r.startsWith('gerente') ? 'Gerente' : 'Líder'; return c.is_team ? `🛡 ${lbl} · agregado da equipe` : `🛡 ${lbl}`; } return '🏠 Corretor'; })()}</div>
         </div>
         <div style="text-align:center">${dot}<div style="font-size:10px;font-weight:700;color:${healthHex(c.health_color)}">${c.health}</div></div>
       </div>
@@ -170,7 +173,7 @@ async function loadDetail() {
 function renderDetail() {
   const d = _det, c = d.corretor;
   // Líder/Gerente = cockpit de GESTÃO da equipe (não é avaliado como corretor).
-  if (['lider', 'gerente'].includes((c.role || '').toLowerCase()) && d.team && d.team.metrics) { renderGestor(d, c); return; }
+  if (isGestorRole(c.role) && d.team && d.team.metrics) { renderGestor(d, c); return; }
   // 🧪 Aba Simulador (sócio-only) — motor de meta individual (v86.1)
   if (_dtab === 'simulador' && (auth.user()?.lvl || 0) >= 10) {
     _root.innerHTML = `
@@ -471,7 +474,7 @@ function detailHeader(d, c) {
       <div style="width:54px;height:54px;border-radius:50%;background:${c.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;flex-shrink:0">${escapeHtml((c.ini || (c.name||'?').slice(0,2)).toUpperCase())}</div>
       <div style="flex:1;min-width:180px">
         <div style="font-weight:800;font-size:18px">${escapeHtml(c.name || c.id)}</div>
-        <div class="tiny muted">${escapeHtml(c.team || '—')} · ${(c.role || '').toLowerCase() === 'gerente' ? '🛡 Gerente' : ((c.role || '').toLowerCase() === 'lider' ? '🛡 Líder' : '🏠 Corretor')} · período ${fmtD(d.period.since)}–${fmtD(d.period.until)}</div>
+        <div class="tiny muted">${escapeHtml(c.team || '—')} · ${(c.role || '').toLowerCase().startsWith('gerente') ? '🛡 Gerente' : (isGestorRole(c.role) ? '🛡 Líder' : '🏠 Corretor')} · período ${fmtD(d.period.since)}–${fmtD(d.period.until)}</div>
       </div>
       <div style="text-align:center;padding:0 10px">
         <div style="font-size:34px;line-height:1">${healthEmoji(hc)}</div>
@@ -746,7 +749,7 @@ function openMeeting(iid) {
       <div class="flex gap-2" style="flex-wrap:wrap">
         <div class="field" style="flex:1;min-width:140px"><label>Data *</label><input id="oo-data" type="date" class="input" value="${i?.data || hojeISO()}"></div>
         <div class="field" style="flex:1;min-width:160px"><label>Líder/Gestor</label>
-          <select id="oo-lider" class="select">${selectableUsers(_users.filter(u => ['lider','gerente','socio','diretor'].includes((u.role||'').toLowerCase())), i?.lider_id, auth.user()?.id).map(u => `<option value="${escapeHtml(u.id)}"${(i?.lider_id||auth.user()?.id)===u.id?' selected':''}>${escapeHtml(u.name)}</option>`).join('')}</select>
+          <select id="oo-lider" class="select">${selectableUsers(_users.filter(u => isGestorRole(u.role) || ['socio','diretor'].includes((u.role||'').toLowerCase())), i?.lider_id, auth.user()?.id).map(u => `<option value="${escapeHtml(u.id)}"${(i?.lider_id||auth.user()?.id)===u.id?' selected':''}>${escapeHtml(u.name)}</option>`).join('')}</select>
         </div>
       </div>
       <div class="field"><label>Observações / pauta da reunião</label><textarea id="oo-obs" class="input" rows="4" placeholder="Pontos altos, dificuldades, combinados...">${i?escapeHtml(i.observacoes||''):''}</textarea></div>

@@ -195,9 +195,9 @@ def corretores_conquista(sb):
         if TEAM_SUB not in (x.get("team") or "").strip().lower():
             continue
         r = (x.get("role") or "").lower()
-        if not (r.startswith("corretor") or r in ("lider", "líder", "gerente")):
+        if not (r.startswith("corretor") or (r.startswith("lider") or r.startswith("gerente") or r == "líder")):
             continue
-        if r in ("lider", "líder", "gerente"):
+        if (r.startswith("lider") or r.startswith("gerente") or r == "líder"):
             continue   # gestor não tem norte individual
         out.append(x)
     return out
@@ -252,7 +252,7 @@ class handler(BaseHTTPRequestHandler):
                         if (x.get("status") or "ativo") != "ativo" or not x.get("id"):
                             continue
                         r = (x.get("role") or "").lower()
-                        if lvl_of(r) >= 10 or (r in ("lider", "líder", "gerente")
+                        if lvl_of(r) >= 10 or ((r.startswith("lider") or r.startswith("gerente") or r == "líder")
                                                and TEAM_SUB in (x.get("team") or "").lower()):
                             dest.add(str(x["id"]))
                 except Exception:

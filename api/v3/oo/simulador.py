@@ -1311,7 +1311,7 @@ class handler(BaseHTTPRequestHandler):
                     r = (x.get("role") or "").lower()
                     if lvl_of(r) >= 10:
                         dest.add(str(x["id"]))
-                    elif r in ("lider", "líder", "gerente") and \
+                    elif (r.startswith("lider") or r.startswith("gerente") or r == "líder") and \
                             (x.get("team") or "").strip().lower() == (user.get("team") or "").strip().lower():
                         dest.add(str(x["id"]))
             except Exception:
