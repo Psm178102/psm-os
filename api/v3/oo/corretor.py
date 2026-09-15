@@ -235,8 +235,9 @@ class handler(BaseHTTPRequestHandler):
             if can_team and team:
                 try:
                     tkey = (team or "").strip().lower()
-                    members = [m for m in (sb.table("users").select("id,name,email,role,team,ini,color,status").execute().data or [])
+                    members = [m for m in (sb.table("users").select("id,name,email,role,team,ini,color,status,is_service").execute().data or [])
                                if (m.get("status") or "ativo") == "ativo"
+                               and not m.get("is_service")   # v87.85: contas de serviço fora (Dicionário §0)
                                and ((m.get("role") or "").lower().startswith("corretor") or _is_gestor(m.get("role")))
                                and (m.get("team") or "").strip().lower() == tkey]
                 except Exception:

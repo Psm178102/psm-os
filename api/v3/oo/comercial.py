@@ -72,10 +72,10 @@ CACHE_VER = "gc29"   # v86.39: bump aqui invalida página E cron juntos
 FUNIS_RD = {"conquista": "funil conquista", "map": "funil map",
             "terceiros": "funil terceiros", "locacao": "funil de locacao"}
 
-# 👥 v86.35 (decisão do Paulo 17/ago): a Yara CONTA no MAP e também no
-# Terceiros — caiu a whitelist excludente de 15/ago. O funil do deal manda na
-# equipe; MAP_LOGINS só força isa/rafaela/paulo pro MAP em deal fora dos funis.
-MAP_LOGINS = ("isa", "rafaela", "paulo")
+# 👥 v87.85 — Dicionário de Métricas v1 §4 (Paulo, 15/set): a EQUIPE de um negócio é a
+# equipe do DONO no cadastro (users.team). O funil do RD é só a "frente" (rótulo).
+# Caiu a lista fixa MAP_LOGINS e a regra "o funil do deal manda" (v86.34/35), que
+# faziam a Rafaela aparecer em duas equipes e a Conquista somar negócio de outro time.
 
 
 def escopo_do(user):
@@ -147,10 +147,7 @@ def filtra_escopo(p, tk):
 
 
 def team_de(uid, team):
-    """Equipe efetiva de um usuário pra fins de Gestão Comercial (fallback de
-    deal fora dos 4 funis — o funil do deal é quem manda; v86.34/35)."""
-    if uid in MAP_LOGINS:
-        return "map"
+    """Equipe de um usuário = users.team do cadastro (Dicionário §4). Sem exceções por login."""
     return team_key(team)
 
 
@@ -424,25 +421,27 @@ class handler(BaseHTTPRequestHandler):
         until_dt = datetime(until_d.year, until_d.month, until_d.day, 23, 59, 59, tzinfo=timezone.utc) + timedelta(hours=3)
         mes_ini = date(hoje.year, hoje.month, 1)
 
-        users = {str(u["id"]): u for u in (sb.table("users").select("id,name,email,role,team,status").execute().data or []) if u.get("id")}
+        # v87.85 (Dicionário §0): contas de serviço (tv, comercial) não são pessoas — negócio
+        # no e-mail delas cai em "sem corretor".
+        users = {str(u["id"]): u for u in (sb.table("users").select("id,name,email,role,team,status,is_service").execute().data or [])
+                 if u.get("id") and not u.get("is_service")}
         email2uid = {(u.get("email") or "").lower(): uid for uid, u in users.items() if u.get("email")}
         marco_sid, marco_pos, by_pipe, pos_by_id, pipe_names, qualif_pos = mapa_marcos(sb)
+        if not by_pipe:
+            # v87.85 (Dicionário §0): erro de leitura vira AVISO, nunca zero silencioso
+            avisos.append("⚠️ Etapas do RD indisponíveis agora: agendamentos, visitas, pastas e o funil "
+                          "podem aparecer zerados. Clique em 🔄 Atualizar em alguns minutos.")
 
-        # 🧭 v86.34 (achado do Paulo 17/ago): a equipe do deal é o FUNIL onde ele
-        # vive (MAP e Locação têm funil próprio no RD e estavam zerando na Visão
-        # porque a régua antiga era só a equipe do DONO). Pipeline manda; deal
-        # fora dos 4 funis cai na régua antiga (equipe do dono + whitelist MAP).
-        pipe_team = {}
+        # 🧭 v87.85 — Dicionário de Métricas v1 §4: a equipe do negócio é a equipe do DONO
+        # (users.team). O funil do RD vira só "frente" (pipe_frente), rótulo pra análise.
+        pipe_frente = {}
         for _pid, _nm in pipe_names.items():
             _n = (_nm or "").lower()
             for _tk, _alvo in FUNIS_RD.items():
                 if _alvo in _n:
-                    pipe_team[str(_pid)] = _tk
+                    pipe_frente[str(_pid)] = _tk
 
         def team_do_deal(pid, uid):
-            tk = pipe_team.get(str(pid or ""))
-            if tk:
-                return tk
             return team_de(uid, (users.get(uid) or {}).get("team"))
 
         # ── deals da SAFRA (criados em [since-180d, until] p/ safras + coorte) ──
@@ -480,6 +479,7 @@ class handler(BaseHTTPRequestHandler):
         # eventos (marcos + tempos) — em blocos
         ev_map = {}
         ids = [str(d.get("id")) for d in deals if d.get("id")]
+        ev_falhas = 0
         for i in range(0, len(ids), 150):
             try:
                 rows = (sb.table("deal_stage_events")
@@ -487,8 +487,13 @@ class handler(BaseHTTPRequestHandler):
                         .in_("deal_id", ids[i:i + 150]).neq("source", "backfill").execute().data or [])
             except Exception:
                 rows = []
+                ev_falhas += 1
             for r in rows:
                 ev_map.setdefault(str(r.get("deal_id")), []).append((r.get("stage_position"), "", parse_dt(r.get("occurred_at"))))
+        if ev_falhas:
+            # v87.85 (Dicionário §0): perda parcial de histórico vira AVISO — antes zerava visitas/pastas em silêncio
+            avisos.append(f"⚠️ Histórico de etapas falhou em {ev_falhas} bloco(s) de negócios: agendamentos, visitas, "
+                          "pastas e tempos podem estar subcontados. Clique em 🔄 Atualizar.")
 
         def uid_do(d):
             u = str(d.get("user_id") or "")
@@ -1539,7 +1544,7 @@ class handler(BaseHTTPRequestHandler):
         for uid, r_ in por_uid_hist.items():
             u = users.get(uid) or {}
             role_ = (u.get("role") or "").lower()
-            if not (role_.startswith("corretor") or uid in MAP_LOGINS):
+            if not role_.startswith("corretor"):   # v87.85: sem exceção por login (Dicionário §4)
                 continue
             if (u.get("status") or "ativo") != "ativo":
                 continue          # desligado vive no turnover, não aqui

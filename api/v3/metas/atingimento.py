@@ -125,15 +125,16 @@ class handler(BaseHTTPRequestHandler):
 
         # 1. Users com filtro de role
         try:
-            all_users = sb.table("users").select("id,name,email,team,role,color,ini,status").execute().data or []
-            users = [u for u in all_users if (u.get("status") or "ativo") == "ativo"]
+            all_users = sb.table("users").select("id,name,email,team,role,color,ini,status,is_service").execute().data or []
+            # v87.85 (Dicionário §0): contas de serviço (tv, comercial) não entram no grid
+            users = [u for u in all_users if (u.get("status") or "ativo") == "ativo" and not u.get("is_service")]
             lvl = user.get("lvl") or 0
             scope = "all"
             # v86.65 (decisão do Paulo): gerente/líder lvl<10 vê SÓ a própria
             # equipe (gerente lvl 7 via tudo); "líder" com acento também conta.
             if lvl < 10:
                 role = (user.get("role") or "").lower()
-                if lvl >= 5 or role in ("lider", "líder", "gerente"):
+                if lvl >= 5 or role.startswith("lider") or role.startswith("gerente") or role == "líder":
                     team = (user.get("team") or "").strip().lower()
                     users = [u for u in users if (u.get("team") or "").strip().lower() == team]
                     scope = "team"

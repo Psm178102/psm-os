@@ -19,11 +19,22 @@ from _auth_lib import supabase_client, require_user, AuthError, frente_of, agora
 BRT = timezone(timedelta(hours=-3))
 
 
+def _amt(d):
+    """VGV = amount com fallback em rd_raw.amount_total (v87.85, Dicionário de Métricas §1)."""
+    for v in (d.get("amount"), d.get("amt_total")):
+        try:
+            if v not in (None, "") and float(v) > 0:
+                return float(v)
+        except (TypeError, ValueError):
+            pass
+    return 0.0
+
+
 def _deals_win(sb, start_iso, end_iso, cols="amount,closed_at"):
     """Deals ganhos no intervalo, PAGINADOS (PostgREST corta em 1000 sem range). v86.70"""
     out, pg = [], 0
     while True:
-        rows = (sb.table("deals").select("id," + cols).eq("win", True)
+        rows = (sb.table("deals").select("id," + cols + ",amt_total:rd_raw->amount_total").eq("win", True)
                 .gte("closed_at", start_iso).lt("closed_at", end_iso)
                 .order("id").range(pg * 1000, pg * 1000 + 999).execute().data or [])
         out.extend(rows)
@@ -117,7 +128,7 @@ class handler(BaseHTTPRequestHandler):
             start = f"{ano}-01-01T03:00:00+00:00"     # 1º/jan 00:00 BRT
             end   = f"{ano+1}-01-01T03:00:00+00:00"
             dq = _deals_win(sb, start, end)
-            kpis["atingido_vgv_ano"] = sum(float(d.get("amount") or 0) for d in dq)
+            kpis["atingido_vgv_ano"] = sum(_amt(d) for d in dq)
             kpis["atingido_vendas_ano"] = len(dq)
             # Mês atual + série mensal real (12 meses) p/ sparklines/gráfico premium
             kpis["atingido_vgv_mes"] = 0; kpis["atingido_vendas_mes"] = 0
@@ -128,7 +139,7 @@ class handler(BaseHTTPRequestHandler):
                 if not ca: continue
                 try:
                     dt = _brt(ca)
-                    amt = float(d.get("amount") or 0)
+                    amt = _amt(d)
                     if 1 <= dt.month <= 12:
                         vgv_mes[dt.month - 1] += amt
                         vendas_mes[dt.month - 1] += 1
@@ -343,7 +354,7 @@ class handler(BaseHTTPRequestHandler):
             base = 0 if dt.year == ano - 1 else 12 if dt.year == ano else None
             if base is None or not (1 <= dt.month <= 12): continue
             idx = base + dt.month - 1
-            amt = float(d.get("amount") or 0)
+            amt = _amt(d)
             fr = self._frente_of(d.get("pipeline_name"))
             vgv24[idx] += amt; ven24[idx] += 1
             if fr in vgv24f: vgv24f[fr][idx] += amt; ven24f[fr][idx] += 1

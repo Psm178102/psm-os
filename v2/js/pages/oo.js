@@ -131,14 +131,17 @@ function brokerCard(c) {
         <div style="width:40px;height:40px;border-radius:50%;background:${c.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">${escapeHtml((c.ini || (c.name||'?').slice(0,2)).toUpperCase())}</div>
         <div style="min-width:0;flex:1">
           <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(c.name || c.id)}${c.is_team ? ` <span class="tiny" style="background:color-mix(in srgb, var(--info) 18%, transparent);color:var(--azul-forte);padding:1px 6px;border-radius:999px;font-weight:700">👥 equipe</span>` : ''}</div>
-          <div class="tiny muted">${escapeHtml(c.team || '—')} · ${(() => { const r = (c.role || '').toLowerCase(); if (isGestorRole(r)) { const lbl = r.startsWith('gerente') ? 'Gerente' : 'Líder'; return c.is_team ? `🛡 ${lbl} · agregado da equipe` : `🛡 ${lbl}`; } return '🏠 Corretor'; })()}</div>
+          <div class="tiny muted">${escapeHtml(c.team || '—')} · ${(() => { const r = (c.role || '').toLowerCase(); if (isGestorRole(r)) { const lbl = r.startsWith('gerente') ? 'Gerente' : 'Líder'; return c.is_team ? `🛡 ${lbl} · agregado da equipe` : `🛡 ${lbl} · <b>visão individual</b>`; } return '🏠 Corretor'; })()}</div>
         </div>
         <div style="text-align:center">${dot}<div style="font-size:10px;font-weight:700;color:${healthHex(c.health_color)}">${c.health}</div></div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;text-align:center;margin-bottom:8px">
         ${miniKpi('Vendas', c.vendas)} ${miniKpi('Visitas', c.visitas)} ${miniKpi('VGV', 'R$ ' + moneyShort(c.vgv))}
       </div>
-      ${att != null ? `<div class="tiny muted" style="margin-bottom:2px">Meta VGV: <b>${pctF(att)}</b></div>${attBar}` : '<div class="tiny muted">Sem meta no período</div>'}
+      ${att != null ? `<div class="tiny muted" style="margin-bottom:2px">Meta VGV: <b>${pctF(att)}</b></div>${attBar}`
+        : (c.card_modo === 'individual' && c.meta_equipe_vgv > 0)
+          ? `<div class="tiny muted">Meta da equipe: <b>R$ ${moneyShort(c.meta_equipe_vgv)}</b> · aqui só a produção pessoal</div>`
+          : '<div class="tiny muted">Sem meta no período</div>'}
       ${(() => { const p = c.projecao || {}; if (p.modo !== 'projecao') return '';
         const cor = p.no_ritmo == null ? 'var(--ink-muted)' : p.no_ritmo ? '#16a34a' : '#dc2626';
         const n = p.norte;
@@ -329,7 +332,8 @@ async function loadOORanking() {
       if (u) { u.vgv = g.totals?.atingido_vgv || 0; u.vendas = g.totals?.vendas_count || 0; }
     });
     // mesma régua da página Ranking: gestão não compete
-    const comp = Object.values(byUser).filter(u => !['socio', 'diretor', 'gerente'].includes((u.role || '').toLowerCase()));
+    // v87.85 (Dicionário §4): gestão por PREFIXO — gerente_conquista/lider_map não competem como corretor
+    const comp = Object.values(byUser).filter(u => { const r = (u.role || '').toLowerCase(); return !(r === 'socio' || r === 'diretor' || r.startsWith('gerente') || r.startsWith('lider') || r === 'líder'); });
     const geral = comp.slice().sort((a, b) => (b.vgv - a.vgv) || ((b.vendas || 0) - (a.vendas || 0)) || ((b.score || 0) - (a.score || 0)));
     const tkey = (_det.corretor.team || '').trim().toLowerCase();
     const equipe = geral.filter(u => (u.team || '').trim().toLowerCase() === tkey);

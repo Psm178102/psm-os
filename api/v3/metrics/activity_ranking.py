@@ -63,9 +63,11 @@ class handler(BaseHTTPRequestHandler):
         # Lê users ativos
         try:
             res = sb.table("users").select(
-                "id,name,email,role,team,ini,color,status,last_login_at,hide_from_ranking"
+                "id,name,email,role,team,ini,color,status,last_login_at,hide_from_ranking,is_service"
             ).execute()
-            users = [u for u in (res.data or []) if (u.get("status") or "ativo") == "ativo" and not u.get("hide_from_ranking")]
+            # v87.85 (Dicionário §0): contas de serviço (tv, comercial) fora do ranking
+            users = [u for u in (res.data or []) if (u.get("status") or "ativo") == "ativo"
+                     and not u.get("hide_from_ranking") and not u.get("is_service")]
             users_by_id = {u["id"]: u for u in users}
         except Exception as e:
             return self._send(500, {"ok": False, "error": f"users: {e}"})

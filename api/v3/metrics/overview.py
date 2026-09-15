@@ -74,16 +74,18 @@ def _cache_write(sb, key, data):
 def _scope_of(user):
     lvl = user.get("lvl") or 0
     role = (user.get("role") or "").lower()
-    if lvl >= 7 or role in ("socio", "diretor", "gerente"):
+    # v87.85: papel por PREFIXO (gerente_conquista, lider_map…), nunca igualdade exata
+    if lvl >= 7 or role in ("socio", "diretor") or role.startswith("gerente"):
         return "global"
-    if role == "lider":
+    if role.startswith("lider") or role == "líder":
         return "team"
     return "self"
 
 
 def _users_summary(sb, scope, user):
-    res = sb.table("users").select("id,name,team,status,hide_from_ranking").execute()
-    rows = res.data or []
+    res = sb.table("users").select("id,name,team,status,hide_from_ranking,is_service").execute()
+    # v87.85 (Dicionário de Métricas v1 §0): contas de serviço (tv, comercial) não contam como pessoas
+    rows = [r for r in (res.data or []) if not r.get("is_service")]
     if scope == "team":
         rows = [r for r in rows if (r.get("team") or "").lower() == (user.get("team") or "").lower()]
     if scope == "self":
@@ -307,7 +309,9 @@ def _sales_summary(sb, scope, user):
 
 def _metas_summary(sb, scope, user):
     """Atingimento de meta do mês."""
-    now = datetime.now(timezone.utc)
+    # v87.85: mês em Brasília (antes UTC — entre 21h e 0h do último dia a meta era do mês seguinte
+    # enquanto o VGV, calculado em BRT, ainda era deste mês)
+    now = datetime.now(timezone.utc) - timedelta(hours=3)
     ano = now.year
     mes = now.month
     try:
@@ -317,7 +321,8 @@ def _metas_summary(sb, scope, user):
         metas = q.execute().data or []
         if scope == "team":
             team = (user.get("team") or "").lower()
-            team_ids = {u["id"] for u in (sb.table("users").select("id").eq("team", team).execute().data or [])}
+            # v87.85: mesma comparação (ilike) usada nas vendas — antes eq() perdia "Conquista" com maiúscula
+            team_ids = {u["id"] for u in (sb.table("users").select("id").ilike("team", team).execute().data or [])}
             metas = [m for m in metas if m.get("corretor_id") in team_ids]
     except Exception:
         metas = []

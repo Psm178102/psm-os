@@ -111,7 +111,16 @@ class handler(BaseHTTPRequestHandler):
             # o LEAD nasceu — divergindo da Gestão Comercial, do Painel Metas, da
             # Produtividade Real e da Arena, que sempre exigiram closed_at.
             # Vigiado por /api/v3/system/consistency (check venda_sem_data).
-            return str(r.get("closed_at") or "")[:7] == ym
+            # v87.85 (Dicionário §0): mês em BRASÍLIA — antes comparava o prefixo UTC da string,
+            # e venda fechada das 21h às 23h59 do último dia caía no mês seguinte.
+            ca = str(r.get("closed_at") or "")
+            if not ca:
+                return False
+            try:
+                dt = datetime.fromisoformat(ca.replace("Z", "+00:00")) - timedelta(hours=3)
+                return f"{dt.year:04d}-{dt.month:02d}" == ym
+            except Exception:
+                return ca[:7] == ym
 
         wins = [r for r in deals if in_month(r)]
         rd_by_uid, rd_by_email = {}, {}

@@ -162,10 +162,12 @@ class handler(BaseHTTPRequestHandler):
 
         # Usuários que carregam funil (corretor/líder), ativos
         try:
-            users = (sb.table("users").select("id,name,email,role,team,ini,color,status")
+            users = (sb.table("users").select("id,name,email,role,team,ini,color,status,is_service")
                      .execute().data or [])
         except Exception as e:
             return self._send(500, {"ok": False, "error": f"users: {e}"})
+        # v87.85 (Dicionário de Métricas v1 §0): contas de serviço (tv, comercial) não são pessoas
+        users = [u for u in users if not u.get("is_service")]
         team_f = (params.get("team") or "").strip().lower()
         people = [u for u in users
                   if ((u.get("role") or "").lower().startswith("corretor") or _is_gestor(u.get("role")))
@@ -227,16 +229,21 @@ class handler(BaseHTTPRequestHandler):
             # Líder/Gerente vê o agregado da SUA equipe (e sócios veem de todos). Os demais
             # enxergam o gestor como individual (privacidade da visão de equipe).
             show_team = is_manager and (is_socio or user.get("id") == cid)
-            if show_team:
+            # v87.85 (Dicionário §7): a meta da EQUIPE do gestor é calculada sempre — no card
+            # individual ela aparece como "meta da equipe" em vez de "Sem meta no período".
+            tmeta = None
+            if is_manager:
                 team_key = (u.get("team") or "").lower()
                 tmembers = members_by_team.get(team_key, [])
-                tdeals = []
                 tmeta = {"meta_vgv": 0, "meta_vendas": 0, "meta_visitas": 0, "meta_pastas": 0, "meta_propostas": 0, "meta_agendamentos": 0}
                 for mb in tmembers:
-                    tdeals += by_owner.get(mb.get("id"), [])
                     ms = meta_by_id.get(mb.get("id"), {})
                     for k in tmeta:
                         tmeta[k] += (ms.get(k, 0) if ms else 0)
+            if show_team:
+                tdeals = []
+                for mb in tmembers:
+                    tdeals += by_owner.get(mb.get("id"), [])
                 m = broker_metrics(tdeals, {}, tmeta, since_d, until_d, today, detail=False)
                 row_deals = tdeals
             else:
@@ -247,6 +254,8 @@ class handler(BaseHTTPRequestHandler):
                 "id": cid, "name": u.get("name"), "role": u.get("role"), "team": u.get("team"),
                 "ini": u.get("ini"), "color": u.get("color"),
                 "is_team": bool(show_team),
+                "card_modo": ("equipe" if show_team else "individual"),
+                "meta_equipe_vgv": ((tmeta or {}).get("meta_vgv") if is_manager else None),
                 "vendas": m["kpis"]["vendas"], "vgv": m["kpis"]["vgv"],
                 "visitas": m["kpis"]["visitas"], "agendamentos": m["kpis"]["agendamentos"],
                 "propostas": m["kpis"]["propostas"], "leads": m["kpis"]["leads"],

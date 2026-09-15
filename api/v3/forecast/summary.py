@@ -60,14 +60,15 @@ class handler(BaseHTTPRequestHandler):
         if not sb: return self._send(503, {"ok": False, "error": "backend"})
         # Lê deals abertos (win is null) do ano corrente
         try:
-            start = f"{ano}-01-01T00:00:00+00:00"
-            end   = f"{ano+1}-01-01T00:00:00+00:00"
+            # v87.85 (Dicionário §0): ano em Brasília (1º/jan 00:00 BRT = 03:00Z)
+            start = f"{ano}-01-01T03:00:00+00:00"
+            end   = f"{ano+1}-01-01T03:00:00+00:00"
             # PAGINA (PostgREST trava em ~1000/resposta; .limit(2000) não basta e subcontava
             # o pipeline quando há +1000 deals abertos no ano).
             rows = []
             page = 0
             while True:
-                chunk = sb.table("deals").select("id,name,amount,closed_at,updated_at_rd,stage_name,user_id,win") \
+                chunk = sb.table("deals").select("id,name,amount,closed_at,updated_at_rd,stage_name,user_id,win,amt_total:rd_raw->amount_total") \
                     .is_("win", "null").gte("updated_at_rd", start).lt("updated_at_rd", end) \
                     .order("id").range(page * 1000, page * 1000 + 999).execute().data or []
                 rows.extend(chunk)
@@ -84,7 +85,8 @@ class handler(BaseHTTPRequestHandler):
         stage_counts = defaultdict(lambda: {"count":0, "valor":0.0, "weight":0})
 
         for d in rows:
-            amt = float(d.get("amount") or 0)
+            # v87.85 (Dicionário §1): valor = amount com fallback em rd_raw.amount_total
+            amt = float(d.get("amount") or 0) or float(d.get("amt_total") or 0)
             stage = d.get("stage_name") or "?"
             w = _weight_for_stage(stage)
             # Mês: usa closed_at se existe, senão estima updated_at_rd (mês corrente)

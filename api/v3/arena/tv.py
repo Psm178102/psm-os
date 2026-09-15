@@ -30,7 +30,7 @@ BRT = timedelta(hours=-3)
 def _all_deals(sb):
     rows, page = [], 0
     while True:
-        q = sb.table("deals").select("id,amount,closed_at,created_at_rd,user_id,win,pipeline_name") \
+        q = sb.table("deals").select("id,amount,closed_at,created_at_rd,user_id,win,pipeline_name,amt_total:rd_raw->amount_total") \
             .order("id").range(page * 1000, page * 1000 + 999)
         chunk = q.execute().data or []
         rows.extend(chunk)
@@ -57,7 +57,19 @@ def _meta_mes(sb, ano, mes):
 
 
 def _dt(r):
-    return r.get("closed_at") or r.get("created_at_rd") or ""
+    # v87.85 (Dicionário §1): mês da venda é SÓ o closed_at — sem cair pro created_at_rd
+    return r.get("closed_at") or ""
+
+
+def _amt(r):
+    """VGV = amount, com fallback em rd_raw.amount_total (Dicionário §1; igual a metrics/overview)."""
+    for v in (r.get("amount"), r.get("amt_total")):
+        try:
+            if v not in (None, "") and float(v) > 0:
+                return float(v)
+        except (TypeError, ValueError):
+            pass
+    return 0.0
 
 
 def _nome(umap, uid):
@@ -70,17 +82,19 @@ def _build(sb):
     brt = now + BRT                       # "hoje" no fuso de Brasília
     y, m, dia_hoje = brt.year, brt.month, brt.day
 
-    inicio_mes = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
-    inicio_ano = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
+    # v87.85 (Dicionário §0): fronteiras de mês/ano em BRASÍLIA (1º dia 00:00 BRT = 03:00Z),
+    # igual ao Dashboard e às Metas — antes eram UTC e a TV mudava de mês 3h antes.
+    inicio_mes = (brt.replace(day=1, hour=0, minute=0, second=0, microsecond=0) - BRT).isoformat()
+    inicio_ano = (brt.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0) - BRT).isoformat()
     # início do dia de HOJE (BRT) convertido pra instante UTC
     hoje_ini = (brt.replace(hour=0, minute=0, second=0, microsecond=0) - BRT).isoformat()
 
     # mês anterior — mesmo ponto (até o mesmo dia do mês) p/ comparação justa
-    prev_last = now.replace(day=1) - timedelta(days=1)
+    prev_last = brt.replace(day=1) - timedelta(days=1)
     py, pm = prev_last.year, prev_last.month
-    prev_ini = datetime(py, pm, 1, tzinfo=timezone.utc).isoformat()
+    prev_ini = (datetime(py, pm, 1, tzinfo=timezone.utc) - BRT).isoformat()
     cut_day = min(dia_hoje, calendar.monthrange(py, pm)[1])
-    nxt = datetime(py, pm, cut_day, tzinfo=timezone.utc) + timedelta(days=1)
+    nxt = datetime(py, pm, cut_day, tzinfo=timezone.utc) + timedelta(days=1) - BRT
     prev_cut = nxt.isoformat()
 
     deals = _all_deals(sb)
@@ -93,7 +107,7 @@ def _build(sb):
         return bool(d) and d >= ini and (end is None or d < end)
 
     def vgv(arr):
-        return sum(float(r.get("amount") or 0) for r in arr)
+        return sum(_amt(r) for r in arr)
 
     wins_mes = [r for r in wins if inper(r, inicio_mes)]
     wins_ano = [r for r in wins if inper(r, inicio_ano)]
@@ -119,10 +133,10 @@ def _build(sb):
 
     # ── destaques ──
     def deal_card(r):
-        return {"amount": float(r.get("amount") or 0), "corretor": _nome(umap, r.get("user_id")),
+        return {"amount": _amt(r), "corretor": _nome(umap, r.get("user_id")),
                 "marca": r.get("pipeline_name") or ""}
-    maior_mes = max(wins_mes, key=lambda r: float(r.get("amount") or 0), default=None)
-    venda_dia = max(wins_hoje, key=lambda r: float(r.get("amount") or 0), default=None)
+    maior_mes = max(wins_mes, key=_amt, default=None)
+    venda_dia = max(wins_hoje, key=_amt, default=None)
 
     # ── hoje: plantão + visitas ──
     hoje_data = brt.date().isoformat()

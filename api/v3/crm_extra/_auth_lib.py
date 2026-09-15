@@ -250,6 +250,23 @@ def enrich_user(u: dict) -> dict:
     return u
 
 
+def is_service_user(u) -> bool:
+    """Conta de serviço (tv, comercial): login técnico, não é pessoa. Dicionário de Métricas v1 §0."""
+    return bool((u or {}).get("is_service"))
+
+
+def pessoas(rows):
+    """Filtra contas de serviço de uma lista de users (v87.85, Dicionário de Métricas v1 §0):
+    tv e comercial não entram em contagens, cards, rankings, médias nem metas."""
+    return [u for u in (rows or []) if not (u or {}).get("is_service")]
+
+
+def is_gestor_role(role) -> bool:
+    """Gestor = papel com PREFIXO gerente/lider (gerente_conquista, lider_map…). Nunca igualdade exata."""
+    r = (role or "").strip().lower()
+    return r.startswith("gerente") or r.startswith("lider") or r == "líder"
+
+
 def tem_cargo(u: dict, *ids) -> bool:
     """True se o login ocupa QUALQUER um dos cargos informados (principal ou adicional)."""
     alvo = {str(i or "").strip().lower() for i in ids}
@@ -327,7 +344,7 @@ def current_user(handler) -> Optional[dict]:
     if not sb:
         return None
     try:
-        base_cols = "id,name,email,role,team,ini,color,rd_id,meta_id,status,hide_from_ranking,last_login_at"
+        base_cols = "id,name,email,role,team,ini,color,rd_id,meta_id,status,hide_from_ranking,last_login_at,is_service"
         try:
             # menu_groups = override de menu por usuário (v77.53) · cargos = multi-cargo (v87.64)
             res = sb.table("users").select(base_cols + ",menu_groups,cargos").eq("id", claims.get("sub")).limit(1).execute()

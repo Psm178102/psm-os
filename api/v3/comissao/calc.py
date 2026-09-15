@@ -117,6 +117,19 @@ def _mes_range(mes):
     return ini.isoformat(), fim.isoformat(), f"{y:04d}-{m:02d}"
 
 
+def _vgv(d):
+    """VGV da venda = amount, com fallback em rd_raw.amount_total / amount_unique
+    (v87.85, Dicionário de Métricas §1 — mesma régua de metrics/overview e do 1:1)."""
+    try:
+        v = _vgv(d)
+        if v > 0:
+            return v
+        raw = d.get("rd_raw") or {}
+        return float(raw.get("amount_total") or raw.get("amount_unique") or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def _inativo(cid, inativos):
     """Corretor desligado da PSM? (id OU email batem na lista de inativos)"""
     c = str(cid or "")
@@ -176,19 +189,19 @@ def _calc_map(sb, cfg, mes_lbl, ini, fim, nomes, inativos=None):
         if _inativo(cid, ina) and d.get("closed_at") and ini <= d["closed_at"] < fim:
             o = ocul.setdefault(cid, {"quem": nomes.get(cid, cid), "n_vendas": 0, "vgv": 0.0})
             o["n_vendas"] += 1
-            o["vgv"] += float(d.get("amount") or 0)
+            o["vgv"] += _vgv(d)
     ano = [d for d in ano if not _inativo(d.get("user_id") or d.get("user_email") or "?", ina)]
     vgv_ano = {}
     for d in ano:
         cid = str(d.get("user_id") or d.get("user_email") or "?")
-        vgv_ano[cid] = vgv_ano.get(cid, 0.0) + float(d.get("amount") or 0)
+        vgv_ano[cid] = vgv_ano.get(cid, 0.0) + _vgv(d)
 
     deals = [d for d in ano if d.get("closed_at") and ini <= d["closed_at"] < fim]
     fontes, por = {}, {}
     for d in deals:
         cid = str(d.get("user_id") or d.get("user_email") or "?")
         did = str(d.get("id"))
-        vgv = float(d.get("amount") or 0)
+        vgv = _vgv(d)
         src = _source_name(d.get("rd_raw"))
         if src:
             fontes[src] = fontes.get(src, 0) + 1
@@ -264,7 +277,7 @@ def calcular(sb, mes=None):
 
     for d in deals:
         cid = str(d.get("user_id") or d.get("user_email") or "?")
-        vgv = float(d.get("amount") or 0)
+        vgv = _vgv(d)
         src = _source_name(d.get("rd_raw"))
         if src:
             fontes[src] = fontes.get(src, 0) + 1
@@ -394,14 +407,14 @@ def calcular(sb, mes=None):
         ids = list(dmap.keys())
         ganhos = []
         for i in range(0, len(ids), 200):
-            dd = sb.table("deals").select("id,name,amount").eq("win", True) \
+            dd = sb.table("deals").select("id,name,amount,rd_raw").eq("win", True) \
                 .gte("closed_at", ini).lt("closed_at", fim).in_("id", ids[i:i + 200]).execute().data or []
             ganhos.extend(dd)
         soma = 0.0
         for g in ganhos:
             did = str(g["id"])
             c = dmap.get(did) or {}
-            vgv = float(g.get("amount") or 0)
+            vgv = _vgv(g)
             tipo = "lancamento" if did in lancados else "estoque"
             val = _faixa_rate(lanc if tipo == "lancamento" else est, vgv)
             soma += val
