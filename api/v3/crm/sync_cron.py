@@ -153,6 +153,16 @@ class handler(BaseHTTPRequestHandler):
         pages_done = 0
         pipes_done = 0
         max_pages = 200   # v86.65: teto de SEGURANÇA — varre até a página vir curta (<200)
+        # v87.88 (Dicionário §0, "tempo real"): ?mode=inc = INCREMENTAL — só as 2 páginas mais
+        # recentes de cada funil (mesma mecânica do sync_if_stale). É o que roda a cada 30 min
+        # (cron */30 + heartbeat); a varredura completa continua 3×/dia (06/12/18 UTC).
+        try:
+            _q = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
+        except Exception:
+            _q = {}
+        modo_inc = (_q.get("mode") or "").lower() == "inc"
+        if modo_inc:
+            max_pages = 2
         truncado = []     # funis que bateram o teto
 
         # Varredura POR FUNIL (a listagem do RD não retorna o funil por deal) —
@@ -202,7 +212,7 @@ class handler(BaseHTTPRequestHandler):
         duration = round(time.time() - t0, 2)
 
         # Audit (actor=null = sistema)
-        audit(self, None, "crm.sync_cron", target_type="deals", target_id="*",
+        audit(self, None, ("crm.sync_cron_inc" if modo_inc else "crm.sync_cron"), target_type="deals", target_id="*",
               notes=f"upserted={upserted} pages={pages_done} {duration}s")
 
         # Piggyback: cria captações dos leads na etapa CAPTAR IMÓVEL (rede de segurança

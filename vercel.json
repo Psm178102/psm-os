@@ -2,6 +2,10 @@
   "crons": [
     {
       "path": "/api/v3/crm/sync_cron",
+      "schedule": "0 6,12,18 * * *"
+    },
+    {
+      "path": "/api/v3/crm/sync_cron?mode=inc",
       "schedule": "*/30 9-23 * * 1-6"
     },
     {

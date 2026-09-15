@@ -486,7 +486,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '87.87';
+const APP_VERSION = '87.88';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -550,7 +550,9 @@ const APP_VERSION = '87.87';
     const lastTry = parseInt(localStorage.getItem(AUTOSYNC_KEY) || '0');
     if (Date.now() - lastTry > 30 * 60 * 1000) {
       localStorage.setItem(AUTOSYNC_KEY, String(Date.now()));
-      api.request('/api/v3/crm/sync_if_stale').then(r => {
+      // v87.88 (Dicionário §0): dado do RD com no máximo 1h no boot (era 6h); o cron/heartbeat
+      // cobre os 30 min e o 🔄 das telas força na hora.
+      api.request('/api/v3/crm/sync_if_stale?hours=1').then(r => {
         if (r && r.fresh === false) console.log('[autosync] RD atualizado:', r.upserted, 'deals (estava', r.was_stale_h, 'h velho)');
       }).catch(() => {});
     }

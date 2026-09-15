@@ -22,6 +22,11 @@ from _auth_lib import supabase_client, require_user, AuthError, notify  # type: 
 
 JOBS = [
     # (key, path, intervalo_horas)  — ordem = prioridade
+    # 🧭 v87.88 Dicionário de Métricas §0 ("tempo real"): o RD precisa estar no máximo 30 min
+    # atrasado. O cron */30 do vercel.json não disparou em 15/09 (só o 3×/dia rodava), então o
+    # uso do sistema garante: sync INCREMENTAL (2 páginas/funil, mais recentes) + visitas do RD.
+    ("sync_rd_inc",  "/api/v3/crm/sync_cron?mode=inc",      0.5),
+    ("visitas_rd",   "/api/v3/crm/tasks_sync?cron=1",       0.5),
     ("lembrete_dia", "/api/v3/paulo/lembrete_dia",          20),  # aviso gravação(Academy)/prazo(Projetos) do dia
     ("captar",       "/api/v3/crm/captar_cron",             2),
     # radar de recebíveis (v84.83): deal win → rascunho + alertas D-3/D+1/14d-parado
