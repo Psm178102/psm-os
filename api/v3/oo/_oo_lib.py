@@ -111,7 +111,7 @@ TRASH_RE = re.compile(
 # ─── Funil canônico (marcos) ────────────────────────────────────────────────
 # índice → (key, label). Lead=0 (todo deal) e Venda=6 (win=true) são especiais.
 MILESTONES = [
-    ("lead", "Lead"),
+    ("lead", "Negócios (abertos + novos)"),   # v87.86: "Lead" no Dicionário é só tráfego pago criado no período
     ("contato", "Contato / Qualificação"),
     ("agendamento", "Agendamento"),
     ("visita", "Visita realizada"),

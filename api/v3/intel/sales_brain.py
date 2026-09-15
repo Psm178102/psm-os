@@ -27,6 +27,11 @@ from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
 from _oo_lib import parse_dt, amount, meta_for_period  # type: ignore
 from _brain_lib import (channel_winrates, score_open, loss_clusters,  # type: ignore
                         forecast, MS_PRIOR)
+# v87.86 — motor único de métricas (Dicionário de Métricas v1)
+_V3 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _V3 not in sys.path:
+    sys.path.append(_V3)
+from _metricas_lib import resumo as mx_resumo, is_gestor as mx_is_gestor  # type: ignore
 
 
 class handler(BaseHTTPRequestHandler):
@@ -107,10 +112,11 @@ class handler(BaseHTTPRequestHandler):
 
         # Usuários (corretor/líder ativos) — pra atribuir e filtrar
         try:
-            users = (sb.table("users").select("id,name,email,role,team,ini,color,status")
+            users = (sb.table("users").select("id,name,email,role,team,ini,color,status,is_service")
                      .execute().data or [])
         except Exception as e:
             return self._send(500, {"ok": False, "error": f"users: {e}"})
+        users = [u for u in users if not u.get("is_service")]   # v87.86: contas de serviço fora (Dicionário §0)
         team_f = (params.get("team") or "").strip().lower()
         only_id = (params.get("corretor_id") or "").strip()
         email_to_id = {(u.get("email") or "").lower(): u.get("id") for u in users if u.get("email")}
@@ -122,7 +128,7 @@ class handler(BaseHTTPRequestHandler):
                 [{"id": u.get("id"), "name": u.get("name"), "team": u.get("team"),
                   "ini": u.get("ini"), "color": u.get("color"), "role": u.get("role")}
                  for u in users
-                 if ((u.get("role") or "").lower().startswith("corretor") or (u.get("role") or "").lower() == "lider")
+                 if ((u.get("role") or "").lower().startswith("corretor") or mx_is_gestor(u.get("role")))
                  and (u.get("status") or "ativo") == "ativo"
                  and (not team_f or (u.get("team") or "").lower() == team_f)],
                 key=lambda x: (x.get("name") or "").lower())
@@ -176,7 +182,7 @@ class handler(BaseHTTPRequestHandler):
 
         # ── Visão por corretor ──
         people = [u for u in users
-                  if ((u.get("role") or "").lower().startswith("corretor") or (u.get("role") or "").lower() == "lider")
+                  if ((u.get("role") or "").lower().startswith("corretor") or mx_is_gestor(u.get("role")))
                   and (u.get("status") or "ativo") == "ativo"
                   and (not team_f or (u.get("team") or "").lower() == team_f)
                   and (not only_id or u.get("id") == only_id)]
@@ -204,6 +210,22 @@ class handler(BaseHTTPRequestHandler):
                 "top_leads": mine[:6],
                 "meta_vgv_mes": mp.get("meta_vgv") or 0,
             })
+        # ── v87.86 DICIONÁRIO DE MÉTRICAS: meta, vendas, VGV e leads do mês vêm do motor único
+        mx_stamp, mx_avisos = None, []
+        try:
+            mx = mx_resumo(sb, {})
+            mx_stamp, mx_avisos = mx.get("dados_de_hhmm"), mx.get("avisos") or []
+            meta_total_vgv = 0.0
+            for c in corretores:
+                b = (mx.get("pessoas") or {}).get(c["id"])
+                if not b:
+                    continue
+                c.update({"meta_vgv_mes": (b.get("meta") or {}).get("meta_vgv") or 0,
+                          "vendas_mes": b["vendas"], "vgv_mes": b["vgv"], "leads_mes": b["leads"],
+                          "em_atendimento": b["em_atendimento"], "atingimento_vgv_pct": b.get("atingimento_vgv_pct")})
+                meta_total_vgv += c["meta_vgv_mes"]
+        except Exception as e:
+            print(f"[sales_brain] motor de métricas indisponível: {e}")
         # ordena: quem tem mais leads quentes + maior pipeline primeiro
         corretores.sort(key=lambda c: (-(c["quentes"]), -c["pipeline_ponderado_vgv"]))
 
@@ -233,6 +255,8 @@ class handler(BaseHTTPRequestHandler):
 
         return self._send(200, {
             "ok": True,
+            "dados_de_hhmm": mx_stamp,
+            "avisos_dicionario": [a.get("txt") for a in mx_avisos if str(a.get("txt", "")).startswith("⚠️")],
             "summary": {
                 "open_total": len(scored_all),
                 "quentes": temp_dist["quente"], "mornos": temp_dist["morno"], "frios": temp_dist["frio"],

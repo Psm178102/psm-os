@@ -18,6 +18,12 @@ from datetime import datetime, timezone, timedelta
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
 from _auth_lib import hoje_brt  # type: ignore
+# v87.86 — motor único de métricas (Dicionário de Métricas v1)
+_V3 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _V3 not in sys.path:
+    sys.path.append(_V3)
+from _metricas_lib import (resumo as mx_resumo, team_key as mx_team,  # type: ignore
+                           visitas_de, agendamentos_de, propostas_de)
 from _oo_lib import (  # type: ignore
     window, months_in_range, broker_metrics, parse_dt, build_stage_maps, read_meta_spend, meta_for_period,
     read_meta_accounts, match_team_account, read_team_account_override,
@@ -328,5 +334,37 @@ class handler(BaseHTTPRequestHandler):
                                     "last_oo": last_oo.get(m.get("id")), "proxima_oo": prox_oo.get(m.get("id"))})
                 membros.sort(key=lambda x: (-(x["alertas_count"]), x["health"]))
                 resp["team"] = {"name": team, "members": membros, "metrics": tmetrics, "deals_total": len(tdeals)}
+
+        # ── v87.86 DICIONÁRIO DE MÉTRICAS: KPIs-título (vendas, VGV, leads, em atendimento,
+        # marcos, atingimento) vêm do motor único — mesmo número das outras telas.
+        def _aplica(m, b):
+            if not (isinstance(m, dict) and b):
+                return
+            k = m.get("kpis") if isinstance(m.get("kpis"), dict) else {}
+            k.update({"vendas": b["vendas"], "vgv": b["vgv"], "leads": b["leads"],
+                      "visitas": visitas_de(b), "agendamentos": agendamentos_de(b), "propostas": propostas_de(b),
+                      "pastas": propostas_de(b)})
+            m["kpis"] = k
+            m["em_atendimento"] = b["em_atendimento"]
+            m["interessados"] = b["interessados"]
+            m["ticket_medio"] = b.get("ticket")
+            m["meta_attainment_pct"] = b.get("atingimento_vgv_pct")
+            m["meta_vgv"] = (b.get("meta") or {}).get("meta_vgv")
+        try:
+            mx = mx_resumo(sb, {"since": since_d.isoformat(), "until": until_d.isoformat()})
+            _aplica(resp, (mx.get("pessoas") or {}).get(cid))
+            if isinstance(resp.get("team"), dict):
+                e = (mx.get("equipes") or {}).get(mx_team(u.get("team")))
+                _aplica(resp["team"].get("metrics"), e)
+                for mb in resp["team"].get("members") or []:
+                    pb = (mx.get("pessoas") or {}).get(mb.get("id"))
+                    if pb:
+                        mb.update({"vendas": pb["vendas"], "vgv": pb["vgv"], "leads": pb["leads"],
+                                   "visitas": visitas_de(pb), "meta_attainment_pct": pb.get("atingimento_vgv_pct")})
+            resp["dados_de"] = mx.get("dados_de")
+            resp["dados_de_hhmm"] = mx.get("dados_de_hhmm")
+            resp["avisos_dicionario"] = [a for a in (mx.get("avisos") or []) if a.get("uid") in (None, cid)]
+        except Exception as e:
+            print(f"[oo/corretor] motor de métricas indisponível: {e}")
 
         return self._send(200, resp)

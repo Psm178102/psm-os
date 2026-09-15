@@ -23,7 +23,7 @@ const FAIXA_TETO = [
 ];
 const faixaDeValor = v => (FAIXA_TETO.find(f => v <= f.teto) || FAIXA_TETO[FAIXA_TETO.length - 1]);
 
-let _root = null, _list = [], _brain = null, _selId = '', _isGestor = false, _me = {};
+let _root = null, _list = [], _brain = null, _selId = '', _isGestor = false, _me = {}, _stamp = '', _avisos = [];
 const loadingCard = msg => `<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> ${esc(msg)} <span class="tiny" style="opacity:.65">— analisando o funil, pode levar alguns segundos</span></div></div>`;
 
 export async function pageCockpitConquista(ctx, root) {
@@ -47,11 +47,13 @@ export async function pageCockpitConquista(ctx, root) {
   await loadBrain();
 }
 
-async function loadBrain() {
+async function loadBrain(fresh) {
   _root.innerHTML = loadingCard('Carregando seu pipeline…');
   try {
+    if (fresh) { try { await api.request('/api/v3/crm/sync_if_stale?hours=0'); } catch (_) {} }   // v87.86: 🔄 renova a FONTE
     const r = await api.request('/api/v3/intel/sales_brain?corretor_id=' + encodeURIComponent(_selId));
     const arr = (r && r.corretores) || [];
+    _stamp = (r && r.dados_de_hhmm) || ''; _avisos = (r && r.avisos_dicionario) || [];
     _brain = arr.find(c => c.id === _selId) || arr[0] || null;
   } catch (e) {
     _root.innerHTML = `<div class="alert alert-err">Erro: ${esc(e.message)}</div>`; return;
@@ -84,7 +86,9 @@ function renderShell(c) {
         <div class="card" style="padding:13px 15px;flex:1;min-width:120px;border-left:4px solid #ef4444"><div class="tiny muted">🔥 Quentes</div><div style="font-size:20px;font-weight:800;color:var(--err-suave)">${c.quentes || 0}</div></div>
         <div class="card" style="padding:13px 15px;flex:1;min-width:120px;border-left:4px solid #f59e0b"><div class="tiny muted">⚠️ Atenção</div><div style="font-size:20px;font-weight:800;color:#f59e0b">${atencao}</div><div class="tiny muted">sem contato + parados</div></div>
         <div class="card" style="padding:13px 15px;flex:1;min-width:140px"><div class="tiny muted">🎯 Meta VGV (mês)</div><div style="font-size:20px;font-weight:800">${meta ? BRL(meta) : '—'}</div>${meta ? `<div class="tiny muted">ponderado = ${Math.round(pond / meta * 100)}% da meta</div>` : ''}</div>
-      </div>`;
+        <div class="card" style="padding:13px 15px;flex:1;min-width:140px;border-left:4px solid #2563eb"><div class="tiny muted">✅ Vendido no mês</div><div style="font-size:20px;font-weight:800">${c.vendas_mes || 0} · ${BRL(c.vgv_mes || 0)}</div><div class="tiny muted">${c.atingimento_vgv_pct != null ? c.atingimento_vgv_pct + '% da meta' : 'sem meta'} · ${c.leads_mes || 0} leads · ${c.em_atendimento || 0} em atendimento</div></div>
+      </div>
+      ${_avisos.length ? `<div class="alert alert-warn tiny" style="margin:-6px 0 12px">${_avisos.map(esc).join('<br>')}</div>` : ''}`;
 
     // faixa de renda dos leads em foco (bucket por valor) — referência
     const buckets = {};
@@ -116,9 +120,12 @@ function renderShell(c) {
     <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
       <div>
         <div style="font-size:22px;font-weight:800">🚀 ${saud}${nome ? ', ' + esc(nome) : ''}!</div>
-        <div class="tiny muted">Seu cockpit Conquista — pipeline, meta e a fila de ataque do dia.</div>
+        <div class="tiny muted">Seu cockpit Conquista — pipeline, meta e a fila de ataque do dia.${_stamp ? ` · dados de <b title="último sync do RD — o mesmo retrato em todas as telas">${esc(_stamp)}</b>` : ''}</div>
       </div>
-      ${_isGestor && _list.length ? `<select id="ck-sel" class="select" style="max-width:240px">${_list.map(x => `<option value="${esc(x.id)}"${x.id === _selId ? ' selected' : ''}>${esc(x.name || x.id)}</option>`).join('')}</select>` : ''}
+      <div class="flex items-center gap-2">
+        ${_isGestor && _list.length ? `<select id="ck-sel" class="select" style="max-width:240px">${_list.map(x => `<option value="${esc(x.id)}"${x.id === _selId ? ' selected' : ''}>${esc(x.name || x.id)}</option>`).join('')}</select>` : ''}
+        <button class="btn btn-ghost btn-sm" id="ck-fresh" title="sincroniza o RD agora e recalcula">🔄</button>
+      </div>
     </div>
     ${kpis}${faixa}${leads}
     <div style="font-weight:800;margin-bottom:8px">⚡ Atalhos do dia</div>
@@ -129,4 +136,6 @@ function renderShell(c) {
 
   const sel = _root.querySelector('#ck-sel');
   if (sel) sel.onchange = () => { _selId = sel.value; loadBrain(); };
+  const fb = _root.querySelector('#ck-fresh');
+  if (fb) fb.onclick = () => loadBrain(true);
 }

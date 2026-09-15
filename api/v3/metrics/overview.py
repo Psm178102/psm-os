@@ -29,6 +29,12 @@ from _auth_lib import supabase_client, require_user, AuthError, frente_of  # typ
 # metas, dir_tasks…) a CADA abertura → ~3-4s morno, pior frio. Agora o resultado é
 # cacheado por ESCOPO em shared_kv por uma janela curta; o campo 'user' é sempre
 # sobreposto fresco na leitura, então o cache de um time não vaza identidade.
+# v87.86 — motor único de métricas (Dicionário de Métricas v1)
+_V3 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _V3 not in sys.path:
+    sys.path.append(_V3)
+from _metricas_lib import resumo as mx_resumo, versao_deals, team_key as mx_team  # type: ignore
+
 CACHE_BASE = "metrics_overview_cache"
 CACHE_TTL = 180  # segundos (3 min; métrica de painel tolera folga, RD já sincroniza por cron)
 
@@ -394,7 +400,8 @@ class handler(BaseHTTPRequestHandler):
         scope = _scope_of(user)
         user_field = {"id": user["id"], "name": user.get("name"), "role": user.get("role"), "team": user.get("team"), "lvl": user.get("lvl")}
         fresh = "fresh=1" in (self.path or "")
-        ckey = _cache_key(scope, user)
+        # v87.86: chave com a VERSÃO do dado (último sync do RD) — mesma foto em todas as telas
+        ckey = _cache_key(scope, user) + "|" + versao_deals(sb)
 
         # Cache hit → responde na hora (sobrepondo o 'user' do request atual). v81.74
         if not fresh:
@@ -433,6 +440,32 @@ class handler(BaseHTTPRequestHandler):
             result["tasks"]       = _tasks_summary(sb, scope, user)
         except Exception as e:
             result["tasks"] = {"error": str(e)}
+
+        # ── v87.86 DICIONÁRIO DE MÉTRICAS: vendas/VGV/ticket/perdidos do mês, meta do mês e
+        # pessoas ativas vêm do motor único (mesmo número do 1:1, GC, Sala de Comando e KPIs).
+        try:
+            mx = mx_resumo(sb, {}, fresh=fresh)
+            if scope == "global":
+                b = mx.get("empresa")
+            elif scope == "team":
+                b = (mx.get("equipes") or {}).get(mx_team(user.get("team")))
+            else:
+                b = (mx.get("pessoas") or {}).get(user["id"])
+            if b and isinstance(result.get("sales"), dict) and "error" not in result["sales"]:
+                result["sales"].update({"vendas_mes": b["vendas"], "vgv_mes": b["vgv"],
+                                        "ticket_medio_mes": b.get("ticket") or 0, "perdidos_mes": b["perdidos"],
+                                        "leads_mes": b["leads"], "interessados_mes": b["interessados"],
+                                        "em_atendimento": b["em_atendimento"]})
+            if b and isinstance(result.get("metas"), dict) and "error" not in result["metas"]:
+                result["metas"].update({"meta_vgv": (b.get("meta") or {}).get("meta_vgv") or 0,
+                                        "meta_vendas": int((b.get("meta") or {}).get("meta_vendas") or 0)})
+            if scope == "global" and isinstance(result.get("users"), dict) and mx.get("empresa"):
+                result["users"]["ativos"] = mx["empresa"].get("n_pessoas_ativas", result["users"].get("ativos"))
+            result["dados_de"] = mx.get("dados_de")
+            result["dados_de_hhmm"] = mx.get("dados_de_hhmm")
+            result["avisos_dicionario"] = [a.get("txt") for a in (mx.get("avisos") or []) if str(a.get("txt", "")).startswith("⚠️")]
+        except Exception as e:
+            print(f"[metrics/overview] motor de métricas indisponível: {e}")
 
         _cache_write(sb, ckey, result)   # alimenta o cache p/ as próximas aberturas (90s)
         return self._send(200, result)

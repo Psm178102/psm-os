@@ -36,9 +36,13 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             q = {}
         try:
-            thresh_h = max(1.0, float(q.get("hours") or 6))
+            thresh_h = float(q.get("hours") or 6)
         except Exception:
             thresh_h = 6.0
+        # v87.86: o botão 🔄 das telas (lvl>=5) pode pedir hours=0 = sincroniza AGORA;
+        # corretor comum continua limitado a 1h pra não martelar a API do RD.
+        if thresh_h < 1.0 and (actor.get("lvl") or 0) < 5:
+            thresh_h = 1.0
 
         sb = supabase_client()
         if not sb:

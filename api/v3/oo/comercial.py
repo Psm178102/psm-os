@@ -28,6 +28,14 @@ import os
 import sys
 import urllib.parse
 from datetime import datetime, timezone, timedelta, date
+import os as _os, sys as _sys
+_V3 = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+if _V3 not in _sys.path:
+    _sys.path.append(_V3)
+# v87.86 — motor único de métricas (Dicionário de Métricas v1)
+from _metricas_lib import (resumo as mx_resumo, por_nome as mx_por_nome, _norm as mx_norm,  # type: ignore
+                           visitas_de as mx_visitas, agendamentos_de as mx_agend,
+                           propostas_de as mx_propostas, qualificados_de as mx_qualif)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, supabase_client, lvl_of, notify_all  # type: ignore
@@ -169,6 +177,86 @@ def _num(v, d=0.0):
         return float(v)
     except (TypeError, ValueError):
         return d
+
+
+def _aplicar_dicionario(p, mx, janela_dias):
+    """v87.86 — sobrepõe no payload da Gestão Comercial os números canônicos do motor único
+    (Dicionário de Métricas v1). Só os campos que o front lê como título; o resto (custos,
+    campanhas, tempos, safras) continua sendo análise própria desta tela."""
+    novo = dict(p)
+    eq, ps = mx.get("equipes") or {}, mx.get("pessoas") or {}
+    nomes = mx_por_nome(mx)
+
+    def _razao(n, v):
+        return round(n / v, 1) if v else None
+
+    visao = []
+    for v in (p.get("visao") or []):
+        e = eq.get(v.get("team"))
+        if not e:
+            visao.append(v)
+            continue
+        v = dict(v)
+        meta = e.get("meta") or {}
+        v.update({"real_vendas": e["vendas"], "real_vgv": e["vgv"], "real_ticket": e.get("ticket"),
+                  "meta_vendas": int(meta.get("meta_vendas") or 0), "meta_vgv": meta.get("meta_vgv") or 0,
+                  "leads": e["leads"], "em_atendimento": e["em_atendimento"]})
+        if e.get("projecao"):
+            v["proj_ritmo"] = e["projecao"]["vendas"]
+        pc = []
+        for c in (v.get("por_corretor") or []):
+            b = nomes.get(mx_norm(c.get("nome")))
+            if b:
+                c = {**c, "real": b["vendas"], "vgv": b["vgv"], "meta": int((b.get("meta") or {}).get("meta_vendas") or 0)}
+            pc.append(c)
+        v["por_corretor"] = pc
+        visao.append(v)
+    novo["visao"] = visao
+
+    prod = dict(p.get("produtividade") or {})
+    corr = []
+    for c in (prod.get("corretores") or []):
+        b = nomes.get(mx_norm(c.get("nome")))
+        if b and b.get("team") == c.get("team"):
+            vd = b["vendas"]
+            c = {**c, "leads": b["leads"], "atend": mx_qualif(b), "agend": mx_agend(b), "visita": mx_visitas(b),
+                 "pasta": mx_propostas(b), "venda": vd, "vgv": b["vgv"], "ticket": b.get("ticket"),
+                 "em_atendimento": b["em_atendimento"],
+                 "leads_por_venda": _razao(b["leads"], vd), "atend_por_venda": _razao(mx_qualif(b), vd),
+                 "visitas_por_venda": _razao(mx_visitas(b), vd), "pastas_por_venda": _razao(mx_propostas(b), vd),
+                 "dias_por_venda": _razao(janela_dias, vd)}
+        corr.append(c)
+    prod["corretores"] = corr
+    eqs = {}
+    for tk, c in (prod.get("equipes") or {}).items():
+        e = eq.get(tk)
+        if e:
+            vd = e["vendas"]
+            c = {**c, "leads": e["leads"], "atend": mx_qualif(e), "agend": mx_agend(e), "visita": mx_visitas(e),
+                 "pasta": mx_propostas(e), "venda": vd, "vgv": e["vgv"], "ticket": e.get("ticket"),
+                 "em_atendimento": e["em_atendimento"],
+                 "leads_por_venda": _razao(e["leads"], vd), "atend_por_venda": _razao(mx_qualif(e), vd),
+                 "visitas_por_venda": _razao(mx_visitas(e), vd), "pastas_por_venda": _razao(mx_propostas(e), vd),
+                 "dias_por_venda": _razao(janela_dias, vd)}
+        eqs[tk] = c
+    prod["equipes"] = eqs
+    novo["produtividade"] = prod
+
+    emp = mx.get("empresa") or {}
+    if emp:
+        novo["coorte_n"] = emp.get("leads")
+        novo["interessados_n"] = emp.get("interessados")
+    avisos = list(p.get("avisos") or [])
+    for a in (mx.get("avisos") or []):
+        t = a.get("txt") or ""
+        if t.startswith("⚠️") and t not in avisos:
+            avisos.append(t)
+    novo["avisos"] = avisos[:12]
+    novo["dados_de"] = mx.get("dados_de")
+    novo["dados_de_hhmm"] = mx.get("dados_de_hhmm")
+    novo["versao_dados"] = mx.get("versao")
+    novo["dicionario"] = "v1"
+    return novo
 
 
 def _first(d, *keys):
@@ -356,6 +444,16 @@ class handler(BaseHTTPRequestHandler):
                     corpo["traceback"] = det.strip().splitlines()[-8:]
                 return self._send(500, corpo)
             _kv_write(sb, ck, {"ts": datetime.now(timezone.utc).isoformat(), "data": payload})
+
+        # ── v87.86 DICIONÁRIO DE MÉTRICAS: os números-título (vendas, VGV, ticket, meta,
+        # ritmo, leads e marcos por pessoa/equipe) vêm do motor único, sobrepostos DEPOIS do
+        # cache — é o mesmo número do 1:1, do Dashboard, da Sala de Comando e do Cérebro.
+        try:
+            mx = mx_resumo(sb, {"since": since_d.isoformat(), "until": until_d.isoformat()}, fresh=q.get("fresh") == "1")
+            payload = _aplicar_dicionario(payload, mx, (until_d - since_d).days + 1)
+        except Exception as e:
+            print(f"[gc] motor de métricas indisponível: {e}")
+            payload = {**payload, "avisos": (payload.get("avisos") or []) + ["⚠️ Motor único de métricas indisponível agora — números-título podem divergir das outras telas."]}
 
         # 🚨 métrica fora da régua → notifica gestor da equipe + sócios (v86.33).
         # Só em janela ≥28d (janela curta distorce conversão/tempos) e 1×/dia por métrica.

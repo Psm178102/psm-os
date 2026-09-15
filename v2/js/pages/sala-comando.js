@@ -38,8 +38,8 @@ function shell() {
     <div class="card" style="margin-bottom:12px">
       <div class="flex items-center gap-2" style="flex-wrap:wrap">
         <h2 class="card-title" style="margin:0">🧭 Sala de Comando</h2>
-        <span class="tiny muted">dia ${DIA}/${DIAS_MES} de ${MES_LBL} · ${Math.round(PACE * 100)}% do mês decorrido</span>
-        <button class="btn btn-ghost btn-sm" id="sc-reload" style="margin-left:auto">🔄 Atualizar</button>
+        <span class="tiny muted">dia ${DIA}/${DIAS_MES} de ${MES_LBL} · ${Math.round(PACE * 100)}% do mês decorrido <span id="sc-stamp" title="último sync do RD — o mesmo retrato em todas as telas"></span></span>
+        <button class="btn btn-ghost btn-sm" id="sc-reload" style="margin-left:auto" title="sincroniza o RD agora e recalcula">🔄 Atualizar</button>
       </div>
       <div id="sc-farois" class="mt-3" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:10px"></div>
     </div>
@@ -52,7 +52,10 @@ function shell() {
       <b>🔎 Drill-down por área</b>
       <div id="sc-areas" class="mt-2" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px"></div>
     </div>`;
-  document.getElementById('sc-reload').onclick = () => { Object.keys(_d).forEach(k => delete _d[k]); shell(); carregar(true); };
+  document.getElementById('sc-reload').onclick = async () => {
+    try { await api.request('/api/v3/crm/sync_if_stale?hours=0'); } catch (_) {}   // v87.86: renova a FONTE (RD), não só a tela
+    Object.keys(_d).forEach(k => delete _d[k]); shell(); carregar(true);
+  };
   farois();   // esqueleto dos faróis (spinners)
   areas();
 }
@@ -62,7 +65,7 @@ async function carregar(fresh) {
   const ini = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-01`;
   const fim = hoje.toISOString().slice(0, 10);
   const calls = {
-    overview:  () => api.request('/api/v3/metrics/overview'),
+    overview:  () => api.request('/api/v3/metrics/overview' + (fresh ? '?fresh=1' : '')),
     metas:     () => api.request('/api/v3/metas/atingimento?ano=' + hoje.getFullYear()),
     health:    () => api.request('/api/v3/system_health'),
     recados:   () => api.request('/api/v3/diretoria/recados'),
@@ -73,6 +76,7 @@ async function carregar(fresh) {
   };
   await Promise.all(Object.entries(calls).map(async ([k, fn]) => {
     try { _d[k] = await fn(); } catch (e) { _d[k] = { _err: e.message }; }
+    if (k === 'overview') { const el = document.getElementById('sc-stamp'); if (el && _d.overview?.dados_de_hhmm) el.textContent = '· dados de ' + _d.overview.dados_de_hhmm; }
     farois(); alertas(); areas();
     if (k === 'recados') recados();
   }));

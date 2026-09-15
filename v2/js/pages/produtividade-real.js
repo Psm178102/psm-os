@@ -25,10 +25,11 @@ export async function pageProdutividadeReal(ctx, root) {
   await load();
 }
 
-async function load() {
+async function load(fresh) {
   _root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Calculando produtividade real (janela ' + _janela + 'd)…</div></div>';
   try {
-    _d = await api.request('/api/v3/producao/produtividade?janela=' + _janela);
+    if (fresh) { try { await api.request('/api/v3/crm/sync_if_stale?hours=0'); } catch (_) {} }   // v87.86: 🔄 renova a FONTE
+    _d = await api.request('/api/v3/producao/produtividade?janela=' + _janela + (fresh ? '&fresh=1' : ''));
   } catch (e) {
     _root.innerHTML = `<div class="card"><div class="alert alert-err">${esc(e.message || e)}</div></div>`;
     return;
@@ -65,6 +66,8 @@ function render() {
           <div class="tiny muted">Esforço (7d) · Rendimento (${_d.janela_dias}d, vs mediana do MESMO funil, amostra mín. 30 leads) · Resultado</div>
         </div>
         <div class="flex items-center gap-2">
+          ${_d.dados_de_hhmm ? `<span class="tiny muted" title="último sync do RD — o mesmo retrato em todas as telas">dados de <b>${esc(_d.dados_de_hhmm)}</b></span>` : ''}
+          <button class="btn btn-sm" id="pr-fresh" title="sincroniza o RD agora e recalcula">🔄</button>
           ${[30, 90, 180].map(j => `<button class="btn btn-sm ${j === _janela ? 'btn-primary' : ''}" data-j="${j}">${j}d</button>`).join('')}
         </div>
       </div>
@@ -74,6 +77,7 @@ function render() {
         ${_d.fora_da_lista.map(f => `${esc(f.quem)} <span style="opacity:.7">(${esc(f.motivo)})</span>`).join(' · ')}
       </div>` : ''}
       ${_d.filtro_aplicado === false ? `<div class="alert alert-warn tiny" style="margin:-4px 0 10px">⚠️ Não consegui ler o cadastro de usuários agora — a lista está <b>sem filtro</b> (pode conter sócio, gerente ou quem já saiu).</div>` : ''}
+      ${(_d.avisos_dicionario || []).length ? `<div class="alert alert-warn tiny" style="margin:-4px 0 10px">${_d.avisos_dicionario.map(esc).join('<br>')}</div>` : ''}
       <div style="overflow-x:auto">
         <table class="table" style="min-width:980px;font-size:13px">
           <thead><tr>
@@ -93,4 +97,5 @@ function render() {
       </div>
     </div>`;
   _root.querySelectorAll('[data-j]').forEach(b => b.onclick = () => { _janela = +b.dataset.j; load(); });
+  const fb = _root.querySelector('#pr-fresh'); if (fb) fb.onclick = () => load(true);
 }

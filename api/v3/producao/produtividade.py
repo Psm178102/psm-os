@@ -21,6 +21,12 @@ from statistics import median
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
 from _prod_lib import first_touch_map, email_local, METAS_CORRETOR  # type: ignore
+# v87.86 — motor único de métricas (Dicionário de Métricas v1)
+_V3 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _V3 not in sys.path:
+    sys.path.append(_V3)
+from _metricas_lib import (resumo as mx_resumo, por_email_local as mx_por_email_local,  # type: ignore
+                           hoje_brt as _mx_hoje)
 
 def _amt(d):
     """💰 v87.59 (auditoria 08/set) — RÉGUA ÚNICA DE VALOR DA VENDA: `amount`
@@ -309,7 +315,10 @@ class handler(BaseHTTPRequestHandler):
         # cache 10 min (computo é pesado; permissão filtra DEPOIS do cache — padrão gc)
         ck = f"{KV_CACHE}:{janela}"
         data = None
+        fresh = q.get("fresh") == "1" and lvl >= 5   # v87.86: botão 🔄 ignora o cache
         try:
+            if fresh:
+                raise RuntimeError("fresh")
             rows = sb.table("shared_kv").select("value,updated_at").eq("key", ck).limit(1).execute().data or []
             if rows:
                 age = (datetime.now(timezone.utc)
@@ -328,6 +337,28 @@ class handler(BaseHTTPRequestHandler):
                                              on_conflict="key").execute()
             except Exception:
                 pass
+
+        # ── v87.86 DICIONÁRIO DE MÉTRICAS: leads, vendas, VGV e conversão da janela vêm do
+        # motor único (mesmo número do 1:1, da Gestão Comercial e do Dashboard).
+        try:
+            _hoje = _mx_hoje()
+            mx = mx_resumo(sb, {"since": (_hoje - timedelta(days=janela - 1)).isoformat(), "until": _hoje.isoformat()}, fresh=fresh)
+            by_local = mx_por_email_local(mx)
+            data = dict(data)
+            novos = []
+            for c in (data.get("corretores") or []):
+                b = by_local.get(c.get("corretor"))
+                if b:
+                    c = {**c, "leads_janela": b["leads"], "interessados_janela": b["interessados"],
+                         "em_atendimento": b["em_atendimento"], "vendas_janela": b["vendas"], "vgv_janela": b["vgv"],
+                         "conv_pct": (round(b["vendas"] / b["leads"] * 100, 1) if b["leads"] else None)}
+                novos.append(c)
+            data["corretores"] = novos
+            data["dados_de"] = mx.get("dados_de")
+            data["dados_de_hhmm"] = mx.get("dados_de_hhmm")
+            data["avisos_dicionario"] = [a.get("txt") for a in (mx.get("avisos") or []) if str(a.get("txt", "")).startswith("⚠️")]
+        except Exception as e:
+            print(f"[produtividade] motor de métricas indisponível: {e}")
 
         if me and lvl < 5:
             mine = email_local(user.get("email"))

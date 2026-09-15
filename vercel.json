@@ -2,7 +2,11 @@
   "crons": [
     {
       "path": "/api/v3/crm/sync_cron",
-      "schedule": "0 6,12,18 * * *"
+      "schedule": "*/30 9-23 * * 1-6"
+    },
+    {
+      "path": "/api/v3/crm/tasks_sync?cron=1",
+      "schedule": "15,45 9-23 * * 1-6"
     },
     {
       "path": "/api/v3/marketing/gestor_relatorio?cron=1&tipo=diario",

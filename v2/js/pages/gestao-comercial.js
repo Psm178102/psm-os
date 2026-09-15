@@ -157,7 +157,7 @@ function pageHTML() {
   return `
     <div class="gc-top">
       <h2 class="card-title" style="margin:0">📊 Gestão Comercial</h2>
-      <span class="tiny muted">${d.janela.since} → ${d.janela.until} · ${fN(d.coorte_n)} leads · origem ${d.cobertura_origem_pct != null ? fN(d.cobertura_origem_pct) + '%' : '—'}</span>
+      <span class="tiny muted">${d.janela.since} → ${d.janela.until} · ${fN(d.coorte_n)} leads${d.interessados_n != null ? ' · ' + fN(d.interessados_n) + ' interessados' : ''} · origem ${d.cobertura_origem_pct != null ? fN(d.cobertura_origem_pct) + '%' : '—'}${d.dados_de_hhmm ? ` · dados de <b title="último sync do RD — o mesmo retrato em todas as telas">${esc(d.dados_de_hhmm)}</b>` : ''}</span>
     </div>
     <div class="gc-top" style="margin-top:8px">
       <select class="select" id="gc-preset" style="width:auto;padding:4px 8px;font-size:12px">
@@ -197,7 +197,8 @@ function bind(scope) {
     _spendPreset = nd <= 8 ? 'last_7d' : nd <= 16 ? 'last_14d' : nd <= 32 ? 'last_30d' : 'this_month';
     load();
   });
-  q('#gc-fresh') && (q('#gc-fresh').onclick = () => load(true));
+  // v87.86: 🔄 sincroniza o RD agora (fonte) e recalcula — não só a tela
+  q('#gc-fresh') && (q('#gc-fresh').onclick = async () => { try { await api.request('/api/v3/crm/sync_if_stale?hours=0'); } catch (_) {} load(true); });
   q('#gc-notas') && (q('#gc-notas').onclick = () => { _notas = !_notas; scope.querySelector('.gc')?.classList.toggle('notas', _notas); q('#gc-notas').classList.toggle('on', _notas); });
   q('#gc-tv') && (q('#gc-tv').onclick = enterTV);
   q('#gc-preset') && (q('#gc-preset').onchange = ev => {

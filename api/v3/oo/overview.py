@@ -22,6 +22,12 @@ from _oo_lib import (window, months_in_range, broker_metrics, read_meta_spend, m
                      read_meta_accounts, match_team_account, read_team_account_override,
                      read_meta_campaigns, compute_ads_invest)
 from simulador import _kv_read  # type: ignore
+# v87.86 — motor único de métricas (Dicionário de Métricas v1)
+_V3 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _V3 not in sys.path:
+    sys.path.append(_V3)
+from _metricas_lib import (resumo as mx_resumo, versao_deals, team_key as mx_team,  # type: ignore
+                           visitas_de, agendamentos_de, propostas_de)
 
 
 def _norte_proj(sb, uid, today):
@@ -150,7 +156,9 @@ class handler(BaseHTTPRequestHandler):
 
         # Cache por período+time (90s) — o dashboard chama isto a cada abertura. v81.74
         fresh = params.get("fresh") == "1"
-        ckey = _cache_key(params, user)
+        # v87.86: a chave leva a VERSÃO do dado (último sync do RD) — negócio novo invalida
+        # o cache de todas as telas ao mesmo tempo ("mesma língua em tempo real").
+        ckey = _cache_key(params, user) + "|" + versao_deals(sb)
         if not fresh:
             cached = _cache_read(sb, ckey)
             if cached is not None:
@@ -275,7 +283,44 @@ class handler(BaseHTTPRequestHandler):
         # ordena: mais alertas primeiro, depois menor health (quem precisa de atenção)
         out.sort(key=lambda x: (-(x["alertas_count"]), x["health"]))
 
+        # ── v87.86 DICIONÁRIO DE MÉTRICAS: vendas, VGV, leads, em atendimento, marcos, meta e
+        # projeção vêm do motor único (_metricas_lib) — o mesmo número que a Gestão Comercial,
+        # o Dashboard, a Sala de Comando e o Cérebro de Vendas mostram.
+        mx = None
+        try:
+            mx = mx_resumo(sb, {"since": since_d.isoformat(), "until": until_d.isoformat()}, fresh=fresh)
+        except Exception as e:
+            print(f"[oo/overview] motor de métricas indisponível: {e}")
+        if mx:
+            for row in out:
+                tk = mx_team(row.get("team"))
+                b = mx["equipes"].get(tk) if row.get("is_team") else mx["pessoas"].get(row["id"])
+                if not b:
+                    continue
+                meta_vgv = (b.get("meta") or {}).get("meta_vgv") or 0
+                row.update({
+                    "vendas": b["vendas"], "vgv": b["vgv"], "leads": b["leads"],
+                    "interessados": b["interessados"], "em_atendimento": b["em_atendimento"], "perdidos": b["perdidos"],
+                    "visitas": visitas_de(b), "agendamentos": agendamentos_de(b), "propostas": propostas_de(b),
+                    "meta_attainment_pct": b.get("atingimento_vgv_pct"), "meta_vgv": meta_vgv,
+                })
+                if row.get("card_modo") == "individual":
+                    e = mx["equipes"].get(tk)
+                    if e:
+                        row["meta_equipe_vgv"] = (e.get("meta") or {}).get("meta_vgv")
+                pj = b.get("projecao")
+                if pj and isinstance(row.get("projecao"), dict):
+                    ating = round(pj["vgv"] / meta_vgv * 100, 1) if meta_vgv else None
+                    row["projecao"].update({"modo": "projecao", "proj_vendas": pj["vendas"], "proj_vgv": pj["vgv"],
+                                            "real_vendas": b["vendas"], "real_vgv": b["vgv"], "meta_vgv": meta_vgv,
+                                            "atingira_vgv_pct": ating,
+                                            "no_ritmo": (ating >= 100) if ating is not None else None})
+
         payload = {
+            "dados_de": mx.get("dados_de") if mx else None,
+            "dados_de_hhmm": mx.get("dados_de_hhmm") if mx else None,
+            "versao_dados": mx.get("versao") if mx else None,
+            "avisos_dicionario": (mx.get("avisos") if mx else []),
             "ok": True,
             "period": {"since": since_d.isoformat(), "until": until_d.isoformat(),
                        "preset": params.get("date_preset") or ("custom" if params.get("since") else "this_month")},

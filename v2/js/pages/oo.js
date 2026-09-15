@@ -48,7 +48,7 @@ function presetRange(id) {
     case 'semana': { const dow = (t.getDay() + 6) % 7; return [fmt(new Date(y, m, t.getDate() - dow)), fmt(new Date(y, m, t.getDate() - dow + 6))]; }
     case 'q1': return [fmt(new Date(y, m, 1)), fmt(new Date(y, m, 15))];
     case 'q2': return [fmt(new Date(y, m, 16)), fmt(lastDay)];
-    case 'this_month': return [fmt(new Date(y, m, 1)), fmt(lastDay)];
+    case 'this_month': return [fmt(new Date(y, m, 1)), fmt(t)];   // v87.86 Dicionário §0: dia 1 até HOJE
     case 'last_month': return [fmt(new Date(y, m - 1, 1)), fmt(new Date(y, m, 0))];
     case 'tri1': return [`${y}-01-01`, `${y}-03-31`];
     case 'tri2': return [`${y}-04-01`, `${y}-06-30`];
@@ -787,15 +787,20 @@ function openMeeting(iid) {
 }
 
 /* ──────────────── helpers visuais ──────────────── */
+let _fresh = false;   // v87.86: 🔄 = sincroniza o RD e recalcula (ignora cache)
 function ooQP() {
-  if (_since && _until) return 'since=' + encodeURIComponent(_since) + '&until=' + encodeURIComponent(_until);
+  const f = _fresh ? '&fresh=1' : ''; _fresh = false;
+  if (_since && _until) return 'since=' + encodeURIComponent(_since) + '&until=' + encodeURIComponent(_until) + f;
   const r = presetRange(_preset);
-  if (r) return 'since=' + r[0] + '&until=' + r[1];
-  return 'date_preset=' + encodeURIComponent(_preset);
+  if (r) return 'since=' + r[0] + '&until=' + r[1] + f;
+  return 'date_preset=' + encodeURIComponent(_preset) + f;
 }
 function periodSel() {
   const custom = !!(_since && _until);
+  const stamp = _ov?.dados_de_hhmm || _det?.dados_de_hhmm || '';
   return `<div class="flex items-center gap-2" style="flex-wrap:wrap">
+    ${stamp ? `<span class="tiny muted" title="último sync do RD Station — o mesmo retrato em todas as telas">dados de <b>${escapeHtml(stamp)}</b></span>` : ''}
+    <button class="btn btn-ghost btn-sm" id="oo-fresh" title="sincroniza o RD agora e recalcula">🔄</button>
     <select id="oo-preset" class="select" style="padding:5px 10px;font-size:12px">
       ${PRESETS.map(p => `<option value="${p.id}"${(p.id === _preset && !custom) ? ' selected' : ''}>${p.lbl}</option>`).join('')}
     </select>
@@ -808,6 +813,11 @@ function periodSel() {
   </div>`;
 }
 function wirePeriod(reloadFn) {
+  document.getElementById('oo-fresh')?.addEventListener('click', async (e) => {
+    e.target.disabled = true;
+    try { await api.request('/api/v3/crm/sync_if_stale?hours=0'); } catch (_) {}
+    _fresh = true; reloadFn();
+  });
   document.getElementById('oo-preset')?.addEventListener('change', e => { _preset = e.target.value; _since = ''; _until = ''; reloadFn(); });
   document.getElementById('oo-range-go')?.addEventListener('click', () => {
     const s = document.getElementById('oo-since')?.value, u = document.getElementById('oo-until')?.value;
