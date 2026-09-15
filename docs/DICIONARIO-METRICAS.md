@@ -88,10 +88,20 @@ Contagem por **coluna do funil do RD**: negócios que **entraram** na coluna den
 
 Sócio (e o próprio gestor) vê a equipe somada; outro gerente vê o individual do gestor. Obrigatório: o card carrega o rótulo **"equipe"** ou **"individual"** em destaque, e no individual a meta mostra "meta da equipe: R$ X" em vez de "Sem meta no período".
 
-## 8. Projeção e ritmo
+## 8. Projeção e ritmo (revisado em 15/09/2026 à noite: as projeções também divergiam)
 
-- Run-rate em dias úteis (seg–sáb), como já definido em v87.82.
-- Pipeline ponderado usa uma tabela só de pesos por marco (a de `MS_PRIOR`, calibrada pelo win-rate real); `PIPELINE_PESOS` deixa de existir.
+Existem **quatro** projeções, sempre com estes nomes, em toda tela. Nenhuma tela inventa uma quinta.
+
+| Nome | Definição | Equipe |
+|---|---|---|
+| **Ritmo** | realizado ÷ dias úteis decorridos × dias úteis do mês (seg–sáb). Só no mês corrente. | soma dos membros ativos |
+| **Pipeline ponderado** | Σ probabilidade × valor dos negócios abertos, pela régua do Cérebro de Vendas (`MS_PRIOR` por marco × taxa real do canal nos últimos 120 dias × recência × engajamento). "Quente" = probabilidade ≥ 55%. | soma |
+| **Previsto do mês** | realizado + comprometido, onde comprometido = pipeline ponderado só dos negócios em proposta/pasta (marco ≥ 4). | soma |
+| **Norte** | plano declarado no 1:1 (atendimentos × mix × taxa base × energia; VGV = vendas × ticket). Só existe para quem tem Norte definido no mês. | soma dos membros **ativos e não-serviço** que têm Norte |
+
+Divergências que este item elimina: o 1:1 usava dias corridos (15/30) e a Gestão Comercial `dia do mês`; a Gestão Comercial somava o Norte de inativos e da conta `comercial` (5,92 vendas contra 5,03 no 1:1) e o card de equipe do gestor não tinha Norte; o "pipeline esperado" da Gestão Comercial vinha de taxas visita→venda da safra (zerava com amostra pequena) enquanto o Cérebro e a Agenda usavam o motor de probabilidade, e mesmo esses dois divergiam entre si por cache e base de fechados diferentes (Kadu em 15/09: R$ 1.013.128 × R$ 980.729 × R$ 0).
+
+`PIPELINE_PESOS` (oo/_oo_lib) e as taxas de safra do forecast da Gestão Comercial deixam de ser exibidos como projeção.
 
 ## 9. O que muda para o usuário
 

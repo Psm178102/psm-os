@@ -26,6 +26,9 @@ for _d in ("intel", "oo", "producao"):
     if _p not in sys.path:
         sys.path.append(_p)
 from _auth_lib import supabase_client, require_user, AuthError, hoje_brt  # type: ignore
+if _V3 not in sys.path:
+    sys.path.append(_V3)
+from _metricas_lib import resumo as mx_resumo  # type: ignore   # v87.87 — motor único (Dicionário §8)
 
 CACHE_TTL = 300
 _COLS = ("id,amount,win,closed_at,created_at_rd,updated_at_rd,"
@@ -217,6 +220,27 @@ class handler(BaseHTTPRequestHandler):
                 "forecast": fc, "forecast_semana": fc_semana,
                 "norte": _norte(sb, uid, ym, hoje),
                 "fetched_at": datetime.now(timezone.utc).isoformat()}
+        # ── v87.87 DICIONÁRIO §8: pipeline ponderado, previsto, ritmo e Norte vêm do motor único —
+        # o mesmo número do 1:1, da Gestão Comercial e do Cérebro (a fila top-5 continua daqui).
+        try:
+            mx = mx_resumo(sb, {})
+            b = (mx.get("pessoas") or {}).get(uid)
+            if b:
+                pp = b.get("pipeline") or {}
+                data.update({"pipeline_ponderado_vgv": pp.get("ponderado_vgv", data.get("pipeline_ponderado_vgv")),
+                             "pipeline_ponderado_vendas": pp.get("ponderado_vendas", data.get("pipeline_ponderado_vendas")),
+                             "pipeline_quente_vgv": pp.get("quente_vgv", data.get("pipeline_quente_vgv")),
+                             "quentes_n": pp.get("quentes", data.get("quentes_n")),
+                             "total_abertos": pp.get("abertos", data.get("total_abertos")),
+                             "vendido_mes": {"vendas": b["vendas"], "vgv": b["vgv"], "meta_vgv": (b.get("meta") or {}).get("meta_vgv"),
+                                             "atingimento_vgv_pct": b.get("atingimento_vgv_pct")},
+                             "ritmo": b.get("projecao"), "previsto": b.get("previsto"),
+                             "leads_mes": b["leads"], "em_atendimento": b["em_atendimento"]})
+                if b.get("norte"):
+                    data["norte"] = {**(data.get("norte") or {}), "vendas_prev": b["norte"]["vendas"], "vgv_prev": b["norte"]["vgv"]}
+                data["dados_de_hhmm"] = mx.get("dados_de_hhmm")
+        except Exception as e:
+            print(f"[resumo] motor de métricas indisponível: {e}")
         try:
             sb.table("shared_kv").upsert({"key": ckey, "value": {"_cached_at": datetime.now(timezone.utc).isoformat(), "data": data},
                                           "updated_at": datetime.now(timezone.utc).isoformat()}, on_conflict="key").execute()

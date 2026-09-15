@@ -350,6 +350,21 @@ class handler(BaseHTTPRequestHandler):
             m["ticket_medio"] = b.get("ticket")
             m["meta_attainment_pct"] = b.get("atingimento_vgv_pct")
             m["meta_vgv"] = (b.get("meta") or {}).get("meta_vgv")
+            # v87.87 §8: as quatro projeções canônicas (ritmo, pipeline, previsto, norte)
+            pp, pv, mv = b.get("pipeline") or {}, b.get("previsto") or {}, (b.get("meta") or {}).get("meta_vgv") or 0
+            m["pipeline"] = {"ja_vendido": b["vgv"], "comprometido": pp.get("comprometido_vgv", 0),
+                             "previsto_total": pv.get("vgv", b["vgv"]), "cobertura_pct": pv.get("cobertura_meta_pct"),
+                             "potencial": round(b["vgv"] + pp.get("ponderado_vgv", 0), 2),
+                             "ponderado_vgv": pp.get("ponderado_vgv", 0), "ponderado_vendas": pp.get("ponderado_vendas", 0),
+                             "abertos": pp.get("abertos", 0), "quentes": pp.get("quentes", 0), "meta_vgv": mv}
+            if isinstance(m.get("projecao"), dict):
+                m["projecao"]["norte"] = b.get("norte")
+                m["projecao"]["previsto"] = pv
+                pj = b.get("projecao")
+                if pj:
+                    m["projecao"].update({"modo": "projecao", "proj_vendas": pj["vendas"], "proj_vgv": pj["vgv"],
+                                          "atingira_vgv_pct": pj.get("atingira_vgv_pct"),
+                                          "dias_decorridos": pj["dias_uteis_decorridos"], "dias_total": pj["dias_uteis_mes"]})
         try:
             mx = mx_resumo(sb, {"since": since_d.isoformat(), "until": until_d.isoformat()})
             _aplica(resp, (mx.get("pessoas") or {}).get(cid))

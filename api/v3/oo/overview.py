@@ -309,10 +309,18 @@ class handler(BaseHTTPRequestHandler):
                     if e:
                         row["meta_equipe_vgv"] = (e.get("meta") or {}).get("meta_vgv")
                 pj = b.get("projecao")
+                if isinstance(row.get("projecao"), dict):
+                    # v87.87 §8: Norte e pipeline vêm do motor único — inclusive no card de EQUIPE
+                    # (antes o card do gestor não tinha Norte e a Gestão Comercial somava inativos)
+                    row["projecao"]["norte"] = b.get("norte")
+                    row["projecao"]["pipeline"] = b.get("pipeline")
+                    row["projecao"]["previsto"] = b.get("previsto")
                 if pj and isinstance(row.get("projecao"), dict):
                     ating = round(pj["vgv"] / meta_vgv * 100, 1) if meta_vgv else None
                     row["projecao"].update({"modo": "projecao", "proj_vendas": pj["vendas"], "proj_vgv": pj["vgv"],
                                             "real_vendas": b["vendas"], "real_vgv": b["vgv"], "meta_vgv": meta_vgv,
+                                            "dias_decorridos": pj["dias_uteis_decorridos"], "dias_total": pj["dias_uteis_mes"],
+                                            "pace_pct": round(pj["dias_uteis_decorridos"] / pj["dias_uteis_mes"] * 100, 1) if pj["dias_uteis_mes"] else None,
                                             "atingira_vgv_pct": ating,
                                             "no_ritmo": (ating >= 100) if ating is not None else None})
 

@@ -284,9 +284,10 @@ def carregar(sb, since_d, until_d):
     email2uid = {(u.get("email") or "").lower(): u["id"] for u in pessoas if u.get("email")}
     servico_emails = {(u.get("email") or "").lower() for u in users if u.get("is_service") and u.get("email")}
 
-    cols = ("id,amount,win,closed_at,created_at_rd,updated_at_rd,stage_id,pipeline_id,pipeline_name,"
+    cols = ("id,amount,win,closed_at,created_at_rd,updated_at_rd,stage_id,stage_name,pipeline_id,pipeline_name,"
             "user_id,user_email,synced_at,"
-            "src:rd_raw->deal_source->>name,amt_total:rd_raw->amount_total,amt_unique:rd_raw->amount_unique")
+            "src:rd_raw->deal_source->>name,amt_total:rd_raw->amount_total,amt_unique:rd_raw->amount_unique,"
+            "la:rd_raw->>last_activity_at,nint:rd_raw->interactions")
     # negócios que TOCAM a janela: criados nela, fechados nela, ou ainda abertos (em atendimento)
     deals = {}
     for build in (
@@ -339,18 +340,81 @@ def carregar(sb, since_d, until_d):
     except Exception:
         avisos.append({"tipo": "erro_dados", "txt": "⚠️ Metas indisponíveis agora.", "n": 1})
 
+    # fechados dos últimos 120 dias (taxa real por canal → pipeline ponderado, §8)
+    closed120 = []
+    try:
+        c_ini = (datetime.now(timezone.utc) - timedelta(days=120)).isoformat()
+        closed120 = [d for d in _paginado(lambda: sb.table("deals").select("win,src:rd_raw->deal_source->>name")
+                                          .gte("closed_at", c_ini).order("id"), cap=10)
+                     if d.get("win") is not None]
+    except Exception:
+        pass
+
+    # Norte do Mês declarado (§8) — 1 leitura por mês da janela
+    norte_cfg = {}
+    try:
+        for (y, m) in meses_da_janela(since_d, until_d):
+            rows = sb.table("shared_kv").select("key,value").like("key", f"oo_norte:%:{y:04d}-{m:02d}").execute().data or []
+            for r in rows:
+                k = str(r.get("key") or "")
+                uid = k.split(":")[1] if k.count(":") >= 2 else None
+                v = r.get("value")
+                if isinstance(v, str):
+                    try:
+                        v = json.loads(v)
+                    except Exception:
+                        v = None
+                if uid and isinstance(v, dict):
+                    norte_cfg.setdefault(uid, []).append(v)
+    except Exception:
+        pass
+
     return {"users": users, "pessoas": pessoas, "email2uid": email2uid, "servico_emails": servico_emails,
             "deals": list(deals.values()), "stage_key": stage_key, "eventos": eventos,
             "tarefas": tarefas, "tarefas_ok": tarefas_ok, "metas": metas, "avisos": avisos,
+            "closed120": closed120, "norte_cfg": norte_cfg,
             "ini": ini, "fim": fim}
 
 
+def norte_calc(cfg):
+    """§8 Norte do Mês = plano declarado: Σ canais (atend × mix%) × (taxa_base × energia/100)/100,
+    VGV = vendas × ticket. Mesma fórmula de oo/norte.py:computed (fonte única a partir da v87.87)."""
+    try:
+        at = float(cfg.get("atendimentos_mes") or 0)
+        ticket = float(cfg.get("ticket_medio") or 0)
+        v = 0.0
+        for c in (cfg.get("canais") or []):
+            v += (at * float(c.get("mix") or 0) / 100.0) * (float(c.get("taxa_base") or 0) * float(c.get("energia") or 0) / 100.0) / 100.0
+        if at <= 0:
+            return None
+        return {"vendas": round(v, 2), "vgv": round(v * ticket, 2), "atendimentos_mes": at}
+    except Exception:
+        return None
+
+
+def _brain():
+    """Motor de probabilidade do Cérebro de Vendas (intel/_brain_lib) — o MESMO que o Cérebro,
+    a Agenda e agora todas as telas usam pro pipeline ponderado."""
+    import os, sys
+    _v3 = os.path.dirname(os.path.abspath(__file__))
+    for d in ("intel", "oo"):
+        p = os.path.join(_v3, d)
+        if p not in sys.path:
+            sys.path.append(p)
+    import _brain_lib as B  # type: ignore
+    return B
+
+
 # ─── cálculo ─────────────────────────────────────────────────────────────────
+PIPE_CAMPOS = ("abertos", "ponderado_vendas", "ponderado_vgv", "quentes", "quente_vgv",
+               "comprometido_vendas", "comprometido_vgv")
+
+
 def _vazio():
     z = {"vendas": 0, "vgv": 0.0, "ticket": None, "perdidos": 0,
          "interessados": 0, "leads": 0, "leads_pago_psm": 0, "leads_pago_corretor": 0, "leads_origem_assumida": 0,
          "em_atendimento": 0, "por_origem": {c: 0 for c in CATEGORIAS},
-         "visitas": None}
+         "visitas": None, "pipeline": {k: 0 for k in PIPE_CAMPOS}, "norte": None}
     for k in MARCOS_RD:
         z[k] = 0
     return z
@@ -444,6 +508,52 @@ def calcular(sb, base, since_d, until_d, hoje=None):
 
     # marcos por coluna (todas as equipes; a Conquista recebe também os do HUB)
     deal_owner = {str(d["id"]): _dono(d, email2uid, uids, servico_emails) for d in base["deals"]}
+
+    # §8 PIPELINE PONDERADO — motor do Cérebro (prior por etapa × taxa real do canal × recência ×
+    # engajamento) sobre TODOS os abertos; comprometido = abertos em proposta/pasta (marco ≥ 4)
+    try:
+        B = _brain()
+        now = datetime.now(timezone.utc)
+        closed = [{"win": d.get("win"), "rd_raw": {"deal_source": {"name": d.get("src")}}} for d in base.get("closed120") or []]
+        owr, cwr, cn = B.channel_winrates(closed)
+        for d in base["deals"]:
+            if d.get("win") is not None:
+                continue
+            pseudo = {"id": d.get("id"), "win": None, "stage_name": d.get("stage_name"),
+                      "updated_at_rd": d.get("updated_at_rd"), "created_at_rd": d.get("created_at_rd"),
+                      "amount": d.get("amount"),
+                      "rd_raw": {"deal_source": {"name": d.get("src")}, "last_activity_at": d.get("la"),
+                                 "interactions": d.get("nint"), "amount_total": d.get("amt_total"),
+                                 "amount_unique": d.get("amt_unique")}}
+            s = B.score_open(pseudo, owr, cwr, cn, now)
+            if not s:
+                continue
+            pp = bucket(deal_owner.get(str(d.get("id"))))["pipeline"]
+            pp["abertos"] += 1
+            pp["ponderado_vendas"] += s["prob"]
+            pp["ponderado_vgv"] += s["expected_vgv"]
+            if s["temp"] == "quente":
+                pp["quentes"] += 1
+                pp["quente_vgv"] += s["expected_vgv"]
+            if s["ms"] >= 4:
+                pp["comprometido_vendas"] += s["prob"]
+                pp["comprometido_vgv"] += s["expected_vgv"]
+    except Exception as e:
+        avisos.append({"tipo": "erro_dados", "txt": f"⚠️ Pipeline ponderado indisponível ({str(e)[:60]}).", "n": 1})
+
+    # §8 NORTE declarado (soma dos meses da janela; só quem tem Norte definido)
+    for uid, cfgs in (base.get("norte_cfg") or {}).items():
+        if uid not in P:
+            continue
+        tot = None
+        for cfg in cfgs:
+            n = norte_calc(cfg)
+            if n:
+                tot = tot or {"vendas": 0.0, "vgv": 0.0}
+                tot["vendas"] += n["vendas"]
+                tot["vgv"] += n["vgv"]
+        if tot:
+            P[uid]["norte"] = {"vendas": round(tot["vendas"], 2), "vgv": round(tot["vgv"], 2)}
     sk = base["stage_key"]
     for e in base["eventos"]:
         met = COLUNA_METRICA.get(sk.get(str(e.get("stage_id") or "")))
@@ -522,12 +632,24 @@ def calcular(sb, base, since_d, until_d, hoje=None):
         b["meta"] = {k: round(v, 2) for k, v in (meta or {}).items()}
         mv = (meta or {}).get("meta_vgv") or 0
         b["atingimento_vgv_pct"] = round(b["vgv"] / mv * 100, 1) if mv > 0 else None
+        pp = b["pipeline"]
+        for k in PIPE_CAMPOS:
+            pp[k] = round(pp[k], 2)
+        # §8 — as QUATRO projeções, sempre com estes nomes, em toda tela:
+        #   ritmo      = realizado ÷ dias úteis decorridos × dias úteis do mês (seg–sáb)
+        #   pipeline   = Σ prob × valor dos abertos (motor do Cérebro)
+        #   previsto   = realizado + comprometido (abertos em proposta/pasta)
+        #   norte      = plano declarado (mix × conversão) — só quem tem Norte
         if ritmo_on and uteis_dec:
             b["projecao"] = {"vendas": round(b["vendas"] / uteis_dec * uteis_tot, 1),
                              "vgv": round(b["vgv"] / uteis_dec * uteis_tot, 2),
-                             "dias_uteis_decorridos": uteis_dec, "dias_uteis_mes": uteis_tot}
+                             "dias_uteis_decorridos": uteis_dec, "dias_uteis_mes": uteis_tot,
+                             "atingira_vgv_pct": (round(b["vgv"] / uteis_dec * uteis_tot / mv * 100, 1) if mv > 0 else None)}
         else:
             b["projecao"] = None
+        b["previsto"] = {"vendas": round(b["vendas"] + pp["comprometido_vendas"], 1),
+                         "vgv": round(b["vgv"] + pp["comprometido_vgv"], 2),
+                         "cobertura_meta_pct": (round((b["vgv"] + pp["comprometido_vgv"]) / mv * 100, 1) if mv > 0 else None)}
         return b
 
     pessoas_out = {}
@@ -544,10 +666,17 @@ def calcular(sb, base, since_d, until_d, hoje=None):
         t["visitas"] = 0 if base["tarefas_ok"] else None
         t["hub"] = {k: 0 for k in MARCOS_HUB}
         meta = {k: 0.0 for k in METAS_CAMPOS}
+        norte = None
         for b in lista:
             for k in ("vendas", "vgv", "perdidos", "interessados", "leads", "leads_pago_psm",
                       "leads_pago_corretor", "leads_origem_assumida", "em_atendimento") + MARCOS_RD:
                 t[k] += b[k]
+            for k in PIPE_CAMPOS:
+                t["pipeline"][k] += (b.get("pipeline") or {}).get(k, 0)
+            if b.get("norte"):
+                norte = norte or {"vendas": 0.0, "vgv": 0.0}
+                norte["vendas"] += b["norte"]["vendas"]
+                norte["vgv"] += b["norte"]["vgv"]
             if base["tarefas_ok"]:
                 t["visitas"] += (b.get("visitas") or 0)
             for c in CATEGORIAS:
@@ -556,6 +685,7 @@ def calcular(sb, base, since_d, until_d, hoje=None):
                 t["hub"][k] += (b.get("hub") or {}).get(k, 0)
             for k in METAS_CAMPOS:
                 meta[k] += (b.get("meta") or {}).get(k, 0)
+        t["norte"] = ({"vendas": round(norte["vendas"], 2), "vgv": round(norte["vgv"], 2)} if norte else None)
         return fechar(t, meta)
 
     # equipes (§4): membros ATIVOS não-serviço com team igual (corretor + gestor)

@@ -220,9 +220,15 @@ class handler(BaseHTTPRequestHandler):
                 b = (mx.get("pessoas") or {}).get(c["id"])
                 if not b:
                     continue
+                pp = b.get("pipeline") or {}
                 c.update({"meta_vgv_mes": (b.get("meta") or {}).get("meta_vgv") or 0,
                           "vendas_mes": b["vendas"], "vgv_mes": b["vgv"], "leads_mes": b["leads"],
-                          "em_atendimento": b["em_atendimento"], "atingimento_vgv_pct": b.get("atingimento_vgv_pct")})
+                          "em_atendimento": b["em_atendimento"], "atingimento_vgv_pct": b.get("atingimento_vgv_pct"),
+                          # v87.87 §8: o mesmo pipeline ponderado do 1:1, da GC e da Agenda
+                          "pipeline_ponderado_vgv": pp.get("ponderado_vgv", c.get("pipeline_ponderado_vgv")),
+                          "pipeline_ponderado_vendas": pp.get("ponderado_vendas"),
+                          "quentes": pp.get("quentes", c.get("quentes")),
+                          "previsto_mes": b.get("previsto"), "ritmo_mes": b.get("projecao"), "norte": b.get("norte")})
                 meta_total_vgv += c["meta_vgv_mes"]
         except Exception as e:
             print(f"[sales_brain] motor de métricas indisponível: {e}")

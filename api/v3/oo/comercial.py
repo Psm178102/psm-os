@@ -203,15 +203,45 @@ def _aplicar_dicionario(p, mx, janela_dias):
                   "leads": e["leads"], "em_atendimento": e["em_atendimento"]})
         if e.get("projecao"):
             v["proj_ritmo"] = e["projecao"]["vendas"]
+        # v87.87 §8: Norte da equipe = soma dos membros ATIVOS não-serviço (antes somava
+        # inativo e conta 'comercial'); previsto e pipeline vêm do motor único
+        v["proj_vendas"] = (e.get("norte") or {}).get("vendas") or 0
+        v["proj_vgv_norte"] = (e.get("norte") or {}).get("vgv") or 0
+        v["previsto"] = e.get("previsto")
+        v["pipeline_ponderado"] = e.get("pipeline")
         pc = []
         for c in (v.get("por_corretor") or []):
             b = nomes.get(mx_norm(c.get("nome")))
             if b:
-                c = {**c, "real": b["vendas"], "vgv": b["vgv"], "meta": int((b.get("meta") or {}).get("meta_vendas") or 0)}
+                c = {**c, "real": b["vendas"], "vgv": b["vgv"], "meta": int((b.get("meta") or {}).get("meta_vendas") or 0),
+                     "proj": (b.get("norte") or {}).get("vendas") or 0}
             pc.append(c)
         v["por_corretor"] = pc
         visao.append(v)
     novo["visao"] = visao
+
+    # 🔮 forecast por equipe: mês = previsto (realizado + comprometido) e pipeline ponderado do motor
+    fc = {}
+    for tk, f in (p.get("forecast") or {}).items():
+        e = eq.get(tk)
+        if not e:
+            fc[tk] = f
+            continue
+        f = dict(f)
+        pp, pv = e.get("pipeline") or {}, e.get("previsto") or {}
+        f["pipeline_vendas_esp"] = pp.get("ponderado_vendas", 0)
+        f["pipeline_vgv_esp"] = pp.get("ponderado_vgv", 0)
+        hz = dict(f.get("hz") or {})
+        if "mes" in hz:
+            hz["mes"] = {**hz["mes"], "real": e["vendas"], "esp": pv.get("vendas", e["vendas"])}
+        f["hz"] = hz
+        f["mes_esp"] = pv.get("vendas", e["vendas"])
+        f["previsto_vgv"] = pv.get("vgv")
+        f["ritmo_vendas"] = (e.get("projecao") or {}).get("vendas")
+        f["norte_vendas"] = (e.get("norte") or {}).get("vendas")
+        f["fonte"] = "motor único (Dicionário §8)"
+        fc[tk] = f
+    novo["forecast"] = fc
 
     prod = dict(p.get("produtividade") or {})
     corr = []
