@@ -148,7 +148,7 @@ function brokerCard(c) {
         return `<div style="margin-top:6px;background:var(--bg-3,rgba(0,0,0,.04));border-radius:8px;padding:6px 9px">
           <div class="tiny" style="font-weight:800;margin-bottom:2px">📈 Projeção do mês</div>
           ${n ? `<div class="tiny">🧭 Norte: <b>${(n.vendas ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} venda(s)</b>${n.vgv != null ? ` · <b>R$ ${moneyShort(n.vgv)}</b>` : ''} <span class="muted">(plano mix×conversão)</span></div>` : ''}
-          <div class="tiny">🏃 Ritmo: <span style="font-weight:800;color:${cor}">${p.proj_vendas ?? 0} venda(s) · R$ ${moneyShort(p.proj_vgv || 0)}</span>${p.atingira_vgv_pct != null ? ` <span class="muted">(${pctF(p.atingira_vgv_pct)} da meta)</span>` : ''}${p.confianca ? ` <span class="muted">conf. ${p.confianca}</span>` : ''}</div>
+          <div class="tiny">${p.fonte === 'provavel' ? '📈 Provável' : '🏃 Ritmo'}: <span style="font-weight:800;color:${cor}">${p.proj_vendas ?? 0} venda(s) · R$ ${moneyShort(p.proj_vgv || 0)}</span>${p.atingira_vgv_pct != null ? ` <span class="muted">(${pctF(p.atingira_vgv_pct)} da meta)</span>` : ''}${p.fonte === 'provavel' && p.proj_vgv_high ? ` <span class="muted">faixa R$ ${moneyShort(p.proj_vgv_low || 0)}–${moneyShort(p.proj_vgv_high)}</span>` : (p.confianca ? ` <span class="muted">conf. ${p.confianca}</span>` : '')}</div>
         </div>`; })()}
       ${alerts ? `<div style="margin-top:6px">${alerts}</div>` : ''}
       ${c.proxima_oo ? `<div class="tiny muted" style="margin-top:6px">📅 Próxima 1:1: ${fmtD(c.proxima_oo)}</div>` : (c.last_oo ? `<div class="tiny muted" style="margin-top:6px">Última 1:1: ${fmtD(c.last_oo)}</div>` : '<div class="tiny" style="color:var(--warn);margin-top:6px">Sem 1:1 registrada</div>')}

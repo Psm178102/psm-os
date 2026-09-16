@@ -88,6 +88,23 @@ Contagem por **coluna do funil do RD**: negócios que **entraram** na coluna den
 
 Sócio (e o próprio gestor) vê a equipe somada; outro gerente vê o individual do gestor. Obrigatório: o card carrega o rótulo **"equipe"** ou **"individual"** em destaque, e no individual a meta mostra "meta da equipe: R$ X" em vez de "Sem meta no período".
 
+## 8A. Meta · Realizado · Projeção por horizonte (revisão de 16/09/2026 — substitui a "projeção oficial" do §8)
+
+Pedido do Paulo: "as projeções são muito irreais e/ou erradas, zerando". Medido: o ritmo zerava sem venda no período e o pipeline ponderado do Cérebro somava milhares de abertos (21 vendas só pro Kadu contra ~6/mês da empresa). Implementação: `api/v3/_projecao_lib.py` + `GET /api/v3/metricas/projecao`; tela 🎯 na Gestão Comercial; mesmo número no card do mês da Gestão Comercial e no card do 1:1.
+
+| Item | Regra |
+|---|---|
+| Horizontes | Semana (seg–sáb atual), Quinzena (1–15 ou 16–fim), Mês, Trimestre, Semestre, Ano, Personalizado (datas). Brasília. |
+| Meta do horizonte | Metas mensais proporcionais aos dias úteis (seg–sáb) do período. Meta de vendas = `meta_vendas`, ou `meta_vgv ÷ ticket` quando só há meta de VGV. "Esperado até hoje" = mesma proporção até hoje. |
+| Realizado | Vendas ganhas no RD de início até hoje (§1). |
+| Ritmo histórico | Vendas por dia útil nos últimos 180 dias × dias úteis que faltam. Por corretor, suavizado pela média da equipe (peso de 26 dias úteis). Equipe = soma dos membros ativos; empresa = soma das pessoas ativas. |
+| Funil | Propostas/contratos abertos e mexidos em 60 dias × taxa real proposta→venda da equipe (entradas em proposta de 240 a 30 dias atrás; amostra mínima 15, senão empresa, senão 15%) × fração que cabe no prazo (dias corridos restantes ÷ dias medianos proposta→venda). |
+| **Provável (oficial)** | Realizado + o maior entre ritmo e funil. |
+| Conservador / Otimista | Realizado + o menor dos dois / realizado + os dois somados. Faixa de vendas por Poisson 10–90%. |
+| VGV | Realizado pelo valor real; ritmo × ticket (do corretor com 3+ vendas, senão da equipe); funil pelo valor do negócio ou ticket. |
+| Status | batida · vai bater (provável ≥ 100%) · atrás (70–99%) · fora (< 70%) · sem meta. |
+| Período encerrado | Projeção = realizado. |
+
 ## 8. Projeção e ritmo (revisado em 15/09/2026 à noite: as projeções também divergiam)
 
 Existem **quatro** projeções, sempre com estes nomes, em toda tela. Nenhuma tela inventa uma quinta.
@@ -102,6 +119,8 @@ Existem **quatro** projeções, sempre com estes nomes, em toda tela. Nenhuma te
 Divergências que este item elimina: o 1:1 usava dias corridos (15/30) e a Gestão Comercial `dia do mês`; a Gestão Comercial somava o Norte de inativos e da conta `comercial` (5,92 vendas contra 5,03 no 1:1) e o card de equipe do gestor não tinha Norte; o "pipeline esperado" da Gestão Comercial vinha de taxas visita→venda da safra (zerava com amostra pequena) enquanto o Cérebro e a Agenda usavam o motor de probabilidade, e mesmo esses dois divergiam entre si por cache e base de fechados diferentes (Kadu em 15/09: R$ 1.013.128 × R$ 980.729 × R$ 0).
 
 `PIPELINE_PESOS` (oo/_oo_lib) e as taxas de safra do forecast da Gestão Comercial deixam de ser exibidos como projeção.
+
+**Negócio aberto sem valor no RD (decisão do Paulo, 16/09/2026):** entra no pipeline ponderado e no previsto com o **ticket de referência** da equipe = ticket médio das vendas ganhas da equipe nos últimos 120 dias; sem venda com valor, `meta_vgv ÷ meta_vendas` da equipe; sem meta, ticket da empresa. O valor é presumido (campo `pipeline.sem_valor` / `pipeline.vgv_presumido` e aviso "N negócios abertos sem valor") e o valor real substitui o presumido assim que alguém preencher o RD. **Venda ganha sem valor não é presumida**: entra com R$ 0 e gera aviso, porque VGV realizado alimenta comissão e relatório.
 
 ## 9. O que muda para o usuário
 

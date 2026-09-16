@@ -28,6 +28,7 @@ if _V3 not in sys.path:
     sys.path.append(_V3)
 from _metricas_lib import (resumo as mx_resumo, versao_deals, team_key as mx_team,  # type: ignore
                            visitas_de, agendamentos_de, propostas_de)
+from _projecao_lib import projecao as pj_projecao  # type: ignore   # v87.91
 
 
 def _norte_proj(sb, uid, today):
@@ -323,6 +324,26 @@ class handler(BaseHTTPRequestHandler):
                                             "pace_pct": round(pj["dias_uteis_decorridos"] / pj["dias_uteis_mes"] * 100, 1) if pj["dias_uteis_mes"] else None,
                                             "atingira_vgv_pct": ating,
                                             "no_ritmo": (ating >= 100) if ating is not None else None})
+
+        # v87.91: "📈 Provável" do card = a MESMA projeção da Gestão Comercial (🎯 Meta · Realizado · Projeção)
+        if since_d.day == 1 and (since_d.year, since_d.month) == (today.year, today.month) and until_d >= today:
+            try:
+                pj = pj_projecao(sb, {"h": "mes"}, fresh=fresh)
+                for row in out:
+                    tk = mx_team(row.get("team"))
+                    p = (pj.get("equipes") or {}).get(tk) if row.get("is_team") else (pj.get("pessoas") or {}).get(row["id"])
+                    if not p or not isinstance(row.get("projecao"), dict):
+                        continue
+                    row["projecao"].update({
+                        "modo": "projecao", "fonte": "provavel",
+                        "proj_vendas": p["provavel"]["vendas"], "proj_vgv": p["provavel"]["vgv"],
+                        "proj_vgv_low": p["conservador"]["vgv"], "proj_vgv_high": p["otimista"]["vgv"],
+                        "atingira_vgv_pct": p["provavel"]["pct_meta"], "meta_vgv": p["meta"]["vgv"],
+                        "no_ritmo": (p["status"] in ("batida", "no_ritmo")) if p["status"] != "sem_meta" else None,
+                        "confianca": None, "status": p["status"],
+                    })
+            except Exception as e:
+                print(f"[oo/overview] projeção indisponível: {e}")
 
         payload = {
             "dados_de": mx.get("dados_de") if mx else None,

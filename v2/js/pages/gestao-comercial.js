@@ -34,7 +34,15 @@ const fmtDHM = h => {
 const TEAM_LBL = { conquista: '🏠 Conquista', map: '🏢 MAP', terceiros: '🤝 Terceiros', locacao: '🔑 Locação', outros: '— Outros' };
 const TEAMS4 = ['conquista', 'map', 'terceiros', 'locacao'];
 const tLbl = t => (TEAM_LBL[t] || t || '').replace(/^..\s/, '');
-const GC_TABS = [['meta', '🎯 Meta & Projeção'], ['metricas', '📐 Métricas'], ['funil', '⏬ Funil'], ['midia', '💰 Mídia & Custo'], ['pessoas', '👤 Pessoas']];
+const GC_TABS = [['meta', '🎯 Meta · Realizado · Projeção'], ['metricas', '📐 Métricas'], ['funil', '⏬ Funil'], ['midia', '💰 Mídia & Custo'], ['pessoas', '👤 Pessoas']];
+// v87.91 — 🎯 Meta · Realizado · Projeção com horizonte escolhido (pedido do Paulo 16/09)
+let _ph = 'mes', _pSince = '', _pUntil = '', _proj = null, _projKey = '', _projErr = '';
+const PH = [['semana', 'Semana'], ['quinzena', 'Quinzena'], ['mes', 'Mês'], ['trimestre', 'Trimestre'], ['semestre', 'Semestre'], ['ano', 'Ano'], ['personalizado', 'Personalizado']];
+const PSTATUS = {
+  batida: ['meta batida', 'var(--gc-ok)'], no_ritmo: ['vai bater', 'var(--gc-ok)'], atras: ['atrás (70–99%)', 'var(--gc-warn)'],
+  fora: ['fora (<70%)', 'var(--gc-err)'], sem_meta: ['sem meta', 'var(--ink-muted)'],
+};
+const fD = iso => { const [y, m, d] = String(iso || '').split('-'); return d ? `${d}/${m}` : iso; };
 
 /* ═══════════ CSS do módulo (paleta semântica + layout) — injetado 1× ═══════════ */
 const GC_CSS = `
@@ -75,6 +83,21 @@ const GC_CSS = `
 .gc .ok{color:var(--gc-ok)}.gc .warn{color:var(--gc-warn)}.gc .err{color:var(--gc-err)}.gc .acc{color:var(--gc-acc)}
 .gc details.gc-det{margin-top:8px;background:var(--bg-3);border-radius:8px;padding:8px 12px}.gc details.gc-det summary{cursor:pointer;font-weight:800;font-size:12.5px}
 .gc .gc-grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.gc .pj-track{position:relative;height:12px;background:var(--bg-3);border-radius:6px;overflow:visible;margin-top:10px}
+.gc .pj-track .band{position:absolute;top:0;height:100%;background:color-mix(in srgb,var(--gc-acc) 16%,transparent);border-radius:6px}
+.gc .pj-track .prov{position:absolute;top:0;left:0;height:100%;background:color-mix(in srgb,var(--gc-acc) 45%,transparent);border-radius:6px}
+.gc .pj-track .real{position:absolute;top:0;left:0;height:100%;background:var(--gc-acc);border-radius:6px}
+.gc .pj-track .meta{position:absolute;top:-4px;width:2px;height:20px;background:var(--ink)}
+.gc .pj-track .hoje{position:absolute;top:-2px;width:0;height:16px;border-left:2px dashed var(--ink-muted)}
+.gc .pj-leg{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--ink-muted);margin-top:8px}
+.gc .pj-leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.gc .pj-mini{position:relative;height:8px;min-width:90px;background:var(--bg-3);border-radius:4px}
+.gc .pj-mini .prov,.gc .pj-mini .real{position:absolute;top:0;left:0;height:100%;border-radius:4px}
+.gc .pj-mini .prov{background:color-mix(in srgb,var(--gc-acc) 40%,transparent)}.gc .pj-mini .real{background:var(--gc-acc)}
+.gc .pj-mini .meta{position:absolute;top:-3px;width:2px;height:14px;background:var(--ink)}
+.gc .pj-st{font-weight:800;font-size:11.5px;white-space:nowrap}
+.gc td.num,.gc th.num{text-align:right;white-space:nowrap}
+.gc td .sub{display:block;font-size:11px;color:var(--ink-muted);font-weight:500}
 .gc-tvov{position:fixed;inset:0;z-index:99999;background:var(--bg);color:var(--ink);overflow-y:auto;overflow-x:hidden}
 .gc-tvov .gc{font-size:15px}
 @media (max-width:720px){.gc .gc-kpi .v{font-size:24px}.gc .gc-q h3{font-size:17px}}
@@ -198,7 +221,7 @@ function bind(scope) {
     load();
   });
   // v87.86: 🔄 sincroniza o RD agora (fonte) e recalcula — não só a tela
-  q('#gc-fresh') && (q('#gc-fresh').onclick = async () => { try { await api.request('/api/v3/crm/sync_if_stale?hours=0'); } catch (_) {} load(true); });
+  q('#gc-fresh') && (q('#gc-fresh').onclick = async () => { try { await api.request('/api/v3/crm/sync_if_stale?hours=0'); } catch (_) {} _proj = null; _projKey = ''; load(true); });
   q('#gc-notas') && (q('#gc-notas').onclick = () => { _notas = !_notas; scope.querySelector('.gc')?.classList.toggle('notas', _notas); q('#gc-notas').classList.toggle('on', _notas); });
   q('#gc-tv') && (q('#gc-tv').onclick = enterTV);
   q('#gc-preset') && (q('#gc-preset').onchange = ev => {
@@ -224,15 +247,17 @@ function bind(scope) {
 function tabBody() {
   return { meta: tabMeta, metricas: tabMetricas, funil: tabFunil, midia: tabMidia, pessoas: tabPessoas }[_tab]();
 }
-function postRender() { initCharts(); srPerformance(); }
+function postRender() { initCharts(); srPerformance(); if (_tab === 'meta') projLoad(); }
 
 /* ═══════════ 🧭 COCKPIT — "Como está nosso mês?" ═══════════ */
 function statusOf(v) {
   let meta = v.meta_vendas || 0, real = v.real_vendas || 0;
   let pr = v.proj_ritmo;
-  if (!meta && v.meta_vgv) {   // v86.62: sem meta de VENDAS cadastrada → julga pelo VGV (ritmo do VGV pelo dia do mês)
+  if (!meta && v.meta_vgv) {   // v86.62: sem meta de VENDAS cadastrada → julga pelo VGV
     const h = new Date(), pm = h.getDate() / new Date(h.getFullYear(), h.getMonth() + 1, 0).getDate();
-    meta = v.meta_vgv; real = v.real_vgv || 0; pr = pm > 0 ? real / pm : real;
+    meta = v.meta_vgv; real = v.real_vgv || 0;
+    // v87.91: projeção provável do motor (ritmo 180 d × dias úteis restantes ou funil calibrado) — não zera
+    pr = v.proj_vgv_provavel != null ? v.proj_vgv_provavel : (pm > 0 ? real / pm : real);
     if (real >= meta) return { k: 'ok', c: 'var(--gc-ok)', lbl: 'meta VGV batida' };
     if (pr >= meta) return { k: 'ok', c: 'var(--gc-ok)', lbl: 'no ritmo (VGV)' };
     if (pr >= meta * 0.7) return { k: 'warn', c: 'var(--gc-warn)', lbl: 'atrás do ritmo (VGV)' };
@@ -258,7 +283,9 @@ function cockpit() {
   const real = sum('real_vendas'), meta = sum('meta_vendas'), vgv = sum('real_vgv'), vgvMeta = sum('meta_vgv');
   const projR = vis.some(x => x.proj_ritmo != null) ? vis.reduce((a, x) => a + (Number(x.proj_ritmo) || 0), 0) : null;
   const projN = vis.some(x => x.proj_vendas) ? sum('proj_vendas') : null;
-  const agg = { real_vendas: real, meta_vendas: meta, proj_ritmo: projR, meta_vgv: vgvMeta, real_vgv: vgv };
+  const projVgv = vis.some(x => x.proj_vgv_provavel != null) ? sum('proj_vgv_provavel') : null;
+  const projCons = sum('proj_vgv_conservador'), projOti = sum('proj_vgv_otimista');
+  const agg = { real_vendas: real, meta_vendas: meta, proj_ritmo: projR, meta_vgv: vgvMeta, real_vgv: vgv, proj_vgv_provavel: projVgv };
   const st = statusOf(agg);
   const pct = meta ? Math.min(100, real / meta * 100) : 0;
   const cus = (v.custos || {}).equipes || [];
@@ -271,9 +298,13 @@ function cockpit() {
   const ehMes = _d.janela_eh_mes !== false;   // janela = mês corrente até hoje?
   const per = ehMes ? 'do mês' : 'no período';
   const projCard = ehMes
-    ? `<div class="gc-kpi" style="--kc:var(--gc-acc)"><div class="l">Projeção do mês</div>
+    ? (projVgv != null
+      ? `<div class="gc-kpi" style="--kc:var(--gc-acc);cursor:pointer" data-goto="meta" title="abrir 🎯 Meta · Realizado · Projeção"><div class="l">Projeção do mês</div>
+      <div class="v acc">R$ ${kR$(projVgv)}${vgvMeta ? ` <small>/ ${kR$(vgvMeta)}</small>` : ''}</div>
+      <div class="s">provável · ${fN(Math.round((projR || 0) * 10) / 10)} vendas${vgvMeta ? ` · ${fN(Math.round(projVgv / vgvMeta * 1000) / 10)}% da meta` : ''} · faixa R$ ${kR$(projCons)}–${kR$(projOti)}</div></div>`
+      : `<div class="gc-kpi" style="--kc:var(--gc-acc)"><div class="l">Projeção do mês</div>
       <div class="v acc">${projR != null ? fN(Math.round(projR * 10) / 10) : '—'}${meta ? ` <small>/ ${fN(meta)}</small>` : ''}</div>
-      <div class="s">pelo ritmo (dia ${dia} de ${diasMes} · ${fN(Math.round(pctMes * 100))}% do mês)${projN != null ? ` · Norte ${fN(projN)}` : ''}</div></div>`
+      <div class="s">pelo ritmo (dia ${dia} de ${diasMes} · ${fN(Math.round(pctMes * 100))}% do mês)${projN != null ? ` · Norte ${fN(projN)}` : ''}</div></div>`)
     : `<div class="gc-kpi" style="--kc:var(--border-2)"><div class="l">Projeção</div>
       <div class="v" style="opacity:.5">—</div>
       <div class="s">projeção só no mês corrente · aqui é o real do período escolhido</div></div>`;
@@ -298,7 +329,7 @@ function cockpit() {
       <div style="display:flex;align-items:center"><span class="gc-dot"></span><span class="n">${x.label}</span><span class="st">${s.lbl}${al ? ` · ${al} alerta${al > 1 ? 's' : ''}` : ''}</span></div>
       <div class="big">${fN(x.real_vendas)}${x.meta_vendas ? ` <small>/ ${fN(x.meta_vendas)} meta</small>` : ' <small>vendas</small>'}</div>
       <div class="gc-bar"><i style="width:${p}%"></i></div>
-      <div class="row"><span>projeção ritmo</span><b class="acc">${x.proj_ritmo != null ? fN(x.proj_ritmo) : '—'}</b></div>
+      <div class="row"><span>projeção provável</span><b class="acc">${x.proj_vgv_provavel != null ? 'R$ ' + kR$(x.proj_vgv_provavel) + (x.proj_pct_meta != null ? ' · ' + fN(x.proj_pct_meta) + '%' : '') : (x.proj_ritmo != null ? fN(x.proj_ritmo) : '—')}</b></div>
       <div class="row"><span>VGV</span><b>R$ ${kR$(x.real_vgv)}</b></div>
       <div class="row"><span>pastas/propostas abertas</span><b>${fN(pa.pastas || 0)}</b></div>
     </div>`; }).join('')}</div>` : '';
@@ -345,10 +376,16 @@ function resumoTab() {
   const g = {
     recorte: _team ? tLbl(_team) : 'todas as equipes', aba: GC_TABS.find(t => t[0] === _tab)?.[1],
     instrucao: 'Responda como UM parágrafo único (3 a 5 frases) pro gestor: como está o mês, o principal risco e UMA ação prática. Sem listas.',
-    mes_corrente: (d.visao || []).map(v => ({ equipe: v.label, vendas_real: v.real_vendas, meta: v.meta_vendas, proj_ritmo: v.proj_ritmo, proj_norte: v.proj_vendas, vgv_real: v.real_vgv, vgv_meta: v.meta_vgv, pipeline_aberto: v.pipeline_agora })),
+    mes_corrente: (d.visao || []).map(v => ({ equipe: v.label, vendas_real: v.real_vendas, vgv_real: v.real_vgv, vgv_meta: v.meta_vgv, vgv_projecao_provavel: v.proj_vgv_provavel, projecao_pct_meta: v.proj_pct_meta, faixa_vgv: [v.proj_vgv_conservador, v.proj_vgv_otimista], pipeline_aberto: v.pipeline_agora })),
     alertas_fora_da_regua: (d.alertas || {}).itens || [],
   };
-  if (_tab === 'meta') { g.projecao_ponderada = d.forecast || {}; g.historico_vendas = histCompact; }
+  if (_tab === 'meta') {
+    g.historico_vendas = histCompact;
+    if (_proj) {
+      const pk = p => p && { meta_vgv: p.meta.vgv, realizado_vgv: p.realizado.vgv, realizado_vendas: p.realizado.vendas, provavel_vgv: p.provavel.vgv, provavel_vendas: p.provavel.vendas, pct_meta: p.provavel.pct_meta, conservador_vgv: p.conservador.vgv, otimista_vgv: p.otimista.vgv, falta_vgv: p.falta_vgv, status: p.status };
+      g.meta_realizado_projecao = { horizonte: _proj.horizonte, empresa: pk(_proj.empresa), equipes: Object.fromEntries(Object.entries(_proj.equipes || {}).map(([t, e]) => [tLbl(t), pk(e)])) };
+    }
+  }
   else if (_tab === 'metricas') { g.metricas_funil = Object.fromEntries(Object.entries(d.metricas || {}).map(([t, m]) => [tLbl(t), m])); g.janela_custo = (d.custos || {}).janela_custo; }
   else if (_tab === 'funil') {
     g.funis_rd = Object.fromEntries(Object.entries(d.funil_rd || {}).map(([t, f]) => [tLbl(t), { pipeline: f.pipeline, lanes: (f.lanes || []).map(l => ({ etapa: l.nome, abertos: l.abertos, alcancaram: l.alcancaram, passagem_pct: l.passagem_pct })) }]));
@@ -368,7 +405,146 @@ function resumoTab() {
 }
 
 /* ═══════════ ABAS ═══════════ */
+/* ═══════════ 🎯 META · REALIZADO · PROJEÇÃO (v87.91) ═══════════
+   Fonte: /api/v3/metricas/projecao (api/v3/_projecao_lib.py). Mesmo número pra corretor, equipe e empresa.
+   Provável = realizado + o maior entre (ritmo dos últimos 180 d × dias úteis que faltam) e
+   (propostas abertas × taxa real proposta→venda que cabe no prazo). */
+function projQS() {
+  if (_ph === 'personalizado') return (_pSince && _pUntil) ? `since=${_pSince}&until=${_pUntil}` : 'h=mes';
+  return 'h=' + _ph;
+}
 function tabMeta() {
+  const chips = PH.map(([k, l]) => `<button class="gc-chip${_ph === k ? ' on' : ''}" data-ph="${k}">${l}</button>`).join('');
+  const custom = _ph === 'personalizado' ? `
+      <input type="date" class="input" id="pj-since" value="${_pSince}" style="width:auto;padding:4px 8px;font-size:12px">
+      <input type="date" class="input" id="pj-until" value="${_pUntil}" style="width:auto;padding:4px 8px;font-size:12px">
+      <button class="btn btn-ghost btn-sm" id="pj-aplicar">Aplicar</button>` : '';
+  return `<div class="gc-pan">
+      <div class="gc-top">${chips}${custom}<span class="tiny muted" style="margin-left:auto">${_team ? tLbl(_team) : 'todas as equipes'}</span></div>
+      <div id="gc-proj" style="margin-top:12px">${_proj && _projKey === projQS() ? projHTML() : '<div class="muted tiny"><span class="spinner"></span> Calculando meta, realizado e projeção…</div>'}</div>
+    </div>`
+    + ((_v.historico || []).length ? gwrap('gch-hist', '📆 Vendas por equipe (barras) × VGV (linha) — mês a mês') : '')
+    + histTable('Vendas & VGV — real', [
+      ...(_v.visao || []).map(v => ({ lbl: v.label + ' vendas', get: h => h.equipes?.[v.team]?.vendas, fmt: fN })),
+      { lbl: 'TOTAL vendas', get: h => h.total?.vendas, fmt: fN },
+      { lbl: 'TOTAL VGV', get: h => h.total?.vgv, fmt: x => 'R$ ' + kR$(x) },
+      { lbl: 'Ticket médio', get: h => h.total?.ticket, fmt: x => 'R$ ' + kR$(x) },
+    ]);
+}
+async function projLoad(fresh) {
+  const box = document.getElementById('gc-proj');
+  bindProj();
+  const key = projQS();
+  if (!box || (!fresh && _proj && _projKey === key)) return;
+  box.innerHTML = '<div class="muted tiny"><span class="spinner"></span> Calculando meta, realizado e projeção…</div>';
+  try {
+    const d = await api.request('/api/v3/metricas/projecao?' + projQS() + (fresh ? '&fresh=1' : ''));
+    _proj = d; _projKey = key; _projErr = '';
+  } catch (e) { _projErr = e.message || String(e); _proj = null; }
+  const b2 = document.getElementById('gc-proj');
+  if (!b2) return;
+  b2.innerHTML = _proj ? projHTML() : `<div class="alert alert-err tiny">${esc(_projErr)}</div>`;
+  // equipe clicável na tabela → recorta a página inteira pela equipe
+  b2.querySelectorAll('[data-team]').forEach(a => a.onclick = () => { _team = a.dataset.team || null; render(); });
+}
+function bindProj() {
+  const sc = document.querySelector('.gc');
+  if (!sc) return;
+  sc.querySelectorAll('[data-ph]').forEach(b => b.onclick = () => {
+    _ph = b.dataset.ph;
+    if (_ph === 'personalizado' && !_pSince) { _pSince = _since || ''; _pUntil = _until || ''; }
+    const body = document.getElementById('gc-body'); if (body) body.innerHTML = tabBody();
+    postRenderMeta();
+  });
+  const ap = sc.querySelector('#pj-aplicar');
+  if (ap) ap.onclick = () => { _pSince = sc.querySelector('#pj-since').value; _pUntil = sc.querySelector('#pj-until').value; projLoad(); };
+}
+function postRenderMeta() { initCharts(); projLoad(); }
+function pjBar(p, grande) {
+  const meta = p.meta.vgv || 0, real = p.realizado.vgv || 0, prov = p.provavel.vgv || 0, cons = p.conservador.vgv || 0, oti = p.otimista.vgv || 0;
+  const esc100 = Math.max(meta, oti, prov, real, 1) * 1.05;
+  const w = x => Math.min(100, Math.max(0, x / esc100 * 100)).toFixed(2) + '%';
+  if (!grande) return `<div class="pj-mini" title="realizado R$ ${kR$(real)} · provável R$ ${kR$(prov)} · meta R$ ${kR$(meta)}">
+      <div class="prov" style="width:${w(prov)}"></div><div class="real" style="width:${w(real)}"></div>${meta ? `<div class="meta" style="left:${w(meta)}"></div>` : ''}</div>`;
+  const hoje = p.meta.vgv_ate_hoje || 0;
+  return `<div class="pj-track">
+      <div class="band" style="left:${w(cons)};width:calc(${w(oti)} - ${w(cons)})"></div>
+      <div class="prov" style="width:${w(prov)}"></div><div class="real" style="width:${w(real)}"></div>
+      ${meta ? `<div class="meta" style="left:${w(meta)}" title="meta R$ ${kR$(meta)}"></div>` : ''}
+      ${hoje && !_proj.horizonte.passado ? `<div class="hoje" style="left:${w(hoje)}" title="esperado até hoje R$ ${kR$(hoje)}"></div>` : ''}
+    </div>
+    <div class="pj-leg"><span><i style="background:var(--gc-acc)"></i>realizado</span><span><i style="background:color-mix(in srgb,var(--gc-acc) 45%,transparent)"></i>projeção provável</span>
+      <span><i style="background:color-mix(in srgb,var(--gc-acc) 16%,transparent)"></i>faixa conservador–otimista</span><span><i style="background:var(--ink);width:2px"></i>meta</span>
+      ${!_proj.horizonte.passado ? '<span><i style="border-left:2px dashed var(--ink-muted);width:0;border-radius:0"></i>meta esperada até hoje</span>' : ''}</div>`;
+}
+function pjStatus(p) { const [l, c] = PSTATUS[p.status] || ['—', 'var(--ink-muted)']; return `<span class="pj-st" style="color:${c}">● ${l}</span>`; }
+function pjRow(nome, p, strong) {
+  const m = p.meta, r = p.realizado, pv = p.provavel, hz = _proj.horizonte;
+  return `<tr${strong ? ' style="font-weight:800"' : ''}>
+    <td style="white-space:nowrap">${nome}</td>
+    <td class="num">${m.vgv ? 'R$ ' + kR$(m.vgv) : '—'}<span class="sub">${m.vendas ? '≈ ' + fN(Math.round(m.vendas * 10) / 10) + ' vendas' : ''}</span></td>
+    <td class="num">R$ ${kR$(r.vgv)}<span class="sub">${fN(r.vendas)} venda${r.vendas === 1 ? '' : 's'}${r.pct_meta != null ? ' · ' + fN(r.pct_meta) + '%' : ''}</span></td>
+    ${hz.passado ? '' : `<td class="num">${m.vgv_ate_hoje ? 'R$ ' + kR$(m.vgv_ate_hoje) : '—'}<span class="sub">esperado até hoje</span></td>`}
+    <td class="num acc" style="font-weight:900">R$ ${kR$(pv.vgv)}<span class="sub">${fN(pv.vendas)} vendas${pv.pct_meta != null ? ' · ' + fN(pv.pct_meta) + '% da meta' : ''}</span></td>
+    ${hz.passado ? '' : `<td class="num">R$ ${kR$(p.conservador.vgv)} – ${kR$(p.otimista.vgv)}<span class="sub">${fN(p.faixa_vendas.lo)}–${fN(p.faixa_vendas.hi)} vendas</span></td>`}
+    <td class="num">${p.falta_vgv ? 'R$ ' + kR$(p.falta_vgv) : '—'}<span class="sub">${p.falta_vendas ? '≈ ' + fN(p.falta_vendas) + ' vendas' : ''}${p.por_dia_util_vgv ? ' · R$ ' + kR$(p.por_dia_util_vgv) + '/dia útil' : ''}</span></td>
+    <td>${pjBar(p)}</td>
+    <td>${pjStatus(p)}</td>
+  </tr>`;
+}
+function projHTML() {
+  const d = _proj, hz = d.horizonte;
+  const foco = _team ? d.equipes?.[_team] : d.empresa;
+  const alvo = foco || (_team ? null : Object.values(d.equipes || {})[0]);
+  if (!alvo) return `<div class="tiny muted">Sem dados para ${_team ? tLbl(_team) : 'o recorte'} neste horizonte.</div>`;
+  const nomeAlvo = _team ? tLbl(_team) : (d.empresa ? 'Empresa' : tLbl(alvo.team));
+  const periodo = `${hz.label} · ${fD(hz.ini)} → ${fD(hz.fim)}`;
+  const dias = hz.passado ? 'período encerrado · projeção = realizado' : hz.futuro ? `começa em ${fD(hz.ini)} · ${hz.dias_uteis.total} dias úteis` : `${hz.dias_uteis.decorridos} de ${hz.dias_uteis.total} dias úteis · faltam ${hz.dias_uteis.restantes}`;
+  const pv = alvo.provavel, m = alvo.meta, r = alvo.realizado;
+  const kc = (PSTATUS[alvo.status] || [])[1] || 'var(--border-2)';
+  const kpis = `<div class="gc-kpis">
+    <div class="gc-kpi"><div class="l">Meta ${hz.label.toLowerCase()}</div><div class="v">${m.vgv ? 'R$ ' + kR$(m.vgv) : '—'}</div>
+      <div class="s">${m.vendas ? '≈ ' + fN(Math.round(m.vendas * 10) / 10) + ' vendas' + (m.fonte_vendas === 'vgv ÷ ticket' ? ' (VGV ÷ ticket)' : '') : 'meta não cadastrada'}${m.vgv_ate_hoje && !hz.passado ? ` · até hoje R$ ${kR$(m.vgv_ate_hoje)}` : ''}</div></div>
+    <div class="gc-kpi" style="--kc:var(--gc-acc)"><div class="l">Realizado</div><div class="v">R$ ${kR$(r.vgv)}</div>
+      <div class="s">${fN(r.vendas)} venda${r.vendas === 1 ? '' : 's'}${r.pct_meta != null ? ` · <b>${fN(r.pct_meta)}%</b> da meta` : ''}</div></div>
+    <div class="gc-kpi" style="--kc:${kc}"><div class="l">Projeção provável</div><div class="v acc">R$ ${kR$(pv.vgv)}</div>
+      <div class="s">${fN(pv.vendas)} vendas${pv.pct_meta != null ? ` · <b style="color:${kc}">${fN(pv.pct_meta)}%</b> da meta` : ''}${hz.passado ? '' : ` · faixa R$ ${kR$(alvo.conservador.vgv)}–${kR$(alvo.otimista.vgv)}`}</div></div>
+    <div class="gc-kpi" style="--kc:${alvo.falta_vgv ? 'var(--gc-warn)' : 'var(--gc-ok)'}"><div class="l">Falta para a meta</div><div class="v">${alvo.falta_vgv ? 'R$ ' + kR$(alvo.falta_vgv) : (m.vgv ? '✓' : '—')}</div>
+      <div class="s">${alvo.falta_vendas ? '≈ ' + fN(alvo.falta_vendas) + ' vendas' : ''}${alvo.por_dia_util_vgv ? ` · R$ ${kR$(alvo.por_dia_util_vgv)} por dia útil` : ''}</div></div>
+  </div>`;
+  const b = alvo.base || {};
+  const cal = alvo.calibracao || (d.equipes?.[_team] || {}).calibracao;
+  const como = hz.passado ? '' : `<div class="tiny muted" style="margin-top:8px;line-height:1.5">
+    <b>Como a projeção é feita:</b> realizado + o maior entre <b>ritmo</b> (${b.vendas_180d != null ? fN(b.vendas_180d) + ' vendas nos últimos 180 dias' : 'últimos 180 dias'}, suavizado pela média da equipe, × ${hz.dias_uteis.restantes} dias úteis restantes = ${fN(alvo.historico.vendas)} vendas)
+    e <b>funil</b> (${fN(b.propostas_abertas || 0)} proposta(s)/contrato(s) abertos${cal ? ` × ${fN(cal.taxa_pct)}% de conversão em ~${cal.dias} dias` : ''} que cabem no prazo = ${fN(alvo.funil.vendas)} vendas).
+    Conservador usa o menor dos dois; otimista soma os dois. VGV pelo valor do negócio ou, sem valor no RD, pelo ticket médio (R$ ${kR$(alvo.ticket || 0)}).</div>`;
+  const cabec = `<thead><tr><th style="text-align:left">${_team ? 'Corretor' : 'Equipe'}</th><th class="num">Meta</th><th class="num">Realizado</th>${hz.passado ? '' : '<th class="num">Até hoje</th>'}<th class="num">Provável</th>${hz.passado ? '' : '<th class="num">Faixa</th>'}<th class="num">Falta</th><th></th><th>Status</th></tr></thead>`;
+  let tabela = '';
+  const pessoas = Object.values(d.pessoas || {}).filter(p => p.ativo !== false);
+  const porNome = (a, b2) => (b2.provavel.vgv || 0) - (a.provavel.vgv || 0);
+  if (_team) {
+    const ps = pessoas.filter(p => p.team === _team).sort(porNome);
+    tabela = `<div style="overflow-x:auto;margin-top:12px"><table>${cabec}<tbody>
+      ${pjRow(tLbl(_team) + ' (equipe)', alvo, true)}
+      ${ps.map(p => pjRow(esc(p.name) + (p.gestor ? ' <span class="tiny muted">gestor</span>' : ''), p)).join('')}
+    </tbody></table></div>`;
+  } else {
+    const eqs = Object.entries(d.equipes || {}).filter(([, e]) => (e.meta.vgv || e.realizado.vgv || e.provavel.vgv)).sort((a, b2) => porNome(a[1], b2[1]));
+    tabela = `<div style="overflow-x:auto;margin-top:12px"><table>${cabec}<tbody>
+      ${d.empresa ? pjRow('Empresa', d.empresa, true) : ''}
+      ${eqs.map(([tk, e]) => pjRow(`<a href="javascript:void 0" data-team="${tk}">${tLbl(tk)}</a>`, e)).join('')}
+    </tbody></table></div>
+    ${eqs.map(([tk]) => {
+      const ps = pessoas.filter(p => p.team === tk).sort(porNome);
+      return ps.length ? `<details class="gc-det"><summary>${tLbl(tk)} — corretor a corretor</summary>
+        <div style="overflow-x:auto;margin-top:6px"><table>${cabec.replace('Equipe', 'Corretor')}<tbody>${ps.map(p => pjRow(esc(p.name) + (p.gestor ? ' <span class="tiny muted">gestor</span>' : ''), p)).join('')}</tbody></table></div></details>` : '';
+    }).join('')}`;
+  }
+  return `<div class="gc-q" style="margin-top:0"><h3>${nomeAlvo}</h3><span class="tiny muted">${periodo} · ${dias}${d.dados_de_hhmm ? ` · dados de <b>${esc(d.dados_de_hhmm)}</b>` : ''}</span></div>
+    ${kpis}${pjBar(alvo, true)}${como}${tabela}`;
+}
+
+function tabMetaAntiga() {
   const rows = (_v.visao || []).map(v => {
     const s = statusOf(v), pct = v.meta_vendas ? v.real_vendas / v.meta_vendas * 100 : null;
     return `<tr>

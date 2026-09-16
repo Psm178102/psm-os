@@ -67,6 +67,7 @@ CAT_LABEL = {"trafego_pago_psm": "Tráfego pago PSM", "trafego_pago_corretor": "
              "organico_site": "Orgânico e site", "carteira": "Carteira", "indicacao": "Indicação",
              "networking": "Networking", "reativacao": "Reativação", "nao_classificada": "Não classificada"}
 LEAD_CATS = ("trafego_pago_psm", "trafego_pago_corretor")
+CAT_TEAM = {"conquista": "Conquista", "map": "MAP", "terceiros": "Terceiros", "locacao": "Locação"}
 
 # ─── §5 Marcos MAP/Terceiros/Locação: chave da coluna (rd_stages.psm_stage_key) → métrica ──
 COLUNA_METRICA = {
@@ -346,7 +347,9 @@ def carregar(sb, since_d, until_d):
     closed120 = []
     try:
         c_ini = (datetime.now(timezone.utc) - timedelta(days=120)).isoformat()
-        closed120 = [d for d in _paginado(lambda: sb.table("deals").select("win,src:rd_raw->deal_source->>name")
+        closed120 = [d for d in _paginado(lambda: sb.table("deals")
+                                          .select("win,user_id,user_email,amount,src:rd_raw->deal_source->>name,"
+                                                  "amt_total:rd_raw->amount_total,amt_unique:rd_raw->amount_unique")
                                           .gte("closed_at", c_ini).order("id"), cap=10)
                      if d.get("win") is not None]
     except Exception:
@@ -409,7 +412,7 @@ def _brain():
 
 # ─── cálculo ─────────────────────────────────────────────────────────────────
 PIPE_CAMPOS = ("abertos", "ponderado_vendas", "ponderado_vgv", "quentes", "quente_vgv",
-               "comprometido_vendas", "comprometido_vgv")
+               "comprometido_vendas", "comprometido_vgv", "sem_valor", "vgv_presumido")
 
 
 def _vazio():
@@ -513,6 +516,42 @@ def calcular(sb, base, since_d, until_d, hoje=None):
 
     # §8 PIPELINE PONDERADO — motor do Cérebro (prior por etapa × taxa real do canal × recência ×
     # engajamento) sobre TODOS os abertos; comprometido = abertos em proposta/pasta (marco ≥ 4)
+    # 🎟 TICKET DE REFERÊNCIA por equipe (decisão do Paulo 16/09): negócio aberto SEM VALOR no RD
+    # entra no pipeline com o ticket médio das vendas ganhas da equipe nos últimos 120 dias
+    # (fallback: meta_vgv ÷ meta_vendas da equipe; depois ticket da empresa). Sempre marcado como
+    # presumido; o valor real substitui assim que alguém preencher o RD.
+    team_of_uid = {u["id"]: team_key(u.get("team")) for u in pessoas}
+    _tk_vals, _emp_vals = {}, []
+    for w in base.get("closed120") or []:
+        if w.get("win") is not True:
+            continue
+        v = vgv_de(w)
+        if v <= 0:
+            continue
+        uid_w = _dono(w, email2uid, uids, servico_emails)
+        _emp_vals.append(v)
+        if uid_w:
+            _tk_vals.setdefault(team_of_uid.get(uid_w, "sem_equipe"), []).append(v)
+    ticket_ref = {tk: round(sum(v) / len(v), 2) for tk, v in _tk_vals.items() if v}
+    ticket_ref["_empresa"] = round(sum(_emp_vals) / len(_emp_vals), 2) if _emp_vals else None
+    ticket_fonte = {tk: "vendas 120d" for tk in ticket_ref if tk != "_empresa"}
+    # fallback pela meta (meta_vgv ÷ meta_vendas) — só pra equipe sem venda com valor nos 120 d
+    _meta_tk = {}
+    for m in base["metas"]:
+        uid_m = m.get("corretor_id")
+        if uid_m in team_of_uid and (int(m.get("ano") or 0), int(m.get("mes") or 0)) in set(meses_da_janela(since_d, until_d)):
+            t = _meta_tk.setdefault(team_of_uid[uid_m], [0.0, 0.0])
+            t[0] += float(m.get("meta_vgv") or 0)
+            t[1] += float(m.get("meta_vendas") or 0)
+    for tk, (mv, mn) in _meta_tk.items():
+        if tk not in ticket_ref and mn > 0 and mv > 0:
+            ticket_ref[tk] = round(mv / mn, 2)
+            ticket_fonte[tk] = "meta"
+
+    def ticket_para(uid):
+        tk = team_of_uid.get(uid) if uid else None
+        return ticket_ref.get(tk) or ticket_ref.get("_empresa") or 0.0
+
     try:
         B = _brain()
         now = datetime.now(timezone.utc)
@@ -521,19 +560,26 @@ def calcular(sb, base, since_d, until_d, hoje=None):
         for d in base["deals"]:
             if d.get("win") is not None:
                 continue
+            uid_d = deal_owner.get(str(d.get("id")))
+            sem_valor = vgv_de(d) <= 0
+            valor = ticket_para(uid_d) if sem_valor else None
             pseudo = {"id": d.get("id"), "win": None, "stage_name": d.get("stage_name"),
                       "updated_at_rd": d.get("updated_at_rd"), "created_at_rd": d.get("created_at_rd"),
-                      "amount": d.get("amount"),
+                      "amount": (valor if sem_valor else d.get("amount")),
                       "rd_raw": {"deal_source": {"name": d.get("src")}, "last_activity_at": d.get("la"),
-                                 "interactions": d.get("nint"), "amount_total": d.get("amt_total"),
-                                 "amount_unique": d.get("amt_unique")}}
+                                 "interactions": d.get("nint"),
+                                 "amount_total": (None if sem_valor else d.get("amt_total")),
+                                 "amount_unique": (None if sem_valor else d.get("amt_unique"))}}
             s = B.score_open(pseudo, owr, cwr, cn, now)
             if not s:
                 continue
-            pp = bucket(deal_owner.get(str(d.get("id"))))["pipeline"]
+            pp = bucket(uid_d)["pipeline"]
             pp["abertos"] += 1
             pp["ponderado_vendas"] += s["prob"]
             pp["ponderado_vgv"] += s["expected_vgv"]
+            if sem_valor:
+                pp["sem_valor"] += 1
+                pp["vgv_presumido"] += s["expected_vgv"]
             if s["temp"] == "quente":
                 pp["quentes"] += 1
                 pp["quente_vgv"] += s["expected_vgv"]
@@ -657,6 +703,7 @@ def calcular(sb, base, since_d, until_d, hoje=None):
     pessoas_out = {}
     for u in pessoas:
         b = fechar(P[u["id"]], meta_by[u["id"]])
+        b["ticket_referencia"] = ticket_para(u["id"]) or None
         b.update({"id": u["id"], "name": u.get("name"), "email": (u.get("email") or "").lower(),
                   "role": u.get("role"), "team": team_key(u.get("team")),
                   "ativo": (u.get("status") or "ativo") == "ativo", "gestor": is_gestor(u.get("role")),
@@ -697,7 +744,9 @@ def calcular(sb, base, since_d, until_d, hoje=None):
         t = somar(membros)
         t.update({"team": tk, "membros": [b["id"] for b in membros],
                   "n_corretores": sum(1 for b in membros if b["corretor"]),
-                  "n_gestores": sum(1 for b in membros if b["gestor"])})
+                  "n_gestores": sum(1 for b in membros if b["gestor"]),
+                  "ticket_referencia": ticket_ref.get(tk) or ticket_ref.get("_empresa"),
+                  "ticket_fonte": ticket_fonte.get(tk, "empresa" if ticket_ref.get("_empresa") else None)})
         equipes_out[tk] = t
 
     empresa = somar([b for b in pessoas_out.values() if b["ativo"]])
@@ -707,6 +756,14 @@ def calcular(sb, base, since_d, until_d, hoje=None):
     empresa["ticket"] = round(empresa["vgv"] / empresa["vendas"], 2) if empresa["vendas"] else None
     empresa["sem_corretor"] = sc
     empresa["n_pessoas_ativas"] = sum(1 for b in pessoas_out.values() if b["ativo"])
+    empresa["ticket_referencia"] = ticket_ref.get("_empresa")
+    empresa["ticket_por_equipe"] = {k: v for k, v in ticket_ref.items() if k != "_empresa"}
+    sv = empresa["pipeline"].get("sem_valor", 0)
+    if sv:
+        tks = ", ".join(f"{CAT_TEAM.get(k, k)} R$ {v:,.0f}".replace(",", ".") for k, v in ticket_ref.items() if k != "_empresa" and v)
+        avisos.append({"tipo": "sem_valor_pipeline",
+                       "txt": f"ℹ️ {sv} negócio(s) aberto(s) sem valor no RD — VGV do pipeline presumido pelo ticket médio da equipe ({tks}). Preencha o valor no RD para trocar o presumido pelo real.",
+                       "n": sv})
 
     if vendas_sem_data:
         avisos.append({"tipo": "venda_sem_data", "txt": f"⚠️ {vendas_sem_data} venda(s) ganha(s) sem data de fechamento no RD — não entram em mês nenhum.", "n": vendas_sem_data})

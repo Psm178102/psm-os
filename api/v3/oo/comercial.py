@@ -36,6 +36,7 @@ if _V3 not in _sys.path:
 from _metricas_lib import (resumo as mx_resumo, por_nome as mx_por_nome, _norm as mx_norm,  # type: ignore
                            visitas_de as mx_visitas, agendamentos_de as mx_agend,
                            propostas_de as mx_propostas, qualificados_de as mx_qualif)
+from _projecao_lib import projecao as pj_projecao  # type: ignore   # v87.91
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, supabase_client, lvl_of, notify_all  # type: ignore
@@ -481,6 +482,21 @@ class handler(BaseHTTPRequestHandler):
         try:
             mx = mx_resumo(sb, {"since": since_d.isoformat(), "until": until_d.isoformat()}, fresh=q.get("fresh") == "1")
             payload = _aplicar_dicionario(payload, mx, (until_d - since_d).days + 1)
+            # v87.91: projeção do mês no cockpit = a MESMA da aba 🎯 Meta · Realizado · Projeção
+            if since_d == hoje.replace(day=1) and until_d == hoje:
+                try:
+                    pj = pj_projecao(sb, {"h": "mes"}, fresh=q.get("fresh") == "1")
+                    vis = []
+                    for v in (payload.get("visao") or []):
+                        e = (pj.get("equipes") or {}).get(v.get("team"))
+                        if e:
+                            v = {**v, "proj_ritmo": e["provavel"]["vendas"], "proj_vgv_provavel": e["provavel"]["vgv"],
+                                 "proj_vgv_conservador": e["conservador"]["vgv"], "proj_vgv_otimista": e["otimista"]["vgv"],
+                                 "proj_pct_meta": e["provavel"]["pct_meta"], "proj_status": e["status"]}
+                        vis.append(v)
+                    payload = {**payload, "visao": vis}
+                except Exception as e:
+                    print(f"[gc] projeção indisponível: {e}")
         except Exception as e:
             print(f"[gc] motor de métricas indisponível: {e}")
             payload = {**payload, "avisos": (payload.get("avisos") or []) + ["⚠️ Motor único de métricas indisponível agora — números-título podem divergir das outras telas."]}
