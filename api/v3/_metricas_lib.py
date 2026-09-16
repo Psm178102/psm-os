@@ -20,7 +20,9 @@ import unicodedata
 from datetime import datetime, timezone, timedelta, date
 
 BRT = timezone(timedelta(hours=-3))
-CACHE_KEY = "metricas_resumo:v1"
+# ⚠️ Bumpar o sufixo (v2, v3…) SEMPRE que o formato do retrato mudar: o cache é versionado pelo
+# sync do RD, não pelo código — em 16/09 a v87.87 leu retratos da v87.86 sem pipeline/previsto/norte.
+CACHE_KEY = "metricas_resumo:v2"
 CACHE_TTL = 600          # segurança: mesmo sem sync novo, recalcula a cada 10 min
 HUB_TTL = 300            # esteira do PSM HUB (externa) — 5 min
 KV_ORIGENS = "dic_origens"   # override editável da tabela de origens (Configurações → Dicionário)
