@@ -29,7 +29,7 @@ const REFRESH_MS = 30000;
    volta a cada N" vêm do /api/v3/arena/tv2_config (shared_kv) — calibra sem
    deploy; a TV pega no próximo poll. (87.26 = hotfix: a definição não tinha
    entrado no 87.25 e a TV quebrou com CICLO_ATUAL undefined.) */
-let _cfg = { slide_s: 20, telas: ['recado', 'duelo', 'doc', 'aten', 'prosp', 'placar', 'cronograma', 'corrida', 'premiacoes'], ocultar_nomes: ['Isabella', 'Paulo', 'Comercial', 'Yara'] };
+let _cfg = { slide_s: 20, telas: ['recado', 'duelo', 'doc', 'aten', 'prosp', 'placar', 'cronograma', 'corrida', 'premiacoes'], ocultar_nomes: ['Isabella Morimatsu', 'Paulo Morimatsu', 'comercial', 'Yara Fetti'], ocultar_auto: [], protegidos: [] };
 let _cfgCanEdit = false, _cfgAt = 0;
 const SLIDE_MS = () => _cfg.slide_s * 1000;
 // v87.73: ranking geral abre a volta e NÃO volta no meio (Paulo: "2 telas gerais")
@@ -464,9 +464,25 @@ function teams() {
 }
 function shortTeam(t) { return t.replace(/^EQUIPE\s+/i, '').toUpperCase(); }
 function ocultoNaTV(nome) {
-  // sócios (e quem mais a gestão listar na ⚙) nunca aparecem na TV pública
-  const alvo = String(nome || '').split(' ')[0].toLowerCase();
-  return (_cfg.ocultar_nomes || []).some(n => String(n).split(' ')[0].toLowerCase() === alvo);
+  /* sócios (e quem mais a gestão listar na ⚙) nunca aparecem na TV pública.
+     v87.89 (Paulo 16/set): o filtro era só pelo 1º nome e "Isabella" (sócia)
+     escondia a corretora nova Isabella Cassim. Regra agora, com as listas que
+     o /arena/tv2_config traz do cadastro (ocultar_auto = sócios/serviço,
+     protegidos = corretores/gestores ativos):
+       1) nome completo igual a um oculto            → some
+       2) nome completo igual a um corretor ativo     → aparece (homônimo protegido)
+       3) só o 1º nome bate com um oculto: some se o nome do HUB é de uma palavra
+          só (é como o HUB mostra a sócia) ou se nenhum corretor ativo tem esse 1º nome. */
+  const n = normNome(nome);
+  if (!n) return false;
+  const first = s => normNome(s).split(' ')[0];
+  const alvos = [...(_cfg.ocultar_auto || []), ...(_cfg.ocultar_nomes || [])];
+  const prot = _cfg.protegidos || [];
+  if (alvos.some(a => normNome(a) === n)) return true;
+  if (prot.some(p => normNome(p) === n)) return false;
+  const nf = first(n);
+  if (!alvos.some(a => first(a) === nf)) return false;
+  return n.indexOf(' ') < 0 || !prot.some(p => first(p) === nf);
 }
 // ranking do HUB (pontos) — tela geral, duelo e a meta individual (vgvMeta) do placar
 function ranked() {
@@ -1070,7 +1086,7 @@ function abrirConfig() {
         <label style="flex:1;font-size:13px;color:#94a3b8">Segundos por tela
           <input id="rhc-slide" type="number" min="8" max="120" value="${_cfg.slide_s}" style="width:100%;margin-top:4px;background:#141a2c;border:1px solid rgba(71,85,105,.5);border-radius:8px;color:#f8fafc;padding:8px 10px;font-size:16px"></label>
       </div>
-      <label style="display:block;font-size:13px;color:#94a3b8;margin-bottom:12px">🙈 Ocultar da TV (nomes separados por vírgula — sócios ficam de fora dos rankings)
+      <label style="display:block;font-size:13px;color:#94a3b8;margin-bottom:12px">🙈 Ocultar da TV (nomes COMPLETOS separados por vírgula · sócios, diretores e contas de serviço já saem sozinhos · corretor ativo nunca some por ter o mesmo 1º nome)
         <input id="rhc-ocultar" value="${escapeHtml((_cfg.ocultar_nomes || []).join(', '))}" style="width:100%;margin-top:4px;background:#141a2c;border:1px solid rgba(71,85,105,.5);border-radius:8px;color:#f8fafc;padding:8px 10px;font-size:15px"></label>
       <div style="font-size:13px;color:#94a3b8;margin-bottom:8px">Telas extras — ligue/desligue e arraste a ordem (▲▼). O ranking geral é fixo e abre cada volta (1× por volta); tela sem conteúdo é pulada.</div>
       <div id="rhc-list" style="display:grid;gap:8px">${todas.map(linha).join('')}</div>

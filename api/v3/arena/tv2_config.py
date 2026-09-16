@@ -7,7 +7,14 @@ extras giram (e em que ordem). Sem deploy pra calibrar — pedido do Paulo (05/s
 v87.73 (Paulo 10/set): o ranking geral passa 1× por volta — o "vendas volta a
 cada N" (vendas_cada) saiu, era ele que duplicava a tela geral. + tela 🗓️ cronograma.
 
-GET  (qualquer autenticado): { ok, config, can_edit }
+v87.89 (Paulo 16/set): "Isabella" na lista de ocultos escondia TAMBÉM a corretora
+nova Isabella Cassim (o filtro era só pelo 1º nome). Agora o GET devolve, junto
+com a config, duas listas vindas da tabela users pra TV decidir com nome completo:
+  ocultar_auto → sócios/diretores e contas de serviço (somem sozinhos, sem config)
+  protegidos   → corretores/gestores ATIVOS (nunca somem por homônimo de 1º nome)
+Corretor novo cadastrado como corretor_* ativo entra na TV automaticamente.
+
+GET  (qualquer autenticado): { ok, config{..., ocultar_auto, protegidos}, can_edit }
 POST (lvl >= 5): { config } → valida e salva; todas as TVs pegam no próximo poll.
 """
 from http.server import BaseHTTPRequestHandler
@@ -25,8 +32,30 @@ DEFAULT = {
     # v87.36: sócios NUNCA na TV pública (Paulo, 05/set) — vale pra TODOS os
     # rankings/placar (o HUB não sabe quem é sócio; o filtro é por 1º nome).
     # v87.75 (Paulo 10/set): + a conta genérica "comercial" e a Yara.
-    "ocultar_nomes": ["Isabella", "Paulo", "Comercial", "Yara"],
+    # v87.89: nomes COMPLETOS (sócios/serviço já saem sozinhos via ocultar_auto;
+    # ficam aqui só por segurança) — "Isabella" sozinho escondia a Isabella Cassim.
+    "ocultar_nomes": ["Isabella Morimatsu", "Paulo Morimatsu", "comercial", "Yara Fetti"],
 }
+
+
+def _listas_users(sb):
+    """v87.89 — quem some sozinho e quem nunca pode sumir, direto do cadastro."""
+    auto, prot = [], []
+    try:
+        users = sb.table("users").select("id,name,role,status,is_service,hide_from_ranking").execute().data or []
+    except Exception:
+        return auto, prot
+    for u in users:
+        nome = (u.get("name") or "").strip()
+        if not nome:
+            continue
+        role = (u.get("role") or "").strip().lower()
+        if u.get("is_service") or role in ("socio", "diretor"):
+            auto.append(nome)
+        elif (u.get("status") or "ativo") == "ativo" and not u.get("hide_from_ranking") \
+                and (role.startswith("corretor") or role.startswith("gerente") or role.startswith("lider")):
+            prot.append(nome)
+    return auto, prot
 
 
 def _norm(v):
@@ -76,7 +105,9 @@ class handler(BaseHTTPRequestHandler):
                 v = json.loads(v)
         except Exception:
             v = {}
-        return self._send(200, {"ok": True, "config": _norm(v), "can_edit": (user.get("lvl") or 0) >= 5})
+        cfg = _norm(v)
+        cfg["ocultar_auto"], cfg["protegidos"] = _listas_users(sb)
+        return self._send(200, {"ok": True, "config": cfg, "can_edit": (user.get("lvl") or 0) >= 5})
 
     def do_POST(self):
         try:

@@ -274,7 +274,8 @@ function ritmoView() {
 /* ─────────────────────────── PAINEL · RANKING ─────────────────────────── */
 function ranked() {
   if (!_ov?.corretores) return [];
-  const comp = c => { const r = (c.role || '').toLowerCase(); return !c.is_team && !['socio', 'diretor', 'gerente'].includes(r) && !c.hide_from_ranking; };
+  // v87.89: papéis reais têm sufixo de linha (gerente_conquista…) — checagem por PREFIXO, nunca igualdade
+  const comp = c => { const r = (c.role || '').toLowerCase(); return !c.is_team && !/^(socio|diretor|gerente)/.test(r) && !c.hide_from_ranking; };
   return _ov.corretores.filter(comp).sort((a, b) => num(b.vgv) - num(a.vgv) || int(b.vendas) - int(a.vendas));
 }
 function rankingView() {
