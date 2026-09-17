@@ -15,13 +15,22 @@ Checks:
   7. venda_valor_divergente — amount=0 com amount_total>0? (v87.59) discordam do VGV
 
 Requer lvl>=7. Usado pelo painel de saúde e pelo cron de alertas.
+
+v88.0 — 🔎 TESTE NOTURNO DOS NÚMEROS ENTRE TELAS (item 6 da unificação de métricas, pedido do Paulo 17/09):
+  ?cron=1 (Bearer CRON_SECRET; cron da Vercel 23h30 BRT + heartbeat) recalcula o mesmo número pelo caminho de
+  cada tela e compara com o motor único (api/v3/_consistencia_lib.py). Roda 1×/dia a partir das 20h BRT (ou na
+  manhã seguinte, se a noite passou sem rodar), grava shared_kv consistencia_telas:<data> e, se algo divergir,
+  avisa os sócios no sino + celular. O GET normal inclui as divergências da última rodada no aviso de saúde.
 """
 from http.server import BaseHTTPRequestHandler
 import json, os, sys
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError, frente_of  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, frente_of, notify_all  # type: ignore
+_V3 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _V3 not in sys.path:
+    sys.path.append(_V3)
 
 
 def _kv(sb, key):
@@ -144,6 +153,10 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization"); self.end_headers()
 
     def do_GET(self):
+        import urllib.parse
+        q = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
+        if q.get("cron") == "1":
+            return self._cron(q)
         try:
             require_user(self, min_lvl=7)
         except AuthError as e:
@@ -152,6 +165,75 @@ class handler(BaseHTTPRequestHandler):
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
         try:
-            return self._send(200, run_checks(sb))
+            out = run_checks(sb)
+            ult = _ultima_rodada(sb)
+            if ult:
+                falhas = [c for c in (ult.get("checks") or []) if not c.get("ok")]
+                out["numeros_entre_telas"] = {"data": ult.get("_data"), "ts": ult.get("ts"), "falhas": len(falhas),
+                                              "checks": ult.get("checks") or []}
+                for c in falhas:
+                    out["checks"].append({"id": "telas:" + c["id"], "ok": False, "sev": "err",
+                                          "msg": f"🔎 Teste noturno ({ult.get('_data')}): {c['msg']}"})
+                out["falhas"] = sum(1 for c in out["checks"] if not c["ok"])
+                out["ok"] = not out["falhas"]
+            return self._send(200, out)
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)})
+
+    def _cron(self, q):
+        secret = os.environ.get("CRON_SECRET") or ""
+        if not secret or (self.headers.get("Authorization") or "") != f"Bearer {secret}":
+            return self._send(401, {"ok": False, "error": "cron sem CRON_SECRET"})
+        sb = supabase_client()
+        if not sb:
+            return self._send(503, {"ok": False, "error": "backend"})
+        import _consistencia_lib as CL
+        import _metricas_lib as MX
+        from datetime import timedelta
+        agora = MX.agora_brt()
+        hoje = agora.date()
+        forcar = q.get("forcar") == "1"
+        # dia de referência: a partir das 20h roda o de hoje; antes disso só recupera ONTEM se a noite passou em branco
+        if agora.hour >= 20 or forcar:
+            ref = hoje
+        else:
+            ref = hoje - timedelta(days=1)
+            if ref.weekday() == 6 or _kv(sb, CL.KV_PREFIXO + ref.isoformat()):
+                return self._send(200, {"ok": True, "skip": "antes das 20h e a rodada de ontem já existe"})
+        chave = CL.KV_PREFIXO + ref.isoformat()
+        if _kv(sb, chave) and not forcar:
+            return self._send(200, {"ok": True, "skip": f"já rodou em {ref.isoformat()}"})
+        res = CL.comparar(sb, hoje)
+        res["referencia"] = ref.isoformat()
+        res["atrasado"] = ref != hoje
+        avisados = 0
+        titulo, corpo = CL.resumo_aviso(res)
+        if titulo:
+            try:
+                socios = [u["id"] for u in (sb.table("users").select("id,role,status").execute().data or [])
+                          if (u.get("role") or "").lower() in ("socio", "diretor") and (u.get("status") or "ativo") == "ativo"]
+                avisados = notify_all(socios, "consistencia_telas", titulo, corpo, link="#/", target_type="consistencia")
+            except Exception as e:
+                res["erro_aviso"] = str(e)[:160]
+        res["avisados"] = avisados
+        try:
+            sb.table("shared_kv").upsert({"key": chave, "value": res, "updated_at": datetime.now(timezone.utc).isoformat()},
+                                         on_conflict="key").execute()
+        except Exception as e:
+            res["erro_gravar"] = str(e)[:160]
+        return self._send(200, {"ok": True, "referencia": ref.isoformat(), "falhas": res["falhas"],
+                                "checks": len(res["checks"]), "avisados": avisados})
+
+
+def _ultima_rodada(sb):
+    try:
+        rows = (sb.table("shared_kv").select("key,value").like("key", "consistencia_telas:%")
+                .order("key", desc=True).limit(1).execute().data or [])
+        if not rows:
+            return None
+        v = rows[0]["value"]
+        v = json.loads(v) if isinstance(v, str) else (v or {})
+        v["_data"] = rows[0]["key"].split(":", 1)[1]
+        return v
+    except Exception:
+        return None

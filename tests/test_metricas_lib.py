@@ -501,3 +501,64 @@ def cerebro():
 
 
 cerebro()
+
+
+def consistencia():
+    """Teste noturno dos números entre telas (api/v3/_consistencia_lib.py). v88.0"""
+    import copy
+    import _consistencia_lib as CL
+    import _projecao_lib as PJ
+    db = copy.deepcopy(DB)
+    db["shared_kv"] = [kv for kv in db["shared_kv"] if not kv["key"].startswith("metricas_resumo") and not kv["key"].startswith("metricas_proj")]
+    sb = SB(db)
+    hoje = date(2026, 9, 30)
+    M.hoje_brt = lambda: hoje
+    res = CL.comparar(sb, hoje)
+    numeros = [c for c in res["checks"] if c["metrica"] != "frescor"]
+    assert numeros and all(c["ok"] for c in numeros), [c for c in numeros if not c["ok"]]
+    assert {c["tela"] for c in numeros} >= {"Projeção oficial"}
+    assert CL.resumo_aviso({"checks": numeros}) == (None, None)
+    # divergência forçada: a projeção passa a mostrar 1 venda a mais na Conquista → tem que acusar e virar aviso
+    orig = PJ.projecao
+    def torta(sb_, params=None, fresh=False, hoje=None):
+        out = orig(sb_, params, fresh=True, hoje=hoje)
+        out["equipes"]["conquista"]["realizado"]["vendas"] += 1
+        return out
+    PJ.projecao = torta
+    try:
+        res2 = CL.comparar(sb, hoje)
+    finally:
+        PJ.projecao = orig
+    ruins = [c for c in res2["checks"] if not c["ok"] and c["metrica"] != "frescor"]
+    assert [(c["tela"], c["metrica"], c["escopo"]) for c in ruins] == [("Projeção oficial", "vendas do mês", "conquista")], ruins
+    titulo, corpo = CL.resumo_aviso(res2)
+    assert titulo.startswith("🔎") and "Projeção oficial" in titulo and "Conquista" in corpo, (titulo, corpo)
+    print("OK — teste noturno: tudo bate e a divergência forçada vira aviso ->", titulo)
+
+
+def inativos():
+    """§1 × §4: venda de quem saiu soma na empresa (com aviso), fica fora da equipe e da meta. v88.0"""
+    import copy
+    db = copy.deepcopy(DB)
+    db["shared_kv"] = [kv for kv in db["shared_kv"] if not kv["key"].startswith("metricas_resumo")]
+    db["users"].append({"id": "camila", "name": "Camila Saiu", "email": "camila@x.br", "role": "corretor_conquista",
+                        "team": "conquista", "status": "inativo", "is_service": False})
+    db["deals"].append({"id": "i1", "amount": 250000, "win": True, "closed_at": "2026-09-10T15:00:00+00:00",
+                        "created_at_rd": "2026-08-01T12:00:00+00:00", "user_id": "camila", "user_email": "camila@x.br",
+                        "synced_at": SYNC, "stage_id": "s9", "rd_raw": {}})
+    base = M.resumo(SB(copy.deepcopy(DB)), {}, fresh=True, hoje=date(2026, 9, 30))
+    out = M.resumo(SB(db), {}, fresh=True, hoje=date(2026, 9, 30))
+    E, e0 = out["empresa"], base["empresa"]
+    assert E["vendas"] == e0["vendas"] + 1 and E["vgv"] == e0["vgv"] + 250000, (E["vendas"], e0["vendas"])
+    assert E["inativos"]["vendas"] == 1 and E["inativos"]["quem"] == ["Camila Saiu"], E["inativos"]
+    assert out["equipes"]["conquista"]["vendas"] == base["equipes"]["conquista"]["vendas"]          # equipe = só ativos (§4)
+    assert "camila" not in out["equipes"]["conquista"]["membros"]
+    assert E["meta"]["meta_vgv"] == e0["meta"]["meta_vgv"]
+    assert any(a["tipo"] == "vendas_inativos" for a in out["avisos"])
+    print("OK — vendas de quem saiu: somam na empresa, fora da equipe e da meta")
+
+
+inativos()
+
+
+consistencia()

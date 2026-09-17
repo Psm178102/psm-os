@@ -23,6 +23,8 @@ Mudança de regra = mudança neste arquivo + na lib, nunca em uma tela isolada.
 - **Conquista × PSM HUB:** a venda oficial é a do RD. A esteira do HUB é conferência: se o HUB tiver venda que o RD não tem (ou vice-versa), a tela mostra "N venda(s) no HUB sem ganho no RD" com o nome do corretor. (Em 15/09/2026: Christian tem 1 venda de R$ 194.652 no HUB e 0 no RD.)
 - **Ticket médio:** VGV ÷ vendas do período.
 
+**Venda de quem saiu da PSM (revisão de 17/09/2026, v88.0):** a venda continua sendo venda da empresa (§1) — soma no total da empresa, com aviso, igual à venda sem corretor. Quem saiu não é membro de equipe (§4), então essa venda fica fora do total da equipe, da meta e das projeções. Medido em 17/09: 19 vendas de 2026 (~R$ 6,1 mi, jan–jul) eram de corretores já desligados e sumiam do total da empresa nas visões de ano e de meses passados.
+
 ## 2. Origem e lead
 
 Toda origem do RD (`rd_raw.deal_source.name`) cai em exatamente uma categoria:

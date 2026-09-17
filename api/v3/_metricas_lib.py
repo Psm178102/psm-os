@@ -22,7 +22,7 @@ from datetime import datetime, timezone, timedelta, date
 BRT = timezone(timedelta(hours=-3))
 # ⚠️ Bumpar o sufixo (v2, v3…) SEMPRE que o formato do retrato mudar: o cache é versionado pelo
 # sync do RD, não pelo código — em 16/09 a v87.87 leu retratos da v87.86 sem pipeline/previsto/norte.
-CACHE_KEY = "metricas_resumo:v2"
+CACHE_KEY = "metricas_resumo:v3"   # v88.0: empresa ganhou "inativos" (vendas de quem saiu)
 CACHE_TTL = 600          # segurança: mesmo sem sync novo, recalcula a cada 10 min
 HUB_TTL = 300            # esteira do PSM HUB (externa) — 5 min
 KV_ORIGENS = "dic_origens"   # override editável da tabela de origens (Configurações → Dicionário)
@@ -751,10 +751,29 @@ def calcular(sb, base, since_d, until_d, hoje=None):
 
     empresa = somar([b for b in pessoas_out.values() if b["ativo"]])
     sc = fechar(sem_corretor, None)
-    for k in ("vendas", "vgv", "perdidos", "interessados", "leads", "em_atendimento"):
-        empresa[k] = round(empresa[k] + sc[k], 2) if k == "vgv" else empresa[k] + sc[k]
+    # v88.0 §1 (venda = ganho no RD, toda venda conta): quem SAIU da empresa sai da equipe, da meta e das
+    # projeções (§4), mas a venda que fez continua sendo venda da PSM. Antes o total da empresa só somava
+    # pessoas ativas — em 2026, 19 vendas (~R$ 6,1 mi, jan–jul) de corretores desligados sumiam dos totais
+    # de ano e de meses passados. Mesmo tratamento do "sem corretor": soma só na empresa, com aviso.
+    CAMPOS_EMP = ("vendas", "vgv", "perdidos", "interessados", "leads", "leads_pago_psm", "leads_pago_corretor", "em_atendimento")
+    inat_lista = [b for b in pessoas_out.values() if not b["ativo"]]
+    inat = {k: 0 for k in CAMPOS_EMP}
+    for b in inat_lista:
+        for k in CAMPOS_EMP:
+            inat[k] += b.get(k) or 0
+    inat["vgv"] = round(inat["vgv"], 2)
+    inat["quem"] = sorted(b.get("name") or b["id"] for b in inat_lista if b.get("vendas") or b.get("leads") or b.get("em_atendimento"))
+    for k in CAMPOS_EMP:
+        empresa[k] = round(empresa[k] + sc.get(k, 0) + inat[k], 2) if k == "vgv" else empresa[k] + sc.get(k, 0) + inat[k]
     empresa["ticket"] = round(empresa["vgv"] / empresa["vendas"], 2) if empresa["vendas"] else None
+    mv_emp = (empresa.get("meta") or {}).get("meta_vgv") or 0
+    empresa["atingimento_vgv_pct"] = round(empresa["vgv"] / mv_emp * 100, 1) if mv_emp > 0 else None
     empresa["sem_corretor"] = sc
+    empresa["inativos"] = inat
+    if inat["vendas"]:
+        avisos.append({"tipo": "vendas_inativos",
+                       "txt": f"ℹ️ {inat['vendas']} venda(s) de quem já saiu da PSM ({', '.join(inat['quem'][:5])}) somam no total da empresa, fora das equipes e das metas.",
+                       "n": inat["vendas"]})
     empresa["n_pessoas_ativas"] = sum(1 for b in pessoas_out.values() if b["ativo"])
     empresa["ticket_referencia"] = ticket_ref.get("_empresa")
     empresa["ticket_por_equipe"] = {k: v for k, v in ticket_ref.items() if k != "_empresa"}
