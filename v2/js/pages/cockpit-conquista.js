@@ -9,6 +9,7 @@
 ============================================================================ */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { montarDecisoes } from '../decisoes.js';   // v87.92 🧭 Decidir agora
 
 const BRL = v => (isFinite(v) ? v : 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
@@ -127,6 +128,7 @@ function renderShell(c) {
         <button class="btn btn-ghost btn-sm" id="ck-fresh" title="sincroniza o RD agora e recalcula">🔄</button>
       </div>
     </div>
+    <div id="ck-dec"></div>
     ${kpis}${faixa}${leads}
     <div style="font-weight:800;margin-bottom:8px">⚡ Atalhos do dia</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">
@@ -138,4 +140,5 @@ function renderShell(c) {
   if (sel) sel.onchange = () => { _selId = sel.value; loadBrain(); };
   const fb = _root.querySelector('#ck-fresh');
   if (fb) fb.onclick = () => loadBrain(true);
+  montarDecisoes(_root.querySelector('#ck-dec'), { tela: 'cerebro', pessoa: _selId, titulo: _selId === _me.id ? '🧭 O que fazer agora no seu funil' : '🧭 O que fazer agora neste funil', max: 5 });
 }

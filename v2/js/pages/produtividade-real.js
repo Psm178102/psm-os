@@ -7,6 +7,7 @@
    rendimento individual é conversa de 1:1 e de Reunião de Gestão.
    Backend: /api/v3/producao/produtividade (cache 10 min). lvl>=5. */
 import { api } from '../api.js';
+import { montarDecisoes } from '../decisoes.js';   // v87.92 🧭 Decidir agora
 
 let _root = null, _d = null, _janela = 90;
 
@@ -71,6 +72,7 @@ function render() {
           ${[30, 90, 180].map(j => `<button class="btn btn-sm ${j === _janela ? 'btn-primary' : ''}" data-j="${j}">${j}d</button>`).join('')}
         </div>
       </div>
+      <div id="pr-dec" style="margin-top:12px"></div>
       <div class="alert" style="margin:10px 0;font-size:12px">🔒 Esta tela não vai pra TV nem vira ranking público — rendimento individual é conversa de 1:1 e de Reunião de Gestão. Venda dentro da faixa de Poisson nunca é falha.</div>
       ${(_d.fora_da_lista || []).length ? `<div class="tiny muted" style="margin:-4px 0 10px">
         👤 Só <b>corretor ativo</b> entra aqui. Fora da lista (${_d.fora_da_lista.length}):
@@ -98,4 +100,5 @@ function render() {
     </div>`;
   _root.querySelectorAll('[data-j]').forEach(b => b.onclick = () => { _janela = +b.dataset.j; load(); });
   const fb = _root.querySelector('#pr-fresh'); if (fb) fb.onclick = () => load(true);
+  montarDecisoes(document.getElementById('pr-dec'), { tela: 'produtividade', titulo: '🧭 Quem precisa de ação agora', max: 6 });
 }

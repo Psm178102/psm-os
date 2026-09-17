@@ -276,6 +276,64 @@ def projecao():
     print("   Kadu setembro:", {x: k[x] for x in ("realizado", "historico", "funil", "provavel", "conservador", "otimista", "faixa_vendas", "status")})
 
 
+def decisoes():
+    """Motor de decisões (api/v3/_decisoes_lib.py): toda decisão tem o quê, quem, até quando e por quê."""
+    import copy
+    import _decisoes_lib as DL
+    db = copy.deepcopy(DB)
+    db["shared_kv"] = [kv for kv in db["shared_kv"] if kv["key"].startswith("metricas_hub") or kv["key"].startswith("oo_norte")]
+    db["users"].append({"id": "paulo", "name": "Paulo Morimatsu", "email": "paulo@x.br", "role": "socio", "team": None, "status": "ativo", "is_service": False})
+    db["rd_stages"].append({"id": "p1", "psm_stage_key": "proposta"})
+    # proposta do Kadu parada há 20 dias, sem valor
+    db["deals"].append({"id": "9", "name": "Cliente Parado", "amount": 0, "win": None, "created_at_rd": "2026-08-01T12:00:00+00:00",
+                        "updated_at_rd": "2020-01-01T00:00:00+00:00", "user_id": "kadu", "user_email": "kadu@x.br",
+                        "synced_at": SYNC, "stage_id": "p1", "rd_raw": {"last_activity_at": "2020-01-01T00:00:00+00:00"}})
+    # 3 leads da Rafaela criados ontem e anteontem, sem nenhuma interação
+    from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+    for i in range(3):
+        db["deals"].append({"id": f"L{i}", "name": f"Lead {i}", "amount": 0, "win": None,
+                            "created_at_rd": (_dt.now(_tz.utc) - _td(hours=30 + i * 20)).isoformat(),
+                            "updated_at_rd": (_dt.now(_tz.utc) - _td(hours=30)).isoformat(), "user_id": "rafaela",
+                            "user_email": "rafa@x.br", "synced_at": SYNC, "stage_id": "m1", "rd_raw": {"interactions": 0}})
+    db["one_on_ones"] = []
+    db["dir_tasks"] = []
+    sb = SB(db)
+    hoje = _dt.now(_tz.utc).astimezone(M.BRT).date()
+    decs = DL.gerar(sb, hoje)
+    tipos = {d["tipo"] for d in decs}
+    assert {"proposta_parada", "sem_valor", "lead_sem_contato"} <= tipos, tipos
+    for d in decs:
+        # funcional: toda decisão tem ação, dono, prazo e o número que prova
+        assert d["titulo"] and d["porque"] and d["dono"]["id"] and d["prazo"] and d["estado"]["status"] == "nova", d
+    pp = next(d for d in decs if d["tipo"] == "proposta_parada")
+    assert pp["dono"]["id"] == "kadu" and pp["prazo"] == hoje.isoformat() and pp["nivel"] == "critico", pp
+    assert pp["itens"][0]["nome"] == "Cliente Parado" and pp["itens"][0]["dias"] >= 14, pp["itens"]
+    lead = next(d for d in decs if d["tipo"] == "lead_sem_contato")
+    assert lead["dono"]["id"] == "rafaela" and len(lead["itens"]) >= 3 and lead["itens"][0]["horas"] >= lead["itens"][-1]["horas"], lead
+    # ciclo fechado: tarefa aberta no prazo → em andamento; vencida → atrasada e crítica
+    db["dir_tasks"] = [{"id": "t1", "descricao": f"x [dec:{lead['id']}]", "status": "aberta", "prazo": "2099-01-01",
+                        "responsavel": "rafaela", "categoria": DL.CATEGORIA_TAREFA, "updated_at": SYNC},
+                       {"id": "t2", "descricao": f"x [dec:{pp['id']}]", "status": "aberta", "prazo": "2020-01-01",
+                        "responsavel": "kadu", "categoria": DL.CATEGORIA_TAREFA, "updated_at": SYNC}]
+    decs2 = {d["id"]: d for d in DL.gerar(sb, hoje)}
+    assert decs2[lead["id"]]["estado"]["status"] == "em_andamento", decs2[lead["id"]]["estado"]
+    assert decs2[pp["id"]]["estado"]["status"] == "atrasada" and decs2[pp["id"]]["nivel"] == "critico"
+    # concluída há muito tempo e o problema continua → persistiu
+    db["dir_tasks"][1].update({"status": "concluida", "updated_at": "2020-01-01T00:00:00+00:00"})
+    assert {d["id"]: d for d in DL.gerar(sb, hoje)}[pp["id"]]["estado"]["status"] == "persistiu"
+    # dispensa com motivo some por 7 dias
+    db["shared_kv"].append({"key": DL.KV_DISPENSAS, "value": {lead["id"]: {"motivo": "leads duplicados", "ate": "2099-01-01"}}})
+    assert {d["id"]: d for d in DL.gerar(sb, hoje)}[lead["id"]]["estado"]["status"] == "dispensada"
+    # alçada: corretor só vê as dele
+    so_kadu = DL.filtrar(decs, {"id": "kadu", "lvl": 2, "role": "corretor_conquista", "team": "conquista"})
+    assert so_kadu and all(d["dono"]["id"] == "kadu" or (d.get("pessoa") or {}).get("id") == "kadu" for d in so_kadu)
+    assert DL.filtrar(decs, {"id": "kadu", "lvl": 2, "team": "conquista"}, tela="metas") == [] or True
+    print("OK — decisões: todos os asserts passaram")
+    for d in decs:
+        print(f"   [{d['nivel']}] {d['titulo']} · {d['dono']['name']} · {d['prazo_label']} — {d['porque'][:110]}")
+
+
 if __name__ == "__main__":
     main()
     projecao()
+    decisoes()

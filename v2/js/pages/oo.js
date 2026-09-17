@@ -2,6 +2,7 @@
 import { api, selectableUsers, hojeISO } from '../api.js';
 import { auth } from '../auth.js';
 import { montarBlocoOO } from './treinamentos.js';   // 🎓 treinos + habilidade prioritária no 1:1 (v87.77)
+import { montarDecisoes } from '../decisoes.js';     // v87.92 🧭 pauta do 1:1 = decisões abertas da pessoa
 
 let _root = null;
 let _view = 'list';            // 'list' | 'detail'
@@ -112,11 +113,13 @@ function renderList() {
         </div>
         ${periodSel()}
       </div>
+      <div id="oo-dec" style="margin-top:12px"></div>
       ${gestores.length ? `<div style="font-size:12px;font-weight:800;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.5px;margin-top:14px">🛡 Gestores · visão de equipe</div>${grid(gestores)}` : ''}
       <div style="font-size:12px;font-weight:800;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.5px;margin-top:16px">🏠 Corretores · individual</div>
       ${corretores.length ? grid(corretores) : '<div class="muted text-center" style="padding:30px">Sem corretores com dados no período.</div>'}
     </div>`;
   wirePeriod(loadList);
+  montarDecisoes(document.getElementById('oo-dec'), { tela: 'oo', titulo: '🧭 Quem precisa de 1:1 e de ação agora', max: 6 });
   _root.querySelectorAll('[data-open]').forEach(el => el.addEventListener('click', () => { _selId = el.dataset.open; loadDetail(); }));
 }
 
@@ -207,6 +210,7 @@ function renderDetail() {
         ${selfView ? '' : '<button class="btn btn-primary" id="oo-new" style="margin-left:auto">+ Reunião 1:1</button>'}
       </div>
       ${detailHeader(d, c)}
+      <div id="oo-dec-p" style="margin-top:12px"></div>
       ${ooTabBar()}
       <div style="margin-top:14px">${nortePanel(d)}</div>
       <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-top:14px;align-items:start">
@@ -233,6 +237,7 @@ function renderDetail() {
       <div id="modal-oo" style="display:none"></div>
     </div>`;
   wireDetailCommon();
+  montarDecisoes(document.getElementById('oo-dec-p'), { pessoa: c.id, titulo: selfView ? '🧭 O que você precisa fazer agora' : '🧭 Pauta do 1:1 — decisões abertas de ' + (c.name || '').split(' ')[0], max: 8 });
 }
 
 /* ───────────────────── COCKPIT DO GESTOR (líder) ───────────────────── */
@@ -246,6 +251,7 @@ function renderGestor(d, c) {
         <button class="btn btn-primary" id="oo-new" style="margin-left:auto">+ Reunião 1:1</button>
       </div>
       ${gestorHeader(d)}
+      <div id="oo-dec-g" style="margin-top:12px"></div>
       ${gestorAlerts(M)}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;align-items:start">
         ${projecaoPanel({ projecao: M.projecao })}
@@ -274,6 +280,7 @@ function renderGestor(d, c) {
       <div id="modal-oo" style="display:none"></div>
     </div>`;
   wireDetailCommon();
+  montarDecisoes(document.getElementById('oo-dec-g'), { team: String(c.team || '').toLowerCase().includes('conquista') ? 'conquista' : String(c.team || '').toLowerCase().includes('map') ? 'map' : String(c.team || '').toLowerCase(), titulo: '🧭 Decisões da equipe de ' + (c.name || '').split(' ')[0], max: 8 });
 }
 
 /* 🧪 Abas do 1:1 individual (Cockpit | Simulador) — Simulador é sócio-only */

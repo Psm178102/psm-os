@@ -9,6 +9,10 @@
       "schedule": "*/30 9-23 * * 1-6"
     },
     {
+      "path": "/api/v3/metricas/decisoes?cron=1",
+      "schedule": "10 10 * * 1-6"
+    },
+    {
       "path": "/api/v3/crm/tasks_sync?cron=1",
       "schedule": "15,45 9-23 * * 1-6"
     },

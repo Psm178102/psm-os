@@ -6,6 +6,7 @@
 ============================================================================ */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { montarDecisoes } from '../decisoes.js';   // v87.92 🧭 Decidir agora
 
 const MES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
@@ -136,7 +137,8 @@ function render() {
         ${pctVgv != null ? kpi('% Atingimento', pct2(pctVgv), 'atingido ÷ meta', pctColor(pctVgv)) : ''}
       </div>
 
-      ${forecastPanel(d, grid)}
+      <div id="mt-dec" class="mt-3"></div>
+      ${_ano === new Date().getFullYear() ? '<div id="mt-proj"></div>' : forecastPanel(d, grid)}
 
       <!-- Seletor de MÉTRICA -->
       <div class="flex gap-2 mt-3" style="flex-wrap:wrap;align-items:center">
@@ -172,6 +174,38 @@ function render() {
     </div>
   `;
   wire(canEdit);
+  montarDecisoes(document.getElementById('mt-dec'), { tela: 'metas', titulo: '🧭 Metas — o que decidir agora', max: 5 });
+  if (_ano === new Date().getFullYear()) projOficial();
+}
+
+/* v87.92: projeção do ano = a OFICIAL (mesma da Gestão Comercial e dos KPIs), não mais run-rate linear */
+async function projOficial() {
+  const el = document.getElementById('mt-proj');
+  if (!el) return;
+  el.innerHTML = '<div class="tiny muted mt-3"><span class="spinner"></span> Projetando o ano…</div>';
+  let pj;
+  try { pj = await api.request('/api/v3/metricas/projecao?h=ano'); } catch (e) { el.innerHTML = `<div class="alert alert-warn tiny mt-3">Projeção indisponível: ${esc(e.message)}</div>`; return; }
+  const p = pj.empresa || Object.values(pj.equipes || {})[0];
+  if (!p) { el.innerHTML = ''; return; }
+  const mny = v => 'R$ ' + money(v);
+  const st = { batida: ['🏆 Meta do ano batida', '#16a34a'], no_ritmo: ['🟢 Vai bater a meta', '#16a34a'], atras: ['🟡 Atrás (70–99% da meta)', '#d97706'], fora: ['🔴 Fora (< 70% da meta)', '#dc2626'], sem_meta: ['⚪ Sem meta', '#64748b'] }[p.status] || ['—', '#64748b'];
+  const box = (l, v, sub, c) => `<div style="background:var(--bg-2);border-radius:10px;padding:12px;border-left:4px solid ${c || 'var(--border)'}"><div class="tiny muted" style="font-weight:700">${l}</div><div style="font-size:18px;font-weight:800;margin-top:3px;color:${c || ''}">${v}</div>${sub ? `<div class="tiny muted" style="margin-top:2px">${sub}</div>` : ''}</div>`;
+  const hz = pj.horizonte, du = hz.dias_uteis;
+  const eqs = Object.entries(pj.equipes || {}).filter(([, e]) => e.meta.vgv > 0);
+  el.innerHTML = `
+  <div style="margin-top:14px;border:1px solid var(--border);border-radius:12px;padding:14px;background:var(--bg-3)">
+    <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div style="font-weight:800">📊 Projeção ${_ano} <span class="tiny muted" style="font-weight:400">— oficial: realizado + maior entre ritmo dos últimos 180 dias e funil calibrado · ${du.restantes} dias úteis restantes${pj.dados_de_hhmm ? ' · dados de ' + esc(pj.dados_de_hhmm) : ''}</span></div>
+      <div style="font-weight:800;color:${st[1]}">${st[0]}${p.provavel.pct_meta != null ? ' · ' + pct2(p.provavel.pct_meta) + ' da meta' : ''}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px">
+      ${box('🎯 Meta anual', mny(p.meta.vgv), 'esperado até hoje ' + mny(p.meta.vgv_ate_hoje), '#334155')}
+      ${box('↑ Realizado', mny(p.realizado.vgv), p.realizado.vendas + ' vendas' + (p.realizado.pct_meta != null ? ' · ' + pct2(p.realizado.pct_meta) : ''), st[1])}
+      ${box('📈 Fechamento provável', mny(p.provavel.vgv), 'faixa ' + mny(p.conservador.vgv) + ' – ' + mny(p.otimista.vgv), st[1])}
+      ${box('🎯 Pra bater a meta', p.por_dia_util_vgv ? mny(p.por_dia_util_vgv) + '/dia útil' : '✓', p.falta_vgv ? 'faltam ' + mny(p.falta_vgv) + ' (≈ ' + p.falta_vendas + ' vendas)' : 'meta batida', p.falta_vgv ? '#dc2626' : '#16a34a')}
+    </div>
+    ${eqs.length > 1 ? `<div class="tiny" style="margin-top:8px">${eqs.map(([tk, e]) => `<b>${esc(tk)}</b>: provável ${mny(e.provavel.vgv)} de ${mny(e.meta.vgv)} (${e.provavel.pct_meta != null ? pct2(e.provavel.pct_meta) : '—'})`).join(' · ')}</div>` : ''}
+  </div>`;
 }
 
 /* bloco de uma equipe: linha-subtotal (clicável p/ recolher) + linhas dos corretores */

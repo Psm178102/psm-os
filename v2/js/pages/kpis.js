@@ -10,6 +10,7 @@
 ============================================================================ */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { montarDecisoes } from '../decisoes.js';   // v87.92 🧭 Decidir agora
 
 let _root = null;
 let _d = null;
@@ -26,12 +27,13 @@ export async function pageKpis(ctx, root) {
 
 async function load() {
   try {
-    const [atg, ov, dre] = await Promise.all([
+    const [atg, ov, dre, pj] = await Promise.all([
       api.request('/api/v3/metas/atingimento').catch(() => ({})),
       api.request('/api/v3/metrics/overview').catch(() => ({})),
       api.request('/api/v3/finance/dre').catch(() => ({ ok: false })),
+      api.request('/api/v3/metricas/projecao?h=ano').catch(() => null),   // v87.92: projeção oficial
     ]);
-    _d = { atg, ov, dre };
+    _d = { atg, ov, dre, pj };
     renderContent();
   } catch (e) {
     document.getElementById('kpi-body').innerHTML = `<div class="alert alert-err">${esc(e.message)}</div>`;
@@ -43,30 +45,34 @@ function render() {
     <div class="card">
       <h2 class="card-title">📊 KPIs Executivos</h2>
       <p class="card-sub">Visão estratégica consolidada (ano corrente) — vendas, meta, pipeline, conversão, equipe e financeiro. Dados reais do RD + metas + NIBO.</p>
+      <div id="kpi-dec" class="mt-3"></div>
       <div id="kpi-body" class="mt-3"><div class="muted tiny"><span class="spinner"></span> Calculando KPIs…</div></div>
     </div>
   `;
+  montarDecisoes(document.getElementById('kpi-dec'), { tela: 'kpis', titulo: '🧭 O que estes números pedem agora', max: 5 });
 }
 
 function renderContent() {
-  const { atg, ov, dre } = _d;
+  const { atg, ov, dre, pj } = _d;
   const T = atg.totals || {};
   const sales = ov.sales || {};
   const users = ov.users || {};
+  // v87.92: ano pela projeção OFICIAL (mesma régua da Gestão Comercial, Metas e 1:1)
+  const PE = pj && (pj.empresa || Object.values(pj.equipes || {})[0]);
 
   // ── Vendas & Meta (ANO) ──
-  const metaVGV = +T.meta_vgv || 0;
-  const realVGV = +T.atingido_vgv || 0;
-  const vendas = +T.vendas_count || 0;
+  const metaVGV = PE ? PE.meta.vgv : (+T.meta_vgv || 0);
+  const realVGV = PE ? PE.realizado.vgv : (+T.atingido_vgv || 0);
+  const vendas = PE ? PE.realizado.vendas : (+T.vendas_count || 0);
   const pctMeta = metaVGV > 0 ? (realVGV / metaVGV * 100) : 0;
   const gap = Math.max(metaVGV - realVGV, 0);
   const ticketMedio = vendas > 0 ? realVGV / vendas : 0;
 
-  // Projeção do ano por run-rate (dia do ano corrido)
+  // Projeção do ano: oficial (realizado + maior entre ritmo 180 d e funil calibrado); fallback linear
   const now = new Date();
   const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
   const fracAno = Math.max(dayOfYear / 365, 0.01);
-  const projAno = realVGV / fracAno;
+  const projAno = PE ? PE.provavel.vgv : realVGV / fracAno;
   const pctProj = metaVGV > 0 ? (projAno / metaVGV * 100) : 0;
 
   // ── Pipeline & Funil (overview) ──
@@ -82,11 +88,15 @@ function renderContent() {
   // ── Equipe (grid de atingimento anual) ──
   const grid = (atg.grid || []).filter(g => (+(g.totals?.meta_vgv) || 0) > 0); // só quem tem meta
   const pctOf = g => { const m = +(g.totals?.meta_vgv) || 0; return m > 0 ? (+(g.totals?.atingido_vgv) || 0) / m * 100 : 0; };
-  const comMeta = grid.length;
-  const batendo = grid.filter(g => pctOf(g) >= 100).length;
-  const critico = grid.filter(g => pctOf(g) < 50).length;
+  // v87.92: status de cada corretor pela PROJEÇÃO do ano (vai bater / atrás / fora) — o realizado de
+  // setembro contra a meta do ano inteiro deixava todo mundo "crítico" e não dizia nada acionável
+  const pessoasPj = pj ? Object.values(pj.pessoas || {}).filter(p => p.ativo !== false && p.corretor && p.meta.vgv > 0) : null;
+  const comMeta = pessoasPj ? pessoasPj.length : grid.length;
+  const batendo = pessoasPj ? pessoasPj.filter(p => ['batida', 'no_ritmo'].includes(p.status)).length : grid.filter(g => pctOf(g) >= 100).length;
+  const critico = pessoasPj ? pessoasPj.filter(p => p.status === 'fora').length : grid.filter(g => pctOf(g) < 50).length;
   const caminho = comMeta - batendo - critico;
-  const ativos = +users.ativos || 0;
+  const ativos = PE && pj.empresa ? Object.values(pj.pessoas || {}).filter(p => p.ativo !== false && p.corretor).length : (+users.ativos || 0);
+  const coberturaProj = PE && PE.falta_vgv > 0 ? (PE.provavel.vgv - PE.realizado.vgv) / PE.falta_vgv : null;
 
   // ── Financeiro (NIBO) ──
   const dreOk = dre && dre.ok !== false && dre.totals;
@@ -103,7 +113,8 @@ function renderContent() {
       ${kpi('🎯', 'Meta do Ano', fmtKM(metaVGV), gap > 0 ? 'Falta ' + fmtKM(gap) : '✓ Batida', '#d4a843')}
       ${kpi('📊', 'Atingimento', pct2(pctMeta), `${vendas} venda(s) no ano`, semStatus(pctMeta, [50, 80, 100]))}
       ${kpi('🏆', 'Ticket Médio', fmtKM(ticketMedio), 'por venda fechada', '#22c55e')}
-      ${kpi('🔮', 'Projeção Ano', fmtKM(projAno), `~${pct2(pctProj)} da meta no ritmo`, pctProj >= 100 ? '#22c55e' : pctProj >= 80 ? '#f59e0b' : '#ef4444')}
+      ${kpi('🔮', 'Fechamento provável', fmtKM(projAno), PE ? `${pct2(pctProj)} da meta · faixa ${fmtKM(PE.conservador.vgv)}–${fmtKM(PE.otimista.vgv)}` : `~${pct2(pctProj)} da meta no ritmo`, pctProj >= 100 ? '#22c55e' : pctProj >= 70 ? '#f59e0b' : '#ef4444')}
+      ${PE && PE.por_dia_util_vgv ? kpi('⏱', 'Pra bater a meta', fmtKM(PE.por_dia_util_vgv), `por dia útil · ${pj.horizonte.dias_uteis.restantes} dias úteis restantes`, '#ef4444') : ''}
     </div>
 
     <!-- Pipeline & Funil -->
@@ -111,7 +122,9 @@ function renderContent() {
     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:10px;margin-bottom:18px">
       ${kpi('💼', 'Pipeline Aberto', fmtNum(pipeCount), fmtKM(pipeVgv) + ' em jogo', '#3b82f6')}
       ${kpi('🎟', 'Ticket Pipeline', fmtKM(ticketPipe), 'média por negócio', '#a855f7')}
-      ${kpi('🛡', 'Cobertura da Meta', cobertura == null ? '✓' : cobertura.toFixed(1) + '×', cobertura == null ? 'meta batida' : 'pipeline ÷ gap', cobertura == null ? '#22c55e' : (cobertura >= 3 ? '#22c55e' : cobertura >= 1.5 ? '#f59e0b' : '#ef4444'))}
+      ${coberturaProj != null
+        ? kpi('🛡', 'Cobertura da Meta', pct2(coberturaProj * 100), 'do que falta, a projeção cobre', coberturaProj >= 1 ? '#22c55e' : coberturaProj >= 0.7 ? '#f59e0b' : '#ef4444')
+        : kpi('🛡', 'Cobertura da Meta', cobertura == null ? '✓' : cobertura.toFixed(1) + '×', cobertura == null ? 'meta batida' : 'pipeline ÷ gap', cobertura == null ? '#22c55e' : (cobertura >= 3 ? '#22c55e' : cobertura >= 1.5 ? '#f59e0b' : '#ef4444'))}
       ${kpi('❌', 'Perdas (mês)', fmtNum(perdMes), fmtKM(perdVgvMes) + ' perdidos', perdMes > 0 ? '#ef4444' : '#22c55e')}
       ${kpi('⚡', 'Momentum 30d', fmtKM(vgv30), `${vendas30} venda(s) / 30 dias`, '#0891b2')}
     </div>
@@ -121,9 +134,9 @@ function renderContent() {
     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:10px;margin-bottom:18px">
       ${kpi('🧑‍💼', 'Corretores Ativos', fmtNum(ativos), '', '#3b82f6')}
       ${kpi('🎯', 'Com Meta', fmtNum(comMeta), 'metas definidas', '#64748b')}
-      ${kpi('🥇', 'Batendo Meta', fmtNum(batendo), '≥ 100%', '#22c55e')}
-      ${kpi('🟡', 'No Caminho', fmtNum(caminho), '50–99%', '#f59e0b')}
-      ${kpi('🔴', 'Crítico', fmtNum(critico), '< 50%', '#ef4444')}
+      ${kpi('🥇', pessoasPj ? 'Vão bater a meta' : 'Batendo Meta', fmtNum(batendo), pessoasPj ? 'projeção ≥ 100% da meta do ano' : '≥ 100%', '#22c55e')}
+      ${kpi('🟡', pessoasPj ? 'Atrás' : 'No Caminho', fmtNum(caminho), pessoasPj ? 'projeção 70–99%' : '50–99%', '#f59e0b')}
+      ${kpi('🔴', pessoasPj ? 'Fora' : 'Crítico', fmtNum(critico), pessoasPj ? 'projeção < 70% — ver decisões acima' : '< 50%', '#ef4444')}
     </div>
 
     <!-- Financeiro -->

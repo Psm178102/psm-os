@@ -6,6 +6,7 @@
    Recados: widget no topo (leitura + atalho); CRUD completo segue na rota /diretoria (fora do menu). */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { montarDecisoes } from '../decisoes.js';   // v87.92 🧭 Decidir agora
 
 let _root = null;
 const _d = {};            // resultados por fonte
@@ -35,6 +36,7 @@ export async function pageSalaComando(ctx, root) {
 function shell() {
   _root.innerHTML = `
     <div id="sc-recados" style="margin-bottom:12px"></div>
+    <div id="sc-dec"></div>
     <div class="card" style="margin-bottom:12px">
       <div class="flex items-center gap-2" style="flex-wrap:wrap">
         <h2 class="card-title" style="margin:0">🧭 Sala de Comando</h2>
@@ -58,6 +60,7 @@ function shell() {
   };
   farois();   // esqueleto dos faróis (spinners)
   areas();
+  montarDecisoes(document.getElementById('sc-dec'), { tela: 'sala', titulo: '🧭 Decisões da empresa — o que fazer, quem faz, até quando', max: 8 });
 }
 
 async function carregar(fresh) {
