@@ -31,8 +31,8 @@ SIGNALS = [
     # (PostgREST devolvia 404 a cada pulso, e o _max engolia calado). Tarefa mora em
     # `dir_tasks` desde sempre — ver tasks/list.py, tasks/feed.py e tasks/upsert.py.
     # Resultado: mexer em tarefa não mudava a assinatura, e a pill "🔄 Novos dados"
-    # nunca acendia por tarefa. Junto com isto, tasks/upsert.py e tasks/conclude.py
-    # passaram a gravar `updated_at` de propósito (não há trigger no banco).
+    # nunca acendia por tarefa. O nome errado era o bug INTEIRO: a coluna já se mexe
+    # sozinha a cada UPDATE pelo trigger dir_tasks_updated_at → set_updated_at().
     ("dir_tasks", "updated_at"),    # tarefas (tela Agenda & Tarefas)
     ("deals", "updated_at_rd"),     # vendas / CRM / oportunidades
     ("shared_kv", "updated_at"),    # recados/timeline, permissões, scripts, tabelas, configs

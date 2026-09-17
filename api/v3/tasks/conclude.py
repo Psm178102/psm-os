@@ -91,10 +91,7 @@ class handler(BaseHTTPRequestHandler):
                 c = cur[0]
                 if not (lvl >= 7 or c.get("responsavel") == uid or c.get("criado_por") == uid):
                     return _deny()
-                # v88.6 — `updated_at` junto (igual paulo_cards/captacoes abaixo):
-                # é a coluna que o pulso lê pra acender "🔄 Novos dados" nos outros
-                # logins quando alguém conclui. dir_tasks não tem trigger.
-                patch = {"status": "concluida", "updated_at": now}
+                patch = {"status": "concluida"}
                 if fields.get("nota"):
                     patch["observacoes"] = fields["nota"]
                 sb.table("dir_tasks").update(patch).eq("id", cid).execute()
