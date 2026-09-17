@@ -190,11 +190,36 @@ def _diretoria(ck, ctx):
     ck.comparar("dir_exec_vgv", "Diretoria (painel executivo)", "VGV do ano até hoje", "_empresa", ea["vgv"], ex.get("vgv"), valor=True)
 
 
+def _reconcile(ck, ctx):
+    """🔗 Conciliação PSM HUB × RD (psmhub/reconcile): o lado RD do mês = motor."""
+    RC = _tela("psmhub/reconcile.py", "_cons_psmhub_reconcile")
+    h = ctx.hoje
+    b = _chamar(RC, f"/api/v3/psmhub/reconcile?month={h.month}&year={h.year}", ctx.sb)
+    if b.get("pending_config"):
+        return
+    t = b.get("totals") or {}
+    e = ctx.mx["empresa"]
+    ck.comparar("rec_rd_vendas", "Conciliação HUB × RD", "vendas do RD no mês", "_empresa", e["vendas"], t.get("rd_empresa_vendas"))
+    ck.comparar("rec_rd_vgv", "Conciliação HUB × RD", "VGV do RD no mês", "_empresa", e["vgv"], t.get("rd_empresa_vgv"), valor=True)
+
+
+def _marketing(ck, ctx):
+    """📣 Marketing / Centro de Inteligência / funil da TV (marketing/crm_metrics): vendas, VGV e leads do mês."""
+    CM = _tela("marketing/crm_metrics.py", "_cons_marketing_crm_metrics")
+    g = _chamar(CM, "/api/v3/marketing/crm_metrics?date_preset=this_month", ctx.sb).get("global") or {}
+    e = ctx.mx["empresa"]
+    ck.comparar("mkt_vendas", "Marketing (CRM)", "vendas do mês", "_empresa", e["vendas"], g.get("vendas"))
+    ck.comparar("mkt_vgv", "Marketing (CRM)", "VGV do mês", "_empresa", e["vgv"], g.get("vgv"), valor=True)
+    ck.comparar("mkt_leads", "Marketing (CRM)", "leads de tráfego pago do mês", "_empresa", e["leads"], g.get("leads"))
+
+
 VERIFICACOES = (
     ("projecao", _projecao),
     ("metas", _metas),
     ("tv", _tv),
     ("diretoria", _diretoria),
+    ("reconcile", _reconcile),
+    ("marketing", _marketing),
 )
 
 

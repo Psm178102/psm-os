@@ -351,7 +351,7 @@ function funilView() {
   if (!g) return `<div style="font-size:26px;opacity:.8;text-align:center;padding:110px">📊 Funil de conversão<div style="font-size:16px;opacity:.6;margin-top:10px">Carregando dados do CRM… (precisa de login Líder+).</div></div>`;
   const real = _funil.metrics_basis === 'real';
   const stages = [
-    { lbl: 'Leads', n: int0(g.leads_criados), cor: '#3b82f6' },
+    { lbl: 'Negócios criados', n: int0(g.leads_criados), cor: '#3b82f6' },
     { lbl: 'Contatos', n: int0(g.leads_contatados), cor: '#8b5cf6' },
     { lbl: 'Visitas', n: int0(g.leads_visita), cor: '#d4a843' },
     { lbl: 'Vendas', n: int0(g.vendas), cor: '#16a34a' },

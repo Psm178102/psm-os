@@ -38,6 +38,15 @@ class Q:
     def is_(self, k, v): self.f.append(lambda r: r.get(k) is None); return self
     def in_(self, k, vals): s = set(vals); self.f.append(lambda r: r.get(k) in s); return self
 
+    def or_(self, expr):
+        """PostgREST 'col.gte.valor,col2.gte.valor' (só gte/eq, o que as telas usam)."""
+        conds = []
+        for parte in expr.split(","):
+            col, op, val = parte.split(".", 2)
+            conds.append((col, op, val))
+        self.f.append(lambda r: any(((r.get(c) or "") >= v) if op == "gte" else (str(r.get(c)) == v) for c, op, v in conds))
+        return self
+
     def like(self, k, pat):
         rx = re.compile("^" + re.escape(pat).replace("%", ".*") + "$")
         self.f.append(lambda r: bool(rx.match(str(r.get(k) or ""))))
@@ -513,10 +522,14 @@ def consistencia():
     sb = SB(db)
     hoje = date(2026, 9, 30)
     M.hoje_brt = lambda: hoje
+    # telas que leem "hoje" do _auth_lib pela janela de datas do Marketing: mesmo relógio do teste
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "api", "v3", "marketing"))
+    import _window_lib as WL
+    WL.hoje_brt = lambda: hoje
     res = CL.comparar(sb, hoje)
     numeros = [c for c in res["checks"] if c["metrica"] != "frescor"]
     assert numeros and all(c["ok"] for c in numeros), [c for c in numeros if not c["ok"]]
-    assert {c["tela"] for c in numeros} >= {"Projeção oficial", "Metas", "Modo TV", "Diretoria"}, {c["tela"] for c in numeros}
+    assert {c["tela"] for c in numeros} >= {"Projeção oficial", "Metas", "Modo TV", "Diretoria", "Marketing (CRM)"}, {c["tela"] for c in numeros}
     assert not any(c["metrica"] == "execução" for c in res["checks"]), res["checks"]
     assert CL.resumo_aviso({"checks": numeros}) == (None, None)
     # divergência forçada: a projeção passa a mostrar 1 venda a mais na Conquista → tem que acusar e virar aviso

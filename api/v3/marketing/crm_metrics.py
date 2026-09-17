@@ -33,6 +33,9 @@ from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
+_V3 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _V3 not in sys.path:
+    sys.path.append(_V3)
 
 
 # ─── Período (alinhado aos presets do Meta) ────────────────────────────────
@@ -351,7 +354,7 @@ def _real_brand_metrics(cohort_brand, events_by_deal, stage_info):
 def _blank_brand():
     return {
         "vendas": 0, "vgv": 0.0, "perdas": 0,
-        "leads_criados": 0, "leads_contatados": 0, "leads_visita": 0,
+        "leads_criados": 0, "leads": 0, "leads_contatados": 0, "leads_visita": 0,
         "ciclo_dias": [], "sla_horas": [], "ticket_vals": [],
         "vgv_pago": 0.0, "vendas_pago": 0,
         "trash": 0,
@@ -363,10 +366,16 @@ def _blank_brand():
 
 
 def _amount(d):
-    try:
-        return float(d.get("amount") or 0)
-    except Exception:
-        return 0.0
+    """v88.3 (Dicionário §1): amount → rd_raw.amount_total → amount_unique — era só amount (VGV a menos
+    justamente nas vendas em que o RD grava o valor no total)."""
+    raw = d.get("rd_raw") if isinstance(d.get("rd_raw"), dict) else {}
+    for v in (d.get("amount"), raw.get("amount_total"), raw.get("amount_unique")):
+        try:
+            if v not in (None, "") and float(v) > 0:
+                return float(v)
+        except (TypeError, ValueError):
+            pass
+    return 0.0
 
 
 class handler(BaseHTTPRequestHandler):
@@ -443,10 +452,20 @@ class handler(BaseHTTPRequestHandler):
 
         # nomes de corretores
         try:
-            urows = sb.table("users").select("email,name").execute().data or []
+            urows = sb.table("users").select("email,name,is_service").execute().data or []
             name_by_email = {(u.get("email") or "").lower(): u.get("name") for u in urows if u.get("email")}
+            servico_emails = {(u.get("email") or "").lower() for u in urows if u.get("is_service") and u.get("email")}
         except Exception:
-            name_by_email = {}
+            name_by_email, servico_emails = {}, set()
+        # v88.3 (Dicionário §2): LEAD = negócio criado no período com origem de tráfego pago (PSM ou do corretor;
+        # sem origem assume pago). "leads_criados" continua sendo todo negócio criado (base do funil de coorte).
+        try:
+            import _metricas_lib as MX  # type: ignore
+            _mapa_origens = MX.mapa_origens(sb)
+            _eh_lead = lambda src: MX.origem_categoria(src, _mapa_origens)[0] in MX.LEAD_CATS
+        except Exception as e:
+            print(f"[crm_metrics] dicionário de origens indisponível: {e}")
+            _eh_lead = None
 
         brands = defaultdict(_blank_brand)
         # localizar posição da etapa do deal p/ contact/visita
@@ -503,7 +522,7 @@ class handler(BaseHTTPRequestHandler):
                 if ch in PAID_CHANNELS:  # honesto: só meta+google contam como pago
                     B["vendas_pago"] += 1
                     B["vgv_pago"] += amt
-                ow = B["owners"][owner_email]
+                ow = B["owners"]["__servico" if owner_email in servico_emails else owner_email]
                 ow["vendas"] += 1
                 ow["vgv"] += amt
                 ow["nome"] = owner_name
@@ -516,12 +535,15 @@ class handler(BaseHTTPRequestHandler):
                 B["motivos"][mr] += 1
                 if TRASH_RE.search(mr):
                     B["trash"] += 1
-                B["owners"][owner_email]["perdas"] += 1
-                B["owners"][owner_email]["nome"] = owner_name
+                _ok = "__servico" if owner_email in servico_emails else owner_email
+                B["owners"][_ok]["perdas"] += 1
+                B["owners"][_ok]["nome"] = owner_name
 
             # ── Coorte de leads criados na janela (contact/visita/SLA/origem) ──
             if in_create_win:
                 B["leads_criados"] += 1
+                if _eh_lead and _eh_lead(src):
+                    B["leads"] += 1
                 B["channels"][ch]["leads"] += 1
                 _did = str(d.get("id") or "")
                 _pid = str((((raw or {}).get("deal_pipeline") or {}).get("id")) or "")
@@ -563,7 +585,7 @@ class handler(BaseHTTPRequestHandler):
             owners = sorted(
                 [{"email": k, "nome": v["nome"], "vendas": v["vendas"], "vgv": v["vgv"],
                   "perdas": v["perdas"], "ciclo_dias": _median(v["ciclo"])}
-                 for k, v in B["owners"].items() if (v["vendas"] or v["perdas"])],
+                 for k, v in B["owners"].items() if (v["vendas"] or v["perdas"]) and k != "__servico"],
                 key=lambda x: (-x["vgv"], -x["vendas"])
             )
             # SLA / contato / visita: usa REAL (eventos) quando a janela está na era
@@ -611,6 +633,7 @@ class handler(BaseHTTPRequestHandler):
                 "sla_horas_aprox": sla_val,
                 "sla_basis": basis,
                 "leads_criados": criados,
+                "leads": B["leads"] if _eh_lead else None,
                 "leads_contatados": B["leads_contatados"],
                 "leads_visita": B["leads_visita"],
                 "contact_rate": contact_val,
@@ -645,6 +668,7 @@ class handler(BaseHTTPRequestHandler):
             "vgv": round(sum(per_brand[k]["vgv"] for k in venda_keys), 2),
             "perdas": sum(per_brand[k]["perdas"] for k in venda_keys),
             "leads_criados": sum(per_brand[k]["leads_criados"] for k in venda_keys),
+            "leads": (sum(per_brand[k]["leads"] or 0 for k in venda_keys) if _eh_lead else None),
             "leads_contatados": sum(per_brand[k]["leads_contatados"] for k in venda_keys),
             "leads_visita": sum(per_brand[k]["leads_visita"] for k in venda_keys),
             "vgv_pago": round(sum(per_brand[k]["vgv_pago"] for k in venda_keys), 2),

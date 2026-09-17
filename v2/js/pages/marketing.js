@@ -836,11 +836,11 @@ function tabExecutiva() {
       </div>
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:12px">
-        ${crmMiniDark('Leads gerados (RD)', fmtNum(g.leads_criados), '#60a5fa')}
+        ${crmMiniDark('Leads de tráfego pago (RD)', fmtNum(g.leads ?? g.leads_criados), '#60a5fa', g.leads != null ? fmtNum(g.leads_criados) + ' negócios criados' : undefined)}
         ${crmMiniDark('Vendas ganhas', fmtNum(g.vendas), '#4ade80')}
         ${crmMiniDark('Ticket médio', g.ticket_medio ? 'R$ ' + moneyShort(g.ticket_medio) : '—', '#c4b5fd')}
         ${crmMiniDark('Conversão', g.taxa_conversao != null ? pct2(g.taxa_conversao) : '—', '#22d3ee', 'ganhos ÷ fechados')}
-        ${crmMiniDark('CPL real (RD)', g.leads_criados ? 'R$ ' + money(t.spend / g.leads_criados) : '—', '#fbbf24', 'gasto ÷ leads RD')}
+        ${crmMiniDark('CPL real (RD)', (g.leads ?? g.leads_criados) ? 'R$ ' + money(t.spend / (g.leads ?? g.leads_criados)) : '—', '#fbbf24', 'gasto ÷ leads de tráfego pago')}
       </div>
 
       ${attrBanner(attr)}
@@ -914,7 +914,7 @@ function execBrandRows(byBrand) {
     const spend = meta?.spend || 0;
     const vendas = crm?.vendas || 0;
     const vgv = crm?.vgv || 0;
-    const leads = crm?.leads_criados || 0;
+    const leads = (crm?.leads ?? crm?.leads_criados) || 0;   // v88.3: lead = tráfego pago (Dicionário §2)
     const cac = vendas ? spend / vendas : 0;
     const vgvInf = (crm?.attribution?.vgv_paid) || 0;  // honesto: só Meta/Google, sem fallback
     const roas = (spend && vgvInf) ? vgvInf / spend : 0;
@@ -1561,7 +1561,8 @@ function marcaPanel(label, camps) {
   // CRM cruzado p/ essa marca
   const crm = _crm?.brands?.[bi.key];
   const cac = crm && crm.vendas ? t.spend / crm.vendas : 0;
-  const cpo = crm && crm.leads_criados ? t.spend / crm.leads_criados : 0;
+  const leadsPagos = crm ? (crm.leads ?? crm.leads_criados) : 0;   // v88.3: lead = tráfego pago (Dicionário §2)
+  const cpo = leadsPagos ? t.spend / leadsPagos : 0;
   return `
     <div style="background:var(--bg-2);border:1px solid var(--border);border-left:5px solid ${bi.cor};border-radius:var(--r-md);padding:14px 16px">
       <div class="flex items-center gap-2" style="flex-wrap:wrap">
@@ -1580,7 +1581,7 @@ function marcaPanel(label, camps) {
       ${crm ? `
         <div class="tiny muted" style="margin-top:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Vendas (RD CRM)</div>
         <div class="flex gap-2 mt-1" style="flex-wrap:wrap;margin-top:4px">
-          ${miniKpi('Leads RD', fmtNum(crm.leads_criados), '#2563eb')}
+          ${miniKpi('Leads RD', fmtNum(leadsPagos), '#2563eb', crm.leads != null ? `tráfego pago · ${fmtNum(crm.leads_criados)} negócios` : undefined)}
           ${miniKpi('Vendas', fmtNum(crm.vendas), '#16a34a')}
           ${miniKpi('CAC', cac ? 'R$ ' + money(cac) : '—', '#ea580c', 'gasto ÷ vendas')}
           ${miniKpi(bi.key==='conquista'?'CPL-R':'CPO', cpo ? 'R$ ' + money(cpo) : '—', cpo && cpo <= bi.cplAlvo ? '#16a34a' : '#d97706', 'gasto ÷ leads')}
@@ -1632,7 +1633,7 @@ function produtoEficienciaPanel() {
     const m = byBrand[k], c = _crm.brands?.[k];
     if (!m && !c) return '';
     const spend = m?.spend || 0;
-    const leads = c?.leads_criados || 0;
+    const leads = (c?.leads ?? c?.leads_criados) || 0;   // v88.3: CPL sobre lead de tráfego pago (Dicionário §2)
     const qual = c?.leads_contatados || 0;     // qualificado ≈ lead que avançou/foi contatado
     const visitas = c?.leads_visita || 0;
     const vendas = c?.vendas || 0;

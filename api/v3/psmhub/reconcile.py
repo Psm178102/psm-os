@@ -26,7 +26,7 @@ def _amt(d):
     a /metrics/overview. Sem o fallback esta tela somava R$ 0 justamente nas
     vendas em que o RD grava o valor só no amount_total — e divergia do
     Dashboard, do Painel Metas e do 1:1 pro mesmo período."""
-    for v in (d.get("amount"), d.get("amt_total")):
+    for v in (d.get("amount"), d.get("amt_total"), d.get("amt_unique")):   # v88.3: + amount_unique (§1)
         try:
             if v not in (None, "") and float(v) > 0:
                 return float(v)
@@ -88,16 +88,20 @@ class handler(BaseHTTPRequestHandler):
         agent_by_id = {a.get("id"): a for a in agents if isinstance(a, dict)}
 
         # 2) House PSM users → índices de match (email / rd_id / nome)
-        users = sb.table("users").select("id,name,email,rd_id,team").execute().data or []
+        users = sb.table("users").select("id,name,email,rd_id,team,is_service").execute().data or []
         by_email = {(u.get("email") or "").lower(): u for u in users if u.get("email")}
         by_rdid  = {str(u.get("rd_id")): u for u in users if u.get("rd_id")}
         by_name  = {_norm(u.get("name")): u for u in users if u.get("name")}
 
         # 3) deals win=true do MÊS → VGV/contagem por user_id e por email
+        # v88.3: só o mês (fronteira de Brasília) vem do banco — antes lia TODA venda da história e filtrava aqui
+        ini_utc = (datetime(year, month, 1) + timedelta(hours=3)).isoformat() + "+00:00"
+        fim_utc = (datetime(year + (month == 12), 1 if month == 12 else month + 1, 1) + timedelta(hours=3)).isoformat() + "+00:00"
         deals, page = [], 0
         while True:
-            chunk = (sb.table("deals").select("amount,closed_at,created_at_rd,user_id,user_email,win,amt_total:rd_raw->amount_total")
-                     .eq("win", True).order("id").range(page * 1000, page * 1000 + 999).execute().data or [])
+            chunk = (sb.table("deals").select("amount,closed_at,created_at_rd,user_id,user_email,win,amt_total:rd_raw->amount_total,amt_unique:rd_raw->amount_unique")
+                     .eq("win", True).gte("closed_at", ini_utc).lt("closed_at", fim_utc)
+                     .order("id").range(page * 1000, page * 1000 + 999).execute().data or [])
             deals.extend(chunk)
             if len(chunk) < 1000 or page >= 50:
                 break
@@ -123,14 +127,20 @@ class handler(BaseHTTPRequestHandler):
                 return ca[:7] == ym
 
         wins = [r for r in deals if in_month(r)]
+        # v88.3 (Dicionário §3): o dono é resolvido POR NEGÓCIO — user_id, senão o e-mail do dono cadastrado.
+        # Antes a linha pegava o total por user_id OU o total por e-mail: com vendas dos dois jeitos no mês,
+        # as que só tinham e-mail sumiam do RD do corretor. E-mail sem cadastro fica no balde por e-mail.
+        servico = {u.get("id") for u in users if u.get("is_service")}
         rd_by_uid, rd_by_email = {}, {}
         for r in wins:
             amt = _amt(r)
-            uid = r.get("user_id")
             em = (r.get("user_email") or "").lower()
+            uid = r.get("user_id") or (by_email.get(em) or {}).get("id")
+            if uid in servico:
+                continue   # conta de serviço: sem corretor (soma só no total da empresa)
             if uid:
                 b = rd_by_uid.setdefault(uid, {"vgv": 0.0, "count": 0}); b["vgv"] += amt; b["count"] += 1
-            if em:
+            elif em:
                 b = rd_by_email.setdefault(em, {"vgv": 0.0, "count": 0}); b["vgv"] += amt; b["count"] += 1
 
         # 4) reconcilia por corretor da Conquista (linhas da esteira)
@@ -151,7 +161,7 @@ class handler(BaseHTTPRequestHandler):
 
             rd = {"vgv": 0.0, "count": 0}
             if u:
-                rd = rd_by_uid.get(u["id"]) or rd_by_email.get((u.get("email") or "").lower()) or {"vgv": 0.0, "count": 0}
+                rd = rd_by_uid.get(u["id"]) or {"vgv": 0.0, "count": 0}
                 matched_uids.add(u["id"]); matched_emails.add((u.get("email") or "").lower())
             elif email and email in rd_by_email:
                 rd = rd_by_email[email]; matched_emails.add(email)
