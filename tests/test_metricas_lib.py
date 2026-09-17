@@ -337,3 +337,44 @@ if __name__ == "__main__":
     main()
     projecao()
     decisoes()
+
+
+def meu_dia():
+    """☀️ Meu dia (api/v3/_meudia_lib.py): agenda, fazer hoje, recados e mês numa mensagem só."""
+    import _meudia_lib as MD
+    from datetime import date as _date
+    hoje = _date(2026, 9, 17)
+    base = {"hoje": hoje, "users": [], "plantoes": [{"corretor_id": "kadu", "periodo": "manhã", "status": "agendado"}],
+            "eventos": [
+                {"id": "e1", "titulo": "Visita com Ana", "hora_inicio": "15:00:00", "local": "Residencial Olinda", "corretor_id": "kadu", "participantes": [], "aceites": {}},
+                {"id": "e2", "titulo": "Reunião semanal", "hora_inicio": "09:00:00", "criado_por": "kbordini", "participantes": ["kadu"], "aceites": {"kadu": "aceito"}},
+                {"id": "evtk_x", "titulo": "espelho de tarefa", "hora_inicio": "10:00", "corretor_id": "kadu"},
+                {"id": "e3", "titulo": "Evento de outro", "hora_inicio": "11:00", "corretor_id": "rafaela"}],
+            "tarefas": [
+                {"id": "t1", "titulo": "Enviar proposta João", "status": "aberta", "prazo": "2026-09-15", "responsavel": "kadu"},
+                {"id": "t2", "titulo": "Ligar Maria", "status": "aberta", "prazo": "2026-09-17", "responsavel": "kadu", "hora_inicio": "11:30"},
+                {"id": "t3", "titulo": "Já feita", "status": "concluida", "prazo": "2026-09-17", "responsavel": "kadu"},
+                {"id": "t4", "titulo": "Decisão espelhada", "status": "aberta", "prazo": "2026-09-17", "responsavel": "kadu", "categoria": "Decisão"}],
+            "recados_tl": [{"texto": "📋 Pacaembu: tabelas novas no grupo", "autor": "Radar"}],
+            "recados": [{"texto": "Só pra diretoria", "audiencia": "diretoria"}]}
+    decs = [{"dono": {"id": "kadu"}, "estado": {"status": "nova"}, "prazo": "2026-09-17", "titulo": "Destravar 1 proposta parada hoje",
+             "nivel": "critico", "porque": "20 dias sem atividade", "link": "#/crm-house"},
+            {"dono": {"id": "kbordini"}, "estado": {"status": "nova"}, "prazo": "2026-09-17", "titulo": "Não é do Kadu", "nivel": "critico", "porque": "", "link": ""}]
+    pj = {"horizonte": {"dias_uteis": {"restantes": 11}}, "pessoas": {"kadu": {"status": "fora", "meta": {"vgv": 550000},
+          "realizado": {"vgv": 0}, "provavel": {"vgv": 120000}, "falta_vgv": 550000}}}
+    d = MD.compor({"id": "kadu", "name": "Kadu Ozorio", "role": "corretor_conquista", "team": "conquista"}, base, decs, pj, lvl=2)
+    sec = {s["id"]: s["itens"] for s in d["secoes"]}
+    assert [i["hora"] for i in sec["agenda"]] == ["09:00", "15:00", ""], sec["agenda"]      # ordenado por hora, plantão no fim, sem espelho/alheio
+    assert sec["fazer"][0]["texto"].startswith("Destravar") and sec["fazer"][0]["nivel"] == "critico", sec["fazer"]
+    assert any("atrasada" in i["texto"] for i in sec["fazer"]) and any(i["texto"] == "Ligar Maria" for i in sec["fazer"]), sec["fazer"]
+    assert not any("Decisão espelhada" in i["texto"] or "Não é do Kadu" in i["texto"] or "Já feita" in i["texto"] for i in sec["fazer"])
+    assert len(sec["recados"]) == 1, sec["recados"]                                        # recado da diretoria não vai pro corretor
+    assert "R$ 550 mil" in sec["mes"][0]["texto"] and sec["mes"][0]["nivel"] == "critico"
+    assert d["titulo"].startswith("☀️ Bom dia, Kadu: 3 compromissos") and "urgente" in d["titulo"], d["titulo"]
+    assert "*📅 Agenda de hoje*" in d["whatsapp"] and "housepsm.com.br" in d["whatsapp"]
+    print("OK — meu dia: todos os asserts passaram")
+    print("   PUSH:", d["titulo"], "|", d["corpo"])
+    print("   WHATSAPP:\n" + "\n".join("     " + l for l in d["whatsapp"].splitlines()))
+
+
+meu_dia()

@@ -29,6 +29,10 @@ JOBS = [
     ("visitas_rd",   "/api/v3/crm/tasks_sync?cron=1",       0.5),
     # 🧭 v87.92: "suas decisões de hoje" pra cada dono, 1×/dia a partir das 7h BRT (dedupe interno por dia)
     ("decisoes_dia", "/api/v3/metricas/decisoes?cron=1",    1),
+    # ☀️ v87.93: "Meu dia" pra cada pessoa (agenda, fazer hoje, recados, meu mês) a partir das 7h BRT,
+    # sino + celular + WhatsApp. Dedupe por pessoa/dia dentro do endpoint. Substitui o alertas/cron_push,
+    # que dependia só do cron da Vercel e nunca chegou a ninguém.
+    ("meu_dia",      "/api/v3/agenda/meu_dia?cron=1",       0.5),
     ("lembrete_dia", "/api/v3/paulo/lembrete_dia",          20),  # aviso gravação(Academy)/prazo(Projetos) do dia
     ("captar",       "/api/v3/crm/captar_cron",             2),
     # radar de recebíveis (v84.83): deal win → rascunho + alertas D-3/D+1/14d-parado

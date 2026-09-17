@@ -15,7 +15,8 @@ leve de UI/notificação, não dado de negócio com volume.
 import json
 from datetime import datetime, timezone
 
-DEFAULTS = {"lembrete_evento_min": 30, "lembrete_tarefa_min": 15, "resumo_diario": True}
+DEFAULTS = {"lembrete_evento_min": 30, "lembrete_tarefa_min": 15, "resumo_diario": True,
+            "meu_dia_whatsapp": False}   # v87.93: ☀️ Meu dia também no WhatsApp (a pessoa liga)
 OPCOES_MIN = (-1, 0, 5, 10, 15, 30, 60, 120, 1440)
 PREFIXO = "agenda_prefs::"
 

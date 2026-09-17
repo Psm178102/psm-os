@@ -27,6 +27,7 @@ import { interpretar, rotuloData, datas } from '../agenda-rapida.js';
 import { esc, CORES, injetarCss, toast, abrirModal, fecharModal, abrirPop, fecharPop } from '../agenda-ui.js';
 import { montarConexoes, montarSalas, sincronizarZohoSeVelho, carregarPrefs, prefsAtuais, LEMBRETE_OPCOES, rotuloLembrete } from '../agenda-conexoes.js';
 import { montarIndicadores, injectMeuAcompanhamento } from './dashboard.js';
+import { montarMeuDia } from '../meu-dia.js';   // v87.93 ☀️ Meu dia (o mesmo que chega às 7h no celular/WhatsApp)
 
 const { iso, deIso, somaDias } = datas;
 const hoje = () => iso(new Date());
@@ -80,6 +81,7 @@ export async function pageAgendaTarefas(ctx, root) {
   ligarEventos(root, mont);
   pintarVisaoCarregando();
   carregarProjecao().then(() => { if (mont === S.mont) { renderProjecao(); renderAvisos(); } });
+  montarMeuDia(root.querySelector('#at-meudia'));
   await Promise.all([
     carregar(),
     S.users ? null : api.request('/api/v3/users/list').then(r => { S.users = r.users || []; }).catch(() => { S.users = []; }),
@@ -121,6 +123,7 @@ function casca() {
       </form>
       <div class="at-preview" id="at-preview" aria-live="polite"></div>
     </section>
+    <section class="at-card" id="at-meudia" aria-label="Meu dia" style="padding:0"></section>
     <section class="at-card at-avisos" id="at-avisos" hidden aria-label="Avisos"></section>
     <section class="at-card at-conv" id="at-conv" hidden></section>
     <div class="at-grid">

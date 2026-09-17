@@ -41,8 +41,8 @@
       "schedule": "0 5 * * *"
     },
     {
-      "path": "/api/v3/alertas/cron_push",
-      "schedule": "0 11 * * *"
+      "path": "/api/v3/agenda/meu_dia?cron=1",
+      "schedule": "30 10 * * 1-6"
     },
     {
       "path": "/api/v3/diretoria/viab",
