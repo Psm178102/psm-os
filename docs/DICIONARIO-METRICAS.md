@@ -90,7 +90,7 @@ Toda tela que desenha funil, conversão por etapa, saúde ou meta × realizado p
 | pasta | Pasta (espelho: no MCMV é a mesma etapa; a tela não repete) | Contrato |
 | venda | Venda (RD) | Venda (RD) |
 
-Taxa entre degraus = entradas no degrau ÷ entradas no anterior **no período** (fluxo): pode passar de 100%. Na Gestão Comercial, "pasta/proposta" é uma coluna só = degrau `proposta`. Onde vale: 1:1 (cards, cockpit, equipe do gestor, matriz de conversão, gargalo, habilidade prioritária, funil reverso, Norte do Mês e Norte do Dia) e Gestão Comercial (esteira individual, contagens e "quantos pra 1 venda" da aba Métricas, custo por etapa — CPL divide pelo lead do §2). O funil por posição de etapa do RD saiu do 1:1. Continuam análise própria (não são contagem de marco): safras, tempos entre etapas, % das pastas que viraram venda, fontes por canal e as lanes de abertos agora.
+Taxa entre degraus = entradas no degrau ÷ entradas no anterior **no período** (fluxo): pode passar de 100%. Na Gestão Comercial, "pasta/proposta" é uma coluna só = degrau `proposta`. Onde vale: 1:1 (cards, cockpit, equipe do gestor, matriz de conversão, gargalo, habilidade prioritária, funil reverso, Norte do Mês e Norte do Dia) e Gestão Comercial (esteira individual, contagens e "quantos pra 1 venda" da aba Métricas, custo por etapa — CPL divide pelo lead do §2). Produtividade Real (v87.98): coluna Visitas = visita oficial da janela; o registro manual (`producao_eventos`) aparece como "registradas 7d" e segue sendo base de esforço e no-show. O funil por posição de etapa do RD saiu do 1:1. Continuam análise própria (não são contagem de marco): safras, tempos entre etapas, % das pastas que viraram venda, fontes por canal e as lanes de abertos agora.
 
 ## 6. Meta
 

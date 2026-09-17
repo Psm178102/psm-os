@@ -26,7 +26,7 @@ _V3 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _V3 not in sys.path:
     sys.path.append(_V3)
 from _metricas_lib import (resumo as mx_resumo, por_email_local as mx_por_email_local,  # type: ignore
-                           hoje_brt as _mx_hoje)
+                           hoje_brt as _mx_hoje, visitas_de as mx_visitas, fonte_marcos as mx_fonte)
 
 def _amt(d):
     """💰 v87.59 (auditoria 08/set) — RÉGUA ÚNICA DE VALOR DA VENDA: `amount`
@@ -351,7 +351,12 @@ class handler(BaseHTTPRequestHandler):
                 if b:
                     c = {**c, "leads_janela": b["leads"], "interessados_janela": b["interessados"],
                          "em_atendimento": b["em_atendimento"], "vendas_janela": b["vendas"], "vgv_janela": b["vgv"],
-                         "conv_pct": (round(b["vendas"] / b["leads"] * 100, 1) if b["leads"] else None)}
+                         "conv_pct": (round(b["vendas"] / b["leads"] * 100, 1) if b["leads"] else None),
+                         # v87.98 §5: visita OFICIAL — Conquista = atendimento da esteira do HUB (mensal);
+                         # demais = tarefa de visita concluída no RD (coluna se as tarefas não sincronizaram).
+                         # O registro manual (producao_eventos) segue em visitas_7d: é esforço e base do no-show.
+                         "visitas_janela": mx_visitas(b),
+                         "visitas_fonte": ("hub" if mx_fonte(b) == "hub" else ("rd_tarefas" if b.get("visitas") is not None else "rd_coluna"))}
                 novos.append(c)
             data["corretores"] = novos
             data["dados_de"] = mx.get("dados_de")

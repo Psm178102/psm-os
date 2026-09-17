@@ -38,6 +38,7 @@ async function load(fresh) {
   render();
 }
 
+const VFONTE = { hub: 'HUB · mês', rd_tarefas: 'tarefas RD', rd_coluna: 'coluna RD' };   // v87.98
 function render() {
   const cs = (_d.corretores || []).slice().sort((a, b) => (b.toques_7d || 0) - (a.toques_7d || 0));
   const linha = c => {
@@ -49,7 +50,7 @@ function render() {
                 ? `<span class="tiny muted" title="Este corretor ainda não registrou nenhum toque/visita. Sem esse dado o quadrante não opina — não é 'baixa atividade', é falta de registro.">— sem registro</span>`
                 : `<span class="tiny muted" title="Amostra < 30 leads — mês 1 é baseline">— baseline</span>`)}</td>
       <td style="text-align:right">${c.sem_registro_producao ? '<span class="muted">—</span>' : (c.toques_7d || 0)}<div class="tiny muted">${c.atividade_pct != null ? c.atividade_pct + '% da meta' : (c.sem_registro_producao ? 'não registrou' : '')}</div></td>
-      <td style="text-align:right">${c.sem_registro_producao ? '<span class="muted">—</span>' : (c.visitas_7d || 0)}</td>
+      <td style="text-align:right">${c.visitas_janela != null ? `${c.visitas_janela}<div class="tiny muted" title="Dicionário de Métricas §5 — o mesmo número do 1:1 e da Gestão Comercial">${VFONTE[c.visitas_fonte] || ''}</div>` : '<span class="muted">—</span>'}${c.sem_registro_producao ? '' : `<div class="tiny muted" title="registro no ato (Meu Painel) — base do no-show">registradas 7d: ${c.visitas_7d || 0}</div>`}</td>
       <td style="text-align:right">${c.no_show_pct != null ? c.no_show_pct + '%' : '—'}</td>
       <td style="text-align:right">${c.sla_mediana_min != null ? c.sla_mediana_min + ' min' : '—'}<div class="tiny muted">${c.sla_amostra ? 'n=' + c.sla_amostra : ''}</div></td>
       <td style="text-align:right">${c.leads_janela}</td>
@@ -84,7 +85,7 @@ function render() {
         <table class="table" style="min-width:980px;font-size:13px">
           <thead><tr>
             <th>Corretor</th><th>Quadrante</th><th style="text-align:right">Toques 7d</th>
-            <th style="text-align:right">Visitas 7d</th><th style="text-align:right">No-show</th>
+            <th style="text-align:right">Visitas ${_d.janela_dias}d</th><th style="text-align:right">No-show</th>
             <th style="text-align:right">1º contato</th><th style="text-align:right">Leads</th>
             <th style="text-align:right">Conv.</th><th style="text-align:right">Pasta aprova</th>
             <th style="text-align:right">Vendas</th><th>Forecast C/P/P</th>
@@ -93,7 +94,8 @@ function render() {
         </table>
       </div>
       <div class="tiny muted" style="margin-top:10px">
-        Fontes: producao_eventos (toques/visitas — registro no ato e campos personalizados do RD) · espelho deal_stage_events ·
+        Fontes: visitas oficiais pelo Dicionário de Métricas (Conquista = atendimento da esteira do PSM HUB, mensal; demais = tarefa de visita concluída no RD) ·
+        producao_eventos (toques, visitas registradas e no-show — registro no ato) · espelho deal_stage_events ·
         deals (safra ${_d.janela_dias}d) · forecast declarado no Meu Painel. Cache 10 min.
         Metas de partida: ${esc(JSON.stringify(_d.metas || {}))} — mês 1 é BASELINE (medir sem cobrar).
       </div>

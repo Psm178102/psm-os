@@ -143,7 +143,7 @@ function renderProducaoHoje() {
   const bl = eu.toques_por_bloco || {};
   const chip = (k, lbl) => `<span class="tiny" style="background:var(--bg-3);border-radius:6px;padding:3px 8px">${lbl}: <b>${bl[k] || 0}</b></span>`;
   host.innerHTML = `
-    <div class="tiny muted" style="margin-bottom:6px">Semana: <b>${eu.toques_7d || 0}</b> toques · <b>${eu.visitas_7d || 0}</b> visitas realizadas${eu.no_show_pct != null ? ` · no-show ${eu.no_show_pct}%` : ''}${eu.sla_mediana_min != null ? ` · 1º contato ~${eu.sla_mediana_min} min` : ''}</div>
+    <div class="tiny muted" style="margin-bottom:6px">Semana: <b>${eu.toques_7d || 0}</b> toques · <b>${eu.visitas_7d || 0}</b> visitas registradas${eu.visitas_janela != null ? ` (oficial: <b>${eu.visitas_janela}</b>${eu.visitas_fonte === 'hub' ? ' no mês, HUB' : ' no RD'})` : ''}${eu.no_show_pct != null ? ` · no-show ${eu.no_show_pct}%` : ''}${eu.sla_mediana_min != null ? ` · 1º contato ~${eu.sla_mediana_min} min` : ''}</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
       ${chip('sala_ligacao', '📞 Sala')} ${chip('ativo', '✍️ Ativo')} ${chip('meio_dia', '🕛 Meio-dia')} ${chip('retomada', '🌇 Retomada')} ${chip('corujao', '🦉 Corujão')}
     </div>
