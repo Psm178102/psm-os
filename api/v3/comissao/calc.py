@@ -121,7 +121,9 @@ def _vgv(d):
     """VGV da venda = amount, com fallback em rd_raw.amount_total / amount_unique
     (v87.85, Dicionário de Métricas §1 — mesma régua de metrics/overview e do 1:1)."""
     try:
-        v = _vgv(d)
+        # v87.99: a v87.85 escreveu `v = _vgv(d)` (a função chamando a si mesma) — RecursionError em todo mês
+        # com venda, a Comissão Conquista e a Minha Comissão caíam em 500. O valor primário é o amount.
+        v = float(d.get("amount") or 0)
         if v > 0:
             return v
         raw = d.get("rd_raw") or {}
