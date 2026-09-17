@@ -87,9 +87,20 @@ BEGIN
   WHERE jti = p_jti;
 END $$;
 
--- Só o backend (service_role, que ignora RLS) chama isto. A anon key não.
+-- Só o backend (service_role) chama isto.
+-- ⚠️ REVOKE FROM PUBLIC NÃO BASTA: o Supabase concede EXECUTE a anon e
+-- authenticated por ALTER DEFAULT PRIVILEGES em toda função nova do schema
+-- public, e isso sobrevive ao revoke do PUBLIC. Como a anon key é pública (vive
+-- no front, pro WebSocket do tempo real), a função ficaria chamável de fora:
+-- daria pra fabricar sessão e inflar tempo de uso — exatamente o dado que o
+-- painel do sócio precisa ter confiável. Pegado na validação da v88.5.
+-- Conferir sempre com:
+--   SELECT has_function_privilege('anon','psm_session_beat(text,text,timestamptz,timestamptz,text,text)','EXECUTE');
 REVOKE ALL ON FUNCTION psm_session_beat(TEXT, TEXT, TIMESTAMPTZ, TIMESTAMPTZ, TEXT, TEXT)
-  FROM PUBLIC;
+  FROM PUBLIC, anon, authenticated;
+
+GRANT EXECUTE ON FUNCTION psm_session_beat(TEXT, TEXT, TIMESTAMPTZ, TIMESTAMPTZ, TEXT, TEXT)
+  TO service_role;
 
 -- ============================================================================
 -- VALIDAÇÃO (rodar depois)
