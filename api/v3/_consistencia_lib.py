@@ -86,6 +86,24 @@ def _tela(rel, nome):
     return mod
 
 
+USUARIO_TECNICO = {"id": "_consistencia", "name": "Teste noturno", "lvl": 10, "role": "socio", "team": ""}
+
+
+def _chamar(mod, caminho, sb):
+    """Roda o do_GET de uma tela com o usuário técnico (sócio) e devolve o JSON — sem rede. O require_user
+    trocado é o do módulo carregado só pra este teste, não o da função em produção."""
+    mod.require_user = lambda h, min_lvl=0, **k: dict(USUARIO_TECNICO)
+    mod.supabase_client = lambda: sb   # a mesma conexão da rodada
+    h = mod.handler.__new__(mod.handler)
+    h.path, h.headers = caminho, {}
+    caixa = {}
+    h._send = lambda status, body: caixa.update(status=status, body=body)
+    h.do_GET()
+    if caixa.get("status") != 200:
+        raise RuntimeError(f"{caminho} → {caixa.get('status')}: {str(caixa.get('body'))[:120]}")
+    return caixa["body"]
+
+
 # ─── verificações ────────────────────────────────────────────────────────────
 def _projecao(ck, ctx):
     """🎯 Meta · Realizado · Projeção (Gestão Comercial, 1:1, Cérebro, Meu dia): realizado do mês = motor."""
@@ -95,12 +113,8 @@ def _projecao(ck, ctx):
     for esc, b, p in alvo:
         if not (b and p):
             continue
-        # a empresa do motor soma também vendas sem corretor e de quem saiu; a projeção só soma pessoas ativas
-        fora = ("sem_corretor", "inativos") if esc == "_empresa" else ()
-        vendas_b = b["vendas"] - sum(((b.get(f) or {}).get("vendas") or 0) for f in fora)
-        vgv_b = b["vgv"] - sum(((b.get(f) or {}).get("vgv") or 0) for f in fora)
-        ck.comparar("projecao_vendas", "Projeção oficial", "vendas do mês", esc, vendas_b, p["realizado"]["vendas"])
-        ck.comparar("projecao_vgv", "Projeção oficial", "VGV do mês", esc, vgv_b, p["realizado"]["vgv"], valor=True)
+        ck.comparar("projecao_vendas", "Projeção oficial", "vendas do mês", esc, b["vendas"], p["realizado"]["vendas"])
+        ck.comparar("projecao_vgv", "Projeção oficial", "VGV do mês", esc, b["vgv"], p["realizado"]["vgv"], valor=True)
 
 
 def _frescor(ck, sb, hoje):
@@ -160,10 +174,27 @@ def _tv(ck, ctx):
     ck.comparar("tv_leads_hoje", "Modo TV", "leads de hoje", "_empresa", ctx.dia()["empresa"]["leads"], de["leads_hoje"])
 
 
+def _diretoria(ck, ctx):
+    """🏛 Dashboard da Diretoria / Governança / Centro de Inteligência (diretoria/dashboard)."""
+    DD = _tela("diretoria/dashboard.py", "_cons_diretoria_dashboard")
+    h = ctx.hoje
+    k = _chamar(DD, f"/api/v3/diretoria/dashboard?ano={h.year}&periodo=ytd", ctx.sb).get("kpis") or {}
+    e, ea = ctx.mx["empresa"], ctx.ano()["empresa"]
+    ck.comparar("dir_vendas_mes", "Diretoria", "vendas do mês", "_empresa", e["vendas"], k.get("atingido_vendas_mes"))
+    ck.comparar("dir_vgv_mes", "Diretoria", "VGV do mês", "_empresa", e["vgv"], k.get("atingido_vgv_mes"), valor=True)
+    ck.comparar("dir_meta_mes", "Diretoria", "meta de VGV do mês", "_empresa", (e.get("meta") or {}).get("meta_vgv"), k.get("meta_vgv_mes"), valor=True)
+    ck.comparar("dir_vendas_ano", "Diretoria", "vendas do ano", "_empresa", ea["vendas"], k.get("atingido_vendas_ano"))
+    ck.comparar("dir_vgv_ano", "Diretoria", "VGV do ano", "_empresa", ea["vgv"], k.get("atingido_vgv_ano"), valor=True)
+    ck.comparar("dir_pessoas", "Diretoria", "equipe ativa", "_empresa", e.get("n_pessoas_ativas"), k.get("users_ativos"))
+    ex = (k.get("exec") or {}).get("kpis") or {}
+    ck.comparar("dir_exec_vgv", "Diretoria (painel executivo)", "VGV do ano até hoje", "_empresa", ea["vgv"], ex.get("vgv"), valor=True)
+
+
 VERIFICACOES = (
     ("projecao", _projecao),
     ("metas", _metas),
     ("tv", _tv),
+    ("diretoria", _diretoria),
 )
 
 

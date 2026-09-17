@@ -516,7 +516,7 @@ def consistencia():
     res = CL.comparar(sb, hoje)
     numeros = [c for c in res["checks"] if c["metrica"] != "frescor"]
     assert numeros and all(c["ok"] for c in numeros), [c for c in numeros if not c["ok"]]
-    assert {c["tela"] for c in numeros} >= {"Projeção oficial", "Metas", "Modo TV"}, {c["tela"] for c in numeros}
+    assert {c["tela"] for c in numeros} >= {"Projeção oficial", "Metas", "Modo TV", "Diretoria"}, {c["tela"] for c in numeros}
     assert not any(c["metrica"] == "execução" for c in res["checks"]), res["checks"]
     assert CL.resumo_aviso({"checks": numeros}) == (None, None)
     # divergência forçada: a projeção passa a mostrar 1 venda a mais na Conquista → tem que acusar e virar aviso

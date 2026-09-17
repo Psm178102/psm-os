@@ -539,6 +539,7 @@ function projHTML() {
       ${d.empresa ? pjRow('Empresa', d.empresa, true) : ''}
       ${eqs.map(([tk, e]) => pjRow(`<a href="javascript:void 0" data-team="${tk}">${tLbl(tk)}</a>`, e)).join('')}
     </tbody></table></div>
+    ${d.empresa && (d.empresa.realizado_fora_das_equipes || {}).vendas ? `<div class="tiny muted" style="margin-top:4px">ℹ️ O realizado da Empresa inclui ${fN(d.empresa.realizado_fora_das_equipes.vendas)} venda(s) (R$ ${kR$(d.empresa.realizado_fora_das_equipes.vgv)}) de quem já saiu da PSM ou sem corretor no RD — por isso passa da soma das equipes (Dicionário §1).</div>` : ''}
     ${eqs.map(([tk]) => {
       const ps = pessoas.filter(p => p.team === tk).sort(porNome);
       return ps.length ? `<details class="gc-det"><summary>${tLbl(tk)} — corretor a corretor</summary>

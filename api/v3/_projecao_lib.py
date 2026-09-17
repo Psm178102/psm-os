@@ -29,7 +29,7 @@ from datetime import date, datetime, timedelta, timezone
 
 import _metricas_lib as MX
 
-CACHE_BASE = "metricas_proj:v1"
+CACHE_BASE = "metricas_proj:v2"   # v88.2: realizado da empresa inclui quem saiu e sem corretor
 HIST_DIAS = 180            # janela do ritmo histórico
 SHRINK_K = 26              # peso da média da equipe (≈ 1 mês de dias úteis) na suavização por corretor
 FUNIL_MEXIDO_DIAS = 60     # proposta parada há mais que isso não entra no funil
@@ -387,8 +387,8 @@ def calcular(sb, params, hoje=None):
                      "calibracao": cb["fonte"], "fator_prazo": round(fator, 2)},
         })
 
-    def somar(ids, extra):
-        z = {"real_n": 0, "real_vgv": 0.0, "h_n": 0.0, "h_vgv": 0.0, "f_n": 0.0, "f_vgv": 0.0,
+    def somar(ids, extra, real_fora=(0, 0.0)):
+        z = {"real_n": real_fora[0], "real_vgv": real_fora[1], "h_n": 0.0, "h_vgv": 0.0, "f_n": 0.0, "f_vgv": 0.0,
              "meta": {"vgv": 0.0, "vendas": 0.0, "vgv_ate_hoje": 0.0, "vendas_ate_hoje": 0.0},
              "v180": 0, "prop": 0, "prop_sv": 0}
         for uid in ids:
@@ -419,7 +419,16 @@ def calcular(sb, params, hoje=None):
         out_e[tk] = somar(ids, {"team": tk, "membros": ids,
                                 "calibracao": {"taxa_pct": round(cb["taxa"] * 100, 1), "dias": cb["dias"], "amostra": cb["n"], "fonte": cb["fonte"]}})
     todos = [uid for uid, p in out_p.items() if p.get("ativo")]
-    empresa = somar(todos, {"team": "_empresa"}) if todos else None
+    # v88.2 (Dicionário §1): o realizado da EMPRESA soma toda venda ganha — inclusive de quem saiu e sem corretor
+    # (mesmo total do motor único). Ritmo, funil e meta seguem só as pessoas ativas (§4).
+    fora_n, fora_vgv = 0, 0.0
+    if not futuro:
+        be = base.get("empresa") or {}
+        for bloco_fora in (be.get("sem_corretor") or {}, be.get("inativos") or {}):
+            fora_n += int(bloco_fora.get("vendas") or 0)
+            fora_vgv += float(bloco_fora.get("vgv") or 0)
+    empresa = somar(todos, {"team": "_empresa", "realizado_fora_das_equipes": {"vendas": fora_n, "vgv": round(fora_vgv, 2)}},
+                    (fora_n, fora_vgv)) if todos else None
 
     return {
         "ok": True,

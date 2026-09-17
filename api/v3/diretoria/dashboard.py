@@ -15,13 +15,16 @@ from datetime import date, datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, frente_of, agora_brt  # type: ignore
+_V3 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _V3 not in sys.path:
+    sys.path.append(_V3)
 
 BRT = timezone(timedelta(hours=-3))
 
 
 def _amt(d):
-    """VGV = amount com fallback em rd_raw.amount_total (v87.85, Dicionário de Métricas §1)."""
-    for v in (d.get("amount"), d.get("amt_total")):
+    """VGV = amount → rd_raw.amount_total → amount_unique (Dicionário de Métricas §1)."""
+    for v in (d.get("amount"), d.get("amt_total"), d.get("amt_unique")):
         try:
             if v not in (None, "") and float(v) > 0:
                 return float(v)
@@ -34,7 +37,7 @@ def _deals_win(sb, start_iso, end_iso, cols="amount,closed_at"):
     """Deals ganhos no intervalo, PAGINADOS (PostgREST corta em 1000 sem range). v86.70"""
     out, pg = [], 0
     while True:
-        rows = (sb.table("deals").select("id," + cols + ",amt_total:rd_raw->amount_total").eq("win", True)
+        rows = (sb.table("deals").select("id," + cols + ",amt_total:rd_raw->amount_total,amt_unique:rd_raw->amount_unique").eq("win", True)
                 .gte("closed_at", start_iso).lt("closed_at", end_iso)
                 .order("id").range(pg * 1000, pg * 1000 + 999).execute().data or [])
         out.extend(rows)
@@ -99,8 +102,9 @@ class handler(BaseHTTPRequestHandler):
 
         # 1. Users ativos
         try:
-            uq = sb.table("users").select("id,name,email,status,team,hide_from_ranking").execute().data or []
-            ativos = [u for u in uq if (u.get("status") or "ativo") == "ativo"]
+            uq = sb.table("users").select("id,name,email,status,team,hide_from_ranking,is_service").execute().data or []
+            # v88.2 (Dicionário §0/§4): contas de serviço (tv, comercial) não são equipe
+            ativos = [u for u in uq if (u.get("status") or "ativo") == "ativo" and not u.get("is_service")]
             kpis["users_ativos"] = len(ativos)
             kpis["users_total"] = len(uq)
             # Por team
@@ -114,8 +118,14 @@ class handler(BaseHTTPRequestHandler):
             kpis["users_ativos"] = 0; kpis["users_total"] = 0
 
         # 2. Metas ano
+        ids_ativos = None
         try:
-            mq = sb.table("metas").select("meta_vgv,meta_vendas").eq("ano", ano).execute().data or []
+            mq = sb.table("metas").select("corretor_id,mes,meta_vgv,meta_vendas").eq("ano", ano).execute().data or []
+            # v88.2 (Dicionário §6): meta = metas das pessoas ATIVAS não-serviço (a mesma do motor único)
+            ids_ativos = {u.get("id") for u in ativos} if kpis.get("users_ativos") else None
+            if ids_ativos is not None:
+                mq = [m for m in mq if m.get("corretor_id") in ids_ativos]
+            kpis["meta_vgv_mes_real"] = sum(float(m.get("meta_vgv") or 0) for m in mq if int(m.get("mes") or 0) == mes_atual)
             kpis["meta_vgv_ano"]    = sum(float(m.get("meta_vgv") or 0) for m in mq)
             kpis["meta_vendas_ano"] = sum(int(m.get("meta_vendas") or 0) for m in mq)
             kpis["metas_count"]     = len(mq)
@@ -149,8 +159,8 @@ class handler(BaseHTTPRequestHandler):
                 except: pass
             kpis["vgv_por_mes"] = [round(v, 2) for v in vgv_mes]
             kpis["vendas_por_mes"] = vendas_mes
-            # Meta mensal = meta anual / 12 (linha de referência no gráfico)
-            kpis["meta_vgv_mes"] = round((kpis.get("meta_vgv_ano") or 0) / 12.0, 2)
+            # v88.2: meta do mês = metas cadastradas do mês (era meta anual ÷ 12)
+            kpis["meta_vgv_mes"] = round(kpis.pop("meta_vgv_mes_real", None) or 0, 2)
             kpis["atingimento_pct"] = (kpis["atingido_vgv_ano"] / kpis["meta_vgv_ano"] * 100) if kpis["meta_vgv_ano"] > 0 else None
         except Exception as e:
             errors.append(f"deals: {e}")
@@ -299,7 +309,7 @@ class handler(BaseHTTPRequestHandler):
         #    pipeline_name do RD (mapeamento abaixo). Meta por frente NÃO é confiável
         #    (metas não têm frente limpa) → só há meta/atingimento no nível global.
         try:
-            kpis["exec"] = self._exec_block(sb, ano, mes_atual, periodo, frente_sel, uq)
+            kpis["exec"] = self._exec_block(sb, ano, mes_atual, periodo, frente_sel, uq, ids_ativos)
         except Exception as e:
             errors.append(f"exec: {e}")
             kpis["exec"] = None
@@ -325,7 +335,7 @@ class handler(BaseHTTPRequestHandler):
         fr = frente_of(pn)                          # fonte única (Central de Frentes). v84.0
         return "locacao" if fr == "locacoes" else fr   # alias histórico do exec
 
-    def _exec_block(self, sb, ano, mes_atual, periodo, frente_sel, uq):
+    def _exec_block(self, sb, ano, mes_atual, periodo, frente_sel, uq, ids_ativos=None):
         from datetime import datetime as _dt
         FR = self.FRENTES
         cur_month = mes_atual if ano == agora_brt().year else 12
@@ -343,6 +353,8 @@ class handler(BaseHTTPRequestHandler):
         dd = _deals_win(sb, f"{ano-1}-01-01T03:00:00+00:00", f"{ano+1}-01-01T03:00:00+00:00",
                         cols="amount,closed_at,pipeline_name,user_email,user_id")
 
+        em2id = {str(u.get("email") or "").lower(): u.get("id") for u in (uq or []) if u.get("email")}
+        servico = {u.get("id") for u in (uq or []) if u.get("is_service")}
         # arrays de 24 meses: idx 0..11 = ano-1, 12..23 = ano
         vgv24 = [0.0] * 24; ven24 = [0] * 24
         vgv24f = {c: [0.0] * 24 for c, _, _ in FR}
@@ -359,14 +371,20 @@ class handler(BaseHTTPRequestHandler):
             vgv24[idx] += amt; ven24[idx] += 1
             if fr in vgv24f: vgv24f[fr][idx] += amt; ven24f[fr][idx] += 1
             if dt.year == ano and dt.month in pmonths and (frente_sel == "todas" or fr == frente_sel):
-                key = (d.get("user_email") or d.get("user_id") or "—")
-                r = rank.setdefault(key, [0.0, 0]); r[0] += amt; r[1] += 1
+                # v88.2: dono resolvido POR NEGÓCIO (user_id, senão e-mail) — antes a chave era o e-mail ou o id e a
+                # mesma pessoa podia aparecer duas vezes; conta de serviço não entra no ranking
+                uid = d.get("user_id") or em2id.get((d.get("user_email") or "").lower())
+                if uid in servico:
+                    continue
+                r = rank.setdefault(uid or "—", [0.0, 0]); r[0] += amt; r[1] += 1
 
         # metas 24 meses (meta_vgv por mês) — só nível global tem meta confiável
         meta24 = [0.0] * 24
         try:
-            mm = sb.table("metas").select("ano,mes,meta_vgv").in_("ano", [ano - 1, ano]).execute().data or []
+            mm = sb.table("metas").select("corretor_id,ano,mes,meta_vgv").in_("ano", [ano - 1, ano]).execute().data or []
             for m in mm:
+                if ids_ativos is not None and m.get("corretor_id") not in ids_ativos:
+                    continue   # v88.2 (§6): meta das pessoas ativas
                 y = int(m.get("ano") or 0); mo = int(m.get("mes") or 0)
                 base = 0 if y == ano - 1 else 12 if y == ano else None
                 if base is None or not (1 <= mo <= 12): continue
@@ -432,7 +450,22 @@ class handler(BaseHTTPRequestHandler):
                         "proj_pct": round(run_rate / meta_ano * 100, 1) if meta_ano else None,
                         "falta": round(falta, 2),
                         "ritmo_necessario_mes": round(falta / rem, 2) if (rem > 0 and falta > 0) else 0.0,
-                        "on_track": (run_rate >= meta_ano) if meta_ano else None}
+                        "on_track": (run_rate >= meta_ano) if meta_ano else None, "basis": "run_rate"}
+            # v88.2 (Dicionário §8A): no ano corrente a projeção do ano é a OFICIAL (a mesma da Gestão Comercial
+            # → 🎯 Ano), não o run-rate por meses corridos
+            if ano == agora_brt().year:
+                try:
+                    import _projecao_lib as PJ
+                    pe = (PJ.projecao(sb, {"h": "ano"}) or {}).get("empresa")
+                    if pe:
+                        forecast.update({"ytd_vgv": pe["realizado"]["vgv"], "meta_ano": pe["meta"]["vgv"],
+                                         "run_rate_anual": pe["provavel"]["vgv"], "proj_pct": pe["provavel"]["pct_meta"],
+                                         "falta": pe["falta_vgv"],
+                                         "ritmo_necessario_mes": round(pe["falta_vgv"] / rem, 2) if (rem > 0 and pe["falta_vgv"] > 0) else 0.0,
+                                         "on_track": (pe["status"] in ("batida", "no_ritmo")) if pe["status"] != "sem_meta" else None,
+                                         "faixa": [pe["conservador"]["vgv"], pe["otimista"]["vgv"]], "basis": "projecao_oficial"})
+                except Exception as e:
+                    print(f"[diretoria] projeção oficial do ano indisponível: {e}")
 
         def plabel(code):
             if code == "ytd": return f"YTD {ano} · Jan–{self.MESN[cur_month-1]}"
