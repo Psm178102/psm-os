@@ -71,7 +71,9 @@ function render() {
       <div class="card" style="padding:12px 14px;flex:1;min-width:110px;border-left:4px solid #ef4444"><div class="tiny muted">🔥 Quentes</div><div style="font-size:21px;font-weight:800;color:var(--err-suave)">${c.quentes || 0}</div></div>
       <div class="card" style="padding:12px 14px;flex:1;min-width:110px;border-left:4px solid #f59e0b"><div class="tiny muted">🟡 Mornos</div><div style="font-size:21px;font-weight:800;color:#f59e0b">${c.mornos || 0}</div></div>
       <div class="card" style="padding:12px 14px;flex:1;min-width:110px;border-left:4px solid #0ea5e9"><div class="tiny muted">🧊 Frios</div><div style="font-size:21px;font-weight:800;color:var(--azul-ceu)">${c.frios || 0}</div></div>
-      <div class="card" style="padding:12px 14px;flex:1;min-width:130px"><div class="tiny muted">💰 Pipeline ponderado</div><div style="font-size:19px;font-weight:800">${BRL(c.pipeline_ponderado_vgv || 0)}</div></div>
+      ${c.projecao_mes
+        ? `<div class="card" style="padding:12px 14px;flex:1;min-width:150px" title="Projeção oficial do mês — a mesma da Gestão Comercial e do 1:1. Pipeline ponderado (prioridade da fila): ${BRL(c.pipeline_ponderado_vgv || 0)}"><div class="tiny muted">📈 Provável do mês</div><div style="font-size:19px;font-weight:800">${BRL(c.projecao_mes.provavel.vgv)}</div><div class="tiny muted">${(Number(c.projecao_mes.provavel.vendas) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} vendas${c.projecao_mes.provavel.pct_meta != null ? ' · ' + Number(c.projecao_mes.provavel.pct_meta).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '% da meta' : ''}</div></div>`
+        : `<div class="card" style="padding:12px 14px;flex:1;min-width:130px"><div class="tiny muted">💰 Pipeline ponderado</div><div style="font-size:19px;font-weight:800">${BRL(c.pipeline_ponderado_vgv || 0)}</div><div class="tiny muted">prioridade da fila</div></div>`}
     </div>
 
     ${(semContato || parados) ? `<div class="card" style="padding:12px 14px;margin-bottom:14px;background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.25)">

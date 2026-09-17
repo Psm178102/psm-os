@@ -31,7 +31,8 @@ from _brain_lib import (channel_winrates, score_open, loss_clusters,  # type: ig
 _V3 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _V3 not in sys.path:
     sys.path.append(_V3)
-from _metricas_lib import resumo as mx_resumo, is_gestor as mx_is_gestor  # type: ignore
+from _metricas_lib import resumo as mx_resumo, is_gestor as mx_is_gestor, team_key as mx_team  # type: ignore
+from _projecao_lib import projecao as pj_projecao  # type: ignore   # v87.95: número-título = projeção oficial
 
 
 class handler(BaseHTTPRequestHandler):
@@ -245,6 +246,35 @@ class handler(BaseHTTPRequestHandler):
             key=lambda s: -(s["dias_parado"] or 0))[:20]
 
         fc = forecast(scored_all, wins_month_vgv, wins_month_n, today, meta_total_vgv)
+
+        # ── v87.95 DICIONÁRIO §8A: o número-título do Cérebro é a PROJEÇÃO OFICIAL do mês ──
+        # O pipeline ponderado (score × valor de todos os abertos) não é calibrado — em 16/09 dava 21 vendas
+        # só pro Kadu contra ~6/mês da empresa. Ele continua servindo pra ORDENAR a fila de ataque; a previsão
+        # (realizado, provável, faixa, status, falta) é a mesma da Gestão Comercial, do 1:1 e do Meu dia.
+        projecao_mes = None
+        try:
+            pj = pj_projecao(sb, {"h": "mes"}, fresh=(params.get("fresh") == "1"))
+            pj_p, pj_e = pj.get("pessoas") or {}, pj.get("equipes") or {}
+            for c in corretores:
+                b = pj_p.get(c["id"])
+                if b:
+                    c["projecao_mes"] = {k: v for k, v in b.items() if k != "base"}
+            if only_id:
+                projecao_mes = pj_p.get(only_id)
+            elif team_f:
+                projecao_mes = pj_e.get(mx_team(team_f))
+            else:
+                projecao_mes = pj.get("empresa")
+            if projecao_mes:
+                projecao_mes = {k: v for k, v in projecao_mes.items() if k not in ("base", "membros")}
+                fc.update({"realizado_mes_vgv": projecao_mes["realizado"]["vgv"],
+                           "realizado_mes_vendas": projecao_mes["realizado"]["vendas"],
+                           "meta_vgv_mes": projecao_mes["meta"]["vgv"]})
+            fc["horizonte"] = pj.get("horizonte")
+            mx_stamp = mx_stamp or pj.get("dados_de_hhmm")
+        except Exception as e:
+            print(f"[sales_brain] projeção oficial indisponível: {e}")
+        fc["projecao_oficial"] = projecao_mes
 
         # ── Distribuição por temperatura + por etapa (resumo) ──
         temp_dist = {"quente": 0, "morno": 0, "frio": 0}

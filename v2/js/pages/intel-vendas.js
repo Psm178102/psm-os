@@ -6,6 +6,7 @@
    Tudo dado real do RD — probabilidade é estimativa calibrada, não ML treinado. */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { montarDecisoes } from '../decisoes.js';   // v87.95 🧭 Decidir agora (tela cerebro)
 
 let _root = null, _d = null, _lookback = 120, _tab = 'top', _aiBusy = false;
 
@@ -24,10 +25,11 @@ export async function pageIntelVendas(ctx, root) {
   await reload();
 }
 
-async function reload() {
+async function reload(fresh) {
   _root.innerHTML = spinner('Pontuando o pipeline e projetando o fechamento…');
   try {
-    const r = await api.request('/api/v3/intel/sales_brain?lookback=' + _lookback);
+    if (fresh) { try { await api.request('/api/v3/crm/sync_if_stale?hours=0'); } catch (_) {} }   // 🔄 renova a FONTE (RD) antes de recalcular
+    const r = await api.request('/api/v3/intel/sales_brain?lookback=' + _lookback + (fresh ? '&fresh=1' : ''));
     _d = r && r.ok ? r : null;
     if (!_d) { _root.innerHTML = `<div class="alert alert-err">Não consegui carregar o Cérebro de Vendas: ${escapeHtml((r && r.error) || 'erro')}</div>`; return; }
   } catch (e) {
@@ -45,13 +47,16 @@ function render() {
       <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:6px">
         <div style="flex:1;min-width:240px">
           <h2 class="card-title">🧠 Cérebro de Vendas</h2>
-          <p class="card-sub">${fmtNum(s.open_total || 0)} negócios abertos pontuados · ${fmtNum(s.quentes || 0)} 🟢 quentes · pipeline esperado R$ ${moneyShort(s.pipeline_ponderado_vgv || 0)} · win rate ${wr.overall_pct != null ? pct2(wr.overall_pct) : '—'}</p>
+          <p class="card-sub">${fmtNum(s.open_total || 0)} negócios abertos pontuados · ${fmtNum(s.quentes || 0)} 🟢 quentes${fc.projecao_oficial ? ` · 📈 provável do mês R$ ${moneyShort(fc.projecao_oficial.provavel.vgv)} (${fmtN1(fc.projecao_oficial.provavel.vendas)} vendas)` : ''} · win rate ${wr.overall_pct != null ? pct2(wr.overall_pct) : '—'}${_d.dados_de_hhmm ? ` · dados de <b title="último sync do RD — o mesmo retrato em todas as telas">${escapeHtml(_d.dados_de_hhmm)}</b>` : ''}</p>
         </div>
         <select id="cv-lb" class="select" style="padding:5px 10px;font-size:12px" title="Janela de análise de fechamentos/perdas">
           ${[90, 120, 180, 365].map(n => `<option value="${n}"${n === _lookback ? ' selected' : ''}>Perdas: ${n}d</option>`).join('')}
         </select>
+        <button class="btn btn-ghost btn-sm" id="cv-fresh" title="sincroniza o RD agora e recalcula">🔄</button>
         <button class="btn btn-primary" id="cv-ai">🧠 Plano de ataque (IA)</button>
       </div>
+
+      <div id="cv-dec" style="margin-top:10px"></div>
 
       ${forecastPanel(fc)}
 
@@ -60,7 +65,7 @@ function render() {
         ${pill('🟢 Quentes', fmtNum(s.quentes || 0), 'alta prob. de fechar', TEMP.quente.c)}
         ${pill('🟡 Mornos', fmtNum(s.mornos || 0), 'prob. média', TEMP.morno.c)}
         ${pill('⚪ Frios', fmtNum(s.frios || 0), 'prob. baixa', TEMP.frio.c)}
-        ${pill('💎 Pipeline quente', 'R$ ' + moneyShort(s.pipeline_quente_vgv || 0), 'valor esperado dos quentes', '#7c3aed')}
+        ${pill('💎 Pipeline quente', 'R$ ' + moneyShort(s.pipeline_quente_vgv || 0), 'score × valor dos quentes (prioridade)', '#7c3aed')}
         ${pill('📉 Perdas analisadas', fmtNum((_d.loss && _d.loss.total) || 0), `últimos ${s.lookback_dias || _lookback}d`, '#dc2626')}
       </div>
 
@@ -100,6 +105,8 @@ function render() {
 
   document.getElementById('cv-lb').addEventListener('change', e => { _lookback = parseInt(e.target.value, 10) || 120; reload(); });
   document.getElementById('cv-ai').addEventListener('click', runAI);
+  document.getElementById('cv-fresh').addEventListener('click', () => reload(true));
+  montarDecisoes(document.getElementById('cv-dec'), { tela: 'cerebro', max: 5 });
   _root.querySelectorAll('[data-tab]').forEach(el => el.addEventListener('click', () => { _tab = el.dataset.tab; render(); }));
 }
 
@@ -110,19 +117,29 @@ function pill(title, big, sub, color) {
     <div class="tiny muted">${sub}</div></div>`;
 }
 
+/* v87.95 — número-título = PROJEÇÃO OFICIAL do mês (Dicionário §8A), a mesma da Gestão Comercial, do 1:1 e do Meu dia.
+   O pipeline ponderado fica como leitura de prioridade: soma score × valor de todos os abertos e não é calibrado. */
+const PSTATUS = {
+  batida: ['🏆 meta batida', '#16a34a'], no_ritmo: ['🟢 vai bater', '#16a34a'], atras: ['🟡 atrás (70–99%)', '#d97706'],
+  fora: ['🔴 fora (<70%)', '#dc2626'], sem_meta: ['sem meta', '#64748b'],
+};
 function forecastPanel(fc) {
-  if (!fc || (!fc.pipeline_ponderado_vgv && !fc.realizado_mes_vgv && !fc.meta_vgv_mes)) return '';
-  const pctMeta = fc.run_rate_pct_meta;
-  const col = pctMeta == null ? '#64748b' : pctMeta >= 100 ? '#16a34a' : pctMeta >= 80 ? '#d97706' : '#dc2626';
+  const p = fc && fc.projecao_oficial;
+  if (!p) {
+    if (!fc || !fc.pipeline_ponderado_vgv) return '';
+    return `<div class="alert alert-warn tiny" style="margin-top:12px">Projeção oficial do mês indisponível agora — tente 🔄 em instantes. Pipeline ponderado (score dos abertos, não é previsão): R$ ${moneyShort(fc.pipeline_ponderado_vgv)}.</div>`;
+  }
+  const [stLbl, stCor] = PSTATUS[p.status] || ['—', '#64748b'];
+  const hz = fc.horizonte || {}, du = hz.dias_uteis || {};
   return `<div style="margin-top:12px;background:linear-gradient(180deg,rgba(124,58,237,.07),transparent);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px">
-    <div style="font-weight:800;font-size:13px;margin-bottom:10px">🔮 Projeção do mês</div>
+    <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:10px"><div style="font-weight:800;font-size:13px">🎯 Meta · Realizado · Projeção do mês</div><span class="tiny" style="font-weight:800;color:${stCor}">● ${stLbl}</span><span class="tiny muted" style="margin-left:auto">mesma projeção da Gestão Comercial e do 1:1${du.total ? ` · dia útil ${du.decorridos}/${du.total}` : ''}</span></div>
     <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end">
-      <div><div class="tiny muted">Realizado (dia ${fc.dia}/${fc.dias_mes})</div><div style="font-size:20px;font-weight:900">R$ ${moneyShort(fc.realizado_mes_vgv)}</div><div class="tiny muted">${fc.realizado_mes_vendas || 0} venda(s)</div></div>
-      <div style="border-left:1px solid var(--border);padding-left:20px"><div class="tiny muted">💎 Pipeline ponderado <span title="Soma de (probabilidade × valor) de todos os abertos">ⓘ</span></div><div style="font-size:26px;font-weight:900;color:var(--roxo)">R$ ${moneyShort(fc.pipeline_ponderado_vgv)}</div><div class="tiny muted">${fc.pipeline_ponderado_vendas || 0} vendas esperadas · valor esperado do funil</div></div>
-      <div style="border-left:1px solid var(--border);padding-left:20px"><div class="tiny muted">Meta do mês</div><div style="font-size:20px;font-weight:900">R$ ${moneyShort(fc.meta_vgv_mes)}</div></div>
-      <div style="text-align:center"><div class="tiny muted">Run-rate vs meta</div><div style="font-size:24px;font-weight:900;color:${col}">${pctMeta != null ? pct2(pctMeta) : '—'}</div></div>
+      <div><div class="tiny muted">✅ Realizado</div><div style="font-size:20px;font-weight:900">R$ ${moneyShort(p.realizado.vgv)}</div><div class="tiny muted">${fmtNum(p.realizado.vendas)} venda(s)${p.realizado.pct_meta != null ? ' · ' + pct2(p.realizado.pct_meta) + ' da meta' : ''}</div></div>
+      <div style="border-left:1px solid var(--border);padding-left:20px"><div class="tiny muted">📈 Provável <span title="Realizado + o maior entre o ritmo dos últimos 180 dias e as propostas abertas × taxa real proposta→venda que cabe no prazo">ⓘ</span></div><div style="font-size:26px;font-weight:900;color:var(--roxo)">R$ ${moneyShort(p.provavel.vgv)}</div><div class="tiny muted">${fmtN1(p.provavel.vendas)} vendas${p.provavel.pct_meta != null ? ' · ' + pct2(p.provavel.pct_meta) + ' da meta' : ''} · faixa R$ ${moneyShort(p.conservador.vgv)}–${moneyShort(p.otimista.vgv)}</div></div>
+      <div style="border-left:1px solid var(--border);padding-left:20px"><div class="tiny muted">🎯 Meta do mês</div><div style="font-size:20px;font-weight:900">${p.meta.vgv ? 'R$ ' + moneyShort(p.meta.vgv) : '—'}</div><div class="tiny muted">${p.meta.vendas ? '≈ ' + fmtN1(p.meta.vendas) + ' vendas' : 'sem meta cadastrada'}</div></div>
+      ${p.falta_vgv ? `<div style="border-left:1px solid var(--border);padding-left:20px"><div class="tiny muted">Falta</div><div style="font-size:20px;font-weight:900">R$ ${moneyShort(p.falta_vgv)}</div><div class="tiny muted">${p.falta_vendas ? '≈ ' + fmtN1(p.falta_vendas) + ' vendas' : ''}${p.por_dia_util_vgv ? ' · R$ ' + moneyShort(p.por_dia_util_vgv) + '/dia útil' : ''}</div></div>` : ''}
     </div>
-    ${fc.dia <= 5 ? `<div class="tiny muted" style="margin-top:8px">⚠️ Run-rate é volátil no começo do mês (dia ${fc.dia}). Use o <b>pipeline ponderado</b> como leitura principal.</div>` : ''}
+    <div class="tiny muted" style="margin-top:10px">💎 Pipeline ponderado dos abertos: R$ ${moneyShort(fc.pipeline_ponderado_vgv || 0)} (${fc.pipeline_ponderado_vendas || 0} negócios-equivalentes) — serve pra <b>ordenar a fila de ataque</b>, não é previsão do mês.</div>
   </div>`;
 }
 
@@ -209,7 +226,9 @@ function corretorCard(c) {
     <div class="flex items-center gap-2" style="margin-bottom:8px">
       <div style="width:28px;height:28px;border-radius:50%;background:${c.color || '#7c3aed'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px">${escapeHtml(c.ini || (c.name || '?').slice(0, 2).toUpperCase())}</div>
       <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(c.name || '—')}</div><div class="tiny muted">${escapeHtml(c.team || '')} · ${c.open_count} abertos</div></div>
-      <div style="text-align:right"><div style="font-weight:900;font-size:15px;color:var(--roxo)">R$ ${moneyShort(c.pipeline_ponderado_vgv)}</div><div class="tiny muted">pipeline pond.</div></div>
+      ${c.projecao_mes
+        ? `<div style="text-align:right" title="projeção oficial do mês · pipeline ponderado R$ ${moneyShort(c.pipeline_ponderado_vgv)} (prioridade)"><div style="font-weight:900;font-size:15px;color:${(PSTATUS[c.projecao_mes.status] || [0, 'var(--roxo)'])[1]}">R$ ${moneyShort(c.projecao_mes.provavel.vgv)}</div><div class="tiny muted">📈 provável · ${fmtN1(c.projecao_mes.provavel.vendas)} vendas</div></div>`
+        : `<div style="text-align:right"><div style="font-weight:900;font-size:15px;color:var(--roxo)">R$ ${moneyShort(c.pipeline_ponderado_vgv)}</div><div class="tiny muted">pipeline pond.</div></div>`}
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
       <span style="background:${TEMP.quente.c}1a;color:${TEMP.quente.c};font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px">${c.quentes} 🟢</span>
@@ -232,20 +251,22 @@ async function runAI() {
     const fc = _d.forecast || {}, wr = _d.winrate || {}, loss = _d.loss || {};
     const urg = (_d.urgentes || []).slice(0, 10).map(r => `- ${r.title} (score ${r.score}, ${r.ms_label}, R$ ${money(r.amount)}, parado ${r.dias_parado ?? '?'}d, ${r.owner_name}) → ${r.acao}`).join('\n');
     const corr = (_d.corretores || []).filter(c => c.sem_contato_48h || c.parados_14d || c.quentes)
-      .map(c => `- ${c.name}: ${c.quentes} quentes, ${c.sem_contato_48h} sem 1º contato, ${c.parados_14d} parados +14d, pipeline R$ ${money(c.pipeline_ponderado_vgv)}`).join('\n');
+      .map(c => `- ${c.name}: ${c.quentes} quentes, ${c.sem_contato_48h} sem 1º contato, ${c.parados_14d} parados +14d${c.projecao_mes ? `, provável do mês R$ ${money(c.projecao_mes.provavel.vgv)} (${c.projecao_mes.provavel.vendas} vendas, ${(PSTATUS[c.projecao_mes.status] || ['—'])[0]})` : ''}`).join('\n');
+    const po = fc.projecao_oficial;
     const lossTxt = (loss.categorias || []).map(c => `- ${c.label}: ${c.n} (${c.pct}%)`).join('\n');
     const canalTxt = (wr.por_canal || []).map(c => `- ${c.canal}: ${c.wr_pct}% (${c.n} fech.)`).join('\n');
     const prompt = `Você é o diretor de inteligência de vendas da PSM Imobiliária (São José do Rio Preto, alto padrão + MCMV + locação). Com base nos FATOS REAIS do pipeline (RD CRM), escreva um PLANO DE ATAQUE DE VENDAS desta semana pro sócio Paulo, em markdown, direto e acionável. NÃO invente números além dos fatos.
 
 Estruture em:
-1) **Leitura rápida** (2-3 linhas: saúde do funil e do forecast).
+1) **Leitura rápida** (2-3 linhas: saúde do funil e da projeção do mês).
 2) **Atacar HOJE** (os leads/corretores mais urgentes e por quê).
 3) **Onde está o dinheiro travado** (pipeline quente: o que destravar pra fechar o mês).
 4) **Padrão de perdas** (o que os motivos revelam — ajustar qualificação? segmentação de ads? script?).
 5) **1 recado por corretor crítico** (curto).
 
-== FORECAST ==
-Realizado mês: R$ ${money(fc.realizado_mes_vgv)} (${fc.realizado_mes_vendas} vendas). Pipeline ponderado (valor esperado): R$ ${money(fc.pipeline_ponderado_vgv)} (${fc.pipeline_ponderado_vendas} vendas esperadas). Pipeline quente: R$ ${money(fc.pipeline_quente_vgv)}. Meta mês: R$ ${money(fc.meta_vgv_mes)}. Win rate global: ${wr.overall_pct ?? '—'}%.
+== PROJEÇÃO OFICIAL DO MÊS (a única previsão — mesma da Gestão Comercial e do 1:1) ==
+${po ? `Realizado: R$ ${money(po.realizado.vgv)} (${po.realizado.vendas} vendas). Provável: R$ ${money(po.provavel.vgv)} (${po.provavel.vendas} vendas${po.provavel.pct_meta != null ? `, ${po.provavel.pct_meta}% da meta` : ''}); faixa R$ ${money(po.conservador.vgv)} a R$ ${money(po.otimista.vgv)}. Meta: R$ ${money(po.meta.vgv)}. Status: ${(PSTATUS[po.status] || ['—'])[0]}.${po.falta_vgv ? ` Falta R$ ${money(po.falta_vgv)}${po.por_dia_util_vgv ? ` (R$ ${money(po.por_dia_util_vgv)} por dia útil)` : ''}.` : ''}` : '(indisponível)'}
+Pipeline ponderado dos abertos (score × valor; serve para PRIORIZAR, NÃO é previsão — não use como projeção): R$ ${money(fc.pipeline_ponderado_vgv)}; quentes R$ ${money(fc.pipeline_quente_vgv)}. Win rate global: ${wr.overall_pct ?? '—'}%.
 
 == CONVERSÃO POR CANAL ==
 ${canalTxt || '(sem base)'}
@@ -286,4 +307,5 @@ function money(v) { return (v || 0).toLocaleString('pt-BR', { minimumFractionDig
 function moneyShort(v) { return money(v); }
 function pct2(v) { return v == null ? '—' : (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'; }
 function fmtNum(v) { return (v || 0).toLocaleString('pt-BR'); }
+function fmtN1(v) { return (Number(v) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 }); }
 function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

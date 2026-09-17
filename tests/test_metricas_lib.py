@@ -378,3 +378,55 @@ def meu_dia():
 
 
 meu_dia()
+
+
+def cerebro():
+    """Cérebro de Vendas (intel/sales_brain): o número-título é a projeção oficial (Dicionário §8A), não o ponderado. v87.95"""
+    import copy
+    import importlib.util
+    import _projecao_lib as PJ
+    db = copy.deepcopy(DB)
+    db["shared_kv"] = [kv for kv in db["shared_kv"] if not kv["key"].startswith("metricas_")]
+    db["rd_stages"].append({"id": "p1", "psm_stage_key": "proposta"})
+    db["deals"].append({"id": "9", "amount": 400000, "win": None, "closed_at": None, "created_at_rd": "2026-09-03T12:00:00+00:00",
+                        "updated_at_rd": "2026-09-12T12:00:00+00:00", "user_id": "kadu", "user_email": "kadu@x.br",
+                        "synced_at": SYNC, "stage_id": "p1", "stage_name": "PROPOSTA", "rd_raw": {}})
+    sb = SB(db)
+    hoje = date(2026, 9, 16)
+    M.hoje_brt = lambda: hoje
+    oficial = PJ.projecao(sb, {"h": "mes"}, fresh=True, hoje=hoje)
+
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "api", "v3", "intel", "sales_brain.py")
+    spec = importlib.util.spec_from_file_location("sales_brain_t", path)
+    SBR = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(SBR)
+    SBR.require_user = lambda h, min_lvl=0: {"id": "paulo", "lvl": 10, "role": "socio"}
+    SBR.supabase_client = lambda: sb
+
+    def chamar(qs):
+        h = SBR.handler.__new__(SBR.handler)
+        h.path = "/api/v3/intel/sales_brain?" + qs
+        box = {}
+        h._send = lambda status, body: box.update(status=status, body=body)
+        h.do_GET()
+        assert box["status"] == 200, box
+        return box["body"]
+
+    r = chamar("lookback=120")
+    po = r["forecast"]["projecao_oficial"]
+    assert po and po["provavel"] == oficial["empresa"]["provavel"] and po["status"] == oficial["empresa"]["status"], po
+    assert r["forecast"]["meta_vgv_mes"] == oficial["empresa"]["meta"]["vgv"]
+    assert r["forecast"]["realizado_mes_vendas"] == oficial["empresa"]["realizado"]["vendas"]
+    kadu = next(c for c in r["corretores"] if c["id"] == "kadu")
+    assert kadu["projecao_mes"]["provavel"] == oficial["pessoas"]["kadu"]["provavel"], kadu["projecao_mes"]
+    assert "base" not in kadu["projecao_mes"] and "pipeline_ponderado_vgv" in kadu    # ponderado segue pra ordenar a fila
+    assert r["top_priority"], "fila de ataque precisa continuar"
+    rk = chamar("corretor_id=kadu")
+    assert rk["forecast"]["projecao_oficial"]["provavel"] == oficial["pessoas"]["kadu"]["provavel"]
+    rt = chamar("team=conquista")
+    assert rt["forecast"]["projecao_oficial"]["provavel"] == oficial["equipes"]["conquista"]["provavel"]
+    print("OK — cérebro: número-título = projeção oficial (empresa, equipe e corretor)")
+    print("   Kadu: provável", kadu["projecao_mes"]["provavel"], "· ponderado (fila)", kadu["pipeline_ponderado_vgv"])
+
+
+cerebro()

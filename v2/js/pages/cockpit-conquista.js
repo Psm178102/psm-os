@@ -22,6 +22,8 @@ const FAIXA_TETO = [
   { nome: 'Faixa 4', teto: 500000, cor: '#8b5cf6' },
   { nome: 'Acima MCMV', teto: Infinity, cor: '#64748b' },
 ];
+const PJ_STATUS = { batida: ['meta batida', '#16a34a'], no_ritmo: ['vai bater', '#16a34a'], atras: ['atrás', '#d97706'], fora: ['fora do ritmo', '#dc2626'], sem_meta: ['sem meta', '#64748b'] };
+const fN1 = v => (Number(v) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
 const faixaDeValor = v => (FAIXA_TETO.find(f => v <= f.teto) || FAIXA_TETO[FAIXA_TETO.length - 1]);
 
 let _root = null, _list = [], _brain = null, _selId = '', _isGestor = false, _me = {}, _stamp = '', _avisos = [];
@@ -52,7 +54,7 @@ async function loadBrain(fresh) {
   _root.innerHTML = loadingCard('Carregando seu pipeline…');
   try {
     if (fresh) { try { await api.request('/api/v3/crm/sync_if_stale?hours=0'); } catch (_) {} }   // v87.86: 🔄 renova a FONTE
-    const r = await api.request('/api/v3/intel/sales_brain?corretor_id=' + encodeURIComponent(_selId));
+    const r = await api.request('/api/v3/intel/sales_brain?corretor_id=' + encodeURIComponent(_selId) + (fresh ? '&fresh=1' : ''));
     const arr = (r && r.corretores) || [];
     _stamp = (r && r.dados_de_hhmm) || ''; _avisos = (r && r.avisos_dicionario) || [];
     _brain = arr.find(c => c.id === _selId) || arr[0] || null;
@@ -80,13 +82,17 @@ function renderShell(c) {
   if (c) {
     const meta = c.meta_vgv_mes || 0;
     const pond = c.pipeline_ponderado_vgv || 0;
+    const pj = c.projecao_mes;   // v87.95: projeção oficial do mês (a mesma da Gestão Comercial e do 1:1)
+    const [pjLbl, pjCor] = PJ_STATUS[pj && pj.status] || ['', '#16a34a'];
     const atencao = (c.sem_contato_48h || 0) + (c.parados_14d || 0);
     kpis = `
       <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
-        <div class="card" style="padding:13px 15px;flex:1;min-width:140px;border-left:4px solid #16a34a"><div class="tiny muted">💰 Pipeline ponderado</div><div style="font-size:20px;font-weight:800;color:var(--ok)">${BRL(pond)}</div></div>
+        ${pj
+          ? `<div class="card" style="padding:13px 15px;flex:1;min-width:160px;border-left:4px solid ${pjCor}" title="Provável = vendido + o maior entre seu ritmo dos últimos 180 dias e suas propostas abertas × taxa real proposta→venda. Pipeline ponderado (prioridade da fila): ${BRL(pond)}"><div class="tiny muted">📈 Provável do mês</div><div style="font-size:20px;font-weight:800;color:${pjCor}">${BRL(pj.provavel.vgv)}</div><div class="tiny muted">${fN1(pj.provavel.vendas)} vendas${pj.provavel.pct_meta != null ? ' · ' + fN1(pj.provavel.pct_meta) + '% da meta' : ''}${pjLbl ? ' · ' + pjLbl : ''}</div></div>`
+          : `<div class="card" style="padding:13px 15px;flex:1;min-width:140px;border-left:4px solid #16a34a"><div class="tiny muted">💰 Pipeline ponderado</div><div style="font-size:20px;font-weight:800;color:var(--ok)">${BRL(pond)}</div><div class="tiny muted">prioridade da fila · projeção indisponível</div></div>`}
         <div class="card" style="padding:13px 15px;flex:1;min-width:120px;border-left:4px solid #ef4444"><div class="tiny muted">🔥 Quentes</div><div style="font-size:20px;font-weight:800;color:var(--err-suave)">${c.quentes || 0}</div></div>
         <div class="card" style="padding:13px 15px;flex:1;min-width:120px;border-left:4px solid #f59e0b"><div class="tiny muted">⚠️ Atenção</div><div style="font-size:20px;font-weight:800;color:#f59e0b">${atencao}</div><div class="tiny muted">sem contato + parados</div></div>
-        <div class="card" style="padding:13px 15px;flex:1;min-width:140px"><div class="tiny muted">🎯 Meta VGV (mês)</div><div style="font-size:20px;font-weight:800">${meta ? BRL(meta) : '—'}</div>${meta ? `<div class="tiny muted">ponderado = ${Math.round(pond / meta * 100)}% da meta</div>` : ''}</div>
+        <div class="card" style="padding:13px 15px;flex:1;min-width:140px"><div class="tiny muted">🎯 Meta VGV (mês)</div><div style="font-size:20px;font-weight:800">${meta ? BRL(meta) : '—'}</div>${pj && pj.falta_vgv ? `<div class="tiny muted">falta ${BRL(pj.falta_vgv)}${pj.por_dia_util_vgv ? ' · ' + BRL(pj.por_dia_util_vgv) + '/dia útil' : ''}</div>` : ''}</div>
         <div class="card" style="padding:13px 15px;flex:1;min-width:140px;border-left:4px solid #2563eb"><div class="tiny muted">✅ Vendido no mês</div><div style="font-size:20px;font-weight:800">${c.vendas_mes || 0} · ${BRL(c.vgv_mes || 0)}</div><div class="tiny muted">${c.atingimento_vgv_pct != null ? c.atingimento_vgv_pct + '% da meta' : 'sem meta'} · ${c.leads_mes || 0} leads · ${c.em_atendimento || 0} em atendimento</div></div>
       </div>
       ${_avisos.length ? `<div class="alert alert-warn tiny" style="margin:-6px 0 12px">${_avisos.map(esc).join('<br>')}</div>` : ''}`;
