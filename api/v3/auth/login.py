@@ -101,6 +101,9 @@ def _record_session(sb, jti: str, user_id: str, expires_unix: int, ua: str, ip: 
             "expires_at": exp_iso,
             "user_agent": (ua or "")[:255],
             "ip": (ip or "")[:64],
+            # v88.5: o login é o primeiro sinal de vida da sessão — daqui pra
+            # frente o pulso vai somando o tempo real de tela (Mapa de Uso).
+            "last_seen": "now()",
         }).execute()
     except Exception as e:
         print(f"[auth_login] falha gravar session: {e}")

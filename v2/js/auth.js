@@ -30,6 +30,22 @@ export const auth = {
   },
 
   logout() {
+    // v88.5: avisa o servidor ANTES de sair, pra registrar a hora exata em que
+    // este login foi fechado (alimenta o Check-in/Check-out do sistema). fetch
+    // cru + keepalive de propósito: o location.href abaixo mata a página no
+    // mesmo instante e uma chamada normal morreria com ela. Exceção consciente
+    // à regra "tudo por api.request" — é um disparo sem resposta pra ler.
+    try {
+      const t = tokenStore.get();
+      if (t) {
+        fetch('/api/v3/auth/logout', {
+          method: 'POST',
+          keepalive: true,
+          headers: { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' },
+          body: '{}',
+        }).catch(() => {});
+      }
+    } catch (_) {}
     tokenStore.clear();
     userStore.clear();
     location.href = '/login';

@@ -139,7 +139,7 @@ import { pageMorimatsu } from './pages/morimatsu.js';   // 🏯 Morimatsu & Asso
 // 'conta' e 'inicio' são sempre liberados pra qualquer login.
 export const ROUTE_GROUP = {
   // Início (sempre)
-  '/': 'inicio', '/painel': 'inicio', '/checkin': 'inicio', '/ranking': 'inicio', '/agenda': 'inicio', '/tarefas': 'inicio',
+  '/': 'inicio', '/painel': 'inicio', '/ranking': 'inicio', '/agenda': 'inicio', '/tarefas': 'inicio',
   // Secretaria de Vendas & Backoffice (SDR + Captações)
   '/sdr': 'secretaria', '/leads-lp': 'secretaria', '/reativacao': 'secretaria', '/captacoes': 'secretaria', '/minha-producao': 'secretaria', '/fiscalizacao': 'diretoria', '/ponte': 'diretoria', '/links-uteis': 'secretaria', '/sac-incorporadoras': 'secretaria', '/sistemas-incorporadoras': 'secretaria', '/campanha-wa': 'secretaria',
   // Backoffice & Adm (v81.93)
@@ -199,6 +199,9 @@ export const ROUTE_GROUP = {
   // Sistema
   '/usuarios': 'sistema', '/auditoria': 'sistema', '/integracoes': 'sistema',
   '/backup': 'sistema', '/configuracoes': 'sistema', '/config-menu': 'sistema', '/logins': 'sistema', '/qualidade': 'sistema',
+  // v88.5: Check-in/Check-out do sistema saiu do INÍCIO (era o botão de presença
+  // de todo mundo) e virou ferramenta de Sistema, ao lado da Auditoria — só sócio.
+  '/checkin': 'sistema',
   // Conta (sempre)
   '/conta': 'conta',
   // simuladores Leads/CAC e Criativos migraram p/ Marketing (VPL/INCC/Repasse/Energia → Imóveis & Vendas, acima)
@@ -267,6 +270,10 @@ export const ROUTE_MIN_LVL = {
   '/briefing-guerra': 7,  // briefing estratégico (diretoria)
   '/academy-studio': 5,   // produção/construção da Academy — só time que constrói (líder+)
   '/config-menu': 10,     // renomear o menu/páginas — só sócio
+  // v88.5: Check-in/Check-out do sistema (quem realmente usa o House: login,
+  // tempo de tela, saída). SÓ sócio — e com trava própria em canSeeComoCargo,
+  // que não depende da matriz. Espelha api/v3/checkin/uso.py (min_lvl=10).
+  '/checkin': 10,
   '/psmhub': 7,           // auditoria do PSM HUB (Conquista) — diretoria
   '/qualidade': 7,        // saúde dos cadastros — diretoria+
   '/comissao-conquista': 5,  // comissionamento Conquista + Mariane — gerência/direção
@@ -363,6 +370,13 @@ function canSeeComoCargo(path, role, user) {
   // 🔐 Cofre de Logins e Senhas: acessível a qualquer autenticado — o backend só
   // devolve a cada um as credenciais liberadas pra ele (viewers). v77.93
   if (base === '/logins') return true;
+
+  // 🕵️ Check-in / Check-out do SISTEMA (v88.5): mapa de quem realmente usa o
+  // House (login, tempo de tela, saída). SÓ SÓCIO (lvl 10 = paulo e isa).
+  // Trava explícita ANTES da matriz de propósito: nem liberando na matriz por
+  // papel, nem com override individual (menu_groups), o item aparece pra outro
+  // cargo. Espelha o require_user(min_lvl=10) de api/v3/checkin/uso.py.
+  if (base === '/checkin') return (user?.lvl || 0) >= 10;
 
   // 🔒 Consultoria Arch Leg (dado psicológico sensível): SÓ sócio/diretor
   // (lvl>=8) OU quem é da Arch Leg (role consultor_arch_leg). Trava explícita,
@@ -485,7 +499,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '88.4';
+const APP_VERSION = '88.5';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -662,7 +676,7 @@ const APP_VERSION = '88.4';
   // A previsão oficial vive na Gestão Comercial → 🎯 Meta · Realizado · Projeção (Dicionário §8A); links antigos vão pra lá.
   router.register('/forecast',  { render: async () => { location.replace('#/gestao-comercial'); } });
   router.register('/organograma', { render: async (ctx, root) => { setHeader('Organograma'); highlight('/organograma'); await pageOrganograma(ctx, root); } });
-  router.register('/checkin',     { render: async (ctx, root) => { setHeader('Check-in');     highlight('/checkin');     await pageCheckin(ctx, root); } });
+  router.register('/checkin',     { render: async (ctx, root) => { setHeader('Check-in / Check-out'); highlight('/checkin'); await pageCheckin(ctx, root); } });
   router.register('/ranking',     { render: async (ctx, root) => { setHeader('Ranking');      highlight('/ranking');     await pageRanking(ctx, root); } });
   router.register('/imoveis',     { render: async (ctx, root) => { setHeader('Imóveis');      highlight('/imoveis');     await pageImoveis(ctx, root); } });
   router.register('/estoque-kenlo', { render: async (ctx, root) => { setHeader('Estoque Kenlo'); highlight('/estoque-kenlo'); await pageEstoqueKenlo(ctx, root); } });
@@ -968,7 +982,6 @@ function shellHTML(user) {
         <div class="sb-sec">🏠 Início</div>
         <button class="sb-link on" data-nav="/"><span class="sb-ico">📅</span> Agenda & Tarefas</button>
         <button class="sb-link" data-nav="/painel"><span class="sb-ico">👤</span> Meu Painel</button>
-        <button class="sb-link" data-nav="/checkin"><span class="sb-ico">📍</span> Check-in</button>
         <button class="sb-link" data-nav="/ranking"><span class="sb-ico">🏆</span> Ranking</button>
         <button class="sb-link" data-nav="/one-on-one"><span class="sb-ico">👥</span> One-on-One</button>
         <button class="sb-link" data-nav="/manual"><span class="sb-ico">📖</span> Manual Cultura</button>
@@ -1137,6 +1150,7 @@ function shellHTML(user) {
         <div class="sb-sec">⚙️ Sistema</div>
         <button class="sb-link" data-nav="/usuarios"><span class="sb-ico">👥</span> Usuários</button>
         <button class="sb-link" data-nav="/auditoria"><span class="sb-ico">📜</span> Auditoria</button>
+        <button class="sb-link" data-nav="/checkin"><span class="sb-ico">🕵️</span> Check-in / Check-out</button>
         <button class="sb-link" data-nav="/integracoes"><span class="sb-ico">🔌</span> Integrações</button>
         <button class="sb-link" data-nav="/backup"><span class="sb-ico">💾</span> Backup</button>
         <button class="sb-link" data-nav="/configuracoes"><span class="sb-ico">🔧</span> Configurações</button>
