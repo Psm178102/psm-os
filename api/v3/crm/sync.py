@@ -103,6 +103,8 @@ def _deal_to_row(d, users_by_email, pipe_id=None, pipe_name=None):
         "user_email": email or None,
         "user_id": matched_uid,
         "rd_raw": d,
+        # v87.94: sem isto o upsert não atualizava synced_at (DEFAULT só vale no INSERT) — ver sync_cron.py
+        "synced_at": datetime.now(timezone.utc).isoformat(),
     }
 
 

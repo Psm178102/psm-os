@@ -98,6 +98,9 @@ def _deal_to_row(d, users_by_email, pipe_id=None, pipe_name=None):
         "user_email": email or None,
         "user_id": users_by_email.get(email),
         "rd_raw": d,
+        # v87.94: a coluna só tinha DEFAULT now() (vale no INSERT) — no upsert de um negócio que já existia
+        # o synced_at nunca mudava, o "dados de HH:MM" ficava velho e o sync_if_stale rodava sem parar.
+        "synced_at": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -219,8 +222,11 @@ class handler(BaseHTTPRequestHandler):
         # caso o cron dedicado captar_cron falhe). Idempotente (dedup rd_deal_id).
         captar = None
         try:
-            from _captar_lib import import_captar  # type: ignore
-            captar = import_captar(sb, rd_token)
+            if modo_inc:   # v87.94: o incremental de 30 min não carrega a varredura de captação (tem job próprio)
+                captar = {"ok": True, "skip": "incremental"}
+            else:
+                from _captar_lib import import_captar  # type: ignore
+                captar = import_captar(sb, rd_token)
             if captar and captar.get("created"):
                 audit(self, None, "captacao.auto_rd", target_type="captacoes", target_id="*",
                       notes=f"criadas={captar.get('created')} via sync_cron")

@@ -208,6 +208,16 @@ class handler(BaseHTTPRequestHandler):
                 body = (r.read().decode("utf-8") or "")[:300]
                 return self._send(200, {"ok": True, "ran": key, "status": r.status, "resp": body, "sla": sla})
         except Exception as e:
+            # v87.94: TIMEOUT não é falha — a função chamada continua rodando na Vercel (o sync incremental
+            # leva ~70 s e o heartbeat espera 40 s). Antes o job era desmarcado e redisparado a cada boot:
+            # em 17/09 o sync do RD rodou ~10 vezes em 1 hora. Mantém a marca e segue.
+            if "timed out" in str(e).lower() or isinstance(e, TimeoutError):
+                try:
+                    sb.table("cron_state").upsert({"key": key, "ran_at": now.isoformat(), "note": "heartbeat (em execução, timeout do aguardo)"},
+                                                  on_conflict="key").execute()
+                except Exception:
+                    pass
+                return self._send(200, {"ok": True, "ran": key, "aguardo": "timeout — segue rodando no servidor", "sla": sla})
             # falhou → devolve o ran_at antigo pro próximo heartbeat tentar de novo
             try:
                 if prev:
