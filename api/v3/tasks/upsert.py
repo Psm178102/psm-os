@@ -205,6 +205,11 @@ class handler(BaseHTTPRequestHandler):
             if event["changes"]:
                 history.append(event)
             patch["historico"] = history
+            # v88.6 — carimbo explícito: dir_tasks NÃO tem trigger de updated_at, e é
+            # essa coluna que o pulso (/api/v3/pulse) lê pra saber que tarefa mudou.
+            # Sem isto, editar/concluir tarefa não acende a pill "🔄 Novos dados" nos
+            # outros logins. _safe_write derruba o campo sozinho se a coluna sumir.
+            patch["updated_at"] = datetime.now(timezone.utc).isoformat()
 
             try:
                 res, _dropped = _safe_write(lambda r: sb.table("dir_tasks").update(r).eq("id", task_id), patch)
@@ -213,9 +218,12 @@ class handler(BaseHTTPRequestHandler):
                 return self._send(500, {"ok": False, "error": f"erro update: {e}"})
 
             # Audit
+            # v88.6 — updated_at fora do audit junto com historico: é carimbo de máquina,
+            # muda em 100% dos updates e só polui o "o que mudou de verdade".
+            _RUIDO = ("historico", "updated_at")
             audit(self, actor, "task.update", target_type="dir_task", target_id=task_id,
-                  before={k: cur.get(k) for k in patch.keys() if k != "historico"},
-                  after={k: v for k, v in patch.items() if k != "historico"})
+                  before={k: cur.get(k) for k in patch.keys() if k not in _RUIDO},
+                  after={k: v for k, v in patch.items() if k not in _RUIDO})
 
             # Notify: se responsável mudou, avisa o novo. Se status mudou, avisa criador e resp atual.
             try:
@@ -268,6 +276,7 @@ class handler(BaseHTTPRequestHandler):
                 "responsavel": body.get("responsavel") or None,
                 "criado_por":  actor["id"],
                 "criado_em":   int(time.time() * 1000),
+                "updated_at":  datetime.now(timezone.utc).isoformat(),   # v88.6 — sinal do pulso
                 "inicio":      body.get("inicio") or None,
                 "prazo":       body.get("prazo") or None,
                 "hora_inicio": body.get("hora_inicio") or None,

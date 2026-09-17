@@ -27,18 +27,39 @@ SIGNALS = [
     # v84.95 — audit_log e notifications SAÍRAM da assinatura: audit_log muda a cada
     # login/cron/push do sistema INTEIRO e redesenhava a página de todo mundo à toa
     # (o "fica atualizando sozinho"); notificação já tem o sino próprio (refreshNotifs).
-    ("tasks", "updated_at"),        # tarefas
+    # v88.6 — era ("tasks", "updated_at"): a tabela `tasks` NUNCA existiu neste banco
+    # (PostgREST devolvia 404 a cada pulso, e o _max engolia calado). Tarefa mora em
+    # `dir_tasks` desde sempre — ver tasks/list.py, tasks/feed.py e tasks/upsert.py.
+    # Resultado: mexer em tarefa não mudava a assinatura, e a pill "🔄 Novos dados"
+    # nunca acendia por tarefa. Junto com isto, tasks/upsert.py e tasks/conclude.py
+    # passaram a gravar `updated_at` de propósito (não há trigger no banco).
+    ("dir_tasks", "updated_at"),    # tarefas (tela Agenda & Tarefas)
     ("deals", "updated_at_rd"),     # vendas / CRM / oportunidades
     ("shared_kv", "updated_at"),    # recados/timeline, permissões, scripts, tabelas, configs
     ("leads_lp", "ts_recebido"),    # lead da LP chegou via webhook (sem navegador que emita o sinal)
 ]
 
 
+# Pares que já falharam NESTE processo — o log sai uma vez por par, não a cada pulso.
+_SINAL_MUDO = set()
+
+
 def _max(sb, table, col):
+    """Maior valor de `col` em `table` ("" se não der). Tolerante por design:
+    um sinal quebrado não pode derrubar o tempo real do sistema inteiro.
+
+    v88.6: tolerante SIM, mudo NÃO. O par ("tasks","updated_at") passou meses
+    devolvendo 404 sem ninguém ver porque este `except` era silencioso — sinal
+    morto e uma requisição jogada fora por pulso, por aba. Agora loga 1x por
+    (tabela, coluna) por processo: aparece no runtime log da Vercel na primeira
+    vez e não vira spam nas ~600 chamadas seguintes do mesmo processo."""
     try:
         rows = sb.table(table).select(col).order(col, desc=True).limit(1).execute().data or []
         return str(rows[0].get(col) or "") if rows else ""
-    except Exception:
+    except Exception as e:
+        if (table, col) not in _SINAL_MUDO:
+            _SINAL_MUDO.add((table, col))
+            print(f"[pulse] SINAL MORTO {table}.{col} — assinatura sem este sinal: {e}")
         return ""
 
 
