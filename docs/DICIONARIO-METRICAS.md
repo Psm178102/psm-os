@@ -120,6 +120,10 @@ Divergências que este item elimina: o 1:1 usava dias corridos (15/30) e a Gest�
 
 `PIPELINE_PESOS` (oo/_oo_lib) e as taxas de safra do forecast da Gestão Comercial deixam de ser exibidos como projeção.
 
+**Telas que tinham previsão própria (revisão de 17/09/2026):**
+- **Cérebro de Vendas / Meu Cérebro / Cockpit Conquista (v87.95):** número-título = Provável do §8A (empresa, equipe ou corretor). O pipeline ponderado continua só para ordenar a fila de ataque, rotulado "não é previsão".
+- **Tela Projeção do menu Financeiro (`/forecast`, `api/v3/forecast/summary`) — aposentada na v87.96:** somava valor × peso da etapa (`PIPELINE_PESOS`) de todos os abertos do ano, uma terceira previsão. O link antigo abre a Gestão Comercial → 🎯 Meta · Realizado · Projeção, que tem os horizontes mês a ano.
+
 **Negócio aberto sem valor no RD (decisão do Paulo, 16/09/2026):** entra no pipeline ponderado e no previsto com o **ticket de referência** da equipe = ticket médio das vendas ganhas da equipe nos últimos 120 dias; sem venda com valor, `meta_vgv ÷ meta_vendas` da equipe; sem meta, ticket da empresa. O valor é presumido (campo `pipeline.sem_valor` / `pipeline.vgv_presumido` e aviso "N negócios abertos sem valor") e o valor real substitui o presumido assim que alguém preencher o RD. **Venda ganha sem valor não é presumida**: entra com R$ 0 e gera aviso, porque VGV realizado alimenta comissão e relatório.
 
 ## 9. O que muda para o usuário
