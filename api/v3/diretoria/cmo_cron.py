@@ -31,6 +31,9 @@ import urllib.request
 import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+_V3 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _V3 not in sys.path:
+    sys.path.append(_V3)
 from _auth_lib import (require_user, AuthError, audit, supabase_client,  # type: ignore
                        lvl_of, notify, send_web_push, agora_brt)
 
@@ -261,16 +264,23 @@ def _contexto(sb, tipo):
     except Exception:
         pass
 
-    # 3) Funil (RD espelhado no House): leads por janela + ganhos do mês
+    # 3) Funil (RD espelhado no House) — v88.4: LEAD = tráfego pago criado no período (Dicionário §2), por dia
+    #    de Brasília, pelo motor único (o mesmo número da Gestão Comercial e do Marketing), com o total de
+    #    negócios criados e a quebra PSM × corretor. Antes contava todo negócio criado em janela móvel UTC.
     try:
-        agora = datetime.now(timezone.utc)
-        d1 = (agora - timedelta(days=1)).isoformat()
-        d7 = (agora - timedelta(days=7)).isoformat()
-        d14 = (agora - timedelta(days=14)).isoformat()
-        c24 = sb.table("deals").select("id", count="exact").gte("created_at_rd", d1).execute().count or 0
-        c7 = sb.table("deals").select("id", count="exact").gte("created_at_rd", d7).execute().count or 0
-        c14 = sb.table("deals").select("id", count="exact").gte("created_at_rd", d14).lt("created_at_rd", d7).execute().count or 0
-        parts.append(f"LEADS NO CRM (deals/RD): últimas 24h = {c24} · últimos 7d = {c7} · 7d anteriores = {c14}")
+        import _metricas_lib as MX  # type: ignore
+        hoje = MX.hoje_brt()
+
+        def _emp(a, b):
+            return (MX.resumo(sb, {"since": a.isoformat(), "until": b.isoformat()}) or {}).get("empresa") or {}
+        e1 = _emp(hoje - timedelta(days=1), hoje - timedelta(days=1))
+        e7 = _emp(hoje - timedelta(days=7), hoje - timedelta(days=1))
+        e7a = _emp(hoje - timedelta(days=14), hoje - timedelta(days=8))
+        em = _emp(hoje.replace(day=1), hoje)
+        parts.append(f"LEADS DE TRÁFEGO PAGO NO CRM (RD): ontem = {e1.get('leads')} · últimos 7 dias = {e7.get('leads')} "
+                     f"(PSM {e7.get('leads_pago_psm')} · corretor {e7.get('leads_pago_corretor')}) · 7 dias anteriores = {e7a.get('leads')} · "
+                     f"negócios criados (todas as origens): {e1.get('interessados')} · {e7.get('interessados')} · {e7a.get('interessados')} · "
+                     f"mês: {em.get('leads')} leads pagos · {em.get('vendas')} vendas · VGV R$ " + f"{float(em.get('vgv') or 0):,.0f}".replace(",", "."))
     except Exception as e:
         parts.append(f"LEADS NO CRM: sem dado ({str(e)[:80]})")
 

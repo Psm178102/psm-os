@@ -26,6 +26,9 @@ import urllib.request
 from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+_V3 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _V3 not in sys.path:
+    sys.path.append(_V3)
 from _auth_lib import supabase_client, require_user, AuthError, audit, notify, send_web_push, lvl_of  # type: ignore
 
 def _amt(d):
@@ -145,6 +148,26 @@ def _dados_pessoa(sb, u, now):
         }
     except Exception:
         out["funil"] = None
+    # v88.4 (Dicionário de Métricas): o mês da pessoa vem do motor único — mês em Brasília, dono resolvido por
+    # user_id OU e-mail, VGV com fallback e sem o teto de 300 negócios; a projeção é a oficial. Antes o agente
+    # recebia "ganhos do mês" em mês UTC e só pelo user_id, e podia cobrar a pessoa por um número que nenhuma
+    # tela mostra.
+    try:
+        import _metricas_lib as MX  # type: ignore
+        import _projecao_lib as PJ  # type: ignore
+        hj = MX.hoje_brt()
+        b = ((MX.resumo(sb, {"since": hj.replace(day=1).isoformat(), "until": hj.isoformat()}) or {}).get("pessoas") or {}).get(uid)
+        if b:
+            p = ((PJ.projecao(sb, {"h": "mes"}) or {}).get("pessoas") or {}).get(uid) or {}
+            if isinstance(out.get("funil"), dict):
+                out["funil"]["ganhos_no_mes"] = {"qtd": b["vendas"], "vgv": b["vgv"]}
+            out["mes"] = {"vendas": b["vendas"], "vgv": b["vgv"], "meta_vgv": (b.get("meta") or {}).get("meta_vgv"),
+                          "leads_trafego_pago": b.get("leads"), "em_atendimento": b.get("em_atendimento"),
+                          "visitas": MX.visitas_de(b), "agendamentos": MX.agendamentos_de(b), "pastas_propostas": MX.propostas_de(b),
+                          "provavel": (p.get("provavel") or {}).get("vgv"), "status_projecao": p.get("status"),
+                          "fonte": "motor único (Dicionário de Métricas)"}
+    except Exception as e:
+        print(f"[sr_agente] motor de métricas indisponível: {e}")
     try:
         evs = (sb.table("producao_eventos").select("tipo").eq("colaborador", colab)
                .gte("ts", d7).limit(500).execute().data or [])
@@ -208,10 +231,10 @@ def _gerar(sb, u, now, dossies):
 
 
 def _elegiveis(sb):
-    us = sb.table("users").select("id,name,email,role,status").execute().data or []
+    us = sb.table("users").select("id,name,email,role,status,is_service").execute().data or []
     out = []
     for u in us:
-        if (u.get("status") or "ativo") != "ativo" or not u.get("id"):
+        if (u.get("status") or "ativo") != "ativo" or not u.get("id") or u.get("is_service"):   # v88.4: contas de serviço fora
             continue
         role = (u.get("role") or "").lower()
         if lvl_of(role) >= 10 or role == "financeiro":   # regra do Paulo: sócios e financeiro FORA

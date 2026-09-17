@@ -52,6 +52,9 @@ import urllib.parse
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+_V3 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _V3 not in sys.path:
+    sys.path.append(_V3)
 from _auth_lib import (require_user, AuthError, audit, supabase_client,  # type: ignore
                        lvl_of, notify, send_web_push, agora_brt)
 
@@ -230,27 +233,6 @@ def _kv_write_locked(sb, key, mutate, retries=3):
 
 
 # ─── Coleta de números (direto do banco) ───────────────────────────────
-def _deals_win(sb, ini_iso, fim_iso=None):
-    try:
-        q = sb.table("deals").select("amount,closed_at").eq("win", True).gte("closed_at", ini_iso)
-        if fim_iso:
-            q = q.lt("closed_at", fim_iso)
-        rows = q.order("closed_at", desc=True).limit(2000).execute().data or []
-        return rows, None
-    except Exception as e:
-        return [], str(e)[:100]
-
-
-def _meta_mes(sb, ano, mes):
-    try:
-        rows = (sb.table("metas").select("meta_vgv,meta_vendas")
-                .eq("ano", ano).eq("mes", mes).execute().data or [])
-        return (sum(float(m.get("meta_vgv") or 0) for m in rows),
-                sum(int(m.get("meta_vendas") or 0) for m in rows))
-    except Exception:
-        return 0.0, 0
-
-
 def _dias_sem_venda(sb, agora):
     try:
         rows = (sb.table("deals").select("closed_at").eq("win", True)
@@ -490,31 +472,51 @@ def _oo_anotacoes(sb, agora):
     return linhas
 
 
+def _mx(sb, ini, fim):
+    """v88.4 — retrato do motor único (Dicionário de Métricas) de [ini, fim] em Brasília → bloco da empresa,
+    ou None se o motor falhar (o relatório diz "sem dado" em vez de inventar)."""
+    try:
+        import _metricas_lib as MX  # type: ignore
+        return (MX.resumo(sb, {"since": ini.isoformat(), "until": fim.isoformat()}) or {}).get("empresa")
+    except Exception as e:
+        print(f"[ceo_cron] motor de métricas indisponível: {e}")
+        return None
+
+
 # ─── Contexto + gatilhos ───────────────────────────────────────────────
 def _contexto(sb, tipo, agora):
     parts, gatilhos = [], []
     d = agora.date()
     ano, mes = d.year, d.month
     mes_ini_brt = datetime(ano, mes, 1, tzinfo=BRT)
-    mes_ini = mes_ini_brt.astimezone(timezone.utc).isoformat()
 
-    # 1) Vendas do mês vs meta vs ritmo
-    wins, err = _deals_win(sb, mes_ini)
-    meta_vgv, meta_vendas = _meta_mes(sb, ano, mes)
-    if err:
-        parts.append(f"VENDAS DO MÊS: sem dado ({err}).")
+    # 1) Vendas do mês vs meta vs projeção — v88.4: números do motor único e a projeção OFICIAL (a mesma da
+    #    Gestão Comercial e do 1:1). Antes: VGV só do amount, meta de toda linha da tabela (inclusive de quem
+    #    saiu) e projeção por dias corridos — o CEO podia disparar "mês projetando 40%" com outra conta.
+    e = _mx(sb, d.replace(day=1), d)
+    if not e:
+        parts.append("VENDAS DO MÊS: sem dado (motor de métricas indisponível).")
     else:
-        vgv = sum(float(w.get("amount") or 0) for w in wins)
-        n = len(wins)
-        dias_mes = ((datetime(ano + (mes == 12), (mes % 12) + 1, 1) - datetime(ano, mes, 1)).days)
-        dias_corridos = max(1, d.day)
-        proj = vgv / dias_corridos * dias_mes
+        vgv, n = float(e.get("vgv") or 0), int(e.get("vendas") or 0)
+        meta_vgv = float((e.get("meta") or {}).get("meta_vgv") or 0)
+        meta_vendas = int((e.get("meta") or {}).get("meta_vendas") or 0)
+        pe, du = None, {}
+        try:
+            import _projecao_lib as PJ  # type: ignore
+            pj = PJ.projecao(sb, {"h": "mes"})
+            pe, du = pj.get("empresa"), (pj.get("horizonte") or {}).get("dias_uteis") or {}
+        except Exception as ex:
+            print(f"[ceo_cron] projeção indisponível: {ex}")
+        proj = float(pe["provavel"]["vgv"]) if pe else None
         linha = (f"VENDAS DO MÊS ({mes:02d}/{ano}): {n} vendas · VGV {_fmt_reais(vgv)} · "
-                 f"meta {_fmt_reais(meta_vgv)} ({meta_vendas} vendas) · dia {d.day}/{dias_mes} · "
-                 f"projeção pelo ritmo atual: {_fmt_reais(proj)}"
-                 + (f" ({proj / meta_vgv * 100:.0f}% da meta)" if meta_vgv else " (sem meta cadastrada)"))
+                 f"meta {_fmt_reais(meta_vgv)} ({meta_vendas} vendas)"
+                 + (f" · dia útil {du.get('decorridos')}/{du.get('total')}" if du else f" · dia {d.day}")
+                 + (f" · projeção provável (oficial): {_fmt_reais(proj)}" if proj is not None else " · projeção: sem dado")
+                 + ((f" ({proj / meta_vgv * 100:.0f}% da meta)" if meta_vgv else " (sem meta cadastrada)") if proj is not None else ""))
+        if e.get("leads") is not None:
+            linha += f" · leads de tráfego pago no mês: {e.get('leads')} ({e.get('interessados')} negócios criados)"
         parts.append(linha)
-        if d.day > 10 and meta_vgv > 0 and proj < 0.6 * meta_vgv:
+        if proj is not None and d.day > 10 and meta_vgv > 0 and proj < 0.6 * meta_vgv:
             gatilhos.append(f"mês projetando {proj / meta_vgv * 100:.0f}% da meta após o dia 10")
 
     # 2) Dias sem venda na holding
@@ -526,18 +528,17 @@ def _contexto(sb, tipo, agora):
         if sem >= 3:
             gatilhos.append(f"{sem} dias sem venda na holding")
 
-    # 3) Leads novos (tabela deals espelhada do RD; a data de criação no RD é created_at_rd)
-    try:
-        agora_utc = datetime.now(timezone.utc)
-        d1 = (agora_utc - timedelta(days=1)).isoformat()
-        d7 = (agora_utc - timedelta(days=7)).isoformat()
-        d14 = (agora_utc - timedelta(days=14)).isoformat()
-        c24 = sb.table("deals").select("id", count="exact").gte("created_at_rd", d1).execute().count or 0
-        c7 = sb.table("deals").select("id", count="exact").gte("created_at_rd", d7).execute().count or 0
-        c14 = sb.table("deals").select("id", count="exact").gte("created_at_rd", d14).lt("created_at_rd", d7).execute().count or 0
-        parts.append(f"LEADS NOVOS (deals/RD): 24h = {c24} · 7d = {c7} · 7d anteriores = {c14}")
-    except Exception as e:
-        parts.append(f"LEADS NOVOS: sem dado ({str(e)[:80]})")
+    # 3) Leads novos — v88.4: LEAD = tráfego pago criado no período (Dicionário §2), por dia de Brasília;
+    #    o total de negócios criados vai junto. Antes contava todo negócio criado em janela móvel UTC.
+    e_ontem = _mx(sb, d - timedelta(days=1), d - timedelta(days=1))
+    e_7 = _mx(sb, d - timedelta(days=7), d - timedelta(days=1))
+    e_7a = _mx(sb, d - timedelta(days=14), d - timedelta(days=8))
+    if e_ontem and e_7 and e_7a:
+        parts.append(f"LEADS DE TRÁFEGO PAGO (RD): ontem = {e_ontem.get('leads')} · últimos 7 dias = {e_7.get('leads')} · "
+                     f"7 dias anteriores = {e_7a.get('leads')} (negócios criados: {e_ontem.get('interessados')} · "
+                     f"{e_7.get('interessados')} · {e_7a.get('interessados')})")
+    else:
+        parts.append("LEADS NOVOS: sem dado (motor de métricas indisponível).")
 
     # 4) Produção do apoio (ontem/anteontem útil) — gatilho de 2 dias <50%
     ap_linhas, ap_gat = _apoio_producao(sb, agora)
@@ -649,24 +650,23 @@ def _contexto(sb, tipo, agora):
         seg_atual = d - timedelta(days=d.weekday())
         sem_ini = datetime.combine(seg_atual - timedelta(days=7), datetime.min.time(), BRT)
         sem_fim = datetime.combine(seg_atual, datetime.min.time(), BRT)
-        ws, werr = _deals_win(sb, sem_ini.astimezone(timezone.utc).isoformat(),
-                              sem_fim.astimezone(timezone.utc).isoformat())
-        if not werr:
+        ew = _mx(sb, sem_ini.date(), sem_fim.date() - timedelta(days=1))   # v88.4: motor único
+        if ew:
             parts.append(f"SEMANA FECHADA ({sem_ini.date().isoformat()} → {(sem_fim.date() - timedelta(days=1)).isoformat()}): "
-                         f"{len(ws)} vendas · VGV {_fmt_reais(sum(float(w.get('amount') or 0) for w in ws))}")
+                         f"{ew.get('vendas')} vendas · VGV {_fmt_reais(ew.get('vgv'))} · leads de tráfego pago {ew.get('leads')}")
 
     # 10) Fechamento do mês anterior + Plano de Resgate: no mensal SEMPRE;
     #     no Estado da União só na 1ª segunda do mês (comportamento v87.43)
     if tipo == "fechamento-mensal" or (tipo == "estado-da-uniao" and d.day <= 7):
         prev_fim = mes_ini_brt
         prev_ini = (prev_fim - timedelta(days=1)).replace(day=1)
-        ms, merr = _deals_win(sb, prev_ini.astimezone(timezone.utc).isoformat(),
-                              prev_fim.astimezone(timezone.utc).isoformat())
-        mvgv, mvnd = _meta_mes(sb, prev_ini.year, prev_ini.month)
-        if not merr:
-            tot = sum(float(w.get("amount") or 0) for w in ms)
+        em = _mx(sb, prev_ini.date(), prev_fim.date() - timedelta(days=1))   # v88.4: motor único
+        if em:
+            tot = float(em.get("vgv") or 0)
+            mvgv = float((em.get("meta") or {}).get("meta_vgv") or 0)
+            mvnd = int((em.get("meta") or {}).get("meta_vendas") or 0)
             parts.append(f"FECHAMENTO DO MÊS ANTERIOR ({prev_ini.month:02d}/{prev_ini.year}): "
-                         f"{len(ms)} vendas · VGV {_fmt_reais(tot)} · meta {_fmt_reais(mvgv)} ({mvnd} vendas)"
+                         f"{em.get('vendas')} vendas · VGV {_fmt_reais(tot)} · meta {_fmt_reais(mvgv)} ({mvnd} vendas)"
                          + (f" · atingimento {tot / mvgv * 100:.0f}%" if mvgv else "")
                          + f" · comissão estimada a 4%: {_fmt_reais(tot * 0.04)} (vs break-even R$ 70.000/mês)")
         plano = _kv_get(sb, "plano_resgate_2026", {})

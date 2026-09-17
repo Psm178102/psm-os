@@ -865,32 +865,37 @@ def _diretoria_context(sb, agent_id):
     agora = datetime.now(timezone(timedelta(hours=-3)))
     ym = agora.strftime("%Y-%m")
 
-    # 1) Vendas (deals win) — mês corrente e acumulado do ano, por funil
+    # 1) Vendas — v88.4: motor único (Dicionário de Métricas): mês e ano em Brasília, VGV com fallback, sem teto
+    #    de linhas, por EQUIPE do cadastro (não pelo nome do funil), com meta, leads de tráfego pago e a projeção
+    #    oficial. Antes: mês pelo prefixo UTC da data, 3.000 linhas no máximo e agrupado pelo funil do RD — o agente
+    #    podia citar um número que nenhuma tela mostra.
     try:
-        ini_ano = agora.strftime("%Y-01-01")
-        rows = (sb.table("deals")
-                .select("amount,closed_at,pipeline_name,amt_total:rd_raw->amount_total")
-                .eq("win", True).gte("closed_at", ini_ano).limit(3000).execute().data or [])
-        mes, ano = {}, {}
-        for d in rows:
-            try:
-                val = float(d.get("amount") or 0) or float(d.get("amt_total") or 0)
-            except Exception:
-                val = 0.0
-            k = (d.get("pipeline_name") or "?")[:40]
-            ano.setdefault(k, [0, 0.0]); ano[k][0] += 1; ano[k][1] += val
-            if str(d.get("closed_at") or "")[:7] == ym:
-                mes.setdefault(k, [0, 0.0]); mes[k][0] += 1; mes[k][1] += val
-        if ano:
-            tm = [sum(v[0] for v in mes.values()), sum(v[1] for v in mes.values())]
-            ta = [sum(v[0] for v in ano.values()), sum(v[1] for v in ano.values())]
-            linhas = [f"VENDAS (CRM, deals ganhos): mês {ym} = {tm[0]} vendas · VGV R$ {tm[1]:,.0f} | ano = {ta[0]} vendas · VGV R$ {ta[1]:,.0f}"]
-            for k, v in sorted(ano.items(), key=lambda kv: -kv[1][1])[:8]:
-                m = mes.get(k) or [0, 0.0]
-                linhas.append(f"  - {k}: mês {m[0]} (R$ {m[1]:,.0f}) · ano {v[0]} (R$ {v[1]:,.0f})")
-            parts.append("\n".join(linhas))
-    except Exception:
-        pass
+        _v3 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if _v3 not in sys.path:
+            sys.path.append(_v3)
+        import _metricas_lib as MX  # type: ignore
+        import _projecao_lib as PJ  # type: ignore
+        hj = MX.hoje_brt()
+        mx_m = MX.resumo(sb, {"since": hj.replace(day=1).isoformat(), "until": hj.isoformat()}) or {}
+        mx_a = MX.resumo(sb, {"since": hj.replace(month=1, day=1).isoformat(), "until": hj.isoformat()}) or {}
+        pj = PJ.projecao(sb, {"h": "mes"}) or {}
+        brl = lambda v: "R$ " + f"{float(v or 0):,.0f}".replace(",", ".")
+        em, ea, pe = mx_m.get("empresa") or {}, mx_a.get("empresa") or {}, pj.get("empresa") or {}
+        linhas = [f"VENDAS (motor único, dados de {mx_m.get('dados_de_hhmm') or '—'}): mês {ym} = {em.get('vendas', 0)} vendas · VGV {brl(em.get('vgv'))} · "
+                  f"meta {brl((em.get('meta') or {}).get('meta_vgv'))} · provável {brl((pe.get('provavel') or {}).get('vgv'))} ({pe.get('status') or '—'}) · "
+                  f"leads de tráfego pago {em.get('leads', 0)} | ano = {ea.get('vendas', 0)} vendas · VGV {brl(ea.get('vgv'))}"]
+        nomes = {"conquista": "Conquista", "map": "MAP", "terceiros": "Terceiros", "locacao": "Locação"}
+        for tk, e in sorted((mx_a.get("equipes") or {}).items(), key=lambda kv: -float(kv[1].get("vgv") or 0)):
+            m = (mx_m.get("equipes") or {}).get(tk) or {}
+            p = (pj.get("equipes") or {}).get(tk) or {}
+            linhas.append(f"  - {nomes.get(tk, tk)}: mês {m.get('vendas', 0)} ({brl(m.get('vgv'))}, meta {brl((m.get('meta') or {}).get('meta_vgv'))}, "
+                          f"provável {brl((p.get('provavel') or {}).get('vgv'))}) · ano {e.get('vendas', 0)} ({brl(e.get('vgv'))})")
+        fora = (ea.get("inativos") or {}).get("vendas", 0) + (ea.get("sem_corretor") or {}).get("vendas", 0)
+        if fora:
+            linhas.append(f"  - fora das equipes atuais (quem saiu / sem corretor): {fora} venda(s) no ano — somam só na empresa")
+        parts.append("\n".join(linhas))
+    except Exception as e:
+        print(f"[ia/chat] motor de métricas indisponível: {e}")
 
     # 2) Meta Ads — totais 7d/30d do cache compartilhado
     try:
