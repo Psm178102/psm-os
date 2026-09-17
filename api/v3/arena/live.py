@@ -12,7 +12,7 @@ def _amt(d):
     a /metrics/overview. Sem o fallback esta tela somava R$ 0 justamente nas
     vendas em que o RD grava o valor só no amount_total — e divergia do
     Dashboard, do Painel Metas e do 1:1 pro mesmo período."""
-    for v in (d.get("amount"), d.get("amt_total")):
+    for v in (d.get("amount"), d.get("amt_total"), d.get("amt_unique")):   # v88.1: + amount_unique (Dicionário §1)
         try:
             if v not in (None, "") and float(v) > 0:
                 return float(v)
@@ -41,7 +41,7 @@ class handler(BaseHTTPRequestHandler):
         events = []
         # 1. Vendas RD (deals win=true closed last 7d)
         try:
-            d = sb.table("deals").select("id,name,amount,closed_at,user_id,user_email,stage_name,amt_total:rd_raw->amount_total") \
+            d = sb.table("deals").select("id,name,amount,closed_at,user_id,user_email,stage_name,amt_total:rd_raw->amount_total,amt_unique:rd_raw->amount_unique") \
                 .eq("win", True).gte("closed_at", since).order("closed_at", desc=True).limit(20).execute().data or []
             for x in d:
                 events.append({

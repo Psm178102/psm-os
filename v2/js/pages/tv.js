@@ -229,7 +229,7 @@ function placarView() {
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px">
         ${kpiBox('🎟 Ticket médio', 'R$ ' + money(p.ticket_medio_mes), 'média da venda no mês', '#8b5cf6')}
-        ${kpiBox('📈 Pipeline', 'R$ ' + money(p.pipeline_vgv), int(p.pipeline_count) + ' negócios em aberto', '#3b82f6')}
+        ${kpiBox(p.pipeline_basis === 'ponderado' ? '📈 Pipeline ponderado' : '📈 Pipeline', 'R$ ' + money(p.pipeline_vgv), int(p.pipeline_count) + (p.pipeline_basis === 'ponderado' ? ' em atendimento · chance × valor' : ' negócios em aberto'), '#3b82f6')}
         ${kpiBox('💎 VGV no ano', 'R$ ' + money(p.vgv_ano), int(p.vendas_ano) + ' vendas em ' + new Date().getFullYear(), '#0891b2')}
       </div>
     </div>`;
@@ -255,7 +255,7 @@ function ritmoView() {
         <div style="font-size:20px;letter-spacing:2px;opacity:.8;text-transform:uppercase">🔮 Projeção de fechamento do mês</div>
         <div style="font-size:66px;font-weight:900;color:${projCor};margin-top:8px">R$ ${money(proj)}</div>
         <div style="font-size:20px;margin-top:6px;font-weight:700;color:${projCor}">
-          ${bate == null ? 'no ritmo atual' : bate ? `✅ no ritmo, BATE a meta de R$ ${money(metaVgv)}` : `⚠️ no ritmo, fica R$ ${money(Math.max(0, metaVgv - proj))} abaixo da meta`}
+          ${bate == null ? (pr.basis === 'projecao_oficial' ? 'projeção provável do mês' : 'no ritmo atual') : bate ? `✅ projeção BATE a meta de R$ ${money(metaVgv)}` : `⚠️ projeção fica R$ ${money(Math.max(0, metaVgv - proj))} abaixo da meta`}
         </div>
         ${metaVgv > 0 ? `<div style="background:rgba(0,0,0,.3);height:16px;border-radius:8px;margin-top:18px;overflow:hidden;position:relative">
           <div style="height:100%;width:${Math.min(100, proj / metaVgv * 100)}%;background:${projCor};animation:tvBar 1s ease-out"></div>
@@ -339,7 +339,7 @@ function destaquesView() {
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px">
         ${kpiBox('✅ Vendas hoje', int(d.vendas_hoje), 'R$ ' + money(d.vgv_hoje) + ' em VGV', '#16a34a')}
-        ${kpiBox('🌱 Leads hoje', int(d.leads_hoje), 'novos negócios criados hoje', '#3b82f6')}
+        ${kpiBox('🌱 Leads hoje', int(d.leads_hoje), d.interessados_hoje != null ? `de tráfego pago · ${int(d.interessados_hoje)} negócios criados hoje` : 'novos negócios criados hoje', '#3b82f6')}
         ${kpiBox('📊 vs mês anterior', (mom == null ? '—' : (mom >= 0 ? '+' : '') + pct2(mom)), 'no mesmo ponto do mês', momCor === '#94a3b8' ? '#64748b' : (mom >= 0 ? '#16a34a' : '#dc2626'))}
       </div>
     </div>`;

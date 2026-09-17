@@ -65,7 +65,8 @@ def _status(pct):
 def _amount(d):
     """Valor do deal: `amount` com fallback em rd_raw.amount_total (mesma
     régua de amount() em api/v3/oo/_oo_lib.py)."""
-    for v in (d.get("amount"), d.get("amt_total"), (d.get("rd_raw") or {}).get("amount_total") if isinstance(d.get("rd_raw"), dict) else None):
+    raw = d.get("rd_raw") if isinstance(d.get("rd_raw"), dict) else {}
+    for v in (d.get("amount"), d.get("amt_total"), d.get("amt_unique"), raw.get("amount_total"), raw.get("amount_unique")):   # v88.1: + amount_unique
         try:
             if v not in (None, ""):
                 f = float(v)
@@ -74,6 +75,253 @@ def _amount(d):
         except (TypeError, ValueError):
             pass
     return 0.0
+
+
+def calcular(sb, user, ano, force_rd=False, now=None):
+    """Meta × atingimento do ano no escopo de quem pede (sem cache). v88.1: separado do handler pro teste
+    noturno dos números entre telas (api/v3/_consistencia_lib.py) recalcular esta tela."""
+    now = now or datetime.now(timezone.utc)
+    # 1. Users com filtro de role
+    try:
+        all_users = sb.table("users").select("id,name,email,team,role,color,ini,status,is_service").execute().data or []
+        # v87.85 (Dicionário §0): contas de serviço (tv, comercial) não entram no grid
+        users = [u for u in all_users if (u.get("status") or "ativo") == "ativo" and not u.get("is_service")]
+        lvl = user.get("lvl") or 0
+        scope = "all"
+        # v86.65 (decisão do Paulo): gerente/líder lvl<10 vê SÓ a própria
+        # equipe (gerente lvl 7 via tudo); "líder" com acento também conta.
+        if lvl < 10:
+            role = (user.get("role") or "").lower()
+            if lvl >= 5 or role.startswith("lider") or role.startswith("gerente") or role == "líder":
+                team = (user.get("team") or "").strip().lower()
+                users = [u for u in users if (u.get("team") or "").strip().lower() == team]
+                scope = "team"
+            else:
+                users = [u for u in users if u.get("id") == user["id"]]
+                scope = "self"
+    except Exception as e:
+        raise RuntimeError(f"users: {e}")
+    
+    # 2. Metas do ano
+    try:
+        metas_rows = sb.table("metas").select("*").eq("ano", ano).execute().data or []
+        metas_idx = {(m["corretor_id"], m["mes"]): m for m in metas_rows}
+    except Exception as e:
+        raise RuntimeError(f"metas: {e}")
+    
+    # 3. Atingimento — primeiro tenta Postgres deals; fallback RD
+    atingido_idx = defaultdict(lambda: {"vgv": 0.0, "count": 0})
+    source = "postgres"
+    rd_error = None
+    deals_synced_at = None
+    
+    if not force_rd:
+        try:
+            # Query: deals win=true do ano (closed_at) — fronteira de ano em BRT
+            # (UTC-3): 1º/jan 00:00 BRT = 03:00 UTC
+            start = f"{ano}-01-01T03:00:00+00:00"
+            end   = f"{ano + 1}-01-01T03:00:00+00:00"
+            # v88.1 (Dicionário §0): negócio de conta de serviço (tv, comercial) é "sem corretor" — antes
+            # caía no balde "(corretor que saiu)" com o nome da conta
+            servico_ids = {u.get("id") for u in all_users if u.get("is_service")}
+            email2uid = {(u.get("email") or "").lower(): ("__sem_corretor" if u.get("is_service") else u.get("id"))
+                         for u in all_users if u.get("email")}
+            deals_rows, pg = [], 0
+            while True:
+                ch = sb.table("deals").select("user_id,user_email,closed_at,amount,synced_at,amt_total:rd_raw->amount_total,amt_unique:rd_raw->amount_unique") \
+                    .eq("win", True).gte("closed_at", start).lt("closed_at", end) \
+                    .order("id").range(pg * 1000, pg * 1000 + 999).execute().data or []
+                deals_rows.extend(ch)
+                if len(ch) < 1000 or pg >= 10:
+                    break
+                pg += 1
+            if deals_rows:
+                for d in deals_rows:
+                    # v86.65: deal sem user_id resolve pelo e-mail do dono
+                    # v86.72: sem corretor casado NÃO some mais — vira o bucket
+                    # "__sem_corretor" (era `continue`, e a venda não contava em lugar nenhum)
+                    uid = d.get("user_id") or email2uid.get((d.get("user_email") or "").lower()) or "__sem_corretor"
+                    if uid in servico_ids:
+                        uid = "__sem_corretor"
+                    ca = d.get("closed_at")
+                    if not ca: continue
+                    try:
+                        dt = datetime.fromisoformat(str(ca).replace("Z", "+00:00"))
+                        if dt.tzinfo is not None:
+                            dt = dt.astimezone(timezone.utc)
+                        mes = (dt - timedelta(hours=3)).month   # mês em BRT
+                    except Exception:
+                        continue
+                    atingido_idx[(uid, mes)]["vgv"] += _amount(d)
+                    atingido_idx[(uid, mes)]["count"] += 1
+                    # Track latest synced_at
+                    sy = d.get("synced_at")
+                    if sy and (deals_synced_at is None or sy > deals_synced_at):
+                        deals_synced_at = sy
+            else:
+                # Vazio - tenta RD direto
+                source = "rd_fallback"
+        except Exception as e:
+            source = "rd_fallback"
+            rd_error = f"postgres deals err: {e}"
+    
+    if source != "postgres" or force_rd:
+        token = os.environ.get("RD_API_TOKEN")
+        if not token:
+            rd_error = (rd_error or "") + " | RD_API_TOKEN ausente"
+        else:
+            users_by_email = {(u.get("email") or "").lower(): u for u in users if u.get("email")}
+            r = _rd_deals_won(token)
+            if r.get("error"):
+                rd_error = r["error"]
+            else:
+                source = "rd_live"
+                # v87.59 (auditoria 08/set): este caminho de emergência contava
+                # DIFERENTE do caminho normal — mesmo endpoint, mesmo mês, dois
+                # números. Duas correções pra alinhar:
+                #   (a) data: era `closed_at or updated_at`. O updated_at muda a
+                #       cada toque no deal, então uma venda de março reeditada em
+                #       agosto virava venda de agosto. Agora é closed_at estrito,
+                #       igual ao caminho Postgres e ao resto do sistema.
+                #   (b) dono: venda de corretor não cadastrado era DESCARTADA
+                #       (`continue`), sumindo do total da empresa. Agora cai no
+                #       balde "__sem_corretor", que é o que a v86.72 já fazia do
+                #       lado do Postgres.
+                for d in r["deals"]:
+                    ca = d.get("closed_at")
+                    if not ca: continue
+                    try:
+                        dt = datetime.fromisoformat(str(ca).replace("Z", "+00:00"))
+                        if dt.tzinfo is not None:
+                            dt = dt.astimezone(timezone.utc)
+                        dt = dt - timedelta(hours=3)   # BRT
+                        if dt.year != ano: continue
+                        mes = dt.month
+                    except Exception:
+                        continue
+                    user_d = d.get("user") or {}
+                    email = (user_d.get("email") or "").lower() if isinstance(user_d, dict) else ""
+                    u = users_by_email.get(email)
+                    uid = u["id"] if u else "__sem_corretor"
+                    amt = float(d.get("amount_total") or d.get("amount_unique") or 0)
+                    atingido_idx[(uid, mes)]["vgv"] += amt
+                    atingido_idx[(uid, mes)]["count"] += 1
+    
+    # 4. Compose grid
+    grid = []
+    tot_meta = 0.0; tot_atingido = 0.0; tot_count = 0
+    for u in users:
+        row_meta = 0.0; row_atingido = 0.0; row_count = 0
+        cells = []
+        for mes in range(1, 13):
+            meta = metas_idx.get((u["id"], mes))
+            meta_vgv = float(meta.get("meta_vgv") or 0) if meta else 0.0
+            at = atingido_idx.get((u["id"], mes), {"vgv": 0.0, "count": 0})
+            pct = (at["vgv"] / meta_vgv * 100) if meta_vgv > 0 else (None if at["vgv"] == 0 else 9999)
+            cells.append({
+                "ano": ano, "mes": mes,
+                "meta_vgv": meta_vgv,
+                "meta_vendas": int(meta.get("meta_vendas") or 0) if meta else 0,
+                "meta_visitas": int(meta.get("meta_visitas") or 0) if meta else 0,
+                "meta_pastas": int(meta.get("meta_pastas") or 0) if meta else 0,
+                "meta_propostas": int(meta.get("meta_propostas") or 0) if meta else 0,
+                "meta_agendamentos": int(meta.get("meta_agendamentos") or 0) if meta else 0,
+                "atingido_vgv": at["vgv"],
+                "vendas_count": at["count"],
+                "pct": pct,
+                "status": _status(pct),
+            })
+            row_meta += meta_vgv; row_atingido += at["vgv"]; row_count += at["count"]
+        row_pct = (row_atingido / row_meta * 100) if row_meta > 0 else None
+        grid.append({
+            "user": u,
+            "cells": cells,
+            "totals": {"meta_vgv": row_meta, "atingido_vgv": row_atingido,
+                       "vendas_count": row_count, "pct": row_pct,
+                       "status": _status(row_pct)},
+        })
+        tot_meta += row_meta; tot_atingido += row_atingido; tot_count += row_count
+    
+    # ── VGV REAL: inclui vendas de corretores que SAÍRAM (status != ativo).
+    # O grid/ranking acima fica só com ATIVOS; aqui o TOTAL e o por_corretor
+    # passam a contar TODAS as vendas casadas, inclusive de quem deixou a empresa
+    # (a venda foi realizada de verdade). Respeita o escopo do usuário.
+    all_idx = {u["id"]: u for u in all_users}
+    grid_ids = {g["user"].get("id") for g in grid}
+    def _in_scope(uid):
+        if scope == "all":
+            return True
+        u = all_idx.get(uid)
+        if not u:
+            return False
+        if scope == "team":
+            return (u.get("team") or "").lower() == (user.get("team") or "").lower()
+        return uid == user["id"]
+    extra_corretores = []
+    fora_grid_mensal = {}   # v86.72: {mes: {vendas, vgv}} — desligados + sem corretor, pro grid da tela FECHAR com o total
+    for uid in {k[0] for k in atingido_idx.keys()}:
+        if not uid or uid in grid_ids:
+            continue
+        if uid != "__sem_corretor" and not _in_scope(uid):
+            continue
+        if uid == "__sem_corretor" and scope != "all":
+            continue
+        for m in range(1, 13):
+            a = atingido_idx.get((uid, m))
+            if a and (a["count"] or a["vgv"]):
+                fg = fora_grid_mensal.setdefault(m, {"vendas": 0, "vgv": 0.0})
+                fg["vendas"] += a["count"]
+                fg["vgv"] += a["vgv"]
+        av = sum(atingido_idx[(uid, m)]["vgv"] for m in range(1, 13) if (uid, m) in atingido_idx)
+        ac = sum(atingido_idx[(uid, m)]["count"] for m in range(1, 13) if (uid, m) in atingido_idx)
+        if av == 0 and ac == 0:
+            continue
+        u = all_idx.get(uid) or {}
+        tot_atingido += av
+        tot_count += ac
+        extra_corretores.append({
+            "id": uid, "name": "(sem corretor casado no RD)" if uid == "__sem_corretor" else (u.get("name") or "(corretor que saiu)"),
+            "team": u.get("team") or u.get("equipe") or u.get("frente"),
+            "role": u.get("role"), "vgv_atingido": av, "meta_vgv": 0.0,
+            "vendas": ac, "pct": None, "inativo": True,
+        })
+    
+    # Visão achatada por corretor (consumida por relatorios, war-room/arena,
+    # sr-gerencia/performance, metricas-viab — todos esperavam `por_corretor`).
+    # Ativos (com meta/ranking) + os que saíram mas venderam (VGV conta no total).
+    por_corretor = [{
+        "id": g["user"].get("id"),
+        "name": g["user"].get("name"),
+        "team": g["user"].get("team") or g["user"].get("equipe") or g["user"].get("frente"),
+        "role": g["user"].get("role"),
+        "vgv_atingido": g["totals"]["atingido_vgv"],
+        "meta_vgv": g["totals"]["meta_vgv"],
+        "vendas": g["totals"]["vendas_count"],
+        "pct": g["totals"]["pct"],
+        "inativo": False,
+    } for g in grid] + extra_corretores
+    
+    result = {
+        "ok": True, "cached": False, "ano": ano, "scope": scope,
+        "source": source, "deals_synced_at": deals_synced_at,
+        "totals": {
+            "meta_vgv": tot_meta, "atingido_vgv": tot_atingido,
+            "vendas_count": tot_count,
+            "pct": (tot_atingido / tot_meta * 100) if tot_meta > 0 else None,
+        },
+        # aliases de topo (metricas-viab lê total_vgv/total_vendas)
+        "total_vgv": tot_atingido,
+        "total_vendas": tot_count,
+        # v86.72: por mês, vendas/VGV de quem está FORA do grid (desligados + sem
+        # corretor casado) — a tela soma isso numa linha própria e o grid FECHA com o total
+        "fora_do_grid_mensal": {str(m): {"vendas": v["vendas"], "vgv": round(v["vgv"], 2)}
+                                for m, v in sorted(fora_grid_mensal.items())},
+        "por_corretor": por_corretor,
+        "grid": grid,
+        "rd_error": rd_error,
+        "fetched_at": now.isoformat(),
+    }
+    return result
 
 
 class handler(BaseHTTPRequestHandler):
@@ -123,239 +371,9 @@ class handler(BaseHTTPRequestHandler):
                 out = dict(cached); out["cached"] = True; out["cache_age_s"] = int(time.time() - ts)
                 return self._send(200, out)
 
-        # 1. Users com filtro de role
         try:
-            all_users = sb.table("users").select("id,name,email,team,role,color,ini,status,is_service").execute().data or []
-            # v87.85 (Dicionário §0): contas de serviço (tv, comercial) não entram no grid
-            users = [u for u in all_users if (u.get("status") or "ativo") == "ativo" and not u.get("is_service")]
-            lvl = user.get("lvl") or 0
-            scope = "all"
-            # v86.65 (decisão do Paulo): gerente/líder lvl<10 vê SÓ a própria
-            # equipe (gerente lvl 7 via tudo); "líder" com acento também conta.
-            if lvl < 10:
-                role = (user.get("role") or "").lower()
-                if lvl >= 5 or role.startswith("lider") or role.startswith("gerente") or role == "líder":
-                    team = (user.get("team") or "").strip().lower()
-                    users = [u for u in users if (u.get("team") or "").strip().lower() == team]
-                    scope = "team"
-                else:
-                    users = [u for u in users if u.get("id") == user["id"]]
-                    scope = "self"
-        except Exception as e:
-            return self._send(500, {"ok": False, "error": f"users: {e}"})
-
-        # 2. Metas do ano
-        try:
-            metas_rows = sb.table("metas").select("*").eq("ano", ano).execute().data or []
-            metas_idx = {(m["corretor_id"], m["mes"]): m for m in metas_rows}
-        except Exception as e:
-            return self._send(500, {"ok": False, "error": f"metas: {e}"})
-
-        # 3. Atingimento — primeiro tenta Postgres deals; fallback RD
-        atingido_idx = defaultdict(lambda: {"vgv": 0.0, "count": 0})
-        source = "postgres"
-        rd_error = None
-        deals_synced_at = None
-
-        if not force_rd:
-            try:
-                # Query: deals win=true do ano (closed_at) — fronteira de ano em BRT
-                # (UTC-3): 1º/jan 00:00 BRT = 03:00 UTC
-                start = f"{ano}-01-01T03:00:00+00:00"
-                end   = f"{ano + 1}-01-01T03:00:00+00:00"
-                email2uid = {(u.get("email") or "").lower(): u.get("id") for u in all_users if u.get("email")}
-                deals_rows, pg = [], 0
-                while True:
-                    ch = sb.table("deals").select("user_id,user_email,closed_at,amount,synced_at,amt_total:rd_raw->amount_total") \
-                        .eq("win", True).gte("closed_at", start).lt("closed_at", end) \
-                        .order("id").range(pg * 1000, pg * 1000 + 999).execute().data or []
-                    deals_rows.extend(ch)
-                    if len(ch) < 1000 or pg >= 10:
-                        break
-                    pg += 1
-                if deals_rows:
-                    for d in deals_rows:
-                        # v86.65: deal sem user_id resolve pelo e-mail do dono
-                        # v86.72: sem corretor casado NÃO some mais — vira o bucket
-                        # "__sem_corretor" (era `continue`, e a venda não contava em lugar nenhum)
-                        uid = d.get("user_id") or email2uid.get((d.get("user_email") or "").lower()) or "__sem_corretor"
-                        ca = d.get("closed_at")
-                        if not ca: continue
-                        try:
-                            dt = datetime.fromisoformat(str(ca).replace("Z", "+00:00"))
-                            if dt.tzinfo is not None:
-                                dt = dt.astimezone(timezone.utc)
-                            mes = (dt - timedelta(hours=3)).month   # mês em BRT
-                        except Exception:
-                            continue
-                        atingido_idx[(uid, mes)]["vgv"] += _amount(d)
-                        atingido_idx[(uid, mes)]["count"] += 1
-                        # Track latest synced_at
-                        sy = d.get("synced_at")
-                        if sy and (deals_synced_at is None or sy > deals_synced_at):
-                            deals_synced_at = sy
-                else:
-                    # Vazio - tenta RD direto
-                    source = "rd_fallback"
-            except Exception as e:
-                source = "rd_fallback"
-                rd_error = f"postgres deals err: {e}"
-
-        if source != "postgres" or force_rd:
-            token = os.environ.get("RD_API_TOKEN")
-            if not token:
-                rd_error = (rd_error or "") + " | RD_API_TOKEN ausente"
-            else:
-                users_by_email = {(u.get("email") or "").lower(): u for u in users if u.get("email")}
-                r = _rd_deals_won(token)
-                if r.get("error"):
-                    rd_error = r["error"]
-                else:
-                    source = "rd_live"
-                    # v87.59 (auditoria 08/set): este caminho de emergência contava
-                    # DIFERENTE do caminho normal — mesmo endpoint, mesmo mês, dois
-                    # números. Duas correções pra alinhar:
-                    #   (a) data: era `closed_at or updated_at`. O updated_at muda a
-                    #       cada toque no deal, então uma venda de março reeditada em
-                    #       agosto virava venda de agosto. Agora é closed_at estrito,
-                    #       igual ao caminho Postgres e ao resto do sistema.
-                    #   (b) dono: venda de corretor não cadastrado era DESCARTADA
-                    #       (`continue`), sumindo do total da empresa. Agora cai no
-                    #       balde "__sem_corretor", que é o que a v86.72 já fazia do
-                    #       lado do Postgres.
-                    for d in r["deals"]:
-                        ca = d.get("closed_at")
-                        if not ca: continue
-                        try:
-                            dt = datetime.fromisoformat(str(ca).replace("Z", "+00:00"))
-                            if dt.tzinfo is not None:
-                                dt = dt.astimezone(timezone.utc)
-                            dt = dt - timedelta(hours=3)   # BRT
-                            if dt.year != ano: continue
-                            mes = dt.month
-                        except Exception:
-                            continue
-                        user_d = d.get("user") or {}
-                        email = (user_d.get("email") or "").lower() if isinstance(user_d, dict) else ""
-                        u = users_by_email.get(email)
-                        uid = u["id"] if u else "__sem_corretor"
-                        amt = float(d.get("amount_total") or d.get("amount_unique") or 0)
-                        atingido_idx[(uid, mes)]["vgv"] += amt
-                        atingido_idx[(uid, mes)]["count"] += 1
-
-        # 4. Compose grid
-        grid = []
-        tot_meta = 0.0; tot_atingido = 0.0; tot_count = 0
-        for u in users:
-            row_meta = 0.0; row_atingido = 0.0; row_count = 0
-            cells = []
-            for mes in range(1, 13):
-                meta = metas_idx.get((u["id"], mes))
-                meta_vgv = float(meta.get("meta_vgv") or 0) if meta else 0.0
-                at = atingido_idx.get((u["id"], mes), {"vgv": 0.0, "count": 0})
-                pct = (at["vgv"] / meta_vgv * 100) if meta_vgv > 0 else (None if at["vgv"] == 0 else 9999)
-                cells.append({
-                    "ano": ano, "mes": mes,
-                    "meta_vgv": meta_vgv,
-                    "meta_vendas": int(meta.get("meta_vendas") or 0) if meta else 0,
-                    "meta_visitas": int(meta.get("meta_visitas") or 0) if meta else 0,
-                    "meta_pastas": int(meta.get("meta_pastas") or 0) if meta else 0,
-                    "meta_propostas": int(meta.get("meta_propostas") or 0) if meta else 0,
-                    "meta_agendamentos": int(meta.get("meta_agendamentos") or 0) if meta else 0,
-                    "atingido_vgv": at["vgv"],
-                    "vendas_count": at["count"],
-                    "pct": pct,
-                    "status": _status(pct),
-                })
-                row_meta += meta_vgv; row_atingido += at["vgv"]; row_count += at["count"]
-            row_pct = (row_atingido / row_meta * 100) if row_meta > 0 else None
-            grid.append({
-                "user": u,
-                "cells": cells,
-                "totals": {"meta_vgv": row_meta, "atingido_vgv": row_atingido,
-                           "vendas_count": row_count, "pct": row_pct,
-                           "status": _status(row_pct)},
-            })
-            tot_meta += row_meta; tot_atingido += row_atingido; tot_count += row_count
-
-        # ── VGV REAL: inclui vendas de corretores que SAÍRAM (status != ativo).
-        # O grid/ranking acima fica só com ATIVOS; aqui o TOTAL e o por_corretor
-        # passam a contar TODAS as vendas casadas, inclusive de quem deixou a empresa
-        # (a venda foi realizada de verdade). Respeita o escopo do usuário.
-        all_idx = {u["id"]: u for u in all_users}
-        grid_ids = {g["user"].get("id") for g in grid}
-        def _in_scope(uid):
-            if scope == "all":
-                return True
-            u = all_idx.get(uid)
-            if not u:
-                return False
-            if scope == "team":
-                return (u.get("team") or "").lower() == (user.get("team") or "").lower()
-            return uid == user["id"]
-        extra_corretores = []
-        fora_grid_mensal = {}   # v86.72: {mes: {vendas, vgv}} — desligados + sem corretor, pro grid da tela FECHAR com o total
-        for uid in {k[0] for k in atingido_idx.keys()}:
-            if not uid or uid in grid_ids:
-                continue
-            if uid != "__sem_corretor" and not _in_scope(uid):
-                continue
-            if uid == "__sem_corretor" and scope != "all":
-                continue
-            for m in range(1, 13):
-                a = atingido_idx.get((uid, m))
-                if a and (a["count"] or a["vgv"]):
-                    fg = fora_grid_mensal.setdefault(m, {"vendas": 0, "vgv": 0.0})
-                    fg["vendas"] += a["count"]
-                    fg["vgv"] += a["vgv"]
-            av = sum(atingido_idx[(uid, m)]["vgv"] for m in range(1, 13) if (uid, m) in atingido_idx)
-            ac = sum(atingido_idx[(uid, m)]["count"] for m in range(1, 13) if (uid, m) in atingido_idx)
-            if av == 0 and ac == 0:
-                continue
-            u = all_idx.get(uid) or {}
-            tot_atingido += av
-            tot_count += ac
-            extra_corretores.append({
-                "id": uid, "name": "(sem corretor casado no RD)" if uid == "__sem_corretor" else (u.get("name") or "(corretor que saiu)"),
-                "team": u.get("team") or u.get("equipe") or u.get("frente"),
-                "role": u.get("role"), "vgv_atingido": av, "meta_vgv": 0.0,
-                "vendas": ac, "pct": None, "inativo": True,
-            })
-
-        # Visão achatada por corretor (consumida por relatorios, war-room/arena,
-        # sr-gerencia/performance, metricas-viab — todos esperavam `por_corretor`).
-        # Ativos (com meta/ranking) + os que saíram mas venderam (VGV conta no total).
-        por_corretor = [{
-            "id": g["user"].get("id"),
-            "name": g["user"].get("name"),
-            "team": g["user"].get("team") or g["user"].get("equipe") or g["user"].get("frente"),
-            "role": g["user"].get("role"),
-            "vgv_atingido": g["totals"]["atingido_vgv"],
-            "meta_vgv": g["totals"]["meta_vgv"],
-            "vendas": g["totals"]["vendas_count"],
-            "pct": g["totals"]["pct"],
-            "inativo": False,
-        } for g in grid] + extra_corretores
-
-        result = {
-            "ok": True, "cached": False, "ano": ano, "scope": scope,
-            "source": source, "deals_synced_at": deals_synced_at,
-            "totals": {
-                "meta_vgv": tot_meta, "atingido_vgv": tot_atingido,
-                "vendas_count": tot_count,
-                "pct": (tot_atingido / tot_meta * 100) if tot_meta > 0 else None,
-            },
-            # aliases de topo (metricas-viab lê total_vgv/total_vendas)
-            "total_vgv": tot_atingido,
-            "total_vendas": tot_count,
-            # v86.72: por mês, vendas/VGV de quem está FORA do grid (desligados + sem
-            # corretor casado) — a tela soma isso numa linha própria e o grid FECHA com o total
-            "fora_do_grid_mensal": {str(m): {"vendas": v["vendas"], "vgv": round(v["vgv"], 2)}
-                                    for m, v in sorted(fora_grid_mensal.items())},
-            "por_corretor": por_corretor,
-            "grid": grid,
-            "rd_error": rd_error,
-            "fetched_at": now.isoformat(),
-        }
+            result = calcular(sb, user, ano, force_rd, now)
+        except RuntimeError as e:
+            return self._send(500, {"ok": False, "error": str(e)})
         _cache[cache_key] = (time.time(), result)
         return self._send(200, result)

@@ -23,6 +23,9 @@ from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
+_V3 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _V3 not in sys.path:
+    sys.path.append(_V3)
 
 BRT = timedelta(hours=-3)
 
@@ -30,7 +33,8 @@ BRT = timedelta(hours=-3)
 def _all_deals(sb):
     rows, page = [], 0
     while True:
-        q = sb.table("deals").select("id,amount,closed_at,created_at_rd,user_id,win,pipeline_name,amt_total:rd_raw->amount_total") \
+        q = sb.table("deals").select("id,amount,closed_at,created_at_rd,user_id,win,pipeline_name,amt_total:rd_raw->amount_total,"
+                                     "amt_unique:rd_raw->amount_unique,src:rd_raw->deal_source->>name") \
             .order("id").range(page * 1000, page * 1000 + 999)
         chunk = q.execute().data or []
         rows.extend(chunk)
@@ -62,8 +66,8 @@ def _dt(r):
 
 
 def _amt(r):
-    """VGV = amount, com fallback em rd_raw.amount_total (Dicionário §1; igual a metrics/overview)."""
-    for v in (r.get("amount"), r.get("amt_total")):
+    """VGV = amount → rd_raw.amount_total → amount_unique (Dicionário §1; igual ao motor único)."""
+    for v in (r.get("amount"), r.get("amt_total"), r.get("amt_unique")):
         try:
             if v not in (None, "") and float(v) > 0:
                 return float(v)
@@ -159,7 +163,7 @@ def _build(sb):
     except Exception:
         pass
 
-    return {
+    out = {
         "placar": {
             "vgv_mes": vgv_mes, "vendas_mes": len(wins_mes),
             "ticket_medio_mes": (vgv_mes / len(wins_mes)) if wins_mes else 0,
@@ -183,6 +187,65 @@ def _build(sb):
                  "visitas_total": len(visitas)},
         "gerado_em": now.isoformat(),
     }
+    return _aplicar_motor(sb, out, deals, hoje_ini)
+
+
+def _aplicar_motor(sb, out, deals, hoje_ini):
+    """v88.1 (Dicionário de Métricas) — o placar da TV fala a mesma língua das telas de gestão.
+    Vendas e VGV (mês, ano, hoje, mês anterior) continuam desta passada: já contam TODA venda ganha, igual ao
+    total da empresa do motor (§1). Vêm do motor/projeção oficial o que a TV calculava do jeito dela:
+      • meta do mês = metas das pessoas ATIVAS não-serviço (somava toda linha da tabela, inclusive quem saiu);
+      • dias úteis seg–sáb (eram seg–sex), projeção de fechamento = Provável oficial, 'precisa por dia' e
+        'bate a meta' pelo status da projeção (era run-rate próprio);
+      • leads de hoje = negócios criados hoje com origem de tráfego pago (§2) — contava todo negócio criado;
+      • pipeline = pipeline ponderado do motor sobre os abertos (era a soma crua do valor de tudo que está aberto)."""
+    import _metricas_lib as MX
+    import _projecao_lib as PJ
+    hoje = MX.hoje_brt()
+    avisos = []
+    try:
+        mapa = MX.mapa_origens(sb)
+        out["destaques"]["leads_hoje"] = sum(1 for r in deals if (r.get("created_at_rd") or "") >= hoje_ini
+                                             and MX.origem_categoria(r.get("src"), mapa)[0] in MX.LEAD_CATS)
+        out["destaques"]["interessados_hoje"] = sum(1 for r in deals if (r.get("created_at_rd") or "") >= hoje_ini)
+    except Exception as e:
+        avisos.append(f"leads de hoje: {e}")
+    try:
+        mx = MX.resumo(sb, {"since": hoje.replace(day=1).isoformat(), "until": hoje.isoformat()})
+        e = mx.get("empresa") or {}
+        mt = e.get("meta") or {}
+        pl = out["placar"]
+        meta_vgv = float(mt.get("meta_vgv") or 0)
+        out["meta"] = {"meta_vgv": meta_vgv, "meta_vendas": int(mt.get("meta_vendas") or 0),
+                       "pct": (pl["vgv_mes"] / meta_vgv * 100) if meta_vgv > 0 else None,
+                       "falta": max(0.0, meta_vgv - pl["vgv_mes"])}
+        pp = e.get("pipeline") or {}
+        pl["pipeline_vgv"] = pp.get("ponderado_vgv", pl["pipeline_vgv"])
+        pl["pipeline_count"] = e.get("em_atendimento", pl["pipeline_count"])
+        pl["pipeline_basis"] = "ponderado"
+        out["dados_de_hhmm"] = mx.get("dados_de_hhmm")
+    except Exception as ex:
+        avisos.append(f"motor: {ex}")
+    try:
+        pj = PJ.projecao(sb, {"h": "mes"})
+        pe = pj.get("empresa")
+        du = (pj.get("horizonte") or {}).get("dias_uteis") or {}
+        if pe and du:
+            pr = out["projecao"]
+            real = out["placar"]["vgv_mes"]
+            pr.update({"uteis_total": du.get("total"), "uteis_decorridos": du.get("decorridos"), "uteis_restantes": du.get("restantes"),
+                       "run_rate_dia": (real / du["decorridos"]) if du.get("decorridos") else 0,
+                       "projecao_fim": pe["provavel"]["vgv"],
+                       "projecao_faixa": [pe["conservador"]["vgv"], pe["otimista"]["vgv"]],
+                       "precisa_por_dia": pe.get("por_dia_util_vgv") or 0,
+                       "bate_meta": (pe["status"] in ("batida", "no_ritmo")) if pe["status"] != "sem_meta" else None,
+                       "status": pe["status"], "basis": "projecao_oficial"})
+    except Exception as ex:
+        avisos.append(f"projeção: {ex}")
+    if avisos:
+        out["avisos_motor"] = avisos
+        print("[arena/tv] " + " | ".join(avisos))
+    return out
 
 
 class handler(BaseHTTPRequestHandler):

@@ -12,9 +12,13 @@ Tolerância: contagem exata; valor em R$ até R$ 1 (arredondamento).
 Entradas: comparar(sb, hoje) → {"ok", "falhas", "checks", "janela", "ts"}. O endpoint é
 /api/v3/system/consistency (?cron=1 roda, grava shared_kv consistencia_telas:<data> e avisa os sócios).
 """
+import importlib.util
+import os
 from datetime import datetime, timedelta, timezone
 
 import _metricas_lib as MX
+
+_V3 = os.path.dirname(os.path.abspath(__file__))
 
 KV_PREFIXO = "consistencia_telas:"
 TOL_VALOR = 1.0
@@ -52,11 +56,40 @@ class Checagem:
                            "obtido": None, "ok": bool(ok), "msg": msg})
 
 
+class Contexto:
+    """Retratos do motor carregados uma vez só por rodada (mês, ano, hoje, projeção)."""
+    def __init__(self, sb, hoje, mx):
+        self.sb, self.hoje, self.mx, self._c = sb, hoje, mx, {}
+
+    def _get(self, k, fn):
+        if k not in self._c:
+            self._c[k] = fn()
+        return self._c[k]
+
+    def ano(self):
+        return self._get("ano", lambda: MX.resumo(self.sb, {"since": self.hoje.replace(month=1, day=1).isoformat(),
+                                                            "until": self.hoje.isoformat()}, hoje=self.hoje))
+
+    def dia(self):
+        return self._get("dia", lambda: MX.resumo(self.sb, {"since": self.hoje.isoformat(), "until": self.hoje.isoformat()}, hoje=self.hoje))
+
+    def pj(self):
+        import _projecao_lib as PJ
+        return self._get("pj", lambda: PJ.projecao(self.sb, {"h": "mes"}, fresh=True, hoje=self.hoje))
+
+
+def _tela(rel, nome):
+    """Carrega o módulo de uma tela (api/v3/<rel>) sem passar pelo handler HTTP."""
+    spec = importlib.util.spec_from_file_location(nome, os.path.join(_V3, rel))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 # ─── verificações ────────────────────────────────────────────────────────────
-def _projecao(ck, sb, mx):
+def _projecao(ck, ctx):
     """🎯 Meta · Realizado · Projeção (Gestão Comercial, 1:1, Cérebro, Meu dia): realizado do mês = motor."""
-    import _projecao_lib as PJ
-    pj = PJ.projecao(sb, {"h": "mes"}, fresh=True)
+    mx, pj = ctx.mx, ctx.pj()
     alvo = [("_empresa", mx.get("empresa"), pj.get("empresa"))]
     alvo += [(tk, e, (pj.get("equipes") or {}).get(tk)) for tk, e in (mx.get("equipes") or {}).items()]
     for esc, b, p in alvo:
@@ -84,8 +117,53 @@ def _frescor(ck, sb, hoje):
              f"Sync do RD parado há {idade_h:.1f} h (dados de {ts.strftime('%d/%m %H:%M')}) — todas as telas estão com número velho.")
 
 
+def _metas(ck, ctx):
+    """📊 Metas / Ranking / Relatórios / Sr. Gerência (metas/atingimento): vendas, VGV e meta do mês e do ano."""
+    AT = _tela("metas/atingimento.py", "_cons_metas_atingimento")
+    h = ctx.hoje
+    r = AT.calcular(ctx.sb, {"id": "_consistencia", "lvl": 10, "role": "socio"}, h.year)
+    fora = r.get("fora_do_grid_mensal") or {}
+    cel = [c for g in r["grid"] for c in g["cells"] if c["mes"] == h.month]
+    e = ctx.mx["empresa"]
+    ck.comparar("metas_vendas_mes", "Metas", "vendas do mês", "_empresa", e["vendas"],
+                sum(c["vendas_count"] for c in cel) + (fora.get(str(h.month)) or {}).get("vendas", 0))
+    ck.comparar("metas_vgv_mes", "Metas", "VGV do mês", "_empresa", e["vgv"],
+                sum(c["atingido_vgv"] for c in cel) + (fora.get(str(h.month)) or {}).get("vgv", 0), valor=True)
+    ck.comparar("metas_meta_mes", "Metas", "meta de VGV do mês", "_empresa", (e.get("meta") or {}).get("meta_vgv"),
+                sum(c["meta_vgv"] for c in cel), valor=True)
+    ea = ctx.ano()["empresa"]
+    ck.comparar("metas_vendas_ano", "Metas", "vendas do ano", "_empresa", ea["vendas"], r["totals"]["vendas_count"])
+    ck.comparar("metas_vgv_ano", "Metas", "VGV do ano", "_empresa", ea["vgv"], r["totals"]["atingido_vgv"], valor=True)
+    for g in r["grid"]:
+        b = (ctx.mx.get("pessoas") or {}).get(g["user"].get("id"))
+        c = next((c for c in g["cells"] if c["mes"] == h.month), None)
+        if b and c:
+            ck.comparar("metas_pessoa_vgv", "Metas", "VGV do mês", b.get("name") or b["id"], b["vgv"], c["atingido_vgv"], valor=True)
+
+
+def _tv(ck, ctx):
+    """📺 Modo TV (arena/tv): placar, meta, pipeline, projeção de fechamento e leads de hoje."""
+    TV = _tela("arena/tv.py", "_cons_arena_tv")
+    out = TV._build(ctx.sb)
+    pl, mt, pr, de = out["placar"], out["meta"], out["projecao"], out["destaques"]
+    e = ctx.mx["empresa"]
+    ck.comparar("tv_vendas_mes", "Modo TV", "vendas do mês", "_empresa", e["vendas"], pl["vendas_mes"])
+    ck.comparar("tv_vgv_mes", "Modo TV", "VGV do mês", "_empresa", e["vgv"], pl["vgv_mes"], valor=True)
+    ck.comparar("tv_meta_mes", "Modo TV", "meta de VGV do mês", "_empresa", (e.get("meta") or {}).get("meta_vgv"), mt["meta_vgv"], valor=True)
+    ck.comparar("tv_em_atendimento", "Modo TV", "negócios em atendimento", "_empresa", e["em_atendimento"], pl["pipeline_count"])
+    ea = ctx.ano()["empresa"]
+    ck.comparar("tv_vendas_ano", "Modo TV", "vendas do ano", "_empresa", ea["vendas"], pl["vendas_ano"])
+    ck.comparar("tv_vgv_ano", "Modo TV", "VGV do ano", "_empresa", ea["vgv"], pl["vgv_ano"], valor=True)
+    pe = ctx.pj().get("empresa")
+    if pe:
+        ck.comparar("tv_projecao", "Modo TV", "projeção de fechamento", "_empresa", pe["provavel"]["vgv"], pr["projecao_fim"], valor=True)
+    ck.comparar("tv_leads_hoje", "Modo TV", "leads de hoje", "_empresa", ctx.dia()["empresa"]["leads"], de["leads_hoje"])
+
+
 VERIFICACOES = (
     ("projecao", _projecao),
+    ("metas", _metas),
+    ("tv", _tv),
 )
 
 
@@ -98,9 +176,10 @@ def comparar(sb, hoje=None):
     except Exception as e:
         ck.falhou("motor", "Motor único", e)
         return _fechar(ck, since, until)
+    ctx = Contexto(sb, hoje, mx)
     for nome, fn in VERIFICACOES:
         try:
-            fn(ck, sb, mx)
+            fn(ck, ctx)
         except Exception as e:
             ck.falhou(nome, nome, e)
     try:
