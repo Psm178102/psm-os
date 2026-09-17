@@ -738,71 +738,17 @@ def broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, det
         "meta_agendamentos": mv.get("meta_agendamentos", 0), "real_agendamentos": funnel[2],
     }
 
-    # ── Health score (0-100) + cor ──
-    attain = (vgv / mv["meta_vgv"]) if mv.get("meta_vgv") else None
-    pace = 1.0
-    days_total = (until_d - since_d).days + 1
-    days_elapsed = max(1, min(days_total, (today - since_d).days + 1))
-    pace = days_elapsed / days_total if days_total else 1.0
-    # componentes (cada 0..1)
-    c_meta = min(1.0, (attain / pace)) if (attain is not None and pace) else (0.5 if attain is None else min(1.0, attain))
-    c_ativ = min(1.0, funnel[3] / max(1, mv.get("meta_visitas") or 8))   # visitas vs meta (ou 8 baseline)
-    c_conv = min(1.0, (win_rate or 0) / 15.0)                            # 15% lead→venda = ótimo
-    has_meta = bool(mv.get("meta_vgv") or mv.get("meta_visitas"))
-    if has_meta:
-        health = round(100 * (0.5 * c_meta + 0.3 * c_ativ + 0.2 * c_conv))
-    else:
-        health = round(100 * (0.6 * c_ativ + 0.4 * c_conv))
-    health = max(0, min(100, health))
+    # ── Health score (0-100) + cor ── (v87.97: fórmulas em _saude/_alertas/_funil_reverso, reusadas
+    # por aplicar_dicionario pra recalcular com os números do motor único)
+    health, health_color, attain, pace = _saude(vgv, funnel[3], win_rate, mv, since_d, until_d, today)
     out["health"] = health
-    out["health_color"] = "verde" if health >= 70 else ("amarelo" if health >= 40 else "vermelho")
+    out["health_color"] = health_color
     out["meta_attainment_pct"] = round(attain * 100, 2) if attain is not None else None
-
-    # ── Alertas automáticos ──
-    alerts = []
-    if funnel[3] == 0:
-        alerts.append({"level": "alto", "txt": "0 visitas no período"})
-    if funnel[4] == 0:
-        alerts.append({"level": "medio", "txt": "Nenhuma proposta no período"})
-    if vendas == 0 and perdas > 0:
-        alerts.append({"level": "alto", "txt": f"Sem vendas ({perdas} perdas no período)"})
-    if sem_contato > 0:
-        alerts.append({"level": "alto", "txt": f"{sem_contato} lead(s) sem 1º contato há +48h"})
-    if stuck > 0:
-        alerts.append({"level": "medio", "txt": f"{stuck} negócio(s) parado(s) há +14 dias"})
-    if attain is not None and pace and attain < pace * 0.7:
-        alerts.append({"level": "medio", "txt": f"Abaixo do ritmo da meta ({out['meta_attainment_pct']}% atingido)"})
-    if (out["primeiro_contato_h"] or 0) > 24:
-        alerts.append({"level": "medio", "txt": f"1º contato lento (~{out['primeiro_contato_h']}h)"})
-    out["alertas"] = alerts
-
-    # ── 🎯 FUNIL REVERSO (da meta → atividades necessárias, pelas taxas REAIS do corretor) ──
-    # Benchmarks de mercado usados só quando o corretor ainda não tem histórico próprio.
-    BASE = {"lead_venda": 0.08, "vpv": 4.0, "apv": 12.0}
-    ticket = (vgv / vendas) if vendas else None
-    meta_vgv_alvo = mv.get("meta_vgv") or 0
-    meta_vendas_alvo = mv.get("meta_vendas") or 0
-    if not meta_vendas_alvo and meta_vgv_alvo and ticket:
-        meta_vendas_alvo = max(1, round(meta_vgv_alvo / ticket))
-    if meta_vendas_alvo:
-        r_lead_venda = (vendas / funnel[0]) if (funnel[0] and vendas) else None
-        vpv = out["visitas_por_venda"] or BASE["vpv"]
-        apv = out["atend_por_venda"] or BASE["apv"]
-        rv = r_lead_venda or BASE["lead_venda"]
-        leads_nec = round(meta_vendas_alvo / rv) if rv else None
-        visitas_nec = round(meta_vendas_alvo * vpv)
-        contatos_nec = round(meta_vendas_alvo * apv)
-        falta = lambda nec, real: max(0, int((nec or 0) - real))
-        out["funil_reverso"] = {
-            "usa_taxas": "individuais" if r_lead_venda else "benchmark",
-            "ticket_base": round(ticket, 2) if ticket else None,
-            "taxas": {"lead_venda_pct": round(rv * 100, 2), "visitas_por_venda": round(vpv, 1), "contatos_por_venda": round(apv, 1)},
-            "necessario": {"leads": leads_nec, "contatos": contatos_nec, "visitas": visitas_nec, "vendas": meta_vendas_alvo},
-            "realizado": {"leads": funnel[0], "contatos": funnel[1], "visitas": funnel[3], "vendas": vendas},
-            "faltam": {"leads": falta(leads_nec, funnel[0]), "contatos": falta(contatos_nec, funnel[1]),
-                       "visitas": falta(visitas_nec, funnel[3]), "vendas": falta(meta_vendas_alvo, vendas)},
-            "meta_vgv": meta_vgv_alvo or (round(meta_vendas_alvo * ticket) if ticket else None),
-        }
+    out["alertas"] = _alertas(funnel[3], funnel[4], vendas, perdas, sem_contato, stuck, attain, pace,
+                              out["meta_attainment_pct"], out["primeiro_contato_h"])
+    fr = _funil_reverso(vgv, vendas, funnel[0], funnel[1], funnel[3], mv, out["visitas_por_venda"], out["atend_por_venda"])
+    if fr:
+        out["funil_reverso"] = fr
 
     # ── 📈 PROJEÇÃO (extrapola pelo ritmo até o FIM do mês corrente; senão só realizado) ──
     # Bug corrigido: pra "mês atual" o window usa until=hoje → pace dava 100% e a
@@ -821,6 +767,7 @@ def broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, det
         proj_mode = "realizado"
     ppace = (pelap / ptot) if ptot else 1.0
     prest = max(0, ptot - pelap)
+    meta_vgv_alvo = mv.get("meta_vgv") or 0
     proj_vendas = round(vendas / ppace) if ppace > 0 else vendas
     proj_vgv = round(vgv / ppace, 2) if ppace > 0 else vgv
     # margem de erro da projeção: larga no começo do mês (pouco do período decorrido),
@@ -842,3 +789,123 @@ def broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, det
     }
 
     return out
+
+
+# ─── saúde, alertas e funil reverso (v87.97: extraídos de broker_metrics, mesmas fórmulas) ──────────
+def _saude(vgv, visitas, win_rate, mv, since_d, until_d, today):
+    """→ (health 0-100, cor, atingimento 0..1|None, pace 0..1)."""
+    mv = mv or {}
+    attain = (vgv / mv["meta_vgv"]) if mv.get("meta_vgv") else None
+    days_total = (until_d - since_d).days + 1
+    days_elapsed = max(1, min(days_total, (today - since_d).days + 1))
+    pace = days_elapsed / days_total if days_total else 1.0
+    # componentes (cada 0..1)
+    c_meta = min(1.0, (attain / pace)) if (attain is not None and pace) else (0.5 if attain is None else min(1.0, attain))
+    c_ativ = min(1.0, visitas / max(1, mv.get("meta_visitas") or 8))   # visitas vs meta (ou 8 baseline)
+    c_conv = min(1.0, (win_rate or 0) / 15.0)                          # 15% lead→venda = ótimo
+    has_meta = bool(mv.get("meta_vgv") or mv.get("meta_visitas"))
+    if has_meta:
+        health = round(100 * (0.5 * c_meta + 0.3 * c_ativ + 0.2 * c_conv))
+    else:
+        health = round(100 * (0.6 * c_ativ + 0.4 * c_conv))
+    health = max(0, min(100, health))
+    return health, ("verde" if health >= 70 else ("amarelo" if health >= 40 else "vermelho")), attain, pace
+
+
+def _alertas(visitas, propostas, vendas, perdas, sem_contato, stuck, attain, pace, attain_pct, primeiro_contato_h):
+    alerts = []
+    if visitas == 0:
+        alerts.append({"level": "alto", "txt": "0 visitas no período"})
+    if propostas == 0:
+        alerts.append({"level": "medio", "txt": "Nenhuma proposta no período"})
+    if vendas == 0 and perdas > 0:
+        alerts.append({"level": "alto", "txt": f"Sem vendas ({perdas} perdas no período)"})
+    if sem_contato > 0:
+        alerts.append({"level": "alto", "txt": f"{sem_contato} lead(s) sem 1º contato há +48h"})
+    if stuck > 0:
+        alerts.append({"level": "medio", "txt": f"{stuck} negócio(s) parado(s) há +14 dias"})
+    if attain is not None and pace and attain < pace * 0.7:
+        alerts.append({"level": "medio", "txt": f"Abaixo do ritmo da meta ({attain_pct}% atingido)"})
+    if (primeiro_contato_h or 0) > 24:
+        alerts.append({"level": "medio", "txt": f"1º contato lento (~{primeiro_contato_h}h)"})
+    return alerts
+
+
+def _funil_reverso(vgv, vendas, leads, contatos, visitas, mv, visitas_por_venda, atend_por_venda):
+    """🎯 FUNIL REVERSO (da meta → atividades necessárias, pelas taxas REAIS do corretor).
+    Benchmarks de mercado usados só quando o corretor ainda não tem histórico próprio."""
+    mv = mv or {}
+    BASE = {"lead_venda": 0.08, "vpv": 4.0, "apv": 12.0}
+    ticket = (vgv / vendas) if vendas else None
+    meta_vgv_alvo = mv.get("meta_vgv") or 0
+    meta_vendas_alvo = mv.get("meta_vendas") or 0
+    if not meta_vendas_alvo and meta_vgv_alvo and ticket:
+        meta_vendas_alvo = max(1, round(meta_vgv_alvo / ticket))
+    if not meta_vendas_alvo:
+        return None
+    r_lead_venda = (vendas / leads) if (leads and vendas) else None
+    vpv = visitas_por_venda or BASE["vpv"]
+    apv = atend_por_venda or BASE["apv"]
+    rv = r_lead_venda or BASE["lead_venda"]
+    leads_nec = round(meta_vendas_alvo / rv) if rv else None
+    visitas_nec = round(meta_vendas_alvo * vpv)
+    contatos_nec = round(meta_vendas_alvo * apv)
+    falta = lambda nec, real: max(0, int((nec or 0) - real))
+    return {
+        "usa_taxas": "individuais" if r_lead_venda else "benchmark",
+        "ticket_base": round(ticket, 2) if ticket else None,
+        "taxas": {"lead_venda_pct": round(rv * 100, 2), "visitas_por_venda": round(vpv, 1), "contatos_por_venda": round(apv, 1)},
+        "necessario": {"leads": leads_nec, "contatos": contatos_nec, "visitas": visitas_nec, "vendas": meta_vendas_alvo},
+        "realizado": {"leads": leads, "contatos": contatos, "visitas": visitas, "vendas": vendas},
+        "faltam": {"leads": falta(leads_nec, leads), "contatos": falta(contatos_nec, contatos),
+                   "visitas": falta(visitas_nec, visitas), "vendas": falta(meta_vendas_alvo, vendas)},
+        "meta_vgv": meta_vgv_alvo or (round(meta_vendas_alvo * ticket) if ticket else None),
+    }
+
+
+def aplicar_dicionario(m, b, since_d, until_d, today):
+    """v87.97 (Dicionário §5) — refaz no payload de broker_metrics tudo que é contagem de marco com os números
+    do motor único: funil e conversões (Conquista = esteira do HUB; demais = coluna do RD + tarefa de visita),
+    KPIs, meta × realizado, win rate, saúde, alertas e funil reverso. Continuam daqui só o que o motor não
+    mede (1º contato, parados, motivos de perda, tendência). O funil por posição de etapa (rd_funnels) sai:
+    era a régua antiga e mostrava outro número de visita/proposta na mesma tela."""
+    if not (isinstance(m, dict) and b):
+        return m
+    import _metricas_lib as MX
+    fn = MX.funil_de(b)
+    n = [s["n"] for s in fn]
+    vendas, vgv, perdas = int(b.get("vendas") or 0), float(b.get("vgv") or 0), int(b.get("perdidos") or 0)
+    visitas, agend, props, pastas = n[3], n[2], n[4], n[5]
+    tot = vendas + perdas
+    win_rate = round(vendas / tot * 100, 2) if tot else None
+    m["funnel"] = fn
+    m["funil_fonte"] = MX.fonte_marcos(b)
+    m["rd_funnels"] = []
+    m["win_rate"] = win_rate
+    m["descarte_rate"] = round(perdas / tot * 100, 2) if tot else None
+    m["perdas"] = perdas
+    k = m.get("kpis") if isinstance(m.get("kpis"), dict) else {}
+    k.update({"leads": b.get("leads", 0), "prospeccoes": n[0], "qualificados": n[1], "agendamentos": agend,
+              "visitas": visitas, "propostas": props, "pastas": pastas, "vendas": vendas, "vgv": round(vgv, 2)})
+    m["kpis"] = k
+    m["ticket_medio"] = b.get("ticket")
+    m["visitas_por_venda"] = round(visitas / vendas, 1) if vendas else None
+    m["atend_por_venda"] = round(n[1] / vendas, 1) if vendas else None
+    m["dias_por_venda"] = round(((until_d - since_d).days + 1) / vendas, 0) if vendas else None
+    m["qualificacao_rate"] = round(n[1] / n[0] * 100, 2) if n[0] else None
+    mt = {c: (b.get("meta") or {}).get(c, 0) for c in MX.METAS_CAMPOS}
+    m["meta"] = {**(m.get("meta") or {}), **mt,
+                 "real_vgv": round(vgv, 2), "real_vendas": vendas, "real_visitas": visitas,
+                 "real_pastas": pastas, "real_propostas": props, "real_agendamentos": agend}
+    health, cor, attain, pace = _saude(vgv, visitas, win_rate, mt, since_d, until_d, today)
+    m["health"], m["health_color"] = health, cor
+    m["meta_attainment_pct"] = round(attain * 100, 2) if attain is not None else None
+    pend = m.get("pendencias") or {}
+    m["alertas"] = _alertas(visitas, props, vendas, perdas, pend.get("sem_contato_48h", 0), pend.get("parados_14d", 0),
+                            attain, pace, m["meta_attainment_pct"], m.get("primeiro_contato_h"))
+    fr = _funil_reverso(vgv, vendas, n[0], n[1], visitas, mt, m["visitas_por_venda"], m["atend_por_venda"])
+    if fr:
+        m["funil_reverso"] = fr
+    else:
+        m.pop("funil_reverso", None)
+    return m

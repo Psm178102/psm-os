@@ -27,7 +27,7 @@ from _metricas_lib import (resumo as mx_resumo, team_key as mx_team,  # type: ig
 from _oo_lib import (  # type: ignore
     window, months_in_range, broker_metrics, parse_dt, build_stage_maps, read_meta_spend, meta_for_period,
     read_meta_accounts, match_team_account, read_team_account_override,
-    read_meta_campaigns, compute_ads_invest, read_custos_corretor, PIPELINE_PESOS,
+    read_meta_campaigns, compute_ads_invest, read_custos_corretor, PIPELINE_PESOS, aplicar_dicionario,
 )
 
 
@@ -312,11 +312,12 @@ class handler(BaseHTTPRequestHandler):
                             prox_oo[c] = r.get("proxima_data")
                 except Exception:
                     pass
-                membros = []
+                membros, _mm_by_id = [], {}
                 for m in members:
                     if _is_gestor(m.get("role")):
                         continue  # o gestor não aparece como corretor da própria equipe
                     mm = broker_metrics(deals_by_owner.get(m.get("id"), []), tevents, meta_for_period(all_metas, m.get("id"), since_d, until_d), since_d, until_d, today, detail=True, stage_maps=stage_maps)
+                    _mm_by_id[m.get("id")] = mm
                     _fn = mm.get("funnel") or []
                     _minv = _ads_invest(team, deals_by_owner.get(m.get("id"), []))["invest"] or 0
                     _mcf = _cf_of(m.get("id"), team)
@@ -340,11 +341,9 @@ class handler(BaseHTTPRequestHandler):
         def _aplica(m, b):
             if not (isinstance(m, dict) and b):
                 return
-            k = m.get("kpis") if isinstance(m.get("kpis"), dict) else {}
-            k.update({"vendas": b["vendas"], "vgv": b["vgv"], "leads": b["leads"],
-                      "visitas": visitas_de(b), "agendamentos": agendamentos_de(b), "propostas": propostas_de(b),
-                      "pastas": propostas_de(b)})
-            m["kpis"] = k
+            # v87.97 §5: funil, conversões, KPIs, meta × realizado, win rate, saúde, alertas e funil reverso
+            # com os marcos do motor (Conquista = HUB; demais = coluna do RD + tarefa de visita)
+            aplicar_dicionario(m, b, since_d, until_d, today)
             m["em_atendimento"] = b["em_atendimento"]
             m["interessados"] = b["interessados"]
             m["ticket_medio"] = b.get("ticket")
@@ -374,8 +373,15 @@ class handler(BaseHTTPRequestHandler):
                 for mb in resp["team"].get("members") or []:
                     pb = (mx.get("pessoas") or {}).get(mb.get("id"))
                     if pb:
+                        mm = aplicar_dicionario(_mm_by_id.get(mb.get("id")), pb, since_d, until_d, today) or {}
+                        _fn = mm.get("funnel") or []
                         mb.update({"vendas": pb["vendas"], "vgv": pb["vgv"], "leads": pb["leads"],
-                                   "visitas": visitas_de(pb), "meta_attainment_pct": pb.get("atingimento_vgv_pct")})
+                                   "visitas": visitas_de(pb), "meta_attainment_pct": pb.get("atingimento_vgv_pct"),
+                                   "win_rate": mm.get("win_rate"), "health": mm.get("health", mb.get("health")),
+                                   "health_color": mm.get("health_color", mb.get("health_color")),
+                                   "alertas_count": len(mm.get("alertas") or []),
+                                   "conv": [s.get("conv_from_prev") for s in _fn[1:]], "funnel_n": [s.get("n") for s in _fn]})
+                resp["team"]["members"].sort(key=lambda x: (-(x.get("alertas_count") or 0), x.get("health") or 0))
             resp["dados_de"] = mx.get("dados_de")
             resp["dados_de_hhmm"] = mx.get("dados_de_hhmm")
             resp["avisos_dicionario"] = [a for a in (mx.get("avisos") or []) if a.get("uid") in (None, cid)]

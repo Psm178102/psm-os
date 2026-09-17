@@ -77,6 +77,21 @@ Contagem por **coluna do funil do RD**: negócios que **entraram** na coluna den
 
 **Visitas** (o número oficial) = tarefas do RD com `type = visit` e `done = true`, `done_date` no período, atribuídas ao usuário (`users[].email` ↔ `users.email`). Exige sincronizar tarefas do RD (`GET /api/v1/tasks`) para a tabela `rd_tasks`. A coluna "visita realizada" fica como número secundário para conferência.
 
+### Funil em 7 degraus nas telas (revisão de 17/09/2026, v87.97)
+Toda tela que desenha funil, conversão por etapa, saúde ou meta × realizado por etapa usa `funil_de()` do motor, com as chaves de sempre (a matriz de conversão, o mapa de habilidades e as metas do Norte dependem delas):
+
+| Chave | Conquista (esteira do HUB) | MAP / Terceiros / Locação (coluna do RD) |
+|---|---|---|
+| lead | Prospecção | Atendimento (`novo_atend`) |
+| contato | Qualificação | Contato / qualificação |
+| agendamento | Agendamento | Agendamento |
+| visita | Atendimento (visita) | Visita realizada (tarefa do RD; coluna se não houver) |
+| proposta | Pasta / proposta | Proposta |
+| pasta | Pasta (espelho: no MCMV é a mesma etapa; a tela não repete) | Contrato |
+| venda | Venda (RD) | Venda (RD) |
+
+Taxa entre degraus = entradas no degrau ÷ entradas no anterior **no período** (fluxo): pode passar de 100%. Na Gestão Comercial, "pasta/proposta" é uma coluna só = degrau `proposta`. Onde vale: 1:1 (cards, cockpit, equipe do gestor, matriz de conversão, gargalo, habilidade prioritária, funil reverso, Norte do Mês e Norte do Dia) e Gestão Comercial (esteira individual, contagens e "quantos pra 1 venda" da aba Métricas, custo por etapa — CPL divide pelo lead do §2). O funil por posição de etapa do RD saiu do 1:1. Continuam análise própria (não são contagem de marco): safras, tempos entre etapas, % das pastas que viraram venda, fontes por canal e as lanes de abertos agora.
+
 ## 6. Meta
 
 - Fonte: tabela `metas` (por corretor, ano, mês).

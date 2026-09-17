@@ -228,7 +228,7 @@ async function loadNorteCard() {
   const fN = v => { const x = Number(v) || 0; return Number.isInteger(x) ? x.toLocaleString('pt-BR') : x.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 }); };
   const comp = n.computed || {}, pace = n.pace || {}, fm = n.funil_meta_periodo || {};
   const kp = (n.realizado || {}).kpis || {};
-  const stages = (n.realizado || {}).funnel || [];
+  const stages = ((n.realizado || {}).funnel || []).filter(s => !s.espelho);
   const mesNome = t.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
   const rows = stages.map(s => {
     const meta = Number(fm[s.key] || 0);

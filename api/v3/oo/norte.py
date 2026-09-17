@@ -27,7 +27,10 @@ from datetime import datetime, timezone, date
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, supabase_client, audit  # type: ignore
 from _auth_lib import hoje_brt  # type: ignore
-from _oo_lib import window, months_in_range, MILESTONES, broker_metrics, parse_dt  # type: ignore
+from _oo_lib import window, months_in_range, MILESTONES, broker_metrics, parse_dt, aplicar_dicionario  # type: ignore
+_V3 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _V3 not in sys.path:
+    sys.path.append(_V3)
 
 # Canais padrão (taxas base da planilha PSM IMÓVEIS) — o gestor ajusta tudo.
 CANAIS_PADRAO = [
@@ -165,7 +168,15 @@ def _realizado(sb, cid, since_d, until_d, today):
                 (r.get("stage_position"), (r.get("stage_name") or "").lower(), parse_dt(r.get("occurred_at"))))
     zero = {"meta_vgv": 0, "meta_vendas": 0, "meta_visitas": 0, "meta_pastas": 0, "meta_propostas": 0, "meta_agendamentos": 0}
     m = broker_metrics(deals, events, zero, since_d, until_d, today)
-    return {"funnel": m.get("funnel"), "kpis": m.get("kpis"), "win_rate": m.get("win_rate")}
+    # v87.97 §5: realizado por etapa = marcos do motor único (o mesmo número do 1:1 e da Gestão Comercial)
+    try:
+        from _metricas_lib import resumo as mx_resumo  # type: ignore
+        b = (mx_resumo(sb, {"since": since_d.isoformat(), "until": until_d.isoformat()}).get("pessoas") or {}).get(cid)
+        if b:
+            aplicar_dicionario(m, b, since_d, until_d, today)
+    except Exception as e:
+        print(f"[oo/norte] motor de métricas indisponível: {e}")
+    return {"funnel": m.get("funnel"), "kpis": m.get("kpis"), "win_rate": m.get("win_rate"), "funil_fonte": m.get("funil_fonte")}
 
 
 def month_fracs(since_d, until_d):

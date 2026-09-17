@@ -380,6 +380,77 @@ def meu_dia():
 meu_dia()
 
 
+def funil():
+    """Funil do Dicionário §5 em 7 degraus + 1:1 (aplicar_dicionario) + Gestão Comercial (esteira/métricas/custos). v87.97"""
+    import copy
+    oo_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "api", "v3", "oo")
+    sys.path.insert(0, oo_dir)
+    salvos = {mod: sys.modules.pop(mod) for mod in ("_oo_lib", "_auth_lib") if mod in sys.modules}   # o motor já carregou a cópia do intel/
+    try:
+        import _oo_lib as OO
+        import comercial as GC
+        sb = SB(copy.deepcopy(DB))
+        hoje = date(2026, 9, 30)
+        since, until = date(2026, 9, 1), date(2026, 9, 30)
+        out = M.resumo(sb, {}, fresh=True, hoje=hoje)
+        k, r = out["pessoas"]["kadu"], out["pessoas"]["rafaela"]
+
+        # Conquista: esteira do HUB (Kadu: 23 prospecções, 4 qualif., 4 agend., 3 atendimentos, 1 pasta) + venda do RD
+        fk = M.funil_de(k)
+        assert [s["key"] for s in fk] == list(M.FUNIL_CHAVES)
+        assert [s["n"] for s in fk] == [23, 4, 4, 3, 1, 1, 1], fk
+        assert fk[5].get("espelho") and fk[5]["conv_from_prev"] == 100.0 and not fk[4].get("espelho"), fk
+        assert fk[1]["conv_from_prev"] == round(4 / 23 * 100, 2) and fk[0]["conv_from_prev"] is None
+        # MAP: coluna do RD (Rafaela: 2 atendimentos em set, 1 agendada, 1 visita pela coluna — tarefas não sincronizadas)
+        fr = M.funil_de(r)
+        assert M.fonte_marcos(r) == "rd" and fr[0]["n"] == r["atendimentos"] and fr[2]["n"] == 1 and fr[3]["n"] == 1, fr
+        assert not any(s.get("espelho") for s in fr)
+
+        # 1:1 — broker_metrics (régua antiga por nome de etapa) refeito com o motor
+        deals_k = [d for d in DB["deals"] if d.get("user_email") == "kadu@x.br"]
+        m = OO.broker_metrics(deals_k, {}, {"meta_vgv": 1, "meta_visitas": 99}, since, until, hoje, detail=True, stage_maps=({}, {}, {}))
+        OO.aplicar_dicionario(m, k, since, until, hoje)
+        assert m["funnel"] == fk and m["funil_fonte"] == "hub" and m["rd_funnels"] == []
+        assert m["kpis"]["visitas"] == 3 and m["kpis"]["pastas"] == 1 and m["kpis"]["prospeccoes"] == 23 and m["kpis"]["vendas"] == 1
+        assert m["meta"]["meta_vgv"] == 550000 and m["meta"]["real_visitas"] == 3 and m["meta"]["real_vgv"] == 300000.0, m["meta"]
+        assert m["win_rate"] == 100.0 and m["perdas"] == 0
+        h, cor, att, pace = OO._saude(300000.0, 3, 100.0, m["meta"], since, until, hoje)
+        assert m["health"] == h and m["health_color"] == cor
+        assert not any("0 visitas" in a["txt"] for a in m["alertas"]), m["alertas"]
+        assert m["funil_reverso"]["realizado"] == {"leads": 23, "contatos": 4, "visitas": 3, "vendas": 1}, m["funil_reverso"]
+
+        # Gestão Comercial — esteira, contagens e custo por etapa com os marcos do motor
+        p = {"esteira": {"corretores": [{"uid": "kadu", "team": "conquista", "sem_historico": 2, "visita": 99}], "equipes": {}},
+             "metricas": {"conquista": {"contagens": {"visita": 99}, "por_venda": {"dias_desde_ultima_venda": 12}, "custos": {}}},
+             "custos": {"janela_custo": {"ini": "2026-09-01", "fim": "2026-09-30"},
+                        "equipes": [{"team": "conquista", "spend": 1000.0, "premiacao_indicacao": 0, "fixo_mes": 500.0, "leads": 50, "visita": 99}]},
+             "alertas": {"cfg": {"max_cpl": 120.0, "min_ritmo_meta_pct": 70.0},
+                         "itens": [{"team": "conquista", "metrica": "custo_lead", "valor": 999}, {"team": "conquista", "metrica": "roas"}]},
+             "visao": [], "janela_eh_mes": True}
+        g = GC._aplicar_dicionario_funil(p, out, out, 30, hoje)
+        ek = next(c for c in g["esteira"]["corretores"] if c["uid"] == "kadu")
+        assert (ek["prospec"], ek["qualif"], ek["visita"], ek["pasta"], ek["venda"], ek["sem_historico"]) == (23, 4, 3, 1, 1, 2), ek
+        eqc = g["esteira"]["equipes"]["conquista"]
+        assert eqc["visita"] == M.visitas_de(out["equipes"]["conquista"]) and eqc["fonte"] == "hub"
+        mc = g["metricas"]["conquista"]
+        assert mc["contagens"]["visita"] == eqc["visita"] and mc["por_venda"]["dias_desde_ultima_venda"] == 12
+        cu = g["custos"]["equipes"][0]
+        e = out["equipes"]["conquista"]
+        assert cu["leads"] == e["leads"] and cu["custo_lead"] == round(1000.0 / e["leads"], 2), cu
+        assert cu["visita"] == eqc["visita"] and cu["cac_completo"] == (round(1500.0 / e["vendas"], 2) if e["vendas"] else None)
+        # alerta de CPL é refeito com o lead do dicionário (o antigo, com 999, sai); os outros ficam
+        assert [(i["metrica"], i.get("valor")) for i in g["alertas"]["itens"]] == [("roas", None), ("custo_lead", cu["custo_lead"])], g["alertas"]
+        print("OK — funil do dicionário: Conquista pelo HUB, MAP pela coluna; 1:1 e Gestão Comercial com o mesmo número")
+    finally:
+        sys.path.remove(oo_dir)
+        for mod in ("_oo_lib", "comercial", "simulador", "_auth_lib", "_psmhub_lib"):
+            sys.modules.pop(mod, None)
+        sys.modules.update(salvos)
+
+
+funil()
+
+
 def cerebro():
     """Cérebro de Vendas (intel/sales_brain): o número-título é a projeção oficial (Dicionário §8A), não o ponderado. v87.95"""
     import copy

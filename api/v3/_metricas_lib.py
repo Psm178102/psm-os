@@ -818,6 +818,54 @@ def qualificados_de(b):
     return _hub_ou(b, "qualificacao", "qualificados")
 
 
+def prospeccoes_de(b):
+    """Topo do funil: Conquista = prospecção da esteira do HUB; demais = entrada na coluna de novo atendimento."""
+    return _hub_ou(b, "prospeccao", "atendimentos")
+
+
+def pastas_de(b):
+    """Conquista = pasta do HUB (no MCMV a pasta É a proposta); demais = contrato (coluna do RD)."""
+    return _hub_ou(b, "pasta", "contratos")
+
+
+def fonte_marcos(b):
+    return "hub" if (b and b.get("team") == "conquista" and isinstance(b.get("hub"), dict)) else "rd"
+
+
+# §5 em 7 degraus, com as MESMAS chaves do funil do 1:1 (matriz de conversão, mapa de habilidades e
+# metas por etapa do Norte dependem delas). v87.97
+FUNIL_CHAVES = ("lead", "contato", "agendamento", "visita", "proposta", "pasta", "venda")
+
+
+def funil_de(b):
+    """Funil do período pela régua do Dicionário §5 → [{key, label, n, conv_from_prev, espelho?}].
+
+    Conquista: esteira do PSM HUB (prospecção → qualificação → agendamento → atendimento → pasta) + venda
+    do RD. No MCMV proposta e pasta são a mesma etapa (as metas do Norte já vêm iguais), então o degrau
+    'pasta' repete o 'proposta' e vem marcado espelho=True (a tela não desenha duas vezes; a taxa passa 100%).
+    MAP/Terceiros/Locação: entrada na coluna do RD no período (novo atendimento → contato/qualificação →
+    agendamento → visita → proposta → contrato); visita = tarefa de visita concluída (coluna se não houver).
+    Taxas são de FLUXO do período (entradas ÷ entradas do degrau anterior): passam de 100% quando o negócio
+    entrou no degrau anterior num período passado."""
+    if not b:
+        return []
+    if fonte_marcos(b) == "hub":
+        labels = ("Prospecção", "Qualificação", "Agendamento", "Atendimento (visita)", "Pasta / proposta", "Pasta", "Venda")
+        nums = (prospeccoes_de(b), qualificados_de(b), agendamentos_de(b), visitas_de(b), pastas_de(b), pastas_de(b), b.get("vendas"))
+    else:
+        labels = ("Atendimento", "Contato / qualificação", "Agendamento", "Visita realizada", "Proposta", "Contrato", "Venda")
+        nums = (prospeccoes_de(b), qualificados_de(b), agendamentos_de(b), visitas_de(b), propostas_de(b), pastas_de(b), b.get("vendas"))
+    out, prev = [], None
+    for i, (k, lbl, n) in enumerate(zip(FUNIL_CHAVES, labels, nums)):
+        n = int(n or 0)
+        linha = {"key": k, "label": lbl, "n": n, "conv_from_prev": (round(n / prev * 100, 2) if prev else None)}
+        if fonte_marcos(b) == "hub" and k == "pasta":
+            linha["espelho"] = True
+        out.append(linha)
+        prev = n
+    return out
+
+
 def por_nome(data):
     """{nome normalizado: bloco da pessoa} — pra casar payloads antigos que só têm o nome."""
     return {_norm(b.get("name")): b for b in (data.get("pessoas") or {}).values()}

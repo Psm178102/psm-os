@@ -35,7 +35,8 @@ if _V3 not in _sys.path:
 # v87.86 — motor único de métricas (Dicionário de Métricas v1)
 from _metricas_lib import (resumo as mx_resumo, por_nome as mx_por_nome, _norm as mx_norm,  # type: ignore
                            visitas_de as mx_visitas, agendamentos_de as mx_agend,
-                           propostas_de as mx_propostas, qualificados_de as mx_qualif)
+                           propostas_de as mx_propostas, qualificados_de as mx_qualif,
+                           prospeccoes_de as mx_prospec, fonte_marcos as mx_fonte)
 from _projecao_lib import projecao as pj_projecao  # type: ignore   # v87.91
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -331,6 +332,122 @@ def _d_brt(dt):
     return (dt - timedelta(hours=3)).date()
 
 
+def _aplicar_dicionario_funil(p, mx, mx_custo, janela_dias, hoje):
+    """v87.97 (Dicionário §5) — abas Métricas, Funil e Pessoas: toda CONTAGEM DE MARCO passa a ser a do
+    motor único. Conquista = esteira do PSM HUB; MAP/Terceiros/Locação = entrada na coluna do RD no
+    período + visita por tarefa concluída. Antes esta tela contava marco pela POSIÇÃO da etapa no funil
+    (régua do simulador) e dava outro número de visita/pasta que o 1:1 e a Produtividade.
+      • 🪜 Esteira individual (corretor e equipe): prospecção, qualificação, visita, pasta, venda, VGV.
+      • 📐 Métricas: contagens e "quantos pra 1 venda" no PERÍODO (eram da safra).
+      • 💵 Custo por etapa: CPL/CPQL/CPAG/CPV/CPP/CPA/CAC sobre as contagens do motor na janela de custo;
+        CPL divide por LEAD do dicionário (tráfego pago criado no período), não por todo negócio criado.
+    Pastas (% viraram venda/reprovadas) e tempos entre etapas seguem sendo análise de safra desta tela."""
+    novo = dict(p)
+    eq, ps = mx.get("equipes") or {}, mx.get("pessoas") or {}
+    times = dict(TEAMS)
+    por = lambda x, v: round(x / v, 1) if v else None
+    pc = lambda a, b: round(a / b * 100, 1) if b else None
+
+    def linha(b, nome, team, uid=None, sem_hist=0):
+        c = {"uid": uid, "nome": nome, "team": team, "prospec": mx_prospec(b), "qualif": mx_qualif(b),
+             "visita": mx_visitas(b), "pasta": mx_propostas(b), "venda": int(b.get("vendas") or 0),
+             "vgv": round(float(b.get("vgv") or 0), 2), "sem_historico": sem_hist, "fonte": mx_fonte(b)}
+        v = c["venda"]
+        c["ticket"] = round(c["vgv"] / v, 2) if v else None
+        c["por_venda"] = {"prospec": por(c["prospec"], v), "qualif": por(c["qualif"], v),
+                          "visita": por(c["visita"], v), "pasta": por(c["pasta"], v)}
+        c["razao_fluxo"] = {"prospec_qualif": pc(c["qualif"], c["prospec"]), "qualif_visita": pc(c["visita"], c["qualif"]),
+                            "visita_pasta": pc(c["pasta"], c["visita"]), "pasta_venda": pc(v, c["pasta"]),
+                            "prospec_venda": pc(v, c["prospec"])}
+        return c
+
+    est = dict(p.get("esteira") or {})
+    sem_hist = {c.get("uid"): c.get("sem_historico") or 0 for c in (est.get("corretores") or []) if c.get("uid")}
+    corr = []
+    for uid, b in ps.items():
+        if b.get("team") not in times:
+            continue
+        c = linha(b, b.get("name"), b["team"], uid, sem_hist.get(uid, 0))
+        if c["prospec"] or c["visita"] or c["pasta"] or c["venda"]:
+            corr.append(c)
+    corr.sort(key=lambda x: (x["team"], -x["venda"], -(x["pasta"] or 0)))
+    est["corretores"] = corr
+    est["equipes"] = {tk: linha(e, times[tk], tk) for tk, e in eq.items() if tk in times}
+    est["nota"] = ("Dicionário de Métricas §5 — o que cada um FEZ no período: Conquista pela esteira do PSM HUB "
+                   "(prospecção, qualificação, atendimento = visita, pasta); MAP/Terceiros/Locação pela entrada na "
+                   "coluna do RD, com visita = tarefa de visita concluída. Etapas independentes (fluxo): a razão pode passar de 100%.")
+    novo["esteira"] = est
+
+    met = {}
+    for tk, m in (p.get("metricas") or {}).items():
+        e = eq.get(tk)
+        if not e:
+            met[tk] = m
+            continue
+        v = int(e.get("vendas") or 0)
+        n = {"leads": e.get("leads", 0), "prospec": mx_prospec(e), "qualif": mx_qualif(e), "agend": mx_agend(e),
+             "visita": mx_visitas(e), "proposta": mx_propostas(e), "pasta": mx_propostas(e), "venda": v}
+        pv = dict(m.get("por_venda") or {})
+        pv.update({"prospeccoes": por(n["prospec"], v), "qualificacoes": por(n["qualif"], v), "agendamentos": por(n["agend"], v),
+                   "visitas": por(n["visita"], v), "propostas": por(n["proposta"], v), "pastas": por(n["pasta"], v),
+                   "dias_por_venda": round(janela_dias / v, 1) if v else None})
+        met[tk] = {**m, "contagens": n, "por_venda": pv, "fonte": mx_fonte(e)}
+
+    cust = dict(p.get("custos") or {})
+    eqc = (mx_custo or mx).get("equipes") or {}
+    div = lambda a, b: round(a / b, 2) if (b and a > 0) else None
+    custos_eq = []
+    for cu in (cust.get("equipes") or []):
+        e = eqc.get(cu.get("team"))
+        if not e:
+            custos_eq.append(cu)
+            continue
+        sp, pr, fx = float(cu.get("spend") or 0), float(cu.get("premiacao_indicacao") or 0), float(cu.get("fixo_mes") or 0)
+        leads, qualif, agend, visita = e.get("leads", 0), mx_qualif(e), mx_agend(e), mx_visitas(e)
+        pasta, vendas = mx_propostas(e), int(e.get("vendas") or 0)
+        cu = {**cu, "leads": leads, "qualif": qualif, "agend": agend, "visita": visita, "proposta": pasta, "pasta": pasta,
+              "vendas": vendas, "custo_lead": div(sp, leads), "custo_qualif": div(sp, qualif), "custo_agend": div(sp, agend),
+              "custo_visita": div(sp, visita), "custo_proposta": div(sp, pasta), "custo_pasta": div(sp, pasta),
+              "cpa": div(sp, vendas), "cac_marketing": div(sp + pr, vendas), "cac_completo": div(sp + pr + fx, vendas),
+              "fonte": mx_fonte(e)}
+        custos_eq.append(cu)
+        if cu["team"] in met:
+            met[cu["team"]] = {**met[cu["team"]], "custos": {**(met[cu["team"]].get("custos") or {}),
+                               **{k: cu.get(k) for k in ("custo_lead", "custo_qualif", "custo_agend", "custo_visita",
+                                                          "custo_proposta", "custo_pasta", "cpa", "cac_marketing", "cac_completo")},
+                               "leads": leads, "qualif": qualif, "agend": agend, "visita": visita, "pasta": pasta, "vendas": vendas}}
+    cust["equipes"] = custos_eq
+    novo["custos"] = cust
+    novo["metricas"] = met
+
+    # 🚨 alertas que dependem dessas contagens: R$/lead e ritmo da meta (os demais não mudam)
+    al = dict(p.get("alertas") or {})
+    cfg = al.get("cfg") or {}
+    itens = [i for i in (al.get("itens") or []) if i.get("metrica") not in ("custo_lead", "ritmo_meta")]
+
+    def _al(team, metrica, label, valor, limite, sentido, fmt):
+        if valor is None or not limite:
+            return
+        if (valor > limite) if sentido == "max" else (valor < limite):
+            itens.append({"id": f"{team}:{metrica}", "team": team, "metrica": metrica, "label": label,
+                          "valor": round(float(valor), 2), "limite": round(float(limite), 2),
+                          "delta_pct": round((valor - limite) / abs(limite) * 100, 1), "acima": valor > limite, "fmt": fmt})
+    for cu in custos_eq:
+        if cu.get("leads") or cu.get("vendas") or cu.get("spend"):
+            _al(cu["team"], "custo_lead", "R$/lead", cu.get("custo_lead"), cfg.get("max_cpl"), "max", "brl")
+    if p.get("janela_eh_mes") and hoje.day >= 5:
+        import calendar as _cal
+        dias_mes = _cal.monthrange(hoje.year, hoje.month)[1]
+        for v in (novo.get("visao") or []):
+            esperado = (v.get("meta_vendas") or 0) * (hoje.day / dias_mes)
+            if esperado > 0:
+                _al(v["team"], "ritmo_meta", "% do ritmo esperado da meta do mês",
+                    round((v.get("real_vendas") or 0) / esperado * 100, 1), cfg.get("min_ritmo_meta_pct"), "min", "pct")
+    al["itens"] = itens
+    novo["alertas"] = al
+    return novo
+
+
 # ─── marcos por etapa REAL de cada funil (mesma régua do simulador) ─────────
 def mapa_marcos(sb):
     """{stage_id: marco 0..5}, {(pid, position): marco} + mapas crus dos funis —
@@ -482,6 +599,15 @@ class handler(BaseHTTPRequestHandler):
         try:
             mx = mx_resumo(sb, {"since": since_d.isoformat(), "until": until_d.isoformat()}, fresh=q.get("fresh") == "1")
             payload = _aplicar_dicionario(payload, mx, (until_d - since_d).days + 1)
+            # v87.97 §5: esteira, contagens da aba Métricas e custo por etapa com os marcos do motor
+            try:
+                jc = (payload.get("custos") or {}).get("janela_custo") or {}
+                mx_c = mx
+                if jc.get("ini") and jc.get("fim") and (jc["ini"], jc["fim"]) != (since_d.isoformat(), until_d.isoformat()):
+                    mx_c = mx_resumo(sb, {"since": jc["ini"], "until": jc["fim"]}, fresh=q.get("fresh") == "1")
+                payload = _aplicar_dicionario_funil(payload, mx, mx_c, (until_d - since_d).days + 1, hoje)
+            except Exception as e:
+                print(f"[gc] marcos do dicionário indisponíveis: {e}")
             # v87.91: projeção do mês no cockpit = a MESMA da aba 🎯 Meta · Realizado · Projeção
             if since_d == hoje.replace(day=1) and until_d == hoje:
                 try:

@@ -20,7 +20,7 @@ from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
 from _auth_lib import hoje_brt  # type: ignore
 from _oo_lib import (window, months_in_range, broker_metrics, read_meta_spend, meta_for_period,  # type: ignore
                      read_meta_accounts, match_team_account, read_team_account_override,
-                     read_meta_campaigns, compute_ads_invest)
+                     read_meta_campaigns, compute_ads_invest, aplicar_dicionario)
 from simulador import _kv_read  # type: ignore
 # v87.86 — motor único de métricas (Dicionário de Métricas v1)
 _V3 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -278,6 +278,7 @@ class handler(BaseHTTPRequestHandler):
                                        if (m.get("projecao") or {}).get("modo") == "projecao" and not show_team else None)},
 
                 "pendencias": m["pendencias"],
+                "_m": m,   # v87.97: sai antes do payload — usado pra refazer saúde/alertas com o motor
                 "last_oo": last_oo.get(cid), "proxima_oo": prox_oo.get(cid),
                 "lead_invest": _inv, "cpl_base": _invbase, "conta_label": _invlbl,
             })
@@ -305,6 +306,12 @@ class handler(BaseHTTPRequestHandler):
                     "visitas": visitas_de(b), "agendamentos": agendamentos_de(b), "propostas": propostas_de(b),
                     "meta_attainment_pct": b.get("atingimento_vgv_pct"), "meta_vgv": meta_vgv,
                 })
+                # v87.97 §5: saúde, win rate e alertas do card com os marcos do motor (antes: régua por nome de etapa)
+                mm = aplicar_dicionario(row.get("_m"), b, since_d, until_d, today)
+                if isinstance(mm, dict):
+                    row.update({"win_rate": mm["win_rate"], "descarte_rate": mm["descarte_rate"],
+                                "health": mm["health"], "health_color": mm["health_color"],
+                                "alertas_count": len(mm["alertas"]), "alertas_top": [a["txt"] for a in mm["alertas"][:2]]})
                 if row.get("card_modo") == "individual":
                     e = mx["equipes"].get(tk)
                     if e:
@@ -345,6 +352,9 @@ class handler(BaseHTTPRequestHandler):
             except Exception as e:
                 print(f"[oo/overview] projeção indisponível: {e}")
 
+        for row in out:
+            row.pop("_m", None)
+        out.sort(key=lambda x: (-(x["alertas_count"]), x["health"]))
         payload = {
             "dados_de": mx.get("dados_de") if mx else None,
             "dados_de_hhmm": mx.get("dados_de_hhmm") if mx else None,

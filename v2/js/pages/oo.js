@@ -549,10 +549,12 @@ function funnelPanel(d) {
       `<div class="tiny muted" style="margin-top:6px">Etapas reais do RD · ↓ = taxa de conversão da etapa anterior · win rate geral: <b>${pctF(d.win_rate)}</b></div>`
     )).join('<div style="height:12px"></div>');
   }
-  // fallback: marcos canônicos
-  const f = d.funnel || [];
-  return panel('🫧 Funil individual', funnelBars(f, s => escapeHtml(s.label)) + convTable(f) +
-    `<div class="tiny muted" style="margin-top:6px">↓ = taxa de conversão da etapa anterior. Win rate: <b>${pctF(d.win_rate)}</b></div>`);
+  // v87.97 — funil do Dicionário §5 (o mesmo número dos cards, da Gestão Comercial e do Norte)
+  const f = (d.funnel || []).filter(s => !s.espelho);
+  const fonte = d.funil_fonte === 'hub' ? 'esteira do PSM HUB (mensal) + venda do RD'
+    : d.funil_fonte === 'rd' ? 'entrada na coluna do RD no período · visita = tarefa de visita concluída' : '';
+  return panel('🫧 Funil do período', funnelBars(f, s => escapeHtml(s.label)) + convTable(f) +
+    `<div class="tiny muted" style="margin-top:6px">↓ = entradas na etapa ÷ entradas na etapa anterior no período (fluxo — pode passar de 100%). Win rate: <b>${pctF(d.win_rate)}</b>${fonte ? `<br>Fonte: ${fonte}.` : ''}</div>`);
 }
 
 function kpiVsMeta(d) {
@@ -876,7 +878,7 @@ function matrizConversaoPanel(t) {
       </tr>`).join('')}
       <tr style="border-top:2px solid var(--border);font-weight:800;color:var(--ink-muted)"><td style="padding:5px 6px">Média</td>${avg.map(a => `<td style="text-align:center;padding:5px 4px">${pctF(a)}</td>`).join('')}</tr>
       </tbody></table></div>
-    <div class="tiny muted" style="margin-top:6px">🔴 vermelho = bem abaixo da média da equipe naquela etapa → treine isso com a pessoa. Clique no corretor pra abrir.</div>`);
+    <div class="tiny muted" style="margin-top:6px">🔴 vermelho = bem abaixo da média da equipe naquela etapa → treine isso com a pessoa. Clique no corretor pra abrir.${t.metrics && t.metrics.funil_fonte === 'hub' ? ' Conquista: etapas da esteira do HUB (prospecção → qualificação → agendamento → atendimento → pasta); proposta e pasta são a mesma etapa, por isso Prop→Pasta = 100%.' : ''}</div>`);
 }
 
 /* 📉 Tendência por corretor: VGV mês a mês + alerta de queda */
@@ -905,13 +907,14 @@ function tendenciaPanel(t) {
 
 /* 🔻 Gargalo do funil da equipe: a etapa que MENOS converte = foco de coaching */
 function gargaloPanel(M) {
-  const f = (M.funnel || []).filter(s => s.conv_from_prev != null);
+  const fAll = (M.funnel || []).filter(s => !s.espelho);   // v87.97: degrau espelho (Conquista: pasta = proposta) não é etapa
+  const f = fAll.filter(s => s.conv_from_prev != null);
   if (!f.length) return panel('🔻 Gargalo do funil', '<div class="tiny muted">Sem dados de conversão por etapa no período.</div>');
   let pior = f[0];
   f.forEach(s => { if ((s.conv_from_prev ?? 999) < (pior.conv_from_prev ?? 999)) pior = s; });
-  const idx = (M.funnel || []).findIndex(s => s.key === pior.key);
-  const ant = idx > 0 ? M.funnel[idx - 1].label : '';
-  const chain = (M.funnel || []).map((s, i) => i === 0 ? `${s.label} (${s.n})`
+  const idx = fAll.findIndex(s => s.key === pior.key);
+  const ant = idx > 0 ? fAll[idx - 1].label : '';
+  const chain = fAll.map((s, i) => i === 0 ? `${s.label} (${s.n})`
     : `<span style="${s.key === pior.key ? 'color:var(--err);font-weight:800' : 'color:var(--ink-muted)'}">→ ${pctF(s.conv_from_prev)} → ${s.label} (${s.n})</span>`).join(' ');
   return panel('🔻 Gargalo do funil (foco de coaching)', `
     <div style="background:color-mix(in srgb, var(--err) 12%, transparent);border:1px solid #fecaca;border-radius:10px;padding:9px 12px;margin-bottom:8px">
@@ -969,7 +972,7 @@ function nortePanel(d) {
         : `<div class="tiny muted">Nenhuma meta definida pro período selecionado. Defina o norte do mês — atendimentos, mix por canal (igual à planilha) e metas por etapa do funil. O quadro compara meta × realizado puxando direto do RD CRM, todos os dias, sozinho.</div>${btns}`);
   }
   const comp = n.computed || {}, pace = n.pace, fm = n.funil_meta_periodo || {}, mp = n.meta_periodo || {}, kp = d.kpis || {};
-  const stages = d.funnel || [];
+  const stages = (d.funnel || []).filter(s => !s.espelho);
   const parcial = (n.fracs || []).some(f => f.frac < 1) || (n.fracs || []).length > 1;
 
   const strip = `

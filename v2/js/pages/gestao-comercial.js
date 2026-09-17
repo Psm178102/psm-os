@@ -672,7 +672,7 @@ function tabMetricas() {
     const semMidia = !(c.conta || c.spend > 0);
     const a = mid => aIdx[tk + ':' + mid] ? 'err' : '';
     const custos = semMidia ? `<div class="tiny muted" style="margin-top:4px">sem conta Meta própria — custos de mídia não se aplicam (CAC vive no marketing/completo)</div>` : grupo(`💵 Custos — spend R$ ${kR$(c.spend)} (${jc.ini || ''} → ${jc.fim || ''})`, [
-      tile('CPL · custo por lead', R$(c.custo_lead), N(c.leads) + ' leads NOVOS no período', a('custo_lead')),
+      tile('CPL · custo por lead', R$(c.custo_lead), N(c.leads) + ' leads de tráfego pago criados no período', a('custo_lead')),
       tile('CPQL · por qualificado', R$(c.custo_qualif), N(c.qualif) + ' qualificações no período — inclui leads antigos reativados (por isso pode passar de leads novos)'),
       tile('CPAG · por agendamento', R$(c.custo_agend), N(c.agend) + ' agendamentos', a('custo_agend')),
       tile('CPV · por visita', R$(c.custo_visita), N(c.visita) + ' visitas', a('custo_visita')),
@@ -681,8 +681,8 @@ function tabMetricas() {
       tile('CAC mídia', R$(c.cac_midia), N(c.vendas_pagas) + ' venda(s) de tráfego', a('cac_midia')),
       tile('CAC completo', R$(c.cac_completo), '+ fixo da linha + premiação'),
     ].join('')) + (c.pasta && c.pasta === (c.vendas || 0) ? `<div class="tiny muted" style="margin-top:4px">ℹ️ neste período <b>todas as ${fN(c.pasta)} pasta(s) abertas viraram venda</b> — CPP e CPA coincidem por isso, não por erro de conta. Amplie o período pra ver pastas ainda em análise.</div>` : '');
-    const razoes = grupo(`🔢 Quantos pra 1 venda — safra da janela (${N(n.venda)} venda${n.venda === 1 ? '' : 's'})`, [
-      tile('Prospecções → 1 venda', N(pv.prospeccoes), N(n.leads) + ' leads'),
+    const razoes = grupo(`🔢 Quantos pra 1 venda — no período (${N(n.venda)} venda${n.venda === 1 ? '' : 's'})`, [
+      tile(m.fonte === 'hub' ? 'Prospecções → 1 venda' : 'Atendimentos → 1 venda', N(pv.prospeccoes), N(n.prospec != null ? n.prospec : n.leads) + (m.fonte === 'hub' ? ' prospecções (HUB)' : ' atendimentos') + (n.prospec != null ? ` · ${N(n.leads)} leads pagos` : '')),
       tile('Qualificações → 1 venda', N(pv.qualificacoes), N(n.qualif) + ' qualificados'),
       tile('Agendamentos → 1 venda', N(pv.agendamentos), N(n.agend) + ' agendamentos'),
       tile('Visitas → 1 venda', N(pv.visitas), N(n.visita) + ' visitas'),
@@ -705,7 +705,7 @@ function tabMetricas() {
     ].join(''));
     return pan(`${TEAM_LBL[tk] || tk}`, custos + razoes + pastas + tempos);
   };
-  return teams.map(bloco).join('') + `<div class="tiny muted gc-nota" style="margin-top:6px">Custos seguem a janela de custo (preset da Meta casado ao período). Razões, pastas e tempos seguem a SAFRA da janela (lead nascido nela, seguido até hoje). "Reprovada" = perda após pasta com motivo de crédito/análise no RD; "perdida" = qualquer motivo. Qualificação = 1º marco de contato ok/qualificação do funil RD.</div>`;
+  return teams.map(bloco).join('') + `<div class="tiny muted gc-nota" style="margin-top:6px">Custos seguem a janela de custo (preset da Meta casado ao período). Contagens, custos por etapa e "quantos pra 1 venda" seguem o Dicionário de Métricas: Conquista pela esteira do PSM HUB, MAP/Terceiros/Locação pela entrada na coluna do RD (visita = tarefa de visita concluída) — o mesmo número do 1:1 e da Produtividade. Pastas e tempos seguem a SAFRA da janela (lead nascido nela, seguido até hoje). "Reprovada" = perda após pasta com motivo de crédito/análise no RD; "perdida" = qualquer motivo.</div>`;
 }
 
 /* ═══════════ 📺 MODO TV ═══════════ */
