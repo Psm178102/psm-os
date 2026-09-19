@@ -348,6 +348,13 @@ def avaliar_alertas(sb, regras, limiares=None):
             item.update({"estado": "regra_invalida", "valor_atual": atual})
             out.append(item)
             continue
+        # v88.9: a métrica pode vir vazia (ex.: ddd_fora_pct quando a consulta de deals
+        # falha, ou janela sem gasto). Antes o None entrava na comparação e derrubava o
+        # PAINEL INTEIRO com TypeError — a aba principal do agente ficava em 500.
+        if not isinstance(atual, (int, float)) or isinstance(atual, bool):
+            item.update({"estado": "sem_dado", "valor_atual": None})
+            out.append(item)
+            continue
         disparou = (atual > limiar) if r.get("op") == ">" else (atual < limiar)
         item.update({"estado": "disparado" if disparou else "ok", "valor_atual": atual})
         out.append(item)

@@ -160,7 +160,7 @@ class handler(BaseHTTPRequestHandler):
                 return self._send(200, _avaliar(sb))
             return self._send(200, {"ok": True, "estado": kv_get(sb, KV, {}) or {}})
         except AuthError as e:
-            return self._send(e.code, {"ok": False, "error": e.msg})
+            return self._send(e.status, {"ok": False, "error": e.message})
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)[:300]})
 
@@ -172,6 +172,6 @@ class handler(BaseHTTPRequestHandler):
                 return self._send(503, {"ok": False, "error": "backend indisponível"})
             return self._send(200, _avaliar(sb))
         except AuthError as e:
-            return self._send(e.code, {"ok": False, "error": e.msg})
+            return self._send(e.status, {"ok": False, "error": e.message})
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)[:300]})
