@@ -178,18 +178,34 @@ class handler(BaseHTTPRequestHandler):
             except Exception:
                 pass
 
-        # escolhe o 1º job vencido (ordem = prioridade); executa só 1 por chamada
-        alvo = None
+        # v88.8 — QUEM roda nesta chamada: o MAIS ATRASADO, não o primeiro da lista.
+        # Antes era "o 1º vencido", e a lista é ordem de prioridade: com 4 jobs de 30min no
+        # topo, a cauda nunca chegava a rodar. Em 19/09 a paridade Meta×RD estava 9 dias sem
+        # rodar (com as duas marcas abaixo do piso), o cache do Meta 4 dias e o custo real de
+        # tráfego 9 dias — tudo agendado, nada executado. Agora o critério é atraso ÷ intervalo
+        # (quantos ciclos o job perdeu), então quem está esquecido ganha a vez e a fila drena
+        # sozinha. Continua 1 job por chamada, pra request seguir curta.
+        # Exceção: frescor do RD (Dicionário de Métricas §0, "no máx 30 min atrasado") passa na
+        # frente sempre que estiver 2 ciclos atrás.
+        CRITICOS = ("sync_rd_inc", "visitas_rd")
+        vencidos = []  # (fator_de_atraso, key, path)
         for key, path, hours in JOBS:
             last = ran.get(key)
             if hours is None:  # semanal: roda 1× por semana, a partir de segunda 00:00 UTC
                 if last is None or last < _monday_utc(now):
-                    alvo = (key, path)
-                    break
-            else:
-                if last is None or (now - last) > timedelta(hours=hours):
-                    alvo = (key, path)
-                    break
+                    vencidos.append((5.0, key, path))
+                continue
+            if last is None:
+                vencidos.append((999.0, key, path))
+                continue
+            fator = (now - last).total_seconds() / (hours * 3600.0)
+            if fator > 1:
+                vencidos.append((fator, key, path))
+        alvo = None
+        if vencidos:
+            urgentes = [v for v in vencidos if v[1] in CRITICOS and v[0] >= 2]
+            _fator, _key, _path = max(urgentes or vencidos, key=lambda v: v[0])
+            alvo = (_key, _path)
         if not alvo:
             return self._send(200, {"ok": True, "idle": True, "sla": sla, "jobs": {k: ran.get(k) for k, _, _ in JOBS}})
 
