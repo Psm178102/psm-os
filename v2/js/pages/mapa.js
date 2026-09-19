@@ -247,8 +247,8 @@ async function editMyMaps() {
 }
 
 async function render() {
-  let earthUrl = DEFAULT_EARTH, myMaps = '', conquista = '', gkey = '';
-  try { const links = await getLinks(); earthUrl = links.mapa_earth || DEFAULT_EARTH; myMaps = links.mapa_mymaps || ''; conquista = links.mapa_conquista || ''; gkey = links.google_maps_key || ''; } catch (_) {}
+  let earthUrl = DEFAULT_EARTH, earthConq = '', myMaps = '', conquista = '', gkey = '';
+  try { const links = await getLinks(); earthUrl = links.mapa_earth || DEFAULT_EARTH; earthConq = links.mapa_earth_conquista || ''; myMaps = links.mapa_mymaps || ''; conquista = links.mapa_conquista || ''; gkey = links.google_maps_key || ''; } catch (_) {}
   // visibilidade por papel: quem vê MAP × quem vê Conquista (sócio sempre vê + administra). v81.81
   const perms = await getResourcePerms().catch(() => ({}));
   const isSocio = (auth.user()?.lvl || 0) >= 10;
@@ -259,6 +259,10 @@ async function render() {
   const semAcesso = !canMap && !canConq;
   const isConq = _fonte === 'conquista';
   const nomeFonte = isConq ? 'PSM Conquista' : 'MAP';
+  // O Earth 3D também segue a aba ativa: antes o botão era único e sempre abria o
+  // Earth do MAP, inclusive dentro da aba Conquista. Cai no Earth do MAP se a
+  // Conquista ainda não tiver link próprio. v88.8
+  const earthAtivo = (isConq ? earthConq : '') || earthUrl;
   // link da fonte ativa (Conquista usa só o My Maps da Conquista; MAP cai pro Earth como fallback de embed)
   const fonteUrl = isConq ? conquista : myMaps;
   const embedSrc = isEmbeddable(fonteUrl) ? toEmbed(fonteUrl) : (!isConq && isEmbeddable(earthUrl) ? toEmbed(earthUrl) : null);
@@ -277,7 +281,7 @@ async function render() {
             : 'Seu Google My Maps com todos os pins, nomes e cores — aqui dentro do sistema.'} Dois mapas separados: <b>MAP</b> e <b>PSM Conquista</b>.</p>
         </div>
         <div class="flex gap-2">
-          <a class="btn btn-primary" href="${esc(earthUrl)}" target="_blank" rel="noopener" style="background:#1a73e8">🌍 Abrir Earth 3D (tela cheia)</a>
+          <a class="btn btn-primary" href="${esc(earthAtivo)}" target="_blank" rel="noopener" style="background:#1a73e8" title="Abre o Google Earth 3D da fonte ${esc(nomeFonte)}">🌍 Abrir Earth 3D — ${esc(nomeFonte)}</a>
           ${canEditLinks() ? `<button class="btn btn-ghost" id="map-gkey" title="Chave do Google Maps (satélite + pins)">🔑 Chave Maps</button><button class="btn btn-ghost" id="map-mymaps-edit" title="Editar o link do My Maps da fonte ${esc(nomeFonte)}">⚙️ My Maps (${esc(nomeFonte)})</button>` : ''}
         </div>
       </div>
