@@ -55,6 +55,9 @@ LABEL = {
 
 CFG_DEFAULT = {
     "ativo": False,                  # portão do sócio
+    "phone_ids": [],                  # números da conta que abrem lead ([] = todos).
+                                      # A recepção e a Vera vivem na MESMA WABA: sem isto,
+                                      # conversa de campanha da recepção também viraria lead.
     "trilhas": {t: [] for t in TRILHAS},      # user_ids do House, na ordem da fila
     "rd_stage": {t: "" for t in TRILHAS},     # etapa de entrada no RD por trilha
     "rd_source_id": "",               # origem do deal no RD (opcional)
@@ -334,7 +337,7 @@ def espelhar_deal(sb, deal_raw, corretor_id, corretor_email, trilha, cfg):
 
 
 # ─── entrada: uma mensagem do cliente ─────────────────────────────────────
-def processar_mensagem(sb, phone_raw, texto, msg_id=None, perfil_nome=None):
+def processar_mensagem(sb, phone_raw, texto, msg_id=None, perfil_nome=None, phone_id=None):
     """Chamado pelo webhook a cada mensagem recebida. Idempotente por wa_msg_id.
     Nunca levanta exceção: o webhook precisa responder 200 para a Meta."""
     out = {"acao": None, "trilha": None, "lead_id": None}
@@ -342,6 +345,9 @@ def processar_mensagem(sb, phone_raw, texto, msg_id=None, perfil_nome=None):
     if not phone:
         return {"acao": "ignorado", "motivo": "telefone inválido"}
     cfg = get_cfg(sb)
+    permitidos = [str(x) for x in (cfg.get("phone_ids") or []) if x]
+    if permitidos and str(phone_id or "") not in permitidos:
+        return {"acao": "ignorado", "motivo": "mensagem de outro número da conta"}
     agora = datetime.now(timezone.utc)
 
     # idempotência: a Meta reenvia o mesmo evento quando o 200 demora

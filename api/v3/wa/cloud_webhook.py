@@ -19,7 +19,7 @@ from _leads_lib import processar_mensagem  # type: ignore
 
 
 def _extract(body):
-    """Cloud API: entry[].changes[].value.messages[] → [(phone, text, msg_id, nome)].
+    """Cloud API: entry[].changes[].value.messages[] → [(phone, text, msg_id, nome, phone_id)].
     O nome vem de value.contacts[].profile.name, casado pelo wa_id — é o que o
     cliente pôs no perfil dele, e é melhor do que 'Lead WhatsApp' no card."""
     out = []
@@ -27,6 +27,7 @@ def _extract(body):
         for entry in (body.get("entry") or []):
             for ch in (entry.get("changes") or []):
                 val = ch.get("value") or {}
+                dest = ((val.get("metadata") or {}).get("phone_number_id") or "")
                 nomes = {}
                 for c in (val.get("contacts") or []):
                     wid = c.get("wa_id")
@@ -46,7 +47,7 @@ def _extract(body):
                         br = it.get("button_reply") or it.get("list_reply") or {}
                         txt = br.get("title") or br.get("id") or ""
                     if frm:
-                        out.append((frm, txt, m.get("id"), nomes.get(frm)))
+                        out.append((frm, txt, m.get("id"), nomes.get(frm), dest))
     except Exception:
         pass
     return out
@@ -92,7 +93,7 @@ class handler(BaseHTTPRequestHandler):
             return self._send(200, {"ok": True, "skipped": "no-backend"})
         n = 0
         leads = 0
-        for phone, text, msg_id, nome in _extract(body):
+        for phone, text, msg_id, nome, phone_id in _extract(body):
             try:
                 record_reply(sb, phone, text); n += 1
             except Exception:
@@ -100,7 +101,8 @@ class handler(BaseHTTPRequestHandler):
             # O lead é independente da campanha: quem escreveu pela primeira vez
             # vira card com dono, mesmo que nunca tenha recebido disparo nosso.
             try:
-                r = processar_mensagem(sb, phone, text, msg_id=msg_id, perfil_nome=nome) or {}
+                r = processar_mensagem(sb, phone, text, msg_id=msg_id, perfil_nome=nome,
+                                       phone_id=phone_id) or {}
                 if r.get("acao") in ("distribuido", "sem_dono", "registrado", "na_fila",
                                      "classificado", "aguardando_triagem"):
                     leads += 1
