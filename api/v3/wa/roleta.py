@@ -108,6 +108,15 @@ class handler(BaseHTTPRequestHandler):
         if lvl >= 5:
             out["cfg"] = cfg
             out["pode_editar"] = lvl >= 7
+            try:
+                out["users_mini"] = [
+                    {"id": r["id"], "name": r.get("name") or r["id"], "role": r.get("role") or "",
+                     "team": r.get("team") or ""}
+                    for r in (sb.table("users").select("id,name,role,team,status,is_service")
+                              .execute().data or [])
+                    if (r.get("status") or "ativo") == "ativo" and not r.get("is_service")]
+            except Exception:
+                out["users_mini"] = []
         return self._send(200, out)
 
     # ── POST ──────────────────────────────────────────────────────────────

@@ -12,7 +12,7 @@ create table if not exists public.wa_leads (
   primeira_msg  text,
   origem        text default 'wa_vera',
   status        text not null default 'novo',  -- novo|distribuido|assumido|descartado|duplicado
-  corretor_id   uuid,                          -- users.id do House
+  corretor_id   text,                          -- users.id do House (TEXT, ex. "rafaela")
   distribuido_em timestamptz,
   assumido_em   timestamptz,
   repiques      int not null default 0,
