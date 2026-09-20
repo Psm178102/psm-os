@@ -1,8 +1,13 @@
 """GET/POST /api/v3/wa/cloud_webhook — webhook do WhatsApp Cloud API (direto da Meta).
 Configure no app da Meta (WhatsApp → Configuração → Webhook), campo 'messages'.
   GET  = verificação (hub.mode/hub.verify_token == WA_CLOUD_VERIFY_TOKEN → hub.challenge)
-  POST = mensagens recebidas (texto OU clique no botão 'Quero ver') → record_reply (quente/opt-out)
+  POST = mensagens recebidas (texto OU clique no botão 'Quero ver'):
+         1. record_reply  — resposta da campanha (quente/opt-out), como sempre;
+         2. processar_mensagem (v88.9) — primeira mensagem de número novo vira LEAD:
+            trilha pela frase de origem, corretor pela roleta, card no RD e no House.
          Com META_APP_SECRET no Vercel, a assinatura X-Hub-Signature-256 é OBRIGATÓRIA (v87.50).
+         ⚠️ Sem essa env qualquer POST é aceito — e desde a v88.9 um POST forjado
+         cria lead e consome a roleta. Configure antes de ligar cfg.ativo.
 """
 from http.server import BaseHTTPRequestHandler
 import hashlib, hmac, json, os, sys, urllib.parse
@@ -10,15 +15,24 @@ import hashlib, hmac, json, os, sys, urllib.parse
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client  # type: ignore
 from _wa_lib import record_reply  # type: ignore
+from _leads_lib import processar_mensagem  # type: ignore
 
 
 def _extract(body):
-    """Cloud API: entry[].changes[].value.messages[] → [(phone, text)]."""
+    """Cloud API: entry[].changes[].value.messages[] → [(phone, text, msg_id, nome)].
+    O nome vem de value.contacts[].profile.name, casado pelo wa_id — é o que o
+    cliente pôs no perfil dele, e é melhor do que 'Lead WhatsApp' no card."""
     out = []
     try:
         for entry in (body.get("entry") or []):
             for ch in (entry.get("changes") or []):
                 val = ch.get("value") or {}
+                nomes = {}
+                for c in (val.get("contacts") or []):
+                    wid = c.get("wa_id")
+                    nm = ((c.get("profile") or {}).get("name") or "").strip()
+                    if wid and nm:
+                        nomes[wid] = nm
                 for m in (val.get("messages") or []):
                     frm = m.get("from")
                     t = m.get("type")
@@ -32,7 +46,7 @@ def _extract(body):
                         br = it.get("button_reply") or it.get("list_reply") or {}
                         txt = br.get("title") or br.get("id") or ""
                     if frm:
-                        out.append((frm, txt))
+                        out.append((frm, txt, m.get("id"), nomes.get(frm)))
     except Exception:
         pass
     return out
@@ -77,9 +91,19 @@ class handler(BaseHTTPRequestHandler):
         if not sb:
             return self._send(200, {"ok": True, "skipped": "no-backend"})
         n = 0
-        for phone, text in _extract(body):
+        leads = 0
+        for phone, text, msg_id, nome in _extract(body):
             try:
                 record_reply(sb, phone, text); n += 1
             except Exception:
                 pass
-        return self._send(200, {"ok": True, "processed": n})
+            # O lead é independente da campanha: quem escreveu pela primeira vez
+            # vira card com dono, mesmo que nunca tenha recebido disparo nosso.
+            try:
+                r = processar_mensagem(sb, phone, text, msg_id=msg_id, perfil_nome=nome) or {}
+                if r.get("acao") in ("distribuido", "sem_dono", "registrado", "na_fila",
+                                     "classificado", "aguardando_triagem"):
+                    leads += 1
+            except Exception:
+                pass
+        return self._send(200, {"ok": True, "processed": n, "leads": leads})
