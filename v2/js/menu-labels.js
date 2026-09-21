@@ -165,6 +165,8 @@ export function applyMenuLayout() {
   });
   sidebar.insertBefore(frag, anchor);
   rehideEmptySections(sidebar);
+  // itens mudaram de seção → o colapso (main.js) precisa reler quem é de quem. v88.10
+  document.dispatchEvent(new CustomEvent('psm:menu-layout'));
 }
 
 export async function loadMenuLayout() {

@@ -447,6 +447,9 @@ function applyPermissions(user) {
 
 // Minimizar/expandir categorias do menu (cabeçalhos sb-sec) — estado salvo por usuário.
 // Usa CLASSE css (não inline display) pra não conflitar com a ocultação por permissão. v77.85
+// Reaplicado sempre que o Editor de Menu reorganiza a barra (evento de applyMenuLayout). v88.10
+let _applySectionCollapse = () => {};
+document.addEventListener('psm:menu-layout', () => _applySectionCollapse());
 function initSectionCollapse() {
   // v86.55 (pedido do Paulo): o padrão INVERTEU — menu começa com TODAS as categorias
   // minimizadas (layout clean); clicar abre. Agora salvamos as ABERTAS (psm.v2.menu_open);
@@ -468,17 +471,25 @@ function initSectionCollapse() {
   }
   const sidebar = document.querySelector('.app-sidebar');
   if (!sidebar) return;
-  sidebar.querySelectorAll('.sb-sec').forEach(sec => {
-    const key = sec.dataset.deflabel || (sec.textContent || '').trim();
-    // itens da seção = irmãos até o próximo sb-sec (inclui sb-subsec + sb-link)
+  const keyOf = sec => sec.dataset.deflabel || (sec.textContent || '').trim();
+  // v88.10: os itens da seção são lidos NA HORA (irmãos até o próximo sb-sec,
+  // inclui sb-subsec + sb-link), não congelados no boot. O Editor de Menu
+  // (applyMenuLayout) move itens entre seções DEPOIS deste init: com a lista
+  // congelada, "Treinamentos" (movido do RH pra PSM Academy) seguia o colapso do
+  // RH — sumia da Academy e só "voltava" quando alguém abria o RH.
+  const itemsOf = sec => {
     const items = [];
     let n = sec.nextElementSibling;
     while (n && !(n.classList && n.classList.contains('sb-sec'))) { items.push(n); n = n.nextElementSibling; }
-    const apply = () => {
-      const isC = collapsed.has(key);
-      sec.classList.toggle('sec-collapsed', isC);
-      items.forEach(it => it.classList.toggle('menu-collapsed', isC));
-    };
+    return items;
+  };
+  const applyOne = sec => {
+    const isC = collapsed.has(keyOf(sec));
+    sec.classList.toggle('sec-collapsed', isC);
+    itemsOf(sec).forEach(it => it.classList.toggle('menu-collapsed', isC));
+  };
+  _applySectionCollapse = () => sidebar.querySelectorAll('.sb-sec').forEach(applyOne);
+  sidebar.querySelectorAll('.sb-sec').forEach(sec => {
     if (!sec._collapseWired) {
       sec._collapseWired = true;
       sec.addEventListener('click', () => {
@@ -487,20 +498,21 @@ function initSectionCollapse() {
         // outras seções não "pulam" sob o cursor e some o erro de clique. v81.61
         const sc = sec.closest('.app-sidebar') || sidebar;
         const before = sec.getBoundingClientRect().top;
+        const key = keyOf(sec);
         if (collapsed.has(key)) collapsed.delete(key); else collapsed.add(key);
-        apply(); save();
+        applyOne(sec); save();
         const after = sec.getBoundingClientRect().top;
         const delta = after - before;
         if (delta && sc && typeof sc.scrollTop === 'number') sc.scrollTop += delta;
       });
     }
-    apply();
   });
+  _applySectionCollapse();
 }
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '88.9';
+const APP_VERSION = '88.10';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
