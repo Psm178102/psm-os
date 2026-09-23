@@ -37,10 +37,10 @@ async function load(fresh) {
   const body = document.getElementById('sc-body');
   body.innerHTML = '<div class="muted tiny"><span class="spinner"></span> Montando os placares (motor comercial + financeiro + mídia)…</div>';
   try {
-    const [d, h] = await Promise.all([
-      api.request(`/api/v3/diretoria/scorecard?ym=${_ym}${fresh ? '&fresh=1' : ''}`),
-      api.request('/api/v3/diretoria/scorecard?hist=12').catch(() => null),
-    ]);
+    // placar primeiro, histórico depois: o cálculo do mês é o que REGISTRA o mês no histórico —
+    // pedidos juntos, a 1ª abertura do mês mostrava o mapa de calor sem o mês corrente. v88.32
+    const d = await api.request(`/api/v3/diretoria/scorecard?ym=${_ym}${fresh ? '&fresh=1' : ''}`);
+    const h = await api.request('/api/v3/diretoria/scorecard?hist=12').catch(() => null);
     _d = d; _h = h;
     render();
   } catch (e) {
