@@ -498,6 +498,7 @@ def coletar_integracoes(sb, col, now, live=True):
         age = _age_h(ult, now)
         add("kenlo", "Kenlo Imob", "Estoque de imóveis.", avaliar_idade(age, 30, 54),
             f"Último sync {fmt_idade(age)}.", ult, "#/estoque-kenlo", "🏠")
+        itens[-1]["herda"] = "vc:kenlo"   # mesmo problema da rotina "Sync estoque Kenlo" → 1 alerta só
 
     # NIBO
     add("nibo", "NIBO (financeiro)", "Contas, pagamentos e comissões pagas.",
@@ -587,9 +588,51 @@ def coletar_agentes(sb, col, now, ias):
     return itens
 
 
-def coletar_saude(sb, col, now):
-    """Reaproveita os avisos já existentes: teste noturno dos números entre telas."""
+def versao_coerente(json_txt, main_txt):
+    """(status, detalhe) comparando version.json × APP_VERSION embarcado no main.js.
+    Diferentes = todo navegador acha que tem versão nova, recarrega e cai de novo no
+    aviso → loop de atualização (aconteceu na v88.19: json 88.19 × main.js 88.18)."""
+    try:
+        vj = str(json.loads(json_txt).get("version") or "").strip()
+    except Exception:
+        vj = ""
+    m = re.search(r"APP_VERSION\s*=\s*'([^']+)'", main_txt or "")
+    vm = m.group(1).strip() if m else ""
+    if not vj or not vm:
+        return "warn", "Não consegui ler a versão publicada (version.json ou main.js)."
+    if vj != vm:
+        return "error", (f"Versão DESCASADA: version.json diz {vj} e o código diz {vm} — o sistema fica "
+                         "pedindo 'Atualizar' em loop pra todo mundo. Corrigir APP_VERSION no main.js e publicar.")
+    return "ok", f"Versão {vj} coerente (version.json = código)."
+
+
+def coletar_saude(sb, col, now, host="www.housepsm.com.br", live=True):
+    """Versão publicada + avisos já existentes (teste noturno dos números entre telas)."""
     itens = []
+    try:
+        if not live:
+            raise StopIteration
+        def _baixa(url):
+            try:
+                req = urllib.request.Request(url, headers={"User-Agent": "PSM-OpsCentral", "Cache-Control": "no-cache"})
+                with urllib.request.urlopen(req, timeout=8) as r:
+                    return r.status, r.read().decode("utf-8", "ignore")
+            except urllib.error.HTTPError as e:
+                return e.code, ""
+        t = int(time.time())
+        cj, tj = _baixa(f"https://{host}/version.json?t={t}")     # inteiro: passa de 4 KB
+        cm, tm = _baixa(f"https://{host}/v2/js/main.js?t={t}")
+        if cj == 200 and cm == 200:
+            st, det = versao_coerente(tj, tm)
+        else:
+            st, det = "warn", f"Site não entregou os arquivos de versão (version.json HTTP {cj}, main.js HTTP {cm})."
+        itens.append(_item("sd:versao", "saude", "Versão publicada", "version.json × código do app (evita loop de atualização).",
+                           st, det, None, None, "a cada checagem", "🔁"))
+    except StopIteration:
+        pass
+    except Exception as e:
+        itens.append(_item("sd:versao", "saude", "Versão publicada", "version.json × código do app.",
+                           "warn", f"Checagem de versão falhou: {str(e)[:100]}", None, None, "a cada checagem", "🔁"))
     try:
         rows = (sb.table("shared_kv").select("key,value,updated_at").like("key", "consistencia_telas:%")
                 .order("updated_at", desc=True).limit(1).execute().data or [])
@@ -771,12 +814,12 @@ def disparar(sb, cfg, novos, relembrar, resolvidos, nomes_resolvidos):
     return out
 
 
-def snapshot(sb, now, live=True):
+def snapshot(sb, now, live=True, host="www.housepsm.com.br"):
     col = Coleta(sb)
     rotinas = coletar_rotinas(sb, col, now)
     integracoes, ias = coletar_integracoes(sb, col, now, live=live)
     agentes = coletar_agentes(sb, col, now, ias)
-    saude = coletar_saude(sb, col, now)
+    saude = coletar_saude(sb, col, now, host, live)
     itens = rotinas + integracoes + agentes + saude
     status, r = resumo(itens)
     return itens, status, r

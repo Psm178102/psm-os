@@ -68,6 +68,13 @@ def test_herda_nao_alerta():
     assert [i["id"] for i in novos] == ["in:anthropic"]
 
 
+def test_versao_coerente():
+    assert O.versao_coerente('{"version": "88.21"}', "const APP_VERSION = '88.21';")[0] == "ok"
+    st, det = O.versao_coerente('{"version": "88.19"}', "x\nconst APP_VERSION = '88.18';\n")
+    assert st == "error" and "88.19" in det and "88.18" in det      # o loop real de 23/09
+    assert O.versao_coerente("lixo", "")[0] == "warn"
+
+
 def test_silencio():
     sil = {"a": (NOW + timedelta(hours=5)).isoformat()}
     novo, novos, rel, _ = O.diff_alertas([it("a", "error")], {}, sil, NOW)
