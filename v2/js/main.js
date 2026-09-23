@@ -288,7 +288,7 @@ export const ROUTE_MIN_LVL = {
   '/cockpit-conquista': 10, '/minha-comissao': 2, '/meu-cerebro': 10, '/sim-conquista': 10,  // v84.51: cada um vê a PRÓPRIA comissão (escopo travado no backend)
   // v86.90: Sala de Comando (Cockpit+Dashboard unificados) — decisão do Paulo: SÓ sócio.
   // /diretoria segue registrado FORA do menu (gestão de recados e retrocompat de links).
-  '/cockpit': 10, '/diretoria': 10, '/norte-estrategico': 10, '/scorecard': 7, '/comunicados': 10,
+  '/cockpit': 10, '/diretoria': 10, '/norte-estrategico': 10, '/scorecard': 5, '/comunicados': 10,
   // v87.31/32/33/34: AGENTES DIRETORIA — TUDO SÓ sócio (lvl 10): chats CEO/CFO/CMO
   // + Rede de Agentes (contexto carrega caixa, dívida, pró-labore e Plano de
   // Resgate — espelha o require_user(min_lvl=10) de ia/chat + ia/rede), os
@@ -517,7 +517,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '88.27';
+const APP_VERSION = '88.28';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {

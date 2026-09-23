@@ -3,7 +3,9 @@
 Um só formato de placar para a Presidência, cada Unidade de Negócio e cada Área:
 indicador · realizado · meta · % · FAROL · dono · fonte. Mesma régua pra todos.
 
-GET  ?ym=2026-09[&fresh=1]   (lvl >= 7)
+GET  ?ym=2026-09[&fresh=1]   (lvl >= 5) — sócio (lvl 10) vê todos os placares; os demais veem SÓ
+     os placares de que são DONOS (ex.: Kaue → Conquista e Comercial), sem Presidência/Financeiro.
+     A tela aparece no menu pra quem o sócio liberar na matriz de permissões.
 POST (lvl >= 10 — sócio)
   {action:'set_meta',   ind, meta|null}         meta própria de um indicador (null = volta ao padrão)
   {action:'set_manual', ym, ind, valor|null}     valor de um indicador MANUAL no mês
@@ -15,7 +17,7 @@ FONTES (nada novo é calculado aqui — só lido dos motores oficiais):
   • Receita, comissões, contribuição por linha: viab.compute_snapshot (régua da tela
     Orçado × Realizado — classifica por FUNIL do RD, pode diferir 1–2 vendas da régua por equipe).
   • Custo fixo: viab_custos_orcado (custo_fixo_mes) · Mídia: meta_ads_monthly e
-    trafego_real.consolidar (por marca) · Break-even: viab.break_even.
+    viab_trafego_real por conta → marca (mapa salvo; vazio = MAPA_PADRAO) · Pró-labore: Plano de Resgate.
   • Locação: tabela locacoes · NPS: producao_eventos (nps_coletado) · Qualidade: consistencia_telas.
   • Manuais (eNPS, Morimatsu…): shared_kv scorecard_manual, lançados na própria tela.
 
@@ -43,7 +45,7 @@ if _V3 not in sys.path:
 
 KV_CFG, KV_MANUAL, KV_CACHE = "scorecard_cfg", "scorecard_manual", "scorecard_cache"
 CACHE_TTL = 600
-VERSAO_REGRAS = "v1"
+VERSAO_REGRAS = "v2"   # v2: pró-labore na conta, cobertura pela contribuição, CPL sem gasto = sem dado, saúde c/ base mínima
 
 
 # ─── catálogo ───────────────────────────────────────────────────────────────
@@ -62,14 +64,14 @@ CATALOGO = [
         I("p.vendas", "Vendas", "n", "maior", True, "E.vendas", "E.meta_vendas"),
         I("p.receita", "Receita de comissão (bruta PSM)", "R$", "maior", True, "F.receita", "F.receita_orc"),
         I("p.contrib", "Margem de contribuição", "R$", "maior", True, "F.contrib", "F.contrib_orc", nota="receita − comissões − imposto"),
-        I("p.resultado", "Resultado do mês (projetado)", "R$", "maior", False, "F.resultado_proj", meta_pad=0,
-          nota="contribuição projetada pro fim do mês − custo fixo orçado (sem mídia) − mídia real. Regra do Positivo: ≥ 0"),
-        I("p.breakeven", "Cobertura do ponto de equilíbrio", "%", "maior", True, "F.cobertura_be", meta_pad=100,
-          nota="VGV do mês ÷ VGV necessário pra pagar o custo fixo"),
+        I("p.resultado", "Resultado do mês (projetado, com pró-labore)", "R$", "maior", False, "F.resultado_proj", meta_pad=0,
+          nota="contribuição projetada pro fim do mês − custo fixo orçado − pró-labore − mídia real. Regra do Positivo: ≥ 0"),
+        I("p.breakeven", "Cobertura da conta cheia (projetada)", "%", "maior", False, "F.cobertura_be", meta_pad=100,
+          nota="contribuição projetada ÷ (custo fixo + pró-labore + mídia). 100% = mês no zero a zero"),
         I("p.midia", "Investimento em mídia (Meta)", "R$", "menor", True, "M.spend_total", "M.spend_orc", nota="meta = verba de tráfego orçada no mês"),
         I("p.cac", "CAC de mídia", "R$", "menor", False, "M.cac_total", nota="mídia ÷ vendas"),
-        I("p.pipeline", "Pipeline ponderado × falta pra meta", "%", "maior", False, "E.cobertura_pipeline", meta_pad=100,
-          nota="VGV ponderado em aberto ÷ o que falta pra bater a meta do mês"),
+        I("p.pipeline", "Pipeline comprometido × falta pra meta", "%", "maior", False, "E.cobertura_pipeline", meta_pad=100,
+          nota="VGV em proposta/pasta das equipes ativas ÷ o que falta pra bater a meta do mês (negócio sem equipe fica fora)"),
         I("p.corretores", "Corretores ativos", "n", "maior", False, "E.corretores", meta_pad=16,
           nota="Plano: 16–18 no Q1/2027"),
         I("p.nps", "NPS pós-visita", "n", "maior", False, "O.nps", meta_pad=70),
@@ -88,7 +90,7 @@ CATALOGO = [
         I("c.corretores", "Corretores ativos", "n", "maior", False, "Q.conquista.corretores"),
     ]},
     {"id": "un_imoveis", "nome": "PSM Imóveis (MAP + Terceiros)", "grupo": "un", "ico": "🏢", "dono": "paulo",
-     "nota": "Alto padrão e terceiros. Soma das equipes map e terceiros.", "ind": [
+     "nota": "Alto padrão e terceiros: equipes map + terceiros + a venda própria dos sócios (Paulo e Isa estão sem equipe no cadastro).", "ind": [
         I("i.vgv", "VGV vendido", "R$", "maior", True, "Q.imoveis.vgv", "Q.imoveis.meta_vgv"),
         I("i.vendas", "Vendas", "n", "maior", True, "Q.imoveis.vendas", "Q.imoveis.meta_vendas"),
         I("i.visitas", "Visitas", "n", "maior", True, "Q.imoveis.visitas", "Q.imoveis.meta_visitas"),
@@ -121,6 +123,8 @@ CATALOGO = [
         I("co.ticket", "Ticket médio", "R$", "maior", False, "E.ticket"),
         I("co.semvalor", "Negócios abertos sem valor", "n", "menor", False, "E.sem_valor", meta_pad=0,
           nota="pipeline sem VGV não entra na previsão"),
+        I("co.semequipe", "Negócios abertos sem equipe (higiene do RD)", "n", "menor", False, "E.sem_equipe_abertos", meta_pad=0,
+          nota="abertos de corretor que saiu ou sem dono — redistribuir ou encerrar no RD"),
     ]},
     {"id": "area_marketing", "nome": "Marketing", "grupo": "area", "ico": "📣", "dono": "paulo",
      "nota": "Geração de demanda e custo de aquisição.", "ind": [
@@ -134,9 +138,10 @@ CATALOGO = [
      "nota": "Resultado e sustentação da operação.", "ind": [
         I("f.receita", "Receita de comissão", "R$", "maior", True, "F.receita", "F.receita_orc"),
         I("f.contrib", "Margem de contribuição", "R$", "maior", True, "F.contrib", "F.contrib_orc"),
-        I("f.fixo", "Custo fixo orçado do mês (sem mídia)", "R$", "menor", False, "F.custo_fixo", nota="orçamento de custos (Orçado × Realizado), fora o tráfego pago"),
-        I("f.resultado", "Resultado do mês (projetado)", "R$", "maior", False, "F.resultado_proj", meta_pad=0),
-        I("f.be", "Cobertura do ponto de equilíbrio", "%", "maior", True, "F.cobertura_be", meta_pad=100),
+        I("f.fixo", "Conta cheia do mês", "R$", "menor", False, "F.conta_cheia",
+          nota="custo fixo orçado (Orçado × Realizado, sem mídia) + pró-labore (Plano de Resgate) + mídia real"),
+        I("f.resultado", "Resultado do mês (projetado, com pró-labore)", "R$", "maior", False, "F.resultado_proj", meta_pad=0),
+        I("f.be", "Cobertura da conta cheia (projetada)", "%", "maior", False, "F.cobertura_be", meta_pad=100),
         I("f.travados", "Recebíveis travados", "n", "menor", False, "R.travados", meta_pad=0),
     ]},
     {"id": "area_pessoas", "nome": "Pessoas", "grupo": "area", "ico": "👥", "dono": "isa",
@@ -225,6 +230,9 @@ def _valores(sb, ano, mes, hoje, avisos):
         from _metricas_lib import resumo  # type: ignore
         r = resumo(sb, {"since": ini.isoformat(), "until": fim.isoformat()}, hoje=hoje)
         V["_dados_de"] = r.get("dados_de_hhmm")
+        erros_motor = [a.get("txt") for a in (r.get("avisos") or []) if isinstance(a, dict) and a.get("tipo") == "erro_dados"]
+        if erros_motor:
+            avisos.append("Motor comercial: leitura de negócios do RD falhou nesta rodada — pipeline e funil podem estar incompletos. Use ↻ Recalcular.")
 
         def bloco(pref, b):
             if not b: return
@@ -237,6 +245,7 @@ def _valores(sb, ano, mes, hoje, avisos):
             V[f"{pref}.quente_vgv"] = pipe.get("quente_vgv")
             V[f"{pref}.sem_valor"] = pipe.get("sem_valor")
             V[f"{pref}.ponderado_vgv"] = pipe.get("ponderado_vgv")
+            V[f"{pref}.comprometido_vgv"] = pipe.get("comprometido_vgv")
             V[f"{pref}.conv"] = _div(b.get("vendas"), b.get("leads"), 100)
             V[f"{pref}.lead_visita"] = _div(b.get("visitas"), b.get("leads"), 100)
             V[f"{pref}.corretores"] = b.get("n_corretores")
@@ -250,19 +259,42 @@ def _valores(sb, ano, mes, hoje, avisos):
         bloco("E", E)
         V["E.corretores"] = sum(int((eq.get(t) or {}).get("n_corretores") or 0) for t in eq) or None
         V["E.gestores"] = sum(int((eq.get(t) or {}).get("n_gestores") or 0) for t in eq) or None
+        if erros_motor:   # pipeline 0 por falha de leitura não é "pipeline vazio"
+            for k in [k for k in V if k.endswith((".ponderado_vgv", ".quente_vgv", ".sem_valor", ".comprometido_vgv"))]:
+                V[k] = None
         falta = max(0.0, float(V.get("E.meta_vgv") or 0) - float(V.get("E.vgv") or 0))
-        V["E.cobertura_pipeline"] = (100.0 if falta == 0 and V.get("E.meta_vgv") else _div(V.get("E.ponderado_vgv"), falta, 100))
+        # comprometido só das equipes ATIVAS: "sem_equipe" guarda ~9 mil abertos de quem saiu / leads antigos
+        # e inflava o pipeline da empresa (ponderado R$ 89 mi num mês de meta R$ 4,5 mi)
+        ativos = [t for t in eq if t not in ("sem_equipe", "geral")]
+        comp = None if erros_motor else sum(float(((eq.get(t) or {}).get("pipeline") or {}).get("comprometido_vgv") or 0) for t in ativos)
+        V["E.comprometido_ativos"] = comp
+        V["E.sem_equipe_abertos"] = ((eq.get("sem_equipe") or {}).get("pipeline") or {}).get("abertos")
+        V["E.cobertura_pipeline"] = (None if comp is None else
+                                     100.0 if falta == 0 and V.get("E.meta_vgv") else _div(comp, falta, 100))
         bloco("Q.conquista", eq.get("conquista"))
         # PSM Imóveis = map + terceiros (soma campo a campo)
         m_, t_ = eq.get("map") or {}, eq.get("terceiros") or {}
+        # sócios sem equipe no cadastro (Paulo/Isa = closers do MAP no Plano de Resgate): a meta e a venda
+        # própria deles caem em "sem_equipe" — somam aqui pra PSM Imóveis não ficar sem os dois
+        try:
+            socios = [u["id"] for u in (sb.table("users").select("id,role,team,status").execute().data or [])
+                      if (u.get("role") or "").lower() == "socio" and not (u.get("team") or "").strip()
+                      and str(u.get("status") or "ativo").lower() in ("ativo", "active")]
+        except Exception:
+            socios = []
+        pes = r.get("pessoas") or {}
+        blocos_im = [m_, t_] + [pes[s] for s in socios if isinstance(pes.get(s), dict)]
         V["Q.map.leads"] = m_.get("leads")
-        soma = {}
-        for k in ("vgv", "vendas", "leads", "agendamentos", "visitas", "propostas", "n_corretores", "n_gestores"):
-            soma[k] = float(m_.get(k) or 0) + float(t_.get(k) or 0)
-        soma["meta"] = {k: float((m_.get("meta") or {}).get(k) or 0) + float((t_.get("meta") or {}).get(k) or 0)
+        soma = {k: sum(float(b.get(k) or 0) for b in blocos_im)
+                for k in ("vgv", "vendas", "leads", "agendamentos", "visitas", "propostas", "n_corretores", "n_gestores")}
+        soma["meta"] = {k: sum(float((b.get("meta") or {}).get(k) or 0) for b in blocos_im)
                         for k in ("meta_vgv", "meta_vendas", "meta_agendamentos", "meta_visitas", "meta_propostas")}
-        soma["pipeline"] = {"quente_vgv": float((m_.get("pipeline") or {}).get("quente_vgv") or 0) + float((t_.get("pipeline") or {}).get("quente_vgv") or 0)}
+        soma["pipeline"] = {k: sum(float((b.get("pipeline") or {}).get(k) or 0) for b in blocos_im)
+                            for k in ("quente_vgv", "comprometido_vgv", "ponderado_vgv", "sem_valor")}
         bloco("Q.imoveis", soma)
+        if erros_motor:   # repete depois dos blocos por equipe (Conquista/Imóveis) — nenhum pipeline 0 falso
+            for k in [k for k in V if k.endswith((".ponderado_vgv", ".quente_vgv", ".sem_valor", ".comprometido_vgv"))]:
+                V[k] = None
     except Exception as e:
         avisos.append(f"Motor comercial indisponível: {e}")
 
@@ -294,25 +326,41 @@ def _valores(sb, ano, mes, hoje, avisos):
         V["F.linha.imoveis_orc"] = round(orc_l["map"]["lucro"] + orc_l["terceiros"]["lucro"], 2) or None
         V["F.custo_fixo"] = fixo
         V["M.spend_total"] = spend or None
+        # Regra do Positivo: pró-labore DENTRO da conta (não está no orçamento de custos — vem do Plano de Resgate)
+        plano = viab.read_kv(sb, "plano_resgate_2026") or {}
+        pro_labore = float(((plano.get("constantes") or {}).get("pro_labore_mes")) or 0)
+        conta = fixo + pro_labore + spend
+        V["F.pro_labore"] = pro_labore
+        V["F.conta_cheia"] = round(conta, 2)
         contrib_proj = V["F.contrib"] / (ritmo / 100.0) if 0 < ritmo < 100 else V["F.contrib"]
-        V["F.resultado_proj"] = round(contrib_proj - fixo - spend, 2)
-        margens = viab.margens_ano(orcamento, ano, mes)
-        be = viab.break_even(fixo + spend, margens)
-        V["F.be_vgv"] = be.get("vgv_total")
-        V["F.cobertura_be"] = _div(cons.get("vgv"), be.get("vgv_total"), 100)
+        V["F.resultado_proj"] = round(contrib_proj - conta, 2)
+        # cobertura pela CONTRIBUIÇÃO (não pelo break_even de mix igual: a Locação tem margem de 42%
+        # sobre aluguel e distorcia a média — dava "141% coberto" com o mês no vermelho)
+        V["F.cobertura_be"] = _div(contrib_proj, conta, 100)
     except Exception as e:
         avisos.append(f"Financeiro indisponível: {e}")
 
     # 3) mídia por marca (Meta Ads efetivo) → CPL / CAC
     try:
         import trafego_real  # type: ignore
-        ef = (trafego_real.consolidar(sb, ano).get("efetivo") or {})
-        V["M.cpl.conquista"] = _div((ef.get("conquista") or {}).get(mes), V.get("Q.conquista.leads"))
-        V["M.cpl.map"] = _div((ef.get("map") or {}).get(mes), V.get("Q.map.leads"))
+        # o mapa conta→marca salvo (viab_trafego_map) pode estar sem contas — aí vale o MAPA_PADRAO
+        mapa = trafego_real._mapa(sb)
+        for l, contas in trafego_real.MAPA_PADRAO.items():
+            if not mapa.get(l): mapa[l] = list(contas)
+        real_m = ((viab.read_kv(sb, trafego_real.KV_REAL).get(str(ano)) or {}).get(str(mes)) or {})
+        over_m = (viab.read_kv(sb, trafego_real.KV_OVER).get(str(ano)) or {})
+        def gasto(l):
+            ov = (over_m.get(l) or {}).get(str(mes))
+            if ov not in (None, ""): return float(ov)
+            return sum(float((real_m.get(a) or {}).get("spend") or 0) for a in mapa.get(l, []))
+        for l, lk in (("conquista", "Q.conquista.leads"), ("map", "Q.map.leads")):
+            g = gasto(l)
+            V[f"M.spend.{l}"] = g or None
+            V[f"M.cpl.{l}"] = _div(g, V.get(lk)) if g > 0 else None
     except Exception as e:
         avisos.append(f"Mídia por marca indisponível: {e}")
-    V["M.cpl_total"] = _div(V.get("M.spend_total"), V.get("E.leads"))
-    V["M.cac_total"] = _div(V.get("M.spend_total"), V.get("E.vendas"))
+    V["M.cpl_total"] = _div(V.get("M.spend_total"), V.get("E.leads")) if V.get("M.spend_total") else None
+    V["M.cac_total"] = _div(V.get("M.spend_total"), V.get("E.vendas")) if V.get("M.spend_total") else None
 
     # 4) locação (foto da carteira)
     try:
@@ -334,6 +382,7 @@ def _valores(sb, ano, mes, hoje, avisos):
             .gte("ts", ini.isoformat()).lt("ts", (fim + timedelta(days=1)).isoformat()).limit(5000).execute().data or []
         notas = [float(e["valor"]) for e in ev if e["tipo"] == "nps_coletado" and _num(e.get("valor")) is not None]
         V["O.nps_n"] = len(notas)
+        V["_amostra.O.nps"] = f"amostra: {len(notas)} pesquisa(s) no mês" + (" — pequena demais pra conclusão" if 0 < len(notas) < 10 else "")
         V["O.nps"] = round((sum(1 for n in notas if n >= 9) - sum(1 for n in notas if n <= 6)) / len(notas) * 100) if notas else None
         V["O.indicacoes"] = sum(1 for e in ev if e["tipo"] == "abordagem_indicacao")
     except Exception as e:
@@ -388,18 +437,20 @@ def montar(sb, ym, hoje, cfg, manual):
             linhas.append({
                 "id": ind["id"], "label": ind["label"], "un": ind["un"], "dir": ind["dir"], "acumula": ind["acumula"],
                 "valor": valor, "meta": meta, "meta_origem": meta_origem, "pct": pct, "esperado": esp,
-                "farol": f, "manual": ind["manual"], "nota": ind["nota"],
+                "farol": f, "manual": ind["manual"], "nota": ind["nota"], "amostra": V.get(f"_amostra.{ind['src']}"),
                 "motivo": ("lançar valor" if ind["manual"] and valor is None else
                            "sem dado" if valor is None else
                            "acompanhamento — sem meta" if meta is None else None),
             })
         cont = {k: sum(1 for l in linhas if l["farol"] == k) for k in ("verde", "amarelo", "vermelho", "cinza", "info")}
         avaliados = cont["verde"] + cont["amarelo"] + cont["vermelho"]
-        nota = round((cont["verde"] * 100 + cont["amarelo"] * 50) / avaliados) if avaliados else None
+        # saúde só com base mínima: ≥ 2 indicadores e ≥ 40% do placar avaliados (senão 1 verde vira "100")
+        base_ok = avaliados >= 2 and avaliados >= 0.4 * len(linhas)
+        nota = round((cont["verde"] * 100 + cont["amarelo"] * 50) / avaliados) if base_ok else None
         dono = donos.get(sc["id"]) or sc["dono"]
         out.append({"id": sc["id"], "nome": sc["nome"], "grupo": sc["grupo"], "ico": sc["ico"], "nota_sc": sc["nota"],
                     "dono": dono, "dono_nome": nomes.get(dono) or dono,
-                    "indicadores": linhas, "farois": cont, "saude": nota,
+                    "indicadores": linhas, "farois": cont, "saude": nota, "avaliados": avaliados, "total": len(linhas),
                     "farol": ("cinza" if nota is None else "verde" if nota >= 80 else "amarelo" if nota >= 55 else "vermelho")})
     return {"ok": True, "ym": ym, "ritmo": ritmo, "dados_de": V.get("_dados_de"), "consistencia_de": V.get("_consist_de"),
             "scorecards": out, "avisos": avisos, "regras": VERSAO_REGRAS,
@@ -417,8 +468,16 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization"); self.end_headers()
 
+    def _visao(self, data, user):
+        """Sócio vê tudo; os demais só os placares de que são donos (placar é do dono, não da empresa toda)."""
+        if (user.get("lvl") or 0) >= 10:
+            return data
+        meus = [s for s in data.get("scorecards") or [] if s.get("dono") == user.get("id")]
+        return {**data, "scorecards": meus, "escopo": "dono",
+                "avisos": [] if meus else ["Você ainda não é dono de nenhum placar — o sócio define os donos nesta tela."]}
+
     def do_GET(self):
-        try: require_user(self, min_lvl=7)
+        try: user = require_user(self, min_lvl=5)
         except AuthError as e: return self._send(e.status, {"ok": False, "error": e.message})
         try: params = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
         except Exception: params = {}
@@ -444,11 +503,11 @@ class handler(BaseHTTPRequestHandler):
                 except Exception:
                     age = 1e9
                 if age < CACHE_TTL:
-                    return self._send(200, {**c["data"], "cached": True, "cache_age_s": int(age)})
+                    return self._send(200, {**self._visao(c["data"], user), "cached": True, "cache_age_s": int(age)})
         data = montar(sb, ym, hoje, cfg, manual)
         try: _kv_put(sb, key, {"assinatura": assinatura, "_em": datetime.now(timezone.utc).isoformat(), "data": data})
         except Exception: pass
-        return self._send(200, {**data, "cached": False})
+        return self._send(200, {**self._visao(data, user), "cached": False})
 
     def do_POST(self):
         try: actor = require_user(self, min_lvl=10)

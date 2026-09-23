@@ -67,7 +67,7 @@ function renderShell() {
           <b>Maior é melhor, foto</b> (taxas, carteira, NPS): 🟢 ≥ 90% da meta · 🟡 ≥ 70% · 🔴 abaixo.<br>
           <b>Menor é melhor</b> (CPL, CAC, atrasos): 🟢 ≤ meta · 🟡 até 15% acima · 🔴 mais que isso.<br>
           📈 = acompanhamento (ainda sem meta — o sócio define no ✏️) · ⚪ = sem dado ou indicador manual ainda não lançado.
-          <b>Saúde do placar</b> = verdes valem 100, amarelos 50, vermelhos 0 (média dos avaliados).<br>
+          <b>Saúde do placar</b> = verdes valem 100, amarelos 50, vermelhos 0 (média dos avaliados) — só aparece com pelo menos 2 indicadores e 40% do placar com meta.<br>
           Meta: <i>aba Metas</i> (comercial, a mesma do 1:1 e do Ranking) · <i>orçado</i> (tela Orçado × Realizado) · <i>padrão</i> (definida no sistema) · <i>própria</i> (definida aqui pelo sócio).
         </div>
       </details>
@@ -87,6 +87,7 @@ function render() {
       ${d.dados_de ? ` · CRM de ${esc(d.dados_de)}` : ''}${d.cached ? ` · cache de ${Math.round((d.cache_age_s || 0) / 60)} min` : ''}
     </div>
     ${(d.avisos || []).length ? `<div class="alert alert-warn mb-3">${d.avisos.map(esc).join('<br>')}</div>` : ''}
+    ${d.escopo === 'dono' ? '<div class="tiny muted mb-2">👤 Você está vendo os placares de que é dono.</div>' : ''}
     ${placarGeral(d.scorecards)}
     ${GRUPOS.map(g => {
       const scs = d.scorecards.filter(s => s.grupo === g.id);
@@ -106,7 +107,7 @@ function placarGeral(scs) {
           <span style="font-weight:800;font-size:13px">${s.ico} ${esc(s.nome)}</span>
           <b style="color:${f.cor};font-size:16px">${s.saude == null ? '—' : s.saude}</b>
         </div>
-        <div class="tiny muted" style="margin-top:2px">👤 ${esc(s.dono_nome || '—')}</div>
+        <div class="tiny muted" style="margin-top:2px">👤 ${esc(s.dono_nome || '—')} · ${s.avaliados}/${s.total} com farol</div>
         <div class="tiny" style="margin-top:4px">🟢 ${s.farois.verde} · 🟡 ${s.farois.amarelo} · 🔴 ${s.farois.vermelho}${s.farois.cinza ? ' · ⚪ ' + s.farois.cinza : ''}${s.farois.info ? ' · 📈 ' + s.farois.info : ''}</div>
       </a>`;
     }).join('')}
@@ -124,7 +125,7 @@ function scCard(s) {
       <div class="flex gap-2" style="align-items:center">
         ${socio() ? `<select class="select" data-dono="${s.id}" style="width:auto;font-size:12px" title="Dono do placar"><option value="${esc(s.dono)}">👤 ${esc(s.dono_nome || s.dono)}</option></select>`
                   : `<span class="tiny">👤 <b>${esc(s.dono_nome || '—')}</b></span>`}
-        <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;background:${f.cor}22;color:${f.cor}">saúde ${s.saude == null ? '—' : s.saude}</span>
+        <span title="${s.avaliados} de ${s.total} indicadores com farol" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;background:${f.cor}22;color:${f.cor}">saúde ${s.saude == null ? '— (defina metas)' : s.saude}</span>
       </div>
     </div>
     <div style="overflow-x:auto;margin-top:8px">
@@ -161,7 +162,7 @@ function linha(i) {
   return `<tr style="border-top:1px solid var(--border)">
     <td style="padding:6px" title="${f.lbl}">${f.ico}</td>
     <td style="padding:6px"><div style="font-weight:600">${esc(i.label)}${i.manual ? ' <span class="tiny muted">✍️ manual</span>' : ''}</div>
-      ${i.nota ? `<div class="tiny muted">${esc(i.nota)}</div>` : ''}</td>
+      ${i.nota ? `<div class="tiny muted">${esc(i.nota)}</div>` : ''}${i.amostra ? `<div class="tiny" style="color:#b45309">${esc(i.amostra)}</div>` : ''}</td>
     <td style="padding:6px;text-align:right;white-space:nowrap">${valor}</td>
     <td style="padding:6px;text-align:right;white-space:nowrap">${meta}</td>
     <td style="padding:6px">${ating}</td>
@@ -212,7 +213,7 @@ function fmt(v, un) {
     if (a >= 1e4) return `${s}R$ ${(a / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mil`;
     return `${s}R$ ${a.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}`;
   }
-  if (un === '%') return n.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%';
+  if (un === '%') return n.toLocaleString('pt-BR', { maximumFractionDigits: Math.abs(n) < 10 ? 2 : 1 }) + '%';
   return n.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
 }
 function ymDe(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; }
