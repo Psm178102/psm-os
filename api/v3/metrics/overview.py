@@ -33,7 +33,7 @@ from _auth_lib import supabase_client, require_user, AuthError, frente_of  # typ
 _V3 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _V3 not in sys.path:
     sys.path.append(_V3)
-from _metricas_lib import resumo as mx_resumo, versao_deals, team_key as mx_team  # type: ignore
+from _metricas_lib import resumo as mx_resumo, versao_dados, team_key as mx_team  # type: ignore
 
 CACHE_BASE = "metrics_overview_cache"
 CACHE_TTL = 180  # segundos (3 min; métrica de painel tolera folga, RD já sincroniza por cron)
@@ -401,7 +401,7 @@ class handler(BaseHTTPRequestHandler):
         user_field = {"id": user["id"], "name": user.get("name"), "role": user.get("role"), "team": user.get("team"), "lvl": user.get("lvl")}
         fresh = "fresh=1" in (self.path or "")
         # v87.86: chave com a VERSÃO do dado (último sync do RD) — mesma foto em todas as telas
-        ckey = _cache_key(scope, user) + "|" + versao_deals(sb)
+        ckey = _cache_key(scope, user) + "|" + versao_dados(sb)
 
         # Cache hit → responde na hora (sobrepondo o 'user' do request atual). v81.74
         if not fresh:

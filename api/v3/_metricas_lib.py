@@ -121,7 +121,9 @@ def janela_de(params, hoje=None):
         try:
             s, u = date.fromisoformat(p["since"][:10]), date.fromisoformat(p["until"][:10])
             if s <= u:
-                return s, min(u, hoje) if u > hoje else u
+                # v88.11: período todo no futuro (ex.: 4º tri em setembro) não pode virar janela
+                # invertida (01/10→23/09 zerava meta e realizado) — mantém o período pedido
+                return s, (min(u, hoje) if s <= hoje else u)
         except Exception:
             pass
     preset = (p.get("preset") or p.get("date_preset") or "this_month").lower()
@@ -220,6 +222,19 @@ def versao_deals(sb):
         return str((r[0] or {}).get("synced_at") or "") if r else ""
     except Exception:
         return ""
+
+
+def versao_dados(sb):
+    """Chave de cache = versão dos deals + última meta salva (v88.11: meta nova na aba Metas
+    invalida o cache de TODAS as telas na hora). Só pra comparar — pra exibir data use versao_deals."""
+    v = versao_deals(sb)
+    try:
+        m = sb.table("metas").select("updated_at").order("updated_at", desc=True).limit(1).execute().data or []
+        if m and (m[0] or {}).get("updated_at"):
+            v += "|m" + str(m[0]["updated_at"])
+    except Exception:
+        pass
+    return v
 
 
 # ─── origem ──────────────────────────────────────────────────────────────────
@@ -905,7 +920,7 @@ def resumo(sb, params=None, fresh=False, hoje=None):
     mudou o dado → todas as telas recalculam juntas (tempo real, mesma foto pra todos)."""
     hoje = hoje or hoje_brt()
     since_d, until_d = janela_de(params, hoje)
-    versao = versao_deals(sb)
+    versao = versao_dados(sb)
     key = f"{CACHE_KEY}:{since_d.isoformat()}:{until_d.isoformat()}"
     if not fresh:
         c = _kv_read(sb, key)
@@ -919,7 +934,7 @@ def resumo(sb, params=None, fresh=False, hoje=None):
                 return out
     base = carregar(sb, since_d, until_d)
     data = calcular(sb, base, since_d, until_d, hoje)
-    dados_de = to_brt(versao)
+    dados_de = to_brt(versao.split("|m")[0])
     data.update({
         "ok": True,
         "janela": {"since": since_d.isoformat(), "until": until_d.isoformat(),

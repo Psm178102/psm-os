@@ -215,7 +215,7 @@ async function reload() {
       _criativos = ((r && r.cards) || []).filter(c => driveFileId(c.link)).slice(0, 24);
     }).catch(() => {});
     api.request('/api/v3/metrics/overview').then(r => { _ov = r; }).catch(() => {});
-    api.request('/api/v3/metas/atingimento?ano=' + new Date().getFullYear()).then(r => { _metas = r; }).catch(() => {});
+    api.request('/api/v3/metas/atingimento?ano=' + new Date().getFullYear() + '&nocache=1').then(r => { _metas = r; }).catch(() => {});
   }
 
   // 🔥 streaks/secas — ritmo do GC (1×/10min; nome de guerra → dias desde última venda)

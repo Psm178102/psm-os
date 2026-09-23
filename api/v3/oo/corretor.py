@@ -13,7 +13,7 @@ import os
 import sys
 import urllib.parse
 from collections import defaultdict
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
@@ -66,7 +66,8 @@ def _deals_for(sb, ids, emails, cols, since_iso=None):
                 try:
                     qy = sb.table("deals").select(cols).in_(fld, chunk)
                     if since_iso:
-                        qy = qy.or_(f"created_at_rd.gte.{since_iso},closed_at.gte.{since_iso}")
+                        # v88.11: + abertos (win null) — parados/sem contato/estagnação contam o funil vivo inteiro
+                        qy = qy.or_(f"created_at_rd.gte.{since_iso},closed_at.gte.{since_iso},win.is.null")
                     ch = qy.order("id").range(pg * 1000, pg * 1000 + 999).execute().data or []
                 except Exception:
                     ch = []
@@ -181,7 +182,9 @@ class handler(BaseHTTPRequestHandler):
             all_metas = []
 
         # Deals do corretor (individual)
-        deals = _deals_for(sb, [cid], [email], cols, since_iso=since_d.isoformat())
+        # v88.11: carrega desde 1º/jan — "VGV do ano" e a tendência mensal eram só o período selecionado
+        _load_since = min(since_d, date(today.year, 1, 1)).isoformat()
+        deals = _deals_for(sb, [cid], [email], cols, since_iso=_load_since)
         events_by_deal = _events_for(sb, [d.get("id") for d in deals])
         meta_sum = meta_for_period(all_metas, cid, since_d, until_d)
         metrics = broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, detail=True, stage_maps=stage_maps)
@@ -250,7 +253,7 @@ class handler(BaseHTTPRequestHandler):
                     members = []
                 mids = [m.get("id") for m in members]
                 memails = [(m.get("email") or "").lower() for m in members]
-                tdeals = _deals_for(sb, mids, memails, cols, since_iso=since_d.isoformat())
+                tdeals = _deals_for(sb, mids, memails, cols, since_iso=_load_since)
                 tevents = _events_for(sb, [d.get("id") for d in tdeals])
                 tmeta = {"meta_vgv": 0, "meta_vendas": 0, "meta_visitas": 0, "meta_pastas": 0, "meta_propostas": 0, "meta_agendamentos": 0}
                 for mid in mids:
@@ -356,6 +359,10 @@ class handler(BaseHTTPRequestHandler):
                              "potencial": round(b["vgv"] + pp.get("ponderado_vgv", 0), 2),
                              "ponderado_vgv": pp.get("ponderado_vgv", 0), "ponderado_vendas": pp.get("ponderado_vendas", 0),
                              "abertos": pp.get("abertos", 0), "quentes": pp.get("quentes", 0), "meta_vgv": mv}
+            # v88.11: o painel "Previsão por pipeline" lê estes três — sem eles mostrava "Falta R$ 0"
+            _prev, _pot = m["pipeline"]["previsto_total"] or 0, m["pipeline"]["potencial"]
+            m["pipeline"].update({"gap": round(max(0, mv - _prev), 2) if mv else 0, "potencial_total": _pot,
+                                  "potencial_pct": round(_pot / mv * 100, 1) if mv else None})
             if isinstance(m.get("projecao"), dict):
                 m["projecao"]["norte"] = b.get("norte")
                 m["projecao"]["previsto"] = pv
@@ -365,7 +372,7 @@ class handler(BaseHTTPRequestHandler):
                                           "atingira_vgv_pct": pj.get("atingira_vgv_pct"),
                                           "dias_decorridos": pj["dias_uteis_decorridos"], "dias_total": pj["dias_uteis_mes"]})
         try:
-            mx = mx_resumo(sb, {"since": since_d.isoformat(), "until": until_d.isoformat()})
+            mx = mx_resumo(sb, {"since": since_d.isoformat(), "until": until_d.isoformat()}, fresh=params.get("fresh") == "1")
             _aplica(resp, (mx.get("pessoas") or {}).get(cid))
             if isinstance(resp.get("team"), dict):
                 e = (mx.get("equipes") or {}).get(mx_team(u.get("team")))

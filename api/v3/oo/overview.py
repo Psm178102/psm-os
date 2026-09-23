@@ -26,7 +26,7 @@ from simulador import _kv_read  # type: ignore
 _V3 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _V3 not in sys.path:
     sys.path.append(_V3)
-from _metricas_lib import (resumo as mx_resumo, versao_deals, team_key as mx_team,  # type: ignore
+from _metricas_lib import (resumo as mx_resumo, versao_dados, team_key as mx_team,  # type: ignore
                            visitas_de, agendamentos_de, propostas_de)
 from _projecao_lib import projecao as pj_projecao  # type: ignore   # v87.91
 
@@ -129,7 +129,7 @@ class handler(BaseHTTPRequestHandler):
         while page < 30:
             try:
                 rows = (sb.table("deals").select(cols)
-                        .or_(f"created_at_rd.gte.{since_iso},closed_at.gte.{since_iso}")
+                        .or_(f"created_at_rd.gte.{since_iso},closed_at.gte.{since_iso},win.is.null")  # v88.11: + abertos
                         .order("id")
                         .range(page * size, page * size + size - 1).execute().data or [])
             except Exception:
@@ -159,7 +159,7 @@ class handler(BaseHTTPRequestHandler):
         fresh = params.get("fresh") == "1"
         # v87.86: a chave leva a VERSÃO do dado (último sync do RD) — negócio novo invalida
         # o cache de todas as telas ao mesmo tempo ("mesma língua em tempo real").
-        ckey = _cache_key(params, user) + "|" + versao_deals(sb)
+        ckey = _cache_key(params, user) + "|" + versao_dados(sb)
         if not fresh:
             cached = _cache_read(sb, ckey)
             if cached is not None:

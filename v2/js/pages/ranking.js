@@ -11,7 +11,7 @@ async function reload() {
     // Reusa /metrics/activity_ranking + cruza com deals ganhos do ano
     const [act, atin] = await Promise.all([
       api.request('/api/v3/metrics/activity_ranking?days=30&limit=30'),
-      api.request('/api/v3/metas/atingimento?ano=' + new Date().getFullYear()).catch(() => null),
+      api.request('/api/v3/metas/atingimento?ano=' + new Date().getFullYear() + '&nocache=1').catch(() => null),
     ]);
     _data = { activity: act.ranking || [], atingimento: atin };
     render();

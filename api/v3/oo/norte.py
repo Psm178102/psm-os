@@ -75,6 +75,28 @@ def _read_cfg(sb, cid, ym):
     return (v if isinstance(v, dict) else None), True
 
 
+def _read_metas_oficiais(sb, cid, yms):
+    """{ym: row} da tabela `metas` (aba Metas = fonte OFICIAL da meta do mês).
+    (dict, read_ok). v88.11: o Norte não inventa meta paralela — lê a mesma da aba Metas."""
+    anos = sorted({int(ym[:4]) for ym in yms})
+    out = {}
+    try:
+        for a in anos:
+            rows = sb.table("metas").select("*").eq("corretor_id", cid).eq("ano", a).execute().data or []
+            for r in rows:
+                ym = f"{int(r.get('ano') or 0):04d}-{int(r.get('mes') or 0):02d}"
+                if ym in yms:
+                    out[ym] = r
+    except Exception:
+        return out, False
+    return out, True
+
+
+# campo da tabela metas → etapa do funil do Norte
+_METAS_ETAPA = (("meta_agendamentos", "agendamento"), ("meta_visitas", "visita"),
+                ("meta_propostas", "proposta"), ("meta_pastas", "pasta"))
+
+
 def _num(x, default=0.0):
     try:
         v = float(x)
@@ -237,22 +259,59 @@ class handler(BaseHTTPRequestHandler):
                 read_fail = True
             per_month[ym] = cfg_m
 
+        # v88.11: meta OFICIAL do mês = aba Metas (tabela metas). O cfg do Norte é o
+        # PLANO (canais × mix × ticket) — complementa as etapas que a aba Metas não tem,
+        # mas nunca substitui VGV/vendas/etapas que estão lá.
+        oficiais, ok_of = _read_metas_oficiais(sb, cid, {ym for ym, _ in fracs})
+        if not ok_of:
+            read_fail = True
+
         # metas do período = Σ (meta do mês × fração coberta)
         funil_periodo = {k: 0.0 for k in ETAPAS}
         meta_periodo = {"atendimentos": 0.0, "vendas": 0.0, "vgv": 0.0}
+        fonte = {"vgv": set(), "vendas": set()}
         meses_com_meta = 0
+        tem_meta_mes = {}
         for ym, frac in fracs:
             cfg_m = per_month.get(ym)
-            if not cfg_m:
+            of = oficiais.get(ym) or {}
+            of_vgv = _num(of.get("meta_vgv"))
+            of_vendas = _num(of.get("meta_vendas"))
+            tem_of = any(_num(of.get(c)) > 0 for c in ("meta_vgv", "meta_vendas", "meta_visitas",
+                                                          "meta_agendamentos", "meta_pastas", "meta_propostas"))
+            tem_meta_mes[ym] = bool(cfg_m) or tem_of
+            if not tem_meta_mes[ym]:
                 continue
             meses_com_meta += 1
-            comp_m = computed(cfg_m)
-            mf = metas_funil(cfg_m, comp_m)
+            comp_m = computed(cfg_m) if cfg_m else None
+            mf = metas_funil(cfg_m, comp_m) if cfg_m else {k: {"valor": 0.0, "auto": False} for k in ETAPAS}
+            # vendas: aba Metas > VGV oficial ÷ ticket do plano > previsto do plano
+            ticket = (comp_m or {}).get("ticket_medio") or 0
+            if of_vendas > 0:
+                vend_m, fonte["vendas"] = of_vendas, fonte["vendas"] | {"metas"}
+            elif of_vgv > 0 and ticket > 0:
+                vend_m, fonte["vendas"] = round(of_vgv / ticket, 2), fonte["vendas"] | {"metas_vgv÷ticket"}
+            elif comp_m:
+                vend_m, fonte["vendas"] = comp_m["vendas_prev"], fonte["vendas"] | {"norte"}
+            else:
+                vend_m = 0.0
+            if of_vgv > 0:
+                vgv_m, fonte["vgv"] = of_vgv, fonte["vgv"] | {"metas"}
+            elif comp_m:
+                vgv_m, fonte["vgv"] = comp_m["vgv_prev"], fonte["vgv"] | {"norte"}
+            else:
+                vgv_m = 0.0
+            etapas_m = {k: mf[k]["valor"] for k in ETAPAS}
+            for campo, et in _METAS_ETAPA:
+                if _num(of.get(campo)) > 0:
+                    etapas_m[et] = _num(of.get(campo))
+            if of_vendas > 0 or (of_vgv > 0 and vend_m > 0):
+                etapas_m["venda"] = vend_m
             for k in ETAPAS:
-                funil_periodo[k] += mf[k]["valor"] * frac
-            meta_periodo["atendimentos"] += comp_m["atendimentos_mes"] * frac
-            meta_periodo["vendas"] += comp_m["vendas_prev"] * frac
-            meta_periodo["vgv"] += comp_m["vgv_prev"] * frac
+                funil_periodo[k] += etapas_m[k] * frac
+            meta_periodo["atendimentos"] += (comp_m["atendimentos_mes"] if comp_m else 0) * frac
+            meta_periodo["vendas"] += vend_m * frac
+            meta_periodo["vgv"] += vgv_m * frac
 
         # mês de referência (editor + pace): mês do fim da janela; fallback hoje
         ref_ym = f"{until_d.year:04d}-{until_d.month:02d}"
@@ -307,14 +366,29 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             defasagem = 1
 
+        # meta oficial do mês de referência × plano do Norte (o gestor vê se o plano fecha a meta)
+        of_ref = oficiais.get(ref_ym) or {}
+        of_ref_vgv = _num(of_ref.get("meta_vgv"))
+        divergencia = None
+        if of_ref_vgv > 0 and cfg_ref and comp_ref.get("vgv_prev"):
+            dif = comp_ref["vgv_prev"] - of_ref_vgv
+            if abs(dif) > 0.10 * of_ref_vgv:
+                divergencia = {"meta_vgv": of_ref_vgv, "plano_vgv": comp_ref["vgv_prev"],
+                               "dif": round(dif, 2), "pct": round(comp_ref["vgv_prev"] / of_ref_vgv * 100, 1)}
+
         return self._send(200, {
             "ok": True,
             "defasagem_meses": defasagem,
             "corretor_id": cid,
             "realizado": realizado,
             "period": {"since": since_d.isoformat(), "until": until_d.isoformat()},
-            "fracs": [{"ym": ym, "frac": f, "tem_meta": bool(per_month.get(ym))} for ym, f in fracs],
+            "fracs": [{"ym": ym, "frac": f, "tem_meta": bool(tem_meta_mes.get(ym))} for ym, f in fracs],
             "meses_com_meta": meses_com_meta,
+            "plano_definido": bool(cfg_ref),
+            "meta_oficial_ref": {c: _num(of_ref.get(c)) for c in ("meta_vgv", "meta_vendas", "meta_visitas",
+                                                                   "meta_agendamentos", "meta_pastas", "meta_propostas")},
+            "fonte_meta": {k: sorted(v) for k, v in fonte.items()},
+            "divergencia_plano": divergencia,
             "ref_ym": ref_ym,
             "cfg": {k: v for k, v in cfg_out.items() if k != "changelog"},
             "computed": comp_ref,

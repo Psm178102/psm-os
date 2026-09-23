@@ -330,7 +330,7 @@ async function loadOORanking() {
   try {
     const [act, atin] = await Promise.all([
       api.request('/api/v3/metrics/activity_ranking?days=30&limit=50'),
-      api.request('/api/v3/metas/atingimento?ano=' + ano).catch(() => null),
+      api.request('/api/v3/metas/atingimento?ano=' + ano + '&nocache=1').catch(() => null),
     ]);
     const byUser = {};
     (act.ranking || []).forEach(u => { byUser[u.id] = { ...u, vgv: 0, vendas: 0 }; });
@@ -975,15 +975,27 @@ function nortePanel(d) {
   const stages = (d.funnel || []).filter(s => !s.espelho);
   const parcial = (n.fracs || []).some(f => f.frac < 1) || (n.fracs || []).length > 1;
 
-  const strip = `
+  // v88.11: meta oficial = aba Metas; o plano (canais × ticket) é comparado com ela, nunca a substitui
+  const of = n.meta_oficial_ref || {}, dv = n.divergencia_plano;
+  const oficialTile = of.meta_vgv > 0 ? `
+      <div><div style="font-size:10.5px;opacity:.75;text-transform:uppercase;letter-spacing:.5px">🎯 Meta oficial (aba Metas)</div>
+        <div style="font-size:22px;font-weight:900">R$ ${money(of.meta_vgv)}</div>
+        ${of.meta_vendas > 0 ? `<div style="font-size:11px;opacity:.85">${fmtN(of.meta_vendas)} venda(s)</div>` : ''}</div>` : '';
+  const divTxt = dv ? `<div class="tiny" style="margin-top:8px;color:var(--warn)">⚠️ O plano de canais prevê <b>R$ ${money(dv.plano_vgv)}</b> (${pctF(dv.pct)} da meta oficial de R$ ${money(dv.meta_vgv)}). ${dv.dif < 0 ? 'O plano <b>não fecha</b> a meta: ajuste atendimentos, mix ou energia.' : 'O plano está acima da meta oficial.'} Os percentuais abaixo usam a meta oficial.</div>` : '';
+  const strip = !n.plano_definido ? `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;background:linear-gradient(135deg,#0f172a,#1e3a8a);border-radius:var(--r-md);padding:14px 16px;color:#fff">
+      ${oficialTile}
+      <div style="font-size:12px;opacity:.85;align-self:center">Plano de canais (atendimentos × mix) ainda não definido pra este mês — a meta vem da aba Metas.</div>
+    </div>` : `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;background:linear-gradient(135deg,#0f172a,#1e3a8a);border-radius:var(--r-md);padding:14px 16px;color:#fff">
+      ${oficialTile}
       <div><div style="font-size:10.5px;opacity:.75;text-transform:uppercase;letter-spacing:.5px">Atendimentos no mês</div>
         <div style="font-size:22px;font-weight:900">${fmtN(comp.atendimentos_mes)}</div>
         ${pace ? `<div style="font-size:11px;opacity:.85">≈ ${fmtN(pace.atend_dia)}/dia</div>` : ''}</div>
-      <div><div style="font-size:10.5px;opacity:.75;text-transform:uppercase;letter-spacing:.5px">Vendas previstas</div>
+      <div><div style="font-size:10.5px;opacity:.75;text-transform:uppercase;letter-spacing:.5px">Vendas previstas (plano)</div>
         <div style="font-size:22px;font-weight:900">${fmtN(comp.vendas_prev)}</div>
         <div style="font-size:11px;opacity:.85">ticket R$ ${money(comp.ticket_medio)}</div></div>
-      <div><div style="font-size:10.5px;opacity:.75;text-transform:uppercase;letter-spacing:.5px">VGV previsto</div>
+      <div><div style="font-size:10.5px;opacity:.75;text-transform:uppercase;letter-spacing:.5px">VGV previsto (plano)</div>
         <div style="font-size:22px;font-weight:900">R$ ${money(comp.vgv_prev)}</div></div>
       ${pace ? `<div><div style="font-size:10.5px;opacity:.75;text-transform:uppercase;letter-spacing:.5px">Hoje · dia ${pace.dia}/${pace.dias_mes}</div>
         <div style="font-size:14px;font-weight:800;margin-top:3px">esperado até hoje: ${fmtN(pace.atend_esperado_ate_hoje)} atend.</div>
@@ -1031,6 +1043,7 @@ function nortePanel(d) {
 
   return panel('🎯 Norte do Mês · Meta × Realizado', `
     ${strip}
+    ${divTxt}
     ${parcial ? `<div class="tiny muted" style="margin-top:8px">📐 Meta <b>proporcional ao período selecionado</b> (${(n.fracs || []).map(f => `${f.ym}: ${Math.round(f.frac * 100)}%${f.tem_meta ? '' : ' <span style="color:var(--warn)">sem meta</span>'}`).join(' · ')}).</div>` : ''}
     <div style="margin-top:10px;overflow-x:auto"><table style="width:100%;border-collapse:collapse">${rows}</table></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">

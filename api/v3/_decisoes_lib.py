@@ -393,7 +393,7 @@ def _estados(decs, b, hoje):
 
 def decisoes(sb, fresh=False, hoje=None):
     hoje = hoje or MX.hoje_brt()
-    versao = MX.versao_deals(sb)
+    versao = MX.versao_dados(sb)
     key = f"{CACHE_KEY}:{hoje.isoformat()}"
     if not fresh:
         c = MX._kv_read(sb, key)

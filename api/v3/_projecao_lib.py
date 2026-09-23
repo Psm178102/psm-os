@@ -448,7 +448,7 @@ def projecao(sb, params=None, fresh=False, hoje=None):
     """Com cache em shared_kv versionado pelo sync do RD (mesmo princípio do resumo)."""
     hoje = hoje or MX.hoje_brt()
     chave, ini, fim = horizonte(params, hoje)
-    versao = MX.versao_deals(sb)
+    versao = MX.versao_dados(sb)
     key = f"{CACHE_BASE}:{chave}:{ini.isoformat()}:{fim.isoformat()}:{hoje.isoformat()}"
     if not fresh:
         c = MX._kv_read(sb, key)
