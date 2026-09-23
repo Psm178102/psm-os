@@ -161,10 +161,22 @@ class handler(BaseHTTPRequestHandler):
             return self._send(503, {"ok": False, "error": "backend indisponível"})
 
         # Leads = deals criados na janela (lead = entrada no funil)
+        # v88.13: paginado + ordem estável (o .limit(5000) era cortado em 1000 pelo
+        # PostgREST sem aviso → % fora de Rio Preto saía de amostra arbitrária)
+        rows, truncated, page, size = [], False, 0, 1000
         try:
-            rows = (sb.table("deals").select("id,name,pipeline_name,rd_raw,created_at_rd")
-                    .gte("created_at_rd", since_iso).lt("created_at_rd", until_iso)
-                    .limit(5000).execute().data or [])
+            while True:
+                chunk = (sb.table("deals").select("id,name,pipeline_name,rd_raw,created_at_rd")
+                         .gte("created_at_rd", since_iso).lt("created_at_rd", until_iso)
+                         .order("id").range(page * size, page * size + size - 1)
+                         .execute().data or [])
+                rows.extend(chunk)
+                if len(chunk) < size:
+                    break
+                page += 1
+                if page >= 30:
+                    truncated = True
+                    break
         except Exception as e:
             return self._send(500, {"ok": False, "error": f"deals: {e}"})
 
@@ -263,6 +275,7 @@ class handler(BaseHTTPRequestHandler):
 
         return self._send(200, {
             "ok": True,
+            "truncated": truncated,
             "period": {"since": since_d.isoformat(), "until": until_d.isoformat()},
             "total": total, "com_cidade": com_cidade, "sem_cidade": sem_cidade,
             "rio_preto": rio_preto, "outras": outras, "pct_outras": pct_outras_global,

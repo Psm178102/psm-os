@@ -22,7 +22,7 @@ from datetime import datetime, timezone, timedelta, date
 BRT = timezone(timedelta(hours=-3))
 # ⚠️ Bumpar o sufixo (v2, v3…) SEMPRE que o formato do retrato mudar: o cache é versionado pelo
 # sync do RD, não pelo código — em 16/09 a v87.87 leu retratos da v87.86 sem pipeline/previsto/norte.
-CACHE_KEY = "metricas_resumo:v3"   # v88.0: empresa ganhou "inativos" (vendas de quem saiu)
+CACHE_KEY = "metricas_resumo:v4"   # v88.16: + abertos_por_origem (leads em andamento × origem × equipe)
 CACHE_TTL = 600          # segurança: mesmo sem sync novo, recalcula a cada 10 min
 HUB_TTL = 300            # esteira do PSM HUB (externa) — 5 min
 KV_ORIGENS = "dic_origens"   # override editável da tabela de origens (Configurações → Dicionário)
@@ -434,6 +434,8 @@ def _vazio():
     z = {"vendas": 0, "vgv": 0.0, "ticket": None, "perdidos": 0,
          "interessados": 0, "leads": 0, "leads_pago_psm": 0, "leads_pago_corretor": 0, "leads_origem_assumida": 0,
          "em_atendimento": 0, "por_origem": {c: 0 for c in CATEGORIAS},
+         # v88.16 (Paulo 23/09): leads EM ANDAMENTO criados na janela × origem — mínimo de todo painel
+         "abertos_periodo": 0, "abertos_por_origem": {c: 0 for c in CATEGORIAS}, "abertos_sem_origem": 0,
          "visitas": None, "pipeline": {k: 0 for k in PIPE_CAMPOS}, "norte": None}
     for k in MARCOS_RD:
         z[k] = 0
@@ -515,6 +517,11 @@ def calcular(sb, base, since_d, until_d, hoje=None):
 
         if in_create:
             cat, assumida = origem_categoria(d.get("src"), mapa)
+            if win is None:
+                b["abertos_periodo"] += 1
+                b["abertos_por_origem"][cat] += 1
+                if assumida:
+                    b["abertos_sem_origem"] += 1
             b["interessados"] += 1
             b["por_origem"][cat] = b["por_origem"].get(cat, 0) + 1
             if cat in LEAD_CATS:
@@ -733,7 +740,8 @@ def calcular(sb, base, since_d, until_d, hoje=None):
         norte = None
         for b in lista:
             for k in ("vendas", "vgv", "perdidos", "interessados", "leads", "leads_pago_psm",
-                      "leads_pago_corretor", "leads_origem_assumida", "em_atendimento") + MARCOS_RD:
+                      "leads_pago_corretor", "leads_origem_assumida", "em_atendimento",
+                      "abertos_periodo", "abertos_sem_origem") + MARCOS_RD:
                 t[k] += b[k]
             for k in PIPE_CAMPOS:
                 t["pipeline"][k] += (b.get("pipeline") or {}).get(k, 0)
@@ -745,6 +753,7 @@ def calcular(sb, base, since_d, until_d, hoje=None):
                 t["visitas"] += (b.get("visitas") or 0)
             for c in CATEGORIAS:
                 t["por_origem"][c] += b["por_origem"].get(c, 0)
+                t["abertos_por_origem"][c] += (b.get("abertos_por_origem") or {}).get(c, 0)
             for k in MARCOS_HUB:
                 t["hub"][k] += (b.get("hub") or {}).get(k, 0)
             for k in METAS_CAMPOS:
@@ -770,14 +779,18 @@ def calcular(sb, base, since_d, until_d, hoje=None):
     # projeções (§4), mas a venda que fez continua sendo venda da PSM. Antes o total da empresa só somava
     # pessoas ativas — em 2026, 19 vendas (~R$ 6,1 mi, jan–jul) de corretores desligados sumiam dos totais
     # de ano e de meses passados. Mesmo tratamento do "sem corretor": soma só na empresa, com aviso.
-    CAMPOS_EMP = ("vendas", "vgv", "perdidos", "interessados", "leads", "leads_pago_psm", "leads_pago_corretor", "em_atendimento")
+    CAMPOS_EMP = ("vendas", "vgv", "perdidos", "interessados", "leads", "leads_pago_psm", "leads_pago_corretor", "em_atendimento",
+                  "abertos_periodo", "abertos_sem_origem")
     inat_lista = [b for b in pessoas_out.values() if not b["ativo"]]
     inat = {k: 0 for k in CAMPOS_EMP}
     for b in inat_lista:
         for k in CAMPOS_EMP:
             inat[k] += b.get(k) or 0
     inat["vgv"] = round(inat["vgv"], 2)
+    inat["abertos_por_origem"] = {c: sum((b.get("abertos_por_origem") or {}).get(c, 0) for b in inat_lista) for c in CATEGORIAS}
     inat["quem"] = sorted(b.get("name") or b["id"] for b in inat_lista if b.get("vendas") or b.get("leads") or b.get("em_atendimento"))
+    for c in CATEGORIAS:
+        empresa["abertos_por_origem"][c] += (sc.get("abertos_por_origem") or {}).get(c, 0) + inat["abertos_por_origem"][c]
     for k in CAMPOS_EMP:
         empresa[k] = round(empresa[k] + sc.get(k, 0) + inat[k], 2) if k == "vgv" else empresa[k] + sc.get(k, 0) + inat[k]
     empresa["ticket"] = round(empresa["vgv"] / empresa["vendas"], 2) if empresa["vendas"] else None

@@ -3,6 +3,7 @@ import { api, selectableUsers, hojeISO } from '../api.js';
 import { auth } from '../auth.js';
 import { montarBlocoOO } from './treinamentos.js';   // 🎓 treinos + habilidade prioritária no 1:1 (v87.77)
 import { montarDecisoes } from '../decisoes.js';     // v87.92 🧭 pauta do 1:1 = decisões abertas da pessoa
+import { competidoresVgv } from '../ranking-regras.js';   // v88.11 régua única do Ranking
 
 let _root = null;
 let _view = 'list';            // 'list' | 'detail'
@@ -332,16 +333,8 @@ async function loadOORanking() {
       api.request('/api/v3/metrics/activity_ranking?days=30&limit=50'),
       api.request('/api/v3/metas/atingimento?ano=' + ano + '&nocache=1').catch(() => null),
     ]);
-    const byUser = {};
-    (act.ranking || []).forEach(u => { byUser[u.id] = { ...u, vgv: 0, vendas: 0 }; });
-    ((atin || {}).grid || []).forEach(g => {
-      const u = byUser[g.user?.id];
-      if (u) { u.vgv = g.totals?.atingido_vgv || 0; u.vendas = g.totals?.vendas_count || 0; }
-    });
-    // mesma régua da página Ranking: gestão não compete
-    // v87.85 (Dicionário §4): gestão por PREFIXO — gerente_conquista/lider_map não competem como corretor
-    const comp = Object.values(byUser).filter(u => { const r = (u.role || '').toLowerCase(); return !(r === 'socio' || r === 'diretor' || r.startsWith('gerente') || r.startsWith('lider') || r === 'líder'); });
-    const geral = comp.slice().sort((a, b) => (b.vgv - a.vgv) || ((b.vendas || 0) - (a.vendas || 0)) || ((b.score || 0) - (a.score || 0)));
+    // v88.11: régua única do Ranking (ranking-regras.js) — mesma lista/ordem/exclusões da página Ranking
+    const geral = competidoresVgv(atin, act.ranking);
     const tkey = (_det.corretor.team || '').trim().toLowerCase();
     const equipe = geral.filter(u => (u.team || '').trim().toLowerCase() === tkey);
     if (!geral.length) { host.innerHTML = ''; return; }
@@ -1769,15 +1762,16 @@ function projecaoPanel(d) {
   const proj = (p.modo === 'projecao');
   const att = p.atingira_vgv_pct;
   const cor = p.no_ritmo === true ? '#16a34a' : (p.no_ritmo === false ? '#dc2626' : '#64748b');
-  return panel(proj ? '📈 Projeção do mês (ritmo atual)' : '📈 Realizado do período', `
+  const prov = p.fonte === 'provavel';   // v88.11: mesmo 📈 Provável do card da lista e da Gestão Comercial
+  return panel(proj ? (prov ? '📈 Projeção do mês (provável)' : '📈 Projeção do mês (ritmo atual)') : '📈 Realizado do período', `
     <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end">
       <div><div class="tiny muted">Realizado até hoje</div><div style="font-size:20px;font-weight:900">R$ ${moneyShort(p.real_vgv)} <span class="tiny muted" style="font-weight:400">· ${p.real_vendas} venda(s)</span></div></div>
       ${proj ? `<div style="font-size:18px;color:#94a3b8">→</div>
-        <div><div class="tiny muted">Projeção fim do mês</div><div style="font-size:22px;font-weight:900;color:${cor}">R$ ${moneyShort(p.proj_vgv)} <span class="tiny muted" style="font-weight:400">· ${p.proj_vendas} venda(s)</span></div>${p.margem_pct ? `<div class="tiny muted">faixa R$ ${moneyShort(p.proj_vgv_low)} – R$ ${moneyShort(p.proj_vgv_high)} · ±${pctF(p.margem_pct)}</div>` : ''}</div>` : ''}
+        <div><div class="tiny muted">Projeção fim do mês</div><div style="font-size:22px;font-weight:900;color:${cor}">R$ ${moneyShort(p.proj_vgv)} <span class="tiny muted" style="font-weight:400">· ${p.proj_vendas} venda(s)</span></div>${prov && p.proj_vgv_high ? `<div class="tiny muted">faixa R$ ${moneyShort(p.proj_vgv_low)} (conservador) – R$ ${moneyShort(p.proj_vgv_high)} (otimista)</div>` : (p.margem_pct ? `<div class="tiny muted">faixa R$ ${moneyShort(p.proj_vgv_low)} – R$ ${moneyShort(p.proj_vgv_high)} · ±${pctF(p.margem_pct)}</div>` : '')}</div>` : ''}
       ${temMeta ? `<div style="margin-left:auto;text-align:right"><div class="tiny muted">${proj ? 'proj. da meta' : 'da meta'}</div><div style="font-size:22px;font-weight:900;color:${cor}">${pctF(att)}</div></div>` : ''}
     </div>
     ${temMeta ? `<div style="margin-top:6px">${bar(Math.min(100, att || 0), p.no_ritmo ? 'verde' : (att >= 70 ? 'amarelo' : 'vermelho'))}</div>` : ''}
-    <div class="tiny muted" style="margin-top:6px">${proj ? `${p.dias_decorridos}/${p.dias_total} dias do mês (faltam ${p.dias_restantes}).${p.confianca ? ' Confiança ' + ({ alta: '🟢 alta', media: '🟡 média', baixa: '🔴 baixa' }[p.confianca]) + ' (±' + p.margem_pct + '%, fecha conforme o mês avança).' : ''} ` : 'Período fechado — sem extrapolação. '}
+    <div class="tiny muted" style="margin-top:6px">${proj ? `${p.dias_decorridos}/${p.dias_total} dias úteis do mês (faltam ${p.dias_restantes}).${p.confianca ? ' Confiança ' + ({ alta: '🟢 alta', media: '🟡 média', baixa: '🔴 baixa' }[p.confianca]) + ' (±' + p.margem_pct + '%, fecha conforme o mês avança).' : ''} ` : 'Período fechado — sem extrapolação. '}
       ${temMeta ? (p.no_ritmo ? '✅ No ritmo de bater a meta.' : `🔴 Projetado ${pctF(att)} da meta — gap de R$ ${moneyShort(p.gap_vgv)}.${p.ritmo_necessario_dia ? ' Precisa ~' + p.ritmo_necessario_dia + ' venda(s)/dia.' : ''}`) : 'Defina a meta pra comparar.'}</div>`);
 }
 function miniKpi(lbl, val) {

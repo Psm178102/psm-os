@@ -83,7 +83,7 @@ def calcular(sb, user, ano, force_rd=False, now=None):
     now = now or datetime.now(timezone.utc)
     # 1. Users com filtro de role
     try:
-        all_users = sb.table("users").select("id,name,email,team,role,color,ini,status,is_service").execute().data or []
+        all_users = sb.table("users").select("id,name,email,team,role,color,ini,status,is_service,hide_from_ranking").execute().data or []  # v88.11: + hide_from_ranking (régua única do Ranking)
         # v87.85 (Dicionário §0): contas de serviço (tv, comercial) não entram no grid
         users = [u for u in all_users if (u.get("status") or "ativo") == "ativo" and not u.get("is_service")]
         lvl = user.get("lvl") or 0

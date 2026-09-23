@@ -7,6 +7,7 @@
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 import { montarDecisoes } from '../decisoes.js';   // v87.92 🧭 Decidir agora
+import { montarLeadsOrigem } from '../leads-origem.js';   // v88.16 📥 leads em andamento × origem × equipe (mínimo de todo painel)
 
 let _root = null;
 const _d = {};            // resultados por fonte
@@ -36,6 +37,7 @@ export async function pageSalaComando(ctx, root) {
 function shell() {
   _root.innerHTML = `
     <div id="sc-recados" style="margin-bottom:12px"></div>
+    <div id="sc-lo"></div>
     <div id="sc-dec"></div>
     <div class="card" style="margin-bottom:12px">
       <div class="flex items-center gap-2" style="flex-wrap:wrap">
@@ -60,6 +62,7 @@ function shell() {
   };
   farois();   // esqueleto dos faróis (spinners)
   areas();
+  montarLeadsOrigem(document.getElementById('sc-lo'));
   montarDecisoes(document.getElementById('sc-dec'), { tela: 'sala', titulo: '🧭 Decisões da empresa — o que fazer, quem faz, até quando', max: 8 });
 }
 

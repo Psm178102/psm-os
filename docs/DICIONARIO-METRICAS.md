@@ -45,6 +45,7 @@ Origem nova que aparecer no RD e não estiver nesta tabela cai em `nao_classific
 - **Lead** = negócio criado no período (`created_at_rd` em Brasília) com categoria `trafego_pago_psm` ou `trafego_pago_corretor` (incluindo os "sem origem" assumidos).
 - **Interessados novos** = negócios criados no período, todas as categorias (lead + orgânico + carteira + indicação + networking + reativação).
 - **Em atendimento** = negócios abertos (`win` nulo) de qualquer época. É outro número, sempre com este nome; nunca se chama "lead".
+- **Em andamento no período** (v88.16, pedido do Paulo 23/09/2026 — bloco mínimo de TODO painel de gestor/diretor) = negócios abertos (`win` nulo) **criados na janela**, contados por equipe (§4) × categoria de origem acima. Colunas na tela: Tráfego Orgânico (`organico_site`), Carteira Própria (`carteira`), Indicação, Networking, Lead · Tráfego Pago PSM e Lead · Tráfego Pago Corretor (colunas separadas; lead = só tráfego pago — confirmado pelo Paulo 23/09) e Outros (reativação + não classificada). Sem origem segue a regra deste § (conta como tráfego pago PSM — reconfirmado pelo Paulo 23/09) e aparece com aviso. Campos: `abertos_periodo`, `abertos_por_origem`, `abertos_sem_origem`. Componente: `v2/js/leads-origem.js`.
 - **Perdidos** = `win = false` com `closed_at` no período.
 
 ## 3. Dono do negócio

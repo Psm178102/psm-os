@@ -14,6 +14,7 @@ import { api } from '../api.js';
 import { auth } from '../auth.js';
 import { loadChartLib } from '../premium.js';
 import { montarDecisoes } from '../decisoes.js';   // v87.92 🧭 Decidir agora
+import { montarLeadsOrigem } from '../leads-origem.js';   // v88.16 📥 leads em andamento × origem × equipe (mínimo de todo painel)
 
 let _root = null, _d = null, _v = null, _tab = 'meta', _team = null, _busy = false, _notas = false;
 let _since = null, _until = null, _spendPreset = 'this_month';
@@ -198,6 +199,7 @@ function pageHTML() {
     </div>
     ${(d.avisos || []).length ? `<div class="alert alert-warn tiny" style="margin-top:8px">${d.avisos.map(esc).join('<br>')}</div>` : ''}
     <div class="gc-top" style="margin-top:10px">${chips}</div>
+    <div id="gc-lo" style="margin-top:12px"></div>
     <div id="gc-dec" style="margin-top:12px"></div>
     ${cockpit()}
     <div class="gc-tabs">${GC_TABS.map(([id, l]) => `<button class="gc-tab${_tab === id ? ' on' : ''}" data-gct="${id}">${l}</button>`).join('')}</div>
@@ -250,6 +252,7 @@ function tabBody() {
   return { meta: tabMeta, metricas: tabMetricas, funil: tabFunil, midia: tabMidia, pessoas: tabPessoas }[_tab]();
 }
 function postRender() {
+  montarLeadsOrigem(document.getElementById('gc-lo'), { team: _team || '' });
   montarDecisoes(document.getElementById('gc-dec'), { tela: 'gestao', team: _team || '', titulo: '🧭 Decidir agora' + (_team ? ' · ' + tLbl(_team) : '') });
   initCharts(); srPerformance(); if (_tab === 'meta') projLoad();
 }

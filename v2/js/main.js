@@ -123,6 +123,7 @@ import { pageSimTrafego } from './pages/sim-trafego.js';
 import { pageCampanhaWa } from './pages/campanha-wa.js';
 import { pageOportunidades } from './pages/oportunidades.js';
 import { pageCadencia } from './pages/cadencia.js';
+import { pageDocumentos } from './pages/documentos.js';   // v88.14: 📝 gerador de proposta/contrato em Word
 import { pageScripts } from './pages/scripts.js';
 import { pageSrGerencia } from './pages/sr-gerencia.js';
 import { pageSrPerformance } from './pages/sr-performance.js';
@@ -148,7 +149,7 @@ export const ROUTE_GROUP = {
   // Comercial (v86.52): CRM House PSM (piloto F2 do CRM próprio) + Gestão Comercial
   '/crm-house': 'vendas', '/central-sol': 'vendas',
   // Imóveis & Vendas (+ Metas/Equipes/Plantões e simuladores VPL/INCC/Repasse/Energia migrados)
-  '/crm': 'vendas', '/oportunidades': 'vendas', '/cadencia': 'vendas', '/scripts': 'vendas', '/form-captacao': 'vendas',
+  '/crm': 'vendas', '/oportunidades': 'vendas', '/documentos': 'vendas', '/cadencia': 'vendas', '/scripts': 'vendas', '/form-captacao': 'vendas',
   '/imoveis': 'vendas', '/mapa': 'vendas', '/estoque-kenlo': 'vendas', '/tabela-imoveis': 'vendas', '/tabela-conquista': 'vendas', '/tabela-map': 'vendas', '/tabela-sp-capital': 'vendas', '/lancamentos': 'vendas',
   '/metas': 'vendas', '/equipe': 'vendas', '/plantoes': 'vendas',
   '/sim-vpl': 'vendas', '/sim-incc': 'vendas', '/sim-repasse': 'vendas', '/sim-energia': 'vendas', '/sim-amortizacao': 'vendas',
@@ -507,7 +508,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '88.13';
+const APP_VERSION = '88.14';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -775,6 +776,7 @@ const APP_VERSION = '88.13';
   router.register('/sim-trafego', { render: async (ctx, root) => { setHeader('Simulador de Tráfego'); highlight('/sim-trafego'); await pageSimTrafego(ctx, root); } });
   router.register('/mapa-ciclos', { render: async () => { location.hash = '#/governanca?tab=mapa'; } });
   router.register('/oportunidades', { render: async (ctx, root) => { setHeader('Oportunidades');     highlight('/oportunidades'); await pageOportunidades(ctx, root); } });
+  router.register('/documentos',  { render: async (ctx, root) => { setHeader('📝 Gerar documento');   highlight('/documentos');  await pageDocumentos(ctx, root); } });
   router.register('/cadencia',    { render: async (ctx, root) => { setHeader('Cadência');            highlight('/cadencia');    await pageCadencia(ctx, root); } });
   router.register('/scripts',     { render: async (ctx, root) => { setHeader('Scripts & Cadências'); highlight('/scripts');     await pageScripts(ctx, root); } });
   router.register('/form-captacao', { render: async (ctx, root) => { setHeader('📝 Formulário de Captação'); highlight('/form-captacao'); await pageFormCaptacao(ctx, root); } });
@@ -1012,6 +1014,7 @@ function shellHTML(user) {
         <div class="sb-sec">🏘 Imóveis & Vendas</div>
         <button class="sb-link" data-nav="/crm"><span class="sb-ico">🔗</span> CRM (RD)</button>
         <button class="sb-link" data-nav="/oportunidades"><span class="sb-ico">💡</span> Oportunidades</button>
+        <button class="sb-link" data-nav="/documentos"><span class="sb-ico">📝</span> Gerar documento</button>
         <button class="sb-link" data-nav="/scripts"><span class="sb-ico">📚</span> Scripts & Cadências</button>
         <button class="sb-link" data-nav="/form-captacao"><span class="sb-ico">📝</span> Formulário de Captação</button>
         <button class="sb-link" data-nav="/mapa"><span class="sb-ico">🗺</span> Mapa Imóveis</button>

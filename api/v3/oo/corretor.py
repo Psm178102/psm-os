@@ -24,6 +24,8 @@ if _V3 not in sys.path:
     sys.path.append(_V3)
 from _metricas_lib import (resumo as mx_resumo, team_key as mx_team,  # type: ignore
                            visitas_de, agendamentos_de, propostas_de)
+from _projecao_lib import projecao as pj_projecao  # type: ignore   # v88.11
+from _oo_lib import projecao_do_motor  # type: ignore
 from _oo_lib import (  # type: ignore
     window, months_in_range, broker_metrics, parse_dt, build_stage_maps, read_meta_spend, meta_for_period,
     read_meta_accounts, match_team_account, read_team_account_override,
@@ -243,12 +245,16 @@ class handler(BaseHTTPRequestHandler):
             team = u.get("team")
             if can_team and team:
                 try:
-                    tkey = (team or "").strip().lower()
+                    # v88.11: mesma régua de equipe do motor (team normalizado) + quem tem meta cadastrada
+                    # entra mesmo com outro cargo — senão somava na meta da equipe sem aparecer na lista
+                    tkey = mx_team(team)
+                    _com_meta = {r.get("corretor_id") for r in all_metas if float(r.get("meta_vgv") or 0) > 0}
                     members = [m for m in (sb.table("users").select("id,name,email,role,team,ini,color,status,is_service").execute().data or [])
                                if (m.get("status") or "ativo") == "ativo"
                                and not m.get("is_service")   # v87.85: contas de serviço fora (Dicionário §0)
-                               and ((m.get("role") or "").lower().startswith("corretor") or _is_gestor(m.get("role")))
-                               and (m.get("team") or "").strip().lower() == tkey]
+                               and ((m.get("role") or "").lower().startswith("corretor") or _is_gestor(m.get("role"))
+                                    or (m.get("id") in _com_meta and ((m.get("role") or "").lower() not in ("socio", "diretor"))))
+                               and mx_team(m.get("team")) == tkey]
                 except Exception:
                     members = []
                 mids = [m.get("id") for m in members]
@@ -341,7 +347,7 @@ class handler(BaseHTTPRequestHandler):
 
         # ── v87.86 DICIONÁRIO DE MÉTRICAS: KPIs-título (vendas, VGV, leads, em atendimento,
         # marcos, atingimento) vêm do motor único — mesmo número das outras telas.
-        def _aplica(m, b):
+        def _aplica(m, b, prov=None):
             if not (isinstance(m, dict) and b):
                 return
             # v87.97 §5: funil, conversões, KPIs, meta × realizado, win rate, saúde, alertas e funil reverso
@@ -363,20 +369,22 @@ class handler(BaseHTTPRequestHandler):
             _prev, _pot = m["pipeline"]["previsto_total"] or 0, m["pipeline"]["potencial"]
             m["pipeline"].update({"gap": round(max(0, mv - _prev), 2) if mv else 0, "potencial_total": _pot,
                                   "potencial_pct": round(_pot / mv * 100, 1) if mv else None})
-            if isinstance(m.get("projecao"), dict):
-                m["projecao"]["norte"] = b.get("norte")
-                m["projecao"]["previsto"] = pv
-                pj = b.get("projecao")
-                if pj:
-                    m["projecao"].update({"modo": "projecao", "proj_vendas": pj["vendas"], "proj_vgv": pj["vgv"],
-                                          "atingira_vgv_pct": pj.get("atingira_vgv_pct"),
-                                          "dias_decorridos": pj["dias_uteis_decorridos"], "dias_total": pj["dias_uteis_mes"]})
+            # v88.11: projeção INTEIRA do motor (+ 📈 Provável, o mesmo número do card da lista)
+            m["projecao"] = projecao_do_motor(b, prov)
         try:
             mx = mx_resumo(sb, {"since": since_d.isoformat(), "until": until_d.isoformat()}, fresh=params.get("fresh") == "1")
-            _aplica(resp, (mx.get("pessoas") or {}).get(cid))
+            # 📈 Provável (_projecao_lib) — só no mês corrente, igual ao card da lista (oo/overview)
+            prov_p, prov_e = {}, {}
+            if since_d.day == 1 and (since_d.year, since_d.month) == (today.year, today.month) and until_d >= today:
+                try:
+                    _pj = pj_projecao(sb, {"h": "mes"}, fresh=params.get("fresh") == "1")
+                    prov_p, prov_e = _pj.get("pessoas") or {}, _pj.get("equipes") or {}
+                except Exception as e:
+                    print(f"[oo/corretor] projeção indisponível: {e}")
+            _aplica(resp, (mx.get("pessoas") or {}).get(cid), prov_p.get(cid))
             if isinstance(resp.get("team"), dict):
                 e = (mx.get("equipes") or {}).get(mx_team(u.get("team")))
-                _aplica(resp["team"].get("metrics"), e)
+                _aplica(resp["team"].get("metrics"), e, prov_e.get(mx_team(u.get("team"))))
                 for mb in resp["team"].get("members") or []:
                     pb = (mx.get("pessoas") or {}).get(mb.get("id"))
                     if pb:

@@ -121,6 +121,14 @@ class handler(BaseHTTPRequestHandler):
                 errors.append({"mes": mes, "error": err or "payload inválido"})
                 out.append({"mes": mes, "ok": False})
                 continue
+            # v88.11: conta com erro (token expirado, permissão) → NÃO grava. O Node
+            # responde 200 mesmo assim e o upsert sobrescrevia o histórico com zeros
+            # (ou com menos contas). Mantém o último valor bom do mês.
+            if payload.get("errors"):
+                errors.append({"mes": mes, "error": "conta(s) com erro — mês mantido: " + ", ".join(
+                    str((e or {}).get("label") or (e or {}).get("id") or "?") for e in payload["errors"][:5])})
+                out.append({"mes": mes, "ok": False, "skipped": True})
+                continue
             agg = _aggregate(payload)
             row = {"ano": ano, "mes": mes, **agg, "captured_at": now.isoformat()}
             try:

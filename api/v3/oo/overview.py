@@ -29,6 +29,7 @@ if _V3 not in sys.path:
 from _metricas_lib import (resumo as mx_resumo, versao_dados, team_key as mx_team,  # type: ignore
                            visitas_de, agendamentos_de, propostas_de)
 from _projecao_lib import projecao as pj_projecao  # type: ignore   # v87.91
+from _oo_lib import projecao_do_motor  # type: ignore
 
 
 def _norte_proj(sb, uid, today):
@@ -178,10 +179,18 @@ class handler(BaseHTTPRequestHandler):
         # v87.85 (Dicionário de Métricas v1 §0): contas de serviço (tv, comercial) não são pessoas
         users = [u for u in users if not u.get("is_service")]
         team_f = (params.get("team") or "").strip().lower()
+        # v88.11: quem tem meta cadastrada entra mesmo com outro cargo (ex.: captador) e a equipe é
+        # comparada pelo nome normalizado do motor — a lista bate com a meta/realizado da equipe
+        try:
+            _com_meta = {r.get("corretor_id") for r in (sb.table("metas").select("corretor_id,meta_vgv")
+                         .eq("ano", hoje_brt().year).execute().data or []) if float(r.get("meta_vgv") or 0) > 0}
+        except Exception:
+            _com_meta = set()
         people = [u for u in users
-                  if ((u.get("role") or "").lower().startswith("corretor") or _is_gestor(u.get("role")))
+                  if ((u.get("role") or "").lower().startswith("corretor") or _is_gestor(u.get("role"))
+                      or (u.get("id") in _com_meta and ((u.get("role") or "").lower() not in ("socio", "diretor"))))
                   and (u.get("status") or "ativo") == "ativo"
-                  and (not team_f or (u.get("team") or "").lower() == team_f)]
+                  and (not team_f or mx_team(u.get("team")) == mx_team(team_f))]
 
         # Deals da janela, agrupados por dono (id ou email)
         deals = self._fetch_deals(sb, since_d.isoformat())
@@ -293,6 +302,14 @@ class handler(BaseHTTPRequestHandler):
             mx = mx_resumo(sb, {"since": since_d.isoformat(), "until": until_d.isoformat()}, fresh=fresh)
         except Exception as e:
             print(f"[oo/overview] motor de métricas indisponível: {e}")
+        # 📈 Provável (_projecao_lib) — só no mês corrente; o mesmo número da Gestão Comercial
+        prov_p, prov_e = {}, {}
+        if since_d.day == 1 and (since_d.year, since_d.month) == (today.year, today.month) and until_d >= today:
+            try:
+                _pj = pj_projecao(sb, {"h": "mes"}, fresh=fresh)
+                prov_p, prov_e = _pj.get("pessoas") or {}, _pj.get("equipes") or {}
+            except Exception as e:
+                print(f"[oo/overview] projeção indisponível: {e}")
         if mx:
             for row in out:
                 tk = mx_team(row.get("team"))
@@ -316,41 +333,9 @@ class handler(BaseHTTPRequestHandler):
                     e = mx["equipes"].get(tk)
                     if e:
                         row["meta_equipe_vgv"] = (e.get("meta") or {}).get("meta_vgv")
-                pj = b.get("projecao")
-                if isinstance(row.get("projecao"), dict):
-                    # v87.87 §8: Norte e pipeline vêm do motor único — inclusive no card de EQUIPE
-                    # (antes o card do gestor não tinha Norte e a Gestão Comercial somava inativos)
-                    row["projecao"]["norte"] = b.get("norte")
-                    row["projecao"]["pipeline"] = b.get("pipeline")
-                    row["projecao"]["previsto"] = b.get("previsto")
-                if pj and isinstance(row.get("projecao"), dict):
-                    ating = round(pj["vgv"] / meta_vgv * 100, 1) if meta_vgv else None
-                    row["projecao"].update({"modo": "projecao", "proj_vendas": pj["vendas"], "proj_vgv": pj["vgv"],
-                                            "real_vendas": b["vendas"], "real_vgv": b["vgv"], "meta_vgv": meta_vgv,
-                                            "dias_decorridos": pj["dias_uteis_decorridos"], "dias_total": pj["dias_uteis_mes"],
-                                            "pace_pct": round(pj["dias_uteis_decorridos"] / pj["dias_uteis_mes"] * 100, 1) if pj["dias_uteis_mes"] else None,
-                                            "atingira_vgv_pct": ating,
-                                            "no_ritmo": (ating >= 100) if ating is not None else None})
-
-        # v87.91: "📈 Provável" do card = a MESMA projeção da Gestão Comercial (🎯 Meta · Realizado · Projeção)
-        if since_d.day == 1 and (since_d.year, since_d.month) == (today.year, today.month) and until_d >= today:
-            try:
-                pj = pj_projecao(sb, {"h": "mes"}, fresh=fresh)
-                for row in out:
-                    tk = mx_team(row.get("team"))
-                    p = (pj.get("equipes") or {}).get(tk) if row.get("is_team") else (pj.get("pessoas") or {}).get(row["id"])
-                    if not p or not isinstance(row.get("projecao"), dict):
-                        continue
-                    row["projecao"].update({
-                        "modo": "projecao", "fonte": "provavel",
-                        "proj_vendas": p["provavel"]["vendas"], "proj_vgv": p["provavel"]["vgv"],
-                        "proj_vgv_low": p["conservador"]["vgv"], "proj_vgv_high": p["otimista"]["vgv"],
-                        "atingira_vgv_pct": p["provavel"]["pct_meta"], "meta_vgv": p["meta"]["vgv"],
-                        "no_ritmo": (p["status"] in ("batida", "no_ritmo")) if p["status"] != "sem_meta" else None,
-                        "confianca": None, "status": p["status"],
-                    })
-            except Exception as e:
-                print(f"[oo/overview] projeção indisponível: {e}")
+                # v88.11: projeção INTEIRA do motor + 📈 Provável — a MESMA função do detalhe (oo/corretor)
+                prov = (prov_e.get(tk) if row.get("is_team") else prov_p.get(row["id"]))
+                row["projecao"] = projecao_do_motor(b, prov)
 
         for row in out:
             row.pop("_m", None)

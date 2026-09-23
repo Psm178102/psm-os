@@ -179,7 +179,7 @@ def read_meta_spend(sb, preset=None, return_preset=False):
         seen.add(p)
         try:
             rows = (sb.table("meta_ads_cache").select("payload")
-                    .eq("date_preset", p).order("refreshed_at", desc=True)
+                    .eq("cache_key", p + "||")  # v88.13: só a linha do summary (não ts:/bd:/google:)
                     .limit(1).execute().data or [])
         except Exception:
             continue

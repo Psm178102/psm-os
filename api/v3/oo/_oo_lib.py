@@ -12,6 +12,7 @@ import re
 import json
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta, date
+_BRT = timezone(timedelta(hours=-3))   # v88.11
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
 try:
@@ -183,7 +184,7 @@ def read_meta_spend(sb, preset=None):
             continue
         try:
             rows = (sb.table("meta_ads_cache").select("payload")
-                    .eq("date_preset", p).order("refreshed_at", desc=True)
+                    .eq("cache_key", p + "||")  # v88.13: só a linha do summary (não ts:/bd:/google:)
                     .limit(1).execute().data or [])
         except Exception:
             continue
@@ -208,7 +209,7 @@ def read_meta_accounts(sb, preset=None):
             continue
         try:
             rows = (sb.table("meta_ads_cache").select("payload")
-                    .eq("date_preset", p).order("refreshed_at", desc=True)
+                    .eq("cache_key", p + "||")  # v88.13: só a linha do summary (não ts:/bd:/google:)
                     .limit(1).execute().data or [])
         except Exception:
             continue
@@ -323,7 +324,7 @@ def read_meta_campaigns(sb, preset=None):
             continue
         try:
             rows = (sb.table("meta_ads_cache").select("payload")
-                    .eq("date_preset", p).order("refreshed_at", desc=True).limit(1).execute().data or [])
+                    .eq("cache_key", p + "||").limit(1).execute().data or [])  # v88.13: só a linha do summary
         except Exception:
             continue
         if not rows:
@@ -388,8 +389,10 @@ def compute_ads_invest(deals, since_d, until_d, mc, team_cpl, global_cpl, acct_l
       2) lead pago (canal Meta) sem match de campanha → CPL da conta da equipe (fallback);
       3) canal não-pago/Meta (indicação, orgânico, direto, portal, Google) → R$ 0 (não é ads Meta).
     Devolve invest total + quebra por método (exato / conta / zero) e cobertura."""
-    since_dt = datetime(since_d.year, since_d.month, since_d.day, tzinfo=timezone.utc)
-    until_dt = datetime(until_d.year, until_d.month, until_d.day, 23, 59, 59, tzinfo=timezone.utc)
+    # v88.11: dia em horário de Brasília (Dicionário §0) — em UTC o dia fechava às 21h e perdas/leads
+    # da noite caíam no dia/mês seguinte, divergindo do motor
+    since_dt = datetime(since_d.year, since_d.month, since_d.day, tzinfo=_BRT)
+    until_dt = datetime(until_d.year, until_d.month, until_d.day, 23, 59, 59, tzinfo=_BRT)
     total = exato_n = fb_n = zero_n = 0
     inv = exato_v = fb_v = 0.0
     for d in deals:
@@ -576,9 +579,11 @@ def broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, det
     meta_sum: dict com metas somadas no período (meta_vgv, meta_vendas, ...).
     Retorna dict com funil, taxas, contagens, tempos, origem, trend, health, alertas.
     """
-    since_dt = datetime(since_d.year, since_d.month, since_d.day, tzinfo=timezone.utc)
-    until_dt = datetime(until_d.year, until_d.month, until_d.day, 23, 59, 59, tzinfo=timezone.utc)
-    now_dt = datetime(today.year, today.month, today.day, 23, 59, 59, tzinfo=timezone.utc)
+    # v88.11: dia em horário de Brasília (Dicionário §0) — em UTC o dia fechava às 21h e perdas/leads
+    # da noite caíam no dia/mês seguinte, divergindo do motor
+    since_dt = datetime(since_d.year, since_d.month, since_d.day, tzinfo=_BRT)
+    until_dt = datetime(until_d.year, until_d.month, until_d.day, 23, 59, 59, tzinfo=_BRT)
+    now_dt = datetime(today.year, today.month, today.day, 23, 59, 59, tzinfo=_BRT)
 
     funnel = [0] * 7
     vendas = 0
@@ -639,7 +644,7 @@ def broker_metrics(deals, events_by_deal, meta_sum, since_d, until_d, today, det
 
         # Tendência (12m) — vendas ganhas por mês de fechamento
         if win is True and closed:
-            key = f"{closed.year:04d}-{closed.month:02d}"
+            _cb = closed.astimezone(_BRT); key = f"{_cb.year:04d}-{_cb.month:02d}"   # v88.11: mês em BRT
             trend[key]["vendas"] += 1
             trend[key]["vgv"] += amt
 
@@ -897,7 +902,12 @@ def aplicar_dicionario(m, b, since_d, until_d, today):
     m["meta"] = {**(m.get("meta") or {}), **mt,
                  "real_vgv": round(vgv, 2), "real_vendas": vendas, "real_visitas": visitas,
                  "real_pastas": pastas, "real_propostas": props, "real_agendamentos": agend}
-    health, cor, attain, pace = _saude(vgv, visitas, win_rate, mt, since_d, until_d, today)
+    # v88.11: o motor soma a meta dos meses [since, min(until, hoje)] — mês CHEIO cada. O ritmo esperado
+    # tem de cobrir o mesmo intervalo: dia 1 → fim do último mês com meta (antes: semestre até 31/12
+    # inflava o ritmo; mês atual até hoje dava ritmo 100% e cobrava a meta do mês inteiro no dia 23)
+    _u = min(until_d, today) if since_d <= today else until_d
+    _fim_meta = (date(_u.year + 1, 1, 1) if _u.month == 12 else date(_u.year, _u.month + 1, 1)) - timedelta(days=1)
+    health, cor, attain, pace = _saude(vgv, visitas, win_rate, mt, since_d, _fim_meta, today)
     m["health"], m["health_color"] = health, cor
     m["meta_attainment_pct"] = round(attain * 100, 2) if attain is not None else None
     pend = m.get("pendencias") or {}
@@ -909,3 +919,45 @@ def aplicar_dicionario(m, b, since_d, until_d, today):
     else:
         m.pop("funil_reverso", None)
     return m
+
+
+# ─── v88.11 · projeção ÚNICA (card da lista = detalhe do 1:1 = Gestão Comercial) ─────────────
+def projecao_do_motor(b, prov=None):
+    """Monta o dict `projecao` INTEIRO a partir do motor único (b = pessoa/equipe do _metricas_lib)
+    e, se houver, do 📈 Provável do _projecao_lib (prov = pessoa/equipe de projecao(h=mes)).
+    Antes o detalhe trocava só 4 campos e deixava meta, gap, 'no ritmo', dias e realizado do cálculo
+    antigo (dias corridos, UTC, meta × nº de meses) — cor, gap e dias não batiam com o valor exibido."""
+    meta = b.get("meta") or {}
+    meta_vgv = float(meta.get("meta_vgv") or 0)
+    meta_vendas = float(meta.get("meta_vendas") or 0)
+    real_vgv, real_vendas = round(float(b.get("vgv") or 0), 2), b.get("vendas") or 0
+    pj = b.get("projecao")
+    out = {"real_vgv": real_vgv, "real_vendas": real_vendas, "meta_vgv": meta_vgv, "meta_vendas": meta_vendas,
+           "norte": b.get("norte"), "pipeline": b.get("pipeline"), "previsto": b.get("previsto"),
+           "fonte": "ritmo", "confianca": None, "margem_pct": 0, "status": None}
+    if pj:
+        dec, tot = pj["dias_uteis_decorridos"], pj["dias_uteis_mes"]
+        pace = dec / tot if tot else 1.0
+        unc = max(0.0, 1 - pace) * 0.5
+        out.update({"modo": "projecao", "dias_decorridos": dec, "dias_total": tot,
+                    "dias_restantes": max(0, tot - dec), "pace_pct": round(pace * 100, 1),
+                    "proj_vendas": pj["vendas"], "proj_vgv": pj["vgv"],
+                    "proj_vgv_low": round(pj["vgv"] * (1 - unc), 2), "proj_vgv_high": round(pj["vgv"] * (1 + unc), 2),
+                    "margem_pct": round(unc * 100, 1),
+                    "confianca": "alta" if pace >= 0.7 else ("media" if pace >= 0.4 else "baixa")})
+        if prov:
+            out.update({"fonte": "provavel", "status": prov.get("status"),
+                        "proj_vendas": prov["provavel"]["vendas"], "proj_vgv": prov["provavel"]["vgv"],
+                        "proj_vgv_low": prov["conservador"]["vgv"], "proj_vgv_high": prov["otimista"]["vgv"],
+                        "confianca": None, "margem_pct": 0})
+    else:
+        out.update({"modo": "realizado", "dias_decorridos": None, "dias_total": None, "dias_restantes": 0,
+                    "pace_pct": 100.0, "proj_vendas": real_vendas, "proj_vgv": real_vgv,
+                    "proj_vgv_low": real_vgv, "proj_vgv_high": real_vgv})
+    pv = out["proj_vgv"] or 0
+    out["atingira_vgv_pct"] = round(pv / meta_vgv * 100, 1) if meta_vgv else None
+    out["gap_vgv"] = round(max(0, meta_vgv - pv), 2) if meta_vgv else None
+    out["no_ritmo"] = (pv >= meta_vgv) if meta_vgv else None
+    rest = out["dias_restantes"]
+    out["ritmo_necessario_dia"] = (round(max(0, meta_vendas - real_vendas) / rest, 2) if (rest and meta_vendas) else None)
+    return out

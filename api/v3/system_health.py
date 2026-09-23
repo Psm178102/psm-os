@@ -108,10 +108,12 @@ class handler(BaseHTTPRequestHandler):
 
         # 2c) Histórico mensal do Meta parado (cron diário não-confiável no plano)
         try:
-            rows = (sb.table("meta_ads_monthly").select("updated_at")
-                    .order("updated_at", desc=True).limit(1).execute().data or [])
-            if rows and rows[0].get("updated_at"):
-                age = _age_h(rows[0]["updated_at"])
+            # v88.13: a coluna é captured_at (updated_at não existe → erro engolido e
+            # o alerta de histórico parado NUNCA disparava)
+            rows = (sb.table("meta_ads_monthly").select("captured_at")
+                    .order("captured_at", desc=True).limit(1).execute().data or [])
+            if rows and rows[0].get("captured_at"):
+                age = _age_h(rows[0]["captured_at"])
                 checks["meta_monthly_age_h"] = round(age, 1) if age is not None else None
                 if age is not None and age > 50:
                     add("meta", "warn", f"Histórico mensal do Meta sem atualizar há {age/24:.1f} dia(s) — botão 'Atualizar agora' na tela Histórico Meta resolve.")
@@ -132,8 +134,10 @@ class handler(BaseHTTPRequestHandler):
 
         # 3) Cache Meta (cron a cada 10min → > 40min é desatualização)
         try:
+            # v88.13: mede a linha que o cron aquece (last_30d do summary) — antes
+            # qualquer linha (série/breakdown aberta há pouco) mascarava cache parado
             rows = (sb.table("meta_ads_cache").select("refreshed_at")
-                    .order("refreshed_at", desc=True).limit(1).execute().data or [])
+                    .eq("cache_key", "last_30d||").limit(1).execute().data or [])
             if not rows:
                 add("meta", "warn", "Cache Meta vazio — rode o SQL sprint9_12 e aguarde o cron.")
             else:

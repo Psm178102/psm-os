@@ -576,3 +576,27 @@ inativos()
 
 
 consistencia()
+
+
+def abertos_origem():
+    """v88.16 (Paulo 23/09): leads EM ANDAMENTO criados na janela × origem × equipe — bloco mínimo de todo painel."""
+    import copy
+    db = copy.deepcopy(DB)
+    db["shared_kv"] = [kv for kv in db["shared_kv"] if not kv["key"].startswith("metricas_resumo")]
+    out = M.resumo(SB(db), {}, fresh=True, hoje=date(2026, 9, 30))
+    P, E, C = out["pessoas"], out["equipes"], out["empresa"]
+    # Kadu: #2 aberto, pago PSM. Rafaela: #3 sem origem (assumido pago PSM) + #4 carteira. #5 aberto de 2025 fica fora.
+    assert P["kadu"]["abertos_periodo"] == 1 and P["kadu"]["abertos_por_origem"]["trafego_pago_psm"] == 1, P["kadu"]
+    r = P["rafaela"]
+    assert r["abertos_periodo"] == 2 and r["abertos_sem_origem"] == 1, r
+    assert r["abertos_por_origem"]["carteira"] == 1 and r["abertos_por_origem"]["trafego_pago_psm"] == 1, r["abertos_por_origem"]
+    assert E["conquista"]["abertos_periodo"] == 1 and E["map"]["abertos_periodo"] == 2
+    assert E["map"]["abertos_por_origem"]["carteira"] == 1
+    assert C["abertos_periodo"] == 3 and C["abertos_sem_origem"] == 1 and sum(C["abertos_por_origem"].values()) == 3, C["abertos_por_origem"]
+    # período personalizado: só agosto → nenhum aberto criado lá
+    ago = M.resumo(SB(db), {"since": "2026-08-01", "until": "2026-08-31"}, fresh=True, hoje=date(2026, 9, 30))
+    assert ago["empresa"]["abertos_periodo"] == 0, ago["empresa"]["abertos_periodo"]
+    print("OK — leads em andamento × origem × equipe")
+
+
+abertos_origem()
