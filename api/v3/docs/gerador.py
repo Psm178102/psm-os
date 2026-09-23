@@ -217,7 +217,7 @@ class handler(BaseHTTPRequestHandler):
                     novo["empresas"].pop(eid, None)
                 elif isinstance(e, dict):
                     novo["empresas"][eid] = {k: str(v or "")[:300] for k, v in e.items()
-                                             if k in ("nome", "cnpj", "creci", "banco", "pix", "fone", "email", "endereco", "instagram", "logo")}
+                                             if k in ("nome", "cnpj", "creci", "representante", "banco", "pix", "fone", "email", "endereco", "instagram", "logo")}
         if isinstance(body.get("padroes"), dict):
             novo["padroes"] = {str(k)[:40]: str(v or "")[:200] for k, v in body["padroes"].items()}
 

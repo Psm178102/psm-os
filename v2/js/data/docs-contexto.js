@@ -17,7 +17,7 @@ function estadoCivilLinha(p) {
    "FULANO DE TAL, brasileiro(a), casado(a) sob o regime…, empresário, nascido(a) em
     18/01/1954, portador(a) do RG n. X e do CPF n. Y, residente e domiciliado(a) à …"
    Campo essencial vazio (RG/CPF/endereço) vira linha em branco pra completar no Word. */
-export function qualificacao(p) {
+export function qualificacao(p, comFone = false) {
   if (!tem(p.nome)) return '';
   const partes = [String(p.nome).trim().toUpperCase()];
   if (tem(p.nacionalidade)) partes.push(p.nacionalidade);
@@ -25,8 +25,9 @@ export function qualificacao(p) {
   if (tem(p.profissao)) partes.push(p.profissao);
   if (tem(p.nascimento)) partes.push(`nascido(a) em ${dataBR(p.nascimento)}`);
   partes.push(`portador(a) do RG n. ${tem(p.rg) ? p.rg : VAZIO} e do CPF n. ${tem(p.cpf) ? p.cpf : VAZIO}`);
-  if (tem(p.email)) partes.push(`e-mail ${p.email}`);
   partes.push(`residente e domiciliado(a) à ${tem(p.endereco) ? p.endereco : VAZIO}`);
+  if (tem(p.email)) partes.push(`e-mail ${p.email}`);
+  if (comFone && tem(p.fone)) partes.push(`telefone ${p.fone}`);
   return partes.join(', ');
 }
 
@@ -53,13 +54,34 @@ function pctExtenso(pct) {
  */
 export function montarContexto(v, empresa = {}) {
   const c = { ...v };
-  for (const pre of ['c1', 'c2', 'v1', 'v2']) {
+  for (const pre of ['c1', 'c2', 'v1', 'v2', 'f1', 'f2']) {
     const p = pessoa(v, pre);
     c[`${pre}_estado_civil_linha`] = estadoCivilLinha(p);
     c[`${pre}_nascimento_br`] = tem(p.nascimento) ? dataBR(p.nascimento) : '';
   }
   c.compradores_qualificacao = juntar([qualificacao(pessoa(v, 'c1')), qualificacao(pessoa(v, 'c2'))]);
   c.vendedores_qualificacao = juntar([qualificacao(pessoa(v, 'v1')), qualificacao(pessoa(v, 'v2'))]);
+  // locação: mesmas pessoas, com telefone (o modelo de 2026 pede)
+  c.locadores_qualificacao = juntar([qualificacao(pessoa(v, 'v1'), true), qualificacao(pessoa(v, 'v2'), true)]);
+  c.locatarios_qualificacao = juntar([qualificacao(pessoa(v, 'c1'), true), qualificacao(pessoa(v, 'c2'), true)]);
+  c.fiadores_qualificacao = juntar([qualificacao(pessoa(v, 'f1'), true), qualificacao(pessoa(v, 'f2'), true)]);
+
+  const aluguel = numBR(v.aluguel);
+  c.aluguel = aluguel ? `R$ ${moeda(aluguel)}` : '';
+  c.aluguel_extenso = valorComExtenso(aluguel);
+  c.seguro_incendio = numBR(v.seguro_incendio) ? valorComExtenso(numBR(v.seguro_incendio)) : '';
+  c.garantia_valor = numBR(v.garantia_valor) ? valorComExtenso(numBR(v.garantia_valor)) : (v.garantia_valor || '');
+  c.data_inicio_br = tem(v.data_inicio) ? dataBR(v.data_inicio) : '';
+  c.data_fim_br = tem(v.data_fim) ? dataBR(v.data_fim) : '';
+  c.data_doc_br = tem(v.data_doc) ? dataBR(v.data_doc) : '';
+  c.data_visita_br = tem(v.data_visita) ? dataBR(v.data_visita) : '';
+  const g = String(v.garantia || '').toLowerCase();
+  c.garantia_maiuscula = String(v.garantia || '').toUpperCase();
+  c.garantia_fianca = g === 'fiança' ? 'sim' : '';
+  c.garantia_seguro = g.startsWith('seguro') ? 'sim' : '';
+  c.garantia_titulo = g.startsWith('título') ? 'sim' : '';
+  c.garantia_caucao = g === 'caução' ? 'sim' : '';
+  c.taxa_adm_pct_extenso = pctExtenso(numBR(v.taxa_adm_pct));
 
   const valor = numBR(v.valor), ato = numBR(v.valor_ato), pct = numBR(v.comissao_pct);
   c.valor = valor ? `R$ ${moeda(valor)}` : '';

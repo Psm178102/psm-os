@@ -68,13 +68,19 @@ const DEPENDE = {
   compradores_qualificacao: ['@c1', '@c2'], vendedores_qualificacao: ['@v1', '@v2'],
   valor_moeda: ['valor'], valor_extenso: ['valor'], valor_ato_extenso: ['valor_ato'],
   comissao_pct_extenso: ['comissao_pct'], comissao_valor_extenso: ['valor', 'comissao_pct'],
-  data_extenso: ['data_doc'], pagamento_detalhe: ['valor', 'valor_ato', 'forma_pagamento', 'pagamento_detalhe'],
+  data_extenso: ['data_doc'], data_doc_br: ['data_doc'], pagamento_detalhe: ['valor', 'valor_ato', 'forma_pagamento', 'pagamento_detalhe'],
+  locadores_qualificacao: ['@v1', '@v2'], locatarios_qualificacao: ['@c1', '@c2'], fiadores_qualificacao: ['@f1', '@f2'],
+  aluguel_extenso: ['aluguel'], data_inicio_br: ['data_inicio'], data_fim_br: ['data_fim'],
+  garantia_maiuscula: ['garantia'], garantia_fianca: ['garantia'], garantia_seguro: ['garantia'], garantia_titulo: ['garantia'], garantia_caucao: ['garantia'],
+  taxa_adm_pct_extenso: ['taxa_adm_pct'], data_visita_br: ['data_visita'],
 };
+const ORDEM_PESSOAS = ['c1', 'c2', 'v1', 'v2', 'f1', 'f2'];
+const rotuloPessoa = (m, p) => (m.papeis && m.papeis[p]) || PESSOAS[p];
 function camposDoModelo(m) {
   const pessoas = new Set(), campos = new Set();
   const add = k => {
     if (k.startsWith('@')) { pessoas.add(k.slice(1)); return; }
-    const pm = k.match(/^(c1|c2|v1|v2)_/);
+    const pm = k.match(/^(c1|c2|v1|v2|f1|f2)_/);
     if (pm) { pessoas.add(pm[1]); return; }
     if (k.startsWith('empresa_')) return;
     if (CAMPOS[k]) campos.add(k);
@@ -84,7 +90,10 @@ function camposDoModelo(m) {
   // cônjuge só faz sentido junto do titular
   if (pessoas.has('c2')) pessoas.add('c1');
   if (pessoas.has('v2')) pessoas.add('v1');
-  return { pessoas: ['c1', 'c2', 'v1', 'v2'].filter(p => pessoas.has(p)), campos: [...campos] };
+  if (pessoas.has('f2')) pessoas.add('f1');
+  // quem vem do CRM aparece primeiro (na administração é o proprietário)
+  const ordem = m.cliente === 'v1' ? ['v1', 'v2', 'c1', 'c2', 'f1', 'f2'] : ORDEM_PESSOAS;
+  return { pessoas: ordem.filter(p => pessoas.has(p)), campos: [...campos] };
 }
 
 /* ─────────────── boot ─────────────── */
@@ -100,6 +109,7 @@ export async function pageDocumentos(ctx, root) {
     console.warn('docs/gerador config', e);
   }
   if (!_empresaId) _empresaId = modelo().empresa || 'psm_negocios';
+  aplicarPadroesModelo();
   render();
 }
 
@@ -129,7 +139,7 @@ function htmlGerar(m) {
   const emps = empresas();
   const grupos = {};
   for (const k of campos) { const g = (CAMPOS[k] || [k, 'Outros'])[1]; (grupos[g] = grupos[g] || []).push(k); }
-  const ordem = ['Imóvel', 'Negócio', 'Comissão', 'Assinaturas', 'Outros'];
+  const ordem = ['Parte empresa', 'Locatário empresa', 'Visita', 'Imóvel', 'Atividade', 'Cessão', 'Locação', 'Garantia', 'Negócio', 'Comissão', 'Assinaturas', 'Outros'];
   return `
     <div class="card mt-3">
       <div class="tiny muted" style="font-weight:700;letter-spacing:.5px;text-transform:uppercase">1 · Documento</div>
@@ -162,9 +172,9 @@ function htmlGerar(m) {
     <div class="card mt-3">
       <div class="tiny muted" style="font-weight:700;letter-spacing:.5px;text-transform:uppercase">3 · Dados do documento</div>
       <p class="tiny muted" style="margin:4px 0 0">O que ficar em branco sai como <code>${VAZIO}</code> no Word pra completar à mão. CPF, RG e endereço <b>não ficam gravados</b> no House.</p>
-      ${pessoas.map(p => htmlPessoa(p)).join('')}
+      ${pessoas.map(p => htmlPessoa(p, m)).join('')}
       ${ordem.filter(g => grupos[g]).map(g => `
-        <div class="mt-3"><div style="font-weight:800;margin-bottom:6px">${g === 'Imóvel' ? '🏠' : g === 'Negócio' ? '💰' : g === 'Comissão' ? '🤝' : g === 'Assinaturas' ? '✍️' : '•'} ${esc(g)}</div>
+        <div class="mt-3"><div style="font-weight:800;margin-bottom:6px">${({ 'Parte empresa': '🏢', 'Visita': '👀', 'Cessão': '📜', 'Locatário empresa': '🏢', 'Atividade': '🏪', 'Imóvel': '🏠', 'Locação': '🔑', 'Garantia': '🛡', 'Negócio': '💰', 'Comissão': '🤝', 'Assinaturas': '✍️' })[g] || '•'} ${esc(g)}</div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">${grupos[g].map(k => htmlCampo(k)).join('')}</div>
         </div>`).join('')}
     </div>
@@ -191,13 +201,13 @@ function htmlListaNegocios() {
     </button>`).join('')}</div>`;
 }
 
-function htmlPessoa(p) {
-  const aberto = /1$/.test(p) || PESSOA_CAMPOS.some(([k]) => (_v[`${p}_${k}`] || '').trim() && k !== 'nacionalidade');
+function htmlPessoa(p, m) {
+  const aberto = (/1$/.test(p) && p !== 'f1') || PESSOA_CAMPOS.some(([k]) => (_v[`${p}_${k}`] || '').trim() && k !== 'nacionalidade');
   return `
     <details class="mt-3" ${aberto ? 'open' : ''} style="border:1px solid var(--bd);border-radius:8px;padding:8px 12px">
-      <summary style="font-weight:800;cursor:pointer">${p.startsWith('c') ? '🙋' : '🏡'} ${esc(PESSOAS[p])}${/2$/.test(p) ? ' <span class="tiny muted" style="font-weight:400">(deixe o nome vazio se não houver)</span>' : ''}</summary>
+      <summary style="font-weight:800;cursor:pointer">${p.startsWith('c') ? '🙋' : p.startsWith('v') ? '🏡' : '🤝'} ${esc(rotuloPessoa(m, p))}${/2$/.test(p) || p === 'f1' ? ' <span class="tiny muted" style="font-weight:400">(deixe o nome vazio se não houver)</span>' : ''}</summary>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:8px">
-        ${PESSOA_CAMPOS.map(([k, rot, tipo]) => campoInput(`${p}_${k}`, rot, tipo)).join('')}
+        ${PESSOA_CAMPOS.filter(([k]) => !m.pessoaCampos || m.pessoaCampos.includes(k)).map(([k, rot, tipo]) => campoInput(`${p}_${k}`, rot, tipo)).join('')}
       </div>
     </details>`;
 }
@@ -232,6 +242,7 @@ function bindGerar() {
   _root.querySelectorAll('[data-modelo]').forEach(b => b.onclick = () => {
     _modeloId = b.dataset.modelo;
     _empresaId = modelo().empresa || _empresaId;
+    aplicarPadroesModelo();
     render();
   });
   const emp = $('doc-empresa'); if (emp) emp.onchange = () => { _empresaId = emp.value; atualizarBrancos(); };
@@ -276,9 +287,22 @@ function bindGerar() {
   };
   $('doc-limpar').onclick = () => {
     if (!confirm('Apagar os dados digitados nesta tela?')) return;
-    _v = valoresIniciais(); _negocio = null; _pagAuto = true; render();
+    _v = valoresIniciais(); _auto = {}; _negocio = null; _pagAuto = true; aplicarPadroesModelo(); render();
   };
   atualizarBrancos();
+}
+
+/* Valores padrão do modelo (ex.: exclusividade = 6%). Só preenche campo vazio ou
+   que ainda está com o padrão de outro modelo — nunca apaga o que a pessoa digitou. */
+let _auto = {};
+function aplicarPadroesModelo() {
+  const pad = modelo().padrao || {};
+  for (const [k, v] of Object.entries(_auto)) if (_v[k] === v && !(k in pad)) { _v[k] = valoresIniciais()[k] ?? ''; delete _auto[k]; }
+  for (const [k, v] of Object.entries(pad)) {
+    const atual = String(_v[k] ?? '').trim();
+    const ini = String(valoresIniciais()[k] ?? '');
+    if (!atual || atual === ini || _auto[k] === _v[k]) { _v[k] = v; _auto[k] = v; }
+  }
 }
 
 function refazerPagamento(forcar) {
@@ -301,14 +325,16 @@ function formaDoCrm(c) {
 function usarNegocio(n) {
   if (!n) return;
   _negocio = n;
+  const m = modelo();
   const c = n.campos || {}, ct = n.contato || {};
   const set = (k, v) => { if (v !== undefined && v !== null && String(v).trim() !== '') _v[k] = String(v).trim(); };
-  set('c1_nome', ct.nome || n.nome);
-  set('c1_email', ct.email);
-  set('c1_fone', ct.fone);
+  const cli = m.cliente || 'c1';           // na administração o cliente do CRM é o proprietário
+  set(`${cli}_nome`, ct.nome || n.nome);
+  set(`${cli}_email`, ct.email);
+  set(`${cli}_fone`, ct.fone);
   set('imovel_empreendimento', c.empreendimento);
   set('imovel_unidade', c.unidade);
-  if (n.valor > 0) set('valor', n.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
+  if (n.valor > 0) set(m.valorCampo || 'valor', n.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
   const ato = numBR(c.valor_ato); if (ato > 0) set('valor_ato', ato.toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
   set('forma_pagamento', formaDoCrm(c));
   const pct = numBR(c.comissao_pct); if (pct > 0 && pct < 30) set('comissao_pct', String(pct).replace('.', ','));
@@ -389,7 +415,7 @@ function htmlModelos() {
         <details style="border:1px solid var(--bd);border-radius:8px;padding:8px 12px;margin-bottom:8px">
           <summary style="cursor:pointer"><b>${esc(e.nome)}</b> <span class="tiny muted">· CNPJ ${esc(e.cnpj)} · CRECI ${esc(e.creci)}</span></summary>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin-top:8px">
-            ${[['nome', 'Razão social'], ['cnpj', 'CNPJ'], ['creci', 'CRECI'], ['banco', 'Dados bancários'], ['pix', 'PIX'], ['fone', 'Telefone'], ['email', 'E-mail'], ['instagram', 'Instagram'], ['endereco', 'Endereço (rodapé)']]
+            ${[['nome', 'Razão social'], ['cnpj', 'CNPJ'], ['creci', 'CRECI'], ['representante', 'Representante legal (assina)'], ['banco', 'Dados bancários'], ['pix', 'PIX'], ['fone', 'Telefone'], ['email', 'E-mail'], ['instagram', 'Instagram'], ['endereco', 'Endereço (rodapé)']]
               .map(([k, r]) => `<div ${k === 'endereco' ? 'style="grid-column:1/-1"' : ''}><label class="tiny muted">${r}</label><input class="input" data-emp="${esc(id)}" data-ek="${k}" value="${esc(e[k] || '')}"></div>`).join('')}
           </div>
         </details>`).join('')}
@@ -405,7 +431,7 @@ function htmlEditor() {
   const e = _edit, emps = empresas();
   const vars = [
     ...Object.entries(CAMPOS).map(([k, [r]]) => [k, r]),
-    ...Object.entries(PESSOAS).flatMap(([p, nome]) => PESSOA_CAMPOS.map(([k, r]) => [`${p}_${k}`, `${nome} · ${r}`])),
+    ...Object.entries(PESSOAS).flatMap(([p]) => PESSOA_CAMPOS.map(([k, r]) => [`${p}_${k}`, `${rotuloPessoa(e, p)} · ${r}`])),
     ...Object.entries(CALCULADAS),
   ];
   return `

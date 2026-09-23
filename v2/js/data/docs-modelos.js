@@ -13,6 +13,9 @@
                     (Drive 1rHdi1pDEqPfgoA0UiK28UB8xle_oJwO-)
 ============================================================================ */
 
+import { MODELOS_LOCACAO } from './docs-modelos-locacao.js';
+import { MODELOS_EXTRA } from './docs-modelos-extra.js';
+
 /* Imobiliárias que assinam/intermediam. O sócio corrige na tela ⚙️. */
 export const EMPRESAS_PADRAO = {
   psm_negocios: {
@@ -23,8 +26,9 @@ export const EMPRESAS_PADRAO = {
     pix: '45.078.081/0001-80',
     fone: '(17) 99661-2193',
     email: 'comercial@imobiliariapsm.com.br',
-    endereco: 'Av. Anísio Haddad, 8001 – Georgina Business Park, Torre Madri Norte, sala 202 – São José do Rio Preto/SP',
+    endereco: 'Av. Anísio Haddad, 8001 – Georgina Business Park, Torre Madri Norte, sala 202 – São José do Rio Preto/SP – CEP 15091-751',
     instagram: '@psm.imoveis',
+    representante: '',
     logo: '/v2/img/logo-psm-imoveis-doc.png',
   },
   psm_assessoria: {
@@ -35,9 +39,25 @@ export const EMPRESAS_PADRAO = {
     pix: '',
     fone: '(17) 99200-8291',
     email: 'comercial@imobiliariapsm.com.br',
-    endereco: 'Av. Anísio Haddad, 8001 – Georgina Business Park, Torre Madri Norte, sala 202 – São José do Rio Preto/SP',
+    endereco: 'Av. Anísio Haddad, 8001 – Georgina Business Park, Torre Madri Norte, sala 202 – São José do Rio Preto/SP – CEP 15091-751',
     instagram: '@psm.imoveis',
+    representante: '',
     logo: '/v2/img/logo-psm-imoveis-doc.png',
+  },
+  // Locação usa as mesmas empresas com o contato do setor (locacao@) — como nos modelos de 2026
+  psm_negocios_locacao: {
+    nome: 'PSM NEGÓCIOS & LOCAÇÃO LTDA', cnpj: '45.078.081/0001-80', creci: '50.431-J',
+    banco: 'Banco Itaú, ag. 1569, c.c 97360-3', pix: '45.078.081/0001-80',
+    fone: '(17) 99600-2192', email: 'locacao@imobiliariapsm.com.br',
+    endereco: 'Av. Anísio Haddad, 8001 – Georgina Business Park, Torre Madri Norte, sala 202 – São José do Rio Preto/SP – CEP 15091-751',
+    instagram: '@psm.imoveis', representante: '', logo: '/v2/img/logo-psm-imoveis-doc.png',
+  },
+  psm_assessoria_locacao: {
+    nome: 'PSM ASSESSORIA E NEGÓCIOS IMOBILIÁRIOS LTDA', cnpj: '50.741.349/0001-52', creci: '43.471-J',
+    banco: '', pix: '',
+    fone: '(17) 99661-2193', email: 'locacao@imobiliariapsm.com.br',
+    endereco: 'Av. Anísio Haddad, 8001 – Georgina Business Park, Torre Madri Norte, sala 202 – São José do Rio Preto/SP – CEP 15091-751',
+    instagram: '@psm.imoveis', representante: '', logo: '/v2/img/logo-psm-imoveis-doc.png',
   },
 };
 
@@ -65,9 +85,12 @@ export const PESSOA_CAMPOS = [
   ['fone', 'Telefone', 'text'],
   ['endereco', 'Endereço completo (rua, nº, bairro, cidade/UF, CEP)', 'text'],
 ];
+/* c = quem compra/aluga · v = quem vende/é dono · f = fiador. Cada modelo pode
+   renomear os papéis em `papeis` (ex.: locatário/locador, contratante). */
 export const PESSOAS = {
   c1: '1º comprador', c2: 'Cônjuge / 2º comprador',
   v1: '1º vendedor', v2: 'Cônjuge / 2º vendedor',
+  f1: 'Fiador(a)', f2: 'Cônjuge do fiador(a)',
 };
 
 export const CAMPOS = {
@@ -84,8 +107,60 @@ export const CAMPOS = {
   valor_ato: ['Valor do ato / sinal (R$)', 'Negócio', 'valor'],
   forma_pagamento: ['Forma de pagamento', 'Negócio', 'select:À vista;Parcelado;Financiamento bancário;Carta de crédito/consórcio;Permuta'],
   condicoes: ['Condições da proposta (uma por linha)', 'Negócio', 'area'],
+  condicoes_especiais: ['Condições especiais e observações do contrato (uma por linha — vazio = cláusula não aparece)', 'Negócio', 'area'],
   pagamento_detalhe: ['Como o valor será pago (texto da cláusula 3ª)', 'Negócio', 'area'],
   prazo_desistencia: ['Prazo sem multa para desistência (dias)', 'Negócio', 'text'],
+  aluguel: ['Aluguel mensal (R$)', 'Locação', 'valor'],
+  dia_vencimento: ['Dia do vencimento do aluguel', 'Locação', 'text'],
+  prazo_meses: ['Prazo da locação (meses)', 'Locação', 'text'],
+  data_inicio: ['Início da locação', 'Locação', 'data'],
+  data_fim: ['Término previsto', 'Locação', 'data'],
+  finalidade: ['Finalidade', 'Locação', 'select:Residencial;Comercial;Industrial;Misto'],
+  uso_imovel: ['Uso do imóvel', 'Locação', 'select:residencial;comercial;industrial;misto'],
+  outras_condicoes: ['Outras condições de uso e/ou alterações', 'Locação', 'area'],
+  seguro_incendio: ['Cobertura mínima do seguro incêndio (R$)', 'Locação', 'valor'],
+  taxa_adm_pct: ['Taxa de administração (%)', 'Locação', 'pct'],
+  garantia: ['Garantia locatícia', 'Garantia', 'select:Fiança;Seguro-fiança;Título de capitalização;Caução'],
+  garantia_instituicao: ['Seguradora / instituição da garantia', 'Garantia', 'text'],
+  garantia_numero: ['Nº da apólice / do título', 'Garantia', 'text'],
+  garantia_vigencia: ['Vigência da apólice (de … a …)', 'Garantia', 'text'],
+  garantia_cobertura: ['Cobertura (nº de aluguéis e encargos)', 'Garantia', 'text'],
+  garantia_valor: ['Valor do título de capitalização (R$)', 'Garantia', 'valor'],
+  imovel_tipologia: ['Tipologia (apto, casa, sala…, nº, edifício/condomínio)', 'Imóvel', 'text'],
+  locatario_razao: ['Razão social do locatário (se empresa — vazio = pessoa física)', 'Locatário empresa', 'text'],
+  locatario_cnpj: ['CNPJ do locatário', 'Locatário empresa', 'text'],
+  locatario_sede: ['Sede do locatário (endereço completo)', 'Locatário empresa', 'text'],
+  pj_razao: ['Razão social (se a parte for empresa — vazio = pessoa física)', 'Parte empresa', 'text'],
+  pj_cnpj: ['CNPJ da empresa', 'Parte empresa', 'text'],
+  pj_sede: ['Sede da empresa (endereço completo)', 'Parte empresa', 'text'],
+  imovel_bloco: ['Bloco / pavimento', 'Imóvel', 'text'],
+  imovel_area_comum: ['Área comum (m²)', 'Imóvel', 'text'],
+  imovel_area_total: ['Área total (m²)', 'Imóvel', 'text'],
+  imovel_fracao: ['Fração ideal', 'Imóvel', 'text'],
+  imovel_rural: ['Se rural: INCRA nº e NIRF nº', 'Imóvel', 'text'],
+  incorporadora: ['Incorporadora (razão social, sede, CNPJ, registro)', 'Cessão', 'area'],
+  contrato_origem: ['Contrato de origem cedido', 'Cessão', 'text'],
+  posse_clausula: ['Como a posse é transferida (cláusula 4ª)', 'Cessão', 'area'],
+  prazo_cessao: ['Prazo para a cessão definitiva após a quitação (dias)', 'Cessão', 'text'],
+  data_visita: ['Data da visita', 'Visita', 'data'],
+  visita1_endereco: ['Imóvel 1 · endereço', 'Visita', 'text'],
+  visita1_empreendimento: ['Imóvel 1 · empreendimento/condomínio', 'Visita', 'text'],
+  visita1_unidade: ['Imóvel 1 · unidade (nº ou quadra/lote)', 'Visita', 'text'],
+  visita2_endereco: ['Imóvel 2 · endereço (vazio = só 1 imóvel)', 'Visita', 'text'],
+  visita2_empreendimento: ['Imóvel 2 · empreendimento/condomínio', 'Visita', 'text'],
+  visita2_unidade: ['Imóvel 2 · unidade', 'Visita', 'text'],
+  corretor_creci: ['CRECI do corretor', 'Assinaturas', 'text'],
+  ramo_atividade: ['Ramo de atividade', 'Atividade', 'text'],
+  cnae_principal: ['CNAE principal', 'Atividade', 'text'],
+  cnae_secundarios: ['CNAE(s) secundário(s) admitido(s)', 'Atividade', 'text'],
+  horario_funcionamento: ['Horário de funcionamento previsto', 'Atividade', 'text'],
+  imovel_iptu: ['Código IPTU / cadastro municipal', 'Imóvel', 'text'],
+  imovel_cpfl: ['Código CPFL (energia)', 'Imóvel', 'text'],
+  imovel_semae: ['Código SeMAE (água/esgoto)', 'Imóvel', 'text'],
+  imovel_condominio: ['Administradora do condomínio (razão social, CNPJ, contato)', 'Imóvel', 'text'],
+  imovel_senha: ['Senha da fechadura eletrônica (se houver)', 'Imóvel', 'text'],
+  imovel_mobilia: ['Acessórios e mobília (se houver)', 'Imóvel', 'area'],
+  locador_banco: ['Conta do proprietário p/ repasses (banco, agência, conta, tipo, PIX)', 'Imóvel', 'text'],
   comissao_pct: ['Comissão (%)', 'Comissão', 'pct'],
   comissao_quando: ['Quando a comissão é paga', 'Comissão', 'text'],
   corretor_nome: ['Corretor responsável', 'Assinaturas', 'text'],
@@ -106,6 +181,18 @@ export const CALCULADAS = {
   compradores_qualificacao: 'qualificação completa dos compradores (texto corrido)',
   vendedores_qualificacao: 'qualificação completa dos vendedores (texto corrido)',
   data_extenso: '23 de setembro de 2026',
+  data_doc_br: '23/09/2026',
+  data_visita_br: 'data da visita dd/mm/aaaa',
+  aluguel_extenso: 'R$ 3.500,00 (três mil e quinhentos reais)',
+  data_inicio_br: 'início dd/mm/aaaa', data_fim_br: 'término dd/mm/aaaa',
+  garantia_maiuscula: 'FIANÇA / SEGURO-FIANÇA / …',
+  garantia_fianca: 'marcador: garantia = fiança (use em {{#garantia_fianca}}…{{/garantia_fianca}})',
+  garantia_seguro: 'marcador: garantia = seguro-fiança', garantia_titulo: 'marcador: garantia = título de capitalização',
+  taxa_adm_pct_extenso: '10% (dez por cento)',
+  locadores_qualificacao: 'qualificação dos locadores/proprietários (v1+v2) com telefone',
+  locatarios_qualificacao: 'qualificação dos locatários (c1+c2) com telefone',
+  fiadores_qualificacao: 'qualificação do fiador e cônjuge (f1+f2)',
+  empresa_representante: 'representante legal da imobiliária',
   c1_estado_civil_linha: 'estado civil + regime numa linha (idem c2_, v1_, v2_)',
   c1_nascimento_br: 'nascimento dd/mm/aaaa (idem c2_, v1_, v2_)',
 };
@@ -315,6 +402,10 @@ Cláusula 18ª – As partes, incluindo todos os seus colaboradores, caso tenham
 18.1- É vedado as partes a usar, compartilhar ou comercializar quaisquer eventuais dados, produtos ou subprodutos que se originem ou sejam criados a partir do tratamento de dados estabelecido por este Contrato.
 ## DO FORO DE ELEIÇÃO:
 Cláusula 19ª – Fica eleito o foro da Comarca de {{cidade_foro}}, com renúncia expressa a qualquer outro, ainda que privilegiado, para que as partes possam dirimir quaisquer dúvidas ou questões oriundas deste contrato.
+{{#condicoes_especiais}}## CONDIÇÕES ESPECIAIS E OBSERVAÇÕES
+As Partes ajustam, ainda, as seguintes condições especiais, que prevalecem sobre as cláusulas gerais naquilo que com elas conflitarem:
+{{condicoes_especiais}}
+{{/condicoes_especiais}}
 Por terem lido e por estarem as partes em pleno acordo com o disposto neste instrumento particular de venda e compra, assinam-no conjuntamente com as testemunhas de forma eletrônica, por meio do certificado digital e/ou de plataformas de assinatura eletrônica, devidamente autorizadas pela Infraestrutura de Chaves Públicas Brasileira – ICP-Brasil (e.g., ClickSign), em conformidade com a MP nº 2.200-2/2001 e a Lei 14.063 e, serão consideradas como assinaturas válidas, sendo este Contrato, conforme seus próprios termos e no que for aplicável, considerado como exequível, válido e vigente entre as Partes.
 ---
 {{cidade_foro}}, {{data_extenso}}.
@@ -326,3 +417,7 @@ Por terem lido e por estarem as partes em pleno acordo com o disposto neste inst
 [[ASSINATURAS]]{{testemunha1}}|1ª testemunha||{{testemunha2}}|2ª testemunha`,
   },
 ];
+
+// v88.17: locação (proposta, contratos residencial/comercial, administração) e
+// cessão/exclusividade/visita — ver docs-modelos-locacao.js e docs-modelos-extra.js
+MODELOS_PADRAO.push(...MODELOS_LOCACAO, ...MODELOS_EXTRA);
