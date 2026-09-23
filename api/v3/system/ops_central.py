@@ -860,6 +860,66 @@ def vigiar(sb, cfg, itens, now, forcar_teste=False):
     return estado, envio
 
 
+# ─── auto-cura ─────────────────────────────────────────────────────────────────
+# Rotina CRÍTICA parada não espera o heartbeat (que só roda com gente usando o sistema
+# e fica refém do sync do RD): o vigia dispara ela direto, com o CRON_SECRET do servidor.
+# (item, path, atraso mínimo em horas pra disparar)
+AUTO_CURA = [
+    ("hb:backup_auto", "/api/v3/backup/auto", 30),
+]
+
+
+def precisa_curar(itens, now, cron_state_ran):
+    """Quais rotinas críticas disparar agora. Puro (testável).
+    cron_state_ran: {key: iso do último ran_at}."""
+    alvo = []
+    por_id = {i["id"]: i for i in itens}
+    for id_, path, min_h in AUTO_CURA:
+        it = por_id.get(id_)
+        if not it or it["status"] not in ("error", "warn"):
+            continue
+        age = _age_h(cron_state_ran.get(id_[3:]), now)
+        if age is None or age >= min_h:
+            alvo.append((id_, path))
+    return alvo
+
+
+def auto_curar(sb, itens, now, host=None):
+    secret = (os.environ.get("CRON_SECRET") or "").strip()
+    if not secret:
+        return {"ran": [], "erro": "CRON_SECRET ausente"}
+    try:
+        ran = {r["key"]: r.get("ran_at") for r in (sb.table("cron_state").select("key,ran_at").execute().data or [])}
+    except Exception:
+        ran = {}
+    host = (host or "www.housepsm.com.br").split(",")[0].strip()
+    out = {"ran": []}
+    for id_, path in precisa_curar(itens, now, ran)[:1]:     # 1 por rodada: request curta
+        key = id_[3:]
+        try:   # trava antes (2 crons simultâneos não disparam 2 backups); o endpoint regrava no sucesso
+            sb.table("cron_state").upsert({"key": key, "ran_at": now.isoformat(), "note": "auto-cura da Central (disparado)"},
+                                          on_conflict="key").execute()
+        except Exception:
+            pass
+        try:
+            req = urllib.request.Request(f"https://{host}{path}", headers={"Authorization": f"Bearer {secret}",
+                                                                           "User-Agent": "PSM-OpsCentral-autocura"})
+            with urllib.request.urlopen(req, timeout=50) as r:
+                out["ran"].append({"id": id_, "status": r.status, "resp": r.read(300).decode("utf-8", "ignore")})
+        except Exception as e:
+            msg = str(e)[:160]
+            if "timed out" in msg.lower():   # segue rodando no servidor (mesma regra do heartbeat)
+                out["ran"].append({"id": id_, "aguardo": "timeout — segue rodando no servidor"})
+            else:
+                out["ran"].append({"id": id_, "erro": msg})
+                try:
+                    sb.table("cron_state").upsert({"key": key, "ran_at": ran.get(key) or now.isoformat(),
+                                                  "note": f"falha: auto-cura {msg[:100]}"}, on_conflict="key").execute()
+                except Exception:
+                    pass
+    return out
+
+
 # ─── handler ───────────────────────────────────────────────────────────────────
 class handler(BaseHTTPRequestHandler):
     def _send(self, s, b):
@@ -895,8 +955,11 @@ class handler(BaseHTTPRequestHandler):
                 except AuthError as e:
                     return self._send(e.status, {"ok": False, "error": e.message})
             itens, status, r = snapshot(sb, now, live=True)
+            cura = auto_curar(sb, itens, now, self.headers.get("Host"))
+            if cura.get("ran"):
+                itens, status, r = snapshot(sb, now, live=True)   # reflete o que a auto-cura resolveu
             estado, envio = vigiar(sb, cfg, itens, now)
-            return self._send(200, {"ok": True, "status": status, "resumo": r, "envio": envio})
+            return self._send(200, {"ok": True, "status": status, "resumo": r, "envio": envio, "auto_cura": cura})
 
         try:
             self._user(cfg)

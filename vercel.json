@@ -133,6 +133,10 @@
       "schedule": "30 2 * * 0,2-6"
     },
     {
+      "path": "/api/v3/backup/auto",
+      "schedule": "0 6 * * *"
+    },
+    {
       "path": "/api/v3/system/ops_central?cron=1",
       "schedule": "*/15 * * * *"
     },
@@ -308,6 +312,12 @@
     }
   ],
   "functions": {
+    "api/v3/backup/auto.py": {
+      "maxDuration": 120
+    },
+    "api/v3/system/ops_central.py": {
+      "maxDuration": 90
+    },
     "api/v3/diretoria/scorecard.py": {
       "maxDuration": 60
     },

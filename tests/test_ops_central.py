@@ -75,6 +75,14 @@ def test_versao_coerente():
     assert O.versao_coerente("lixo", "")[0] == "warn"
 
 
+def test_auto_cura():
+    itens = [it("hb:backup_auto", "error")]
+    assert O.precisa_curar(itens, NOW, {"backup_auto": iso(8 * 24)}) == [("hb:backup_auto", "/api/v3/backup/auto")]
+    assert O.precisa_curar(itens, NOW, {"backup_auto": iso(2)}) == []          # acabou de disparar: espera
+    assert O.precisa_curar([it("hb:backup_auto", "ok")], NOW, {}) == []
+    assert O.precisa_curar(itens, NOW, {}) == [("hb:backup_auto", "/api/v3/backup/auto")]
+
+
 def test_silencio():
     sil = {"a": (NOW + timedelta(hours=5)).isoformat()}
     novo, novos, rel, _ = O.diff_alertas([it("a", "error")], {}, sil, NOW)

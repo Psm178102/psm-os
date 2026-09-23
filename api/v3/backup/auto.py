@@ -160,6 +160,13 @@ class handler(BaseHTTPRequestHandler):
                         pass
         except Exception:
             pass
+        # v88.22: marca a rotina como feita (antes só o heartbeat marcava → rodar pelo cron do
+        # Vercel ou pelo botão deixava a Central de Operações mostrando "parada")
+        try:
+            sb.table("cron_state").upsert({"key": "backup_auto", "ran_at": datetime.now(timezone.utc).isoformat(),
+                                          "note": f"backup ok · {nome}"}, on_conflict="key").execute()
+        except Exception:
+            pass
         audit(self, actor, "backup.auto", target_type="storage", target_id=nome,
               notes=f"{total} linhas · {len(raw)} bytes gz · {len(erros)} erro(s) · rotacao -{apagados}")
         return self._send(200, {"ok": True, "arquivo": nome, "linhas": total,
