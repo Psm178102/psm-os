@@ -126,7 +126,7 @@ async function renderPlanoAnual(c) {
       <div class="flex gap-2" style="align-items:center;flex-wrap:wrap">
         <b>📆 Plano Anual</b>
         <select id="pa-ano" class="select" style="width:auto;font-size:12px">${[2024, 2025, 2026, 2027].map(a => `<option value="${a}"${a === _paAno ? ' selected' : ''}>${a}</option>`).join('')}</select>
-        <a class="tiny" href="#/diretoria?tab=estrategia" style="margin-left:auto">✏️ editar no quadro completo</a>
+        <a class="tiny" href="#/norte-estrategico" style="margin-left:auto">✏️ editar no quadro completo</a>
       </div>
       <div class="tiny muted" style="margin:4px 0 10px">Visão consolidada (leitura) do planejamento anual — a edição continua no quadro original.</div>
       <div style="display:grid;gap:12px">

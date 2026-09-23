@@ -30,8 +30,12 @@ let _periodo = 'ano';   // ano | ytd | t1..t4 | m1..m12  (v81.99)
 let _frente = 'todas';  // todas | conquista | map | locacao | terceiros
 let _data = {};
 
-export async function pageDiretoria(ctx, root) {
+// presetTab: /norte-estrategico e /comunicados abrem direto na aba; ?tab= também vale
+// (antes o ?tab era ignorado e todo link caía no Dashboard). v88.12
+export async function pageDiretoria(ctx, root, presetTab) {
   _root = root;
+  const pedida = presetTab || ctx?.query?.tab;
+  if (['dashboard', 'recados', 'estrategia'].includes(pedida)) _tab = pedida;
   await renderShell();
   await loadTab();
 }

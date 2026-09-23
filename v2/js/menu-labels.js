@@ -90,13 +90,17 @@ export function getLayout() { return LAYOUT; }
 const isMenuNode = el => el && el.classList && (el.classList.contains('sb-sec') || el.classList.contains('sb-link') || el.classList.contains('sb-subsec'));
 
 // esconde seções (sb-sec) sem nenhum link visível — espelha applyPermissions
-function rehideEmptySections(sidebar) {
+// Esconde seções (sb-sec) e sub-divisores (sb-subsec) sem nenhum link visível —
+// ex.: gerente que vê só a Fiscalização não fica com "Conselho IA" vazio. v88.12
+export function rehideEmptySections(sidebar) {
   const nodes = [...sidebar.children];
+  const isSec = n => n.classList && n.classList.contains('sb-sec');
+  const isSub = n => n.classList && n.classList.contains('sb-subsec');
   nodes.forEach((node, i) => {
-    if (!node.classList || !node.classList.contains('sb-sec')) return;
+    if (!isSec(node) && !isSub(node)) return;
     let visible = 0;
     for (let j = i + 1; j < nodes.length; j++) {
-      if (nodes[j].classList && nodes[j].classList.contains('sb-sec')) break;
+      if (isSec(nodes[j]) || (isSub(node) && isSub(nodes[j]))) break;
       if (nodes[j].classList && nodes[j].classList.contains('sb-link') && nodes[j].style.display !== 'none') visible++;
     }
     node.style.display = visible === 0 ? 'none' : '';

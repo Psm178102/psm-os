@@ -79,7 +79,7 @@ let _st = { root: null, tab: 'ceo', msgs: {}, busy: false, notas: null };
 
 export async function pageAgentesDiretoria(ctx, root, presetTab) {
   _st.root = root;
-  _st.tab = presetTab || (ctx?.query?.tab) || 'ceo';
+  _st.tab = presetTab || (ctx?.query?.tab) || 'rede';   // item "Rede de Agentes" abre a Rede (abria o CEO). v88.12
   _st.busy = false;
   for (const a of AGENTS) {
     try { _st.msgs[a.id] = JSON.parse(localStorage.getItem(STORAGE(a.id)) || '[]'); }

@@ -96,7 +96,7 @@ function recados() {
     const [ico, bg, fg] = PRIOR[r.prioridade] || PRIOR.info;
     return `<div style="background:${bg};color:${fg};border-radius:var(--r-sm);padding:8px 14px;margin-bottom:4px;font-size:13px">
       ${ico} <b>${esc(r.titulo || '')}</b> ${esc(r.mensagem || r.texto || '')}</div>`;
-  }).join('') + `<div class="tiny" style="text-align:right"><a href="#/diretoria?tab=recados">📢 gerenciar recados (${rs.length})</a></div>`;
+  }).join('') + `<div class="tiny" style="text-align:right"><a href="#/comunicados">📢 gerenciar recados (${rs.length})</a></div>`;
 }
 
 /* ── Camada 1: FARÓIS ── */

@@ -34,7 +34,7 @@ import { sounds } from './sounds.js';
 import { pageConfiguracoes } from './pages/configuracoes.js';
 import { pageLogins } from './pages/logins.js';
 import { pageConfigMenu } from './pages/config-menu.js';
-import { loadMenuLabels, loadMenuLayout, applyHeaderOverride } from './menu-labels.js';
+import { loadMenuLabels, loadMenuLayout, applyHeaderOverride, rehideEmptySections } from './menu-labels.js';
 import { pageMarketing } from './pages/marketing.js';
 import { pageGestorTrafego } from './pages/gestor-trafego.js';
 import { pageEquipeMarketing } from './pages/equipe-marketing.js';   // 🏭 Equipe de Marketing (Esteira Conquista) v87.41
@@ -168,7 +168,7 @@ export const ROUTE_GROUP = {
   // Diretoria
   '/cockpit': 'diretoria', '/paulo': 'diretoria', '/projetos': 'diretoria', '/sr-cfo': 'diretoria',
   '/diretoria-ceo': 'diretoria',   // 🏛️ sala do CEO IA (dossiês) — só sócio. v87.33
-  '/diretoria': 'diretoria', '/kpis': 'diretoria', '/okrs': 'diretoria', '/cmo': 'diretoria',
+  '/diretoria': 'diretoria', '/norte-estrategico': 'diretoria', '/comunicados': 'diretoria', '/kpis': 'diretoria', '/okrs': 'diretoria', '/cmo': 'diretoria',
   '/metricas-viab': 'diretoria', '/comissao-conquista': 'diretoria', '/sim-trafego': 'diretoria', '/mapa-ciclos': 'diretoria', '/governanca': 'diretoria', '/reunioes': 'diretoria',
   // Jurídico (grupo próprio)
   '/minutas': 'juridico', '/cnds': 'juridico',
@@ -283,7 +283,7 @@ export const ROUTE_MIN_LVL = {
   '/cockpit-conquista': 10, '/minha-comissao': 2, '/meu-cerebro': 10, '/sim-conquista': 10,  // v84.51: cada um vê a PRÓPRIA comissão (escopo travado no backend)
   // v86.90: Sala de Comando (Cockpit+Dashboard unificados) — decisão do Paulo: SÓ sócio.
   // /diretoria segue registrado FORA do menu (gestão de recados e retrocompat de links).
-  '/cockpit': 10, '/diretoria': 10,
+  '/cockpit': 10, '/diretoria': 10, '/norte-estrategico': 10, '/comunicados': 10,
   // v87.31/32/33/34: AGENTES DIRETORIA — TUDO SÓ sócio (lvl 10): chats CEO/CFO/CMO
   // + Rede de Agentes (contexto carrega caixa, dívida, pró-labore e Plano de
   // Resgate — espelha o require_user(min_lvl=10) de ia/chat + ia/rede), os
@@ -309,6 +309,11 @@ export const ROUTE_MIN_LVL = {
   '/sucesso-cliente': 2,
   '/cs-onboarding': 2, '/cs-carteira': 2, '/cs-suporte': 2, '/cs-retencao': 2, '/cs-metricas': 2, '/cs-upsell': 2, '/cs-marketing': 2, '/cs-avaliacoes': 2, '/cs-indicacoes': 2,
 };
+
+// Rotas que saíram do menu mas seguem vivas como atalho: na matriz por papel valem
+// o mesmo que o item-pai (senão virariam "sub-rota do grupo" e qualquer papel com um
+// item da Diretoria abriria o chat do CEO pela URL). v88.12
+const ROUTE_PARENT = { '/agente-ceo': '/agentes-diretoria', '/agente-cfo': '/agentes-diretoria', '/agente-cmo': '/agentes-diretoria' };
 
 // Override por PAPEL (matriz editável pelo sócio em Configurações → Permissões por papel).
 // { role: ["/rota", ...] } — só papéis customizados. Vazio = comportamento original. v77.81
@@ -391,6 +396,7 @@ function canSeeComoCargo(path, role, user) {
     if (grp === 'conta') return true;  // só CONTA é sempre visível; Início e PSM Academy agora são configuráveis por papel (v81.40)
     // v81.58: a MATRIZ MANDA — o sócio decide o que cada papel vê, SEM trava de nível.
     // (o backend ainda é a fronteira de segurança real; aqui é só a visibilidade do menu)
+    if (ROUTE_PARENT[base]) return rp.includes(ROUTE_PARENT[base]);              // atalho fora do menu herda o item-pai (v88.12)
     if (_catalogRoutes && _catalogRoutes.has(base)) return rp.includes(base);   // item de menu: granular
     return rp.some(r => (ROUTE_GROUP[r] || '') === grp);                        // sub-rota: liberada se o grupo tem item liberado
   }
@@ -420,7 +426,7 @@ function applyFrentesPausadas() {
 function applyPermissions(user) {
   // reset (re-aplicável: chamado de novo quando o override de papel chega)
   document.querySelectorAll('.sb-link[data-nav]').forEach(b => { b.style.display = ''; });
-  document.querySelectorAll('.app-sidebar .sb-sec').forEach(s => { s.style.display = ''; });
+  document.querySelectorAll('.app-sidebar .sb-sec, .app-sidebar .sb-subsec').forEach(s => { s.style.display = ''; });
   const role = (user?.role || '').toLowerCase();
   const customized = role !== 'socio' && !Array.isArray(user?.menu_groups) && Array.isArray(_rolePerms[role]);
   // vê tudo e não customizado → não filtra
@@ -429,20 +435,9 @@ function applyPermissions(user) {
   document.querySelectorAll('.sb-link[data-nav]').forEach(btn => {
     if (!canSee(btn.dataset.nav, user)) btn.style.display = 'none';
   });
-  // Esconde seções (sb-sec) que ficaram sem nenhum link visível
+  // Esconde seções e sub-divisores que ficaram sem nenhum link visível (v88.12: + sb-subsec)
   const sidebar = document.querySelector('.app-sidebar');
-  if (!sidebar) return;
-  const nodes = [...sidebar.children];
-  nodes.forEach((node, i) => {
-    if (!node.classList || !node.classList.contains('sb-sec')) return;
-    // Conta links visíveis até a próxima sb-sec
-    let visible = 0;
-    for (let j = i + 1; j < nodes.length; j++) {
-      if (nodes[j].classList && nodes[j].classList.contains('sb-sec')) break;
-      if (nodes[j].classList && nodes[j].classList.contains('sb-link') && nodes[j].style.display !== 'none') visible++;
-    }
-    if (visible === 0) node.style.display = 'none';
-  });
+  if (sidebar) rehideEmptySections(sidebar);
 }
 
 // Minimizar/expandir categorias do menu (cabeçalhos sb-sec) — estado salvo por usuário.
@@ -512,7 +507,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '88.11';
+const APP_VERSION = '88.12';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -637,6 +632,9 @@ const APP_VERSION = '88.11';
   router.register('/cmo', { render: async (ctx, root) => { setHeader('CMO · Marketing'); highlight('/cmo'); await pageCMO(ctx, root); } });
   router.register('/diretoria-ceo', { render: async (ctx, root) => { setHeader('Diretoria'); highlight('/diretoria-ceo'); await pageDiretoriaCeo(ctx, root); } });
   router.register('/diretoria', { render: async (ctx, root) => { setHeader('Dashboard Diretoria'); highlight('/diretoria'); await pageDiretoria(ctx, root); } });
+  // v88.12: Visão/Missão e Recados só existiam dentro do /diretoria, fora do menu — ganham rota própria
+  router.register('/norte-estrategico', { render: async (ctx, root) => { setHeader('Norte Estratégico'); highlight('/norte-estrategico'); await pageDiretoria(ctx, root, 'estrategia'); } });
+  router.register('/comunicados', { render: async (ctx, root) => { setHeader('Comunicados'); highlight('/comunicados'); await pageDiretoria(ctx, root, 'recados'); } });
   router.register('/paulo', { render: async (ctx, root) => { setHeader('Paulo · Meus Negócios'); highlight('/paulo'); await pagePauloNegocios(ctx, root); } });
   router.register('/projetos', { render: async (ctx, root) => { setHeader('Projetos'); highlight('/projetos'); await pageProjetos(ctx, root); } });
   router.register('/psmhub', { render: async (ctx, root) => { setHeader('PSM HUB · Conquista'); highlight('/psmhub'); await pagePsmHub(ctx, root); } });
@@ -654,8 +652,8 @@ const APP_VERSION = '88.11';
   router.register('/links-uteis', { render: async (ctx, root) => { setHeader('Links & Incorporadoras'); highlight('/links-uteis'); await pageCentralLinks(ctx, root); } });
   router.register('/sac-incorporadoras', { render: async (ctx, root) => { setHeader('SAC Incorporadoras'); highlight('/sac-incorporadoras'); await pageSacIncorporadoras(ctx, root); } });
   router.register('/sistemas-incorporadoras', { render: async (ctx, root) => { setHeader('Sistema e Drive Incorporadoras'); highlight('/sistemas-incorporadoras'); await pageSistemasIncorporadoras(ctx, root); } });
-  router.register('/reunioes', { render: async (ctx, root) => { setHeader('Formatos de Reunião'); highlight('/reunioes'); await pageReunioes(ctx, root); } });
-  router.register('/estrategia', { render: async (ctx, root) => { setHeader('Estratégia'); highlight('/estrategia'); await pageEstrategia(ctx, root); } });
+  router.register('/reunioes', { render: async (ctx, root) => { setHeader('Ritos & Reuniões'); highlight('/reunioes'); await pageReunioes(ctx, root); } });
+  router.register('/estrategia', { render: async (ctx, root) => { setHeader('Plano Estratégico'); highlight('/estrategia'); await pageEstrategia(ctx, root); } });
   // v77.30: absorvidas pelo Cockpit Hub — redirects preservam links/hábito antigos
   router.register('/pontos-atencao', { render: async () => { location.hash = '#/cockpit?tab=atencao'; } });
   router.register('/insights', { render: async () => { location.hash = '#/cockpit?tab=insights'; } });
@@ -695,7 +693,7 @@ const APP_VERSION = '88.11';
   router.register('/estoque-kenlo', { render: async (ctx, root) => { setHeader('Estoque Kenlo'); highlight('/estoque-kenlo'); await pageEstoqueKenlo(ctx, root); } });
   router.register('/concorrencia',{ render: async (ctx, root) => { setHeader('Concorrência'); highlight('/concorrencia');await pageConcorrencia(ctx, root); } });
   router.register('/tv',          { render: async (ctx, root) => { setHeader('Modo TV');      highlight('/tv');          await pageTV(ctx, root); } });
-  router.register('/governanca',  { render: async (ctx, root) => { setHeader('Governança');   highlight('/governanca');  await pageGovernanca(ctx, root); } });
+  router.register('/governanca',  { render: async (ctx, root) => { setHeader('Saúde do Sistema');   highlight('/governanca');  await pageGovernanca(ctx, root); } });
   router.register('/one-on-one',  { render: async (ctx, root) => { setHeader('One-on-One');   highlight('/one-on-one');  await pageOO(ctx, root); } });
   router.register('/gestao-comercial', { render: async (ctx, root) => { setHeader('Gestão Comercial'); highlight('/gestao-comercial'); await pageGestaoComercial(ctx, root); } });
   router.register('/produtividade-real', { render: async (ctx, root) => { setHeader('Produtividade Real'); highlight('/produtividade-real'); await pageProdutividadeReal(ctx, root); } });
@@ -772,7 +770,7 @@ const APP_VERSION = '88.11';
   router.register('/ranking-hub', { render: async (ctx, root) => { setHeader('Ranking HUB · Modo TV'); highlight('/ranking-hub'); await pageRankingHub(ctx, root); } });
   router.register('/okrs',        { render: async (ctx, root) => { setHeader('OKRs');                highlight('/okrs');       await pageOKRs(ctx, root); } });
   router.register('/kpis',        { render: async () => { location.hash = '#/cockpit?tab=kpis'; } });
-  router.register('/metricas-viab', { render: async (ctx, root) => { setHeader('Métricas Viabilidade'); highlight('/metricas-viab'); await pageMetricasViab(ctx, root); } });
+  router.register('/metricas-viab', { render: async (ctx, root) => { setHeader('Orçado × Realizado'); highlight('/metricas-viab'); await pageMetricasViab(ctx, root); } });
   router.register('/comissao-conquista', { render: async (ctx, root) => { setHeader('Comissionamento'); highlight('/comissao-conquista'); await pageComissaoConquista(ctx, root); } });
   router.register('/sim-trafego', { render: async (ctx, root) => { setHeader('Simulador de Tráfego'); highlight('/sim-trafego'); await pageSimTrafego(ctx, root); } });
   router.register('/mapa-ciclos', { render: async () => { location.hash = '#/governanca?tab=mapa'; } });
@@ -1009,6 +1007,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/central-sol"><span class="sb-ico">🤖</span> Central da Sol</button>
         <button class="sb-link" data-nav="/gestao-comercial"><span class="sb-ico">📊</span> Gestão Comercial</button>
         <button class="sb-link" data-nav="/produtividade-real"><span class="sb-ico">🎯</span> Produtividade Real</button>
+        <button class="sb-link" data-nav="/relatorios"><span class="sb-ico">🖨</span> Relatórios</button>
 
         <div class="sb-sec">🏘 Imóveis & Vendas</div>
         <button class="sb-link" data-nav="/crm"><span class="sb-ico">🔗</span> CRM (RD)</button>
@@ -1089,35 +1088,37 @@ function shellHTML(user) {
 <!-- v87.14: Anúncios dos Concorrentes e Intel Ads viraram ABAS de 🥊 Concorrência (seção Inteligência) -->
         <button class="sb-link" data-nav="/sim-leads"><span class="sb-ico">📈</span> Simulador Leads/CAC</button>
         <button class="sb-link" data-nav="/sim-criativos"><span class="sb-ico">🎨</span> Simulador Criativos</button>
+        <button class="sb-link" data-nav="/sim-trafego"><span class="sb-ico">📣</span> Simulador de Tráfego</button>
 
         <div class="sb-sec">🏛 Diretoria</div>
-        <div class="sb-subsec" style="font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;opacity:.45;font-weight:800;padding:6px 14px 2px">Decisão</div>
+<!-- v88.12: Diretoria reorganizada pelo ciclo de gestão (pedido do Paulo, 23/set: "menu
+     diretoria amador"). Presidência → Estratégia → Finanças → Governança → Conselho IA →
+     Mesa do Sócio. Saíram: Comissionamento (Financeiro), Simulador de Tráfego (Marketing),
+     Relatórios (Comercial) e o status técnico /governanca (Sistema → Saúde do Sistema).
+     Os chats CEO/CFO/CMO seguem em /agente-* (abas da Rede). Permissões não mudaram. -->
+        <div class="sb-subsec">Presidência</div>
         <button class="sb-link" data-nav="/cockpit"><span class="sb-ico">🧭</span> Sala de Comando</button>
-        <button class="sb-link" data-nav="/fiscalizacao"><span class="sb-ico">👁</span> Painel de Fiscalização</button>
+        <button class="sb-link" data-nav="/fiscalizacao"><span class="sb-ico">👁</span> Fiscalização da Operação</button>
+        <button class="sb-link" data-nav="/psmhub"><span class="sb-ico">🔌</span> Auditoria PSM HUB × RD</button>
+        <button class="sb-link" data-nav="/dados-mercado"><span class="sb-ico">🌎</span> Dados de Mercado</button>
+        <div class="sb-subsec">Estratégia & Planejamento</div>
+        <button class="sb-link" data-nav="/norte-estrategico"><span class="sb-ico">⭐</span> Norte Estratégico</button>
+        <button class="sb-link" data-nav="/estrategia"><span class="sb-ico">♟️</span> Plano Estratégico</button>
+        <button class="sb-link" data-nav="/okrs"><span class="sb-ico">🎯</span> OKRs</button>
+        <button class="sb-link" data-nav="/projetos"><span class="sb-ico">📌</span> Portfólio de Projetos</button>
+        <div class="sb-subsec">Finanças & Viabilidade</div>
+        <button class="sb-link" data-nav="/metricas-viab"><span class="sb-ico">🧪</span> Orçado × Realizado</button>
+        <div class="sb-subsec">Governança</div>
+        <button class="sb-link" data-nav="/reunioes"><span class="sb-ico">🤝</span> Ritos & Reuniões</button>
+        <button class="sb-link" data-nav="/comunicados"><span class="sb-ico">📢</span> Comunicados</button>
+        <div class="sb-subsec">Conselho IA</div>
+        <button class="sb-link" data-nav="/diretoria-ceo"><span class="sb-ico">🎩</span> CEO · Diretrizes & Dossiês</button>
+        <button class="sb-link" data-nav="/sr-cfo"><span class="sb-ico">💰</span> CFO · Dossiês & Riscos</button>
+        <button class="sb-link" data-nav="/cmo"><span class="sb-ico">📣</span> CMO · Relatórios</button>
+        <button class="sb-link" data-nav="/agentes-diretoria"><span class="sb-ico">🕸</span> Rede & Chats</button>
+        <div class="sb-subsec">Mesa do Sócio</div>
         <button class="sb-link" data-nav="/ponte"><span class="sb-ico">🌉</span> Fila da Ponte</button>
-        <button class="sb-link" data-nav="/paulo"><span class="sb-ico">🧑‍💼</span> Paulo</button>
-        <button class="sb-link" data-nav="/relatorios"><span class="sb-ico">🖨</span> Relatórios</button>
-        <button class="sb-link" data-nav="/psmhub"><span class="sb-ico">🔌</span> PSM HUB · Conquista</button>
-<!-- v87.34: submenu AGENTES DIRETORIA (pedido do Paulo, 04/set): CMO, CFO, CEO e
-     futuros agentes C-level moram AQUI — chats interligados pela Rede de Agentes
-     + os cockpits de leitura (dossiês do CEO e do Sr. CFO, relatórios do CMO). -->
-        <div class="sb-subsec" style="font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;opacity:.45;font-weight:800;padding:6px 14px 2px">Agentes Diretoria</div>
-        <button class="sb-link" data-nav="/agentes-diretoria"><span class="sb-ico">🕸</span> Rede de Agentes</button>
-        <button class="sb-link" data-nav="/agente-ceo"><span class="sb-ico">🎩</span> CEO</button>
-        <button class="sb-link" data-nav="/agente-cfo"><span class="sb-ico">💰</span> CFO</button>
-        <button class="sb-link" data-nav="/agente-cmo"><span class="sb-ico">📣</span> CMO</button>
-        <button class="sb-link" data-nav="/diretoria-ceo"><span class="sb-ico">🏛️</span> CEO · Dossiês</button>
-        <button class="sb-link" data-nav="/sr-cfo"><span class="sb-ico">🧠</span> CFO · Dossiês</button>
-        <button class="sb-link" data-nav="/cmo"><span class="sb-ico">🎯</span> CMO · Relatórios</button>
-        <div class="sb-subsec" style="font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;opacity:.45;font-weight:800;padding:6px 14px 2px">Planejamento</div>
-        <button class="sb-link" data-nav="/projetos"><span class="sb-ico">📌</span> Projetos</button>
-        <button class="sb-link" data-nav="/estrategia"><span class="sb-ico">♟️</span> Estratégia</button>
-        <button class="sb-link" data-nav="/metricas-viab"><span class="sb-ico">🧪</span> Métricas Viab</button>
-        <button class="sb-link" data-nav="/comissao-conquista"><span class="sb-ico">💰</span> Comissionamento</button>
-        <button class="sb-link" data-nav="/sim-trafego"><span class="sb-ico">📣</span> Simulador de Tráfego</button>
-        <button class="sb-link" data-nav="/reunioes"><span class="sb-ico">🤝</span> Formatos de Reunião</button>
-        <div class="sb-subsec" style="font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;opacity:.45;font-weight:800;padding:6px 14px 2px">Governança</div>
-        <button class="sb-link" data-nav="/governanca"><span class="sb-ico">⚖️</span> Governança</button>
+        <button class="sb-link" data-nav="/paulo"><span class="sb-ico">🧑‍💼</span> Negócios Pessoais</button>
 
 <!-- v87.51: 🏯 MORIMATSU & ASSOCIADOS — menu PRÓPRIO (pedido do Paulo, 07/set): escritório de
      Gestão Patrimonial Imobiliária (Aquisição em leilão/venda direta Caixa → Gestão → Desinvestimento
@@ -1151,6 +1152,7 @@ function shellHTML(user) {
 
         <div class="sb-sec">💰 Financeiro</div>
         <button class="sb-link" data-nav="/financeiro"><span class="sb-ico">💰</span> Financeiro</button>
+        <button class="sb-link" data-nav="/comissao-conquista"><span class="sb-ico">💎</span> Comissionamento</button>
 
         <div class="sb-sec">⚖️ Jurídico</div>
         <button class="sb-link" data-nav="/minutas"><span class="sb-ico">📜</span> Minutas padrão</button>
@@ -1165,6 +1167,7 @@ function shellHTML(user) {
         <div class="sb-sec">⚙️ Sistema</div>
         <button class="sb-link" data-nav="/usuarios"><span class="sb-ico">👥</span> Usuários</button>
         <button class="sb-link" data-nav="/auditoria"><span class="sb-ico">📜</span> Auditoria</button>
+        <button class="sb-link" data-nav="/governanca"><span class="sb-ico">🩺</span> Saúde do Sistema</button>
         <button class="sb-link" data-nav="/checkin"><span class="sb-ico">🕵️</span> Check-in / Check-out</button>
         <button class="sb-link" data-nav="/integracoes"><span class="sb-ico">🔌</span> Integrações</button>
         <button class="sb-link" data-nav="/backup"><span class="sb-ico">💾</span> Backup</button>

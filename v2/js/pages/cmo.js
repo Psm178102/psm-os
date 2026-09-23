@@ -151,7 +151,7 @@ function render() {
     <div class="flex" style="align-items:center;gap:10px;flex-wrap:wrap">
       <div style="font-weight:900;font-size:16px">🎯 CMO · Marketing</div>
       <span class="tiny muted">C-level do marketing · Conquista primeiro · só sócios</span>
-      <span style="margin-left:auto" class="tiny"><a href="#/agentes-diretoria" style="color:#38bdf8">💬 conversar com o CMO →</a></span>
+      <span style="margin-left:auto" class="tiny"><a href="#/agente-cmo" style="color:#38bdf8">💬 conversar com o CMO →</a></span>
     </div>
     <div class="tiny" style="margin-top:4px;color:var(--muted)">Decide onde o dinheiro entra, aciona a esteira, cobra os 13 agentes e fecha CAC/ROAS por nicho. Ele recomenda, o sócio decide. Rotina no Windows 24h → relatórios chegam aqui sozinhos.</div>
   </div>
