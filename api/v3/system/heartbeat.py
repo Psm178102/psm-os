@@ -246,6 +246,14 @@ class handler(BaseHTTPRequestHandler):
                                                        "User-Agent": "PSM-OS-heartbeat"})
             with urllib.request.urlopen(req, timeout=40) as r:
                 body = (r.read().decode("utf-8") or "")[:300]
+                # v88.29c: grava o que a rotina respondeu (host + status + começo do corpo) — sem isso uma
+                # chamada que "deu 200" sem chegar na rotina ficava invisível
+                try:
+                    sb.table("cron_state").upsert({"key": key, "ran_at": now.isoformat(),
+                                                   "note": f"heartbeat · {host} · {r.status} · {body[:90]}"},
+                                                  on_conflict="key").execute()
+                except Exception:
+                    pass
                 return self._send(200, {"ok": True, "ran": key, "status": r.status, "resp": body, "sla": sla})
         except Exception as e:
             # v87.94: TIMEOUT não é falha — a função chamada continua rodando na Vercel (o sync incremental
