@@ -1,5 +1,6 @@
 /* PSM-OS v2 — Ranking dedicado (Sprint 7.23) */
 import { api } from '../api.js';
+import { ehGestao, competidoresVgv } from '../ranking-regras.js';   // v88.11: régua única (Ranking = 1:1 = HUB)
 
 let _root = null, _data = null;
 
@@ -31,17 +32,11 @@ function render() {
     }
   });
 
-  // Sócios, diretores e gerentes NÃO entram em ranking público (só corretores/líderes)
-  const isCompetidor = (u) => {
-    const r = (u.role || '').toLowerCase();
-    if (['socio', 'diretor', 'gerente'].includes(r)) return false;
-    if (u.hide_from_ranking) return false;
-    return true;
-  };
+  // v88.11: régua única — gestão por PREFIXO (gerente*, lider*) e ocultos não competem; o ranking de
+  // VGV parte da aba Metas (todo mundo ativo), não do ranking de atividade cortado em 30.
+  const isCompetidor = (u) => !ehGestao(u.role) && !u.hide_from_ranking;
   const competidores = Object.values(byUser).filter(isCompetidor);
-
-  // Ranking por VGV (descrescente) + fallback por score
-  const rankVgv = competidores.filter(u => u.vgv > 0).sort((a, b) => b.vgv - a.vgv).slice(0, 20);
+  const rankVgv = competidoresVgv(_data.atingimento, _data.activity).filter(u => u.vgv > 0).slice(0, 20);
 
   // ── Atividade: separa CORRETORES (agrupados por equipe) do TIME INTERNO ──
   const ehCorretor = u => ['corretor', 'lider'].includes((u.role || '').toLowerCase());

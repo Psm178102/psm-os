@@ -384,6 +384,13 @@ function telaDuelo() {
     <div style="text-align:center;font-size:22px;font-weight:800;color:#e2e8f0">${escapeHtml(b.agentName || '')} precisa de <span style="color:#fb923c">${fmtPts(diff + 1)} pontos</span> pra tomar a ponta 🔥</div>`;
 }
 
+/* v88.11: meta do MÊS = soma das metas cadastradas pro mês na aba Metas (não meta anual ÷ 12 —
+   as metas variam mês a mês e o ÷12 dava um número que não existe em tela nenhuma) */
+function metaMesMetas() {
+  const m = new Date().getMonth();
+  return ((_metas && _metas.grid) || []).reduce((t, g) => t + (((g.cells || [])[m] || {}).meta_vgv || 0), 0);
+}
+
 /* ── 🏁 tela: Corrida da Meta (% da meta individual do ano, com linha de pace) ── */
 function corridaLanes() {
   // sócio/diretor NUNCA na TV da Arena (Paulo, 05/set: 'retire ela daquilo imediatamente')
@@ -723,9 +730,9 @@ function telaPlacar() {
   const fator = dia > 0 ? diasMes / dia : 1;
   let uteis = 0; const fimMes = new Date(hj.getFullYear(), hj.getMonth() + 1, 0);
   for (let d = new Date(hj); d <= fimMes; d.setDate(d.getDate() + 1)) { const w = d.getDay(); if (w !== 0 && w !== 6) uteis++; }
-  // meta do mês: soma das metas individuais do HUB; fallback meta anual ÷12
+  // meta do mês: soma das metas individuais do HUB; fallback = metas do mês na aba Metas (v88.11)
   const metaHub = ranked().reduce((t, a) => t + (a.vgvMeta || 0), 0);
-  const metaMes = metaHub || ((_metas && _metas.totals && _metas.totals.meta_vgv) ? _metas.totals.meta_vgv / 12 : 0);
+  const metaMes = metaHub || metaMesMetas();
   const pessoas = rows.map(r => ({ r, nome: r.agentName, meta: (noRanking(r) || {}).vgvMeta || 0,
                                    real: Number(r.vendaTotal) || 0, vendas: Number(r.vendaCount) || 0, p: projecao(r, tx, fator) }));
   const vendido = pessoas.reduce((t, x) => t + x.real, 0);
@@ -968,7 +975,7 @@ function modoFechamento() {
   let uteis = 0;
   for (let d = new Date(h); d <= fim; d.setDate(d.getDate() + 1)) { const w = d.getDay(); if (w !== 0 && w !== 6) uteis++; }
   const sv = (_ov && _ov.sales) || {};
-  const metaMes = (_metas && _metas.totals && _metas.totals.meta_vgv) ? _metas.totals.meta_vgv / 12 : 0;
+  const metaMes = metaMesMetas();
   const falta = Math.max(0, metaMes - (sv.vgv_mes || 0));
   const porDia = uteis > 0 ? falta / uteis : falta;
   return `
