@@ -56,6 +56,7 @@ let _nocacheOnce = false;   // v84.87 — 1 reload sem cache após mexer nas con
 // anterior) que chega depois da nova é descartada, não sobrescreve.
 let _reqSeq = 0, _tsSeq = 0, _bdSeq = 0;
 let _refreshErr = null;     // falha no refresh silencioso: mantém o dado e avisa
+let _loading = false;       // v88.22: recarga com spinner em andamento (troca de período/conta)
 // Modo TV / tela cheia (overlay fullscreen + rotação automática das abas)
 let _tv = false, _tvRotate = true, _tvTimer = null, _tvDataTimer = null;
 // Leads por cidade + alerta de % fora de Rio Preto (fonte: deals/RD)
@@ -154,6 +155,10 @@ async function reload(silent) {
   if (!_root) return;
   const seq = ++_reqSeq;
   _busy = true;
+  _loading = !silent;
+  // v88.22: refresh ao vivo também relê os limiares da empresa (TV aberta o dia
+  // todo pegava limiar novo só quando a página era reaberta)
+  if (silent) loadThShared();
   if (!silent) _root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando Meta Ads + CRM…</div></div>';
   let qp = periodQuery();
   const nocache = _nocacheOnce;
@@ -182,7 +187,12 @@ async function reload(silent) {
     // aberto e só refaz a série (sem ela sumir da tela no meio do refresh).
     const vk = viewKey();
     if (vk !== _viewKey) invalidateView();
-    else if (nocache) { loadTimeseries(true); }
+    else if (nocache) {
+      // v88.22: só refaz a série ao vivo se ela está na tela (Executiva/Gráficos/TV);
+      // nas outras abas ela é recarregada quando o gestor abrir — menos chamadas à Meta
+      if (_tv || _tab === 'executiva' || _tab === 'graficos') loadTimeseries(true);
+      else { _ts = null; _tsSeq++; _tsBusy = false; }
+    }
     if (_tv) renderTV(); else render(silent);
   } catch (e) {
     if (seq !== _reqSeq) return;
@@ -196,7 +206,7 @@ async function reload(silent) {
     _root.innerHTML = `<div class="alert alert-err">Erro ao consultar Meta: ${escapeHtml(e.message)}</div>
       <div class="mt-2"><button class="btn btn-primary" id="ma-retry">🔄 Tentar de novo</button></div>`;
     document.getElementById('ma-retry')?.addEventListener('click', () => reload());
-  } finally { if (seq === _reqSeq) _busy = false; }
+  } finally { if (seq === _reqSeq) { _busy = false; _loading = false; } }
 }
 
 // Sprint 9.15: busca breakdown Meta sob demanda (não no load — só quando o gestor pede)
@@ -215,6 +225,7 @@ async function loadBreakdown(sel) {
   }
   if (seq !== _bdSeq) return;   // pediu outro breakdown/recorte no meio → descarta
   _bd = res; _bdBusy = false;
+  if (_loading) return;   // v88.22: não pinta dado velho por cima do spinner
   if (_tv) renderTV(); else render(true);
 }
 
@@ -686,7 +697,7 @@ function leadsGeoPanel() {
     </div></div>` : '';
   return `
   <div style="background:linear-gradient(160deg,#0f172a,#111827);border:1px solid rgba(255,255,255,0.07);border-radius:18px;padding:18px;color:#e2e8f0;margin-bottom:16px">
-    <div style="font-size:15px;font-weight:800;color:#fff">📍 Leads por Região (DDD do telefone) <span style="font-size:11px;font-weight:600;color:#94a3b8">· só tráfego pago${g.prospeccao_excluida ? ` — ${fmtNum(g.prospeccao_excluida)} de prospecção fora` : ''}</span></div>
+    <div style="font-size:15px;font-weight:800;color:#fff">📍 Leads por Região (DDD do telefone) <span style="font-size:11px;font-weight:600;color:#94a3b8">· ${g.lead_rule === 'trafego_pago' ? 'só tráfego pago' : '⚠️ todas as origens (Dicionário indisponível)'}${g.prospeccao_excluida ? ` — ${fmtNum(g.prospeccao_excluida)} de prospecção fora` : ''}</span></div>
     <div style="font-size:11px;color:#94a3b8">região pelo DDD do telefone do lead (RD) · <b style="color:#86efac">DDD 17 = São José do Rio Preto</b> · alerta quando >${g.threshold_pct}% vêm de fora${filterTag()}</div>
     ${banner}
     ${campAlerts}
@@ -1088,6 +1099,7 @@ async function loadTimeseries(force) {
   // v88.11: série de um período/conta antigos (chegou atrasada) é descartada
   if (seq !== _tsSeq) return;
   _ts = res; _tsBusy = false;
+  if (_loading) return;   // v88.22: tela em recarga (spinner) — o render final já usa a série
   if (_tv) renderTV(); else if (_tab === 'graficos' || _tab === 'executiva') render(true);
 }
 

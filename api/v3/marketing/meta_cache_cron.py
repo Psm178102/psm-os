@@ -65,7 +65,7 @@ class handler(BaseHTTPRequestHandler):
         # v88.13: presets em paralelo (7 × até 30s em série estourava a duração da
         # function agora que o cron roda de verdade — agendado no vercel.json)
         from concurrent.futures import ThreadPoolExecutor
-        with ThreadPoolExecutor(max_workers=len(WARM_PRESETS)) as ex:
+        with ThreadPoolExecutor(max_workers=3) as ex:   # v88.22: 3 por vez (evita rajada/limite da Meta)
             fetched = list(ex.map(lambda pr: (pr,) + tuple(fetch_live(host, pr, "", "", nocache=True)), WARM_PRESETS))
 
         for preset, payload, err in fetched:
