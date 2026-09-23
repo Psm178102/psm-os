@@ -73,6 +73,16 @@ const BREAKDOWNS = [
 function loadTh() { try { return { ...DEFAULT_TH, ...(JSON.parse(localStorage.getItem(TH_KEY) || '{}')) }; } catch { return { ...DEFAULT_TH }; } }
 function saveTh(th) { localStorage.setItem(TH_KEY, JSON.stringify(th)); }
 let _th = loadTh();
+let _thMeta = null;   // v88.18: {updated_by, updated_at} dos limiares da empresa
+// Limiares da EMPRESA (shared_kv) — mesma regra em TV, iPad e desktop. Falhou →
+// segue com o que está no navegador (nunca bloqueia o cockpit).
+async function loadThShared() {
+  try {
+    const r = await api.request('/api/v3/marketing/ads_thresholds');
+    if (r && r.ok && r.th) { _th = { ...DEFAULT_TH, ...r.th }; saveTh(_th); _thMeta = { by: r.updated_by, at: r.updated_at }; }
+  } catch (_) {}
+}
+function canEditTh() { return (auth.user()?.lvl || 0) >= 7; }
 
 // 1 conta Meta = 1 marca. Classifica pelo rótulo da conta + metas por segmento.
 function brandInfo(label) {
@@ -104,6 +114,7 @@ export async function pageMarketing(ctx, root) {
     destroyCharts();
   });
   if ((auth.user()?.lvl || 0) < 5) { root.innerHTML = '<div class="alert alert-warn">🔒 Requer Líder (lvl ≥ 5).</div>'; return; }
+  await loadThShared();
   await reload();
   if (_auto) startAuto();
 }
@@ -733,6 +744,12 @@ function funnelStage(label, val, frac, color) {
     <div style="font-size:17px;font-weight:800;line-height:1.1">${fmtNum(val)}</div>
   </div>`;
 }
+// v88.18: largura do funil proporcional em escala log (antes: fatores ×8/×40
+// inventados, que não diziam nada sobre a conversão real)
+function logFrac(v, base) {
+  if (!v || !base || base <= 1) return 0;
+  return Math.max(0, Math.min(1, Math.log10(v + 1) / Math.log10(base + 1)));
+}
 function progressCard(label, value, sub, frac, color) {
   const w = Math.max(2, Math.min(100, Math.round(frac * 100)));
   return `<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:12px 14px">
@@ -777,12 +794,12 @@ function execHero(t, accounts) {
 
     <div style="display:grid;grid-template-columns:1.05fr 1.35fr;gap:14px;margin-top:16px;align-items:start">
       <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:14px">
-        <div style="font-size:13px;font-weight:700;color:#cbd5e1;text-align:center;margin-bottom:10px">Funil de Tráfego</div>
+        <div style="font-size:13px;font-weight:700;color:#cbd5e1;text-align:center;margin-bottom:10px">Funil de Tráfego <span style="font-weight:400;font-size:10px;color:#94a3b8">(largura em escala log)</span></div>
         <div style="display:flex;flex-direction:column;gap:7px">
           ${funnelStage('IMPRESSÕES', t.impressions, 1, '#1d4ed8')}
-          ${funnelStage('ALCANCE', t.reach, t.impressions ? t.reach / t.impressions : 0.7, '#2563eb')}
-          ${funnelStage('CLIQUES', t.clicks, t.impressions ? Math.max(0.4, t.clicks / t.impressions * 8) : 0.5, '#3b82f6')}
-          ${funnelStage('MENSAGENS/LEADS', t.results, t.impressions ? Math.max(0.28, t.results / t.impressions * 40) : 0.3, '#60a5fa')}
+          ${funnelStage('ALCANCE', t.reach, logFrac(t.reach, t.impressions), '#2563eb')}
+          ${funnelStage('CLIQUES', t.clicks, logFrac(t.clicks, t.impressions), '#3b82f6')}
+          ${funnelStage('RESULTADOS META', t.results, logFrac(t.results, t.impressions), '#60a5fa')}
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px">
           ${miniStat('CTR', pct2(t.ctr || 0))}
@@ -1636,12 +1653,15 @@ function semaCard(icon, title, color, items, desc, fmtItem, withAction) {
 /* ───────────────────────── ABA: POR MARCA (Abas 2+3) ───────────────────────── */
 function tabMarca() {
   const campaigns = filteredCampaigns();   // v88.11: respeita o filtro de conta
+  // v88.18: agrupa por MARCA (somando as contas dela). O CRM é por marca — com
+  // 2 contas da mesma marca, cada painel mostrava o CRM inteiro e o CAC com o
+  // gasto de uma conta só (CAC/CPO distorcidos).
   const groups = {};
-  campaigns.forEach(c => { const k = c.account || '—'; (groups[k] = groups[k] || []).push(c); });
+  campaigns.forEach(c => { const k = brandInfo(c.account).key; (groups[k] = groups[k] || []).push(c); });
   const keys = Object.keys(groups).sort((a, b) => sumSpend(groups[b]) - sumSpend(groups[a]));
   if (!keys.length) return '<div class="muted tiny">Sem campanhas no período.</div>';
   return `
-    <p class="card-sub">Cada conta Meta = uma marca. Metas e funil de venda (RD) embutidos por segmento.</p>
+    <p class="card-sub">Uma marca por painel (soma das contas Meta dela). Metas e funil de venda (RD) embutidos por segmento.</p>
     <div style="display:grid;gap:14px;margin-top:12px">
       ${keys.map(k => marcaPanel(k, groups[k])).join('')}
     </div>
@@ -1649,8 +1669,10 @@ function tabMarca() {
   `;
 }
 function sumSpend(arr) { return arr.reduce((s, c) => s + (c.spend || 0), 0); }
-function marcaPanel(label, camps) {
-  const bi = brandInfo(label);
+function marcaPanel(key, camps) {
+  const bi = brandInfo(camps[0]?.account || key);
+  const contas = [...new Set(camps.map(c => c.account).filter(Boolean))];
+  const label = bi.brand;
   const t = { spend: 0, impressions: 0, reach: 0, clicks: 0, results: 0 };
   camps.forEach(c => { t.spend += c.spend||0; t.impressions += c.impressions||0; t.reach += c.reach||0; t.clicks += c.clicks||0; t.results += c.results||0; });
   const cpl = t.results > 0 ? t.spend / t.results : 0;
@@ -1667,7 +1689,8 @@ function marcaPanel(label, camps) {
     <div style="background:var(--bg-2);border:1px solid var(--border);border-left:5px solid ${bi.cor};border-radius:var(--r-md);padding:14px 16px">
       <div class="flex items-center gap-2" style="flex-wrap:wrap">
         <div style="font-weight:900;font-size:15px;color:${bi.cor}">${escapeHtml(label)}</div>
-        <span class="tiny" style="background:${bi.cor}22;color:${bi.cor};padding:2px 8px;border-radius:var(--r-full);font-weight:700">${escapeHtml(bi.brand)} · ${escapeHtml(bi.sub)}</span>
+        <span class="tiny" style="background:${bi.cor}22;color:${bi.cor};padding:2px 8px;border-radius:var(--r-full);font-weight:700">${escapeHtml(bi.sub)}</span>
+        <span class="tiny muted">${contas.length} conta(s): ${escapeHtml(contas.join(' · '))}</span>
         <span class="tiny muted" style="margin-left:auto">${ativas} ativa(s) / ${camps.length} campanha(s)</span>
       </div>
       <div class="tiny muted" style="margin-top:8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Mídia (Meta)</div>
@@ -1901,10 +1924,10 @@ function thresholdPanel() {
         ${thInput('Freq. máx.', 'th-freq', _th.freq, 0.5)}
         ${thInput('CTR mín. (%)', 'th-ctr', _th.ctr, 0.1)}
         ${thInput('Gasto sem result. (R$)', 'th-gasto', _th.gasto, 5)}
-        <button class="btn btn-primary" id="th-save">Salvar limiares</button>
-        <button class="btn btn-ghost" id="th-reset">Padrão</button>
+        ${canEditTh() ? `<button class="btn btn-primary" id="th-save">Salvar p/ toda a empresa</button>
+        <button class="btn btn-ghost" id="th-reset">Padrão</button>` : ''}
       </div>
-      <p class="tiny muted mt-2">Definem quando uma campanha vira alerta e a faixa do semáforo (CPL por marca da conta). Salvos só neste navegador.</p>
+      <p class="tiny muted mt-2">Definem quando uma campanha vira alerta e a faixa do semáforo (CPL por marca da conta). Valem pra todos (TV, iPad, desktop)${_thMeta && _thMeta.by ? ` · última alteração: ${escapeHtml(_thMeta.by)}${_thMeta.at ? ' em ' + new Date(_thMeta.at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}` : ''}.${canEditTh() ? '' : ' Só gerente ou acima altera.'}</p>
     </div>`;
 }
 function thInput(label, id, val, step) {
@@ -1966,19 +1989,27 @@ function wire() {
     const p = document.getElementById('ma-th-panel'); if (!p) return;
     if (p.style.display === 'none' || !p.innerHTML) {
       p.innerHTML = thresholdPanel(); p.style.display = 'block';
-      document.getElementById('th-save').addEventListener('click', () => {
+      const saveShared = async (th) => {
+        try {
+          const r = await api.request('/api/v3/marketing/ads_thresholds', { method: 'POST', body: { th } });
+          _th = { ...DEFAULT_TH, ...th }; saveTh(_th); _thMeta = { by: r.updated_by, at: r.updated_at };
+          render(true);
+        } catch (e) { alert('Não salvou: ' + (e?.message || e)); }
+      };
+      document.getElementById('th-save')?.addEventListener('click', () => {
         const num = (id, def) => { const v = parseFloat(document.getElementById(id).value); return v > 0 ? v : def; };
-        _th = {
+        saveShared({
           cpl_conquista: num('th-cpl-conquista', DEFAULT_TH.cpl_conquista),
           cpl_imoveis: num('th-cpl-imoveis', DEFAULT_TH.cpl_imoveis),
           cpl_locacao: num('th-cpl-locacao', DEFAULT_TH.cpl_locacao),
-          freq: parseFloat(document.getElementById('th-freq').value) || DEFAULT_TH.freq,
-          ctr: parseFloat(document.getElementById('th-ctr').value) || DEFAULT_TH.ctr,
-          gasto: parseFloat(document.getElementById('th-gasto').value) || DEFAULT_TH.gasto,
-        };
-        saveTh(_th); render();
+          freq: num('th-freq', DEFAULT_TH.freq),
+          ctr: num('th-ctr', DEFAULT_TH.ctr),
+          gasto: num('th-gasto', DEFAULT_TH.gasto),
+        });
       });
-      document.getElementById('th-reset').addEventListener('click', () => { _th = { ...DEFAULT_TH }; saveTh(_th); render(); });
+      document.getElementById('th-reset')?.addEventListener('click', () => {
+        if (confirm('Voltar os limiares ao padrão pra toda a empresa?')) saveShared({ ...DEFAULT_TH });
+      });
     } else { p.style.display = 'none'; }
   });
 

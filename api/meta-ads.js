@@ -148,6 +148,17 @@ async function processAccount(actId, actLabel, actToken, dateParams, includeArch
 
   var insightsMap = {};
   insights.forEach(function(ins) { insightsMap[ins.campaign_id] = ins; });
+  // v88.18: campanha com gasto no período mas fora da lista de status (deletada,
+  // com problema, em processamento…) sumia da tabela/top 5 enquanto o gasto
+  // entrava no total da conta → total ≠ soma das linhas. Entra como "outro".
+  var known = {};
+  campaigns.forEach(function(c) { known[c.id] = true; });
+  insights.forEach(function(ins) {
+    if (ins.campaign_id && !known[ins.campaign_id]) {
+      known[ins.campaign_id] = true;
+      campaigns.push({ id: ins.campaign_id, name: ins.campaign_name || ins.campaign_id, effective_status: 'OUTRO' });
+    }
+  });
 
   var accountTotal = {
     id: actId,

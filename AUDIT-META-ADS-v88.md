@@ -6,6 +6,22 @@ Somente leitura: nada foi alterado.
 
 Severidade: 🔴 crítico · 🟠 alto · 🟡 médio · ⚪ baixo
 
+
+## ✅ STATUS DAS CORREÇÕES (atualizado 23/09/2026)
+
+| Versão | Itens resolvidos |
+|---|---|
+| **v88.12** (no ar) | P1, P2, P3, P4, P8 (breakdowns), R1, R2, R4, R5, R6, R7, M1, M3, M11, F1, F2, F3, F4, F5, F6, F8 |
+| **v88.15** | P5 (timeseries/breakdowns/Node validam), P6, P7, M2, M4, M5, M10, M12, M13, R3, R8, F9, F10, F11 |
+| **v88.18** | M6, M7, M8, F7 (limiares da empresa), F12 (breakdowns) |
+
+**Pendentes — dependem de decisão do Paulo (mudam números/definições):**
+- **M9** janela de atribuição (`action_report_time=conversion` + janela fixa): muda a contagem diária de leads Meta.
+- **M14** "Total de leads" do painel Região = todo deal criado × só tráfego pago (Dicionário §2).
+- **leads_creative por marca**: exige gravar a marca/conta no `meta_leads`.
+- **F13** `summary` lvl 3 é intencional (cargo Marketing usa Gestor de Tráfego); `Host`→URL interna fixa fica para o sprint de infra.
+- Monthly cron: congelar meses fechados/UTC→BRT (parte de F8 além do "não grava com erro").
+
 ---
 
 ## 1. FILTRO DE PERÍODO

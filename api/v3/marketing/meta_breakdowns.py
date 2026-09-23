@@ -84,14 +84,20 @@ def _fetch_account(act_id, token, bd_keys, date_params, timeout=30):
            + "&breakdowns=" + urllib.parse.quote(bd)
            + "&fields=" + fields + "&limit=500&access_token=" + urllib.parse.quote(token)
            + date_params)
-    req = urllib.request.Request(url, headers={
-        "Accept": "application/json", "User-Agent": "PSM-OS-v3/meta-breakdowns"})
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        data = json.loads(resp.read().decode("utf-8"))
-    if isinstance(data, dict) and data.get("error"):
-        raise RuntimeError(data["error"].get("message") or "Graph API error")
+    # v88.18: segue paging.next (hora × região etc. passa de 500 linhas)
+    rows, pages = [], 0
+    while url and pages < 10:
+        req = urllib.request.Request(url, headers={
+            "Accept": "application/json", "User-Agent": "PSM-OS-v3/meta-breakdowns"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        if isinstance(data, dict) and data.get("error"):
+            raise RuntimeError(data["error"].get("message") or "Graph API error")
+        rows.extend(data.get("data") or [])
+        url = (data.get("paging") or {}).get("next")
+        pages += 1
     out = []
-    for row in (data.get("data") or []):
+    for row in rows:
         seg = " · ".join(str(row.get(k) or "—") for k in bd_keys)
         spend = float(row.get("spend") or 0)
         impressions = int(float(row.get("impressions") or 0))
