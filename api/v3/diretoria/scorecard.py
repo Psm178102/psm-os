@@ -44,8 +44,16 @@ if _V3 not in sys.path:
     sys.path.append(_V3)
 
 KV_CFG, KV_MANUAL, KV_CACHE = "scorecard_cfg", "scorecard_manual", "scorecard_cache"
+KV_HIST = "scorecard_hist"   # v88.30: {ym: {tipo, em, ritmo, ind: {id: [valor, meta, farol]}, sc: {id: saude}}}
+# Indicadores de FOTO (estado do momento, não soma do mês): não dá pra reconstruir o passado —
+# só entram no histórico quando registrados no próprio mês (leitura do mês corrente ou fechamento do dia 1º).
+FOTO_SRC = ("L.", "R.", "E.corretores", "E.gestores", "Q.conquista.corretores", "E.sem_valor",
+            "E.sem_equipe_abertos", "E.cobertura_pipeline", "Q.imoveis.quente_vgv", "O.divergencias")
+def _foto(ind):
+    return bool(ind.get("src")) and str(ind["src"]).startswith(FOTO_SRC)
 CACHE_TTL = 600
-VERSAO_REGRAS = "v2"   # v2: pró-labore na conta, cobertura pela contribuição, CPL sem gasto = sem dado, saúde c/ base mínima
+VERSAO_REGRAS = "v3"   # v3: histórico (fotos do passado não repetem o valor de hoje)
+# (v2)   # v2: pró-labore na conta, cobertura pela contribuição, CPL sem gasto = sem dado, saúde c/ base mínima
 
 
 # ─── catálogo ───────────────────────────────────────────────────────────────
@@ -404,8 +412,10 @@ def _valores(sb, ano, mes, hoje, avisos):
     return V
 
 
-def montar(sb, ym, hoje, cfg, manual):
+def montar(sb, ym, hoje, cfg, manual, hist=None, fotos=None):
     ano, mes = int(ym[:4]), int(ym[5:7])
+    passado = ym < hoje.strftime("%Y-%m")
+    reg = ((hist or {}).get(ym) or {}).get("ind") or {}
     avisos = []
     V = _valores(sb, ano, mes, hoje, avisos)
     ritmo = V.get("_ritmo", 100)
@@ -420,8 +430,15 @@ def montar(sb, ym, hoje, cfg, manual):
     for sc in CATALOGO:
         linhas = []
         for ind in sc["ind"]:
+            sem_foto = False
             if ind["manual"]:
                 valor = _num(man.get(ind["id"]))
+            elif passado and _foto(ind):
+                # mês passado: a foto de HOJE não vale pro passado — usa a registrada no mês, se houver
+                valor = _num((reg.get(ind["id"]) or [None])[0])
+                if valor is None and fotos is not None:   # fechamento do dia 1º: foto do fim do mês
+                    valor = _num(fotos.get(ind["id"]))
+                sem_foto = valor is None
             else:
                 valor = _num(V.get(ind["src"]))
             meta_auto = _num(V.get(ind["meta_src"])) if ind["meta_src"] else None
@@ -438,7 +455,9 @@ def montar(sb, ym, hoje, cfg, manual):
                 "id": ind["id"], "label": ind["label"], "un": ind["un"], "dir": ind["dir"], "acumula": ind["acumula"],
                 "valor": valor, "meta": meta, "meta_origem": meta_origem, "pct": pct, "esperado": esp,
                 "farol": f, "manual": ind["manual"], "nota": ind["nota"], "amostra": V.get(f"_amostra.{ind['src']}"),
-                "motivo": ("lançar valor" if ind["manual"] and valor is None else
+                "foto": _foto(ind),
+                "motivo": ("foto não registrada neste mês" if sem_foto else
+                           "lançar valor" if ind["manual"] and valor is None else
                            "sem dado" if valor is None else
                            "acompanhamento — sem meta" if meta is None else None),
             })
@@ -455,6 +474,45 @@ def montar(sb, ym, hoje, cfg, manual):
     return {"ok": True, "ym": ym, "ritmo": ritmo, "dados_de": V.get("_dados_de"), "consistencia_de": V.get("_consist_de"),
             "scorecards": out, "avisos": avisos, "regras": VERSAO_REGRAS,
             "calculado_em": datetime.now(timezone.utc).isoformat()}
+
+
+def registrar(sb, ym, data, tipo):
+    """Grava a foto compacta do mês no histórico. 'final' (fechamento do dia 1º) nunca é rebaixado."""
+    hist = _kv(sb, KV_HIST, {}) or {}
+    atual = hist.get(ym) or {}
+    if atual.get("tipo") == "final" and tipo != "final":
+        return False
+    hist[ym] = {"tipo": tipo, "em": datetime.now(timezone.utc).isoformat(), "ritmo": data.get("ritmo"),
+                "ind": {i["id"]: [i["valor"], i["meta"], i["farol"]] for s in data["scorecards"] for i in s["indicadores"]},
+                "sc": {s["id"]: s["saude"] for s in data["scorecards"]}}
+    _kv_put(sb, KV_HIST, hist)
+    return True
+
+
+def meses_ate(ym, n):
+    a, m = int(ym[:4]), int(ym[5:7])
+    out = []
+    for _ in range(n):
+        out.append(f"{a}-{m:02d}")
+        m -= 1
+        if m == 0: a, m = a - 1, 12
+    return list(reversed(out))
+
+
+def historico(sb, hoje, n, scs_visiveis=None):
+    hist = _kv(sb, KV_HIST, {}) or {}
+    atual = hoje.strftime("%Y-%m")
+    meses = meses_ate(atual, n)
+    cat = [sc for sc in CATALOGO if scs_visiveis is None or sc["id"] in scs_visiveis]
+    return {
+        "ok": True, "meses": meses,
+        "registros": {ym: {"tipo": (hist.get(ym) or {}).get("tipo"), "em": (hist.get(ym) or {}).get("em")} for ym in meses},
+        "faltando": [ym for ym in meses if ym < atual and ym not in hist and ym >= "2026-01"],
+        "saude": {sc["id"]: [((hist.get(ym) or {}).get("sc") or {}).get(sc["id"]) for ym in meses] for sc in cat},
+        "series": {i["id"]: [(((hist.get(ym) or {}).get("ind") or {}).get(i["id"]) or [None, None, None]) for ym in meses]
+                   for sc in cat for i in sc["ind"]},
+        "scorecards": [{"id": sc["id"], "nome": sc["nome"], "ico": sc["ico"]} for sc in cat],
+    }
 
 
 class handler(BaseHTTPRequestHandler):
@@ -476,12 +534,42 @@ class handler(BaseHTTPRequestHandler):
         return {**data, "scorecards": meus, "escopo": "dono",
                 "avisos": [] if meus else ["Você ainda não é dono de nenhum placar — o sócio define os donos nesta tela."]}
 
+    def _cron_ok(self):
+        secret = os.environ.get("CRON_SECRET")
+        if not secret: return False
+        auth = self.headers.get("Authorization") or self.headers.get("authorization") or ""
+        return auth.lower().startswith("bearer ") and auth[7:].strip() == secret
+
     def do_GET(self):
-        try: user = require_user(self, min_lvl=5)
-        except AuthError as e: return self._send(e.status, {"ok": False, "error": e.message})
         try: params = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
         except Exception: params = {}
         hoje = _hoje()
+        # Cron do dia 1º (Vercel): FECHA o mês anterior no histórico (tipo 'final', com as fotos do fim do mês)
+        if params.get("cron") == "1" and self._cron_ok():
+            sb = supabase_client()
+            if not sb: return self._send(503, {"ok": False, "error": "backend"})
+            ant = meses_ate(hoje.strftime("%Y-%m"), 2)[0]
+            cfg, manual = _kv(sb, KV_CFG, {}), _kv(sb, KV_MANUAL, {})
+            hist = _kv(sb, KV_HIST, {}) or {}
+            # fotos do mês que fechou = as últimas registradas nele (leitura do mês corrente) ou as de agora
+            agora = montar(sb, hoje.strftime("%Y-%m"), hoje, cfg, manual, hist)
+            fotos = {i["id"]: i["valor"] for s in agora["scorecards"] for i in s["indicadores"] if i.get("foto")}
+            data = montar(sb, ant, hoje, cfg, manual, hist, fotos)
+            registrar(sb, ant, data, "final")
+            registrar(sb, hoje.strftime("%Y-%m"), agora, "parcial")
+            return self._send(200, {"ok": True, "fechado": ant})
+        try: user = require_user(self, min_lvl=5)
+        except AuthError as e: return self._send(e.status, {"ok": False, "error": e.message})
+        if params.get("hist"):
+            sb = supabase_client()
+            if not sb: return self._send(503, {"ok": False, "error": "backend"})
+            try: n = max(3, min(24, int(params["hist"])))
+            except Exception: n = 12
+            vis = None
+            if (user.get("lvl") or 0) < 10:
+                donos = ((_kv(sb, KV_CFG, {}) or {}).get("donos") or {})
+                vis = {sc["id"] for sc in CATALOGO if (donos.get(sc["id"]) or sc["dono"]) == user.get("id")}
+            return self._send(200, historico(sb, hoje, n, vis))
         ym = (params.get("ym") or hoje.strftime("%Y-%m"))[:7]
         try: date(int(ym[:4]), int(ym[5:7]), 1)
         except Exception: return self._send(400, {"ok": False, "error": "ym inválido (AAAA-MM)"})
@@ -504,8 +592,14 @@ class handler(BaseHTTPRequestHandler):
                     age = 1e9
                 if age < CACHE_TTL:
                     return self._send(200, {**self._visao(c["data"], user), "cached": True, "cache_age_s": int(age)})
-        data = montar(sb, ym, hoje, cfg, manual)
+        hist = _kv(sb, KV_HIST, {}) or {}
+        data = montar(sb, ym, hoje, cfg, manual, hist)
         try: _kv_put(sb, key, {"assinatura": assinatura, "_em": datetime.now(timezone.utc).isoformat(), "data": data})
+        except Exception: pass
+        # histórico: mês corrente = parcial (atualiza a cada cálculo); mês passado sem registro = reconstruído
+        try:
+            if ym == hoje.strftime("%Y-%m"): registrar(sb, ym, data, "parcial")
+            elif (hist.get(ym) or {}).get("tipo") != "final": registrar(sb, ym, data, "reconstruido")
         except Exception: pass
         return self._send(200, {**self._visao(data, user), "cached": False})
 

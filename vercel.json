@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/v3/diretoria/scorecard?cron=1",
+      "schedule": "30 9 1 * *"
+    },
+    {
       "path": "/api/v3/system/heartbeat",
       "schedule": "* * * * *"
     },

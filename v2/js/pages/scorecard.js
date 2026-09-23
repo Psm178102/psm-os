@@ -10,6 +10,7 @@ let _root = null;
 let _d = null;
 let _ym = ymDe(new Date());
 let _users = null;
+let _h = null;        // histórico mês a mês (v88.30)
 
 const FAROL = {
   verde:    { cor: '#16a34a', ico: '🟢', lbl: 'No alvo' },
@@ -36,7 +37,11 @@ async function load(fresh) {
   const body = document.getElementById('sc-body');
   body.innerHTML = '<div class="muted tiny"><span class="spinner"></span> Montando os placares (motor comercial + financeiro + mídia)…</div>';
   try {
-    _d = await api.request(`/api/v3/diretoria/scorecard?ym=${_ym}${fresh ? '&fresh=1' : ''}`);
+    const [d, h] = await Promise.all([
+      api.request(`/api/v3/diretoria/scorecard?ym=${_ym}${fresh ? '&fresh=1' : ''}`),
+      api.request('/api/v3/diretoria/scorecard?hist=12').catch(() => null),
+    ]);
+    _d = d; _h = h;
     render();
   } catch (e) {
     body.innerHTML = `<div class="alert alert-err">${esc(e.message)}</div>`;
@@ -89,6 +94,7 @@ function render() {
     ${(d.avisos || []).length ? `<div class="alert alert-warn mb-3">${d.avisos.map(esc).join('<br>')}</div>` : ''}
     ${d.escopo === 'dono' ? '<div class="tiny muted mb-2">👤 Você está vendo os placares de que é dono.</div>' : ''}
     ${placarGeral(d.scorecards)}
+    ${evolucaoHTML()}
     ${GRUPOS.map(g => {
       const scs = d.scorecards.filter(s => s.grupo === g.id);
       if (!scs.length) return '';
@@ -129,11 +135,11 @@ function scCard(s) {
       </div>
     </div>
     <div style="overflow-x:auto;margin-top:8px">
-      <table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:560px">
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:680px">
         <thead><tr class="tiny muted" style="text-align:left">
           <th style="padding:4px 6px;width:22px"></th><th style="padding:4px 6px">Indicador</th>
           <th style="padding:4px 6px;text-align:right">Realizado</th><th style="padding:4px 6px;text-align:right">Meta</th>
-          <th style="padding:4px 6px;width:150px">Atingimento</th></tr></thead>
+          <th style="padding:4px 6px;width:150px">Atingimento</th><th style="padding:4px 6px;width:110px">12 meses</th></tr></thead>
         <tbody>${s.indicadores.map(linha).join('')}</tbody>
       </table>
     </div>
@@ -166,10 +172,74 @@ function linha(i) {
     <td style="padding:6px;text-align:right;white-space:nowrap">${valor}</td>
     <td style="padding:6px;text-align:right;white-space:nowrap">${meta}</td>
     <td style="padding:6px">${ating}</td>
+    <td style="padding:6px">${spark(i)}</td>
   </tr>`;
 }
 
+/* ─── histórico (v88.30) ─────────────────────────────────────────────── */
+const corSaude = v => v == null ? FAROL.cinza.cor : v >= 80 ? FAROL.verde.cor : v >= 55 ? FAROL.amarelo.cor : FAROL.vermelho.cor;
+const TIPO = { final: ['✓', 'fechado no dia 1º'], parcial: ['◐', 'mês em andamento'], reconstruido: ['↺', 'reconstruído depois (fotos do mês ficam em branco)'] };
+
+function evolucaoHTML() {
+  const h = _h;
+  if (!h || !h.meses) return '';
+  const visiveis = new Set((_d.scorecards || []).map(s => s.id));
+  const scs = (h.scorecards || []).filter(s => visiveis.has(s.id));
+  const falt = (h.faltando || []).length;
+  return `<div class="card mt-3" style="padding:12px">
+    <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div><div style="font-weight:800">📈 Evolução — saúde de cada placar mês a mês</div>
+        <div class="tiny muted">✓ fechado no dia 1º · ◐ mês em andamento · ↺ reconstruído depois (indicadores de foto — carteira, pipeline, corretores — só existem a partir do registro)</div></div>
+      ${falt && socio() ? `<button class="btn btn-ghost" id="sc-completar">↺ Completar histórico (${falt} ${falt === 1 ? 'mês' : 'meses'})</button>` : ''}
+    </div>
+    <div id="sc-completar-status" class="tiny muted"></div>
+    <div style="overflow-x:auto;margin-top:8px">
+      <table style="border-collapse:collapse;font-size:12px;min-width:640px;width:100%">
+        <thead><tr class="tiny muted"><th style="text-align:left;padding:4px 6px">Placar</th>
+          ${h.meses.map(ym => { const t = TIPO[(h.registros[ym] || {}).tipo]; return `<th style="padding:4px;text-align:center" title="${t ? t[1] : 'sem registro'}">${nomeMes(ym).replace('/20', '/')}${t ? ' ' + t[0] : ''}</th>`; }).join('')}
+        </tr></thead>
+        <tbody>${scs.map(s => `<tr style="border-top:1px solid var(--border)">
+          <td style="padding:4px 6px;white-space:nowrap;font-weight:600">${s.ico} ${esc(s.nome)}</td>
+          ${(h.saude[s.id] || []).map(v => `<td style="padding:3px;text-align:center"><div style="border-radius:6px;padding:4px 0;font-weight:800;background:${v == null ? 'var(--bg-3)' : corSaude(v) + '26'};color:${corSaude(v)}">${v == null ? '·' : v}</div></td>`).join('')}
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function spark(i) {
+  const ser = (_h && _h.series && _h.series[i.id]) || [];
+  const pts = ser.map((x, k) => ({ k, v: x && x[0] != null ? Number(x[0]) : null, f: x && x[2] })).filter(p => p.v != null && isFinite(p.v));
+  if (pts.length < 2) return '<span class="tiny muted">' + (pts.length ? '1 mês' : '—') + '</span>';
+  const W = 84, H = 22, n = ser.length - 1 || 1;
+  const vs = pts.map(p => p.v), lo = Math.min(...vs), hi = Math.max(...vs), rg = hi - lo || 1;
+  const xy = p => [(p.k / n * (W - 4) + 2).toFixed(1), (H - 3 - (p.v - lo) / rg * (H - 6)).toFixed(1)];
+  const ult = pts[pts.length - 1], pen = pts[pts.length - 2];
+  const cor = (FAROL[ult.f] || FAROL.info).cor;
+  const bom = i.dir === 'menor' ? ult.v < pen.v : ult.v > pen.v;
+  const dlt = pen.v ? Math.round((ult.v - pen.v) / Math.abs(pen.v) * 100) : null;
+  const [lx, ly] = xy(ult);
+  return `<div class="flex gap-1" style="align-items:center" title="${pts.length} meses registrados">
+    <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><polyline fill="none" stroke="${cor}" stroke-width="1.6" stroke-linejoin="round" points="${pts.map(p => xy(p).join(',')).join(' ')}"/><circle cx="${lx}" cy="${ly}" r="2.4" fill="${cor}"/></svg>
+    ${dlt != null && ult.v !== pen.v ? `<span class="tiny" style="color:${bom ? FAROL.verde.cor : FAROL.vermelho.cor};font-weight:700">${ult.v > pen.v ? '▲' : '▼'}${Math.abs(dlt)}%</span>` : ''}
+  </div>`;
+}
+
+async function completarHistorico() {
+  const falt = (_h && _h.faltando) || [];
+  const st = document.getElementById('sc-completar-status');
+  const btn = document.getElementById('sc-completar');
+  if (btn) btn.disabled = true;
+  for (let k = 0; k < falt.length; k++) {
+    if (st) st.textContent = `↺ Reconstruindo ${nomeMes(falt[k])} (${k + 1}/${falt.length}) — cada mês leva alguns segundos…`;
+    try { await api.request(`/api/v3/diretoria/scorecard?ym=${falt[k]}`); }
+    catch (e) { if (st) st.textContent = `Falhou em ${nomeMes(falt[k])}: ${e.message}`; if (btn) btn.disabled = false; return; }
+  }
+  await load(false);
+}
+
 async function bind(body) {
+  document.getElementById('sc-completar')?.addEventListener('click', completarHistorico);
   body.querySelectorAll('[data-goto]').forEach(a => a.addEventListener('click', () =>
     document.getElementById('sc-' + a.dataset.goto)?.scrollIntoView({ behavior: 'smooth', block: 'start' })));
   body.querySelectorAll('[data-meta]').forEach(a => a.addEventListener('click', async () => {
