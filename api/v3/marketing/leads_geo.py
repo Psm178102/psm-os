@@ -9,7 +9,10 @@ cidade/city/município/localidade · utm_campaign/campaign/ad/público). NUNCA
 inventa: lead sem cidade vai pra "Não informado" (e o front mostra o % sem
 cidade, pra ficar transparente quando o formulário não captura).
 
-Resp: { ok, period, total, com_cidade, sem_cidade,
+LEAD = só negócio de origem tráfego pago (Dicionário §2, v88.18); o resto é
+prospecção e fica de fora (contado em prospeccao_excluida).
+
+Resp: { ok, period, total, com_cidade, sem_cidade, lead_rule, prospeccao_excluida,
         rio_preto, outras, pct_outras,
         by_city:[{cidade, leads, pct, is_rio_preto}],
         by_campaign:[{campanha, leads, rio_preto, outras, pct_outras, alerta}],
@@ -29,7 +32,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
 # Classificador de marca CANÔNICO (regex config-driven via brand_rules) — o
 # MESMO usado na atribuição/CRM, pra a marca aqui bater com o resto do sistema.
-from crm_metrics import _load_brand_rules, _classify, BRAND_LABEL  # type: ignore
+from crm_metrics import _load_brand_rules, _classify, BRAND_LABEL, _source  # type: ignore
 
 THRESHOLD = 30.0      # alerta quando > 30% dos leads NÃO são de Rio Preto
 MIN_LEADS_ALERT = 5   # só alerta campanha com pelo menos N leads (evita ruído)
@@ -200,16 +203,32 @@ class handler(BaseHTTPRequestHandler):
         rio_preto = 0
         outras = 0
 
+        # v88.18 (Paulo, 23/09 — Dicionário §2): LEAD é SÓ o que veio de tráfego
+        # pago; qualquer outra origem é prospecção. Mesmo classificador do
+        # crm_metrics ("Leads de tráfego pago"). Dicionário indisponível → conta
+        # tudo e sinaliza (lead_rule="todos") em vez de zerar o painel.
+        try:
+            import _metricas_lib as MX  # type: ignore
+            _mapa = MX.mapa_origens(sb)
+            _eh_lead = lambda src: MX.origem_categoria(src, _mapa)[0] in MX.LEAD_CATS
+        except Exception as e:
+            print(f"[leads_geo] dicionário de origens indisponível: {e}")
+            _eh_lead = None
+        prospeccao = 0
+
         for d in rows:
             bkey = _brand_key(d.get("pipeline_name"))
             if brands_filter and bkey not in brands_filter:
                 continue  # fora da(s) marca(s) selecionada(s) no filtro de contas
-            marca = brand_labels.get(bkey, bkey)
-            total += 1
             raw = d.get("rd_raw") or {}
             if isinstance(raw, str):
                 try: raw = json.loads(raw)
                 except Exception: raw = {}
+            if _eh_lead and not _eh_lead(_source(raw)):
+                prospeccao += 1
+                continue  # origem ≠ tráfego pago → prospecção, não lead
+            marca = brand_labels.get(bkey, bkey)
+            total += 1
             phone = _scan(raw, PHONE_KEYS)
             ddd = _ddd(phone)
             campanha = _scan(raw, CAMP_KEYS) or (d.get("pipeline_name") or "Sem campanha")
@@ -276,6 +295,8 @@ class handler(BaseHTTPRequestHandler):
         return self._send(200, {
             "ok": True,
             "truncated": truncated,
+            "lead_rule": "trafego_pago" if _eh_lead else "todos",
+            "prospeccao_excluida": prospeccao,
             "period": {"since": since_d.isoformat(), "until": until_d.isoformat()},
             "total": total, "com_cidade": com_cidade, "sem_cidade": sem_cidade,
             "rio_preto": rio_preto, "outras": outras, "pct_outras": pct_outras_global,

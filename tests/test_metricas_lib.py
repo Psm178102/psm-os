@@ -39,12 +39,21 @@ class Q:
     def in_(self, k, vals): s = set(vals); self.f.append(lambda r: r.get(k) in s); return self
 
     def or_(self, expr):
-        """PostgREST 'col.gte.valor,col2.gte.valor' (só gte/eq, o que as telas usam)."""
-        conds = []
-        for parte in expr.split(","):
+        """PostgREST 'col.gte.valor,col2.gte.valor' e grupos 'and(col.gte.a,col.lt.b),and(...)'
+        (v88.15: crm_metrics passou a limitar a janela por cima com and(); o dublê
+        antigo quebrava o and( em col/op/val e filtrava TODOS os deals → 0 vendas)."""
+        def cond(parte):
             col, op, val = parte.split(".", 2)
-            conds.append((col, op, val))
-        self.f.append(lambda r: any(((r.get(c) or "") >= v) if op == "gte" else (str(r.get(c)) == v) for c, op, v in conds))
+            if op == "gte":
+                return lambda r: (r.get(col) or "") >= val
+            if op == "lt":
+                return lambda r: r.get(col) is not None and str(r.get(col)) < val
+            return lambda r: str(r.get(col)) == val
+        grupos = []
+        for g in re.findall(r"and\(([^)]*)\)|([^,()]+)", expr):
+            partes = g[0].split(",") if g[0] else [g[1]]
+            grupos.append([cond(x.strip()) for x in partes if x.strip()])
+        self.f.append(lambda r: any(all(fn(r) for fn in grp) for grp in grupos))
         return self
 
     def like(self, k, pat):

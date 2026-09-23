@@ -686,7 +686,7 @@ function leadsGeoPanel() {
     </div></div>` : '';
   return `
   <div style="background:linear-gradient(160deg,#0f172a,#111827);border:1px solid rgba(255,255,255,0.07);border-radius:18px;padding:18px;color:#e2e8f0;margin-bottom:16px">
-    <div style="font-size:15px;font-weight:800;color:#fff">📍 Leads por Região (DDD do telefone)</div>
+    <div style="font-size:15px;font-weight:800;color:#fff">📍 Leads por Região (DDD do telefone) <span style="font-size:11px;font-weight:600;color:#94a3b8">· só tráfego pago${g.prospeccao_excluida ? ` — ${fmtNum(g.prospeccao_excluida)} de prospecção fora` : ''}</span></div>
     <div style="font-size:11px;color:#94a3b8">região pelo DDD do telefone do lead (RD) · <b style="color:#86efac">DDD 17 = São José do Rio Preto</b> · alerta quando >${g.threshold_pct}% vêm de fora${filterTag()}</div>
     ${banner}
     ${campAlerts}

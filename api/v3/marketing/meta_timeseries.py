@@ -85,6 +85,7 @@ def _fetch_account_daily(act_id, token, since, until, timeout=30):
     url = (GRAPH_API + "/" + act_id + "/insights?level=account&time_increment=1"
            + "&fields=spend,impressions,reach,clicks,actions&limit=500"
            + "&time_range=" + urllib.parse.quote(tr)
+           + "&action_report_time=conversion"   # v88.19: dia da conversão (= RD)
            + "&access_token=" + urllib.parse.quote(token))
     out, pages = [], 0
     while url and pages < 10:
@@ -101,6 +102,7 @@ def _fetch_account_total(act_id, token, since, until, timeout=30):
     url = (GRAPH_API + "/" + act_id + "/insights?level=account"
            + "&fields=spend,impressions,reach,clicks,actions"
            + "&time_range=" + urllib.parse.quote(tr)
+           + "&action_report_time=conversion"   # v88.19: dia da conversão (= RD)
            + "&access_token=" + urllib.parse.quote(token))
     req = urllib.request.Request(url, headers={
         "Accept": "application/json", "User-Agent": "PSM-OS-v3/meta-timeseries"})

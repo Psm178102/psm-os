@@ -34,6 +34,9 @@ async function fetchAccountOverrides(force) {
   } catch (_) { return null; }
 }
 
+// v88.19 — action_report_time=conversion nos insights: o lead/mensagem conta no
+// DIA DA CONVERSÃO (como o RD registra), não no dia da impressão (padrão da Meta).
+// Janela de atribuição = a configurada na conta (não fixada aqui).
 // v88.11 — contagem SEM duplicidade. Na Meta, `lead` já é o TOTAL de leads
 // (formulário on-Facebook + pixel); somar `lead` + `offsite_conversion.fb_pixel_lead`
 // contava o lead de pixel 2× (CPL aparecia pela metade). Idem `purchase`.
@@ -119,11 +122,13 @@ async function processAccount(actId, actLabel, actToken, dateParams, includeArch
     + 'video_play_actions'
     + '&level=campaign'
     + '&limit=100'
+    + '&action_report_time=conversion'   // v88.19: lead no dia da conversão (= RD)
     + '&access_token=' + actToken
     + dateParams;
 
   var acctInsUrl = GRAPH_API + '/' + actId + '/insights'
     + '?fields=spend,impressions,reach,frequency,clicks,actions,action_values'
+    + '&action_report_time=conversion'
     + '&access_token=' + actToken
     + dateParams;
 
