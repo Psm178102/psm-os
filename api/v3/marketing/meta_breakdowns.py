@@ -1,6 +1,6 @@
 """
 GET /api/v3/marketing/meta_breakdowns?breakdown=age[,gender]&date_preset=last_30d
-    [&since=YYYY-MM-DD&until=YYYY-MM-DD][&nocache=1]
+    [&since=YYYY-MM-DD&until=YYYY-MM-DD][&accounts=act_1,act_2][&nocache=1]
 Header: Authorization: Bearer <token>   (Líder lvl>=5)
 
 Insights do Meta quebrados por dimensão (idade, gênero, posicionamento,
@@ -48,15 +48,32 @@ def _env_list(name):
     return [s.strip() for s in (os.environ.get(name, "") or "").split(",") if s.strip()]
 
 
-def _results_from_actions(actions):
-    total = 0
+_LEAD_PARTS = {"offsite_conversion.fb_pixel_lead", "onsite_conversion.lead_grouped"}
+
+
+def _count(actions, types):
+    """Soma as actions de `types`. v88.11: `lead` já é o TOTAL de leads na Meta
+    (formulário + pixel) — se veio, as partes (fb_pixel_lead/lead_grouped) são
+    ignoradas; antes lead + fb_pixel_lead contava o lead de pixel 2×."""
+    types = set(types)
+    has_agg = "lead" in types and any(a.get("action_type") == "lead" for a in (actions or []))
+    t = 0
     for a in (actions or []):
-        if a.get("action_type") in _LEAD_ACTIONS:
-            try:
-                total += int(float(a.get("value") or 0))
-            except Exception:
-                pass
-    return total
+        at = a.get("action_type")
+        if at in _LEAD_PARTS and "lead" in types:
+            if has_agg:
+                continue
+        elif at not in types:
+            continue
+        try:
+            t += int(float(a.get("value") or 0))
+        except Exception:
+            pass
+    return t
+
+
+def _results_from_actions(actions):
+    return _count(actions, _LEAD_ACTIONS)
 
 
 def _fetch_account(act_id, token, bd_keys, date_params, timeout=30):
@@ -132,7 +149,10 @@ class handler(BaseHTTPRequestHandler):
         since = params.get("since") or ""
         until = params.get("until") or ""
         nocache = bool(params.get("nocache"))
-        key = "bd:" + ",".join(bd_keys) + "|" + build_cache_key(preset, since, until)
+        # v88.11: filtro de conta(s) (o cockpit mandava todas mesmo com 1 selecionada)
+        sel = sorted([x.strip() for x in (params.get("accounts") or "").split(",") if x.strip()])
+        key = ("bd:" + ",".join(bd_keys) + "|" + ((",".join(sel) + ":") if sel else "")
+               + build_cache_key(preset, since, until))
 
         sb = supabase_client()
         if sb and not nocache:
@@ -157,6 +177,8 @@ class handler(BaseHTTPRequestHandler):
         errors = []
         tot = {"spend": 0.0, "impressions": 0, "clicks": 0, "results": 0}
         for i, act_id in enumerate(account_ids):
+            if sel and act_id not in sel:
+                continue
             label = labels[i] if i < len(labels) and labels[i] else act_id
             act_token = tokens[i] if i < len(tokens) and tokens[i] else token
             try:

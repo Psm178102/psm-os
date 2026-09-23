@@ -34,6 +34,35 @@ async function fetchAccountOverrides(force) {
   } catch (_) { return null; }
 }
 
+// v88.11 — contagem SEM duplicidade. Na Meta, `lead` já é o TOTAL de leads
+// (formulário on-Facebook + pixel); somar `lead` + `offsite_conversion.fb_pixel_lead`
+// contava o lead de pixel 2× (CPL aparecia pela metade). Idem `purchase`.
+// Regra: usa o agregado se existir; senão soma as partes.
+var MSG_ACTION = 'onsite_conversion.messaging_conversation_started_7d';
+function pickAgg(list, aggType, partTypes, parse) {
+  var agg = null, parts = 0;
+  (list || []).forEach(function(a) {
+    if (a.action_type === aggType) agg = (agg || 0) + parse(a.value || 0);
+    else if (partTypes.indexOf(a.action_type) >= 0) parts += parse(a.value || 0);
+  });
+  return agg != null ? agg : parts;
+}
+function countLeads(actions) {
+  return pickAgg(actions, 'lead', ['offsite_conversion.fb_pixel_lead', 'onsite_conversion.lead_grouped'], parseInt);
+}
+function countPurchases(actions) {
+  return pickAgg(actions, 'purchase', ['offsite_conversion.fb_pixel_purchase'], parseInt);
+}
+function countMessages(actions) {
+  return pickAgg(actions, MSG_ACTION, [], parseInt);
+}
+function leadValueOf(values) {
+  return pickAgg(values, 'lead', ['offsite_conversion.fb_pixel_lead', 'onsite_conversion.lead_grouped'], parseFloat);
+}
+function purchaseValueOf(values) {
+  return pickAgg(values, 'purchase', ['offsite_conversion.fb_pixel_purchase'], parseFloat);
+}
+
 // Timeout helper: fetch com AbortController
 function fetchWithTimeout(url, ms) {
   ms = ms || 25000;
@@ -132,16 +161,10 @@ async function processAccount(actId, actLabel, actToken, dateParams, includeArch
 
   // Calcular results/cpl agregados da conta — MENSAGENS separadas de LEADS
   var acctActions = acctIns.actions || [];
-  var acctMessages = 0, acctLeads = 0;
   // v86.68: conta SÓ conversation_started_7d (first_reply é subconjunto → somava 2×)
-  acctActions.forEach(function(a){
-    if (a.action_type === 'onsite_conversion.messaging_conversation_started_7d') {
-      acctMessages += parseInt(a.value || 0);
-    } else if (a.action_type === 'lead' ||
-        a.action_type === 'offsite_conversion.fb_pixel_lead') {
-      acctLeads += parseInt(a.value || 0);
-    }
-  });
+  // v88.11: leads sem duplicidade lead × fb_pixel_lead
+  var acctMessages = countMessages(acctActions);
+  var acctLeads = countLeads(acctActions);
   accountTotal.messages = acctMessages;
   accountTotal.leads = acctLeads;
   var acctResults = acctMessages + acctLeads;
@@ -153,12 +176,7 @@ async function processAccount(actId, actLabel, actToken, dateParams, includeArch
   accountTotal.cpm = (accountTotal.impressions > 0) ? ((accountTotal.spend / accountTotal.impressions) * 1000) : 0;
   accountTotal.cpc = (accountTotal.clicks > 0) ? (accountTotal.spend / accountTotal.clicks) : 0;
   // v75.9: agrega ROAS da conta a partir dos action_values
-  var acctPurchVal = 0;
-  (acctIns.action_values || []).forEach(function(av){
-    if (av.action_type === 'purchase' || av.action_type === 'offsite_conversion.fb_pixel_purchase') {
-      acctPurchVal += parseFloat(av.value || 0);
-    }
-  });
+  var acctPurchVal = purchaseValueOf(acctIns.action_values);
   accountTotal.purchaseValue = acctPurchVal;
   accountTotal.roas = (accountTotal.spend > 0 && acctPurchVal > 0) ? (acctPurchVal / accountTotal.spend) : 0;
 
@@ -179,24 +197,12 @@ async function processAccount(actId, actLabel, actToken, dateParams, includeArch
     var cpc = clicks > 0 ? (spend / clicks) : 0;
 
     // Results: MENSAGENS separadas de LEADS
-    var results = 0, messages = 0, leads = 0;
-    var tipo = 'leadgen';
-    var purchases = 0;
     var actions = ins.actions || [];
-    actions.forEach(function(a) {
-      if (a.action_type === 'onsite_conversion.messaging_conversation_started_7d') {
-        messages += parseInt(a.value || 0);
-        results += parseInt(a.value || 0);
-        tipo = 'whatsapp';
-      }
-      if (a.action_type === 'lead' || a.action_type === 'offsite_conversion.fb_pixel_lead') {
-        leads += parseInt(a.value || 0);
-        results += parseInt(a.value || 0);
-      }
-      if (a.action_type === 'purchase' || a.action_type === 'offsite_conversion.fb_pixel_purchase') {
-        purchases += parseInt(a.value || 0);
-      }
-    });
+    var messages = countMessages(actions);
+    var leads = countLeads(actions);      // v88.11: sem duplicidade lead × pixel
+    var results = messages + leads;
+    var purchases = countPurchases(actions);
+    var tipo = actions.some(function(a){ return a.action_type === MSG_ACTION; }) ? 'whatsapp' : 'leadgen';
 
     // v76.30: Engajamento + tráfego detalhado (extraído do array actions; sem campos novos)
     var reactions = 0, comments = 0, shares = 0, saves = 0, postEng = 0, pageEng = 0, lpViews = 0, outbound = 0, linkClickAct = 0;
@@ -218,19 +224,9 @@ async function processAccount(actId, actLabel, actToken, dateParams, includeArch
     var linkCpc = inlineLinkClicks > 0 ? (spend / inlineLinkClicks) : 0;
     var costPerEngagement = postEng > 0 ? (spend / postEng) : 0;
     var costPerLike = reactions > 0 ? (spend / reactions) : 0;
-    var leadValue = 0;
-    (ins.action_values || []).forEach(function(av) {
-      if (av.action_type === 'lead' || av.action_type === 'offsite_conversion.fb_pixel_lead') leadValue += parseFloat(av.value || 0);
-    });
-
-    // v75.9: ROAS — soma valor de purchases via action_values, dividido por spend
-    var purchaseValue = 0;
-    var actionValues = ins.action_values || [];
-    actionValues.forEach(function(av){
-      if (av.action_type === 'purchase' || av.action_type === 'offsite_conversion.fb_pixel_purchase') {
-        purchaseValue += parseFloat(av.value || 0);
-      }
-    });
+    var leadValue = leadValueOf(ins.action_values);
+    // v75.9: ROAS — valor de purchases via action_values ÷ spend (v88.11: sem duplicidade)
+    var purchaseValue = purchaseValueOf(ins.action_values);
     var roas = (spend > 0 && purchaseValue > 0) ? (purchaseValue / spend) : 0;
 
     // v86.68: CPR = spend/results SEMPRE (cost_per_action_type pegava o custo do
@@ -347,16 +343,25 @@ async function processAccount(actId, actLabel, actToken, dateParams, includeArch
 
 // v75.26: Action handler — pausar/retomar campanha, ajustar budget
 // POST /api/meta-ads { action: 'pause'|'resume'|'adjust_budget', campaign_id, value? }
+// v88.11 — token da CONTA da campanha (conta com token próprio em
+// META_AD_ACCOUNT_TOKENS falhava com erro de permissão ao pausar).
+function tokenForAccount(accountId) {
+  var ids = (process.env.META_AD_ACCOUNT_IDS || '').split(',').map(function(s){ return s.trim(); });
+  var toks = (process.env.META_AD_ACCOUNT_TOKENS || '').split(',').map(function(s){ return s.trim(); });
+  var i = accountId ? ids.indexOf(accountId) : -1;
+  return (i >= 0 && toks[i]) ? toks[i] : process.env.META_ACCESS_TOKEN;
+}
+
 async function executeAction(body) {
   var action = body.action || '';
-  var campaignId = body.campaign_id || '';
+  var campaignId = String(body.campaign_id || '');
   var value = body.value;
-  if (!campaignId) throw new Error('campaign_id obrigatorio');
-  var token = process.env.META_ACCESS_TOKEN;
+  if (!/^\d{5,25}$/.test(campaignId)) throw new Error('campaign_id obrigatorio (numérico)');
+  var token = tokenForAccount(String(body.account_id || ''));
   if (!token) throw new Error('META_ACCESS_TOKEN nao configurado');
 
-  // Endpoint base
-  var baseUrl = 'https://graph.facebook.com/v22.0/' + encodeURIComponent(campaignId);
+  // Endpoint base (v88.11: mesma versão Graph das leituras)
+  var baseUrl = GRAPH_API + '/' + encodeURIComponent(campaignId);
 
   if (action === 'pause' || action === 'resume') {
     var newStatus = action === 'pause' ? 'PAUSED' : 'ACTIVE';
@@ -397,25 +402,18 @@ function fetchWithTimeoutOpts(url, ms, opts) {
 // de todas as contas pra QUALQUER pessoa com a URL (aberto desde a v75.7; achado
 // em 10/ago ao ligar o tráfego automático). Aceita: JWT de usuário logado
 // (mesmo HS256/JWT_SECRET do backend v3) OU o CRON_SECRET (chamadas internas).
+// v88.11 — SÓ chamada interna (CRON_SECRET). Antes qualquer JWT válido (até
+// corretor lvl 2 ou usuário recém-desativado) lia o gasto de todas as contas e
+// PAUSAVA/mudava orçamento de campanha. Usuários passam pelos endpoints v3:
+// leitura → /api/v3/marketing/summary (lvl≥5 via cache);
+// ação    → /api/v3/marketing/campaign_action (lvl≥5, usuário ativo, audit_log).
 function metaAuthorized(req) {
   var h = (req.headers && (req.headers.authorization || req.headers.Authorization)) || '';
   var tok = String(h).replace(/^Bearer\s+/i, '').trim();
-  if (!tok) return false;
   var cs = (process.env.CRON_SECRET || '').trim();
-  if (cs && tok === cs) return true;
-  var sec = (process.env.JWT_SECRET || '').trim();
-  if (!sec) return false;                    // sem secret configurado → nega (fail closed)
-  var p = tok.split('.');
-  if (p.length !== 3) return false;
+  if (!tok || !cs || tok.length !== cs.length) return false;
   try {
-    var crypto = require('crypto');
-    var sig = crypto.createHmac('sha256', sec).update(p[0] + '.' + p[1]).digest('base64')
-      .replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
-    var a = Buffer.from(sig), b = Buffer.from(p[2]);
-    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return false;
-    var payload = JSON.parse(Buffer.from(p[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'));
-    if (payload.exp && Date.now() / 1000 > payload.exp) return false;
-    return true;
+    return require('crypto').timingSafeEqual(Buffer.from(tok), Buffer.from(cs));
   } catch (_) { return false; }
 }
 

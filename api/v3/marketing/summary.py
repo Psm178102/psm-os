@@ -76,7 +76,18 @@ class handler(BaseHTTPRequestHandler):
                 return self._send(200, payload)
 
         # 2) Miss/velho → busca live no /api/meta-ads e faz write-through.
-        data, err = fetch_live(host, preset, since, until, nocache=nocache)
+        # v88.11: no miss vai SEMPRE ao vivo (nocache no Node) — antes podia pegar o
+        # cache em memória de 5min do Node e gravá-lo aqui como "fresco" (dado de
+        # ~20min com age_s=0). O cache compartilhado deste endpoint já segura a carga.
+        data, err = fetch_live(host, preset, since, until, nocache=True)
+        # v88.11: TODAS as contas falharam (token expirado etc.) → o Node responde 200
+        # com accounts:[] — tratar como erro (serve o último dado bom, avisando),
+        # em vez de mostrar "R$ 0 investido".
+        if not err and isinstance(data, dict) and not (data.get("accounts") or []) and (data.get("errors") or []):
+            err = "todas as contas Meta falharam: " + "; ".join(
+                str((e or {}).get("label") or "") + " — " + str((e or {}).get("error") or "")[:80]
+                for e in (data.get("errors") or [])[:3])
+            data = None
         if err or not isinstance(data, dict):
             # Último recurso: serve cache vencido se existir (degradação graciosa).
             if sb:

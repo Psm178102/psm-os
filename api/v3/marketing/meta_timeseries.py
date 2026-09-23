@@ -37,14 +37,27 @@ def _env_list(name):
     return [s.strip() for s in (os.environ.get(name, "") or "").split(",") if s.strip()]
 
 
+_LEAD_PARTS = {"offsite_conversion.fb_pixel_lead", "onsite_conversion.lead_grouped"}
+
+
 def _count(actions, types):
+    """Soma as actions de `types`. v88.11: `lead` já é o TOTAL de leads na Meta
+    (formulário + pixel) — se veio, as partes (fb_pixel_lead/lead_grouped) são
+    ignoradas; antes lead + fb_pixel_lead contava o lead de pixel 2×."""
+    types = set(types)
+    has_agg = "lead" in types and any(a.get("action_type") == "lead" for a in (actions or []))
     t = 0
     for a in (actions or []):
-        if a.get("action_type") in types:
-            try:
-                t += int(float(a.get("value") or 0))
-            except Exception:
-                pass
+        at = a.get("action_type")
+        if at in _LEAD_PARTS and "lead" in types:
+            if has_agg:
+                continue
+        elif at not in types:
+            continue
+        try:
+            t += int(float(a.get("value") or 0))
+        except Exception:
+            pass
     return t
 
 

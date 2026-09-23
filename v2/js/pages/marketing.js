@@ -35,7 +35,10 @@ const TABS = [
 ];
 
 const TH_KEY = 'psm.v2.ads_thresholds';
-const DEFAULT_TH = { cpl: 80, freq: 3.0, ctr: 1.0, gasto: 30 };
+// v88.11: CPL-alvo POR MARCA (antes: R$ 80 global nos alertas × alvo por marca no
+// semáforo → a mesma campanha saía "CPL alto" e "Escalar" ao mesmo tempo).
+const DEFAULT_TH = { cpl_conquista: 25, cpl_imoveis: 150, cpl_locacao: 60, freq: 3.0, ctr: 1.0, gasto: 30 };
+const AUTO_MS = 120000;   // v88.11: tempo real de verdade (nocache) a cada 2 min
 
 let _root = null, _data = null, _crm = null, _crmErr = null;
 let _preset = 'last_30d';
@@ -49,6 +52,10 @@ let _ts = null, _tsBusy = false, _charts = [], _chartLibP = null;
 // Filtros: período custom (since/until) + contas selecionadas (vazio = todas)
 let _since = '', _until = '', _accSel = [];
 let _nocacheOnce = false;   // v84.87 — 1 reload sem cache após mexer nas contas
+// v88.11: sequência por tipo de requisição — resposta velha (período/conta
+// anterior) que chega depois da nova é descartada, não sobrescreve.
+let _reqSeq = 0, _tsSeq = 0, _bdSeq = 0;
+let _refreshErr = null;     // falha no refresh silencioso: mantém o dado e avisa
 // Modo TV / tela cheia (overlay fullscreen + rotação automática das abas)
 let _tv = false, _tvRotate = true, _tvTimer = null, _tvDataTimer = null;
 // Leads por cidade + alerta de % fora de Rio Preto (fonte: deals/RD)
@@ -70,9 +77,19 @@ let _th = loadTh();
 // 1 conta Meta = 1 marca. Classifica pelo rótulo da conta + metas por segmento.
 function brandInfo(label) {
   const s = (label || '').toLowerCase();
-  if (/conquista|mcmv|minha casa|1º|primeiro/.test(s)) return { key: 'conquista', brand: 'PSM Conquista', sub: 'MCMV / 1º Imóvel', cor: '#16a34a', cplAlvo: 25 };
-  if (/loca|aluguel|locaç/.test(s))                    return { key: 'locacao',   brand: 'Locação',       sub: 'Aluguel & Adm',  cor: '#d97706', cplAlvo: 60 };
-  return { key: 'imoveis', brand: 'PSM Imóveis', sub: 'Médio / Alto Padrão', cor: '#7c3aed', cplAlvo: 150 };
+  if (/conquista|mcmv|minha casa|1º|primeiro/.test(s)) return { key: 'conquista', brand: 'PSM Conquista', sub: 'MCMV / 1º Imóvel', cor: '#16a34a', cplAlvo: _th.cpl_conquista };
+  if (/loca|aluguel|locaç/.test(s))                    return { key: 'locacao',   brand: 'Locação',       sub: 'Aluguel & Adm',  cor: '#d97706', cplAlvo: _th.cpl_locacao };
+  return { key: 'imoveis', brand: 'PSM Imóveis', sub: 'Médio / Alto Padrão', cor: '#7c3aed', cplAlvo: _th.cpl_imoveis };
+}
+// CPL-alvo da campanha = alvo da marca da conta (fonte única p/ alertas + semáforo)
+function cplTarget(c) { return brandInfo(c.account).cplAlvo; }
+// Meta de CPL de um conjunto de contas = média dos alvos ponderada pelo gasto
+function cplTargetAccounts(accounts) {
+  let sp = 0, w = 0;
+  (accounts || []).forEach(a => { const s = a.spend || 0; sp += s; w += s * brandInfo(a.label || a.id).cplAlvo; });
+  if (sp > 0) return w / sp;
+  const a0 = (accounts || [])[0];
+  return a0 ? brandInfo(a0.label || a0.id).cplAlvo : _th.cpl_imoveis;
 }
 
 export async function pageMarketing(ctx, root) {
@@ -82,8 +99,9 @@ export async function pageMarketing(ctx, root) {
   // rodando e "carimbando" o conteúdo de outras páginas.
   router.onCleanup(() => {
     stopAuto();
-    if (_tvTimer) { clearInterval(_tvTimer); _tvTimer = null; }
-    if (_tvDataTimer) { clearInterval(_tvDataTimer); _tvDataTimer = null; }
+    // v88.11: sai do TV por completo (overlay, timers, teclado) e solta os charts
+    if (_tv) exitTV(true);
+    destroyCharts();
   });
   if ((auth.user()?.lvl || 0) < 5) { root.innerHTML = '<div class="alert alert-warn">🔒 Requer Líder (lvl ≥ 5).</div>'; return; }
   await reload();
@@ -96,9 +114,11 @@ function startAuto() {
   if (!_auto) return;
   _timer = setInterval(() => {
     if (!_root || !document.body.contains(_root) || !location.hash.startsWith('#/marketing')) { stopAuto(); return; }
-    if (!_busy) reload(true);
-  }, 60000);
+    // v88.11: "tempo real" busca AO VIVO (nocache) — antes relia o cache de 15min
+    if (!_busy) { _nocacheOnce = true; reload(true); }
+  }, AUTO_MS);
 }
+function destroyCharts() { _charts.forEach(c => { try { c.destroy(); } catch (_) {} }); _charts = []; }
 
 // v86.68: query-string do período — fonte única (reload, breakdown, série…)
 function periodQuery() {
@@ -107,52 +127,84 @@ function periodQuery() {
     : ('?date_preset=' + encodeURIComponent(_preset));
 }
 
+// Chave do "recorte" atual (período + contas). Mudou → breakdown/série antigos
+// não valem mais; igual (refresh do mesmo recorte) → mantém o que o gestor abriu.
+let _viewKey = '';
+function viewKey() { return periodQuery() + '|' + _accSel.slice().sort().join(','); }
+// Recorte mudou: zera série/breakdown E invalida as requisições em voo delas
+// (senão uma série do recorte antigo chegava depois e ocupava o lugar da nova).
+function invalidateView() {
+  _viewKey = viewKey();
+  _ts = null; _bd = null; _tsBusy = false; _bdBusy = false;
+  _tsSeq++; _bdSeq++;
+}
+
 async function reload(silent) {
   if (!_root) return;
+  const seq = ++_reqSeq;
   _busy = true;
   if (!silent) _root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando Meta Ads + CRM…</div></div>';
+  let qp = periodQuery();
+  const nocache = _nocacheOnce;
+  if (_nocacheOnce) { qp += '&nocache=1'; _nocacheOnce = false; }
   try {
-    let qp = periodQuery();
-    if (_nocacheOnce) { qp += '&nocache=1'; _nocacheOnce = false; }
     // Filtro de conta(s) Meta → marca(s): o CRM/Leads do RD respeitam a seleção
     // da toolbar (a conta resolve até a marca, pois o lead RD não traz a conta).
     const bk = selectedBrandKeys();
     const bq = bk.length ? '&brands=' + encodeURIComponent(bk.join(',')) : '';
-    _bd = null; _ts = null;  // breakdown/série dependem do período; invalida ao recarregar
     const [meta, crm, goog, geo, lc] = await Promise.allSettled([
       api.request('/api/v3/marketing/summary' + qp),
       api.request('/api/v3/marketing/crm_metrics' + qp + bq),
       api.request('/api/v3/marketing/google_ads' + qp),
       api.request('/api/v3/marketing/leads_geo' + qp + bq),
-      api.request('/api/v3/marketing/leads_creative' + qp),
+      api.request('/api/v3/marketing/leads_creative' + qp + bq),
     ]);
+    if (seq !== _reqSeq) return;   // v88.11: chegou resposta de um recorte antigo → descarta
     if (meta.status === 'fulfilled') _data = meta.value; else throw meta.reason;
     if (crm.status === 'fulfilled' && crm.value?.ok) { _crm = crm.value; _crmErr = null; }
     else { _crm = null; _crmErr = (crm.reason?.message) || (crm.value?.error) || 'CRM indisponível'; }
     _google = (goog.status === 'fulfilled') ? goog.value : { ok: false, error: goog.reason?.message };
     _geo = (geo.status === 'fulfilled' && geo.value?.ok) ? geo.value : null;
     _leadsCreative = (lc.status === 'fulfilled' && lc.value?.ok) ? lc.value : null;
-    if (_tv) renderTV(); else render();
+    _refreshErr = null;
+    // Recorte mudou → invalida breakdown/série. Mesmo recorte → mantém o breakdown
+    // aberto e só refaz a série (sem ela sumir da tela no meio do refresh).
+    const vk = viewKey();
+    if (vk !== _viewKey) invalidateView();
+    else if (nocache) { loadTimeseries(true); }
+    if (_tv) renderTV(); else render(silent);
   } catch (e) {
+    if (seq !== _reqSeq) return;
+    // v88.11: refresh silencioso com dado na tela → mantém o dado e avisa (antes
+    // a página inteira — ou o TV — virava tela de erro por uma falha de rede)
+    if (silent && _data) {
+      _refreshErr = { msg: e.message, at: new Date() };
+      if (_tv) renderTV(); else render(true);
+      return;
+    }
     _root.innerHTML = `<div class="alert alert-err">Erro ao consultar Meta: ${escapeHtml(e.message)}</div>
       <div class="mt-2"><button class="btn btn-primary" id="ma-retry">🔄 Tentar de novo</button></div>`;
     document.getElementById('ma-retry')?.addEventListener('click', () => reload());
-  } finally { _busy = false; }
+  } finally { if (seq === _reqSeq) _busy = false; }
 }
 
 // Sprint 9.15: busca breakdown Meta sob demanda (não no load — só quando o gestor pede)
 async function loadBreakdown(sel) {
   _bdSel = sel || _bdSel;
-  _bdBusy = true; render();
+  const seq = ++_bdSeq;
+  _bdBusy = true; render(true);
+  let res;
   try {
-    // v86.68: respeita since/until custom (antes ignorava e mandava só o preset)
-    _bd = await api.request('/api/v3/marketing/meta_breakdowns' + periodQuery()
-      + '&breakdown=' + encodeURIComponent(_bdSel));
+    // v86.68: respeita since/until custom · v88.11: e a(s) conta(s) selecionada(s)
+    res = await api.request('/api/v3/marketing/meta_breakdowns' + periodQuery()
+      + '&breakdown=' + encodeURIComponent(_bdSel)
+      + (_accSel.length ? '&accounts=' + encodeURIComponent(_accSel.join(',')) : ''));
   } catch (e) {
-    _bd = { ok: false, error: e.message };
-  } finally {
-    _bdBusy = false; render();
+    res = { ok: false, error: e.message };
   }
+  if (seq !== _bdSeq) return;   // pediu outro breakdown/recorte no meio → descarta
+  _bd = res; _bdBusy = false;
+  if (_tv) renderTV(); else render(true);
 }
 
 function periodTotals(accounts) {
@@ -304,7 +356,7 @@ function computeAlerts(campaigns) {
   return {
     active,
     burning:   active.filter(c => (c.spend || 0) >= _th.gasto && (c.results || 0) === 0),
-    cplHigh:   active.filter(c => (c.results || 0) > 0 && (c.cpr || 0) > _th.cpl),
+    cplHigh:   active.filter(c => (c.results || 0) > 0 && (c.cpr || 0) > cplTarget(c)),
     fadiga:    active.filter(c => (c.frequency || 0) > _th.freq),
     ctrLow:    active.filter(c => (c.impressions || 0) >= 500 && (c.ctr || 0) < _th.ctr),
     qualBaixo: active.filter(c => /BELOW_AVERAGE/.test(c.qualityRanking || '')),
@@ -330,10 +382,33 @@ function staleBadge(d) {
   return ` · <span style="color:var(--err);font-weight:700" title="${escapeHtml(c.live_error || 'Meta API indisponível')}">⚠️ dado de ${escapeHtml(when)} (desatualizado)</span>`;
 }
 
-function render() {
+// v88.11: idade real do dado + falha do último refresh ao vivo
+function freshBadge(d) {
+  let s = '';
+  if (d.fetchedAt) {
+    const min = Math.max(0, Math.round((Date.now() - new Date(d.fetchedAt).getTime()) / 60000));
+    const when = new Date(d.fetchedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const cor = min < 5 ? 'var(--ok)' : min < 20 ? 'var(--warn)' : 'var(--err)';
+    s = `atualizado <strong style="color:${cor}">${when}${min >= 1 ? ` (há ${min} min)` : ''}</strong>`;
+  } else s = 'atualizado agora';
+  if (_refreshErr) s += ` · <span style="color:var(--err);font-weight:700" title="${escapeHtml(_refreshErr.msg)}">⚠️ falha ao atualizar ${_refreshErr.at.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} — mostrando o último dado</span>`;
+  return s;
+}
+
+function render(keepUi) {
   const d = _data || {};
   if (d.error) { _root.innerHTML = `<div class="alert alert-err">${escapeHtml(d.error)}</div>`; return; }
   const accounts = d.accounts || [];
+  // v88.11: preserva foco/cursor (busca de campanha perdia o foco a cada tecla),
+  // scroll e painel de limiares aberto ao re-renderizar
+  const ae = document.activeElement;
+  const focusId = ae && _root.contains(ae) ? ae.id : null;
+  const selS = focusId && ae.selectionStart != null ? ae.selectionStart : null;
+  const selE = focusId && ae.selectionEnd != null ? ae.selectionEnd : null;
+  const scrollY = window.scrollY;
+  const thOpen = document.getElementById('ma-th-panel')?.style.display === 'block';
+  destroyCharts();
+  const custom = !!(_since && _until);
 
   _root.innerHTML = `
     <div class="card">
@@ -342,7 +417,7 @@ function render() {
           <h2 class="card-title">📢 Cockpit de Tráfego · Meta Ads × CRM</h2>
           <p class="card-sub">
             ${accounts.length} conta(s) · período <strong>${escapeHtml(periodLabel(d.period))}</strong> ·
-            atualizado ${d.fetchedAt ? new Date(d.fetchedAt).toLocaleTimeString('pt-BR') : 'agora'}
+            ${freshBadge(d)}
             ${staleBadge(d)}
             ${d.partial ? ' · <span style="color:var(--warn)">⚠️ parcial</span>' : ''}
             ${_crm ? ` · <span style="color:var(--ok)">CRM ✓ ${_crm.deals_scanned} deals</span>` : ' · <span style="color:var(--warn)">CRM ⚠️</span>'}
@@ -350,10 +425,11 @@ function render() {
           </p>
         </div>
         <label class="tiny" style="display:flex;align-items:center;gap:6px;font-weight:700;cursor:pointer">
-          <input type="checkbox" id="ma-auto" ${_auto ? 'checked' : ''}> ⏱ Tempo real (60s)
+          <input type="checkbox" id="ma-auto" ${_auto ? 'checked' : ''}> ⏱ Tempo real (ao vivo a cada 2 min)
         </label>
         <select id="ma-preset" class="select" style="padding:5px 10px;font-size:12px">
-          ${PRESETS.map(p => `<option value="${p.id}"${p.id === _preset ? ' selected' : ''}>${p.lbl}</option>`).join('')}
+          ${custom ? `<option value="__custom__" selected>📅 Personalizado</option>` : ''}
+          ${PRESETS.map(p => `<option value="${p.id}"${!custom && p.id === _preset ? ' selected' : ''}>${p.lbl}</option>`).join('')}
         </select>
         <button class="btn btn-ghost" id="ma-reload" title="Atualizar">🔄</button>
         <button class="btn btn-primary" id="ma-tv-btn" title="Modo TV / Tela cheia (apresentação)">📺 TV</button>
@@ -372,6 +448,12 @@ function render() {
     </div>
   `;
   wire();
+  if (thOpen) document.getElementById('ma-th')?.click();
+  if (focusId) {
+    const el = document.getElementById(focusId);
+    if (el) { el.focus(); try { if (selS != null) el.setSelectionRange(selS, selE); } catch (_) {} }
+  }
+  if (keepUi) window.scrollTo(0, scrollY);
 }
 
 function tabBody() {
@@ -388,18 +470,17 @@ function tabBody() {
 /* 🚨 Faixa de alertas com AÇÃO (v86.16) — os mesmos limiares da Central de
    Alertas, mas na cara, em qualquer aba, com o verbo do que fazer. */
 function alertStrip() {
-  const d = _data || {};
-  const al = computeAlerts(d.campaigns || []);
+  const al = computeAlerts(filteredCampaigns());   // v88.11: respeita o filtro de conta
   const nm = c => escapeHtml(String(c.name || '—').slice(0, 40));
   const pills = [];
   const mk = (bd, txt) => pills.push(`<span style="display:inline-flex;align-items:center;gap:6px;background:color-mix(in srgb, ${bd} 14%, transparent);border:1.5px solid ${bd};border-radius:999px;padding:5px 13px;font-size:13px;font-weight:800;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis">${txt}</span>`);
   al.burning.slice(0, 2).forEach(c => mk('#dc2626', `🔥 QUEIMANDO · ${nm(c)} · R$ ${money(c.spend || 0)} sem resultado → <u>PAUSAR/REVISAR JÁ</u>`));
-  al.cplHigh.slice(0, 2).forEach(c => mk('#ea580c', `💸 CPL R$ ${money(c.cpr || 0)} (teto R$ ${money(_th.cpl)}) · ${nm(c)} → otimizar público/criativo`));
+  al.cplHigh.slice(0, 2).forEach(c => mk('#ea580c', `💸 CPL R$ ${money(c.cpr || 0)} (alvo R$ ${money(cplTarget(c))}) · ${nm(c)} → otimizar público/criativo`));
   al.fadiga.slice(0, 2).forEach(c => mk('#d97706', `😵 FREQ ${(c.frequency || 0).toFixed(1)} · ${nm(c)} → TROCAR CRIATIVO`));
   al.ctrLow.slice(0, 2).forEach(c => mk('#2563eb', `📉 CTR ${pct2(c.ctr || 0)} · ${nm(c)} → gancho fraco, testar novo criativo`));
   al.qualBaixo.slice(0, 1).forEach(c => mk('#7c3aed', `🏳 QUALIDADE ABAIXO DA MÉDIA · ${nm(c)}`));
-  // oportunidade (verde): CPL dentro do teto + frequência folgada → escalar
-  al.active.filter(c => (c.results || 0) > 0 && (c.cpr || 0) <= _th.cpl && (c.frequency || 0) < 2)
+  // oportunidade (verde): mesma regra do semáforo "Escala Vertical"
+  al.active.filter(c => classifySemaforo(c) === 'vertical')
     .slice(0, 2).forEach(c => mk('#16a34a', `🚀 ESCALAR +20% · ${nm(c)} · CPL R$ ${money(c.cpr || 0)} ok, freq ${(c.frequency || 0).toFixed(1)}`));
   const total = al.burning.length + al.cplHigh.length + al.fadiga.length + al.ctrLow.length + al.qualBaixo.length;
   const mostrados = Math.min(al.burning.length, 2) + Math.min(al.cplHigh.length, 2) + Math.min(al.fadiga.length, 2) + Math.min(al.ctrLow.length, 2) + Math.min(al.qualBaixo.length, 1);
@@ -467,15 +548,16 @@ function tvTickAge() {
     <span style="opacity:.7"> · atualiza em ${fmtA(nxt)}</span>`;
 }
 
-function exitTV() {
+function exitTV(leaving) {
   _tv = false;
+  destroyCharts();
   if (_tvTimer) { clearInterval(_tvTimer); _tvTimer = null; }
   if (_tvDataTimer) { clearInterval(_tvDataTimer); _tvDataTimer = null; }
   if (_tvTickTimer) { clearInterval(_tvTickTimer); _tvTickTimer = null; }
   document.removeEventListener('keydown', tvKey);
   try { if (document.fullscreenElement) document.exitFullscreen(); } catch (_) {}
   const ov = document.getElementById('ma-tv'); if (ov) ov.remove();
-  if (_root) { _root.style.display = ''; render(); }
+  if (_root) { _root.style.display = ''; if (leaving !== true) render(); }
 }
 
 function tvStep(dir) {
@@ -494,6 +576,7 @@ function tvKey(e) {
 
 function renderTV() {
   const ov = document.getElementById('ma-tv'); if (!ov) return;
+  destroyCharts();
   const d = _data || {};
   const nAcc = (d.accounts || []).length;
   const dots = TABS.map(t => `<button class="tv-dot" data-tab="${t.id}" style="border:none;cursor:pointer;padding:7px 13px;border-radius:999px;font-weight:800;font-size:14px;background:${t.id===_tab?'#2563eb':'rgba(255,255,255,0.08)'};color:${t.id===_tab?'#fff':'#94a3b8'}">${escapeHtml(t.lbl)}</button>`).join('');
@@ -503,7 +586,7 @@ function renderTV() {
   ov.innerHTML = `
     <div style="position:sticky;top:0;z-index:5;background:rgba(11,18,32,0.94);backdrop-filter:blur(6px);border-bottom:1px solid rgba(255,255,255,0.08);padding:12px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <div style="font-size:19px;font-weight:900;color:#fff;white-space:nowrap">📺 PSM · Meta Ads</div>
-      <div style="font-size:12px;color:#94a3b8;white-space:nowrap">${nAcc} conta(s) · ${escapeHtml(periodLabel(d.period))}${d.partial ? ' · ⚠️ parcial' : ''}</div>
+      <div style="font-size:12px;color:#94a3b8;white-space:nowrap">${nAcc} conta(s) · ${escapeHtml(periodLabel(d.period))}${d.partial ? ' · ⚠️ parcial' : ''}${_refreshErr ? ' · <span style="color:#f87171;font-weight:800">⚠️ falha ao atualizar — último dado</span>' : ''}</div>
       <div id="tv-age" style="font-size:12px;white-space:nowrap"></div>
       <div style="flex:1;min-width:10px"></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:center">${dots}</div>
@@ -526,7 +609,7 @@ function renderTV() {
     const before = selectedBrandKeys().slice().sort().join(',');
     if (id === '__all__') _accSel = [];
     else { const i = _accSel.indexOf(id); if (i >= 0) _accSel.splice(i, 1); else _accSel.push(id); }
-    _ts = null;                 // série diária depende das contas selecionadas
+    invalidateView();           // série/breakdown dependem das contas selecionadas
     // CRM/Leads (RD) seguem a marca da seleção — refaz só se a marca mudou.
     if (selectedBrandKeys().slice().sort().join(',') !== before) reload(true);
     else renderTV();
@@ -665,7 +748,7 @@ function execHero(t, accounts) {
   const col = (m) => s.map(p => p[m]);
   const freq = t.reach > 0 ? (t.impressions / t.reach) : 0;
   const cpc = t.clicks > 0 ? (t.spend / t.clicks) : 0;
-  const cplTarget = (_th && _th.cpl) || 80;
+  const cplMeta = cplTargetAccounts(accounts);   // v88.11: alvo por marca, ponderado pelo gasto
   const camps = filteredCampaigns().slice().sort((a, b) => (b.spend || 0) - (a.spend || 0)).slice(0, 5);
   const maxSp = Math.max(1, ...camps.map(c => c.spend || 0));
   const maxCl = Math.max(1, ...camps.map(c => c.clicks || 0));
@@ -709,7 +792,7 @@ function execHero(t, accounts) {
 
       <div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          ${progressCard('Custo por Mensagem/Lead (CPL)', t.cpl ? 'R$ ' + money(t.cpl) : '—', `meta R$ ${money(cplTarget)} · ${deltaTxt(dl.cpl)}`, cplTarget ? (t.cpl / cplTarget) : 0, (t.cpl <= cplTarget ? '#22c55e' : '#f87171'))}
+          ${progressCard('Custo por Mensagem/Lead (CPL)', t.cpl ? 'R$ ' + money(t.cpl) : '—', `meta R$ ${money(cplMeta)} · ${deltaTxt(dl.cpl)}`, cplMeta ? (t.cpl / cplMeta) : 0, (t.cpl <= cplMeta ? '#22c55e' : '#f87171'))}
           ${progressCard('Custo por Clique (CPC)', cpc ? 'R$ ' + money(cpc) : '—', deltaTxt(dl.clicks, true) + ' cliques', Math.min(1, cpc / 5), '#38bdf8')}
         </div>
         <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:12px;margin-top:10px">
@@ -753,8 +836,7 @@ async function buildExecutivaCharts() {
   let Chart;
   try { Chart = await loadChartLib(); } catch (_) { return; }
   if (!Chart) return;
-  _charts.forEach(c => { try { c.destroy(); } catch (_) {} });
-  _charts = [];
+  destroyCharts();
   const ink = '#cbd5e1', grid = 'rgba(148,163,184,0.14)';
   const mk = (id, cfg) => { const el = document.getElementById(id); if (el) _charts.push(new Chart(el, cfg)); };
   const opts = (e) => Object.assign({ responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: ink, font: { size: 10 } } } } }, e || {});
@@ -765,7 +847,7 @@ async function buildExecutivaCharts() {
       { label: 'Resultados', data: _ts.series.map(p => p.results), borderColor: '#38bdf8', tension: 0.35, pointRadius: 0, yAxisID: 'y1' },
     ] }, options: opts({ scales: { x: { ticks: { color: ink, maxTicksLimit: 10 }, grid: { color: grid } }, y: { position: 'left', beginAtZero: true, ticks: { color: ink }, grid: { color: grid } }, y1: { position: 'right', beginAtZero: true, ticks: { color: ink }, grid: { drawOnChartArea: false } } } }) });
   }
-  const camps = ((_data && _data.campaigns) || []).slice().sort((a, b) => (b.spend || 0) - (a.spend || 0)).slice(0, 6).filter(c => (c.spend || 0) > 0);
+  const camps = filteredCampaigns().slice().sort((a, b) => (b.spend || 0) - (a.spend || 0)).slice(0, 6).filter(c => (c.spend || 0) > 0);
   if (camps.length) {
     const PAL = ['#3b82f6', '#22c55e', '#a855f7', '#f59e0b', '#ef4444', '#06b6d4'];
     mk('ch-exec-donut', { type: 'doughnut', data: { labels: camps.map(c => (c.name || '—').slice(0, 20)), datasets: [{ data: camps.map(c => c.spend), backgroundColor: camps.map((_, i) => PAL[i % PAL.length]), borderWidth: 0 }] }, options: opts({ cutout: '60%' }) });
@@ -777,7 +859,8 @@ function heroAlertas() {
   const al = computeAlerts(camps);
   const verba = al.burning.reduce((s, c) => s + (c.spend || 0), 0);
   const buckets = { vertical: 0, horizontal: 0, troca: 0, sangria: 0, manter: 0 };
-  camps.forEach(c => { const k = classifySemaforo(c); if (buckets[k] != null) buckets[k]++; });
+  // v88.11: só ativas — igual à aba Semáforo (antes contava pausadas também)
+  al.active.forEach(c => { const k = classifySemaforo(c); if (buckets[k] != null) buckets[k]++; });
   const stat = (ico, lbl, val, color, sub) => `<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:10px 12px;border-left:4px solid ${color}">
       <div style="font-size:11px;color:#94a3b8">${ico} ${lbl}</div>
       <div style="font-size:20px;font-weight:800;color:#f1f5f9">${val}</div>
@@ -934,8 +1017,8 @@ function execBrandRows(byBrand) {
 
 /* ───────────────────────── ABA: GRÁFICOS (Chart.js) ───────────────────────── */
 function tabGraficos() {
-  if (!_data || !(_data.accounts || []).length) {
-    return `<div class="alert alert-warn mt-2">Sem dados do Meta no período pra plotar.</div>`;
+  if (!_data || !filteredAccounts().length) {
+    return `<div class="alert alert-warn mt-2">Sem dados do Meta no período/conta pra plotar.</div>`;
   }
   const tsNote = _tsBusy
     ? '<span class="muted tiny"><span class="spinner"></span> carregando série diária…</span>'
@@ -971,33 +1054,39 @@ function loadChartLib() {
   return _chartLibP;
 }
 
-async function loadTimeseries() {
-  if (_ts || _tsBusy) return;
+// force: refaz mesmo já tendo série (refresh ao vivo), sem apagar a atual da tela
+async function loadTimeseries(force) {
+  if ((_ts && !force) || (_tsBusy && !force)) return;
+  const seq = ++_tsSeq;
   _tsBusy = true;
+  let res;
   try {
-    let q = (_since && _until)
-      ? ('?since=' + encodeURIComponent(_since) + '&until=' + encodeURIComponent(_until))
-      : ('?date_preset=' + encodeURIComponent(_preset));
+    let q = periodQuery();
     if (_accSel.length) q += '&accounts=' + encodeURIComponent(_accSel.join(','));
-    _ts = await api.request('/api/v3/marketing/meta_timeseries' + q);
+    if (force) q += '&nocache=1';
+    res = await api.request('/api/v3/marketing/meta_timeseries' + q);
   }
-  catch (e) { _ts = { ok: false, series: [], error: e.message }; }
-  finally { _tsBusy = false; if (_tv) renderTV(); else if (_tab === 'graficos' || _tab === 'executiva') render(); }
+  catch (e) { res = { ok: false, series: [], error: e.message }; }
+  // v88.11: série de um período/conta antigos (chegou atrasada) é descartada
+  if (seq !== _tsSeq) return;
+  _ts = res; _tsBusy = false;
+  if (_tv) renderTV(); else if (_tab === 'graficos' || _tab === 'executiva') render(true);
 }
 
 async function buildGraficos() {
   let Chart;
   try { Chart = await loadChartLib(); } catch (_) { return; }
   if (!Chart) return;
-  _charts.forEach(c => { try { c.destroy(); } catch (_) {} });
-  _charts = [];
-  const ink = (getComputedStyle(document.documentElement).getPropertyValue('--ink') || '#0f172a').trim() || '#0f172a';
+  destroyCharts();
+  // v88.11: no TV as variáveis de tema vivem no overlay escuro (texto ficava invisível)
+  const themeEl = (_tv && document.getElementById('ma-tv')) || document.documentElement;
+  const ink = (getComputedStyle(themeEl).getPropertyValue('--ink') || '#0f172a').trim() || '#0f172a';
   const grid = 'rgba(148,163,184,0.18)';
   const PAL = ['#2563eb', '#16a34a', '#dc2626', '#d4a843', '#7c3aed', '#0891b2', '#ea580c', '#db2777'];
   const opts = (extra) => Object.assign({ responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: ink, font: { size: 11 } } } } }, extra || {});
   const mk = (id, cfg) => { const el = document.getElementById(id); if (el) _charts.push(new Chart(el, cfg)); };
-  const accounts = (_data && _data.accounts) || [];
-  const camps = (_data && _data.campaigns) || [];
+  const accounts = filteredAccounts();   // v88.11: respeita o filtro de conta
+  const camps = filteredCampaigns();
 
   // 1+2 — série diária
   if (_ts && _ts.series && _ts.series.length) {
@@ -1028,7 +1117,7 @@ async function buildGraficos() {
   // 6 — funil de aquisição (log)
   const t = periodTotals(accounts);
   const vendas = (_crm && _crm.global && _crm.global.vendas) || 0;
-  mk('ch-funil', { type: 'bar', data: { labels: ['Impressões', 'Cliques', 'Leads', 'Vendas'], datasets: [{ label: 'Funil', data: [t.impressions, t.clicks, t.results, vendas], backgroundColor: ['#0891b2', '#2563eb', '#7c3aed', '#16a34a'] }] },
+  mk('ch-funil', { type: 'bar', data: { labels: ['Impressões', 'Cliques', 'Resultados Meta', 'Vendas RD'], datasets: [{ label: 'Funil', data: [t.impressions, t.clicks, t.results, vendas], backgroundColor: ['#0891b2', '#2563eb', '#7c3aed', '#16a34a'] }] },
     options: opts({ plugins: { legend: { display: false } }, scales: { x: { ticks: { color: ink }, grid: { display: false } }, y: { type: 'logarithmic', ticks: { color: ink }, grid: { color: grid } } } }) });
 }
 
@@ -1156,8 +1245,10 @@ function metaMetricsCockpit() {
 /* ───────────────────────── ABA: TRÁFEGO (Meta operacional) ───────────────────────── */
 function tabTrafego() {
   const d = _data || {};
-  const accounts = d.accounts || [];
-  const allCampaigns = d.campaigns || [];
+  // v88.11: tudo aqui respeita o filtro de conta (antes somava todas as contas)
+  const accounts = filteredAccounts();
+  const allCampaigns = filteredCampaigns();
+  const accErr = _accSel.length ? (d.accounts_error || []).filter(a => _accSel.includes(a.id)) : (d.accounts_error || []);
   const t = periodTotals(accounts);
   const al = computeAlerts(allCampaigns);
   const verbaRisco = al.burning.reduce((s, c) => s + (c.spend || 0), 0);
@@ -1196,7 +1287,7 @@ function tabTrafego() {
       <div id="ma-th-panel" style="display:none"></div>
       ${totalAlerts === 0 ? '<div class="alert alert-ok">✅ Nenhum alerta. Campanhas ativas dentro dos limiares.</div>' : `<div style="display:grid;gap:10px">
         ${alertCard('🔴', 'CRÍTICO · Verba queimando sem resultado', '#dc2626', al.burning, `Ativas que já gastaram ≥ R$ ${_th.gasto} e geraram 0 resultados.`, c => `gastou <strong>R$ ${money(c.spend)}</strong> · 0 result.`, true)}
-        ${alertCard('🟠', 'CPL acima da meta', '#ea580c', al.cplHigh, `CPL acima de R$ ${_th.cpl}.`, c => `CPL <strong>R$ ${money(c.cpr)}</strong> · ${fmtNum(c.results)} result.`)}
+        ${alertCard('🟠', 'CPL acima da meta', '#ea580c', al.cplHigh, `CPL acima do alvo da marca (Conquista R$ ${money(_th.cpl_conquista)} · Imóveis R$ ${money(_th.cpl_imoveis)} · Locação R$ ${money(_th.cpl_locacao)}).`, c => `CPL <strong>R$ ${money(c.cpr)}</strong> (alvo R$ ${money(cplTarget(c))}) · ${fmtNum(c.results)} result.`)}
         ${alertCard('🟠', 'Fadiga de criativo (frequência alta)', '#d97706', al.fadiga, `Frequência > ${_th.freq.toFixed(1)} — público saturado.`, c => `freq <strong>${(c.frequency || 0).toFixed(2)}</strong> · alcance ${fmtNum(c.reach)}`)}
         ${alertCard('🟡', 'CTR baixo (criativo fraco)', '#ca8a04', al.ctrLow, `CTR < ${_th.ctr.toFixed(1)}% com ≥ 500 impressões.`, c => `CTR <strong>${pct2(c.ctr || 0)}</strong> · ${fmtNum(c.impressions)} imp.`)}
         ${alertCard('🟡', 'Ranking de qualidade baixo', '#ca8a04', al.qualBaixo, 'Meta classificou abaixo da média — afeta entrega e custo.', c => `qualidade <strong>${escapeHtml(rankLabel(c.qualityRanking))}</strong>`)}
@@ -1221,7 +1312,7 @@ function tabTrafego() {
               <td style="text-align:right;padding:5px 8px">${a.frequency ? a.frequency.toFixed(2) : '—'}</td>
               <td style="text-align:right;padding:5px 8px">${a.roas ? a.roas.toFixed(2) + 'x' : '—'}</td>
             </tr>`).join('')}
-            ${(d.accounts_error || []).map(a => `<tr style="border-bottom:1px solid var(--border);opacity:.7">
+            ${accErr.map(a => `<tr style="border-bottom:1px solid var(--border);opacity:.7">
               <td style="padding:5px 10px;font-weight:600">${escapeHtml(a.label || a.id)} <span class="tiny" style="color:var(--err)" title="${escapeHtml(a._error || '')}">⚠️ erro — fora dos totais</span></td>
               <td colspan="6" style="padding:5px 8px;color:var(--err);font-size:11px">${escapeHtml(a._error || 'falha na Meta API')}</td>
             </tr>`).join('')}
@@ -1260,7 +1351,7 @@ function tabTrafego() {
 
 /* ───────────────────────── ABA: CRIATIVOS (Aba 4) ───────────────────────── */
 function tabCriativos() {
-  const all = (_data?.campaigns || []).filter(c => (c.impressions || 0) > 0);
+  const all = filteredCampaigns().filter(c => (c.impressions || 0) > 0);
   all.sort((a, b) => (b.spend || 0) - (a.spend || 0));
   return `
     <p class="card-sub">Laboratório de criativos — valida gancho, retenção e intenção antes de escalar. Métricas por campanha (a Meta não expõe nível de anúncio neste feed).</p>
@@ -1499,13 +1590,13 @@ function classifySemaforo(c) {
   return 'manter';
 }
 function tabSemaforo() {
-  const active = (_data?.campaigns || []).filter(c => (c.status || '').toLowerCase() === 'active');
+  const active = filteredCampaigns().filter(c => (c.status || '').toLowerCase() === 'active');
   const buckets = { vertical: [], horizontal: [], troca: [], sangria: [], manter: [] };
   active.forEach(c => buckets[classifySemaforo(c)].push(c));
   Object.keys(buckets).forEach(k => buckets[k].sort((a, b) => (b.spend || 0) - (a.spend || 0)));
   const metric = c => `CPL <strong>${c.cpr ? 'R$ ' + money(c.cpr) : '—'}</strong> · freq ${(c.frequency||0).toFixed(2)} · ${fmtNum(c.results)} result. · R$ ${money(c.spend)}`;
   return `
-    <p class="card-sub">Decisão de escala sem achismo. CPL alvo por marca: Conquista R$ 25 · Imóveis R$ 150 · Locação R$ 60 (proxy de CPO).</p>
+    <p class="card-sub">Decisão de escala sem achismo. CPL alvo por marca: Conquista R$ ${money(_th.cpl_conquista)} · Imóveis R$ ${money(_th.cpl_imoveis)} · Locação R$ ${money(_th.cpl_locacao)} (editável em ⚙️ Limiares).</p>
     <div style="display:grid;gap:10px;margin-top:12px">
       ${semaCard('🚀', 'Escala Vertical · aumentar orçamento 20%', '#16a34a', buckets.vertical, 'CPL no alvo + frequência baixa (<2.0). O leilão ainda tem lead barato.', metric, true)}
       ${semaCard('🧭', 'Escala Horizontal · novo público / lookalike', '#2563eb', buckets.horizontal, 'CPL ainda ok mas frequência subindo — o público atual está secando.', metric)}
@@ -1513,7 +1604,7 @@ function tabSemaforo() {
       ${semaCard('🛑', 'Sangria · pausar imediatamente', '#dc2626', buckets.sangria, 'Verba virando pó: 0 resultado com gasto ou CPL muito acima do alvo.', metric, true)}
       ${semaCard('🟢', 'Manter · estável', '#64748b', buckets.manter, 'Dentro do esperado, sem ação urgente.', metric)}
     </div>
-    <div class="alert alert-warn mt-3" style="margin-top:12px">🔌 <strong>Roadmap:</strong> "Perda de IS por orçamento" exige métricas avançadas do Google Ads; "CTR Decay" exige histórico diário acumulado — próximos sprints. <span class="muted">(Breakdown por hora já disponível na aba Criativos · Google Ads conectável na aba Executiva.)</span></div>
+    <div class="alert alert-warn mt-3" style="margin-top:12px">🔌 <strong>Roadmap:</strong> "Perda de IS por orçamento" exige métricas avançadas do Google Ads; "CTR Decay" exige histórico diário acumulado — próximos sprints. <span class="muted">(Breakdown por hora já disponível em 🎬 Criativos & breakdowns, nesta aba · Google Ads conectável na aba Executiva.)</span></div>
   `;
 }
 function semaCard(icon, title, color, items, desc, fmtItem, withAction) {
@@ -1526,7 +1617,7 @@ function semaCard(icon, title, color, items, desc, fmtItem, withAction) {
         ${items.slice(0, 12).map(c => `<div class="tiny" style="display:flex;gap:8px;align-items:center">
           <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(c.name||'')}">${escapeHtml(c.account?'['+c.account+'] ':'')}${escapeHtml(c.name||'—')}</span>
           <span style="white-space:nowrap">${fmtItem(c)}</span>
-          ${withAction ? `<button class="btn btn-ghost tiny" data-act="pause" data-cid="${c.id}" data-cname="${escapeHtml(c.name||'')}" title="Pausar">⏸</button>` : ''}
+          ${withAction ? `<button class="btn btn-ghost tiny" data-act="pause" data-cid="${esc(c.id)}" data-acc="${esc(c.accountId||'')}" data-cname="${escapeHtml(c.name||'')}" title="Pausar">⏸</button>` : ''}
         </div>`).join('')}
         ${items.length > 12 ? `<div class="tiny muted">+ ${items.length - 12} outra(s)…</div>` : ''}
       </div>
@@ -1535,7 +1626,7 @@ function semaCard(icon, title, color, items, desc, fmtItem, withAction) {
 
 /* ───────────────────────── ABA: POR MARCA (Abas 2+3) ───────────────────────── */
 function tabMarca() {
-  const campaigns = _data?.campaigns || [];
+  const campaigns = filteredCampaigns();   // v88.11: respeita o filtro de conta
   const groups = {};
   campaigns.forEach(c => { const k = c.account || '—'; (groups[k] = groups[k] || []).push(c); });
   const keys = Object.keys(groups).sort((a, b) => sumSpend(groups[b]) - sumSpend(groups[a]));
@@ -1746,18 +1837,18 @@ function campaignRow(c) {
   const flags = [];
   if (st === 'active') {
     if ((c.spend||0) >= _th.gasto && (c.results||0) === 0) flags.push(['#dc2626','Verba sem resultado']);
-    if ((c.results||0) > 0 && (c.cpr||0) > _th.cpl) flags.push(['#ea580c','CPL alto']);
+    if ((c.results||0) > 0 && (c.cpr||0) > cplTarget(c)) flags.push(['#ea580c','CPL alto']);
     if ((c.frequency||0) > _th.freq) flags.push(['#d97706','Fadiga']);
     if ((c.impressions||0) >= 500 && (c.ctr||0) < _th.ctr) flags.push(['#ca8a04','CTR baixo']);
     if (/BELOW_AVERAGE/.test(c.qualityRanking||'')) flags.push(['#ca8a04','Qualidade baixa']);
   }
   const dot = flags.length ? `<span title="${escapeHtml(flags.map(f=>f[1]).join(', '))}" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${flags[0][0]}"></span>` : '';
-  const cplHi = (c.results||0) > 0 && (c.cpr||0) > _th.cpl;
+  const cplHi = (c.results||0) > 0 && (c.cpr||0) > cplTarget(c);
   const freqHi = (c.frequency||0) > _th.freq;
   const ctrLo = (c.impressions||0) >= 500 && (c.ctr||0) < _th.ctr;
   const actBtn = st === 'active'
-    ? `<button class="btn btn-ghost tiny" data-act="pause" data-cid="${c.id}" data-cname="${escapeHtml(c.name||'')}" title="Pausar">⏸</button>`
-    : st === 'paused' ? `<button class="btn btn-ghost tiny" data-act="resume" data-cid="${c.id}" data-cname="${escapeHtml(c.name||'')}" title="Retomar">▶️</button>` : '';
+    ? `<button class="btn btn-ghost tiny" data-act="pause" data-cid="${esc(c.id)}" data-acc="${esc(c.accountId||'')}" data-cname="${escapeHtml(c.name||'')}" title="Pausar">⏸</button>`
+    : st === 'paused' ? `<button class="btn btn-ghost tiny" data-act="resume" data-cid="${esc(c.id)}" data-acc="${esc(c.accountId||'')}" data-cname="${escapeHtml(c.name||'')}" title="Retomar">▶️</button>` : '';
   return `
     <tr style="border-bottom:1px solid var(--border)">
       <td style="padding:5px 8px;text-align:center">${dot}</td>
@@ -1785,7 +1876,7 @@ function alertCard(icon, title, color, items, desc, fmtItem, withAction) {
         ${shown.map(c => `<div class="tiny" style="display:flex;gap:8px;align-items:center">
           <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(c.name||'')}">${escapeHtml(c.account?'['+c.account+'] ':'')}${escapeHtml(c.name||'—')}</span>
           <span style="white-space:nowrap">${fmtItem(c)}</span>
-          ${withAction ? `<button class="btn btn-ghost tiny" data-act="pause" data-cid="${c.id}" data-cname="${escapeHtml(c.name||'')}" title="Pausar">⏸</button>` : ''}
+          ${withAction ? `<button class="btn btn-ghost tiny" data-act="pause" data-cid="${esc(c.id)}" data-acc="${esc(c.accountId||'')}" data-cname="${escapeHtml(c.name||'')}" title="Pausar">⏸</button>` : ''}
         </div>`).join('')}
         ${items.length > shown.length ? `<div class="tiny muted">+ ${items.length - shown.length} outra(s)…</div>` : ''}
       </div>
@@ -1796,14 +1887,16 @@ function thresholdPanel() {
   return `
     <div class="card" style="margin:0 0 10px;background:var(--bg-3)">
       <div class="flex gap-2" style="flex-wrap:wrap;align-items:flex-end">
-        ${thInput('CPL alvo (R$)', 'th-cpl', _th.cpl, 1)}
+        ${thInput('CPL alvo Conquista (R$)', 'th-cpl-conquista', _th.cpl_conquista, 1)}
+        ${thInput('CPL alvo Imóveis (R$)', 'th-cpl-imoveis', _th.cpl_imoveis, 1)}
+        ${thInput('CPL alvo Locação (R$)', 'th-cpl-locacao', _th.cpl_locacao, 1)}
         ${thInput('Freq. máx.', 'th-freq', _th.freq, 0.5)}
         ${thInput('CTR mín. (%)', 'th-ctr', _th.ctr, 0.1)}
         ${thInput('Gasto sem result. (R$)', 'th-gasto', _th.gasto, 5)}
         <button class="btn btn-primary" id="th-save">Salvar limiares</button>
         <button class="btn btn-ghost" id="th-reset">Padrão</button>
       </div>
-      <p class="tiny muted mt-2">Definem quando uma campanha vira alerta. Salvos só neste navegador.</p>
+      <p class="tiny muted mt-2">Definem quando uma campanha vira alerta e a faixa do semáforo (CPL por marca da conta). Salvos só neste navegador.</p>
     </div>`;
 }
 function thInput(label, id, val, step) {
@@ -1812,13 +1905,19 @@ function thInput(label, id, val, step) {
 
 function wire() {
   document.querySelectorAll('.ma-tab').forEach(b => b.addEventListener('click', () => { _tab = b.dataset.tab; render(); }));
-  document.getElementById('ma-preset')?.addEventListener('change', async e => { _preset = e.target.value; await reload(); });
-  document.getElementById('ma-reload')?.addEventListener('click', () => reload());
+  // v88.11: escolher um preset LIMPA o intervalo personalizado (antes o custom
+  // tinha prioridade e o preset novo era ignorado em todas as abas)
+  document.getElementById('ma-preset')?.addEventListener('change', async e => {
+    if (e.target.value === '__custom__') return;
+    _preset = e.target.value; _since = ''; _until = '';
+    await reload();
+  });
+  document.getElementById('ma-reload')?.addEventListener('click', () => { _nocacheOnce = true; reload(); });   // 🔄 = ao vivo
   document.getElementById('ma-tv-btn')?.addEventListener('click', enterTV);
   document.getElementById('ma-auto')?.addEventListener('change', e => { _auto = e.target.checked; startAuto(); });
-  document.getElementById('ma-status')?.addEventListener('change', e => { _statusFilter = e.target.value; render(); });
-  document.getElementById('ma-sort')?.addEventListener('change', e => { _sort = e.target.value; render(); });
-  document.getElementById('ma-filter')?.addEventListener('input', e => { _filter = e.target.value; render(); });
+  document.getElementById('ma-status')?.addEventListener('change', e => { _statusFilter = e.target.value; render(true); });
+  document.getElementById('ma-sort')?.addEventListener('change', e => { _sort = e.target.value; render(true); });
+  document.getElementById('ma-filter')?.addEventListener('input', e => { _filter = e.target.value; render(true); });
   document.getElementById('bd-sel')?.addEventListener('change', e => { _bdSel = e.target.value; });
   document.getElementById('bd-go')?.addEventListener('click', () => loadBreakdown(_bdSel));
 
@@ -1826,8 +1925,13 @@ function wire() {
   document.getElementById('ma-acc-manage')?.addEventListener('click', openAccountsModal);
   document.getElementById('ma-range-go')?.addEventListener('click', () => {
     const s = document.getElementById('ma-since')?.value, u = document.getElementById('ma-until')?.value;
-    if (s && u) { _since = s; _until = u; reload(); }
-    else alert('Informe data de início e fim.');
+    if (!s || !u) return alert('Informe data de início e fim.');
+    // v88.11: valida antes de consultar (datas inválidas voltavam tudo zerado, sem aviso)
+    const hoje = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10);   // BRT
+    if (s > u) return alert('A data de início é depois da data de fim.');
+    if (u > hoje) return alert('A data de fim não pode ser no futuro.');
+    if ((new Date(u) - new Date(s)) / 86400000 > 1095) return alert('Intervalo máximo: 3 anos (limite da Meta).');
+    _since = s; _until = u; reload();
   });
   document.getElementById('ma-range-clear')?.addEventListener('click', () => { _since = ''; _until = ''; reload(); });
   // Filtro de conta(s): Todas reseta; clicar alterna a conta (multiseleção).
@@ -1838,11 +1942,11 @@ function wire() {
     const before = selectedBrandKeys().slice().sort().join(',');
     if (id === '__all__') { _accSel = []; }
     else { const i = _accSel.indexOf(id); if (i >= 0) _accSel.splice(i, 1); else _accSel.push(id); }
-    _ts = null;
+    invalidateView();   // v88.11: série E breakdown da seleção anterior saem
     // Só refaz a chamada de rede se a(s) marca(s) do RD realmente mudaram;
     // senão é só re-render (filtro Meta é client-side).
     if (selectedBrandKeys().slice().sort().join(',') !== before) reload(true);
-    else render();
+    else render(true);
   }));
 
   // Aba Gráficos: garante a série diária e (re)desenha os charts
@@ -1855,8 +1959,11 @@ function wire() {
     if (p.style.display === 'none' || !p.innerHTML) {
       p.innerHTML = thresholdPanel(); p.style.display = 'block';
       document.getElementById('th-save').addEventListener('click', () => {
+        const num = (id, def) => { const v = parseFloat(document.getElementById(id).value); return v > 0 ? v : def; };
         _th = {
-          cpl: parseFloat(document.getElementById('th-cpl').value) || DEFAULT_TH.cpl,
+          cpl_conquista: num('th-cpl-conquista', DEFAULT_TH.cpl_conquista),
+          cpl_imoveis: num('th-cpl-imoveis', DEFAULT_TH.cpl_imoveis),
+          cpl_locacao: num('th-cpl-locacao', DEFAULT_TH.cpl_locacao),
           freq: parseFloat(document.getElementById('th-freq').value) || DEFAULT_TH.freq,
           ctr: parseFloat(document.getElementById('th-ctr').value) || DEFAULT_TH.ctr,
           gasto: parseFloat(document.getElementById('th-gasto').value) || DEFAULT_TH.gasto,
@@ -1868,12 +1975,19 @@ function wire() {
   });
 
   document.querySelectorAll('[data-act]').forEach(btn => btn.addEventListener('click', async () => {
-    const act = btn.dataset.act, cid = btn.dataset.cid, cname = btn.dataset.cname;
+    const act = btn.dataset.act, cid = btn.dataset.cid, cname = btn.dataset.cname, acc = btn.dataset.acc || '';
     const verbo = act === 'pause' ? 'PAUSAR' : 'RETOMAR';
     if (!confirm(`${verbo} a campanha "${cname}"?\n\nIsso altera direto na conta Meta.`)) return;
     btn.disabled = true; btn.textContent = '…';
-    try { await api.request('/api/meta-ads', { method: 'POST', body: { action: act, campaign_id: cid } }); await reload(); }
-    catch (e) { alert('Erro ao ' + verbo.toLowerCase() + ': ' + e.message); btn.disabled = false; }
+    // v88.11: endpoint v3 (nível + usuário ativo + audit_log + token da conta certa)
+    // e reload SEM cache — antes a campanha pausada seguia "ATIVA" por até 20 min
+    try {
+      await api.request('/api/v3/marketing/campaign_action', { method: 'POST', body: { action: act, campaign_id: cid, account_id: acc } });
+      const c = ((_data && _data.campaigns) || []).find(x => String(x.id) === String(cid));
+      if (c) c.status = act === 'pause' ? 'paused' : 'active';   // otimista, até o dado ao vivo chegar
+      _nocacheOnce = true; await reload(true);
+    }
+    catch (e) { alert('Erro ao ' + verbo.toLowerCase() + ': ' + e.message); btn.disabled = false; btn.textContent = act === 'pause' ? '⏸' : '▶️'; }
   }));
 }
 
