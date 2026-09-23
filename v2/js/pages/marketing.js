@@ -28,6 +28,7 @@ const PRESETS = [
 
 const TABS = [
   { id: 'executiva', lbl: '🎯 Executiva' },
+  { id: 'funil',     lbl: '🔻 Funil' },       // v88.25: funil completo Meta → venda (motor oficial)
   { id: 'graficos',  lbl: '📈 Gráficos' },
   { id: 'trafego',   lbl: '📊 Tráfego' },   // unifica tráfego + criativos + semáforo
   { id: 'vendas',    lbl: '🏁 Vendas' },
@@ -74,6 +75,9 @@ const BREAKDOWNS = [
 function loadTh() { try { return { ...DEFAULT_TH, ...(JSON.parse(localStorage.getItem(TH_KEY) || '{}')) }; } catch { return { ...DEFAULT_TH }; } }
 function saveTh(th) { localStorage.setItem(TH_KEY, JSON.stringify(th)); }
 let _th = loadTh();
+let _accTargets = {};   // v88.25: metas POR CONTA {act_id: {cpl, freq, orcamento_mes}}
+let _mtd = null;        // v88.25: gasto do MÊS ATUAL por conta (ritmo do orçamento)
+let _of = null, _ofSeq = 0, _ofKey = '';   // v88.25: motor oficial de métricas (funil)
 let _thMeta = null;   // v88.18: {updated_by, updated_at} dos limiares da empresa
 // Limiares da EMPRESA (shared_kv) — mesma regra em TV, iPad e desktop. Falhou →
 // segue com o que está no navegador (nunca bloqueia o cockpit).
@@ -81,6 +85,7 @@ async function loadThShared() {
   try {
     const r = await api.request('/api/v3/marketing/ads_thresholds');
     if (r && r.ok && r.th) { _th = { ...DEFAULT_TH, ...r.th }; saveTh(_th); _thMeta = { by: r.updated_by, at: r.updated_at }; }
+    if (r && r.ok) _accTargets = r.contas || {};
   } catch (_) {}
 }
 function canEditTh() { return (auth.user()?.lvl || 0) >= 7; }
@@ -93,14 +98,17 @@ function brandInfo(label) {
   return { key: 'imoveis', brand: 'PSM Imóveis', sub: 'Médio / Alto Padrão', cor: '#7c3aed', cplAlvo: _th.cpl_imoveis };
 }
 // CPL-alvo da campanha = alvo da marca da conta (fonte única p/ alertas + semáforo)
-function cplTarget(c) { return brandInfo(c.account).cplAlvo; }
+function cplTarget(c) { return (_accTargets[c.accountId] && _accTargets[c.accountId].cpl) || brandInfo(c.account).cplAlvo; }
+// v88.25: frequência máxima da CONTA (se definida) senão a da empresa
+function freqMax(c) { return (_accTargets[c.accountId] && _accTargets[c.accountId].freq) || _th.freq; }
+function cplTargetAcc(a) { return (_accTargets[a.id] && _accTargets[a.id].cpl) || brandInfo(a.label || a.id).cplAlvo; }
 // Meta de CPL de um conjunto de contas = média dos alvos ponderada pelo gasto
 function cplTargetAccounts(accounts) {
   let sp = 0, w = 0;
-  (accounts || []).forEach(a => { const s = a.spend || 0; sp += s; w += s * brandInfo(a.label || a.id).cplAlvo; });
+  (accounts || []).forEach(a => { const s = a.spend || 0; sp += s; w += s * cplTargetAcc(a); });
   if (sp > 0) return w / sp;
   const a0 = (accounts || [])[0];
-  return a0 ? brandInfo(a0.label || a0.id).cplAlvo : _th.cpl_imoveis;
+  return a0 ? cplTargetAcc(a0) : _th.cpl_imoveis;
 }
 
 export async function pageMarketing(ctx, root) {
@@ -168,12 +176,15 @@ async function reload(silent) {
     // da toolbar (a conta resolve até a marca, pois o lead RD não traz a conta).
     const bk = selectedBrandKeys();
     const bq = bk.length ? '&brands=' + encodeURIComponent(bk.join(',')) : '';
-    const [meta, crm, goog, geo, lc] = await Promise.allSettled([
+    const temOrc = Object.values(_accTargets).some(t => t && t.orcamento_mes);
+    const [meta, crm, goog, geo, lc, mtd] = await Promise.allSettled([
       api.request('/api/v3/marketing/summary' + qp),
       api.request('/api/v3/marketing/crm_metrics' + qp + bq),
       api.request('/api/v3/marketing/google_ads' + qp),
       api.request('/api/v3/marketing/leads_geo' + qp + bq),
       api.request('/api/v3/marketing/leads_creative' + qp + bq),
+      // v88.25: ritmo do orçamento sempre no MÊS ATUAL (independe do período da tela)
+      temOrc ? api.request('/api/v3/marketing/summary?date_preset=this_month') : Promise.resolve(null),
     ]);
     if (seq !== _reqSeq) return;   // v88.11: chegou resposta de um recorte antigo → descarta
     if (meta.status === 'fulfilled') _data = meta.value; else throw meta.reason;
@@ -182,6 +193,7 @@ async function reload(silent) {
     _google = (goog.status === 'fulfilled') ? goog.value : { ok: false, error: goog.reason?.message };
     _geo = (geo.status === 'fulfilled' && geo.value?.ok) ? geo.value : null;
     _leadsCreative = (lc.status === 'fulfilled' && lc.value?.ok) ? lc.value : null;
+    _mtd = (mtd.status === 'fulfilled' && mtd.value && mtd.value.accounts) ? mtd.value : null;
     _refreshErr = null;
     // Recorte mudou → invalida breakdown/série. Mesmo recorte → mantém o breakdown
     // aberto e só refaz a série (sem ela sumir da tela no meio do refresh).
@@ -379,7 +391,7 @@ function computeAlerts(campaigns) {
     active,
     burning:   active.filter(c => (c.spend || 0) >= _th.gasto && (c.results || 0) === 0),
     cplHigh:   active.filter(c => (c.results || 0) > 0 && (c.cpr || 0) > cplTarget(c)),
-    fadiga:    active.filter(c => (c.frequency || 0) > _th.freq),
+    fadiga:    active.filter(c => (c.frequency || 0) > freqMax(c)),
     ctrLow:    active.filter(c => (c.impressions || 0) >= 500 && (c.ctr || 0) < _th.ctr),
     qualBaixo: active.filter(c => /BELOW_AVERAGE/.test(c.qualityRanking || '')),
   };
@@ -486,6 +498,7 @@ function tabBody() {
   if (_tab === 'trafego')   return strip + tabTrafegoCompleto();
   if (_tab === 'vendas')    return strip + tabVendas();
   if (_tab === 'marca')     return strip + tabMarca();
+  if (_tab === 'funil')     return strip + tabFunil();
   return strip + tabExecutiva();
 }
 
@@ -1299,6 +1312,7 @@ function tabTrafego() {
   });
 
   return `
+    ${metasContaPanel()}
     ${metaMetricsCockpit()}
     <div class="flex gap-3" style="flex-wrap:wrap">
       ${kpi('💰 Investido', 'R$ ' + money(t.spend), 'no período', '#dc2626')}
@@ -1462,7 +1476,7 @@ function criativoRow(c) {
       <td style="text-align:right;padding:5px 8px">${isVideo && ret ? pct2(ret) : '—'}</td>
       <td style="text-align:right;padding:5px 8px">${pct2(c.ctr||0)}</td>
       <td style="text-align:right;padding:5px 8px;${colorVal(ctrL>=1?2:ctrL>=0.5?1:0)}">${pct2(ctrL)}</td>
-      <td style="text-align:right;padding:5px 8px;${colorVal((c.frequency||0)<=2?2:(c.frequency||0)<=_th.freq?1:0)}">${c.frequency?c.frequency.toFixed(2):'—'}</td>
+      <td style="text-align:right;padding:5px 8px;${colorVal((c.frequency||0)<=2?2:(c.frequency||0)<=freqMax(c)?1:0)}">${c.frequency?c.frequency.toFixed(2):'—'}</td>
       <td style="text-align:right;padding:5px 8px">R$ ${money(c.cpm)}</td>
       <td style="text-align:center;padding:5px 8px;white-space:nowrap">${rankDot(c.qualityRanking)}${rankDot(c.engagementRanking)}${rankDot(c.conversionRanking)}</td>
     </tr>`;
@@ -1619,7 +1633,7 @@ function attrChannelTable(attr) {
 
 /* ───────────────────────── ABA: SEMÁFORO (Aba 6) ───────────────────────── */
 function classifySemaforo(c) {
-  const target = brandInfo(c.account).cplAlvo;
+  const target = cplTarget(c);   // v88.25: meta da CONTA (senão da marca) — mesma dos alertas
   const freq = c.frequency || 0, cpl = c.cpr || 0, res = c.results || 0, spend = c.spend || 0, imp = c.impressions || 0;
   if ((res === 0 && spend >= _th.gasto) || (res > 0 && cpl > target * 1.5)) return 'sangria';
   if (freq > 5 || (imp >= 1000 && (c.thumbstop || 0) > 0 && (c.thumbstop || 0) < 0.20)) return 'troca';
@@ -1881,13 +1895,13 @@ function campaignRow(c) {
   if (st === 'active') {
     if ((c.spend||0) >= _th.gasto && (c.results||0) === 0) flags.push(['#dc2626','Verba sem resultado']);
     if ((c.results||0) > 0 && (c.cpr||0) > cplTarget(c)) flags.push(['#ea580c','CPL alto']);
-    if ((c.frequency||0) > _th.freq) flags.push(['#d97706','Fadiga']);
+    if ((c.frequency||0) > freqMax(c)) flags.push(['#d97706','Fadiga']);
     if ((c.impressions||0) >= 500 && (c.ctr||0) < _th.ctr) flags.push(['#ca8a04','CTR baixo']);
     if (/BELOW_AVERAGE/.test(c.qualityRanking||'')) flags.push(['#ca8a04','Qualidade baixa']);
   }
   const dot = flags.length ? `<span title="${escapeHtml(flags.map(f=>f[1]).join(', '))}" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${flags[0][0]}"></span>` : '';
   const cplHi = (c.results||0) > 0 && (c.cpr||0) > cplTarget(c);
-  const freqHi = (c.frequency||0) > _th.freq;
+  const freqHi = (c.frequency||0) > freqMax(c);
   const ctrLo = (c.impressions||0) >= 500 && (c.ctr||0) < _th.ctr;
   const actBtn = st === 'active'
     ? `<button class="btn btn-ghost tiny" data-act="pause" data-cid="${esc(c.id)}" data-acc="${esc(c.accountId||'')}" data-cname="${escapeHtml(c.name||'')}" title="Pausar">⏸</button>`
@@ -1966,6 +1980,11 @@ function wire() {
 
   // Filtro de período custom
   document.getElementById('ma-acc-manage')?.addEventListener('click', openAccountsModal);
+  // v88.25: metas por conta + aba Funil (motor oficial carrega sob demanda)
+  document.getElementById('ma-metas-edit')?.addEventListener('click', () => { _metasEdit = true; render(true); });
+  document.getElementById('ma-metas-cancel')?.addEventListener('click', () => { _metasEdit = false; render(true); });
+  document.getElementById('ma-metas-save')?.addEventListener('click', saveMetasConta);
+  if (_tab === 'funil') loadOficial();
   document.getElementById('ma-range-go')?.addEventListener('click', () => {
     const s = document.getElementById('ma-since')?.value, u = document.getElementById('ma-until')?.value;
     if (!s || !u) return alert('Informe data de início e fim.');
@@ -2040,6 +2059,228 @@ function wire() {
     }
     catch (e) { alert('Erro ao ' + verbo.toLowerCase() + ': ' + e.message); btn.disabled = false; btn.textContent = act === 'pause' ? '⏸' : '▶️'; }
   }));
+}
+
+
+/* ───────────── v88.25 — METAS POR CONTA (CPL · frequência · orçamento do mês) ─────────────
+   Pedido do Paulo (23/09): meta de CPL, orçamento definido para o mês e meta de
+   frequência PARA CADA CONTA. Ritmo do orçamento = gasto do mês atual × projeção
+   linear até o fim do mês (independe do período escolhido na tela). */
+let _metasEdit = false;
+function diasMes() {
+  const n = new Date(Date.now() - 3 * 3600 * 1000);            // BRT
+  const total = new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth() + 1, 0)).getUTCDate();
+  return { hoje: n.getUTCDate(), total };
+}
+function metasContaPanel() {
+  const accs = filteredAccounts();
+  if (!accs.length) return '';
+  const dm = diasMes();
+  const mtdBy = {};
+  ((_mtd && _mtd.accounts) || []).forEach(a => { mtdBy[a.id] = a; });
+  const edit = _metasEdit && canEditTh();
+  const inp = (id, k, v, step) => `<input class="input ma-meta-in" data-acc="${esc(id)}" data-k="${k}" type="number" step="${step}" min="0" value="${v ?? ''}" placeholder="padrão" style="width:92px;padding:3px 6px;font-size:12px">`;
+  const rows = accs.map(a => {
+    const t = _accTargets[a.id] || {};
+    const cplMeta = cplTargetAcc(a), freqM = t.freq || _th.freq;
+    const cpl = a.cpr || 0, freq = a.frequency || 0;
+    const orc = t.orcamento_mes || 0;
+    const gm = mtdBy[a.id] ? (mtdBy[a.id].spend || 0) : null;
+    const proj = gm != null && dm.hoje > 0 ? gm / dm.hoje * dm.total : null;
+    const usado = orc && gm != null ? gm / orc * 100 : null;
+    const ritmoEsperado = dm.hoje / dm.total * 100;
+    let orcTxt = '—', orcCor = 'var(--ink-muted)';
+    if (orc && gm != null) {
+      const desvio = proj / orc * 100 - 100;
+      orcCor = Math.abs(desvio) <= 10 ? 'var(--ok)' : desvio > 10 ? 'var(--err)' : 'var(--warn)';
+      orcTxt = `R$ ${money(gm)} de R$ ${money(orc)} (${pct2(usado)}; ideal hoje ${pct2(ritmoEsperado)})<br><span class="tiny">projeção fim do mês: <b>R$ ${money(proj)}</b> · ${desvio > 10 ? 'vai ESTOURAR' : desvio < -10 ? 'vai SOBRAR' : 'no ritmo'} (${desvio >= 0 ? '+' : ''}${pct2(desvio)})</span>`;
+    } else if (orc) orcTxt = `R$ ${money(orc)} <span class="tiny muted">(gasto do mês indisponível)</span>`;
+    const ok = (v, meta, invert) => !v ? '' : ((invert ? v <= meta : v >= meta) ? 'color:var(--ok);font-weight:800' : 'color:var(--err);font-weight:800');
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:6px 10px;font-weight:700">${escapeHtml(a.label || a.id)}<div class="tiny muted">${escapeHtml(brandInfo(a.label || a.id).brand)}</div></td>
+      <td style="text-align:right;padding:6px 8px;${ok(cpl, cplMeta, true)}">${cpl ? 'R$ ' + money(cpl) : '—'}</td>
+      <td style="text-align:right;padding:6px 8px">${edit ? inp(a.id, 'cpl', t.cpl, 0.5) : 'R$ ' + money(cplMeta) + (t.cpl ? '' : ' <span class="tiny muted">(marca)</span>')}</td>
+      <td style="text-align:right;padding:6px 8px;${ok(freq, freqM, true)}">${freq ? freq.toFixed(2) : '—'}</td>
+      <td style="text-align:right;padding:6px 8px">${edit ? inp(a.id, 'freq', t.freq, 0.1) : freqM.toFixed(1) + (t.freq ? '' : ' <span class="tiny muted">(empresa)</span>')}</td>
+      <td style="padding:6px 8px;color:${orcCor}">${edit ? inp(a.id, 'orcamento_mes', t.orcamento_mes, 100) : orcTxt}</td>
+    </tr>`;
+  }).join('');
+  const semOrc = accs.every(a => !(_accTargets[a.id] || {}).orcamento_mes);
+  return `<div class="card" style="margin:0 0 14px;background:var(--bg-2)">
+    <div class="flex items-center gap-2" style="flex-wrap:wrap">
+      <h3 class="card-title" style="margin:0">🎯 Metas por conta · CPL · frequência · orçamento do mês</h3>
+      <span class="tiny muted">CPL e frequência = período da tela · orçamento = mês atual (dia ${dm.hoje}/${dm.total})</span>
+      ${canEditTh() ? (edit
+        ? `<button class="btn btn-primary btn-sm" id="ma-metas-save" style="margin-left:auto">Salvar metas</button><button class="btn btn-ghost btn-sm" id="ma-metas-cancel">Cancelar</button>`
+        : `<button class="btn btn-ghost btn-sm" id="ma-metas-edit" style="margin-left:auto">✏️ Editar metas</button>`) : ''}
+    </div>
+    <div style="overflow-x:auto;margin-top:8px"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:760px">
+      <thead><tr style="background:var(--bg-3);border-bottom:2px solid var(--border)">
+        <th style="text-align:left;padding:6px 10px">Conta</th><th style="text-align:right;padding:6px 8px">CPL atual</th><th style="text-align:right;padding:6px 8px">Meta CPL</th>
+        <th style="text-align:right;padding:6px 8px">Freq atual</th><th style="text-align:right;padding:6px 8px">Freq máx.</th><th style="text-align:left;padding:6px 8px">Orçamento do mês · ritmo</th>
+      </tr></thead><tbody>${rows}</tbody></table></div>
+    ${semOrc && !edit ? `<div class="tiny muted" style="margin-top:6px">Nenhum orçamento mensal definido ainda${canEditTh() ? ' — clique em ✏️ Editar metas' : ''}. Campo vazio = usa o padrão da marca/empresa.</div>` : ''}
+  </div>`;
+}
+async function saveMetasConta() {
+  const contas = JSON.parse(JSON.stringify(_accTargets || {}));
+  document.querySelectorAll('.ma-meta-in').forEach(el => {
+    const acc = el.dataset.acc, k = el.dataset.k, v = parseFloat(el.value);
+    contas[acc] = contas[acc] || {};
+    if (v > 0) contas[acc][k] = v; else delete contas[acc][k];
+    if (!Object.keys(contas[acc]).length) delete contas[acc];
+  });
+  try {
+    const r = await api.request('/api/v3/marketing/ads_thresholds', { method: 'POST', body: { th: _th, contas } });
+    _accTargets = r.contas || contas; _thMeta = { by: r.updated_by, at: r.updated_at };
+    _metasEdit = false; _nocacheOnce = false; reload(true);
+  } catch (e) { alert('Não salvou: ' + (e?.message || e)); }
+}
+
+/* ───────────── v88.25 — ABA FUNIL (anúncio → venda) ─────────────
+   Topo (CPM → LP/WhatsApp) = Meta Ads das contas da marca. Fundo (qualificado →
+   visita → pasta/proposta → venda) = MOTOR OFICIAL (/api/v3/metricas/resumo,
+   Dicionário §5) — o mesmo número do 1:1 e da Gestão Comercial: Conquista lê a
+   esteira do PSM HUB (qualificação, atendimento/visita, pasta); MAP lê o RD
+   (contato/qualificação, tarefa de visita, proposta). Venda = RD. Janela = as
+   MESMAS datas do período da Meta na tela. */
+const FUNIL_BENCH = {           // referências (acima = ok). Hook: "abaixo de 20% compromete o funil".
+  hook: 20, ctr: 1.0, acesso: 60, qualif: 25, visita: 20, pasta: 40, venda: 20,
+};
+const BRAND_TEAM = { conquista: 'conquista', imoveis: 'map', locacao: 'locacao' };
+function ofWindow() {
+  const p = (_data && _data.period) || {};
+  if (p.since && p.until) return { since: p.since, until: p.until };
+  if (_since && _until) return { since: _since, until: _until };
+  return null;
+}
+async function loadOficial(force) {
+  const w = ofWindow(); if (!w) return;
+  const key = w.since + '|' + w.until;
+  if (!force && _of && _ofKey === key) return;
+  const seq = ++_ofSeq;
+  try {
+    const r = await api.request('/api/v3/metricas/resumo?since=' + w.since + '&until=' + w.until);
+    if (seq !== _ofSeq) return;
+    _of = r; _ofKey = key;
+  } catch (e) { if (seq !== _ofSeq) return; _of = { ok: false, error: e.message }; _ofKey = key; }
+  if (_loading) return;
+  if (_tv) renderTV(); else if (_tab === 'funil') render(true);
+}
+function teamBlock(team) { return (_of && _of.equipes && _of.equipes[team]) || null; }
+function oficialMarcos(b) {
+  if (!b) return null;
+  const hub = b.team === 'conquista' && b.hub && typeof b.hub === 'object';
+  const H = k => +((b.hub || {})[k] || 0);
+  return {
+    fonte: hub ? 'HUB (esteira)' : 'RD (colunas)',
+    leads: +(b.leads || 0),
+    qualif: hub ? H('qualificacao') : +(b.qualificados || 0),
+    visita: hub ? H('atendimento') : (b.visitas != null ? +b.visitas : +(b.visitas_coluna || 0)),
+    visitaColuna: +(b.visitas_coluna || 0),
+    pasta: hub ? H('pasta') : +(b.propostas || 0),
+    pastaLbl: hub ? 'Pasta' : 'Proposta',
+    vendas: +(b.vendas || 0), vgv: +(b.vgv || 0),
+  };
+}
+function funilBrand(bkey, camps, accs) {
+  const s = aggMetrics(camps);
+  const spend = s.spend;
+  const results = s.messages + s.leads;
+  const team = BRAND_TEAM[bkey];
+  const o = oficialMarcos(teamBlock(team));
+  const bi = brandInfo(bkey === 'conquista' ? 'conquista' : bkey === 'locacao' ? 'locacao' : 'imoveis');
+  const cplMeta = cplTargetAccounts(accs);
+  const pc = (a, b) => b > 0 ? a / b * 100 : null;
+  const cost = n => n > 0 ? spend / n : null;
+  const st = [];
+  // [key, título, subtítulo, n, taxaLabel, taxa, bench(%), custo, extra]
+  st.push({ k: 'cpm', t: 'CPM', sub: 'Impressão do anúncio', n: s.impressions, taxaLbl: 'CPM', taxaTxt: s.impressions ? 'R$ ' + money(spend / s.impressions * 1000) : '—', ok: null, custo: null,
+    extra: `alcance ${fmtNum(s.reach)} · freq ${(s.reach ? s.impressions / s.reach : 0).toFixed(2)}` });
+  const hook = s.v3 > 0 ? pc(s.v3, s.impressions) : null;
+  st.push({ k: 'hook', t: 'HOOK RATE (3s)', sub: 'Retenção inicial do criativo', n: s.v3, taxaLbl: 'hook', taxa: hook, bench: FUNIL_BENCH.hook, custo: cost(s.v3),
+    extra: s.v3 > 0 ? 'views de 3s ÷ impressões' : 'sem vídeo no período' });
+  st.push({ k: 'ctr', t: 'CTR', sub: 'Clique no anúncio (link)', n: s.linkClicks, taxaLbl: 'CTR link', taxa: pc(s.linkClicks, s.impressions), bench: FUNIL_BENCH.ctr, custo: cost(s.linkClicks), custoLbl: 'CPC' });
+  st.push({ k: 'cpl', t: 'CPL', sub: 'Geração de lead (Meta)', n: results, taxaLbl: 'CPL', taxaTxt: results ? 'R$ ' + money(spend / results) : '—',
+    ok: results ? (spend / results <= cplMeta) : null, extra: `meta R$ ${money(cplMeta)} · ${fmtNum(s.messages)} conversas + ${fmtNum(s.leads)} formulários`, custo: null });
+  const acesso = s.lpViews + s.messages;
+  st.push({ k: 'acesso', t: 'LP VIEW / WHATSAPP', sub: 'Acesso real', n: acesso, taxaLbl: '÷ cliques', taxa: pc(acesso, s.linkClicks), bench: FUNIL_BENCH.acesso, custo: cost(acesso),
+    extra: `${fmtNum(s.lpViews)} visitas à LP + ${fmtNum(s.messages)} conversas` });
+  if (o) {
+    st.push({ k: 'leadrd', t: 'LEAD NO CRM', sub: 'Tráfego pago no RD', n: o.leads, taxaLbl: '÷ result. Meta', taxa: pc(o.leads, results), custo: cost(o.leads), custoLbl: 'CPL real',
+      extra: 'negócios de origem tráfego pago (Dicionário §2)' });
+    st.push({ k: 'qualif', t: 'CONTATO QUALIFICADO', sub: 'Responde, engaja e tem perfil', n: o.qualif, taxaLbl: '÷ leads', taxa: pc(o.qualif, o.leads), bench: FUNIL_BENCH.qualif, custo: cost(o.qualif), custoLbl: 'CPQL' });
+    st.push({ k: 'visita', t: 'VISITA / REUNIÃO', sub: 'Do digital para o físico', n: o.visita, taxaLbl: '÷ qualificados', taxa: pc(o.visita, o.qualif), bench: FUNIL_BENCH.visita, custo: cost(o.visita), custoLbl: 'custo/visita',
+      extra: o.fonte.startsWith('RD') && o.visitaColuna !== o.visita ? `coluna "visita realizada": ${fmtNum(o.visitaColuna)}` : '' });
+    st.push({ k: 'pasta', t: o.pastaLbl.toUpperCase(), sub: bkey === 'conquista' ? 'Pasta montada (MCMV)' : 'Proposta enviada', n: o.pasta, taxaLbl: '÷ visitas', taxa: pc(o.pasta, o.visita), bench: FUNIL_BENCH.pasta, custo: cost(o.pasta), custoLbl: 'custo/' + o.pastaLbl.toLowerCase() });
+    st.push({ k: 'venda', t: 'VENDA CONCLUÍDA', sub: 'Receita', n: o.vendas, taxaLbl: '÷ ' + o.pastaLbl.toLowerCase() + 's', taxa: pc(o.vendas, o.pasta), bench: FUNIL_BENCH.venda, custo: cost(o.vendas), custoLbl: 'CAC',
+      extra: `VGV R$ ${moneyShort(o.vgv)}${o.vgv && spend ? ` · comissão ÷ mídia ${(o.vgv * OO_COMISSAO_PCT / spend).toFixed(1)}x` : ''}` });
+  }
+  // status + gargalo (pior taxa ÷ referência)
+  let garg = null;
+  st.forEach(x => {
+    if (x.bench != null && x.taxa != null) { x.ok = x.taxa >= x.bench; const r = x.taxa / x.bench; if (!x.ok && (!garg || r < garg.r)) garg = { r, x }; }
+  });
+  return { bkey, bi, st, o, spend, results, garg, team };
+}
+const FUNIL_ACAO = {
+  hook: 'Gancho fraco: trocar os 3 primeiros segundos do vídeo (rosto, pergunta, preço) — abaixo de 20% compromete todo o funil.',
+  ctr: 'Criativo não gera clique: testar nova headline/oferta e CTA claro.',
+  acesso: 'Clique não vira acesso: LP lenta ou link do WhatsApp com atrito — revisar velocidade e o botão.',
+  qualif: 'Lead não qualifica: revisar segmentação (renda/região) e o SLA do 1º contato.',
+  visita: 'Qualificado não vira visita: script de agendamento e follow-up em até 24h.',
+  pasta: 'Visita não vira pasta/proposta: preparar simulação/documentação ANTES da visita.',
+  venda: 'Pasta não vira venda: destravar aprovação de crédito e negociação.',
+};
+function tabFunil() {
+  const w = ofWindow();
+  if (!w) return '<div class="alert alert-warn">Período sem datas definidas — atualize (🔄) para carregar o funil.</div>';
+  if (!_of || _ofKey !== (w.since + '|' + w.until)) {
+    return '<div class="muted tiny" style="padding:12px"><span class="spinner"></span> Carregando o funil (Meta + motor oficial de métricas)…</div>';
+  }
+  if (_of.ok === false) return `<div class="alert alert-warn">Motor de métricas indisponível: ${escapeHtml(_of.error || '')}</div>`;
+  const accs = filteredAccounts(), camps = filteredCampaigns();
+  const keys = [...new Set(accs.map(a => brandInfo(a.label || a.id).key))].sort((a, b) => (a === 'conquista' ? -1 : 1));
+  const blocos = keys.map(k => funilBrand(k,
+    camps.filter(c => brandInfo(c.account).key === k),
+    accs.filter(a => brandInfo(a.label || a.id).key === k)));
+  const hubMensal = (_of.avisos || []).some(a => /esteira do HUB é mensal/i.test(String(a.txt || a)));
+  return `
+    <p class="card-sub">Funil completo do anúncio à venda. <b>Topo</b> (CPM → acesso) = Meta Ads das contas da marca · <b>fundo</b> (lead no CRM → venda) = motor oficial de métricas, o mesmo número do 1:1 e da Gestão Comercial. Período ${escapeHtml(fmtDataBR(w.since))} – ${escapeHtml(fmtDataBR(w.until))}.${filterTag()}</p>
+    ${hubMensal ? '<div class="alert alert-warn" style="margin-top:8px">ℹ️ Conquista: qualificação, visita e pasta vêm da esteira do PSM HUB, que é <b>mensal</b> — em período que não é mês cheio, esses degraus mostram o(s) mês(es) inteiro(s).</div>' : ''}
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(420px,100%),1fr));gap:16px;margin-top:12px">
+      ${blocos.map(funilCard).join('')}
+    </div>
+    <div class="tiny muted" style="margin-top:10px">Referências (ok ≥): hook ${FUNIL_BENCH.hook}% · CTR link ${FUNIL_BENCH.ctr}% · acesso ${FUNIL_BENCH.acesso}% dos cliques · qualificado ${FUNIL_BENCH.qualif}% dos leads · visita ${FUNIL_BENCH.visita}% dos qualificados · pasta/proposta ${FUNIL_BENCH.pasta}% das visitas · venda ${FUNIL_BENCH.venda}% das pastas. Taxas de fluxo do período (podem passar de 100% quando a etapa anterior foi em outro período).</div>`;
+}
+function funilCard(F) {
+  const n = F.st.length;
+  const rows = F.st.map((x, i) => {
+    const w = Math.round(100 - i * (46 / Math.max(1, n - 1)));
+    const cor = x.ok == null ? '#334155' : x.ok ? '#166534' : '#991b1b';
+    const taxa = x.taxaTxt != null ? x.taxaTxt : (x.taxa != null ? pct2(x.taxa) : '—');
+    const isG = F.garg && F.garg.x === x;
+    return `<div style="margin:0 auto;width:${w}%;background:linear-gradient(135deg,#0f172a,#1e293b);border:2px solid ${isG ? '#f59e0b' : 'transparent'};border-left:6px solid ${cor};border-radius:10px;padding:8px 12px;margin-bottom:6px;color:#e2e8f0">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap">
+        <div><div style="font-size:12.5px;font-weight:900;letter-spacing:.3px">${escapeHtml(x.t)}${isG ? ' <span style="color:#fbbf24">⚠️ GARGALO</span>' : ''}</div>
+          <div style="font-size:10.5px;color:#94a3b8">${escapeHtml(x.sub)}</div></div>
+        <div style="text-align:right"><div style="font-size:17px;font-weight:900">${fmtNum(x.n)}</div>
+          <div style="font-size:11px;color:${x.ok == null ? '#cbd5e1' : x.ok ? '#4ade80' : '#f87171'};font-weight:800">${escapeHtml(x.taxaLbl)}: ${taxa}${x.bench != null ? ` <span style="color:#64748b;font-weight:600">(ref ${x.bench}%)</span>` : ''}</div></div>
+      </div>
+      ${(x.custo != null || x.extra) ? `<div style="font-size:10.5px;color:#94a3b8;margin-top:3px">${x.custo != null ? `${escapeHtml(x.custoLbl || 'custo')}: <b style="color:#e2e8f0">R$ ${money(x.custo)}</b>` : ''}${x.custo != null && x.extra ? ' · ' : ''}${x.extra || ''}</div>` : ''}
+    </div>`;
+  }).join('');
+  const o = F.o;
+  const q1 = o && o.vendas ? `<b>${(o.leads / o.vendas).toFixed(0)}</b> leads · <b>${(o.visita / o.vendas).toFixed(1)}</b> visitas · <b>${(o.pasta / o.vendas).toFixed(1)}</b> ${o.pastaLbl.toLowerCase()}s por venda` : 'sem venda no período — sem "quantos para 1 venda"';
+  return `<div class="card" style="margin:0;background:var(--bg-2);border-top:5px solid ${F.bi.cor}">
+    <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:8px">
+      <div style="font-weight:900;font-size:15px;color:${F.bi.cor}">${escapeHtml(F.bi.brand)}</div>
+      <span class="tiny muted">investido R$ ${money(F.spend)} · fundo do funil: ${o ? escapeHtml(o.fonte) + ' · equipe ' + escapeHtml(F.team) : '<b style="color:var(--warn)">sem equipe no motor oficial</b>'}</span>
+    </div>
+    ${rows}
+    <div style="margin-top:8px;font-size:12px">🎯 ${q1}</div>
+    ${F.garg ? `<div style="margin-top:8px;background:color-mix(in srgb,#f59e0b 14%,transparent);border:1px solid #f59e0b;border-radius:10px;padding:8px 12px;font-size:12px"><b>⚠️ Gargalo: ${escapeHtml(F.garg.x.t)}</b> (${pct2(F.garg.x.taxa)} vs ref ${F.garg.x.bench}%) → ${escapeHtml(FUNIL_ACAO[F.garg.x.k] || '')}</div>` : '<div class="tiny" style="margin-top:8px;color:var(--ok);font-weight:700">✅ Todas as etapas dentro da referência.</div>'}
+  </div>`;
 }
 
 function rankLabel(r) {

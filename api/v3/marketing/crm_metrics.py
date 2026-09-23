@@ -626,11 +626,13 @@ class handler(BaseHTTPRequestHandler):
                 # Contact / Visita pelo estágio atual
                 pos, pinfo_d = _deal_stage_pos(raw, brand, d)
                 if pos is not None and pinfo_d:
-                    if _is_contact(pinfo_d, pos) or win is not None:
+                    # v88.25: só GANHO conta como contatado automático (antes todo perdido
+                    # — inclusive "não atendeu" — inflava o contatado e o CPQL)
+                    if _is_contact(pinfo_d, pos) or win is True:
                         B["leads_contatados"] += 1
                     if _is_visita(pinfo_d, pos):
                         B["leads_visita"] += 1
-                elif win is not None:
+                elif win is True:
                     B["leads_contatados"] += 1
 
         # ── Monta saída por marca ──
