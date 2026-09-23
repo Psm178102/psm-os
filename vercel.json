@@ -308,6 +308,9 @@
     }
   ],
   "functions": {
+    "api/v3/diretoria/scorecard.py": {
+      "maxDuration": 60
+    },
     "api/v3/crm/retroativo_rd.py": {
       "maxDuration": 300
     },

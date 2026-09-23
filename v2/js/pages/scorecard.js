@@ -1,0 +1,220 @@
+/* PSM-OS v2 — 📊 Scorecards (v88.26)
+   Um só formato de placar para a Presidência, cada Unidade de Negócio e cada Área:
+   indicador · realizado · meta · % · farol · dono. Mesma régua pra todos (ver "Como ler").
+   Números vêm dos motores oficiais (backend /api/v3/diretoria/scorecard) — aqui só se
+   define meta própria, lança indicador manual e troca o dono (sócio). */
+import { api } from '../api.js';
+import { auth } from '../auth.js';
+
+let _root = null;
+let _d = null;
+let _ym = ymDe(new Date());
+let _users = null;
+
+const FAROL = {
+  verde:    { cor: '#16a34a', ico: '🟢', lbl: 'No alvo' },
+  amarelo:  { cor: '#d97706', ico: '🟡', lbl: 'Atenção' },
+  vermelho: { cor: '#dc2626', ico: '🔴', lbl: 'Fora' },
+  cinza:    { cor: '#94a3b8', ico: '⚪', lbl: 'Sem dado' },
+  info:     { cor: '#0891b2', ico: '📈', lbl: 'Acompanhamento' },
+};
+const GRUPOS = [
+  { id: 'presidencia', nome: 'Presidência', sub: 'a empresa inteira' },
+  { id: 'un', nome: 'Unidades de Negócio', sub: 'cada frente como uma empresa' },
+  { id: 'area', nome: 'Áreas', sub: 'cada diretoria funcional' },
+];
+const socio = () => (auth.user()?.lvl || 0) >= 10;
+
+export async function pageScorecard(ctx, root) {
+  _root = root;
+  if (ctx?.query?.ym && /^\d{4}-\d{2}$/.test(ctx.query.ym)) _ym = ctx.query.ym;
+  renderShell();
+  await load(false);
+}
+
+async function load(fresh) {
+  const body = document.getElementById('sc-body');
+  body.innerHTML = '<div class="muted tiny"><span class="spinner"></span> Montando os placares (motor comercial + financeiro + mídia)…</div>';
+  try {
+    _d = await api.request(`/api/v3/diretoria/scorecard?ym=${_ym}${fresh ? '&fresh=1' : ''}`);
+    render();
+  } catch (e) {
+    body.innerHTML = `<div class="alert alert-err">${esc(e.message)}</div>`;
+  }
+}
+
+function renderShell() {
+  const meses = [];
+  const d = new Date(); d.setDate(1);
+  for (let i = 0; i < 12; i++) { meses.push(ymDe(d)); d.setMonth(d.getMonth() - 1); }
+  _root.innerHTML = `
+    <div class="card">
+      <div class="flex" style="justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
+        <div>
+          <h2 class="card-title">📊 Scorecards</h2>
+          <p class="card-sub">Um placar padrão por nível: <b>Presidência → Unidades de Negócio → Áreas</b>. Cada indicador tem meta, farol e dono.</p>
+        </div>
+        <div class="flex gap-1" style="align-items:center;flex-wrap:wrap">
+          <select id="sc-ym" class="select" style="width:auto">${meses.map(m => `<option value="${m}" ${m === _ym ? 'selected' : ''}>${nomeMes(m)}</option>`).join('')}</select>
+          <button class="btn btn-ghost" id="sc-fresh" title="Recalcular agora, ignorando o cache">↻ Recalcular</button>
+        </div>
+      </div>
+      <details class="mt-2" style="background:var(--bg-3);border-radius:8px;padding:8px 12px">
+        <summary style="cursor:pointer;font-weight:700;font-size:13px">📐 Como ler o farol (régua única)</summary>
+        <div class="tiny" style="margin-top:6px;line-height:1.7">
+          <b>Maior é melhor, acumula no mês</b> (VGV, vendas, visitas…): compara com o <b>ritmo</b>, ou seja, com quanto do mês já passou.
+          🟢 ≥ 90% do esperado · 🟡 ≥ 70% · 🔴 abaixo. No dia 15 de um mês de 30, esperado = 50% da meta.<br>
+          <b>Maior é melhor, foto</b> (taxas, carteira, NPS): 🟢 ≥ 90% da meta · 🟡 ≥ 70% · 🔴 abaixo.<br>
+          <b>Menor é melhor</b> (CPL, CAC, atrasos): 🟢 ≤ meta · 🟡 até 15% acima · 🔴 mais que isso.<br>
+          📈 = acompanhamento (ainda sem meta — o sócio define no ✏️) · ⚪ = sem dado ou indicador manual ainda não lançado.
+          <b>Saúde do placar</b> = verdes valem 100, amarelos 50, vermelhos 0 (média dos avaliados).<br>
+          Meta: <i>aba Metas</i> (comercial, a mesma do 1:1 e do Ranking) · <i>orçado</i> (tela Orçado × Realizado) · <i>padrão</i> (definida no sistema) · <i>própria</i> (definida aqui pelo sócio).
+        </div>
+      </details>
+      <div id="sc-body" class="mt-3"></div>
+    </div>`;
+  document.getElementById('sc-ym').addEventListener('change', e => { _ym = e.target.value; load(false); });
+  document.getElementById('sc-fresh').addEventListener('click', () => load(true));
+}
+
+function render() {
+  const d = _d;
+  const body = document.getElementById('sc-body');
+  const fech = d.ritmo >= 100;
+  body.innerHTML = `
+    <div class="tiny muted mb-2">
+      ${fech ? '📁 Mês fechado — farol contra a meta cheia.' : `⏱ Mês em andamento: <b>${d.ritmo}%</b> do mês decorrido (é o esperado dos indicadores que acumulam).`}
+      ${d.dados_de ? ` · CRM de ${esc(d.dados_de)}` : ''}${d.cached ? ` · cache de ${Math.round((d.cache_age_s || 0) / 60)} min` : ''}
+    </div>
+    ${(d.avisos || []).length ? `<div class="alert alert-warn mb-3">${d.avisos.map(esc).join('<br>')}</div>` : ''}
+    ${placarGeral(d.scorecards)}
+    ${GRUPOS.map(g => {
+      const scs = d.scorecards.filter(s => s.grupo === g.id);
+      if (!scs.length) return '';
+      return `<div class="mt-3"><div style="font-weight:800;font-size:15px">${g.nome} <span class="tiny muted" style="font-weight:400">· ${g.sub}</span></div>
+        ${scs.map(scCard).join('')}</div>`;
+    }).join('')}`;
+  bind(body);
+}
+
+function placarGeral(scs) {
+  return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px">
+    ${scs.map(s => {
+      const f = FAROL[s.farol] || FAROL.cinza;
+      return `<a href="javascript:void 0" data-goto="${s.id}" style="text-decoration:none;color:inherit;background:var(--bg-3);border-radius:8px;padding:10px;border-left:4px solid ${f.cor};display:block">
+        <div class="flex" style="justify-content:space-between;align-items:center;gap:6px">
+          <span style="font-weight:800;font-size:13px">${s.ico} ${esc(s.nome)}</span>
+          <b style="color:${f.cor};font-size:16px">${s.saude == null ? '—' : s.saude}</b>
+        </div>
+        <div class="tiny muted" style="margin-top:2px">👤 ${esc(s.dono_nome || '—')}</div>
+        <div class="tiny" style="margin-top:4px">🟢 ${s.farois.verde} · 🟡 ${s.farois.amarelo} · 🔴 ${s.farois.vermelho}${s.farois.cinza ? ' · ⚪ ' + s.farois.cinza : ''}${s.farois.info ? ' · 📈 ' + s.farois.info : ''}</div>
+      </a>`;
+    }).join('')}
+  </div>`;
+}
+
+function scCard(s) {
+  const f = FAROL[s.farol] || FAROL.cinza;
+  return `<div id="sc-${s.id}" class="card mt-2" style="border-left:5px solid ${f.cor};padding:12px">
+    <div class="flex" style="justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
+      <div style="flex:1;min-width:220px">
+        <div style="font-weight:800;font-size:15px">${s.ico} ${esc(s.nome)}</div>
+        <div class="tiny muted">${esc(s.nota_sc || '')}</div>
+      </div>
+      <div class="flex gap-2" style="align-items:center">
+        ${socio() ? `<select class="select" data-dono="${s.id}" style="width:auto;font-size:12px" title="Dono do placar"><option value="${esc(s.dono)}">👤 ${esc(s.dono_nome || s.dono)}</option></select>`
+                  : `<span class="tiny">👤 <b>${esc(s.dono_nome || '—')}</b></span>`}
+        <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;background:${f.cor}22;color:${f.cor}">saúde ${s.saude == null ? '—' : s.saude}</span>
+      </div>
+    </div>
+    <div style="overflow-x:auto;margin-top:8px">
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:560px">
+        <thead><tr class="tiny muted" style="text-align:left">
+          <th style="padding:4px 6px;width:22px"></th><th style="padding:4px 6px">Indicador</th>
+          <th style="padding:4px 6px;text-align:right">Realizado</th><th style="padding:4px 6px;text-align:right">Meta</th>
+          <th style="padding:4px 6px;width:150px">Atingimento</th></tr></thead>
+        <tbody>${s.indicadores.map(linha).join('')}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function linha(i) {
+  const f = FAROL[i.farol] || FAROL.cinza;
+  const valor = i.manual && socio()
+    ? `<input class="input" type="number" step="any" data-manual="${i.id}" value="${i.valor ?? ''}" placeholder="lançar" style="width:110px;text-align:right;padding:3px 6px;font-size:12px">`
+    : (i.valor == null ? '<span class="muted">—</span>' : fmt(i.valor, i.un));
+  const meta = `${i.meta == null ? '<span class="muted">—</span>' : (i.dir === 'menor' ? '≤ ' : '') + fmt(i.meta, i.un)}
+    ${i.meta_origem ? `<div class="tiny muted">${esc(i.meta_origem)}</div>` : ''}
+    ${socio() ? `<a href="javascript:void 0" class="tiny" data-meta="${i.id}" title="Definir meta própria">✏️</a>` : ''}`;
+  let ating = '';
+  if (i.pct != null) {
+    const w = Math.max(0, Math.min(100, i.dir === 'menor' ? (i.valor <= i.meta ? 100 : Math.round(i.meta / i.valor * 100)) : i.pct));
+    const marca = i.esperado != null && i.esperado > 0 && i.esperado < 100 && i.dir !== 'menor'
+      ? `<div title="esperado hoje: ${i.esperado}%" style="position:absolute;top:-3px;left:${i.esperado}%;width:2px;height:13px;background:var(--ink,#0b1f3a);opacity:.5"></div>` : '';
+    ating = `<div class="flex gap-1" style="align-items:center"><div style="position:relative;flex:1;height:7px;background:var(--bg-2);border-radius:4px">
+      <div style="height:100%;width:${w}%;background:${f.cor};border-radius:4px"></div>${marca}</div>
+      <b class="tiny" style="color:${f.cor};width:40px;text-align:right">${i.pct}%</b></div>`;
+  } else {
+    ating = `<span class="tiny" style="color:${f.cor}">${i.motivo ? esc(i.motivo) : f.ico + ' ' + f.lbl}</span>`;
+  }
+  return `<tr style="border-top:1px solid var(--border)">
+    <td style="padding:6px" title="${f.lbl}">${f.ico}</td>
+    <td style="padding:6px"><div style="font-weight:600">${esc(i.label)}${i.manual ? ' <span class="tiny muted">✍️ manual</span>' : ''}</div>
+      ${i.nota ? `<div class="tiny muted">${esc(i.nota)}</div>` : ''}</td>
+    <td style="padding:6px;text-align:right;white-space:nowrap">${valor}</td>
+    <td style="padding:6px;text-align:right;white-space:nowrap">${meta}</td>
+    <td style="padding:6px">${ating}</td>
+  </tr>`;
+}
+
+async function bind(body) {
+  body.querySelectorAll('[data-goto]').forEach(a => a.addEventListener('click', () =>
+    document.getElementById('sc-' + a.dataset.goto)?.scrollIntoView({ behavior: 'smooth', block: 'start' })));
+  body.querySelectorAll('[data-meta]').forEach(a => a.addEventListener('click', async () => {
+    const ind = findInd(a.dataset.meta);
+    const atual = ind?.meta_origem === 'própria' ? ind.meta : '';
+    const v = prompt(`Meta própria para "${ind?.label}"${ind?.un === '%' ? ' (em %)' : ind?.un === 'R$' ? ' (em R$)' : ''}.\nDeixe vazio para voltar à meta ${ind?.meta_origem && ind.meta_origem !== 'própria' ? 'da ' + ind.meta_origem : 'padrão'}.`, atual ?? '');
+    if (v === null) return;
+    await post({ action: 'set_meta', ind: a.dataset.meta, meta: v.trim() === '' ? null : Number(v.replace(',', '.')) });
+  }));
+  body.querySelectorAll('[data-manual]').forEach(inp => inp.addEventListener('change', async () => {
+    const v = inp.value.trim();
+    await post({ action: 'set_manual', ym: _ym, ind: inp.dataset.manual, valor: v === '' ? null : Number(v.replace(',', '.')) });
+  }));
+  const donos = body.querySelectorAll('[data-dono]');
+  if (donos.length) {
+    if (!_users) {
+      try { const r = await api.request('/api/v3/users/list'); _users = (r.users || []).filter(u => u.id && u.name).sort((a, b) => a.name.localeCompare(b.name)); }
+      catch (_) { _users = []; }
+    }
+    donos.forEach(sel => {
+      const atual = sel.value;
+      sel.innerHTML = _users.map(u => `<option value="${esc(u.id)}" ${u.id === atual ? 'selected' : ''}>👤 ${esc(u.name)}</option>`).join('')
+        + (_users.some(u => u.id === atual) ? '' : `<option value="${esc(atual)}" selected>👤 ${esc(atual)}</option>`);
+      sel.addEventListener('change', () => post({ action: 'set_dono', sc: sel.dataset.dono, dono: sel.value }));
+    });
+  }
+}
+
+async function post(body) {
+  try { await api.request('/api/v3/diretoria/scorecard', { method: 'POST', body }); await load(false); }
+  catch (e) { alert('Erro: ' + e.message); }
+}
+
+function findInd(id) { for (const s of _d.scorecards) for (const i of s.indicadores) if (i.id === id) return i; return null; }
+
+function fmt(v, un) {
+  const n = Number(v) || 0;
+  if (un === 'R$') {
+    const a = Math.abs(n), s = n < 0 ? '−' : '';
+    if (a >= 1e6) return `${s}R$ ${(a / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} mi`;
+    if (a >= 1e4) return `${s}R$ ${(a / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mil`;
+    return `${s}R$ ${a.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}`;
+  }
+  if (un === '%') return n.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%';
+  return n.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+}
+function ymDe(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; }
+function nomeMes(ym) { const [a, m] = ym.split('-'); return ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'][+m - 1] + '/' + a; }
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
