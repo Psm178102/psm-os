@@ -502,7 +502,9 @@ def coletar_integracoes(sb, col, now, live=True):
         prov = "Evolution"
     if prov == "none":
         add("whatsapp", "WhatsApp", "Envio de mensagens (Meu dia, campanhas, roleta).", "paused",
-            "Nenhum provedor configurado — envios de WhatsApp desligados.", link="#/wa-leads", ico="💬")
+            "Pausado por decisão do Paulo (23/09) — nenhum provedor configurado, envios de WhatsApp desligados. "
+            "Não gera alerta.", link="#/wa-leads", ico="💬")
+        itens[-1]["herda"] = "pausa_intencional"   # decisão do sócio: aparece como pausado, sem alertar
     else:
         st, det = "ok", f"Provedor: {prov}."
         pe = P.get("evolution")
