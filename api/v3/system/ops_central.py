@@ -902,7 +902,7 @@ def vigiar(sb, cfg, itens, now, forcar_teste=False):
               "status": status, "resumo": r, "em": now.isoformat(),
               "ativos": [{"id": i["id"], "nome": i["nome"], "status": i["status"], "detalhe": i["detalhe"],
                           "link": i.get("link"), "grupo": i["grupo"]}
-                         for i in itens if i["status"] in ALERTA_STATUS],
+                         for i in itens if i["status"] in ALERTA_STATUS and i.get("herda") != "pausa_intencional"],
               "ultimo_envio": ({"em": now.isoformat(), **envio} if envio.get("enviado") else st.get("ultimo_envio"))}
     try:
         kv_set(sb, KV_STATE, estado)

@@ -77,7 +77,8 @@ async function reload(primeira) {
 function render() {
   const itens = _data.itens || [];
   const r = _data.resumo || {};
-  const ruins = itens.filter(i => ['error', 'warn', 'paused'].includes(i.status))
+  // pausa_intencional = decisão do sócio (ex.: WhatsApp): segue no grupo como ⏸, mas não cobra nada
+  const ruins = itens.filter(i => ['error', 'warn', 'paused'].includes(i.status) && i.herda !== 'pausa_intencional')
     .sort((a, b) => ORDEM[a.status] - ORDEM[b.status]);
   const ativos = ruins.filter(i => !i.silenciado_ate);
   const calados = ruins.filter(i => i.silenciado_ate);
@@ -313,7 +314,7 @@ export function atualizarBadge(d) {
   const btn = document.querySelector('.sb-link[data-nav="/central-ops"]');
   if (!btn) return;
   let b = btn.querySelector('.ops-badge');
-  const ativos = (d?.ativos || (d?.itens || []).filter(i => ['error', 'warn', 'paused'].includes(i.status) && !i.silenciado_ate));
+  const ativos = (d?.ativos || (d?.itens || []).filter(i => ['error', 'warn', 'paused'].includes(i.status) && !i.silenciado_ate && i.herda !== 'pausa_intencional'));
   const nErr = ativos.filter(i => i.status === 'error').length;
   const n = nErr || ativos.length;
   if (!n) { b?.remove(); return; }
