@@ -25,6 +25,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
 from _meta_cache_lib import build_cache_key, read_cache, write_cache  # type: ignore
+from _window_lib import window as _resolve_window, WindowError  # type: ignore
 
 GRAPH_API = "https://graph.facebook.com/v21.0"
 CACHE_MAX_AGE_S = 30 * 60
@@ -149,6 +150,11 @@ class handler(BaseHTTPRequestHandler):
         since = params.get("since") or ""
         until = params.get("until") or ""
         nocache = bool(params.get("nocache"))
+        # v88.13: janela validada/resolvida (BRT, igual ao CRM) → time_range explícito
+        try:
+            w_s, w_u = _resolve_window(params)
+        except WindowError as e:
+            return self._send(400, {"ok": False, "error": str(e)})
         # v88.11: filtro de conta(s) (o cockpit mandava todas mesmo com 1 selecionada)
         sel = sorted([x.strip() for x in (params.get("accounts") or "").split(",") if x.strip()])
         key = ("bd:" + ",".join(bd_keys) + "|" + ((",".join(sel) + ":") if sel else "")
@@ -168,10 +174,8 @@ class handler(BaseHTTPRequestHandler):
         if not token or not account_ids:
             return self._send(503, {"ok": False, "error": "META_ACCESS_TOKEN/META_AD_ACCOUNT_IDS ausentes"})
 
-        if since and until:
-            date_params = '&time_range={"since":"%s","until":"%s"}' % (since, until)
-        else:
-            date_params = "&date_preset=" + urllib.parse.quote(preset or "last_30d")
+        date_params = "&time_range=" + urllib.parse.quote(
+            '{"since":"%s","until":"%s"}' % (w_s.isoformat(), w_u.isoformat()))
 
         accounts = []
         errors = []

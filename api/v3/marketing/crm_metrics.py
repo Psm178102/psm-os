@@ -217,6 +217,9 @@ def _fetch_period_deals(sb, since_d, until_d):
     Retorna (rows, erro, truncated). truncated=True se bateu o teto (sinaliza ao
     usuário — sem corte silencioso)."""
     since_iso = since_d.isoformat()
+    # v88.13: limite SUPERIOR (fim do dia BRT de `until`) — antes `last_month` ou
+    # `year_2024` puxava todo deal até hoje (lento e estourava o teto de 30k)
+    until_iso = (until_d + timedelta(days=1)).isoformat() + "T03:00:00Z"
     cols = "id,name,amount,win,closed_at,created_at_rd,updated_at_rd,pipeline_name,stage_name,user_email,user_id,rd_raw"
     out = []
     page = 0
@@ -226,7 +229,8 @@ def _fetch_period_deals(sb, since_d, until_d):
     while True:
         try:
             q = (sb.table("deals").select(cols)
-                 .or_(f"created_at_rd.gte.{since_iso},closed_at.gte.{since_iso}")
+                 .or_(f"and(created_at_rd.gte.{since_iso},created_at_rd.lt.{until_iso}),"
+                      f"and(closed_at.gte.{since_iso},closed_at.lt.{until_iso})")
                  .order("id")   # v86.68: range sem ordem estável repete/pula linhas entre páginas
                  .range(page * size, page * size + size - 1))
             rows = q.execute().data or []
@@ -298,14 +302,24 @@ def _events_for_deals(sb, deal_ids):
     ids = [str(x) for x in deal_ids if x]
     for i in range(0, len(ids), 150):
         chunk = ids[i:i + 150]
+        # v88.13: pagina cada bloco (150 deals podem ter >1000 eventos → o PostgREST
+        # cortava e Contact/Visita/SLA "reais" saíam distorcidos)
+        rows, page = [], 0
         try:
-            rows = (sb.table("deal_stage_events")
-                    .select("deal_id,stage_position,stage_name,occurred_at,source")
-                    .in_("deal_id", chunk)
-                    .neq("source", "backfill")
-                    .execute().data or [])
+            while page < 20:
+                part = (sb.table("deal_stage_events")
+                        .select("deal_id,stage_position,stage_name,occurred_at,source")
+                        .in_("deal_id", chunk)
+                        .neq("source", "backfill")
+                        .order("id")
+                        .range(page * 1000, page * 1000 + 999)
+                        .execute().data or [])
+                rows.extend(part)
+                if len(part) < 1000:
+                    break
+                page += 1
         except Exception:
-            rows = []
+            pass
         for r in rows:
             out[str(r.get("deal_id"))].append(
                 (r.get("stage_position"), (r.get("stage_name") or "").lower(), _parse_dt(r.get("occurred_at")))

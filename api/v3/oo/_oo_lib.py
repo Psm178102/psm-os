@@ -184,7 +184,7 @@ def read_meta_spend(sb, preset=None):
             continue
         try:
             rows = (sb.table("meta_ads_cache").select("payload")
-                    .eq("date_preset", p).order("refreshed_at", desc=True)
+                    .eq("cache_key", p + "||")  # v88.13: só a linha do summary (não ts:/bd:/google:)
                     .limit(1).execute().data or [])
         except Exception:
             continue
@@ -209,7 +209,7 @@ def read_meta_accounts(sb, preset=None):
             continue
         try:
             rows = (sb.table("meta_ads_cache").select("payload")
-                    .eq("date_preset", p).order("refreshed_at", desc=True)
+                    .eq("cache_key", p + "||")  # v88.13: só a linha do summary (não ts:/bd:/google:)
                     .limit(1).execute().data or [])
         except Exception:
             continue
@@ -324,7 +324,7 @@ def read_meta_campaigns(sb, preset=None):
             continue
         try:
             rows = (sb.table("meta_ads_cache").select("payload")
-                    .eq("date_preset", p).order("refreshed_at", desc=True).limit(1).execute().data or [])
+                    .eq("cache_key", p + "||").limit(1).execute().data or [])  # v88.13: só a linha do summary
         except Exception:
             continue
         if not rows:

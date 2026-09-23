@@ -62,8 +62,13 @@ class handler(BaseHTTPRequestHandler):
         warmed = []
         errors = []
 
-        for preset in WARM_PRESETS:
-            payload, err = fetch_live(host, preset, "", "", nocache=True)
+        # v88.13: presets em paralelo (7 × até 30s em série estourava a duração da
+        # function agora que o cron roda de verdade — agendado no vercel.json)
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=len(WARM_PRESETS)) as ex:
+            fetched = list(ex.map(lambda pr: (pr,) + tuple(fetch_live(host, pr, "", "", nocache=True)), WARM_PRESETS))
+
+        for preset, payload, err in fetched:
             if err or not isinstance(payload, dict):
                 errors.append({"preset": preset, "error": err or "payload inválido"})
                 warmed.append({"preset": preset, "ok": False})
@@ -88,9 +93,11 @@ class handler(BaseHTTPRequestHandler):
             })
 
         dur = round(time.time() - t0, 2)
-        audit(self, None, "marketing.meta_cache_cron", target_type="meta_ads_cache",
-              target_id="*", notes="warmed=%d errors=%d %ss" % (
-                  sum(1 for w in warmed if w.get("ok")), len(errors), dur))
+        # v88.13: roda a cada 15min — só registra no audit_log quando algo falhou
+        if errors:
+            audit(self, None, "marketing.meta_cache_cron", target_type="meta_ads_cache",
+                  target_id="*", notes="warmed=%d errors=%d %ss" % (
+                      sum(1 for w in warmed if w.get("ok")), len(errors), dur))
         return self._send(200, {
             "ok": len(errors) == 0,
             "warmed": warmed,

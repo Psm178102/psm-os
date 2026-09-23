@@ -695,6 +695,7 @@ function leadsGeoPanel() {
         ${crmMiniDark('Sem telefone/DDD', fmtNum(g.sem_cidade), '#94a3b8', pct2(semPct) + ' do total')}
       </div>
     </div>
+    ${g.truncated ? `<div style="margin-top:10px;font-size:11px;color:#fcd34d">⚠️ Período muito grande: análise feita nos primeiros 30 mil leads — reduza o período para o número exato.</div>` : ''}
     ${semPct >= 40 ? `<div style="margin-top:10px;font-size:11px;color:#fcd34d">⚠️ ${pct2(semPct)} dos leads sem telefone/DDD válido no RD.</div>` : ''}
   </div>`;
 }
@@ -1146,7 +1147,8 @@ function aggMetrics(camps) {
     s.postEng += c.postEngagement||0; s.pageEng += c.pageEngagement||0; s.lpViews += c.landingPageViews||0; s.outbound += c.outboundClicks||0;
     s.views += c.views||0; s.v3 += c.v3||0; s.v25 += c.v25||0; s.v50 += c.v50||0; s.v75 += c.v75||0; s.v95 += c.v95||0; s.v100 += c.v100||0;
     s.leadValue += c.leadValue||0; s.purchaseValue += c.purchaseValue||0;
-    if (c.avgWatchTime) { s.avgWatchSum += c.avgWatchTime; s.avgWatchN++; }
+    // v88.13: média ponderada por reproduções (campanha pequena não distorce mais)
+    if (c.avgWatchTime) { const w = c.views || 1; s.avgWatchSum += c.avgWatchTime * w; s.avgWatchN += w; }
   });
   return s;
 }
@@ -1449,7 +1451,7 @@ function tabVendas() {
     <p class="card-sub">Motor de Vendas (TV War Arena) — o que acontece com o lead depois do clique. Dados do RD Station no período.</p>
     <div class="flex gap-3 mt-3" style="flex-wrap:wrap;margin-top:12px">
       ${kpi('🎯 Conversão', g.taxa_conversao != null ? pct2(g.taxa_conversao) : '—', `${g.vendas} ganhos / ${g.perdas} perdas`, '#16a34a')}
-      ${kpi('⏱ Ciclo de venda', cycleLbl(g.ranking), 'mediana lead → ganho', '#2563eb')}
+      ${kpi('⏱ Ciclo de venda', cycleLbl(g.ranking), 'média lead → ganho (ponderada por vendas)', '#2563eb')}
       ${kpi('📞 Contact Rate', contactGlobal(), `leads que saíram da entrada ${basisChip(mb)}`, '#7c3aed')}
       ${kpi('🚪 Show-up / Visita', visitaGlobal(), `contatados que chegaram à visita ${basisChip(mb)}`, '#0891b2')}
       ${kpi(slaLabel, slaGlobal(), `${mb === 'real' ? 'criação → 1º contato (eventos reais)' : 'criação → última atividade RD'} ${basisChip(mb)}`, '#ea580c')}
@@ -1497,11 +1499,10 @@ function tabVendas() {
 }
 function cycleLbl(ranking) {
   // ciclo global = mediana dos ciclos por marca de venda
-  const vals = [];
-  Object.keys(_crm.brands || {}).forEach(k => { if (k !== 'captacao' && _crm.brands[k].ciclo_medio_dias != null) vals.push(_crm.brands[k].ciclo_medio_dias); });
-  if (!vals.length) return '—';
-  const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
-  return avg.toFixed(0) + ' dias';
+  // v88.13: ponderado pelo nº de vendas de cada marca (antes: média simples das
+  // médias — marca com 3 vendas pesava igual à de 300)
+  const avg = wAvg('ciclo_medio_dias', b => b.vendas);
+  return avg == null ? '—' : avg.toFixed(0) + ' dias';
 }
 function contactGlobal() {
   // média ponderada por leads
@@ -1509,22 +1510,30 @@ function contactGlobal() {
   Object.keys(_crm.brands || {}).forEach(k => {
     if (k === 'captacao') return;
     const b = _crm.brands[k];
+    // peso = leads_criados: é o denominador do contact_rate no crm_metrics
     if (b.leads_criados && b.contact_rate != null) { totLeads += b.leads_criados; totContact += b.contact_rate / 100 * b.leads_criados; }
   });
   return totLeads ? pct2(totContact / totLeads * 100) : '—';
 }
 function visitaGlobal() {
-  const vals = [];
-  Object.keys(_crm.brands || {}).forEach(k => { if (k !== 'captacao' && _crm.brands[k].visita_rate != null) vals.push(_crm.brands[k].visita_rate); });
-  if (!vals.length) return '—';
-  return pct2(vals.reduce((a, b) => a + b, 0) / vals.length);
+  const v = wAvg('visita_rate', b => b.leads_contatados);   // v88.13: ponderado
+  return v == null ? '—' : pct2(v);
 }
 function slaGlobal() {
-  const vals = [];
-  Object.keys(_crm.brands || {}).forEach(k => { if (k !== 'captacao' && _crm.brands[k].sla_horas_aprox != null) vals.push(_crm.brands[k].sla_horas_aprox); });
-  if (!vals.length) return '—';
-  const h = vals.reduce((a, b) => a + b, 0) / vals.length;
+  const h = wAvg('sla_horas_aprox', b => b.leads_criados);   // v88.13: ponderado pela coorte
+  if (h == null) return '—';
   return h < 1 ? Math.round(h * 60) + ' min' : h.toFixed(1) + ' h';
+}
+// Média de um campo das marcas (sem captação) ponderada por weightFn(brand)
+function wAvg(field, weightFn) {
+  let sw = 0, sv = 0;
+  Object.keys(_crm.brands || {}).forEach(k => {
+    const b = _crm.brands[k];
+    if (k === 'captacao' || b[field] == null) return;
+    const w = Number(weightFn(b)) || 0;
+    if (w > 0) { sw += w; sv += b[field] * w; }
+  });
+  return sw > 0 ? sv / sw : null;
 }
 // Base do dado: 'real' (eventos de etapa capturados) vs 'estimativa' (proxy do funil).
 function metricsBasis() { return (_crm && _crm.metrics_basis) || 'estimativa'; }
@@ -1824,9 +1833,8 @@ function roadmapMini() {
     <div style="margin-top:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:10px 14px;font-size:12px;color:#cbd5e1">🔌 <strong style="color:#e2e8f0">Ainda no roadmap (precisa de mais integração):</strong>
       <div style="margin-top:6px;display:grid;gap:4px;font-size:11.5px">
         <div>📋 <b>Drop-off de formulário (Lead Ads)</b> — exige a API de Lead Forms do Meta (aberturas × envios); não vem no insights padrão.</div>
-        <div>🎬 <b>Ciclo por formato de criativo</b> (vídeo×carrossel×imagem) — precisa capturar o <code style="font-size:10px">ad_id</code>/criativo no lead do RD pra linkar lead→anúncio.</div>
         <div>🎯 <b>Conversão por roteamento inteligente</b> — depende do sistema de distribuição de leads por patente (War Arena); quando existir, cruzamos roteado vs aleatório.</div>
-        <div style="color:var(--ink-muted)">✓ Já no ar: CPQL/CPAR/ROAS por produto · rejeição por motivo × produto · breakdowns Meta · atribuição por canal.</div>
+        <div style="color:var(--ink-muted)">✓ Já no ar: CPQL/CPAR/ROAS por produto · rejeição por motivo × produto · breakdowns Meta · atribuição por canal · ciclo por formato de criativo (Lead Ads).</div>
       </div></div>`;
 }
 
@@ -2013,7 +2021,11 @@ function kpi(label, big, sub, color) {
 function fmtNum(n) { return n == null ? '—' : Number(n).toLocaleString('pt-BR'); }
 function money(n) { if (n == null || isNaN(n)) return '0,00'; return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function moneyShort(n) {
-  return (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // v88.13: abrevia de verdade (antes era igual ao money())
+  const v = Number(n) || 0, a = Math.abs(v);
+  if (a >= 1e6) return (v / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' mi';
+  if (a >= 1e4) return (v / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mil';
+  return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function pct2(v) { return v == null ? '—' : (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'; }
 function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

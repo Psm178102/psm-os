@@ -488,6 +488,18 @@ module.exports = async function handler(req, res) {
   var datePreset = req.query.date_preset || 'last_30d';
   var sinceDate = req.query.since || '';
   var untilDate = req.query.until || '';
+  // v88.13: valida antes de montar a URL da Graph (datas cruas eram concatenadas
+  // no time_range; preset/datas inválidos voltavam 200 com todas as contas em erro)
+  var RE_D = /^\d{4}-\d{2}-\d{2}$/;
+  var PRESETS_OK = ['today', 'yesterday', 'last_7d', 'last_14d', 'last_30d', 'last_90d',
+    'this_month', 'last_month', 'this_year', 'last_year'];
+  if (sinceDate || untilDate) {
+    if (!RE_D.test(sinceDate) || !RE_D.test(untilDate) || sinceDate > untilDate) {
+      return res.status(400).json({ error: 'since/until inválidos (YYYY-MM-DD, since <= until)' });
+    }
+  } else if (PRESETS_OK.indexOf(datePreset) === -1) {
+    return res.status(400).json({ error: 'date_preset inválido: ' + String(datePreset).slice(0, 30) });
+  }
 
   var dateParams = (sinceDate && untilDate)
     ? '&time_range={"since":"' + sinceDate + '","until":"' + untilDate + '"}'

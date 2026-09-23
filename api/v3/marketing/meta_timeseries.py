@@ -22,6 +22,9 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, supabase_client  # type: ignore
 from _meta_cache_lib import build_cache_key, read_cache, write_cache  # type: ignore
+from _window_lib import window as _resolve_window, WindowError  # type: ignore
+from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta as _td
 
 GRAPH_API = "https://graph.facebook.com/v21.0"
 CACHE_MAX_AGE_S = 30 * 60
@@ -65,17 +68,31 @@ def _results(actions):
     return _count(actions, _LEAD_ACTIONS)
 
 
-def _fetch_account_daily(act_id, token, date_params, timeout=30):
-    url = (GRAPH_API + "/" + act_id + "/insights?level=account&time_increment=1"
-           + "&fields=spend,impressions,reach,clicks,actions&limit=500"
-           + "&access_token=" + urllib.parse.quote(token) + date_params)
+def _get_json(url, timeout=30):
     req = urllib.request.Request(url, headers={
         "Accept": "application/json", "User-Agent": "PSM-OS-v3/meta-timeseries"})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         data = json.loads(resp.read().decode("utf-8"))
     if isinstance(data, dict) and data.get("error"):
         raise RuntimeError(data["error"].get("message") or "Graph API error")
-    return data.get("data") or []
+    return data
+
+
+def _fetch_account_daily(act_id, token, since, until, timeout=30):
+    """Série diária da conta na janela [since, until]. v88.13: segue paging.next
+    (limit=500 cortava intervalos longos calado)."""
+    tr = '{"since":"%s","until":"%s"}' % (since, until)
+    url = (GRAPH_API + "/" + act_id + "/insights?level=account&time_increment=1"
+           + "&fields=spend,impressions,reach,clicks,actions&limit=500"
+           + "&time_range=" + urllib.parse.quote(tr)
+           + "&access_token=" + urllib.parse.quote(token))
+    out, pages = [], 0
+    while url and pages < 10:
+        data = _get_json(url, timeout)
+        out.extend(data.get("data") or [])
+        url = (data.get("paging") or {}).get("next")
+        pages += 1
+    return out
 
 
 def _fetch_account_total(act_id, token, since, until, timeout=30):
@@ -124,6 +141,14 @@ class handler(BaseHTTPRequestHandler):
         preset = params.get("date_preset") or ("" if (params.get("since") and params.get("until")) else "last_30d")
         since = params.get("since") or ""
         until = params.get("until") or ""
+        # v88.13: janela resolvida no _window_lib (mesma do CRM, BRT) e enviada à
+        # Meta sempre como time_range explícito. Preset/datas inválidos → 400
+        # (antes: 200 com tudo zerado; e since/until crus iam concatenados na URL).
+        try:
+            w_s, w_u = _resolve_window(params)
+        except WindowError as e:
+            return self._send(400, {"ok": False, "error": str(e)})
+        ws, wu = w_s.isoformat(), w_u.isoformat()
         nocache = bool(params.get("nocache"))
         sel = sorted([s.strip() for s in (params.get("accounts") or "").split(",") if s.strip()])
         key = "ts:" + ((",".join(sel) + ":") if sel else "") + build_cache_key(preset, since, until)
@@ -146,20 +171,42 @@ class handler(BaseHTTPRequestHandler):
         if sel:
             pairs = [p for p in pairs if p[0] in sel]
 
-        if since and until:
-            date_params = '&time_range={"since":"%s","until":"%s"}' % (since, until)
-        else:
-            date_params = "&date_preset=" + urllib.parse.quote(preset or "last_30d")
+        # v88.13: período anterior = mesma duração da JANELA pedida, imediatamente
+        # antes (antes vinha do 1º/último dia COM dado — campanha ligada há 10 dias
+        # num last_30d comparava com 10 dias).
+        ndays = (w_u - w_s).days + 1
+        p_u = w_s - _td(days=1)
+        p_s = p_u - _td(days=ndays - 1)
+        ps, pu = p_s.isoformat(), p_u.isoformat()
+
+        # Por conta, em paralelo: série diária + total da janela (alcance REAL —
+        # alcance é de pessoas únicas, não se soma dia a dia) + total do anterior.
+        def _job(pair):
+            act_id, act_token = pair
+            out = {"id": act_id}
+            try:
+                out["daily"] = _fetch_account_daily(act_id, act_token, ws, wu)
+                out["cur"] = _fetch_account_total(act_id, act_token, ws, wu)
+            except Exception as e:
+                out["error"] = str(e)
+            try:
+                out["prev"] = _fetch_account_total(act_id, act_token, ps, pu)
+            except Exception as e:
+                out["prev_error"] = str(e)
+            return out
+
+        with ThreadPoolExecutor(max_workers=min(8, max(1, len(pairs)))) as ex:
+            results = list(ex.map(_job, pairs))
 
         by_day = {}   # date -> {spend, results, messages, leads, impressions, clicks, reach}
         errors = []
-        for act_id, act_token in pairs:
-            try:
-                rows = _fetch_account_daily(act_id, act_token, date_params)
-            except Exception as e:
-                errors.append({"id": act_id, "error": str(e)})
+        reach_total = 0
+        for r in results:
+            if r.get("error"):
+                errors.append({"id": r["id"], "error": r["error"]})
                 continue
-            for row in rows:
+            reach_total += int(float((r.get("cur") or {}).get("reach") or 0))
+            for row in r.get("daily") or []:
                 d = row.get("date_start")
                 if not d:
                     continue
@@ -190,56 +237,44 @@ class handler(BaseHTTPRequestHandler):
                 "ctr": round(v["clicks"] / v["impressions"] * 100, 2) if v["impressions"] > 0 else 0,
             })
             for k in tot:
-                tot[k] += v[k]
+                if k != "reach":
+                    tot[k] += v[k]
+        tot["reach"] = reach_total   # alcance do período (não a soma dos dias)
         tot["spend"] = round(tot["spend"], 2)
         tot["cpl"] = round(tot["spend"] / tot["results"], 2) if tot["results"] > 0 else 0
         tot["ctr"] = round(tot["clicks"] / tot["impressions"] * 100, 2) if tot["impressions"] > 0 else 0
 
-        # ── Período anterior (mesma duração, imediatamente antes) → % de variação ──
-        prev = {}
+        # ── Período anterior → % de variação (só se TODAS as contas responderam) ──
+        pv = {"spend": 0.0, "results": 0, "messages": 0, "leads": 0, "impressions": 0, "clicks": 0, "reach": 0}
+        prev_failed = []
+        for r in results:
+            if r.get("error"):
+                continue
+            if r.get("prev_error"):
+                prev_failed.append({"id": r["id"], "error": r["prev_error"]})
+                continue
+            x = r.get("prev") or {}
+            acts = x.get("actions")
+            pv["spend"] += float(x.get("spend") or 0)
+            pv["messages"] += _count(acts, _MSG_ACTIONS)
+            pv["leads"] += _count(acts, _LEAD_ONLY)
+            pv["results"] += _results(acts)
+            pv["impressions"] += int(float(x.get("impressions") or 0))
+            pv["clicks"] += int(float(x.get("clicks") or 0))
+            pv["reach"] += int(float(x.get("reach") or 0))
+        pv["spend"] = round(pv["spend"], 2)
+        pv["cpl"] = round(pv["spend"] / pv["results"], 2) if pv["results"] > 0 else 0
+        pv["ctr"] = round(pv["clicks"] / pv["impressions"] * 100, 2) if pv["impressions"] > 0 else 0
+        prev = {"since": ps, "until": pu, **pv, "partial": bool(prev_failed), "accounts_error": prev_failed}
         delta = {}
-        if series:
-            try:
-                from datetime import date as _date, timedelta as _td
-                d0 = _date.fromisoformat(series[0]["date"])
-                d1 = _date.fromisoformat(series[-1]["date"])
-                ndays = (d1 - d0).days + 1
-                p_until = d0 - _td(days=1)
-                p_since = p_until - _td(days=ndays - 1)
-                ps, pu = p_since.isoformat(), p_until.isoformat()
-                pv = {"spend": 0.0, "results": 0, "messages": 0, "leads": 0, "impressions": 0, "clicks": 0, "reach": 0}
-                prev_failed = []
-                for act_id, act_token in pairs:
-                    try:
-                        r = _fetch_account_total(act_id, act_token, ps, pu)
-                    except Exception as _e:
-                        # v86.68: conta que falhou no período anterior → prev.partial,
-                        # e NÃO calcula delta (comparação seria contra base incompleta)
-                        prev_failed.append({"id": act_id, "error": str(_e)})
-                        continue
-                    acts = r.get("actions")
-                    pv["spend"] += float(r.get("spend") or 0)
-                    pv["messages"] += _count(acts, _MSG_ACTIONS)
-                    pv["leads"] += _count(acts, _LEAD_ONLY)
-                    pv["results"] += _results(acts)
-                    pv["impressions"] += int(float(r.get("impressions") or 0))
-                    pv["clicks"] += int(float(r.get("clicks") or 0))
-                    pv["reach"] += int(float(r.get("reach") or 0))
-                pv["spend"] = round(pv["spend"], 2)
-                pv["cpl"] = round(pv["spend"] / pv["results"], 2) if pv["results"] > 0 else 0
-                pv["ctr"] = round(pv["clicks"] / pv["impressions"] * 100, 2) if pv["impressions"] > 0 else 0
-                prev = {"since": ps, "until": pu, **pv,
-                        "partial": bool(prev_failed), "accounts_error": prev_failed}
-                if not prev_failed:
-                    for k in ("spend", "results", "messages", "leads", "impressions", "clicks", "reach", "cpl", "ctr"):
-                        base = pv.get(k) or 0
-                        delta[k] = round((tot.get(k, 0) - base) / base * 100, 1) if base else None
-            except Exception:
-                prev, delta = {}, {}
+        if not prev_failed and not errors:
+            for k in ("spend", "results", "messages", "leads", "impressions", "clicks", "reach", "cpl", "ctr"):
+                base = pv.get(k) or 0
+                delta[k] = round((tot.get(k, 0) - base) / base * 100, 1) if base else None
 
         payload = {
             "ok": len(errors) == 0,
-            "period": {"date_preset": preset, "since": since, "until": until},
+            "period": {"date_preset": preset, "since": ws, "until": wu},
             "series": series,
             "totals": tot,
             "prev": prev,
@@ -247,8 +282,8 @@ class handler(BaseHTTPRequestHandler):
             "errors": errors,
             "fetchedAt": datetime.now(timezone.utc).isoformat(),
         }
-        # Cacheia se houve pelo menos algum dado (não descarta por 1 conta com erro).
-        if sb and series:
+        # v88.13: só cacheia resultado COMPLETO (parcial ficava 30min com conta faltando)
+        if sb and series and not errors:
             write_cache(sb, key, preset, since, until, payload, source="live")
         payload["cache"] = {"hit": False, "source": "live"}
         return self._send(200, payload)

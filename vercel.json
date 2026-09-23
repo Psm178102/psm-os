@@ -41,6 +41,10 @@
       "schedule": "0 5 * * *"
     },
     {
+      "path": "/api/v3/marketing/meta_cache_cron",
+      "schedule": "*/15 11-23 * * *"
+    },
+    {
       "path": "/api/v3/agenda/meu_dia?cron=1",
       "schedule": "30 10 * * 1-6"
     },
@@ -302,6 +306,12 @@
   "functions": {
     "api/v3/crm/retroativo_rd.py": {
       "maxDuration": 300
+    },
+    "api/v3/marketing/meta_cache_cron.py": {
+      "maxDuration": 120
+    },
+    "api/v3/marketing/meta_timeseries.py": {
+      "maxDuration": 90
     }
   }
 }

@@ -78,11 +78,24 @@ class handler(BaseHTTPRequestHandler):
 
         since_iso = since_d.isoformat() + "T03:00:00+00:00"   # dia BRT
         until_iso = (until_d + timedelta(days=1)).isoformat() + "T03:00:00+00:00"
+        # v88.13: paginado (o .limit(10000) era cortado em 1000 pelo PostgREST)
+        leads, page, size = [], 0, 1000
         try:
-            leads = (sb.table("meta_leads").select("leadgen_id,creative_type,created_time,matched_deal_id")
-                     .gte("created_time", since_iso).lt("created_time", until_iso)
-                     .limit(10000).execute().data or [])
+            while page < 30:
+                chunk = (sb.table("meta_leads").select("leadgen_id,creative_type,created_time,matched_deal_id")
+                         .gte("created_time", since_iso).lt("created_time", until_iso)
+                         .order("leadgen_id").range(page * size, page * size + size - 1)
+                         .execute().data or [])
+                leads.extend(chunk)
+                if len(chunk) < size:
+                    break
+                page += 1
         except Exception as e:
+            _msg = str(e)
+            # v88.13: só é "tabela não criada" se o erro disser isso — timeout e
+            # afins viram erro de verdade (antes tudo virava "pending" calado)
+            if not any(x in _msg.lower() for x in ("does not exist", "42p01", "not find the table", "pgrst205")):
+                return self._send(502, {"ok": False, "error": "meta_leads: " + _msg[:200]})
             # Tabela ainda não criada (SQL não rodado) ou indisponível → degrada
             # pra "pending" (não quebra o dashboard com 500).
             return self._send(200, {"ok": True, "pending": True,
