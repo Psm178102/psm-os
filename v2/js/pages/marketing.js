@@ -2145,7 +2145,7 @@ async function saveMetasConta() {
    (contato/qualificação, tarefa de visita, proposta). Venda = RD. Janela = as
    MESMAS datas do período da Meta na tela. */
 const FUNIL_BENCH = {           // referências (acima = ok). Hook: "abaixo de 20% compromete o funil".
-  hook: 20, ctr: 1.0, acesso: 60, qualif: 25, visita: 20, pasta: 40, venda: 20,
+  hook: 20, ctr: 1.0, qualif: 25, visita: 20, pasta: 40, venda: 20,
 };
 const BRAND_TEAM = { conquista: 'conquista', imoveis: 'map', locacao: 'locacao' };
 function ofWindow() {
@@ -2176,7 +2176,10 @@ function oficialMarcos(b) {
     fonte: hub ? 'HUB (esteira)' : 'RD (colunas)',
     leads: +(b.leads || 0),
     qualif: hub ? H('qualificacao') : +(b.qualificados || 0),
-    visita: hub ? H('atendimento') : (b.visitas != null ? +b.visitas : +(b.visitas_coluna || 0)),
+    // v88.26: tarefa de visita do RD; se ZERO e a coluna tem visita, as tarefas não
+    // estão sincronizadas → usa a coluna (Dicionário §5: "coluna se não houver")
+    visita: hub ? H('atendimento') : ((+(b.visitas || 0)) > 0 ? +b.visitas : +(b.visitas_coluna || 0)),
+    visitaFonte: hub ? 'HUB' : ((+(b.visitas || 0)) > 0 ? 'tarefa' : 'coluna'),
     visitaColuna: +(b.visitas_coluna || 0),
     pasta: hub ? H('pasta') : +(b.propostas || 0),
     pastaLbl: hub ? 'Pasta' : 'Proposta',
@@ -2197,21 +2200,28 @@ function funilBrand(bkey, camps, accs) {
   // [key, título, subtítulo, n, taxaLabel, taxa, bench(%), custo, extra]
   st.push({ k: 'cpm', t: 'CPM', sub: 'Impressão do anúncio', n: s.impressions, taxaLbl: 'CPM', taxaTxt: s.impressions ? 'R$ ' + money(spend / s.impressions * 1000) : '—', ok: null, custo: null,
     extra: `alcance ${fmtNum(s.reach)} · freq ${(s.reach ? s.impressions / s.reach : 0).toFixed(2)}` });
-  const hook = s.v3 > 0 ? pc(s.v3, s.impressions) : null;
+  // v88.26: hook = views de 3s ÷ impressões SÓ das campanhas com vídeo (imagem
+  // não tem view de 3s — dividir por tudo derrubava o hook artificialmente)
+  const vids = camps.filter(c => (c.v3 || 0) > 0 || (c.views || 0) > 0);
+  const impVid = vids.reduce((t, c) => t + (c.impressions || 0), 0);
+  const hook = s.v3 > 0 && impVid > 0 ? pc(s.v3, impVid) : null;
   st.push({ k: 'hook', t: 'HOOK RATE (3s)', sub: 'Retenção inicial do criativo', n: s.v3, taxaLbl: 'hook', taxa: hook, bench: FUNIL_BENCH.hook, custo: cost(s.v3),
-    extra: s.v3 > 0 ? 'views de 3s ÷ impressões' : 'sem vídeo no período' });
+    extra: s.v3 > 0 ? `views de 3s ÷ impressões de vídeo (${vids.length} campanha(s) com vídeo · ${fmtNum(impVid)} impr.)` : 'sem vídeo no período' });
   st.push({ k: 'ctr', t: 'CTR', sub: 'Clique no anúncio (link)', n: s.linkClicks, taxaLbl: 'CTR link', taxa: pc(s.linkClicks, s.impressions), bench: FUNIL_BENCH.ctr, custo: cost(s.linkClicks), custoLbl: 'CPC' });
   st.push({ k: 'cpl', t: 'CPL', sub: 'Geração de lead (Meta)', n: results, taxaLbl: 'CPL', taxaTxt: results ? 'R$ ' + money(spend / results) : '—',
     ok: results ? (spend / results <= cplMeta) : null, extra: `meta R$ ${money(cplMeta)} · ${fmtNum(s.messages)} conversas + ${fmtNum(s.leads)} formulários`, custo: null });
-  const acesso = s.lpViews + s.messages;
-  st.push({ k: 'acesso', t: 'LP VIEW / WHATSAPP', sub: 'Acesso real', n: acesso, taxaLbl: '÷ cliques', taxa: pc(acesso, s.linkClicks), bench: FUNIL_BENCH.acesso, custo: cost(acesso),
-    extra: `${fmtNum(s.lpViews)} visitas à LP + ${fmtNum(s.messages)} conversas` });
+  // v88.26: acesso real = página carregada + conversa no WhatsApp + FORMULÁRIO
+  // enviado (Lead Ads não passa por página — contar só LP gerava falso gargalo).
+  // Informativo: sem referência (mistura de formatos muda a taxa esperada).
+  const acesso = s.lpViews + s.messages + s.leads;
+  st.push({ k: 'acesso', t: 'LP VIEW / WHATSAPP / FORM', sub: 'Acesso real', n: acesso, taxaLbl: '÷ cliques', taxa: pc(acesso, s.linkClicks), custo: cost(acesso),
+    extra: `${fmtNum(s.lpViews)} visitas à LP + ${fmtNum(s.messages)} conversas + ${fmtNum(s.leads)} formulários` });
   if (o) {
     st.push({ k: 'leadrd', t: 'LEAD NO CRM', sub: 'Tráfego pago no RD', n: o.leads, taxaLbl: '÷ result. Meta', taxa: pc(o.leads, results), custo: cost(o.leads), custoLbl: 'CPL real',
       extra: 'negócios de origem tráfego pago (Dicionário §2)' });
     st.push({ k: 'qualif', t: 'CONTATO QUALIFICADO', sub: 'Responde, engaja e tem perfil', n: o.qualif, taxaLbl: '÷ leads', taxa: pc(o.qualif, o.leads), bench: FUNIL_BENCH.qualif, custo: cost(o.qualif), custoLbl: 'CPQL' });
     st.push({ k: 'visita', t: 'VISITA / REUNIÃO', sub: 'Do digital para o físico', n: o.visita, taxaLbl: '÷ qualificados', taxa: pc(o.visita, o.qualif), bench: FUNIL_BENCH.visita, custo: cost(o.visita), custoLbl: 'custo/visita',
-      extra: o.fonte.startsWith('RD') && o.visitaColuna !== o.visita ? `coluna "visita realizada": ${fmtNum(o.visitaColuna)}` : '' });
+      extra: o.visitaFonte === 'coluna' ? 'coluna "visita realizada" do RD (tarefas de visita não sincronizadas)' : (o.visitaFonte === 'tarefa' && o.visitaColuna !== o.visita ? `coluna "visita realizada": ${fmtNum(o.visitaColuna)}` : '') });
     st.push({ k: 'pasta', t: o.pastaLbl.toUpperCase(), sub: bkey === 'conquista' ? 'Pasta montada (MCMV)' : 'Proposta enviada', n: o.pasta, taxaLbl: '÷ visitas', taxa: pc(o.pasta, o.visita), bench: FUNIL_BENCH.pasta, custo: cost(o.pasta), custoLbl: 'custo/' + o.pastaLbl.toLowerCase() });
     st.push({ k: 'venda', t: 'VENDA CONCLUÍDA', sub: 'Receita', n: o.vendas, taxaLbl: '÷ ' + o.pastaLbl.toLowerCase() + 's', taxa: pc(o.vendas, o.pasta), bench: FUNIL_BENCH.venda, custo: cost(o.vendas), custoLbl: 'CAC',
       extra: `VGV R$ ${moneyShort(o.vgv)}${o.vgv && spend ? ` · comissão ÷ mídia ${(o.vgv * OO_COMISSAO_PCT / spend).toFixed(1)}x` : ''}` });
@@ -2251,7 +2261,7 @@ function tabFunil() {
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(420px,100%),1fr));gap:16px;margin-top:12px">
       ${blocos.map(funilCard).join('')}
     </div>
-    <div class="tiny muted" style="margin-top:10px">Referências (ok ≥): hook ${FUNIL_BENCH.hook}% · CTR link ${FUNIL_BENCH.ctr}% · acesso ${FUNIL_BENCH.acesso}% dos cliques · qualificado ${FUNIL_BENCH.qualif}% dos leads · visita ${FUNIL_BENCH.visita}% dos qualificados · pasta/proposta ${FUNIL_BENCH.pasta}% das visitas · venda ${FUNIL_BENCH.venda}% das pastas. Taxas de fluxo do período (podem passar de 100% quando a etapa anterior foi em outro período).</div>`;
+    <div class="tiny muted" style="margin-top:10px">Referências (ok ≥): hook ${FUNIL_BENCH.hook}% (só vídeo) · CTR link ${FUNIL_BENCH.ctr}% · acesso real é informativo (formulário, LP e WhatsApp juntos) · qualificado ${FUNIL_BENCH.qualif}% dos leads · visita ${FUNIL_BENCH.visita}% dos qualificados · pasta/proposta ${FUNIL_BENCH.pasta}% das visitas · venda ${FUNIL_BENCH.venda}% das pastas. Taxas de fluxo do período (podem passar de 100% quando a etapa anterior foi em outro período).</div>`;
 }
 function funilCard(F) {
   const n = F.st.length;
