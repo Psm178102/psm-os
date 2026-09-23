@@ -133,6 +133,10 @@
       "schedule": "30 2 * * 0,2-6"
     },
     {
+      "path": "/api/v3/system/ops_central?cron=1",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/v3/wa/roleta?cron=1",
       "schedule": "*/10 11-23 * * *"
     }

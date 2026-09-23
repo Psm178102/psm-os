@@ -76,6 +76,9 @@ JOBS = [
     # 🔎 teste noturno dos números entre telas (v88.0): o endpoint só roda a partir das 20h BRT (ou recupera a
     # noite anterior de manhã) e deduplica por dia — de hora em hora aqui é só a rede de segurança do cron.
     ("consistencia", "/api/v3/system/consistency?cron=1",                   1),
+    # 🛰️ Central de Operações (v88.17): vigia de rotinas/APIs/agentes → alerta o Paulo/Isa
+    # (sino+push; WhatsApp e ntfy em erro). Dedupe interno; aqui é a rede do cron */15.
+    ("ops_vigia",    "/api/v3/system/ops_central?cron=1",                   1),
 ]
 
 

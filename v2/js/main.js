@@ -63,6 +63,7 @@ import { pageImoveis } from './pages/imoveis.js';
 import { pageConcorrencia } from './pages/concorrencia.js';
 import { pageTV } from './pages/tv.js';
 import { pageGovernanca } from './pages/governanca.js';
+import { pageCentralOps, pollBadgeOps } from './pages/central-ops.js';
 import { pageOO } from './pages/oo.js';
 import { pagePlantoes } from './pages/plantoes.js';
 import { pageCaptacoes } from './pages/captacoes.js';
@@ -203,7 +204,7 @@ export const ROUTE_GROUP = {
   '/backup': 'sistema', '/configuracoes': 'sistema', '/config-menu': 'sistema', '/logins': 'sistema', '/qualidade': 'sistema',
   // v88.5: Check-in/Check-out do sistema saiu do INÍCIO (era o botão de presença
   // de todo mundo) e virou ferramenta de Sistema, ao lado da Auditoria — só sócio.
-  '/checkin': 'sistema',
+  '/checkin': 'sistema', '/central-ops': 'sistema',
   // Conta (sempre)
   '/conta': 'conta',
   // simuladores Leads/CAC e Criativos migraram p/ Marketing (VPL/INCC/Repasse/Energia → Imóveis & Vendas, acima)
@@ -276,6 +277,8 @@ export const ROUTE_MIN_LVL = {
   // tempo de tela, saída). SÓ sócio — e com trava própria em canSeeComoCargo,
   // que não depende da matriz. Espelha api/v3/checkin/uso.py (min_lvl=10).
   '/checkin': 10,
+  // 🛰️ Central de Operações (v88.17): SÓ Paulo e Isa. Espelha api/v3/system/ops_central.py (min_lvl=10).
+  '/central-ops': 10,
   '/psmhub': 7,           // auditoria do PSM HUB (Conquista) — diretoria
   '/qualidade': 7,        // saúde dos cadastros — diretoria+
   '/comissao-conquista': 5,  // comissionamento Conquista + Mariane — gerência/direção
@@ -384,6 +387,11 @@ function canSeeComoCargo(path, role, user) {
   // papel, nem com override individual (menu_groups), o item aparece pra outro
   // cargo. Espelha o require_user(min_lvl=10) de api/v3/checkin/uso.py.
   if (base === '/checkin') return (user?.lvl || 0) >= 10;
+
+  // 🛰️ Central de Operações (v88.17): rotinas, APIs, agentes e alertas — SÓ sócio
+  // (lvl 10 = paulo e isa). Mesma trava explícita do Check-in; o backend ainda
+  // aceita uma lista de e-mails (shared_kv ops_central_cfg.admins).
+  if (base === '/central-ops') return (user?.lvl || 0) >= 10;
 
   // 🔒 Consultoria Arch Leg (dado psicológico sensível): SÓ sócio/diretor
   // (lvl>=8) OU quem é da Arch Leg (role consultor_arch_leg). Trava explícita,
@@ -508,7 +516,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '88.14';
+const APP_VERSION = '88.17';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -694,6 +702,7 @@ const APP_VERSION = '88.14';
   router.register('/estoque-kenlo', { render: async (ctx, root) => { setHeader('Estoque Kenlo'); highlight('/estoque-kenlo'); await pageEstoqueKenlo(ctx, root); } });
   router.register('/concorrencia',{ render: async (ctx, root) => { setHeader('Concorrência'); highlight('/concorrencia');await pageConcorrencia(ctx, root); } });
   router.register('/tv',          { render: async (ctx, root) => { setHeader('Modo TV');      highlight('/tv');          await pageTV(ctx, root); } });
+  router.register('/central-ops', { render: async (ctx, root) => { setHeader('Central de Operações'); highlight('/central-ops'); await pageCentralOps(ctx, root); } });
   router.register('/governanca',  { render: async (ctx, root) => { setHeader('Saúde do Sistema');   highlight('/governanca');  await pageGovernanca(ctx, root); } });
   router.register('/one-on-one',  { render: async (ctx, root) => { setHeader('One-on-One');   highlight('/one-on-one');  await pageOO(ctx, root); } });
   router.register('/gestao-comercial', { render: async (ctx, root) => { setHeader('Gestão Comercial'); highlight('/gestao-comercial'); await pageGestaoComercial(ctx, root); } });
@@ -1168,6 +1177,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/sr-gerencia"><span class="sb-ico">👔</span> Sr. Gerência</button>
 
         <div class="sb-sec">⚙️ Sistema</div>
+        <button class="sb-link" data-nav="/central-ops"><span class="sb-ico">🛰️</span> Central de Operações</button>
         <button class="sb-link" data-nav="/usuarios"><span class="sb-ico">👥</span> Usuários</button>
         <button class="sb-link" data-nav="/auditoria"><span class="sb-ico">📜</span> Auditoria</button>
         <button class="sb-link" data-nav="/governanca"><span class="sb-ico">🩺</span> Saúde do Sistema</button>
@@ -1512,6 +1522,7 @@ async function pollHealth() {
       showUpdateBanner(v.version);
     }
   } catch (_) {}
+  pollBadgeOps();   // 🛰️ badge de alertas da Central de Operações (só lvl 10)
   _healthData = { status, issues };
   renderHealthDot(status, issues.length);
   const panel = document.getElementById('health-panel');
