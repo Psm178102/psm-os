@@ -142,6 +142,8 @@ def _painel_caixa(host, ym):
         req = urllib.request.Request(url, headers={"Authorization": f"Bearer {secret}",
                                                    "User-Agent": "PSM-cfo-cron"})
         with urllib.request.urlopen(req, timeout=50) as r:
+            if "json" not in (r.headers.get("Content-Type") or ""):
+                return None, f"painel não respondeu JSON (foi parar em {r.geturl()[:80]})"
             return json.loads(r.read().decode("utf-8") or "{}"), None
     except Exception as e:
         return None, str(e)[:160]
@@ -351,7 +353,9 @@ class handler(BaseHTTPRequestHandler):
         return bool(secret) and tok == secret
 
     def _host(self):
-        return (self.headers.get("Host") or "www.housepsm.com.br").split(",")[0].strip()
+        # v88.31c: sempre o domínio oficial — chamado pelo cron, o Host é o *.vercel.app protegido por login
+        base = (os.environ.get("PSM_SITE_URL") or "https://www.housepsm.com.br").rstrip("/")
+        return base.split("://", 1)[-1]
 
     def do_GET(self):
         params = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
