@@ -1481,8 +1481,8 @@ function tabVendas() {
     <div class="flex gap-3 mt-3" style="flex-wrap:wrap;margin-top:12px">
       ${kpi('🎯 Conversão', g.taxa_conversao != null ? pct2(g.taxa_conversao) : '—', `${g.vendas} ganhos / ${g.perdas} perdas`, '#16a34a')}
       ${kpi('⏱ Ciclo de venda', cycleLbl(g.ranking), 'média lead → ganho (ponderada por vendas)', '#2563eb')}
-      ${kpi('📞 Contact Rate', contactGlobal(), `leads que saíram da entrada ${basisChip(mb)}`, '#7c3aed')}
-      ${kpi('🚪 Show-up / Visita', visitaGlobal(), `contatados que chegaram à visita ${basisChip(mb)}`, '#0891b2')}
+      ${kpi('📞 Contact Rate', contactGlobal(), `leads que chegaram a Contato/qualificação ${basisChip(mb)}`, '#7c3aed')}
+      ${kpi('🚪 Show-up / Visita', visitaGlobal(), `contatados que chegaram à visita realizada ${basisChip(mb)}`, '#0891b2')}
       ${kpi(slaLabel, slaGlobal(), `${mb === 'real' ? 'criação → 1º contato (eventos reais)' : 'criação → última atividade RD'} ${basisChip(mb)}`, '#ea580c')}
     </div>
 

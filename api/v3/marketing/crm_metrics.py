@@ -220,7 +220,7 @@ def _fetch_period_deals(sb, since_d, until_d):
     # v88.13: limite SUPERIOR (fim do dia BRT de `until`) — antes `last_month` ou
     # `year_2024` puxava todo deal até hoje (lento e estourava o teto de 30k)
     until_iso = (until_d + timedelta(days=1)).isoformat() + "T03:00:00Z"
-    cols = "id,name,amount,win,closed_at,created_at_rd,updated_at_rd,pipeline_name,stage_name,user_email,user_id,rd_raw"
+    cols = "id,name,amount,win,closed_at,created_at_rd,updated_at_rd,pipeline_id,pipeline_name,stage_name,user_email,user_id,rd_raw"
     out = []
     page = 0
     size = 1000
@@ -247,6 +247,36 @@ def _fetch_period_deals(sb, since_d, until_d):
 
 
 # ─── Etapas (posição de entrada e de visita por pipeline) ───────────────────
+# v88.24 — Dicionário §5: contatado = chegou a "Contato/qualificação" ou além
+# (tentativa de contato NÃO conta); visita = "Visita realizada" ou além.
+CONTACT_KEYS = {"contato_qual", "precisa_ag", "quente", "vis_agend", "vis_real", "proposta", "contrato"}
+VISITA_KEYS = {"vis_real", "proposta", "contrato"}
+
+
+def _norm_stage(nm):
+    """Nome de etapa comparável: sem emoji/acento/pontuação (o rd_raw traz
+    "📲CONT. + QUALIFICAÇÃO", o rd_stages "CONT. + QUALIFICACAO")."""
+    import unicodedata as _ud
+    t = _ud.normalize("NFKD", str(nm or "")).encode("ascii", "ignore").decode("ascii").lower()
+    return re.sub(r"[^a-z0-9]+", " ", t).strip()
+
+
+def _is_contact(pinfo, pos):
+    cs = pinfo.get("contact_set")
+    if cs:
+        return pos in cs
+    e = pinfo.get("entry")
+    return e is not None and pos > e
+
+
+def _is_visita(pinfo, pos, nm=""):
+    vs = pinfo.get("visita_set")
+    if vs:
+        return pos in vs
+    v = pinfo.get("visita")
+    return (v is not None and pos >= v) or bool(nm and VISITA_RE.search(nm))
+
+
 def _stage_positions(sb):
     """{pipeline_key: {'entry': pos, 'visita': pos, 'names': {name_lower: pos}}}"""
     try:
@@ -274,14 +304,28 @@ def _stage_positions(sb):
             pass
         names = {}
         visita_pos = None
+        novo_pos = None
+        contact_set, visita_set = set(), set()
         for s in st:
             nm = (s.get("name") or "").strip().lower()
             pos = int(s.get("position") or s.get("order") or 0)
             names[nm] = pos
+            names.setdefault(_norm_stage(nm), pos)   # v88.24: casa nome com emoji/acento
             if visita_pos is None and VISITA_RE.search(nm):
                 visita_pos = pos
-        entry_pos = min(names.values()) if names else 0
-        info[pid] = {"entry": entry_pos, "visita": visita_pos, "names": names}
+            # v88.24 — marcos do Dicionário §5 (rd_stages.psm_stage_key)
+            k = (s.get("psm_stage_key") or "").strip()
+            if k == "novo_atend" and novo_pos is None:
+                novo_pos = pos
+            if k in CONTACT_KEYS:
+                contact_set.add(pos)
+            if k in VISITA_KEYS:
+                visita_set.add(pos)
+        # entrada = coluna "novo atendimento" (antes: a 1ª coluna do funil, que é
+        # Reativação/Carteira — todo lead novo já contava como "saiu da entrada")
+        entry_pos = novo_pos if novo_pos is not None else (min(names.values()) if names else 0)
+        info[pid] = {"entry": entry_pos, "visita": visita_pos, "names": names,
+                     "contact_set": contact_set, "visita_set": visita_set}
     return info, pname
 
 
@@ -343,10 +387,10 @@ def _real_brand_metrics(cohort_brand, events_by_deal, stage_info):
         first_contact = None
         did_visita = False
         for pos, nm, dt in evs:
-            if pos is not None and entry is not None and pos > entry and dt is not None:
+            if pos is not None and dt is not None and _is_contact(pinfo, pos):
                 if first_contact is None or dt < first_contact:
                     first_contact = dt
-            if (visp is not None and pos is not None and pos >= visp) or (nm and VISITA_RE.search(nm)):
+            if pos is not None and _is_visita(pinfo, pos, nm):
                 did_visita = True
         if first_contact is not None:
             contacted += 1
@@ -483,15 +527,23 @@ class handler(BaseHTTPRequestHandler):
 
         brands = defaultdict(_blank_brand)
         # localizar posição da etapa do deal p/ contact/visita
-        def _deal_stage_pos(raw, brand_key):
+        def _pipe_id(d, raw):
+            """v88.24: id do funil pela COLUNA deals.pipeline_id (o rd_raw atual não
+            traz mais deal_pipeline → pid vazio → Contact Rate/Show-up/SLA reais e o
+            proxy de contatados/visitas davam 0 / —). rd_raw fica como fallback."""
+            return str(d.get("pipeline_id") or (((raw or {}).get("deal_pipeline") or {}).get("id")) or "")
+
+        def _deal_stage_pos(raw, brand_key, d=None):
             stg = (raw or {}).get("deal_stage") or {}
-            pid = str((((raw or {}).get("deal_pipeline") or {}).get("id")) or "")
+            pid = _pipe_id(d or {}, raw)
             info = stage_info.get(pid)
             if not info:
-                return None, None, None
+                return None, None
             nm = (stg.get("name") or "").strip().lower()
             pos = info["names"].get(nm)
-            return pos, info["entry"], info["visita"]
+            if pos is None:
+                pos = info["names"].get(_norm_stage(nm))
+            return pos, info
 
         for d in deals:
             raw = d.get("rd_raw") or {}
@@ -560,7 +612,7 @@ class handler(BaseHTTPRequestHandler):
                     B["leads"] += 1
                 B["channels"][ch]["leads"] += 1
                 _did = str(d.get("id") or "")
-                _pid = str((((raw or {}).get("deal_pipeline") or {}).get("id")) or "")
+                _pid = _pipe_id(d, raw)
                 if _did:
                     cohort[brand][_did] = {"created": created, "pid": _pid}
                 if src:
@@ -572,11 +624,11 @@ class handler(BaseHTTPRequestHandler):
                     if 0 < dh <= 168:  # até 7 dias, corta ruído
                         B["sla_horas"].append(dh)
                 # Contact / Visita pelo estágio atual
-                pos, entry, visita = _deal_stage_pos(raw, brand)
-                if pos is not None and entry is not None:
-                    if pos > entry or win is not None:
+                pos, pinfo_d = _deal_stage_pos(raw, brand, d)
+                if pos is not None and pinfo_d:
+                    if _is_contact(pinfo_d, pos) or win is not None:
                         B["leads_contatados"] += 1
-                    if visita is not None and pos >= visita:
+                    if _is_visita(pinfo_d, pos):
                         B["leads_visita"] += 1
                 elif win is not None:
                     B["leads_contatados"] += 1
