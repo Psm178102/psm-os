@@ -11,6 +11,7 @@
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 import { montarDecisoes } from '../decisoes.js';   // v87.92 🧭 Decidir agora
+import { montarLeadsOrigem } from '../leads-origem.js';   // v88.16 📥 leads em andamento × origem × equipe (mínimo de todo painel)
 
 let _root = null;
 let _d = null;
@@ -45,10 +46,12 @@ function render() {
     <div class="card">
       <h2 class="card-title">📊 KPIs Executivos</h2>
       <p class="card-sub">Visão estratégica consolidada (ano corrente) — vendas, meta, pipeline, conversão, equipe e financeiro. Dados reais do RD + metas + NIBO.</p>
+      <div id="kpi-lo" class="mt-3"></div>
       <div id="kpi-dec" class="mt-3"></div>
       <div id="kpi-body" class="mt-3"><div class="muted tiny"><span class="spinner"></span> Calculando KPIs…</div></div>
     </div>
   `;
+  montarLeadsOrigem(document.getElementById('kpi-lo'));
   montarDecisoes(document.getElementById('kpi-dec'), { tela: 'kpis', titulo: '🧭 O que estes números pedem agora', max: 5 });
 }
 

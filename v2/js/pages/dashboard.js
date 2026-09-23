@@ -9,6 +9,7 @@
 ============================================================================ */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { montarLeadsOrigem } from '../leads-origem.js';   // v88.16 📥 leads em andamento × origem × equipe (mínimo de todo painel)
 
 const SCOPE_LBL = {
   global: '👁 Visão global (Sócio/Gerente)',
@@ -53,7 +54,8 @@ export async function montarIndicadores(host, { prod, overview } = {}) {
     return;
   }
   if (!host.isConnected) return;
-  host.innerHTML = render(d || {}, oo, prod || {});
+  host.innerHTML = (isGestor ? '<div class="dash-lo"></div>' : '') + render(d || {}, oo, prod || {});
+  if (isGestor) montarLeadsOrigem(host.querySelector('.dash-lo'));
 }
 
 function render(d, board, prod) {

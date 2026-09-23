@@ -14,6 +14,7 @@
    um ponto no item — sem push, sem sino (Diretoria nunca notifica broadcast). */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { montarLeadsOrigem } from '../leads-origem.js';   // v88.16 📥 leads em andamento × origem × equipe (mínimo de todo painel)
 
 const SEEN_KEY = 'psm.v2.diretoria_ceo.seen';   // id do dossiê mais novo já aberto
 const ROUTE = '/diretoria-ceo';
@@ -121,6 +122,9 @@ export async function pageDiretoriaCeo(ctx, root) {
     root.innerHTML = '<div class="card"><h2 class="card-title">🏛️ Diretoria</h2><p class="muted">Área restrita aos sócios.</p></div>';
     return;
   }
+  root.innerHTML = '<div id="ceo-lo"></div><div id="ceo-main"></div>';
+  montarLeadsOrigem(root.querySelector('#ceo-lo'));
+  _root = root.querySelector('#ceo-main');
   _items = null; _err = null; _openId = null; _leituras = []; _comps = []; _leituraAberta = false;
   _dirs = []; _dirBusy = null;
   render();

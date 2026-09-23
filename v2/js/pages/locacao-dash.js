@@ -3,6 +3,7 @@
    estoque de anúncios p/ alugar (kenlo_imoveis) e funil CRM de locação.
    Backend: /api/v3/locacoes/dash */
 import { api } from '../api.js';
+import { montarLeadsOrigem } from '../leads-origem.js';   // v88.16 📥 leads em andamento × origem × equipe (mínimo de todo painel)
 
 let _root = null, _d = null;
 
@@ -56,6 +57,7 @@ function render() {
         <button class="btn btn-ghost btn-sm" data-nav="/locacoes">🗂 Carteira</button>
         <button class="btn btn-ghost btn-sm" data-nav="/locacao-estoque">🏠 Imóveis p/ alugar</button>
       </div>
+      <div id="ld-lo" style="margin-top:12px"></div>
       <div class="flex mt-2" style="gap:8px;flex-wrap:wrap">
         ${kpi('🔑 Contratos ativos', c.ocupadas || 0, (c.total || 0) + ' na carteira')}
         ${kpi('🏠 Aluguel sob gestão/mês', brl(c.aluguel_mes), 'ticket médio ' + brl(c.ticket_medio))}
@@ -105,4 +107,5 @@ function render() {
       </div>
     </div>`;
   _root.querySelectorAll('[data-nav]').forEach(b => b.onclick = () => { location.hash = '#' + b.dataset.nav; });
+  montarLeadsOrigem(_root.querySelector('#ld-lo'), { team: 'locacao', titulo: '📥 Em andamento no funil do RD — Locação, por origem' });
 }

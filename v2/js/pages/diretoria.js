@@ -4,6 +4,7 @@
 ============================================================================ */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { montarLeadsOrigem } from '../leads-origem.js';   // v88.16 📥 leads em andamento × origem × equipe (mínimo de todo painel)
 import { FRENTES } from '../frentes.js';
 import { heroWrap, heroKpi, miniStat, panel, loadChartLib, darkOpts, DARK_INK, DARK_GRID, pctDelta } from '../premium.js';
 
@@ -44,6 +45,7 @@ async function renderShell() {
       <h2 class="card-title">🏛 Diretoria PSM</h2>
       <p class="card-sub">Painel executivo: KPIs consolidados, recados pra equipe, estratégia anual.${isSocio ? '' : ' <b>Visualização — edição requer Sócio/Gerente.</b>'}</p>
 
+      <div id="dir-lo" style="margin-top:14px"></div>
       <div class="flex gap-1" style="margin-top:14px;border-bottom:1px solid var(--border);flex-wrap:wrap">
         ${tabBtn('dashboard', '📊 Dashboard')}
         ${tabBtn('recados',   '📢 Recados')}
@@ -56,6 +58,7 @@ async function renderShell() {
       <div id="dir-modal" style="display:none"></div>
     </div>
   `;
+  montarLeadsOrigem(document.getElementById('dir-lo'));
   document.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', async () => {
     _tab = b.dataset.tab; await renderShell(); await loadTab();
   }));
