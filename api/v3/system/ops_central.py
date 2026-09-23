@@ -299,7 +299,9 @@ def coletar_rotinas(sb, col, now):
         return itens
 
     # motor parado? (nenhum job em 3h durante o expediente = ninguém usando OU heartbeat quebrado)
-    ultimos = [_parse(r.get("ran_at")) for k, r in cs.items() if k != "sla_ran_at" and not k.startswith("win:")]
+    # só as rotinas do motor (heartbeat) contam — carimbos win:/cura:/kenlo_status não provam que ele roda
+    chaves_motor = {k for k, *_ in HEARTBEAT}
+    ultimos = [_parse(r.get("ran_at")) for k, r in cs.items() if k in chaves_motor]
     ultimos = [u for u in ultimos if u]
     idade_motor = (now - max(ultimos)).total_seconds() / 3600 if ultimos else None
     hora_brt = now.astimezone(BRT).hour
@@ -333,6 +335,13 @@ def coletar_rotinas(sb, col, now):
             v = col.kv_value("uptime_state") or {}
             if v.get("estado") == "down":
                 st, det = "error", "Sentinela detectou queda: " + "; ".join(v.get("problemas") or [])[:200]
+        if id_ == "kenlo" and st != "ok":
+            try:
+                ks = (sb.table("cron_state").select("ran_at,note").eq("key", "kenlo_status").limit(1).execute().data or [])
+                if ks and str(ks[0].get("note") or "").startswith("falha"):
+                    det += f" Última tentativa ({fmt_idade(_age_h(ks[0].get('ran_at'), now))}): {ks[0]['note'][7:][:180]}"
+            except Exception:
+                pass
         if id_ == "zoho" and st == "ok":
             try:
                 zs = sb.table("zoho_conexoes").select("zoho_email,last_sync_res").limit(200).execute().data or []
@@ -904,22 +913,26 @@ def vigiar(sb, cfg, itens, now, forcar_teste=False):
 # Rotina CRÍTICA parada não espera o heartbeat (que só roda com gente usando o sistema
 # e fica refém do sync do RD): o vigia dispara ela direto, com o CRON_SECRET do servidor.
 # (item, path, atraso mínimo em horas pra disparar)
+# (item, path, re-tentar no máx. a cada N horas). Cada tentativa fica carimbada em
+# cron_state 'cura:<item>' → uma rotina que FALHA não é martelada a cada 15 min.
 AUTO_CURA = [
-    ("hb:backup_auto", "/api/v3/backup/auto", 30),
+    ("hb:backup_auto", "/api/v3/backup/auto", 2),
+    ("vc:kenlo",       "/api/v3/kenlo/sync",  6),    # v88.30: parado desde 29/07 (502 da Kenlo)
 ]
 
 
 def precisa_curar(itens, now, cron_state_ran):
     """Quais rotinas críticas disparar agora. Puro (testável).
-    cron_state_ran: {key: iso do último ran_at}."""
+    Só quando o item está em ERRO e a última tentativa da Central ('cura:<id>') tem mais de
+    N horas. cron_state_ran: {key: iso do último ran_at}."""
     alvo = []
     por_id = {i["id"]: i for i in itens}
-    for id_, path, min_h in AUTO_CURA:
+    for id_, path, retry_h in AUTO_CURA:
         it = por_id.get(id_)
-        if not it or it["status"] not in ("error", "warn"):
+        if not it or it["status"] != "error":
             continue
-        age = _age_h(cron_state_ran.get(id_[3:]), now)
-        if age is None or age >= min_h:
+        age = _age_h(cron_state_ran.get("cura:" + id_), now)
+        if age is None or age >= retry_h:
             alvo.append((id_, path))
     return alvo
 
@@ -935,28 +948,35 @@ def auto_curar(sb, itens, now, host=None):
     host = (host or "www.housepsm.com.br").split(",")[0].strip()
     out = {"ran": []}
     for id_, path in precisa_curar(itens, now, ran)[:1]:     # 1 por rodada: request curta
-        key = id_[3:]
-        try:   # trava antes (2 crons simultâneos não disparam 2 backups); o endpoint regrava no sucesso
-            sb.table("cron_state").upsert({"key": key, "ran_at": now.isoformat(), "note": "auto-cura da Central (disparado)"},
-                                          on_conflict="key").execute()
+        # carimbo da tentativa ANTES (2 crons simultâneos não disparam 2 vezes)
+        try:
+            sb.table("cron_state").upsert({"key": "cura:" + id_, "ran_at": now.isoformat(),
+                                          "note": "auto-cura da Central (disparado)"}, on_conflict="key").execute()
         except Exception:
             pass
+        res = {"id": id_}
         try:
             req = urllib.request.Request(f"https://{host}{path}", headers={"Authorization": f"Bearer {secret}",
                                                                            "User-Agent": "PSM-OpsCentral-autocura"})
             with urllib.request.urlopen(req, timeout=50) as r:
-                out["ran"].append({"id": id_, "status": r.status, "resp": r.read(300).decode("utf-8", "ignore")})
+                res.update(status=r.status, resp=r.read(300).decode("utf-8", "ignore"))
+        except urllib.error.HTTPError as e:
+            try:
+                corpo = e.read(300).decode("utf-8", "ignore")
+            except Exception:
+                corpo = ""
+            res.update(status=e.code, erro=corpo or str(e)[:160])
         except Exception as e:
             msg = str(e)[:160]
-            if "timed out" in msg.lower():   # segue rodando no servidor (mesma regra do heartbeat)
-                out["ran"].append({"id": id_, "aguardo": "timeout — segue rodando no servidor"})
-            else:
-                out["ran"].append({"id": id_, "erro": msg})
-                try:
-                    sb.table("cron_state").upsert({"key": key, "ran_at": ran.get(key) or now.isoformat(),
-                                                  "note": f"falha: auto-cura {msg[:100]}"}, on_conflict="key").execute()
-                except Exception:
-                    pass
+            # timeout: segue rodando no servidor (mesma regra do heartbeat)
+            res.update(aguardo="timeout — segue rodando no servidor") if "timed out" in msg.lower() else res.update(erro=msg)
+        try:
+            sb.table("cron_state").upsert({"key": "cura:" + id_, "ran_at": now.isoformat(),
+                                          "note": ("ok" if res.get("status") == 200 else "falha: " + str(res.get("erro") or res.get("aguardo") or res.get("status"))[:200])},
+                                         on_conflict="key").execute()
+        except Exception:
+            pass
+        out["ran"].append(res)
     return out
 
 

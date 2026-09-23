@@ -76,11 +76,13 @@ def test_versao_coerente():
 
 
 def test_auto_cura():
-    itens = [it("hb:backup_auto", "error")]
-    assert O.precisa_curar(itens, NOW, {"backup_auto": iso(8 * 24)}) == [("hb:backup_auto", "/api/v3/backup/auto")]
-    assert O.precisa_curar(itens, NOW, {"backup_auto": iso(2)}) == []          # acabou de disparar: espera
-    assert O.precisa_curar([it("hb:backup_auto", "ok")], NOW, {}) == []
-    assert O.precisa_curar(itens, NOW, {}) == [("hb:backup_auto", "/api/v3/backup/auto")]
+    bk, kl = ("hb:backup_auto", "/api/v3/backup/auto"), ("vc:kenlo", "/api/v3/kenlo/sync")
+    assert O.precisa_curar([it("hb:backup_auto", "error")], NOW, {}) == [bk]
+    assert O.precisa_curar([it("hb:backup_auto", "error")], NOW, {"cura:hb:backup_auto": iso(1)}) == []   # tentou há 1h
+    assert O.precisa_curar([it("hb:backup_auto", "error")], NOW, {"cura:hb:backup_auto": iso(3)}) == [bk]
+    assert O.precisa_curar([it("hb:backup_auto", "warn")], NOW, {}) == []      # só ERRO dispara
+    assert O.precisa_curar([it("vc:kenlo", "error")], NOW, {"cura:vc:kenlo": iso(5)}) == []    # Kenlo: 6h
+    assert O.precisa_curar([it("vc:kenlo", "error")], NOW, {"cura:vc:kenlo": iso(7)}) == [kl]
 
 
 def test_silencio():

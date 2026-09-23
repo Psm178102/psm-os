@@ -121,8 +121,27 @@ def _norm(l):
     }
 
 
+def _marca_status(s, b):
+    """v88.30: grava o resultado de TODA tentativa em cron_state 'kenlo_status' — a Central de
+    Operações mostra o motivo real (ex.: 'kenlo 401: invalid api key'). Antes o cron falhava com
+    502 todo dia desde 29/07 e ninguém via a mensagem. Best-effort; ignora 401/403 do House."""
+    if s in (401, 403):
+        return
+    try:
+        sb = supabase_client()
+        if b.get("ok"):
+            note = f"ok · {b.get('upserted', 0)} imóveis · {b.get('desativados', 0)} desativados"
+        else:
+            note = f"falha: {str(b.get('error') or s)[:220]}"
+        sb.table("cron_state").upsert({"key": "kenlo_status", "ran_at": datetime.now(timezone.utc).isoformat(),
+                                      "note": note}, on_conflict="key").execute()
+    except Exception:
+        pass
+
+
 class handler(BaseHTTPRequestHandler):
     def _send(self, s, b):
+        _marca_status(s, b)
         self.send_response(s); self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Access-Control-Allow-Origin", "*"); self.send_header("Cache-Control", "no-store")
         self.end_headers(); self.wfile.write(json.dumps(b, ensure_ascii=False, default=str).encode("utf-8"))
