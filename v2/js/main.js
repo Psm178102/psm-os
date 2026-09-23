@@ -507,7 +507,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '88.12';
+const APP_VERSION = '88.13';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -768,7 +768,7 @@ const APP_VERSION = '88.12';
   router.register('/sim-leads',   { render: async (ctx, root) => { setHeader('Simulador Leads/CAC'); highlight('/sim-leads'); await pageSimLeads(ctx, root); } });
   router.register('/sim-criativos', { render: async (ctx, root) => { setHeader('Simulador Criativos'); highlight('/sim-criativos'); await pageSimCriativos(ctx, root); } });
   router.register('/ranking-hub', { render: async (ctx, root) => { setHeader('Ranking HUB · Modo TV'); highlight('/ranking-hub'); await pageRankingHub(ctx, root); } });
-  router.register('/okrs',        { render: async (ctx, root) => { setHeader('OKRs');                highlight('/okrs');       await pageOKRs(ctx, root); } });
+  router.register('/okrs',        { render: async (ctx, root) => { setHeader('Objetivos & OKRs');                highlight('/okrs');       await pageOKRs(ctx, root); } });
   router.register('/kpis',        { render: async () => { location.hash = '#/cockpit?tab=kpis'; } });
   router.register('/metricas-viab', { render: async (ctx, root) => { setHeader('Orçado × Realizado'); highlight('/metricas-viab'); await pageMetricasViab(ctx, root); } });
   router.register('/comissao-conquista', { render: async (ctx, root) => { setHeader('Comissionamento'); highlight('/comissao-conquista'); await pageComissaoConquista(ctx, root); } });
@@ -1104,7 +1104,7 @@ function shellHTML(user) {
         <div class="sb-subsec">Estratégia & Planejamento</div>
         <button class="sb-link" data-nav="/norte-estrategico"><span class="sb-ico">⭐</span> Norte Estratégico</button>
         <button class="sb-link" data-nav="/estrategia"><span class="sb-ico">♟️</span> Plano Estratégico</button>
-        <button class="sb-link" data-nav="/okrs"><span class="sb-ico">🎯</span> OKRs</button>
+        <button class="sb-link" data-nav="/okrs"><span class="sb-ico">🎯</span> Objetivos & OKRs</button>
         <button class="sb-link" data-nav="/projetos"><span class="sb-ico">📌</span> Portfólio de Projetos</button>
         <div class="sb-subsec">Finanças & Viabilidade</div>
         <button class="sb-link" data-nav="/metricas-viab"><span class="sb-ico">🧪</span> Orçado × Realizado</button>

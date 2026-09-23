@@ -1,7 +1,7 @@
 """GET/POST/DELETE /api/v3/okrs/list — OKRs
 
 GET:    list (lvl>=2)
-POST:   upsert (lvl>=5 Líder+)
+POST:   upsert (lvl>=5 Líder+) — v88.13: + objetivo_id, area; KR pode ter fonte vgv|vendas (ver cascata.py)
 DELETE: ?id=X (lvl>=5)
 """
 from http.server import BaseHTTPRequestHandler
@@ -54,6 +54,9 @@ class handler(BaseHTTPRequestHandler):
             "status": body.get("status") or "on_track",
             "krs": body.get("krs") or [],
             "responsavel": body.get("responsavel"),
+            # v88.13: cascata — OKR aponta pro Objetivo estratégico (estrategia.id) e tem área
+            "objetivo_id": (str(body["objetivo_id"]) if body.get("objetivo_id") not in (None, "") else None),
+            "area": body.get("area") or None,
             "criado_por": actor.get("id"),
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
