@@ -6,7 +6,7 @@ Regras universais: toda reunião tem DONO, PAUTA FIXA e PAINEL ABERTO; ata de 3
 linhas no ato; pendência sem dono+prazo não existe; sem painel/pauta = cancelada.
 
 GET  (logado)              → formatos + atas recentes + pendências abertas + carga semanal
-POST {action:"ata", formato_id, decisoes, pendencias:[{txt,dono,prazo}]}  (lvl>=5)
+POST {action:"ata", formato_id, decisoes, pendencias:[{txt,dono,prazo}], data?}  (lvl>=5; data = dia da reunião)
 POST {action:"baixar_pendencia", ata_id, idx}                             (lvl>=5)
 POST {action:"set_formato", formato:{...}} · {action:"del_formato", id}   (lvl>=8)
 GET  ?lembretes=1 (CRON_SECRET ou lvl>=7) → dispara lembretes por alçada dos
@@ -32,7 +32,7 @@ KV_F, KV_A, KV_S = "reunioes_formatos", "reunioes_atas", "reunioes_lembretes_sta
 # mensal_nth {nth:1, dia:3=quinta} · mensal_ultima {dia}
 SEED_FORMATOS = [
     {"id": "placar_segunda", "emoji": "📊", "nome": "Placar de Segunda (Estratégia)", "dono": "Paulo",
-     "participantes": ["paulo", "isa"], "cadencia": {"tipo": "semanal", "dias": [0]}, "hora": "08:00", "dur_min": 15,
+     "participantes": ["paulo", "Isabella Morimatsu"], "cadencia": {"tipo": "semanal", "dias": [0]}, "hora": "08:00", "dur_min": 15,
      "painel": "#/estrategia", "painel_nome": "Real vs Plano (card Amortecedor)",
      "pauta": ["Amortecedor da semana", "Conquista vs R$625k/sem", "Próprio vs necessário", "Rafaela vs gates", "Decisões da semana"]},
     {"id": "daily_conquista", "emoji": "🏃", "nome": "Daily Comercial Conquista", "dono": "Kaue",
@@ -40,7 +40,7 @@ SEED_FORMATOS = [
      "painel": "#/crm", "painel_nome": "Comercial/CRM",
      "pauta": ["Números de ontem", "Foco do dia (atividade, não só venda)", "Travas", "Ranking"]},
     {"id": "semanal_map", "emoji": "♟️", "nome": "Semanal Comercial MAP", "dono": "Paulo",
-     "participantes": ["paulo", "isa", "rafaela"], "cadencia": {"tipo": "semanal", "dias": [0]}, "hora": "09:00", "dur_min": 30,
+     "participantes": ["paulo", "Isabella Morimatsu", "rafaela"], "cadencia": {"tipo": "semanal", "dias": [0]}, "hora": "09:00", "dur_min": 30,
      "painel": "#/fiscalizacao", "painel_nome": "Pipeline MAP + card Rafaela",
      "pauta": ["Pipeline próprio negócio a negócio", "Fila da Ponte da semana", "Agendamentos Rafaela", "Follow-ups críticos"]},
     {"id": "semanal_financeiro", "emoji": "💰", "nome": "Semanal Financeiro", "dono": "Paulo",
@@ -48,19 +48,19 @@ SEED_FORMATOS = [
      "painel": "#/estrategia", "painel_nome": "Radar de Recebíveis + contas",
      "pauta": ["Recebíveis D-3/travados (nota, assinatura)", "Contas a pagar 7 dias", "Caixa da semana", "Pendências do refi/crédito"]},
     {"id": "semanal_marketing", "emoji": "📣", "nome": "Semanal Marketing", "dono": "Isa",
-     "participantes": ["isa"], "cadencia": {"tipo": "semanal", "dias": [1]}, "hora": "17:00", "dur_min": 30,
+     "participantes": ["Isabella Morimatsu"], "cadencia": {"tipo": "semanal", "dias": [1]}, "hora": "17:00", "dur_min": 30,
      "painel": "#/marketing", "painel_nome": "Semáforo de ads + leads LP",
      "pauta": ["ROAS por conta/frente", "CAC por faixa da LP", "Criativos da semana", "SLA de resposta a lead (5min)"]},
     {"id": "quinzenal_adm", "emoji": "🗂️", "nome": "Quinzenal ADM/Operações", "dono": "Isa",
-     "participantes": ["isa", "leire", "mariane"], "cadencia": {"tipo": "quinzenal", "dia": 4, "ref": "2026-08-07"}, "hora": "16:00", "dur_min": 30,
+     "participantes": ["Isabella Morimatsu", "leire", "mariane"], "cadencia": {"tipo": "quinzenal", "dia": 4, "ref": "2026-08-07"}, "hora": "16:00", "dur_min": 30,
      "painel": "#/fiscalizacao", "painel_nome": "Fiscalização",
      "pauta": ["SLAs de docs", "NPS/CS e indicações", "Reativação", "Processos travados"]},
     {"id": "quinzenal_diretoria", "emoji": "🏛️", "nome": "Quinzenal Diretoria", "dono": "Paulo",
-     "participantes": ["paulo", "isa"], "obs": "Kaue na 1ª do mês", "cadencia": {"tipo": "quinzenal", "dia": 3, "ref": "2026-08-06"}, "hora": "17:00", "dur_min": 45,
+     "participantes": ["paulo", "Isabella Morimatsu"], "obs": "Kaue na 1ª do mês", "cadencia": {"tipo": "quinzenal", "dia": 3, "ref": "2026-08-06"}, "hora": "17:00", "dur_min": 45,
      "painel": "#/estrategia", "painel_nome": "Checklist do plano v2.3",
      "pauta": ["Gates do mês", "Academy", "Pessoas (contratar/cortar/promover)", "Decisões estruturais (ponto, crédito, Line Imper)", "Riscos"]},
     {"id": "mensal_rh", "emoji": "👥", "nome": "Mensal RH & Gestão de Pessoas", "dono": "Paulo",
-     "participantes": ["paulo", "isa", "kaue"], "cadencia": {"tipo": "mensal_nth", "nth": 1, "dia": 3}, "hora": "10:00", "dur_min": 60,
+     "participantes": ["paulo", "Isabella Morimatsu", "kaue"], "cadencia": {"tipo": "mensal_nth", "nth": 1, "dia": 3}, "hora": "10:00", "dur_min": 60,
      "painel": "#/fiscalizacao", "painel_nome": "Fiscalização + ATS",
      "pauta": ["Metas individuais vs real (todos)", "Gates Rafaela 30/60/90", "Funil da Academy", "Feedbacks coletados pela Mariane", "Decisões de gente"]},
     {"id": "mensal_juridico", "emoji": "⚖️", "nome": "Mensal Jurídico", "dono": "Paulo",
@@ -68,9 +68,36 @@ SEED_FORMATOS = [
      "painel": "#/juridico", "painel_nome": "Pendências jurídicas",
      "pauta": ["Contratos vigentes (Georgina — marco 1 ano em out)", "Contratos incorporadoras", "Distratos", "Garantia real Itaú", "Trabalhista"]},
     {"id": "mensal_geral", "emoji": "🏢", "nome": "Mensal Geral (todos juntos)", "dono": "Paulo",
-     "participantes": ["paulo", "isa"], "papeis": ["*"], "cadencia": {"tipo": "mensal_nth", "nth": 1, "dia": 0}, "hora": "08:30", "dur_min": 45,
+     "participantes": ["paulo", "Isabella Morimatsu"], "papeis": ["*"], "cadencia": {"tipo": "mensal_nth", "nth": 1, "dia": 0}, "hora": "08:30", "dur_min": 45,
      "painel": "#/", "painel_nome": "Placar público do mês",
      "pauta": ["Resultado do mês vs meta (transparência)", "Reconhecimento (Conquista + MAP + apoio)", "Comunicados (transição Rafaela, Academy)", "Metas do mês que abre"]},
+    # v88.33 — Rotina de Gestão · PSM Conquista: Isabella (diretora) × Kaue (gerente). Aparecem também em
+    # Diretoria → Governança → 🎯 Rotina · PSM Conquista (api/v3/diretoria/rotina.py).
+    {"id": "conq_checkin", "emoji": "⚡", "nome": "Check-in Diário Conquista (Isa × Kaue)", "dono": "Isa",
+     "participantes": ["Isabella Morimatsu", "kaue"], "cadencia": {"tipo": "semanal", "dias": [0, 1, 2, 3, 4]}, "hora": "18:00", "dur_min": 10,
+     "painel": "#/gestao-comercial", "painel_nome": "Gestão Comercial (Conquista)",
+     "pauta": ["Número do dia vs ritmo da meta", "Negócios que avançaram e que travaram", "Leads sem 1º contato", "O que precisa da Isa"]},
+    {"id": "conq_1a1_gestao", "emoji": "🤝", "nome": "1:1 de Gestão Conquista (Isa × Kaue)", "dono": "Isa",
+     "participantes": ["Isabella Morimatsu", "kaue"], "cadencia": {"tipo": "semanal", "dias": [0]}, "hora": "10:30", "dur_min": 45,
+     "painel": "#/scorecard", "painel_nome": "Scorecard PSM Conquista",
+     "pauta": ["Pendências da semana passada (ata)", "Scorecard: o que está vermelho e por quê", "Pipeline comprometido corretor a corretor",
+               "1:1 dos corretores: quem precisa de ajuda", "Leads: SLA do 1º contato e origem", "Academy / contratação",
+               "3 prioridades da semana com dono e prazo"]},
+    {"id": "conq_funil", "emoji": "📥", "nome": "Funil & Leads Conquista (Isa × Kaue + marketing)", "dono": "Isa",
+     "participantes": ["Isabella Morimatsu", "kaue"], "cadencia": {"tipo": "quinzenal", "dia": 3, "ref": "2026-09-24"}, "hora": "15:00", "dur_min": 30,
+     "painel": "#/gestao-comercial", "painel_nome": "Gestão Comercial + Marketing",
+     "pauta": ["Leads por origem e CPL", "SLA do 1º contato (roleta WhatsApp)", "Agendamento → atendimento → pasta → venda", "Perdas e motivos",
+               "Ajuste de verba/criativos"]},
+    {"id": "conq_dev_kaue", "emoji": "🌱", "nome": "1:1 de Desenvolvimento do Kaue", "dono": "Isa",
+     "participantes": ["Isabella Morimatsu", "kaue"], "cadencia": {"tipo": "quinzenal", "dia": 4, "ref": "2026-09-25"}, "hora": "11:00", "dur_min": 30,
+     "painel": "#/rh-avaliacoes", "painel_nome": "Avaliações & Feedbacks",
+     "pauta": ["Como você está (energia, carga, time)", "Feedback da quinzena: 1 reconhecimento + 1 ajuste", "Competência em foco / PDI",
+               "O que você precisa de mim"]},
+    {"id": "conq_fechamento", "emoji": "🏁", "nome": "Fechamento & Plano do Mês Conquista", "dono": "Isa",
+     "participantes": ["Isabella Morimatsu", "kaue"], "cadencia": {"tipo": "mensal_ultima", "dia": 4}, "hora": "14:00", "dur_min": 60,
+     "painel": "#/scorecard", "painel_nome": "Scorecard (histórico do mês)",
+     "pauta": ["Scorecard do mês: verdes, vermelhos e causas", "Comissões e premiações da equipe", "Metas do próximo mês por corretor",
+               "Escala de plantões e campanhas", "Relatório de 1 página para o Paulo"]},
 ]
 
 
@@ -247,6 +274,8 @@ class handler(BaseHTTPRequestHandler):
                     pends.append({"txt": txt, "dono": dono, "prazo": prazo, "feito": False})
             ata = {"id": "ata_" + uuid.uuid4().hex[:10], "formato_id": str(body.get("formato_id") or "")[:60],
                    "ts": now.isoformat(), "por": user.get("name"),
+                   # v88.33: dia da REUNIÃO (a ata pode ser registrada depois) — AAAA-MM-DD, opcional
+                   "data": (str(body.get("data") or "")[:10] or None),
                    "decisoes": str(body.get("decisoes") or "").strip()[:2000], "pendencias": pends}
             akv.setdefault("atas", []).insert(0, ata)
             akv["atas"] = akv["atas"][:300]

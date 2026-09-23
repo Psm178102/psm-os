@@ -117,7 +117,8 @@ import { pageSimAmortizacao } from './pages/sim-amortizacao.js';
 import { pageSimLeads } from './pages/sim-leads.js';
 import { pageSimCriativos } from './pages/sim-criativos.js';
 import { pageRankingHub } from './pages/ranking-hub.js';
-import { pageScorecard } from './pages/scorecard.js';   // 📊 Scorecards padrão da Diretoria v88.26
+import { pageScorecard } from './pages/scorecard.js';
+import { pageRotinaConquista } from './pages/rotina-conquista.js';   // 🎯 Rotina de Gestão · PSM Conquista (Isa × Kaue) v88.33   // 📊 Scorecards padrão da Diretoria v88.26
 import { pageOKRs } from './pages/okrs.js';
 import { pageMetricasViab } from './pages/metricas-viab.js';
 import { pageComissaoConquista } from './pages/comissao-conquista.js';
@@ -171,7 +172,7 @@ export const ROUTE_GROUP = {
   // Diretoria
   '/cockpit': 'diretoria', '/paulo': 'diretoria', '/projetos': 'diretoria', '/sr-cfo': 'diretoria',
   '/diretoria-ceo': 'diretoria',   // 🏛️ sala do CEO IA (dossiês) — só sócio. v87.33
-  '/diretoria': 'diretoria', '/norte-estrategico': 'diretoria', '/scorecard': 'diretoria', '/comunicados': 'diretoria', '/kpis': 'diretoria', '/okrs': 'diretoria', '/cmo': 'diretoria',
+  '/diretoria': 'diretoria', '/norte-estrategico': 'diretoria', '/scorecard': 'diretoria', '/rotina-conquista': 'diretoria', '/comunicados': 'diretoria', '/kpis': 'diretoria', '/okrs': 'diretoria', '/cmo': 'diretoria',
   '/metricas-viab': 'diretoria', '/comissao-conquista': 'diretoria', '/sim-trafego': 'diretoria', '/mapa-ciclos': 'diretoria', '/governanca': 'diretoria', '/reunioes': 'diretoria',
   // Jurídico (grupo próprio)
   '/minutas': 'juridico', '/cnds': 'juridico',
@@ -288,7 +289,7 @@ export const ROUTE_MIN_LVL = {
   '/cockpit-conquista': 10, '/minha-comissao': 2, '/meu-cerebro': 10, '/sim-conquista': 10,  // v84.51: cada um vê a PRÓPRIA comissão (escopo travado no backend)
   // v86.90: Sala de Comando (Cockpit+Dashboard unificados) — decisão do Paulo: SÓ sócio.
   // /diretoria segue registrado FORA do menu (gestão de recados e retrocompat de links).
-  '/cockpit': 10, '/diretoria': 10, '/norte-estrategico': 10, '/scorecard': 5, '/comunicados': 10,
+  '/cockpit': 10, '/diretoria': 10, '/norte-estrategico': 10, '/scorecard': 5, '/rotina-conquista': 5, '/comunicados': 10,
   // v87.31/32/33/34: AGENTES DIRETORIA — TUDO SÓ sócio (lvl 10): chats CEO/CFO/CMO
   // + Rede de Agentes (contexto carrega caixa, dívida, pró-labore e Plano de
   // Resgate — espelha o require_user(min_lvl=10) de ia/chat + ia/rede), os
@@ -517,7 +518,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '88.32';
+const APP_VERSION = '88.33';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -643,6 +644,7 @@ const APP_VERSION = '88.32';
   router.register('/diretoria-ceo', { render: async (ctx, root) => { setHeader('Diretoria'); highlight('/diretoria-ceo'); await pageDiretoriaCeo(ctx, root); } });
   router.register('/diretoria', { render: async (ctx, root) => { setHeader('Dashboard Diretoria'); highlight('/diretoria'); await pageDiretoria(ctx, root); } });
   // v88.12: Visão/Missão e Recados só existiam dentro do /diretoria, fora do menu — ganham rota própria
+  router.register('/rotina-conquista', { render: async (ctx, root) => { setHeader('Rotina · PSM Conquista'); highlight('/rotina-conquista'); await pageRotinaConquista(ctx, root); } });
   router.register('/scorecard', { render: async (ctx, root) => { setHeader('Scorecards'); highlight('/scorecard'); await pageScorecard(ctx, root); } });
   router.register('/norte-estrategico', { render: async (ctx, root) => { setHeader('Norte Estratégico'); highlight('/norte-estrategico'); await pageDiretoria(ctx, root, 'estrategia'); } });
   router.register('/comunicados', { render: async (ctx, root) => { setHeader('Comunicados'); highlight('/comunicados'); await pageDiretoria(ctx, root, 'recados'); } });
@@ -1125,6 +1127,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/metricas-viab"><span class="sb-ico">🧪</span> Orçado × Realizado</button>
         <div class="sb-subsec">Governança</div>
         <button class="sb-link" data-nav="/reunioes"><span class="sb-ico">🤝</span> Ritos & Reuniões</button>
+        <button class="sb-link" data-nav="/rotina-conquista"><span class="sb-ico">🎯</span> Rotina · PSM Conquista</button>
         <button class="sb-link" data-nav="/comunicados"><span class="sb-ico">📢</span> Comunicados</button>
         <div class="sb-subsec">Conselho IA</div>
         <button class="sb-link" data-nav="/diretoria-ceo"><span class="sb-ico">🎩</span> CEO · Diretrizes & Dossiês</button>
