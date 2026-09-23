@@ -60,8 +60,19 @@ def _parse_iso(s):
         return None
 
 
+def internal_host():
+    """Host FIXO pras chamadas internas (v88.23). Antes usava o header Host da
+    requisição: no cron do Vercel ele é o domínio do deploy (protegido por login
+    do Vercel) → /api/meta-ads recusava em 0,1s e o cache/histórico nunca
+    atualizavam pelo agendador (meta_monthly_cron parado desde 15/09). Também
+    evita mandar o CRON_SECRET pra um Host arbitrário."""
+    return (os.environ.get("PSM_INTERNAL_HOST") or "www.housepsm.com.br").strip()
+
+
 def fetch_live(host, preset, since, until, nocache=False, timeout=30):
-    """Bate na rota interna /api/meta-ads (Node) e devolve (payload_dict, err_str)."""
+    """Bate na rota interna /api/meta-ads (Node) e devolve (payload_dict, err_str).
+    `host` é ignorado (mantido na assinatura p/ compat) — usa internal_host()."""
+    host = internal_host()
     qs_parts = []
     if since and until:
         qs_parts.append("since=" + urllib.parse.quote(since))

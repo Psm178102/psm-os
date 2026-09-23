@@ -68,7 +68,8 @@ class handler(BaseHTTPRequestHandler):
         cs = os.environ.get("CRON_SECRET", "").strip()
         if not cs:
             return self._send(503, {"ok": False, "error": "CRON_SECRET não configurado"})
-        host = self.headers.get("Host") or "www.housepsm.com.br"
+        from _meta_cache_lib import internal_host  # type: ignore
+        host = internal_host()   # v88.23: nunca o Host da requisição (CRON_SECRET vai junto)
         req = urllib.request.Request(
             "https://" + host + "/api/meta-ads",
             data=json.dumps({"action": action, "campaign_id": cid, "account_id": acc}).encode("utf-8"),
