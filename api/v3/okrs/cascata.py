@@ -155,6 +155,7 @@ class handler(BaseHTTPRequestHandler):
         try:
             est = sb.table("estrategia").select("*").eq("ano", ano).order("ordem").limit(300).execute().data or []
             okrs = sb.table("okrs").select("*").order("criado_em").limit(300).execute().data or []
+            nomes = {u["id"]: u.get("name") for u in (sb.table("users").select("id,name").limit(500).execute().data or [])}
             projs = sb.table("paulo_cards").select("id,titulo,status,responsavel,checklist,data_ref,data_entrega,okr_id,updated_at") \
                 .eq("board", "projetos").limit(500).execute().data or []
         except Exception as e:
@@ -192,6 +193,7 @@ class handler(BaseHTTPRequestHandler):
             ps = pj_por_okr.get(o["id"], [])
             okrs_out.append({
                 **{k: o.get(k) for k in ("id", "objetivo", "ciclo", "responsavel", "area", "objetivo_id", "updated_at")},
+                "responsavel_nome": nomes.get(o.get("responsavel")) or o.get("responsavel"),   # okrs.responsavel = users.id (FK)
                 "krs": krs, "pct": pct, "ritmo": ritmo,
                 "status_manual": o.get("status"),
                 "status": "completed" if o.get("status") == "completed" else status_por_ritmo(pct, ritmo),

@@ -18,6 +18,7 @@ let _ano = new Date().getFullYear();
 let _ciclo = '';             // '' = todos os ciclos do ano
 let _editing = null;         // OKR em edição
 let _allOkrs = [];           // todos os OKRs do ano (pro select de projetos órfãos)
+let _users = null;           // okrs.responsavel é FK de users.id → o dono é escolhido numa lista
 
 const STATUS = {
   on_track:     { lbl: 'No ritmo',      color: '#16a34a' },
@@ -188,7 +189,7 @@ function okrHTML(o) {
       <div class="flex gap-2" style="align-items:flex-start;flex-wrap:wrap">
         <div style="flex:1;min-width:200px">
           <div style="font-weight:800">${esc(o.objetivo)}</div>
-          <div class="tiny muted">${esc(o.ciclo || '')}${o.area ? ' · ' + esc(o.area) : ''} · ${o.responsavel ? '👤 ' + esc(o.responsavel) : '<span style="color:#d97706">sem dono</span>'}</div>
+          <div class="tiny muted">${esc(o.ciclo || '')}${o.area ? ' · ' + esc(o.area) : ''} · ${o.responsavel ? '👤 ' + esc(o.responsavel_nome || o.responsavel) : '<span style="color:#d97706">sem dono</span>'}</div>
         </div>
         <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;background:${st.color}22;color:${st.color};white-space:nowrap">${st.lbl}</span>
         <div style="width:150px">
@@ -303,7 +304,11 @@ function novoOkr(objetivoId) {
 }
 
 /* ─── formulário do OKR ─────────────────────────────────────────────── */
-function okrForm() {
+async function okrForm() {
+  if (!_users) {
+    try { const r = await api.request('/api/v3/users/list'); _users = (r.users || []).filter(u => u.id && u.name).sort((a, b) => a.name.localeCompare(b.name)); }
+    catch (_) { _users = []; }
+  }
   const o = _editing;
   const wrap = document.getElementById('okr-form');
   if (!wrap) return;
@@ -325,7 +330,7 @@ function okrForm() {
           <div><label class="tiny muted">Área</label>
             <select id="o-area" class="select"><option value="">—</option>${AREAS.map(a => `<option ${o.area === a ? 'selected' : ''}>${a}</option>`).join('')}</select></div>
           <div><label class="tiny muted">Dono (1 pessoa)</label>
-            <input id="o-resp" class="input" placeholder="Quem responde por ele" value="${esc(o.responsavel)}"></div>
+            <select id="o-resp" class="select"><option value="">— escolha —</option>${(_users || []).map(u => `<option value="${esc(u.id)}" ${o.responsavel === u.id ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}${o.responsavel && !(_users || []).some(u => u.id === o.responsavel) ? `<option value="${esc(o.responsavel)}" selected>${esc(o.responsavel)}</option>` : ''}</select></div>
         </div>
         <label class="tiny" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="o-done" ${o.concluido ? 'checked' : ''}> Marcar como concluído (senão o status é calculado pelo ritmo)</label>
         <div>
@@ -383,7 +388,7 @@ function lerCampos() {
   _editing.objetivo_id = document.getElementById('o-objid').value;
   _editing.ciclo = document.getElementById('o-ciclo').value;
   _editing.area = document.getElementById('o-area').value;
-  _editing.responsavel = document.getElementById('o-resp').value.trim();
+  _editing.responsavel = document.getElementById('o-resp').value;
   _editing.concluido = document.getElementById('o-done').checked;
 }
 

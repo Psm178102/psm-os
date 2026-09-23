@@ -53,7 +53,7 @@ class handler(BaseHTTPRequestHandler):
             "ciclo": body.get("ciclo") or "Q1 2026",
             "status": body.get("status") or "on_track",
             "krs": body.get("krs") or [],
-            "responsavel": body.get("responsavel"),
+            "responsavel": body.get("responsavel") or None,   # FK users.id — vazio vira NULL
             # v88.13: cascata — OKR aponta pro Objetivo estratégico (estrategia.id) e tem área
             "objetivo_id": (str(body["objetivo_id"]) if body.get("objetivo_id") not in (None, "") else None),
             "area": body.get("area") or None,
