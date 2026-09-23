@@ -121,6 +121,11 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def _gate(self):
+        # v88.29 — leitura pela rotina do Sr. CFO (cfo_cron) com Bearer CRON_SECRET
+        tok = (self.headers.get("Authorization") or "").replace("Bearer ", "").strip()
+        secret = os.environ.get("CRON_SECRET", "").strip()
+        if secret and tok == secret:
+            return {"id": None, "name": "Sr. CFO (rotina)", "lvl": 10, "cron": True}
         user = require_user(self, min_lvl=0)
         ok = (user.get("lvl") or 0) >= 7 or (user.get("role") or "").lower() in ("financeiro", "backoffice")
         if not ok:
@@ -425,6 +430,8 @@ class handler(BaseHTTPRequestHandler):
             user = self._gate()
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
+        if user.get("cron"):
+            return self._send(403, {"ok": False, "error": "rotina só lê o painel"})
         try:
             body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
         except Exception:

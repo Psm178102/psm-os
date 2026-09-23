@@ -70,6 +70,7 @@ HEARTBEAT = [
     ("gt_relatorio", "Relatórios Sr. Tráfego",     "Relatórios diário/semanal/quinzenal/mensal do Gestor de Tráfego.", 0.5, "#/gestor-trafego"),
     ("gt_vigia",     "Vigia de Concorrência",      "IA olha concorrentes + Ad Library e avisa se tem algo acionável.", 2, "#/concorrencia"),
     ("gt_paridade",  "Paridade Meta × RD",         "Leads do Meta hoje × entradas no RD (piso 70%).", 1, "#/gestor-trafego"),
+    ("cfo_rotina",   "Rotina do Sr. CFO",          "Caixa da semana, fechamento, auditoria e vigília financeira (7h30).", 6, "#/sr-cfo"),
     ("consistencia", "Teste dos números",          "Confere à noite se os números batem entre as telas.", 1, "#/governanca"),
 ]
 
@@ -88,6 +89,8 @@ VERCEL = [
      ("tab", "zoho_conexoes", "last_sync_at"), 3, 26, "#/integracoes"),
     ("ceo_cron",    "Rotina do Agente CEO",     "Diário/semanal/mensal do CEO (dossiês e compromissos).", "diário 7h45",
      ("kv", "ceo_diario"), 30, 54, "#/diretoria-ceo"),
+    ("cfo_cron",    "Rotina do Sr. CFO",        "Caixa da semana, fechamento, auditoria e vigília financeira.", "diário 7h30",
+     ("kv", "sr_cfo_rotina"), 30, 54, "#/sr-cfo"),
     ("cmo_cron",    "Rotina do Agente CMO",     "Relatórios diário/semanal/mensal do CMO.", "diário 19h15",
      ("kv", "cmo_relatorios"), 30, 54, "#/cmo"),
     ("lembretes",   "Lembretes da agenda",      "Avisa os compromissos da agenda.", "a cada 5 min", None, 0, 0, "#/agenda"),
@@ -101,6 +104,23 @@ VERCEL = [
     ("gate_risco",  "Gate em risco",            "Alerta mensal de gate em risco (dia 20).", "dia 20", None, 0, 0, "#/diretoria"),
     ("viab_mes",    "Fechamento Viabilidade",   "Recalcula a Viabilidade no dia 1.", "dia 1", None, 0, 0, "#/metricas-viab"),
 ]
+
+# ─── Rotinas do PC WINDOWS (v88.29) — as que precisam de navegador logado ────────
+# Cada tarefa do kit MIGRACAO-WINDOWS grava ao terminar: cron_state key 'win:<id>' (note = resumo
+# curto, ou 'falha: …'). Enquanto a tarefa não foi atualizada no Windows, vale a evidência antiga
+# (fallback), quando existe. Se o PC desligar ou o app Claude fechar, o carimbo envelhece e alerta.
+# (id, nome, o que faz, agenda legível, fallback_ev, max_h_warn, max_h_err, link)
+WINDOWS = [
+    ("vigia_ad_library", "Vigia da Biblioteca de Anúncios", "Coleta os anúncios dos concorrentes (Chrome logado no Facebook).",
+     "9h30, 14h e 20h", ("tab", "ad_library_snapshots", "captured_at"), 8, 26, "#/concorrencia"),
+    ("radar_incorporadoras", "Radar Incorporadoras", "Lê os grupos de WhatsApp das incorporadoras e publica no House.",
+     "9h30, 12h, 16h e 19h", None, 6, 26, "#/timeline"),
+    ("radar_tabelas", "Radar de tabelas mensais", "Baixa as tabelas do mês, arquiva no Drive e atualiza as tabelas do House.",
+     "dias 1, 3, 5, 10, 15 e 25", None, 24 * 6, 24 * 11, "#/tabelas"),
+    ("monitor_caixa", "Monitor credenciamento Caixa", "Vigia a abertura de edital de credenciamento da Caixa.",
+     "diário 9h", None, 30, 54, "#/morimatsu"),
+]
+
 
 # ─── Agentes IA ────────────────────────────────────────────────────────────────
 AGENTES_CHAT = [
@@ -130,6 +150,7 @@ AGENTES_CHAT = [
 # agentes que trabalham SOZINHOS (rotina) e a evidência do último trabalho
 AGENTES_AUTO = [
     ("auto_ceo", "Agente CEO (rotina)", "🏛", ("kv", "ceo_diario"), 30, 54, "#/diretoria-ceo"),
+    ("auto_cfo", "Sr. CFO (rotina)", "🧠", ("kv", "sr_cfo_rotina"), 30, 54, "#/sr-cfo"),
     ("auto_cmo", "Agente CMO (rotina)", "📣", ("kv", "cmo_relatorios"), 30, 54, "#/cmo"),
     ("auto_gt", "Sr. Gestor de Tráfego (relatórios)", "🚦", ("kv", "gt_relatorios"), 30, 54, "#/gestor-trafego"),
     ("auto_vigia", "Vigia de Concorrência (IA)", "🕵️", ("kv", "gt_vigia"), 14, 30, "#/concorrencia"),
@@ -278,13 +299,14 @@ def coletar_rotinas(sb, col, now):
         return itens
 
     # motor parado? (nenhum job em 3h durante o expediente = ninguém usando OU heartbeat quebrado)
-    ultimos = [_parse(r.get("ran_at")) for k, r in cs.items() if k != "sla_ran_at"]
+    ultimos = [_parse(r.get("ran_at")) for k, r in cs.items() if k != "sla_ran_at" and not k.startswith("win:")]
     ultimos = [u for u in ultimos if u]
     idade_motor = (now - max(ultimos)).total_seconds() / 3600 if ultimos else None
     hora_brt = now.astimezone(BRT).hour
-    if idade_motor is None or (idade_motor > 3 and 9 <= hora_brt <= 21):
+    # v88.29: o cron do Vercel chama o heartbeat a cada minuto — parado > 1h a qualquer hora é erro
+    if idade_motor is None or idade_motor > 1:
         itens.append(_item("motor", "rotinas", "Motor de rotinas (heartbeat)",
-                           "Roda as rotinas automáticas enquanto o sistema está em uso.", "error",
+                           "Roda as rotinas automáticas 24h (cron do Vercel a cada minuto + uso do sistema).", "error",
                            f"Nenhuma rotina rodou {fmt_idade(idade_motor)} — heartbeat parado ou CRON_SECRET ausente.",
                            link="#/governanca", agenda="contínuo"))
     if not os.environ.get("CRON_SECRET"):
@@ -321,6 +343,24 @@ def coletar_rotinas(sb, col, now):
             except Exception:
                 pass
         itens.append(_item("vc:" + id_, "rotinas", nome, desc, st, det, ult, link, agenda))
+
+    for id_, nome, desc, agenda, fb, wh, eh, link in WINDOWS:
+        r = cs.get("win:" + id_) or {}
+        ult, note = r.get("ran_at"), r.get("note")
+        fonte = "carimbo da tarefa"
+        if not ult and fb:
+            ult, note, fonte = col.evid(fb), None, "evidência no banco (tarefa ainda sem carimbo)"
+        age = _age_h(ult, now)
+        st = avaliar_idade(age, wh, eh) if ult else "unknown"
+        if note and str(note).lower().startswith("falha"):
+            st, det = "error", f"Última rodada falhou ({fmt_idade(age)}): {str(note)[6:].strip()[:140]}"
+        elif ult:
+            det = f"Última rodada {fmt_idade(age)} ({fonte})." + (f" {str(note)[:160]}" if note else "")
+            if st == "error":
+                det = "PC Windows ou app Claude parado? " + det
+        else:
+            det = "Sem carimbo ainda — atualize a tarefa no Windows com o kit MIGRACAO-WINDOWS."
+        itens.append(_item("win:" + id_, "rotinas", "🖥️ Windows · " + nome, desc, st, det, ult, link, agenda))
     return itens
 
 

@@ -79,6 +79,9 @@ JOBS = [
     # 🛰️ Central de Operações (v88.17): vigia de rotinas/APIs/agentes → alerta o Paulo/Isa
     # (sino+push; WhatsApp e ntfy em erro). Dedupe interno; aqui é a rede do cron */15.
     ("ops_vigia",    "/api/v3/system/ops_central?cron=1",                   1),
+    # 🧠 v88.29 rotina do Sr. CFO na nuvem (saiu do Windows, onde nunca rodou). O endpoint só gera
+    # a partir das 7h BRT e é idempotente por dia — aqui é a rede do cron das 07:30.
+    ("cfo_rotina",   "/api/v3/diretoria/cfo_cron?cron=1",                   6),
 ]
 
 
@@ -92,6 +95,9 @@ def _sla_alarm(sb, now):
     notificação in-app pro corretor dono na hora (vira WhatsApp quando o provider
     oficial ativar). Roda em TODA chamada do heartbeat — barato (1-2 queries),
     dedup pela própria tabela notifications (tipo=sla_lead). Best-effort."""
+    # v88.29: com o heartbeat 24h, não acorda corretor de madrugada — lead da noite é cobrado a partir das 7h
+    if not (7 <= now.astimezone(timezone(timedelta(hours=-3))).hour < 22):
+        return {"skip": "fora do horário (7h–22h BRT)"}
     try:
         desde = (now - timedelta(hours=24)).isoformat()
         ate = (now - timedelta(minutes=5)).isoformat()
@@ -138,10 +144,16 @@ class handler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(b, ensure_ascii=False, default=str).encode("utf-8"))
 
     def do_GET(self):
-        try:
-            require_user(self, min_lvl=0)
-        except AuthError as e:
-            return self._send(e.status, {"ok": False, "error": e.message})
+        # v88.29 — motor 24h: o cron do Vercel chama a cada minuto com Bearer CRON_SECRET, então as
+        # rotinas rodam de madrugada e no fim de semana, não só quando alguém abre o House (até aqui
+        # o backup ficou 8 dias parado por falta de uso). O boot do front segue como rede extra.
+        tok = (self.headers.get("Authorization") or "").replace("Bearer ", "").strip()
+        cron_secret = os.environ.get("CRON_SECRET", "").strip()
+        if not (cron_secret and tok == cron_secret):
+            try:
+                require_user(self, min_lvl=0)
+            except AuthError as e:
+                return self._send(e.status, {"ok": False, "error": e.message})
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
@@ -191,8 +203,14 @@ class handler(BaseHTTPRequestHandler):
         # Exceção: frescor do RD (Dicionário de Métricas §0, "no máx 30 min atrasado") passa na
         # frente sempre que estiver 2 ciclos atrás.
         CRITICOS = ("sync_rd_inc", "visitas_rd")
+        # v88.29: rodando 24h, as rotinas que mandam push/WhatsApp pro time esperam o dia (22h–7h BRT
+        # fora). As silenciosas (sync, backup, cache, relatórios idempotentes) rodam de madrugada.
+        AVISAM = ("recebiveis", "leads_lp", "sr_agente", "lembrete_dia", "viab_ritmo", "amortecedor", "gt_vigia")
+        noite = not (7 <= now.astimezone(timezone(timedelta(hours=-3))).hour < 22)
         vencidos = []  # (fator_de_atraso, key, path)
         for key, path, hours in JOBS:
+            if noite and key in AVISAM:
+                continue
             last = ran.get(key)
             if hours is None:  # semanal: roda 1× por semana, a partir de segunda 00:00 UTC
                 if last is None or last < _monday_utc(now):
