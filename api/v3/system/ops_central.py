@@ -945,7 +945,8 @@ def auto_curar(sb, itens, now, host=None):
         ran = {r["key"]: r.get("ran_at") for r in (sb.table("cron_state").select("key,ran_at").execute().data or [])}
     except Exception:
         ran = {}
-    host = (host or "www.housepsm.com.br").split(",")[0].strip()
+    # sempre o domínio oficial: o Host do cron é o *.vercel.app protegido por login (ver heartbeat v88.31b)
+    base = (os.environ.get("PSM_SITE_URL") or "https://www.housepsm.com.br").rstrip("/")
     out = {"ran": []}
     for id_, path in precisa_curar(itens, now, ran)[:1]:     # 1 por rodada: request curta
         # carimbo da tentativa ANTES (2 crons simultâneos não disparam 2 vezes)
@@ -956,9 +957,11 @@ def auto_curar(sb, itens, now, host=None):
             pass
         res = {"id": id_}
         try:
-            req = urllib.request.Request(f"https://{host}{path}", headers={"Authorization": f"Bearer {secret}",
-                                                                           "User-Agent": "PSM-OpsCentral-autocura"})
+            req = urllib.request.Request(f"{base}{path}", headers={"Authorization": f"Bearer {secret}",
+                                                                   "User-Agent": "PSM-OpsCentral-autocura"})
             with urllib.request.urlopen(req, timeout=50) as r:
+                if not r.geturl().startswith(base) or "json" not in (r.headers.get("Content-Type") or ""):
+                    raise RuntimeError(f"resposta não veio da rotina (foi parar em {r.geturl()[:80]})")
                 res.update(status=r.status, resp=r.read(300).decode("utf-8", "ignore"))
         except urllib.error.HTTPError as e:
             try:

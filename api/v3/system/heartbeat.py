@@ -239,13 +239,19 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             return self._send(200, {"ok": False, "error": f"lock: {e}"})
 
-        host = (self.headers.get("Host") or "www.housepsm.com.br").split(",")[0].strip()
-        url = f"https://{host}{path}"
+        # v88.31b: SEMPRE o domínio oficial. Chamado pelo cron do Vercel, o Host é o endereço *.vercel.app
+        # do deploy, que tem proteção de login: a chamada caía na página de login da Vercel (HTTP 200) e o
+        # job era marcado como feito SEM rodar (ex.: Sr. Gerência "rodou" 19h39, último trabalho real 12h43).
+        base = (os.environ.get("PSM_SITE_URL") or "https://www.housepsm.com.br").rstrip("/")
+        host = base.split("://", 1)[-1]
+        url = f"{base}{path}"
         try:
             req = urllib.request.Request(url, headers={"Authorization": f"Bearer {secret}",
                                                        "User-Agent": "PSM-OS-heartbeat"})
             with urllib.request.urlopen(req, timeout=40) as r:
                 body = (r.read().decode("utf-8") or "")[:300]
+                if not r.geturl().startswith(base) or "json" not in (r.headers.get("Content-Type") or ""):
+                    raise RuntimeError(f"resposta não veio da rotina (foi parar em {r.geturl()[:80]})")
                 # v88.29c: grava o que a rotina respondeu (host + status + começo do corpo) — sem isso uma
                 # chamada que "deu 200" sem chegar na rotina ficava invisível
                 try:
