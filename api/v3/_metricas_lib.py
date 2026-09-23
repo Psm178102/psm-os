@@ -16,6 +16,7 @@ recalculam juntas — nenhuma fica com retrato velho enquanto outra já mostra o
 """
 import json
 import re
+import time
 import unicodedata
 from datetime import datetime, timezone, timedelta, date
 
@@ -204,13 +205,37 @@ def _kv_write(sb, key, value):
         pass
 
 
-def _paginado(build, cap=60):
-    out, pg = [], 0
+def _paginado(build, cap=60, keyset=None):
+    """Lê em páginas de 1000. v88.31:
+    • keyset="id" → página por CHAVE (id > último lido) em vez de OFFSET. Com OFFSET cada página
+      re-varre tudo o que já foi lido: nos ~12,5 mil abertos a 12ª página custava 1,16 s e a leitura
+      inteira encostava nos 8 s do statement_timeout do Supabase — sob o sync do RD estourava (57014)
+      e o motor zerava pipeline/funil em todas as telas. Por chave: ~40 ms por página, do início ao fim.
+      Exige build() ordenado pela mesma chave e com ela no select.
+    • toda página tenta de novo (até 2x) quando o banco cancela por tempo, em vez de desistir."""
+    out, pg, ultimo = [], 0, None
     while True:
-        rows = build().range(pg * 1000, pg * 1000 + 999).execute().data or []
+        for tentativa in range(3):
+            try:
+                if keyset:
+                    q = build()
+                    if ultimo is not None:
+                        q = q.gt(keyset, ultimo)
+                    rows = q.limit(1000).execute().data or []
+                else:
+                    rows = build().range(pg * 1000, pg * 1000 + 999).execute().data or []
+                break
+            except Exception as e:
+                if tentativa == 2 or not ("57014" in str(e) or "timeout" in str(e).lower()):
+                    raise
+                time.sleep(0.8 * (tentativa + 1))
         out.extend(rows)
         if len(rows) < 1000 or pg >= cap:
             break
+        if keyset:
+            ultimo = rows[-1].get(keyset)
+            if ultimo is None:
+                break
         pg += 1
     return out
 
@@ -314,7 +339,7 @@ def carregar(sb, since_d, until_d):
         lambda: sb.table("deals").select(cols).is_("win", "null").order("id"),
     ):
         try:
-            for d in _paginado(build):
+            for d in _paginado(build, keyset="id"):   # v88.31: por chave (os 3 builds ordenam por id)
                 deals[str(d["id"])] = d
         except Exception as e:
             avisos.append({"tipo": "erro_dados", "txt": f"⚠️ Leitura de negócios do RD falhou ({str(e)[:80]}). Números podem estar incompletos.", "n": 1})
