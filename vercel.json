@@ -333,6 +333,9 @@
     "api/v3/system/ops_central.py": {
       "maxDuration": 90
     },
+    "api/v3/diretoria/historico.py": {
+      "maxDuration": 60
+    },
     "api/v3/diretoria/scorecard.py": {
       "maxDuration": 60
     },
