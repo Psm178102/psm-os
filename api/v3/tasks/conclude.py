@@ -89,7 +89,8 @@ class handler(BaseHTTPRequestHandler):
                 if not cur:
                     return self._send(404, {"ok": False, "error": "não encontrado"})
                 c = cur[0]
-                if not (lvl >= 7 or c.get("responsavel") == uid or c.get("criado_por") == uid):
+                co = c.get("corresponsaveis") if isinstance(c.get("corresponsaveis"), list) else []
+                if not (lvl >= 7 or c.get("responsavel") == uid or c.get("criado_por") == uid or uid in co):
                     return _deny()
                 patch = {"status": "concluida"}
                 if fields.get("nota"):

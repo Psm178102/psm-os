@@ -274,6 +274,8 @@ const CSS = `
 .at-pchip{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;padding:3px 4px 3px 9px;border-radius:999px;background:var(--bg-3);border:1px solid var(--border);text-transform:none;letter-spacing:0;color:var(--ink)}
 .at-pchip button{border:0;background:transparent;color:var(--ink-muted);cursor:pointer;font-size:13px;line-height:1;padding:0 4px}
 .at-err{color:var(--err);font-size:12.5px;font-weight:600}
+.at-cated{background:var(--bg-3);border:1px solid var(--border);border-radius:10px;padding:10px}
+.at-cat-row{display:flex;gap:6px;margin-bottom:6px;align-items:center}.at-cat-row input{flex:1}
 .at-mo-f .at-sp{flex:1}
 
 /* toast + popover */

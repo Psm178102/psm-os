@@ -64,7 +64,7 @@ const celular = () => window.matchMedia && window.matchMedia('(max-width: 760px)
 const S = {
   root: null, mont: 0,
   itens: [], convites: [], prod: {}, janela: null, podeTime: false, carregando: false,
-  users: null, forms: null,
+  users: null, forms: null, cats: null,   // cats: { lista, pode_editar } (v88.43)
   overview: null, resumo: null, projAt: 0, projPessoa: '',   // 📈 projeção do mês + avisos (v87.82)
   view: lerPref('view', 'dia'), cursor: hoje(), filtro: 'tudo', busca: '', feitos: false,
   escopo: 'self', pessoa: '', quickTipo: null, aberto: null,
@@ -86,6 +86,7 @@ export async function pageAgendaTarefas(ctx, root) {
     carregar(),
     S.users ? null : api.request('/api/v3/users/list').then(r => { S.users = r.users || []; }).catch(() => { S.users = []; }),
     S.forms ? null : api.request('/api/v3/settings/conclusao_forms').then(r => { S.forms = r.forms || {}; }).catch(() => { S.forms = {}; }),
+    S.cats ? null : carregarCategorias(),
     carregarPrefs(),
   ]);
   if (mont !== S.mont) return;
@@ -190,6 +191,12 @@ async function carregar({ quiet } = {}) {
     S.carregando = false;
     marcarCarregando(false);
   }
+}
+
+/* 🏷 categorias editáveis das tarefas (v88.43) */
+async function carregarCategorias() {
+  try { const r = await api.request('/api/v3/tasks/categorias'); S.cats = { lista: r.lista || [], pode_editar: !!r.pode_editar }; }
+  catch { S.cats = { lista: [...new Set(S.itens.filter(x => x.categoria).map(x => x.categoria))], pode_editar: false }; }
 }
 
 function normalizar(i) {
@@ -936,7 +943,8 @@ function desenharDrawer(i) {
   linhas.push(['🗓', `${esc(quando)}${horario(i) ? ` · <b>${esc(horario(i))}</b>` : (i.kind === 'evento' ? ' · dia todo' : '')}${late ? ' <span class="at-pill" style="color:var(--err)">atrasada</span>' : ''}`]);
   if (i.local) linhas.push(['📍', `${esc(i.local)} <small><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(i.local)}" target="_blank" rel="noopener">abrir no mapa ↗</a></small>`]);
   if (i.kind === 'tarefa') {
-    linhas.push(['👤', `${esc(nome(i.responsavel) || '—')}<small>responsável${i.criado_por && i.criado_por !== i.responsavel ? ' · criada por ' + esc(nome(i.criado_por)) : ''}</small>`]);
+    const co = i.corresponsaveis || [];
+    linhas.push(['👤', `${[i.responsavel, ...co].map(id => esc(nome(id) || '—')).join(', ')}<small>${co.length ? 'responsáveis' : 'responsável'}${i.criado_por && i.criado_por !== i.responsavel ? ' · criada por ' + esc(nome(i.criado_por)) : ''}</small>`]);
     linhas.push(['⚑', `${esc((PRIORIDADES.find(p => p[0] === i.prioridade) || [0, 'Média'])[1])}${i.categoria ? ` · ${esc(i.categoria)}` : ''}<small>prioridade${i.categoria ? ' · categoria' : ''}</small>`]);
   } else if (i.kind === 'evento') {
     linhas.push(['👤', `${esc(i.quem || '—')}<small>responsável${i.criado_por && i.criado_por !== i.corretor_id ? ' · marcado por ' + esc(nome(i.criado_por)) : ''}</small>`]);
@@ -1019,11 +1027,39 @@ function abrirForm({ item, preset = {} } = {}) {
   const prefs = prefsAtuais() || {};
   const porItem = !!prefs.lembrete_por_item;
   let participantes = ed && ed.kind === 'evento' ? (ed.participantes || []).filter(p => p !== ed.corretor_id) : [];
+  let corresp = ed && ed.kind === 'tarefa' ? [...(ed.corresponsaveis || [])] : [];   // demais responsáveis (v88.43)
+  let editCats = false;
+  let formEl = null;   // o modal só existe depois do 1º corpo()
 
   const v = (k, d = '') => esc(ed ? (ed[k] ?? d) : (preset[k] ?? d));
   const pr = prefs.prefs || {};
   const opLembrete = (tp, atual) => `<option value="">Padrão (${esc(rotuloLembrete(tp === 'tarefa' ? (pr.lembrete_tarefa_min ?? 15) : (pr.lembrete_evento_min ?? 30)).toLowerCase())})</option>`
     + LEMBRETE_OPCOES.map(([val, l]) => `<option value="${val}"${atual != null && atual !== '' && Number(atual) === val ? ' selected' : ''}>${l}</option>`).join('');
+
+  const nomeU = id => ((S.users || []).find(u => u.id === id) || {}).name || id;
+  const respAtual = () => { const r = formEl && formEl.querySelector('#f-resp'); return r ? r.value : (ed ? ed.responsavel : (preset.responsavel || me.id)); };
+  const opcoesCo = () => `<option value="">+ Adicionar responsável…</option>${atribuiveis(null)
+    .filter(u => !corresp.includes(u.id) && u.id !== respAtual()).map(u => `<option value="${esc(u.id)}">${esc(u.name)}</option>`).join('')}`;
+  const chipsCo = () => corresp.length
+    ? corresp.map(p => `<span class="at-pchip">${esc(nomeU(p))}${podeTudo ? `<button type="button" data-rmco="${esc(p)}" aria-label="Remover">✕</button>` : ''}</span>`).join('')
+    : '<span class="at-muted" style="font-size:11.5px;text-transform:none;letter-spacing:0;font-weight:500">Só o responsável acima. Adicione mais gente se a tarefa for dividida.</span>';
+  const catAtual = () => { const c = formEl && formEl.querySelector('#f-cat'); return c ? c.value : (ed ? ed.categoria || '' : ''); };
+  const campoCategoria = (sel = catAtual()) => {
+    const lista = (S.cats && S.cats.lista) || [];
+    const at = sel === '__nova' ? '' : sel;
+    const ops = at && !lista.includes(at) ? [at, ...lista] : lista;
+    const editor = editCats ? `<div class="c6 at-cated" id="f-cated">
+        <div class="at-muted" style="font-size:11.5px;margin-bottom:6px">Renomear aqui troca o nome em todas as tarefas que já usam a categoria. Remover tira só da lista.</div>
+        ${lista.map((c, k) => `<div class="at-cat-row"><input data-cat-i="${k}" data-orig="${esc(c)}" value="${esc(c)}" maxlength="60" aria-label="Categoria ${esc(c)}"><button type="button" class="at-ib" data-cat-rm="${k}" aria-label="Remover ${esc(c)}" title="Remover da lista">🗑</button></div>`).join('')}
+        <div class="at-cat-row"><input id="f-cat-nova" maxlength="60" placeholder="+ Nova categoria"></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px"><button type="button" class="btn btn-ghost" data-cat-x>Cancelar</button><button type="button" class="btn btn-primary" data-cat-ok>Salvar categorias</button></div>
+      </div>` : '';
+    return `<label class="c3">Categoria <span style="display:flex;gap:6px"><select id="f-cat" style="flex:1">
+        <option value="">— Sem categoria —</option>${ops.map(c => `<option value="${esc(c)}"${c === at ? ' selected' : ''}>${esc(c)}</option>`).join('')}
+        <option value="__nova">➕ Nova categoria…</option></select>
+        ${S.cats && S.cats.pode_editar ? `<button type="button" class="at-ib" data-cat-ed title="Editar categorias" aria-label="Editar categorias" style="flex:none">✏️</button>` : ''}</span></label>
+      <label class="c3" id="f-cat-nova-box" style="display:none">Nome da nova categoria<input id="f-cat-txt" maxlength="60" placeholder="Ex.: Follow-up"></label>${editor}`;
+  };
 
   const corpo = () => {
     const ehT = tipo === 'tarefa';
@@ -1041,15 +1077,17 @@ function abrirForm({ item, preset = {} } = {}) {
       <label class="c2 keep">Término<input type="time" id="f-hf" value="${v('hora_fim')}" ${diaTodo ? 'disabled' : ''}></label>
       ${!ehT ? `<label class="c6 inline"><input type="checkbox" id="f-diatodo" ${diaTodo ? 'checked' : ''}> Dia todo</label>` : ''}
       ${ehT ? `<label class="c3">Responsável<select id="f-resp" ${podeTudo ? '' : 'disabled'}>${atribuiveis(ed ? ed.responsavel : preset.responsavel).map(u => `<option value="${esc(u.id)}"${(ed ? ed.responsavel : (preset.responsavel || me.id)) === u.id ? ' selected' : ''}>${esc(u.name)}</option>`).join('')}</select></label>
-        <label class="c3">Prioridade<select id="f-prio" ${podeTudo ? '' : 'disabled'}>${PRIORIDADES.map(([k, l]) => `<option value="${k}"${(ed ? (ed.prioridade || 'media') : (preset.prioridade || 'media')) === k ? ' selected' : ''}>${l}</option>`).join('')}</select></label>` : ''}
+        <label class="c3">Prioridade<select id="f-prio" ${podeTudo ? '' : 'disabled'}>${PRIORIDADES.map(([k, l]) => `<option value="${k}"${(ed ? (ed.prioridade || 'media') : (preset.prioridade || 'media')) === k ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
+        <div class="c6"><label>Outros responsáveis</label>
+          ${podeTudo ? `<select id="f-co-add" style="margin-top:4px">${opcoesCo()}</select>` : ''}
+          <div class="at-pchips" id="f-cos">${chipsCo()}</div></div>` : ''}
       ${!ehT ? `<label class="c6">Local<input id="f-local" maxlength="200" value="${v('local')}" placeholder="Endereço, sala ou link da reunião"></label>
         <div class="c6"><label>Convidados</label>
           <select id="f-part-add" style="margin-top:4px"><option value="">+ Convidar alguém…</option>${selectableUsers(S.users || []).filter(u => !participantes.includes(u.id)).map(u => `<option value="${esc(u.id)}">${esc(u.name)}</option>`).join('')}</select>
           <div class="at-pchips" id="f-parts">${participantes.map(p => `<span class="at-pchip">${esc(((S.users || []).find(u => u.id === p) || {}).name || p)}<button type="button" data-rm="${esc(p)}" aria-label="Remover">✕</button></span>`).join('')}</div>
           <div class="at-muted" style="font-size:11.5px;margin-top:4px;text-transform:none;letter-spacing:0;font-weight:500">Cada convidado recebe o convite no sino/celular e decide se entra na agenda dele.</div></div>` : ''}
       ${ed ? `<label class="c3">Status<select id="f-status">${(ehT ? STATUS_TAREFA : STATUS_EVT).map(([k, l]) => `<option value="${k}"${ed.status === k ? ' selected' : ''}>${l}</option>`).join('')}</select></label>` : ''}
-      ${ehT ? `<label class="c3">Categoria<input id="f-cat" maxlength="60" value="${v('categoria')}" placeholder="Ex.: Follow-up" list="f-cats"></label>
-        <datalist id="f-cats">${[...new Set(S.itens.filter(x => x.categoria).map(x => x.categoria))].slice(0, 30).map(c => `<option value="${esc(c)}">`).join('')}</datalist>` : ''}
+      ${ehT ? campoCategoria() : ''}
       ${porItem ? `<label class="c3">Lembrete<select id="f-lembrete">${opLembrete(tipo, ed ? ed.lembrete_min : null)}</select></label>` : ''}
       <label class="c6">Descrição<textarea id="f-desc" rows="3" placeholder="${ehT ? 'Contexto, links, o que é “pronto”…' : 'Pauta, cliente, observações…'}">${esc(ed ? (ed.descricao || '') : '')}</textarea></label>
       ${ehT && ed ? `<label class="c6">Observações / andamento<textarea id="f-obs" rows="2">${esc(ed.observacoes || '')}</textarea></label>` : ''}
@@ -1066,6 +1104,7 @@ function abrirForm({ item, preset = {} } = {}) {
       <button class="btn btn-ghost" data-f="cancelar">Cancelar</button>
       <button class="btn btn-primary" data-f="salvar">${ed ? 'Salvar' : 'Criar'}</button>`,
   });
+  formEl = el;
   const $ = s => el.querySelector(s);
   const religar = () => {
     el.querySelectorAll('[data-ft]').forEach(b => b.onclick = () => {
@@ -1080,6 +1119,50 @@ function abrirForm({ item, preset = {} } = {}) {
     const add = $('#f-part-add');
     if (add) add.onchange = () => { if (add.value && !participantes.includes(add.value)) { participantes.push(add.value); redesenharParts(); } };
     el.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { participantes = participantes.filter(p => p !== b.dataset.rm); redesenharParts(); });
+    const coAdd = $('#f-co-add');
+    if (coAdd) coAdd.onchange = () => { if (coAdd.value && !corresp.includes(coAdd.value)) { corresp.push(coAdd.value); redesenharCo(); } };
+    el.querySelectorAll('[data-rmco]').forEach(b => b.onclick = () => { corresp = corresp.filter(p => p !== b.dataset.rmco); redesenharCo(); });
+    const rs = $('#f-resp');
+    if (rs && tipo === 'tarefa') rs.onchange = () => { corresp = corresp.filter(p => p !== rs.value); redesenharCo(); };
+    const cat = $('#f-cat');
+    if (cat) cat.onchange = () => { const nv = cat.value === '__nova'; $('#f-cat-nova-box').style.display = nv ? '' : 'none'; if (nv) $('#f-cat-txt').focus(); };
+    const bEd = el.querySelector('[data-cat-ed]');
+    if (bEd) bEd.onclick = () => { editCats = !editCats; redesenharCat(); };
+    const bX = el.querySelector('[data-cat-x]'); if (bX) bX.onclick = () => { editCats = false; redesenharCat(); };
+    el.querySelectorAll('[data-cat-rm]').forEach(b => b.onclick = () => { b.closest('.at-cat-row').remove(); });
+    const bOk = el.querySelector('[data-cat-ok]'); if (bOk) bOk.onclick = salvarCategorias;
+  };
+  const redesenharCo = () => {
+    $('#f-cos').innerHTML = chipsCo();
+    const add = $('#f-co-add'); if (add) add.innerHTML = opcoesCo();
+    religar();
+  };
+  const redesenharCat = (sel = catAtual()) => {
+    const box = $('#f-cat').closest('label');
+    const html = campoCategoria(sel);
+    ['#f-cat-nova-box', '#f-cated'].forEach(s => $(s)?.remove());
+    box.outerHTML = html;
+    religar();
+  };
+  const salvarCategorias = async () => {
+    const renomear = {}, lista = [];
+    el.querySelectorAll('[data-cat-i]').forEach(inp => {
+      const novo = inp.value.trim(), orig = inp.dataset.orig;
+      if (!novo) return;
+      lista.push(novo);
+      if (novo !== orig) renomear[orig] = novo;
+    });
+    const nova = ($('#f-cat-nova').value || '').trim();
+    if (nova) lista.push(nova);
+    const b = el.querySelector('[data-cat-ok]'); b.disabled = true; b.textContent = 'Salvando…';
+    try {
+      const r = await api.request('/api/v3/tasks/categorias', { method: 'POST', body: { acao: 'salvar', lista, renomear } });
+      S.cats.lista = r.lista || lista;
+      const selAntes = catAtual();
+      editCats = false; redesenharCat(renomear[selAntes] || selAntes);
+      if (Object.keys(renomear).length) { await carregar({ quiet: true }); renderTudo(); }
+      toast(`🏷 Categorias salvas${r.tarefas_atualizadas ? ` · ${r.tarefas_atualizadas} tarefa(s) renomeada(s)` : ''}`);
+    } catch (e) { b.disabled = false; b.textContent = 'Salvar categorias'; toast('❌ ' + (e.message || e)); }
   };
   const redesenharParts = () => {
     const box = $('#f-parts'), add = $('#f-part-add');
@@ -1103,16 +1186,28 @@ function abrirForm({ item, preset = {} } = {}) {
     try {
       let chave;
       if (tipo === 'tarefa') {
+        let categoria = ($('#f-cat').value || '').trim();
+        if (categoria === '__nova') {
+          categoria = ($('#f-cat-txt').value || '').trim();
+          if (!categoria) { throw new Error('Dê um nome pra nova categoria (ou escolha uma da lista).'); }
+          if (!(S.cats.lista || []).some(c => c.toLowerCase() === categoria.toLowerCase())) {
+            const rc = await api.request('/api/v3/tasks/categorias', { method: 'POST', body: { acao: 'adicionar', nome: categoria } }).catch(() => null);
+            if (rc && rc.lista) S.cats.lista = rc.lista;
+          }
+        }
+        const resp = $('#f-resp').value || me.id;
         const body = {
           titulo, prazo: data || '', hora_inicio: hi || '', hora_fim: hf || '',
-          responsavel: $('#f-resp').value || me.id, prioridade: $('#f-prio').value,
-          categoria: ($('#f-cat').value || '').trim(), descricao: $('#f-desc').value.trim(),
+          responsavel: resp, prioridade: $('#f-prio').value,
+          categoria, descricao: $('#f-desc').value.trim(),
         };
+        if (podeTudo) body.corresponsaveis = corresp.filter(p => p !== resp);
         if ($('#f-obs')) body.observacoes = $('#f-obs').value.trim();
         if (lemb !== undefined) body.lembrete_min = lemb;
         if (ed) { body.id = ed.id; body.status = $('#f-status').value; }
         else { body.status = 'aberta'; Object.keys(body).forEach(k => { if (body[k] === '') body[k] = null; }); }
         const r = await upsertTarefa(body);
+        if (r && r.aviso) preset._aviso = r.aviso;
         chave = 'tarefa:' + (ed ? ed.id : r.task && r.task.id);
       } else {
         if (!data) { throw new Error('Compromisso precisa de data.'); }
@@ -1132,7 +1227,8 @@ function abrirForm({ item, preset = {} } = {}) {
       }
       fechar();
       await recarregarERender();
-      const msg = ed ? '💾 Alterações salvas' : (tipo === 'tarefa' ? '✅ Tarefa criada' : '📅 Compromisso marcado') + (preset._convites ? ` · convite enviado a ${preset._convites} pessoa(s)` : '');
+      const msg = (ed ? '💾 Alterações salvas' : (tipo === 'tarefa' ? '✅ Tarefa criada' : '📅 Compromisso marcado') + (preset._convites ? ` · convite enviado a ${preset._convites} pessoa(s)` : ''))
+        + (preset._aviso ? ` · ⚠️ ${preset._aviso}` : '');
       toast(msg, !ed && chave ? { acao: 'Abrir', onAcao: () => abrirItem(chave) } : {});
     } catch (e) {
       bSalvar.disabled = false; bSalvar.textContent = ed ? 'Salvar' : 'Criar';

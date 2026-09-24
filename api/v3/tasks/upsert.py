@@ -1,7 +1,7 @@
 """
 POST /api/v3/tasks/upsert
 Body: { id?, titulo, descricao?, status?, prioridade?, categoria?,
-        responsavel?, prazo?, inicio?, observacoes?, hora_inicio?, hora_fim?, lembrete_min? }
+        responsavel?, corresponsaveis? (lista de ids, v88.43), prazo?, inicio?, observacoes?, hora_inicio?, hora_fim?, lembrete_min? }
 
 v87.81: "" (string vazia) LIMPA um campo opcional (ex.: tirar o prazo = "Sem data";
 tirar o horário). null/ausente continua significando "não mexer".
@@ -84,6 +84,23 @@ def _safe_write(build, row):
     return build(r).execute(), dropped
 
 
+def _limpa_corresp(v, principal):
+    """Lista de co-responsáveis: só ids texto, sem repetir e sem o principal. Máx. 15."""
+    if not isinstance(v, list):
+        return []
+    out = []
+    for x in v:
+        x = str(x or "").strip()
+        if x and x != principal and x not in out:
+            out.append(x)
+    return out[:15]
+
+
+def _co(t):
+    c = t.get("corresponsaveis")
+    return c if isinstance(c, list) else []
+
+
 ALLOWED_STATUS = {"aberta", "em_andamento", "concluida", "cancelada", "atrasada"}
 # campos que aceitam "" como "limpar" (v87.81)
 LIMPAVEIS = {"descricao", "categoria", "responsavel", "prazo", "inicio", "hora_inicio",
@@ -149,7 +166,8 @@ class handler(BaseHTTPRequestHandler):
                 return self._send(500, {"ok": False, "error": f"erro consulta: {e}"})
 
             # Permissão
-            owner = cur.get("responsavel") == actor["id"] or cur.get("criado_por") == actor["id"]
+            owner = cur.get("responsavel") == actor["id"] or cur.get("criado_por") == actor["id"] \
+                or actor["id"] in _co(cur)
             if not is_socio and not owner:
                 return self._send(403, {"ok": False, "error": "apenas Sócio ou responsável/criador pode editar"})
 
@@ -160,7 +178,7 @@ class handler(BaseHTTPRequestHandler):
             patch = {}
             FULL_KEYS = ["titulo", "descricao", "status", "prioridade", "categoria",
                          "responsavel", "prazo", "inicio", "hora_inicio", "hora_fim", "observacoes",
-                         "lembrete_min"]
+                         "lembrete_min", "corresponsaveis"]
             is_criador = cur.get("criado_por") == actor["id"]
             if is_socio or is_criador:
                 allowed_keys = FULL_KEYS
@@ -185,6 +203,15 @@ class handler(BaseHTTPRequestHandler):
                 return self._send(400, {"ok": False, "error": "lembrete inválido"})
             if patch.get("lembrete_min") is not None:
                 patch["lembrete_min"] = int(patch["lembrete_min"])
+            if "corresponsaveis" in patch:
+                patch["corresponsaveis"] = _limpa_corresp(patch["corresponsaveis"],
+                                                          patch.get("responsavel", cur.get("responsavel")))
+                for novo in set(patch["corresponsaveis"]) - set(_co(cur)):
+                    if not _pode_atribuir(sb, actor, novo):
+                        return self._send(403, {"ok": False, "error": "Sem permissão pra incluir um dos responsáveis (hierarquia)"})
+            elif "responsavel" in patch and patch["responsavel"] in _co(cur):
+                # promoveu um co-responsável a principal → sai da lista dos demais
+                patch["corresponsaveis"] = [x for x in _co(cur) if x != patch["responsavel"]]
             # 🔒 Hierarquia ao reatribuir
             if "responsavel" in patch and patch["responsavel"] != cur.get("responsavel") \
                     and not _pode_atribuir(sb, actor, patch.get("responsavel") or None):
@@ -209,6 +236,8 @@ class handler(BaseHTTPRequestHandler):
             try:
                 res, _dropped = _safe_write(lambda r: sb.table("dir_tasks").update(r).eq("id", task_id), patch)
                 row = (res.data or [None])[0]
+                if "corresponsaveis" in _dropped and patch.get("corresponsaveis"):
+                    return self._send(200, {"ok": True, "task": row, "aviso": "Os demais responsáveis não foram salvos: falta atualizar o banco (v88.43)."})
             except Exception as e:
                 return self._send(500, {"ok": False, "error": f"erro update: {e}"})
 
@@ -220,13 +249,20 @@ class handler(BaseHTTPRequestHandler):
             # Notify: se responsável mudou, avisa o novo. Se status mudou, avisa criador e resp atual.
             try:
                 new_resp = patch.get("responsavel")
+                novos_co = [x for x in (patch.get("corresponsaveis") or [])
+                            if x not in _co(cur) and x not in (cur.get("responsavel"), actor["id"], new_resp)]
+                if novos_co:
+                    notify_all(novos_co, tipo="task.assigned",
+                           title=f"📋 {actor.get('name')} te incluiu como responsável numa tarefa",
+                           body=cur.get("titulo") or "", link=f"#/?item=tarefa:{task_id}",
+                           target_type="task", target_id=task_id)
                 if new_resp and new_resp != cur.get("responsavel") and new_resp != actor["id"]:
                     notify_all([new_resp], tipo="task.assigned",
                            title=f"📋 {actor.get('name')} te atribuiu uma tarefa",
                            body=cur.get("titulo") or "", link=f"#/?item=tarefa:{task_id}",
                            target_type="task", target_id=task_id)
                 if "status" in patch and patch["status"] != cur.get("status"):
-                    targets = {cur.get("responsavel"), cur.get("criado_por")} - {actor["id"], None}
+                    targets = {cur.get("responsavel"), cur.get("criado_por"), *_co(cur)} - {actor["id"], None}
                     if targets:
                         notify_all(list(targets), tipo="task.status",
                                title=f"📋 Tarefa: {patch['status']}",
@@ -256,6 +292,9 @@ class handler(BaseHTTPRequestHandler):
             # 🔒 Hierarquia: só pode atribuir a si ou a quem está abaixo (regra _pode_atribuir).
             if not _pode_atribuir(sb, actor, body.get("responsavel") or None):
                 return self._send(403, {"ok": False, "error": "Sem permissão pra atribuir a esse usuário (hierarquia)"})
+            corresp = _limpa_corresp(body.get("corresponsaveis"), body.get("responsavel") or None)
+            if any(not _pode_atribuir(sb, actor, x) for x in corresp):
+                return self._send(403, {"ok": False, "error": "Sem permissão pra incluir um dos responsáveis (hierarquia)"})
 
             new_id = "t_" + uuid.uuid4().hex[:12]
             row = {
@@ -266,6 +305,7 @@ class handler(BaseHTTPRequestHandler):
                 "prioridade":  prior,
                 "categoria":   body.get("categoria") or None,
                 "responsavel": body.get("responsavel") or None,
+                "corresponsaveis": corresp,
                 "criado_por":  actor["id"],
                 "criado_em":   int(time.time() * 1000),
                 "inicio":      body.get("inicio") or None,
@@ -284,6 +324,8 @@ class handler(BaseHTTPRequestHandler):
             try:
                 res, _dropped = _safe_write(lambda r: sb.table("dir_tasks").insert(r), row)
                 inserted = (res.data or [row])[0]
+                if "corresponsaveis" in _dropped and corresp:
+                    print("[task] coluna corresponsaveis ausente — rode db_migrations_tarefas_corresp_v88_43.sql")
             except Exception as e:
                 return self._send(500, {"ok": False, "error": f"erro insert: {e}"})
 
@@ -292,6 +334,12 @@ class handler(BaseHTTPRequestHandler):
             # Notify responsável (se diferente do criador)
             try:
                 resp = row.get("responsavel")
+                outros = [x for x in corresp if x != actor["id"]]
+                if outros:
+                    notify_all(outros, tipo="task.assigned",
+                           title=f"📋 {actor.get('name')} te incluiu como responsável numa tarefa",
+                           body=titulo, link=f"#/?item=tarefa:{new_id}",
+                           target_type="task", target_id=new_id)
                 if resp and resp != actor["id"]:
                     notify_all([resp], tipo="task.assigned",
                            title=f"📋 Nova tarefa de {actor.get('name')}",
@@ -301,4 +349,7 @@ class handler(BaseHTTPRequestHandler):
                 print(f"[task] notify err: {e}")
 
             _espelhar(sb, {**row, "id": new_id})
-            return self._send(200, {"ok": True, "task": inserted, "created": True})
+            out = {"ok": True, "task": inserted, "created": True}
+            if "corresponsaveis" in _dropped and corresp:
+                out["aviso"] = "Os demais responsáveis não foram salvos: falta atualizar o banco (v88.43)."
+            return self._send(200, out)

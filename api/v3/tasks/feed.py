@@ -56,19 +56,26 @@ def _iso_ok(s):
         return None
 
 
+def _corresp(t):
+    """Demais responsáveis da tarefa (v88.43). Coluna pode não existir ainda."""
+    c = t.get("corresponsaveis") or []
+    return [x for x in c if x and x != t.get("responsavel")] if isinstance(c, list) else []
+
+
 def _pode_tarefa(t, uid, lvl):
     """Espelha tasks/upsert (sócio ou criador editam tudo; o responsável edita
     progresso/horário, mas não mexe no prazo), tasks/conclude (lvl>=7 também
-    conclui) e tasks/delete (sócio; ou quem criou a tarefa PRA SI)."""
+    conclui) e tasks/delete (sócio; ou quem criou a tarefa PRA SI).
+    v88.43: quem está em `corresponsaveis` tem os mesmos poderes do responsável."""
     criador = t.get("criado_por") == uid
-    resp = t.get("responsavel") == uid
+    resp = t.get("responsavel") == uid or uid in _corresp(t)
     socio = lvl >= 10
     return {
         "editar": socio or criador or resp,
         "editar_tudo": socio or criador,
         "reagendar": socio or criador,
         "concluir": lvl >= 7 or criador or resp,
-        "excluir": socio or (criador and t.get("responsavel") in (None, "", uid)),
+        "excluir": socio or (criador and t.get("responsavel") in (None, "", uid) and not _corresp(t)),
     }
 
 
@@ -108,8 +115,10 @@ def _item_tarefa(t, uid, lvl, umap, user):
             "hora_inicio": _h(t.get("hora_inicio")), "hora_fim": _h(t.get("hora_fim")),
             "lembrete_min": t.get("lembrete_min"),
             "historico_n": len(t.get("historico") or []) if isinstance(t.get("historico"), list) else 0,
-            "quem_id": t.get("responsavel"),
-            "quem": umap.get(t.get("responsavel")) or (user.get("name") if t.get("responsavel") == uid else "—"),
+            "corresponsaveis": _corresp(t),
+            "quem_id": t.get("responsavel") if uid not in _corresp(t) else uid,
+            "quem": ", ".join([umap.get(t.get("responsavel")) or (user.get("name") if t.get("responsavel") == uid else "—")]
+                              + [umap.get(x) or "—" for x in _corresp(t)]),
             "pode": _pode_tarefa(t, uid, lvl)}
 
 
@@ -239,13 +248,20 @@ class handler(BaseHTTPRequestHandler):
 
         # 1) dir_tasks (minhas) + cálculo de PRODUTIVIDADE (tarefas atribuídas a mim)
         try:
-            rows = (sb.table("dir_tasks").select("*")
-                    .or_(f"responsavel.eq.{uid},criado_por.eq.{uid}")
-                    .order("updated_at", desc=True).limit(500).execute().data or [])
+            try:   # v88.43: também as tarefas em que sou um dos responsáveis
+                rows = (sb.table("dir_tasks").select("*")
+                        .or_(f'responsavel.eq.{uid},criado_por.eq.{uid},corresponsaveis.cs.{{"{uid}"}}')
+                        .order("updated_at", desc=True).limit(500).execute().data or [])
+            except Exception as e:   # coluna ainda não criada no banco → regra antiga
+                print(f"[feed] dir_tasks corresponsaveis: {e}")
+                rows = (sb.table("dir_tasks").select("*")
+                        .or_(f"responsavel.eq.{uid},criado_por.eq.{uid}")
+                        .order("updated_at", desc=True).limit(500).execute().data or [])
             for t in rows:
                 items.append(_item_tarefa(t, uid, lvl, umap, user))
             # produtividade = concluídas ÷ solicitadas (tarefas atribuídas a mim; canceladas fora)
-            mine = [t for t in rows if t.get("responsavel") == uid and (t.get("status") or "") != "cancelada"]
+            mine = [t for t in rows if (t.get("responsavel") == uid or uid in _corresp(t))
+                    and (t.get("status") or "") != "cancelada"]
             sol = len(mine)
             conc = sum(1 for t in mine if (t.get("status") or "") == "concluida")
             pend = sum(1 for t in mine if (t.get("status") or "") not in TAREFA_DONE)
@@ -412,11 +428,11 @@ class handler(BaseHTTPRequestHandler):
             vistos = set()
             q1 = sb.table("dir_tasks").select("*").gte("prazo", since).lte("prazo", until)
             q2 = sb.table("dir_tasks").select("*").lt("prazo", hoje_iso).not_.in_("status", list(TAREFA_DONE))
-            if pessoa:
-                q1 = q1.eq("responsavel", pessoa)
-                q2 = q2.eq("responsavel", pessoa)
-            for q in (q1.limit(1000), q2.limit(500)):
+            for q in (q1.limit(2000), q2.limit(1000)):
                 for t in (q.execute().data or []):
+                    # v88.43: filtro de pessoa em Python pra pegar também quem é co-responsável
+                    if pessoa and pessoa != t.get("responsavel") and pessoa not in _corresp(t):
+                        continue
                     if t.get("id") in vistos:
                         continue
                     vistos.add(t.get("id"))

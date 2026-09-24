@@ -52,7 +52,9 @@ class handler(BaseHTTPRequestHandler):
         try:
             q = sb.table("dir_tasks").select("*").order("updated_at", desc=True).limit(500)
             if params.get("status"):     q = q.eq("status", params["status"])
-            if params.get("responsavel"):q = q.eq("responsavel", params["responsavel"])
+            if params.get("responsavel"):
+                r_ = params["responsavel"]   # v88.43: principal OU co-responsável
+                q = q.or_(f'responsavel.eq.{r_},corresponsaveis.cs.{{"{r_}"}}')
             if params.get("prioridade"): q = q.eq("prioridade", params["prioridade"])
             if params.get("categoria"):  q = q.eq("categoria", params["categoria"])
             rows = (q.execute().data) or []
@@ -63,7 +65,8 @@ class handler(BaseHTTPRequestHandler):
         is_socio_gerente = (user.get("lvl") or 0) >= 7
         if not is_socio_gerente:
             uid = user["id"]
-            rows = [r for r in rows if r.get("responsavel") == uid or r.get("criado_por") == uid]
+            rows = [r for r in rows if r.get("responsavel") == uid or r.get("criado_por") == uid
+                    or uid in (r.get("corresponsaveis") or [])]   # v88.43: co-responsáveis
 
         return self._send(200, {
             "ok": True,
