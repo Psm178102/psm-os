@@ -11,7 +11,6 @@ import { montarLeadsOrigem } from '../leads-origem.js';   // v88.16 📥 leads e
 
 let _root = null;
 const _d = {};            // resultados por fonte
-let _tarefasCriadas = new Set();
 
 const hoje = new Date();
 const DIA = hoje.getDate();
@@ -47,11 +46,9 @@ function shell() {
       </div>
       <div id="sc-farois" class="mt-3" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:10px"></div>
     </div>
-    <div class="card" style="margin-bottom:12px">
-      <b>🚨 Alertas & Decisões</b>
-      <div class="tiny muted" style="margin:2px 0 8px">cruzamento dos fronts — cada alerta pode virar tarefa com um clique</div>
-      <div id="sc-alertas"><span class="spinner"></span></div>
-    </div>
+    <a href="#/pontos-atencao" class="card" style="margin-bottom:12px;display:block;text-decoration:none;color:inherit;padding:10px 14px">
+      <b>🚨 Alertas & Decisões</b> <span class="tiny muted">— agora em Diretoria → Pontos de Atenção (cada alerta vira tarefa do Checklist) →</span>
+    </a>
     <div class="card">
       <b>🔎 Drill-down por área</b>
       <div id="sc-areas" class="mt-2" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px"></div>
@@ -83,7 +80,7 @@ async function carregar(fresh) {
   await Promise.all(Object.entries(calls).map(async ([k, fn]) => {
     try { _d[k] = await fn(); } catch (e) { _d[k] = { _err: e.message }; }
     if (k === 'overview') { const el = document.getElementById('sc-stamp'); if (el && _d.overview?.dados_de_hhmm) el.textContent = '· dados de ' + _d.overview.dados_de_hhmm; }
-    farois(); alertas(); areas();
+    farois(); areas();
     if (k === 'recados') recados();
   }));
 }
@@ -233,58 +230,7 @@ function farois() {
   el.innerHTML = cards.join('');
 }
 
-/* ── Camada 2: ALERTAS & DECISÕES ── */
-function geraAlertas() {
-  const its = [];
-  const push = (nivel, texto, tarefa) => its.push({ nivel, texto, tarefa });
-
-  const gc = _d.gc;
-  if (gc && !gc._err && gc.alertas && Array.isArray(gc.alertas.itens)) {
-    for (const a of gc.alertas.itens.slice(0, 8)) {
-      const t = `${a.team ? '[' + a.team + '] ' : ''}${a.label || a.metrica || 'métrica'}: ${a.valor}${a.unidade === 'pct' ? '%' : ''} (régua ${a.tipo === 'min' ? '≥' : '≤'} ${a.limite})`;
-      push('bad', t, `Corrigir ${a.label || a.metrica} — ${a.team || 'equipe'}`);
-    }
-  }
-  const c = calcContas();
-  if (c && c.pagar_venc > 0) push('bad', `Contas a PAGAR vencidas: ${money(c.pagar_venc)} em aberto no Hub`, `Quitar/renegociar contas vencidas (${moneyK(c.pagar_venc)})`);
-  if (c && c.receber_venc > 0) push('warn', `A RECEBER vencido: ${money(c.receber_venc)} — cobrar`, `Cobrar recebíveis vencidos (${moneyK(c.receber_venc)})`);
-  const m = _d.metas, ov = _d.overview;
-  if (m && m.totals && ov && ov.sales) {
-    const metaMes = m.totals.meta_vgv ? m.totals.meta_vgv / 12 : 0;
-    if (metaMes && DIA >= 5 && (ov.sales.vgv_mes || 0) < metaMes * PACE * 0.7)
-      push('warn', `Ritmo do mês abaixo de 70% do pace (${moneyK(ov.sales.vgv_mes)} vs esperado ${moneyK(metaMes * PACE)})`, 'Plano de recuperação do ritmo do mês');
-  }
-  const h = _d.health;
-  if (h && (h._err || h.ok === false)) push('bad', 'Saúde do sistema com falha — ver /qualidade', 'Investigar falha de sistema');
-  return its;
-}
-
-function alertas() {
-  const el = document.getElementById('sc-alertas');
-  if (!el) return;
-  const pend = ['gc', 'hubContas', 'metas', 'overview'].filter(k => !_d[k]).length;
-  const its = geraAlertas();
-  if (!its.length) { el.innerHTML = pend ? '<span class="spinner"></span> <span class="tiny muted">cruzando fronts…</span>' : '<div class="tiny" style="color:#16a34a">✅ Nenhum alerta fora da régua agora.</div>'; return; }
-  el.innerHTML = its.map((a, i) => `
-    <div class="flex items-center gap-2" style="border-top:1px solid var(--border);padding:7px 0;font-size:13px">
-      ${farolDot(a.nivel === 'bad' ? COR.bad : COR.warn)}
-      <span style="flex:1">${esc(a.texto)}</span>
-      ${_tarefasCriadas.has(i) ? '<span class="tiny" style="color:#16a34a">✅ tarefa criada</span>'
-        : `<button class="btn btn-ghost btn-sm" data-sc-task="${i}" style="font-size:11px;white-space:nowrap">📌 virar tarefa</button>`}
-    </div>`).join('') + (pend ? '<div class="tiny muted" style="padding-top:6px"><span class="spinner"></span> ainda cruzando…</div>' : '');
-  el.querySelectorAll('[data-sc-task]').forEach(b => b.onclick = async () => {
-    const i = Number(b.dataset.scTask); const a = geraAlertas()[i];
-    if (!a) return;
-    b.disabled = true;
-    try {
-      await api.request('/api/v3/tasks/upsert', { method: 'POST', body: {
-        titulo: a.tarefa || a.texto.slice(0, 80), descricao: `Gerada pela Sala de Comando em ${hoje.toLocaleDateString('pt-BR')}: ${a.texto}`,
-        prioridade: a.nivel === 'bad' ? 'alta' : 'media', responsavel: (auth.user() || {}).id, status: 'aberta', categoria: 'Sala de Comando',
-      } });
-      _tarefasCriadas.add(i); alertas();
-    } catch (e) { b.disabled = false; b.textContent = '⚠️ ' + (e.message || 'erro'); }
-  });
-}
+/* ── Camada 2: ALERTAS & DECISÕES — v88.42: mudou pra Pontos de Atenção (v2/js/alertas-decisoes.js) ── */
 
 /* ── Camada 3: DRILL-DOWN ── */
 function areas() {

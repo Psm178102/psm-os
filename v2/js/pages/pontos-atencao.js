@@ -12,6 +12,7 @@
 ============================================================================ */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { montarAlertasDecisoes } from '../alertas-decisoes.js';   // v88.42: 🚨 Alertas & Decisões (veio da Sala de Comando)
 
 let _root = null;
 let _signals = [];
@@ -253,6 +254,8 @@ function render(signals) {
     </div>
     <div id="pa-modal"></div>
   `;
+  // v88.42: Alertas & Decisões logo abaixo do cabeçalho (cada alerta vira tarefa do Checklist)
+  { const box = document.createElement('div'); (_root.querySelector('.card') || _root).after(box); montarAlertasDecisoes(box); }
   document.getElementById('pa-reload').addEventListener('click', () => pagePontosAtencao(null, _root));
   bindManual();
 }
