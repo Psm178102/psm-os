@@ -291,6 +291,44 @@ def break_even(custo_mes, margens, mix=None):
             "margem_mix_pct": round(margem_mix, 4)}
 
 
+def custo_fixo_estimado_linhas(custos_orcado_ano, orcamento, ano, m):
+    """v88.36 — custo FIXO ORÇADO do mês por linha, SEM tráfego pago (o tráfego real entra pela Meta).
+    Usado como ESTIMATIVA no realizado quando o mês não tem custo lançado à mão — antes o realizado
+    só tinha a Meta e todo mês "dava lucro" (faltavam ~R$ 50 mil de aluguel, folha, sistemas, dívida).
+    Mesmo rateio da tela (metricas-viab.js custoOrcadoDet): aloc direto; compartilhado → empresas do
+    rateio (igual / proporcional ao VGV orçado / manual / específico)."""
+    itens = (custos_orcado_ano or {}).get("itens") or []
+    re_ = [l for l in ((custos_orcado_ano or {}).get("rateio_empresas") or []) if l in LINHA_IDS] or list(LINHA_IDS)
+    out = {l: 0.0 for l in LINHA_IDS}
+    for it in itens:
+        if (it.get("cat") or "").strip().lower() in TRAFEGO_CATS: continue
+        if (it.get("classe") or "fixo").lower() == "variavel": continue
+        if not _mes_ativo_py(it, m): continue
+        v = _valor_mes_item(it, m)
+        if not v: continue
+        aloc = (it.get("aloc") or "compartilhado")
+        if aloc != "compartilhado":
+            if aloc in out: out[aloc] += v
+            continue
+        rat = it.get("rateio") or "igual"
+        if rat == "especifico":
+            alvo = [l for l in (it.get("linhas") or []) if l in LINHA_IDS] or re_
+        elif rat == "manual":
+            alvo = [l for l in (it.get("pesos") or {}) if l in LINHA_IDS and float((it.get("pesos") or {}).get(l) or 0) > 0] or re_
+        else:
+            alvo = re_
+        if rat == "proporcional":
+            w = {l: float(orc_for(orcamento, ano, l, m).get("vgv") or 0) for l in alvo}
+        elif rat == "manual":
+            w = {l: float((it.get("pesos") or {}).get(l) or 0) for l in alvo}
+        else:
+            w = {l: 1.0 for l in alvo}
+        tot = sum(w.values())
+        for l in alvo:
+            out[l] += v * (w[l] / tot if tot > 0 else 1.0 / len(alvo))
+    return {l: round(x, 2) for l, x in out.items()}
+
+
 def custo_real_linha(custos_real, ano, mes):
     """Soma do custo realizado LANÇADO À MÃO por linha, no mês. Itens sem linha
     entram como 'geral' e são rateados igualmente entre as 4 linhas."""
@@ -410,6 +448,11 @@ def compute_snapshot(sb, ano, mes, fontes=None):
     custos_real = read_kv(sb, "viab_custos_real")
     real = realizado_ano(sb, ano)
     custos = custo_real_linha(custos_real, ano, mes)
+    # v88.36: sem custo lançado à mão no mês → custo fixo ORÇADO entra como estimativa (antes: zero)
+    estimado = not (((custos_real or {}).get(f"{ano}-{mes}") or {}).get("itens"))
+    if estimado:
+        est = custo_fixo_estimado_linhas(read_kv(sb, "viab_custos_orcado").get(str(ano)) or {}, orcamento, ano, mes)
+        for l in custos: custos[l] += est.get(l, 0.0)
     if fontes is None:
         fontes = fontes_auto_ano(sb, ano)
     fa = fontes.get(str(mes)) or {"meta_mkt": 0.0, "nibo_fixo": 0.0}
@@ -441,6 +484,7 @@ def compute_snapshot(sb, ano, mes, fontes=None):
     cons["margem"] = round(cons["lucro"] / cons["vgv"] * 100, 1) if cons["vgv"] else 0.0
     for k in ("vgv", "receita", "com_corretor", "com_senior", "imposto", "custo", "lucro"):
         cons[k] = round(cons[k], 2)
+    cons["custo_estimado"] = estimado   # custo fixo veio do orçamento (não houve lançamento real no mês)
     return {"por_linha": por_linha, "consolidado": cons}
 
 

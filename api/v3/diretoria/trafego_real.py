@@ -49,7 +49,13 @@ def _mapa(sb):
     m = read_kv(sb, KV_MAPA)
     if not isinstance(m, dict) or not m:
         return dict(MAPA_PADRAO)
-    return {k: [str(a) for a in v] for k, v in m.items() if k in LINHA_IDS and isinstance(v, list)}
+    out = {k: [str(a) for a in v] for k, v in m.items() if k in LINHA_IDS and isinstance(v, list) and v}
+    # v88.36: o mapa salvo estava {"_espelhar": false} — sem conta nenhuma → gasto por marca = 0 e o card
+    # "Mídia paga — cobrado pela Meta" dizia "sem gasto" com R$ 7 mil cobrados. Linha sem conta usa o padrão.
+    for l, contas in MAPA_PADRAO.items():
+        if not out.get(l):
+            out[l] = list(contas)
+    return out
 
 
 def _fetch_mes(host, ano, mes, hoje):

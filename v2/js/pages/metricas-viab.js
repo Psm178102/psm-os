@@ -139,12 +139,20 @@ function realCell(linha, mes) { const c = ((((_d.realizado || {})[linha]) || {})
 function orcReal(linha, mes) { const o = orcCell(linha, mes); return Object.assign({}, o, { verba_mkt: 0 }); }
 // custo automático do mês (Meta real + gancho NIBO), company-wide
 function autoMes(mes) { const fa = (_d.fontes_auto || {})[mes] || {}; return { meta_mkt: +fa.meta_mkt || 0, nibo_fixo: +fa.nibo_fixo || 0 }; }
+// v88.36: mês SEM custo lançado à mão → o custo fixo ORÇADO (sem tráfego — o tráfego real vem da Meta)
+// entra como ESTIMATIVA. Antes o realizado só tinha a Meta e quase todo mês "dava lucro" (faltavam
+// ~R$ 50 mil/mês de aluguel, folha, sistemas e dívida). Mesma regra do backend (viab.compute_snapshot).
+function custoEstimado(mes) { return !(((_d.custos_real || {})[`${_ano}-${mes}`] || {}).itens || []).length; }
 function custoRealMes(mes) {
   const out = { map: 0, conquista: 0, terceiros: 0, locacoes: 0 }; let geral = 0;
   const cell = (_d.custos_real || {})[`${_ano}-${mes}`] || {};
   for (const it of (cell.itens || [])) { const v = +it.valor || 0; if (out[it.linha] != null) out[it.linha] += v; else geral += v; }
   const a = autoMes(mes); geral += a.meta_mkt + a.nibo_fixo;   // fontes automáticas → geral rateado
   if (geral) for (const k in out) out[k] += geral / 4;
+  if (custoEstimado(mes) && (_custosOrc || []).length) {
+    const det = custoOrcadoDet(true);
+    for (const k in out) out[k] += (det[k] || {})[mes] || 0;
+  }
   return out;
 }
 
@@ -1258,7 +1266,7 @@ function renderRealizado() {
     mm.push(`<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:6px 8px;font-weight:600">${MES[m - 1]}${fechado ? ' <span class="tiny" style="color:var(--ok)">🔒 fechado</span>' : ''}</td>
       <td style="padding:6px 8px;text-align:right">${fmtC(vgv)}</td>
-      <td style="padding:6px 8px;text-align:right">${fmtC(custo)}</td>
+      <td style="padding:6px 8px;text-align:right">${fmtC(custo)}${custoEstimado(m) ? ' <span class="tiny muted" title="Sem custo lançado neste mês: custo fixo do orçamento + mídia real da Meta">est.</span>' : ''}</td>
       <td style="padding:6px 8px;text-align:right;font-weight:700;color:${dc(lucro)}">${fmtC(lucro)}</td>
       <td style="padding:6px 8px;text-align:right">${fechado ? `<button class="btn btn-ghost btn-sm" data-reabrir="${m}" style="padding:2px 7px">reabrir</button>` : `<button class="btn btn-ghost btn-sm" data-fechar="${m}" style="padding:2px 7px">🔒 fechar</button>`}</td>
     </tr>`);
@@ -1269,7 +1277,7 @@ function renderRealizado() {
       <label class="tiny muted" style="display:flex;flex-direction:column;gap:2px">De ${selMes('per-ini', _pIni)}</label>
       <label class="tiny muted" style="display:flex;flex-direction:column;gap:2px">até ${selMes('per-fim', _pFim)}</label>
       <span class="badge" style="background:var(--psm-navy);color:#fff;font-weight:700">${MES[_pIni - 1]}–${MES[_pFim - 1]}/${_ano}</span>
-      <span class="tiny muted" style="margin-left:auto">VGV/vendas = CRM real · custo = Meta real (auto) + lançado à mão</span>
+      <span class="tiny muted" style="margin-left:auto">VGV/vendas = CRM real · custo = Meta real (auto) + lançado à mão · sem lançamento = custo fixo orçado (est.)</span>
     </div>
     <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
       ${kpi('VGV', O.acc.vgv, R.acc.vgv, true)}
@@ -1297,7 +1305,7 @@ function renderRealizado() {
         <thead><tr style="background:var(--bg-3);text-align:right"><th style="text-align:left;padding:6px 8px">Mês</th><th style="padding:6px 8px">VGV real</th><th style="padding:6px 8px">Custo</th><th style="padding:6px 8px">Lucro</th><th style="padding:6px 8px"></th></tr></thead>
         <tbody>${mm.join('')}</tbody>
       </table></div>
-      <div class="tiny muted mt-2">Fechar = congela o mês num snapshot (o cron fecha sozinho todo dia 1º; você pode fechar/reabrir manual). Snapshot não muda se o CRM mudar depois.</div>
+      <div class="tiny muted mt-2"><b>est.</b> = mês sem custo real lançado: entra o custo fixo do orçamento (aluguel, folha, sistemas, dívida…) + a mídia real da Meta. Lance o custo real em Administrar pra trocar a estimativa. <b>Pró-labore não está no orçamento de custos</b> — o lucro aqui é antes do pró-labore.<br>Fechar = congela o mês num snapshot (o cron fecha sozinho todo dia 1º; você pode fechar/reabrir manual). Snapshot não muda se o CRM mudar depois.</div>
     </div>
     ${renderCustosReais()}`;
 }
