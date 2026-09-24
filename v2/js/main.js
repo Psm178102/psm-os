@@ -119,6 +119,7 @@ import { pageSimLeads } from './pages/sim-leads.js';
 import { pageSimCriativos } from './pages/sim-criativos.js';
 import { pageRankingHub } from './pages/ranking-hub.js';
 import { pageScorecard } from './pages/scorecard.js';
+import { pageChecklistDiretoria } from './pages/checklist-diretoria.js';   // ✅ Checklist da Diretoria (tarefas por setor) v88.41
 import { pageHistoricoNotion } from './pages/historico-notion.js';   // 📜 Histórico Notion (gestão antiga + vendas 2023–26) — só sócio v88.35
 import { pageRotinaConquista, pageRotinaImoveis } from './pages/rotina-conquista.js';   // 🏠 + Rotina · PSM Imóveis (Paulo × equipe MAP) v88.37
 import { pageDocumentosPsm } from './pages/documentos-psm.js';   // 📂 Jurídico · Documentos PSM v88.37
@@ -176,7 +177,7 @@ export const ROUTE_GROUP = {
   // Diretoria
   '/cockpit': 'diretoria', '/rotina-imoveis': 'diretoria', '/projetos': 'diretoria', '/sr-cfo': 'diretoria',
   '/diretoria-ceo': 'diretoria',   // 🏛️ sala do CEO IA (dossiês) — só sócio. v87.33
-  '/diretoria': 'diretoria', '/norte-estrategico': 'diretoria', '/scorecard': 'diretoria', '/historico-notion': 'diretoria', '/rotina-conquista': 'diretoria', '/comunicados': 'diretoria', '/kpis': 'diretoria', '/okrs': 'diretoria', '/cmo': 'diretoria',
+  '/diretoria': 'diretoria', '/norte-estrategico': 'diretoria', '/scorecard': 'diretoria', '/checklist-diretoria': 'diretoria', '/historico-notion': 'diretoria', '/rotina-conquista': 'diretoria', '/comunicados': 'diretoria', '/kpis': 'diretoria', '/okrs': 'diretoria', '/cmo': 'diretoria',
   '/metricas-viab': 'diretoria', '/comissao-conquista': 'diretoria', '/sim-trafego': 'diretoria', '/mapa-ciclos': 'diretoria', '/governanca': 'diretoria', '/reunioes': 'diretoria',
   // Jurídico (grupo próprio)
   '/minutas': 'juridico', '/cnds': 'juridico', '/documentos-psm': 'juridico',
@@ -293,7 +294,7 @@ export const ROUTE_MIN_LVL = {
   '/cockpit-conquista': 10, '/minha-comissao': 2, '/meu-cerebro': 10, '/sim-conquista': 10,  // v84.51: cada um vê a PRÓPRIA comissão (escopo travado no backend)
   // v86.90: Sala de Comando (Cockpit+Dashboard unificados) — decisão do Paulo: SÓ sócio.
   // /diretoria segue registrado FORA do menu (gestão de recados e retrocompat de links).
-  '/cockpit': 10, '/pontos-atencao': 10, '/rotina-imoveis': 2, '/diretoria': 10, '/norte-estrategico': 10, '/scorecard': 5, '/historico-notion': 10, '/rotina-conquista': 5, '/comunicados': 10,
+  '/cockpit': 10, '/pontos-atencao': 10, '/rotina-imoveis': 2, '/diretoria': 10, '/norte-estrategico': 10, '/scorecard': 5, '/checklist-diretoria': 7, '/historico-notion': 10, '/rotina-conquista': 5, '/comunicados': 10,
   // v87.31/32/33/34: AGENTES DIRETORIA — TUDO SÓ sócio (lvl 10): chats CEO/CFO/CMO
   // + Rede de Agentes (contexto carrega caixa, dívida, pró-labore e Plano de
   // Resgate — espelha o require_user(min_lvl=10) de ia/chat + ia/rede), os
@@ -522,7 +523,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '88.40';
+const APP_VERSION = '88.41';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -653,6 +654,7 @@ const APP_VERSION = '88.40';
   router.register('/rotina-imoveis', { render: async (ctx, root) => { setHeader('Rotina · PSM Imóveis'); highlight('/rotina-imoveis'); await pageRotinaImoveis(ctx, root); } });
   router.register('/documentos-psm', { render: async (ctx, root) => { setHeader('Documentos PSM'); highlight('/documentos-psm'); await pageDocumentosPsm(ctx, root); } });
   router.register('/mapa-venda', { render: async (ctx, root) => { setHeader('Mapa da Venda'); highlight('/mapa-venda'); await pageMapaVenda(ctx, root); } });
+  router.register('/checklist-diretoria', { render: async (ctx, root) => { setHeader('Checklist da Diretoria'); highlight('/checklist-diretoria'); await pageChecklistDiretoria(ctx, root); } });
   router.register('/scorecard', { render: async (ctx, root) => { setHeader('Farol PSM'); highlight('/scorecard'); await pageScorecard(ctx, root); } });
   router.register('/norte-estrategico', { render: async (ctx, root) => { setHeader('Norte Estratégico'); highlight('/norte-estrategico'); await pageDiretoria(ctx, root, 'estrategia'); } });
   router.register('/comunicados', { render: async (ctx, root) => { setHeader('Comunicados'); highlight('/comunicados'); await pageDiretoria(ctx, root, 'recados'); } });
@@ -1124,7 +1126,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/cockpit"><span class="sb-ico">🧭</span> Sala de Comando</button>
         <button class="sb-link" data-nav="/pontos-atencao"><span class="sb-ico">🚨</span> Pontos de Atenção</button>
         <button class="sb-link" data-nav="/scorecard"><span class="sb-ico">🚦</span> Farol PSM</button>
-        <button class="sb-link" data-nav="/dados-mercado"><span class="sb-ico">🌎</span> Dados de Mercado</button>
+        <button class="sb-link" data-nav="/checklist-diretoria"><span class="sb-ico">✅</span> Checklist & Tarefas</button>
         <button class="sb-link" data-nav="/historico-notion"><span class="sb-ico">📜</span> Histórico Notion</button>
         <div class="sb-subsec">Estratégia & Planejamento</div>
         <button class="sb-link" data-nav="/norte-estrategico"><span class="sb-ico">⭐</span> Norte Estratégico</button>
@@ -1180,6 +1182,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/cerebro-vendas"><span class="sb-ico">🎯</span> Cérebro de Vendas</button>
         <button class="sb-link" data-nav="/briefing-guerra"><span class="sb-ico">⚔️</span> Briefing de Guerra</button>
         <button class="sb-link" data-nav="/concorrencia"><span class="sb-ico">🥊</span> Concorrência</button>
+        <button class="sb-link" data-nav="/dados-mercado"><span class="sb-ico">🌎</span> Dados de Mercado</button>
 
 
         <div class="sb-sec">🔑 Locação</div>
