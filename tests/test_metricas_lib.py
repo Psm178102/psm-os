@@ -387,7 +387,7 @@ def meu_dia():
     assert any("atrasada" in i["texto"] for i in sec["fazer"]) and any(i["texto"] == "Ligar Maria" for i in sec["fazer"]), sec["fazer"]
     assert not any("Decisão espelhada" in i["texto"] or "Não é do Kadu" in i["texto"] or "Já feita" in i["texto"] for i in sec["fazer"])
     assert len(sec["recados"]) == 1, sec["recados"]                                        # recado da diretoria não vai pro corretor
-    assert "R$ 550 mil" in sec["mes"][0]["texto"] and sec["mes"][0]["nivel"] == "critico"
+    assert "R$ 550.000,00" in sec["mes"][0]["texto"] and sec["mes"][0]["nivel"] == "critico"
     assert d["titulo"].startswith("☀️ Bom dia, Kadu: 3 compromissos") and "urgente" in d["titulo"], d["titulo"]
     assert "*📅 Agenda de hoje*" in d["whatsapp"] and "housepsm.com.br" in d["whatsapp"]
     print("OK — meu dia: todos os asserts passaram")
@@ -626,3 +626,15 @@ def abertos_origem():
 
 
 abertos_origem()
+
+
+def visitas_map():
+    """v88.37: fora da Conquista, visita = maior entre tarefa concluída e coluna 'visita realizada'."""
+    assert M.visitas_de({"team": "map", "visitas": 7, "visitas_coluna": 17}) == 17
+    assert M.visitas_de({"team": "map", "visitas": 5, "visitas_coluna": 2}) == 5
+    assert M.visitas_de({"team": "map", "visitas": None, "visitas_coluna": 3}) == 3
+    assert M.visitas_de({"team": "conquista", "hub": {"atendimento": 4}, "visitas": 9, "visitas_coluna": 9}) == 4
+    print("OK — visita do MAP: maior entre tarefa e coluna")
+
+
+visitas_map()

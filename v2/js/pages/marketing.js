@@ -2314,12 +2314,6 @@ function kpi(label, big, sub, color) {
 }
 function fmtNum(n) { return n == null ? '—' : Number(n).toLocaleString('pt-BR'); }
 function money(n) { if (n == null || isNaN(n)) return '0,00'; return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-function moneyShort(n) {
-  // v88.13: abrevia de verdade (antes era igual ao money())
-  const v = Number(n) || 0, a = Math.abs(v);
-  if (a >= 1e6) return (v / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' mi';
-  if (a >= 1e4) return (v / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mil';
-  return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
+function moneyShort(n) { return money(n); }   // v88.37: não abrevia (Paulo, 24/set) — valor cheio com centavos
 function pct2(v) { return v == null ? '—' : (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'; }
 function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

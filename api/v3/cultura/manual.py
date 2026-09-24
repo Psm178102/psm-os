@@ -131,7 +131,7 @@ DEFAULT = {
             "Google Earth PSM — localização de cada empreendimento e futuros lançamentos.",
         ]},
         {"id": "sistema", "ico": "🖥", "titulo": "Nosso Sistema — House PSM", "tipo": "texto", "itens": [],
-         "conteudo": "O House PSM (housepsm.com.br) é o cérebro operacional da empresa — onde a cultura vira número e o acompanhamento acontece todos os dias. Reúne: Dashboard Diário, Metas e Atingimento, Ranking, Arena de performance, One-on-One (cockpit do corretor e do gestor), CRM integrado ao RD Station, Financeiro (NIBO), Secretaria de Vendas, Cofre de Logins e Senhas, CND's, Métricas de Viabilidade e a PSM Academy. É a ferramenta central do dia a dia de toda a equipe."},
+         "conteudo": "O House PSM (housepsm.com.br) é o cérebro operacional da empresa — onde a cultura vira número e o acompanhamento acontece todos os dias. Reúne: Dashboard Diário, Metas e Atingimento, Ranking, Arena de performance, One-on-One (cockpit do corretor e do gestor), CRM integrado ao RD Station, Financeiro (PSM HUB), Secretaria de Vendas, Cofre de Logins e Senhas, CND's, Métricas de Viabilidade e a PSM Academy. É a ferramenta central do dia a dia de toda a equipe."},
         {"id": "desempenho", "ico": "📈", "titulo": "Atividade e Desempenho — Critérios Mínimos", "tipo": "lista", "conteudo": "", "itens": [
             "Não ficar mais de 3 meses sem realizar uma venda (caso ocorra, a parceria é reavaliada).",
             "Manter média mínima de 2 a 3 visitas presenciais por semana (calculadas ao longo de 90 dias).",
@@ -146,7 +146,7 @@ DEFAULT = {
             "VGV — Valor Geral de Vendas (soma do valor dos imóveis vendidos).",
             "Funil — etapas do lead até a venda: Lead → Contato → Agendamento → Visita → Proposta → Pasta → Venda.",
             "CRM (RD Station) — sistema de gestão dos atendimentos comerciais.",
-            "NIBO — plataforma financeira (contas, fluxo de caixa).",
+            "PSM HUB — financeiro oficial (contas, fluxo de caixa, comissões) desde ago/2026.",
             "SDR — pré-venda: prospecção e qualificação de leads.",
             "CAC — Custo de Aquisição de Cliente · CPL — Custo Por Lead.",
             "BTS — Built-to-Suit (imóvel sob medida para o cliente).",

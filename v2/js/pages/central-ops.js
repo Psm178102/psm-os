@@ -26,7 +26,7 @@ let _carregando = false;
 
 const GRUPOS = [
   { id: 'rotinas',     ico: '⏱️', nome: 'Rotinas automáticas',   sub: 'O que roda sozinho (heartbeat + agendador do Vercel)' },
-  { id: 'integracoes', ico: '🔌', nome: 'Integrações e APIs',     sub: 'Conexões com RD, Meta, WhatsApp, Kenlo, NIBO, IAs…' },
+  { id: 'integracoes', ico: '🔌', nome: 'Integrações e APIs',     sub: 'Conexões com RD, Meta, WhatsApp, Kenlo, PSM HUB, IAs…' },
   { id: 'agentes',     ico: '🤖', nome: 'Agentes IA',             sub: 'Agentes de conversa e os que trabalham sozinhos' },
   { id: 'saude',       ico: '🩺', nome: 'Saúde dos dados',        sub: 'Os números batem? Falta dado importante?' },
 ];

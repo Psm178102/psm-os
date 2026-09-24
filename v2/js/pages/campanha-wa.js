@@ -9,7 +9,7 @@ import { auth } from '../auth.js';
 let _root = null, _aud = [], _imoveis = [], _status = null, _cfg = {};
 let _sending = false, _stop = false;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const f$ = n => 'R$ ' + Math.round(+n || 0).toLocaleString('pt-BR');
+const f$ = n => 'R$ ' + (Number(+n || 0) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fone = p => { const s = String(p || ''); return s.length >= 12 ? `(${s.slice(2, 4)}) ${s.slice(4, 9)}-${s.slice(9)}` : s; };
 
 /* v77.32 — 3 máquinas de growth no mesmo motor: reativação, win-back e indicação. */

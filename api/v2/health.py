@@ -28,8 +28,6 @@ def _env_status():
     ]
     optional = [
         "SUPABASE_ANON_KEY",
-        "NIBO_API_TOKEN",
-        "NIBO_TOKEN_LOCACAO",
         "META_ACCESS_TOKEN",
         "META_AD_ACCOUNT_IDS",
         "ANTHROPIC_API_KEY",

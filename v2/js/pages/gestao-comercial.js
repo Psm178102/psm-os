@@ -23,7 +23,8 @@ const TV_ROT_MS = 20000, TV_REFRESH_MS = 300000;
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fN = v => { const x = Number(v) || 0; return Number.isInteger(x) ? x.toLocaleString('pt-BR') : x.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }); };
-const kR$ = v => { const n = Number(v) || 0, a = Math.abs(n); if (a >= 1e6) return (n / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + 'M'; if (a >= 1e3) return (n / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + 'k'; return n.toLocaleString('pt-BR', { maximumFractionDigits: 0 }); };
+// v88.37 (Paulo, 24/set): dinheiro SEMPRE cheio com centavos — nunca 1k / 2,4M / 840,1k
+const kR$ = v => (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const brl = v => (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const MESES_NOME = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 const mesNome = ym => { const m = parseInt(String(ym).slice(5, 7), 10); return MESES_NOME[m - 1] || ym; };
@@ -709,7 +710,7 @@ function tabMetricas() {
     ].join(''));
     return pan(`${TEAM_LBL[tk] || tk}`, custos + razoes + pastas + tempos);
   };
-  return teams.map(bloco).join('') + `<div class="tiny muted gc-nota" style="margin-top:6px">Custos seguem a janela de custo (preset da Meta casado ao período). Contagens, custos por etapa e "quantos pra 1 venda" seguem o Dicionário de Métricas: Conquista pela esteira do PSM HUB, MAP/Terceiros/Locação pela entrada na coluna do RD (visita = tarefa de visita concluída) — o mesmo número do 1:1 e da Produtividade. Pastas e tempos seguem a SAFRA da janela (lead nascido nela, seguido até hoje). "Reprovada" = perda após pasta com motivo de crédito/análise no RD; "perdida" = qualquer motivo.</div>`;
+  return teams.map(bloco).join('') + `<div class="tiny muted gc-nota" style="margin-top:6px">Custos seguem a janela de custo (preset da Meta casado ao período). Contagens, custos por etapa e "quantos pra 1 venda" seguem o Dicionário de Métricas: Conquista pela esteira do PSM HUB, MAP/Terceiros/Locação pela entrada na coluna do RD (visita = maior entre a tarefa "Visita" concluída e a coluna "visita realizada") — o mesmo número do 1:1 e da Produtividade. Pastas e tempos seguem a SAFRA da janela (lead nascido nela, seguido até hoje). "Reprovada" = perda após pasta com motivo de crédito/análise no RD; "perdida" = qualquer motivo.</div>`;
 }
 
 /* ═══════════ 📺 MODO TV ═══════════ */

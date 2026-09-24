@@ -47,7 +47,7 @@ class handler(BaseHTTPRequestHandler):
                 events.append({
                     "type": "venda", "ico": "🏆", "color": "#16a34a",
                     "ts": x["closed_at"], "title": "VENDA fechada",
-                    "subtitle": f"R$ {_amt(x):,.0f} · {x.get('name') or 'sem nome'}",
+                    "subtitle": "R$ " + f"{_amt(x):,.2f}".replace(",", "@").replace(".", ",").replace("@", ".") + f" · {x.get('name') or 'sem nome'}",
                     "actor_id": x.get("user_id"), "meta": x.get("stage_name"),
                 })
         except Exception as e: print(f"[arena] deals err: {e}")

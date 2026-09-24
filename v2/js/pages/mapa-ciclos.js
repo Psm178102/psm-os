@@ -23,10 +23,9 @@ export async function pageMapaCiclos(ctx, root) {
   if ((auth.user()?.lvl || 0) < 7) { root.innerHTML = '<div class="alert alert-warn">🔒 Requer Sócio/Diretor (lvl 7+).</div>'; return; }
   render(null, true);
   const ANO = new Date().getFullYear();
-  const [hist, atg, fin] = await Promise.all([
+  const [hist, atg] = await Promise.all([
     api.request('/api/v3/marketing/history?ano=' + ANO).catch(() => null),
     api.request('/api/v3/metas/atingimento').catch(() => null),
-    api.request('/api/v3/finance/custos_fixos?months=3&company=all').catch(() => null),
   ]);
   // Meta (média mensal do ano arquivado)
   const ht = (hist && hist.totais) || {}, mh = (hist && hist.meses_com_dado) || 0;
@@ -49,9 +48,8 @@ export async function pageMapaCiclos(ctx, root) {
     projAno: crm.vgvMes * 12, metaAno,
     ating: metaAno > 0 ? (vgvAno / metaAno * 100) : null,
   };
-  // Financeiro (custo fixo realizado — pode estar degradado se NIBO sem token)
-  const ft = fin && fin.ok ? (fin.totals || {}) : null, fm = (fin && fin.months) || 3;
-  const finc = ft ? { custoMes: (+ft.total || 0) / fm, ok: true } : { ok: false };
+  // Financeiro: NIBO cancelado (v88.37) — o custo realizado vive no Orçado × Realizado e o caixa no PSM HUB
+  const finc = { ok: true };
   const caixaMes = crm.vgvMes; // proxy de volume (caixa real depende de margem; aqui mostramos VGV gerado)
 
   render({ meta, crm, fc, finc }, false);
@@ -95,8 +93,7 @@ function render(d, loading) {
         { v: fK(c.vgvMes), l: 'VGV/mês' }, { v: f1(c.vendasMes), l: 'vendas/mês' }, { v: pct2(c.conv), l: 'conversão real' },
       ])}
       ${arrow('comissão vira caixa')}
-      ${node('#/financeiro', '💰', 'Financeiro', '#0891b2', fi.ok ? 'caixa & custos' : 'NIBO sem token', [
-        fi.ok ? { v: f$(fi.custoMes), l: 'custo fixo/mês' } : { v: '—', l: 'custo (NIBO off)' },
+      ${node('#/financeiro', '💰', 'Financeiro', '#0891b2', 'PSM HUB · caixa & contas', [
         { v: fK(c.vgvAno), l: 'VGV ano' },
       ])}
     </div>
@@ -109,7 +106,7 @@ function render(d, loading) {
         { v: f$(m.cpl), l: 'CPL real usado' }, { v: pct2(c.conv), l: 'conversão base' },
       ])}
       ${node('#/metricas-viab', '🧪', 'Métrica de Viabilidade', '#16a34a', 'realizado × premissa + equilíbrio', [
-        { v: fK(c.vgvMes), l: 'VGV real/mês' }, { v: fi.ok ? f$(fi.custoMes) : '—', l: 'custo fixo' },
+        { v: fK(c.vgvMes), l: 'VGV real/mês' },
       ])}
       ${node('#/forecast', '🎯', 'Projeção / Metas', '#d97706', 'run-rate → projeção → meta', [
         { v: fK(fc.projAno), l: 'projeção ano' }, { v: fc.ating == null ? '—' : pct2(fc.ating), l: 'da meta', cor: atingCor },
@@ -124,7 +121,7 @@ function render(d, loading) {
     <div class="mc-band">OS 4 CICLOS</div>
     <div class="mc-ciclos">
       ${ciclo('🔄 #1', 'Meta + CRM → Simulador', 'CPL e conversão reais calibram o cenário simulado (botão "usar no simulado").', 'ok')}
-      ${ciclo('🔄 #2', 'Financeiro → Viabilidade', 'Custo realizado (NIBO) confronta a planilha de custos da Viab.', fi.ok ? 'ok' : 'warn')}
+      ${ciclo('🔄 #2', 'Financeiro → Viabilidade', 'Custo realizado (lançado no Orçado × Realizado; caixa no PSM HUB) confronta a planilha de custos da Viab.', 'ok')}
       ${ciclo('🔄 #3', 'Viabilidade → Orçamento', 'VGV de equilíbrio/meta → "Orçamento pra meta" no Simulador calcula quanto investir em tráfego (engenharia reversa).', 'ok')}
       ${ciclo('🔄 #4', 'Vendas → Projeção → Meta', 'O run-rate do realizado projeta o ano e ajusta a meta na aba Metas.', 'ok')}
     </div>

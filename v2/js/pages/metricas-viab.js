@@ -65,7 +65,7 @@ const _SEED_RAW = [
   ['Cestas Itaú 180', 'Financeiro', 169, 'compartilhado', 'proporcional'],
   ['RD Station CRM', 'Software', 2784.60, 'compartilhado', 'proporcional'], ['RD Marketing', 'Software', 1210.50, 'compartilhado', 'proporcional'],
   ['Kenlo Locação', 'Software', 163.82, 'locacoes', 'igual'], ['Zoho', 'Software', 120, 'compartilhado', 'proporcional'],
-  ['Nibo', 'Software', 600, 'compartilhado', 'proporcional'], ['ClickSign', 'Software', 59, 'compartilhado', 'proporcional'],
+  ['ClickSign', 'Software', 59, 'compartilhado', 'proporcional'],
   ['Notion', 'Software', 208.56, 'compartilhado', 'proporcional'], ['Canva', 'Software', 34.90, 'compartilhado', 'proporcional'],
   ['Hubla', 'Software', 240.01, 'compartilhado', 'proporcional'], ['WA Plus (1)', 'Software', 27.27, 'compartilhado', 'proporcional'],
   ['WA Plus (2)', 'Software', 27.27, 'compartilhado', 'proporcional'], ['ChatGPT', 'Software', 120.34, 'compartilhado', 'proporcional'],
@@ -137,8 +137,8 @@ function orcCell(linha, mes) {
 function realCell(linha, mes) { const c = ((((_d.realizado || {})[linha]) || {})[mes]) || {}; return { vgv: +c.vgv || 0, vendas: +c.vendas || 0 }; }
 // premissa p/ o REALIZADO: zera verba_mkt (mkt real vem das fontes automáticas, não da premissa)
 function orcReal(linha, mes) { const o = orcCell(linha, mes); return Object.assign({}, o, { verba_mkt: 0 }); }
-// custo automático do mês (Meta real + gancho NIBO), company-wide
-function autoMes(mes) { const fa = (_d.fontes_auto || {})[mes] || {}; return { meta_mkt: +fa.meta_mkt || 0, nibo_fixo: +fa.nibo_fixo || 0 }; }
+// custo automático do mês (Meta real), company-wide — v88.37: gancho NIBO removido (NIBO cancelado)
+function autoMes(mes) { const fa = (_d.fontes_auto || {})[mes] || {}; return { meta_mkt: +fa.meta_mkt || 0 }; }
 // v88.36: mês SEM custo lançado à mão → o custo fixo ORÇADO (sem tráfego — o tráfego real vem da Meta)
 // entra como ESTIMATIVA. Antes o realizado só tinha a Meta e quase todo mês "dava lucro" (faltavam
 // ~R$ 50 mil/mês de aluguel, folha, sistemas e dívida). Mesma regra do backend (viab.compute_snapshot).
@@ -147,7 +147,7 @@ function custoRealMes(mes) {
   const out = { map: 0, conquista: 0, terceiros: 0, locacoes: 0 }; let geral = 0;
   const cell = (_d.custos_real || {})[`${_ano}-${mes}`] || {};
   for (const it of (cell.itens || [])) { const v = +it.valor || 0; if (out[it.linha] != null) out[it.linha] += v; else geral += v; }
-  const a = autoMes(mes); geral += a.meta_mkt + a.nibo_fixo;   // fontes automáticas → geral rateado
+  const a = autoMes(mes); geral += a.meta_mkt;   // fontes automáticas → geral rateado
   if (geral) for (const k in out) out[k] += geral / 4;
   if (custoEstimado(mes) && (_custosOrc || []).length) {
     const det = custoOrcadoDet(true);
@@ -405,7 +405,7 @@ function trafegoAlaHTML() {
   }).join('');
   const totCells = Array.from({ length: 12 }, (_, i) => {
     const m = i + 1;
-    return `<td style="padding:3px 2px;text-align:right;font-size:10.5px;font-weight:800;${m === mr ? 'color:var(--psm-navy)' : 'opacity:.7'}">${traf.totMes[m] ? Math.round(traf.totMes[m] / 1000) + 'k' : '—'}</td>`;
+    return `<td style="padding:3px 2px;text-align:right;font-size:10.5px;font-weight:800;${m === mr ? 'color:var(--psm-navy)' : 'opacity:.7'}">${traf.totMes[m] ? fmt(traf.totMes[m]) : '—'}</td>`;
   }).join('');
   const sy = (_traf && _traf.atualizado_em) || {};
   const quando = sy.em ? new Date(sy.em).toLocaleString('pt-BR') : null;
@@ -951,7 +951,7 @@ function renderCustosDet() {
     <div class="flex" style="gap:4px;align-items:flex-end;height:86px">
       ${Array.from({length: 12}, (_, i) => { const m = i + 1; const h = Math.max(6, Math.round(72 * totMes[m] / maxMes)); const atual = m === mesCorr;
         return `<div class="cd-tl" data-m="${m}" title="${MESES_N[i]}: ${fmt(totMes[m])}" style="flex:1;cursor:pointer;text-align:center">
-          <div class="tiny" style="font-size:9px;font-weight:700;color:${atual ? 'var(--psm-navy)' : 'var(--ink-muted)'}">${fmt(totMes[m] / 1000).replace(',00', '')}k</div>
+          <div class="tiny" style="font-size:9px;font-weight:700;color:${atual ? 'var(--psm-navy)' : 'var(--ink-muted)'}">${fmt(totMes[m])}</div>
           <div style="height:${h}px;border-radius:4px 4px 0 0;background:${atual ? 'var(--psm-navy)' : '#b8ad8c'};${atual ? 'box-shadow:0 0 0 2px #1e265033' : ''}"></div>
           <div class="tiny" style="font-size:10px;${atual ? 'font-weight:900' : ''}">${MESES_N[i]}</div>
         </div>`; }).join('')}
@@ -1297,7 +1297,7 @@ function renderRealizado() {
         <thead><tr style="background:var(--bg-3);text-align:right"><th style="text-align:left;padding:7px 8px">Linha</th><th style="padding:7px 8px">VGV orç.</th><th style="padding:7px 8px">VGV real</th><th style="padding:7px 8px">Δ</th><th style="padding:7px 8px">Lucro orç.</th><th style="padding:7px 8px">Lucro real</th><th style="padding:7px 8px">Δ</th></tr></thead>
         <tbody>${rows}</tbody>
       </table></div>
-      <div class="tiny muted mt-2">⚠️ Comissões do realizado são <b>calculadas pela premissa do orçado</b> (% do VGV real), não "pagas" — até plugar a API do NIBO.</div>
+      <div class="tiny muted mt-2">⚠️ Comissões do realizado são <b>calculadas pela premissa do orçado</b> (% do VGV real), não "pagas" — a comissão paga de fato está no Financeiro · PSM HUB.</div>
     </div>
     <div class="card" style="margin:0 0 14px">
       <h3 class="card-title">📅 Mês a mês (realizado) + fechamento</h3>
@@ -1320,7 +1320,7 @@ function renderCustosReais() {
     <td style="padding:4px 6px"><button class="btn btn-ghost btn-sm cr-del" data-i="${i}" style="padding:2px 7px;color:var(--err)">🗑</button></td>
   </tr>`).join('');
   const manual = itens.reduce((s, it) => s + (+it.valor || 0), 0);
-  const a = autoMes(_custoMes); const totalAuto = a.meta_mkt + a.nibo_fixo; const total = manual + totalAuto;
+  const a = autoMes(_custoMes); const totalAuto = a.meta_mkt; const total = manual + totalAuto;
   return `
     <div class="card" style="margin:0">
       <div class="flex items-center gap-2" style="flex-wrap:wrap">
@@ -1332,7 +1332,6 @@ function renderCustosReais() {
         <div class="tiny" style="font-weight:700;margin-bottom:4px">🔌 Fontes automáticas <span class="muted" style="font-weight:400">— entram sozinhas, sem digitar</span></div>
         <div class="flex gap-2" style="flex-wrap:wrap">
           <span class="tiny">📣 Meta Ads (verba real): <b>${fmt(a.meta_mkt)}</b> ${a.meta_mkt > 0 ? '<span style="color:var(--ok)">✅ ao vivo</span>' : '<span class="muted">sem dado</span>'}</span>
-          <span class="tiny">🏦 NIBO (custo fixo): <b>${fmt(a.nibo_fixo)}</b> ${a.nibo_fixo > 0 ? '<span style="color:var(--ok)">✅</span>' : '<span style="color:var(--warn)">⏳ aguardando upgrade da API</span>'}</span>
           <span class="tiny muted" style="margin-left:auto">+ manual abaixo: <b>${fmt(manual)}</b></span>
         </div>
       </div>
@@ -1345,7 +1344,6 @@ function renderCustosReais() {
         <button class="btn btn-ghost btn-sm" id="cr-add">＋ Lançar custo</button>
         <button class="btn btn-primary btn-sm" id="cr-save">💾 Salvar custos do mês</button>
       </div>
-      <div class="tiny muted mt-2">Quando você fizer o upgrade da API do NIBO, troco esse lançamento manual pelo custo real automático.</div>
     </div>`;
 }
 function wireRealizado() {

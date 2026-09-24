@@ -56,7 +56,7 @@ function renderShell() {
     <div class="card">
       <div class="flex" style="justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
         <div>
-          <h2 class="card-title">📊 Scorecards</h2>
+          <h2 class="card-title">🚦 Farol PSM</h2>
           <p class="card-sub">Um placar padrão por nível: <b>Presidência → Unidades de Negócio → Áreas</b>. Cada indicador tem meta, farol e dono.</p>
         </div>
         <div class="flex gap-1" style="align-items:center;flex-wrap:wrap">
@@ -279,9 +279,7 @@ function fmt(v, un) {
   const n = Number(v) || 0;
   if (un === 'R$') {
     const a = Math.abs(n), s = n < 0 ? '−' : '';
-    if (a >= 1e6) return `${s}R$ ${(a / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} mi`;
-    if (a >= 1e4) return `${s}R$ ${(a / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mil`;
-    return `${s}R$ ${a.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}`;
+    return `${s}R$ ${a.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;   // v88.37: sem mil/mi
   }
   if (un === '%') return n.toLocaleString('pt-BR', { maximumFractionDigits: Math.abs(n) < 10 ? 2 : 1 }) + '%';
   return n.toLocaleString('pt-BR', { maximumFractionDigits: 1 });

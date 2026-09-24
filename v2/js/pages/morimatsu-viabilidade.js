@@ -163,7 +163,7 @@ export function classificarSaida(venda, cidade) {
   };
   return {
     id: 'sbpe', rot: 'ACIMA DA FAIXA 3 — PÚBLICO ESTREITO', cor: '#0ea5e9', ico: '🔵', ok: true,
-    txt: `Venda esperada de ${brl(V)} passa dos R$ ${(TETO_F3 / 1000).toLocaleString('pt-BR')} mil do programa. A saída depende do crédito tradicional, com entrada maior e público bem menor na nossa praça. Fora do recorte da casa (R$ 100–180 mil) — só com investidor que aceite prazo longo de venda.`,
+    txt: `Venda esperada de ${brl(V)} passa dos ${brl(TETO_F3)} do programa. A saída depende do crédito tradicional, com entrada maior e público bem menor na nossa praça. Fora do recorte da casa (R$ 100–180 mil) — só com investidor que aceite prazo longo de venda.`,
   };
 }
 

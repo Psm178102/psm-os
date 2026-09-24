@@ -1158,7 +1158,7 @@ function abrirForm({ item, preset = {} } = {}) {
 const COMERCIAL = /^(corretor|lider|líder|gerente|socio|sócio|diretor)/;
 const ehComercial = () => COMERCIAL.test(String((auth.user() || {}).role || '').toLowerCase());
 const brl = v => 'R$ ' + (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const brlCurto = v => { const n = Number(v) || 0; return n >= 1e6 ? 'R$ ' + (n / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' mi' : n >= 1e3 ? 'R$ ' + (n / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' mil' : brl(n); };
+const brlCurto = brl;   // v88.37: não abrevia (era R$ 340 mil / 1,2 mi)
 const MES_NOME = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 
 function diasUteisMes(hIso) {   // seg–sáb (imobiliária trabalha sábado; sem feriados)

@@ -126,33 +126,42 @@ async function converterEEnviar(marca, file) {
   const prog = document.getElementById('ap-prog-' + marca);
   const diga = (t) => { if (prog) prog.innerHTML = t; };
   try {
-    diga('<span class="spinner"></span> Lendo o PDF…');
-    const pdfjs = await import(/* @vite-ignore */ PDFJS);
-    pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
-    const buf = await file.arrayBuffer();
-    const pdf = await pdfjs.getDocument({ data: buf }).promise;
-    const n = pdf.numPages;
-    if (n < 1 || n > 80) { diga('⚠️ PDF com número de páginas fora do limite (1–80).'); return; }
-    const pasta = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 8) + '_' + new Date().toISOString().replace(/[-:T]/g, '').slice(8, 14);
-    for (let p = 1; p <= n; p++) {
-      diga(`<span class="spinner"></span> Convertendo e enviando slide ${p}/${n}…`);
-      const page = await pdf.getPage(p);
-      const vp0 = page.getViewport({ scale: 1 });
-      const scale = Math.min(2.2, 1600 / vp0.width);        // largura ~1600px — nítido em TV
-      const vp = page.getViewport({ scale });
-      const cv = document.createElement('canvas');
-      cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
-      await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
-      const jpeg = cv.toDataURL('image/jpeg', 0.85);
-      await api.request('/api/v3/apresentacoes/deck', { method: 'POST',
-        body: { action: 'slide', marca, pasta, idx: p - 1, jpeg } });
-    }
-    diga('<span class="spinner"></span> Publicando…');
-    await api.request('/api/v3/apresentacoes/deck', { method: 'POST',
-      body: { action: 'publicar', marca, pasta, nome: file.name.replace(/\.pdf$/i, ''), n_slides: n } });
+    const n = await enviarPdfComoSlides({ marca, file, diga });
+    if (!n) return;
     diga(`✅ Publicada — ${n} slides no ar pra equipe inteira.`);
     setTimeout(load, 1200);
   } catch (e) {
     diga('⚠️ Falhou: ' + esc(e?.message || e) + ' — tente de novo.');
   }
+}
+
+/* PDF → slides JPEG no navegador → Storage → publica. Compartilhado com o 🗺 Mapa da Venda
+   (v88.37: colecao='mapa_venda'). Devolve o nº de páginas publicadas (0 = recusado). */
+export async function enviarPdfComoSlides({ colecao, marca, file, diga }) {
+  diga('<span class="spinner"></span> Lendo o PDF…');
+  const pdfjs = await import(/* @vite-ignore */ PDFJS);
+  pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjs.getDocument({ data: buf }).promise;
+  const n = pdf.numPages;
+  if (n < 1 || n > 80) { diga('⚠️ PDF com número de páginas fora do limite (1–80).'); return 0; }
+  const pasta = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 8) + '_' + new Date().toISOString().replace(/[-:T]/g, '').slice(8, 14);
+  const extra = colecao ? { colecao } : {};
+  for (let p = 1; p <= n; p++) {
+    diga(`<span class="spinner"></span> Convertendo e enviando página ${p}/${n}…`);
+    const page = await pdf.getPage(p);
+    const vp0 = page.getViewport({ scale: 1 });
+    const scale = Math.min(2.2, 1600 / vp0.width);        // largura ~1600px — nítido em TV
+    const vp = page.getViewport({ scale });
+    const cv = document.createElement('canvas');
+    cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
+    await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+    const jpeg = cv.toDataURL('image/jpeg', 0.85);
+    await api.request('/api/v3/apresentacoes/deck', { method: 'POST',
+      body: { ...extra, action: 'slide', marca, pasta, idx: p - 1, jpeg } });
+  }
+  diga('<span class="spinner"></span> Publicando…');
+  await api.request('/api/v3/apresentacoes/deck', { method: 'POST',
+    body: { ...extra, action: 'publicar', marca, pasta, nome: file.name.replace(/\.pdf$/i, ''), n_slides: n } });
+  return n;
 }

@@ -511,7 +511,7 @@ function kpisHTML(c) {
   return kpi('Valor VPL', fmt(c.vpl), 'var(--psm-navy)', '#fff', 'proposta a valor de hoje')
     + kpi('Desc. VPL', c.pad.pv > 0 ? pctSinal(c.descVPL) : '—', corDesc(c), '#fff', leituraCurta(c))
     + kpi('VPL tabela padrão', fmt(c.pad.pv), '#334155', '#fff', 'referência da incorporadora')
-    + kpi('R$/m² VPL', 'R$ ' + Number(c.m2VPL).toLocaleString('pt-BR'), '#3b82f6', '#fff', `tabela: R$ ${Number(c.m2Tabela).toLocaleString('pt-BR')}/m²`);
+    + kpi('R$/m² VPL', 'R$ ' + Number(c.m2VPL).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), '#3b82f6', '#fff', `tabela: R$ ${Number(c.m2Tabela).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/m²`);
 }
 
 const VPL_TELA = `
@@ -638,4 +638,4 @@ function miniKpi(label, value, sub) {
   `;
 }
 
-function fmt(n) { return 'R$ ' + Math.round(n).toLocaleString('pt-BR'); }
+function fmt(n) { return 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }

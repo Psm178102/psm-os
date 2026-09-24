@@ -121,7 +121,7 @@ SEGMENTO: ${_s.segmento}
 BAIRRO: ${_s.bairro || '(não informado)'}
 PÚBLICO: ${_s.publico === 'morar' ? 'Pra morar' : _s.publico === 'investir' ? 'Pra investir' : 'Troca/Upgrade'}
 DIFERENCIAIS: ${_s.diferenciais || '(não informado)'}
-PREÇO MÉDIO: R$ ${_s.preco.toLocaleString('pt-BR')}
+PREÇO MÉDIO: R$ ${_s.preco.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
 PAGAMENTO: ${_s.pagamento}
 `.trim();
 

@@ -232,7 +232,7 @@ function chart(r) {
     const pts = [{ m: 0, saldoFim: r.VF }, ...arr.map(p => ({ m: p.m, saldoFim: p.saldoFim }))];
     return `<polyline fill="none" stroke="${cor}" stroke-width="2.5" points="${pts.map(p => `${x(p.m).toFixed(1)},${y(p.saldoFim).toFixed(1)}`).join(' ')}"/>`;
   };
-  const yTicks = [0, 0.25, 0.5, 0.75, 1].map(f => { const v = maxV * f; return `<line x1="${pad}" y1="${y(v)}" x2="${W - 10}" y2="${y(v)}" stroke="var(--border,#e5e7eb)" stroke-width="1"/><text x="${pad - 5}" y="${y(v) + 3}" font-size="9" fill="var(--ink-muted,#94a3b8)" text-anchor="end">${(v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}k</text>`; }).join('');
+  const yTicks = [0, 0.25, 0.5, 0.75, 1].map(f => { const v = maxV * f; return `<line x1="${pad}" y1="${y(v)}" x2="${W - 10}" y2="${y(v)}" stroke="var(--border,#e5e7eb)" stroke-width="1"/><text x="${pad - 5}" y="${y(v) + 3}" font-size="9" fill="var(--ink-muted,#94a3b8)" text-anchor="end">${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</text>`; }).join('');
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">${yTicks}
     ${line(r.contrato, '#94a3b8')}
     ${r.temExtra ? line(r.sim, '#16a34a') : ''}

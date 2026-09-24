@@ -49,7 +49,9 @@ def _count(sb, table, build):
 
 
 def _fmt_money(v):
-    return "R$ " + f"{round(v):,}".replace(",", ".")
+    """v88.37 (Paulo, 24/set): R$ sempre cheio com centavos — nunca "mil"/"mi"."""
+    n = float(v or 0)
+    return ("-" if n < 0 else "") + "R$ " + f"{abs(n):,.2f}".replace(",", "@").replace(".", ",").replace("@", ".")
 
 
 class handler(BaseHTTPRequestHandler):

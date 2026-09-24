@@ -10,13 +10,8 @@ import { ativarDrag } from '../kanban-drag.js';
 let _host = null, _d = null, _busy = false, _busca = '', _showMax = {};
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const brl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
-const brlK = n => {
-  n = Number(n || 0);
-  if (n >= 1e6) return 'R$ ' + (n / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + 'M';
-  if (n >= 1e3) return 'R$ ' + Math.round(n / 1e3).toLocaleString('pt-BR') + 'k';
-  return brl(n);
-};
+const brl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const brlK = brl;   // v88.37: não abrevia mais (era R$ 840k / 1,2M)
 const POR_COL = 40; // cards visíveis por coluna antes do "mostrar mais"
 
 const diasDesde = iso => {

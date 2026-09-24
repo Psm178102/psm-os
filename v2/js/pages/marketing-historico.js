@@ -6,7 +6,7 @@ import { auth } from '../auth.js';
 
 let _root = null, _ano = new Date().getFullYear();
 const MES = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-const f$ = n => 'R$ ' + Math.round(n || 0).toLocaleString('pt-BR');
+const f$ = n => 'R$ ' + (Number(n || 0) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const f1 = n => (Math.round((n || 0) * 10) / 10).toLocaleString('pt-BR');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 

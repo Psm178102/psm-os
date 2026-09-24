@@ -448,11 +448,8 @@ function objetivoForm(ob) {
 }
 
 /* ─── util ──────────────────────────────────────────────────────────── */
-function brl(v) {
-  const n = Number(v) || 0;
-  if (Math.abs(n) >= 1e6) return 'R$ ' + (n / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' mi';
-  if (Math.abs(n) >= 1e3) return 'R$ ' + (n / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' mil';
-  return 'R$ ' + n.toLocaleString('pt-BR');
+function brl(v) {   // v88.37: valor cheio com centavos (nunca mil/mi)
+  return 'R$ ' + (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function num(v) { return (Number(v) || 0).toLocaleString('pt-BR'); }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

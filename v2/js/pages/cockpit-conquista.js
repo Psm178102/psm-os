@@ -11,7 +11,7 @@ import { api } from '../api.js';
 import { auth } from '../auth.js';
 import { montarDecisoes } from '../decisoes.js';   // v87.92 🧭 Decidir agora
 
-const BRL = v => (isFinite(v) ? v : 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+const BRL = v => (isFinite(v) ? v : 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 });   // v88.37: sempre com centavos
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 
 // teto de valor de imóvel por faixa MCMV (referência — varia por região)

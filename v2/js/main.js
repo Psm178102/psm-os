@@ -20,7 +20,7 @@ import { pageEquipe } from './pages/equipe.js';
 import { pageMetas } from './pages/metas.js';
 import { pageDiretoria } from './pages/diretoria.js';
 import { pageCockpitHub } from './pages/cockpit-hub.js';
-import { pagePauloNegocios } from './pages/paulo-negocios.js';
+import { pagePontosAtencao } from './pages/pontos-atencao.js';   // 🚨 item próprio da Diretoria (v88.37)
 import { pageProjetos } from './pages/projetos.js';
 import { pagePsmHub } from './pages/psmhub.js';
 import { pagePauloConteudo, pageConteudoImoveis, pageConteudoConquista } from './pages/paulo-conteudo.js';
@@ -120,7 +120,9 @@ import { pageSimCriativos } from './pages/sim-criativos.js';
 import { pageRankingHub } from './pages/ranking-hub.js';
 import { pageScorecard } from './pages/scorecard.js';
 import { pageHistoricoNotion } from './pages/historico-notion.js';   // 📜 Histórico Notion (gestão antiga + vendas 2023–26) — só sócio v88.35
-import { pageRotinaConquista } from './pages/rotina-conquista.js';   // 🎯 Rotina de Gestão · PSM Conquista (Isa × Kaue) v88.33   // 📊 Scorecards padrão da Diretoria v88.26
+import { pageRotinaConquista, pageRotinaImoveis } from './pages/rotina-conquista.js';   // 🏠 + Rotina · PSM Imóveis (Paulo × equipe MAP) v88.37
+import { pageDocumentosPsm } from './pages/documentos-psm.js';   // 📂 Jurídico · Documentos PSM v88.37
+import { pageMapaVenda } from './pages/mapa-venda.js';   // 🗺 Imóveis & Vendas · Mapa da Venda v88.37   // 🎯 Rotina de Gestão · PSM Conquista (Isa × Kaue) v88.33   // 📊 Scorecards padrão da Diretoria v88.26
 import { pageOKRs } from './pages/okrs.js';
 import { pageMetricasViab } from './pages/metricas-viab.js';
 import { pageComissaoConquista } from './pages/comissao-conquista.js';
@@ -154,7 +156,7 @@ export const ROUTE_GROUP = {
   // Comercial (v86.52): CRM House PSM (piloto F2 do CRM próprio) + Gestão Comercial
   '/crm-house': 'vendas', '/central-sol': 'vendas',
   // Imóveis & Vendas (+ Metas/Equipes/Plantões e simuladores VPL/INCC/Repasse/Energia migrados)
-  '/crm': 'vendas', '/oportunidades': 'vendas', '/documentos': 'vendas', '/cadencia': 'vendas', '/scripts': 'vendas', '/form-captacao': 'vendas',
+  '/crm': 'vendas', '/mapa-venda': 'vendas', '/oportunidades': 'vendas', '/documentos': 'vendas', '/cadencia': 'vendas', '/scripts': 'vendas', '/form-captacao': 'vendas',
   '/imoveis': 'vendas', '/mapa': 'vendas', '/estoque-kenlo': 'vendas', '/tabela-imoveis': 'vendas', '/tabela-conquista': 'vendas', '/tabela-map': 'vendas', '/tabela-sp-capital': 'vendas', '/lancamentos': 'vendas',
   '/metas': 'vendas', '/equipe': 'vendas', '/plantoes': 'vendas',
   '/sim-vpl': 'vendas', '/sim-incc': 'vendas', '/proposta': 'vendas', '/sim-repasse': 'vendas', '/sim-energia': 'vendas', '/sim-amortizacao': 'vendas',
@@ -172,12 +174,12 @@ export const ROUTE_GROUP = {
   '/gestao-comercial': 'performance', '/produtividade-real': 'performance',
   '/tv': 'performance', '/ranking-hub': 'performance',
   // Diretoria
-  '/cockpit': 'diretoria', '/paulo': 'diretoria', '/projetos': 'diretoria', '/sr-cfo': 'diretoria',
+  '/cockpit': 'diretoria', '/rotina-imoveis': 'diretoria', '/projetos': 'diretoria', '/sr-cfo': 'diretoria',
   '/diretoria-ceo': 'diretoria',   // 🏛️ sala do CEO IA (dossiês) — só sócio. v87.33
   '/diretoria': 'diretoria', '/norte-estrategico': 'diretoria', '/scorecard': 'diretoria', '/historico-notion': 'diretoria', '/rotina-conquista': 'diretoria', '/comunicados': 'diretoria', '/kpis': 'diretoria', '/okrs': 'diretoria', '/cmo': 'diretoria',
   '/metricas-viab': 'diretoria', '/comissao-conquista': 'diretoria', '/sim-trafego': 'diretoria', '/mapa-ciclos': 'diretoria', '/governanca': 'diretoria', '/reunioes': 'diretoria',
   // Jurídico (grupo próprio)
-  '/minutas': 'juridico', '/cnds': 'juridico',
+  '/minutas': 'juridico', '/cnds': 'juridico', '/documentos-psm': 'juridico',
   '/pontos-atencao': 'diretoria', '/insights': 'diretoria', '/estrategia': 'diretoria',
   // Agentes Diretoria (v87.31): CEO/CFO/CMO + Rede de Agentes — C-level IA
   '/agentes-diretoria': 'diretoria', '/agente-ceo': 'diretoria', '/agente-cfo': 'diretoria', '/agente-cmo': 'diretoria',
@@ -260,7 +262,7 @@ export const ROUTE_MIN_LVL = {
   '/tabela-sp-capital': 2, // Tabela SP Capital (v87.55): idem — corretor lê, edição lvl>=5
   '/locacao-dash': 2, '/locacao-estoque': 2,  // Locação: dashboard + estoque (leitura, corretor+)
   '/fiscalizacao': 7,     // Painel de Fiscalização (Diretoria): os 3 cards — só gestão
-  '/ponte': 7,            // Fila da Ponte: fechamento próprio Paulo/Isa
+  '/ponte': 7,            // Carteira MAP - Paulo (ex-Fila da Ponte): fechamento próprio Paulo/Isa
   '/minha-producao': 2,   // Meu Acompanhamento: o colaborador vê SÓ o próprio card/semáforo
   '/campanha-wa': 5,      // disparo de campanha — não p/ corretor
   '/one-on-one': 2,       // v86.3: corretor vê o 1:1 DELE (gestor lvl>=5 vê todos; sensível some no backend)
@@ -291,7 +293,7 @@ export const ROUTE_MIN_LVL = {
   '/cockpit-conquista': 10, '/minha-comissao': 2, '/meu-cerebro': 10, '/sim-conquista': 10,  // v84.51: cada um vê a PRÓPRIA comissão (escopo travado no backend)
   // v86.90: Sala de Comando (Cockpit+Dashboard unificados) — decisão do Paulo: SÓ sócio.
   // /diretoria segue registrado FORA do menu (gestão de recados e retrocompat de links).
-  '/cockpit': 10, '/diretoria': 10, '/norte-estrategico': 10, '/scorecard': 5, '/historico-notion': 10, '/rotina-conquista': 5, '/comunicados': 10,
+  '/cockpit': 10, '/pontos-atencao': 10, '/rotina-imoveis': 2, '/diretoria': 10, '/norte-estrategico': 10, '/scorecard': 5, '/historico-notion': 10, '/rotina-conquista': 5, '/comunicados': 10,
   // v87.31/32/33/34: AGENTES DIRETORIA — TUDO SÓ sócio (lvl 10): chats CEO/CFO/CMO
   // + Rede de Agentes (contexto carrega caixa, dívida, pró-labore e Plano de
   // Resgate — espelha o require_user(min_lvl=10) de ia/chat + ia/rede), os
@@ -520,7 +522,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '88.36';
+const APP_VERSION = '88.37';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -648,10 +650,12 @@ const APP_VERSION = '88.36';
   // v88.12: Visão/Missão e Recados só existiam dentro do /diretoria, fora do menu — ganham rota própria
   router.register('/historico-notion', { render: async (ctx, root) => { setHeader('Histórico Notion'); highlight('/historico-notion'); await pageHistoricoNotion(ctx, root); } });
   router.register('/rotina-conquista', { render: async (ctx, root) => { setHeader('Rotina · PSM Conquista'); highlight('/rotina-conquista'); await pageRotinaConquista(ctx, root); } });
-  router.register('/scorecard', { render: async (ctx, root) => { setHeader('Scorecards'); highlight('/scorecard'); await pageScorecard(ctx, root); } });
+  router.register('/rotina-imoveis', { render: async (ctx, root) => { setHeader('Rotina · PSM Imóveis'); highlight('/rotina-imoveis'); await pageRotinaImoveis(ctx, root); } });
+  router.register('/documentos-psm', { render: async (ctx, root) => { setHeader('Documentos PSM'); highlight('/documentos-psm'); await pageDocumentosPsm(ctx, root); } });
+  router.register('/mapa-venda', { render: async (ctx, root) => { setHeader('Mapa da Venda'); highlight('/mapa-venda'); await pageMapaVenda(ctx, root); } });
+  router.register('/scorecard', { render: async (ctx, root) => { setHeader('Farol PSM'); highlight('/scorecard'); await pageScorecard(ctx, root); } });
   router.register('/norte-estrategico', { render: async (ctx, root) => { setHeader('Norte Estratégico'); highlight('/norte-estrategico'); await pageDiretoria(ctx, root, 'estrategia'); } });
   router.register('/comunicados', { render: async (ctx, root) => { setHeader('Comunicados'); highlight('/comunicados'); await pageDiretoria(ctx, root, 'recados'); } });
-  router.register('/paulo', { render: async (ctx, root) => { setHeader('Paulo · Meus Negócios'); highlight('/paulo'); await pagePauloNegocios(ctx, root); } });
   router.register('/projetos', { render: async (ctx, root) => { setHeader('Projetos'); highlight('/projetos'); await pageProjetos(ctx, root); } });
   router.register('/psmhub', { render: async (ctx, root) => { setHeader('PSM HUB · Conquista'); highlight('/psmhub'); await pagePsmHub(ctx, root); } });
   router.register('/sr-cfo', { render: async (ctx, root) => { setHeader('Sr. CFO'); highlight('/sr-cfo'); await pageSrCfo(ctx, root); } });
@@ -670,9 +674,10 @@ const APP_VERSION = '88.36';
   router.register('/sistemas-incorporadoras', { render: async (ctx, root) => { setHeader('Sistema e Drive Incorporadoras'); highlight('/sistemas-incorporadoras'); await pageSistemasIncorporadoras(ctx, root); } });
   router.register('/reunioes', { render: async (ctx, root) => { setHeader('Ritos & Reuniões'); highlight('/reunioes'); await pageReunioes(ctx, root); } });
   router.register('/estrategia', { render: async (ctx, root) => { setHeader('Plano Estratégico'); highlight('/estrategia'); await pageEstrategia(ctx, root); } });
-  // v77.30: absorvidas pelo Cockpit Hub — redirects preservam links/hábito antigos
-  router.register('/pontos-atencao', { render: async () => { location.hash = '#/cockpit?tab=atencao'; } });
-  router.register('/insights', { render: async () => { location.hash = '#/cockpit?tab=insights'; } });
+  // v88.37: Pontos de Atenção voltou a ser item próprio do menu Diretoria (pedido do Paulo, 24/set);
+  // Insights segue dentro da Sala de Comando unificada — o redirect preserva links antigos
+  router.register('/pontos-atencao', { render: async (ctx, root) => { setHeader('Pontos de Atenção'); highlight('/pontos-atencao'); await pagePontosAtencao(ctx, root); } });
+  router.register('/insights', { render: async () => { location.hash = '#/cockpit'; } });
   router.register('/academy', { render: async (ctx, root) => { setHeader('PSM Academy'); highlight('/academy'); await pageAcademy(ctx, root); } });
   router.register('/academy-studio', { render: async (ctx, root) => { setHeader('Academy · Produção'); highlight('/academy-studio'); await pageAcademyStudio(ctx, root); } });
   router.register('/marketing', { render: async (ctx, root) => { setHeader('Marketing'); highlight('/marketing'); await pageMarketing(ctx, root); } });
@@ -720,7 +725,7 @@ const APP_VERSION = '88.36';
   router.register('/captacoes',   { render: async (ctx, root) => { setHeader('Captações');    highlight('/captacoes');   await pageCaptacoes(ctx, root); } });
   router.register('/fiscalizacao', { render: async (ctx, root) => { setHeader('Painel de Fiscalização'); highlight('/fiscalizacao'); await pageProducao(ctx, root, 'gestor'); } });
   router.register('/minha-producao', { render: async (ctx, root) => { setHeader('Meu Acompanhamento'); highlight('/minha-producao'); await pageProducao(ctx, root, 'me'); } });
-  router.register('/ponte', { render: async (ctx, root) => { setHeader('Fila da Ponte'); highlight('/ponte'); await pagePonte(ctx, root); } });
+  router.register('/ponte', { render: async (ctx, root) => { setHeader('Carteira MAP - Paulo'); highlight('/ponte'); await pagePonte(ctx, root); } });
   router.register('/sdr',         { render: async (ctx, root) => { setHeader('Prospecção SDR'); highlight('/sdr');         await pageSdr(ctx, root); } });
   router.register('/leads-lp',    { render: async (ctx, root) => { setHeader('📥 Leads LP Conquista'); highlight('/leads-lp'); await pageLeadsLp(ctx, root); } });
   router.register('/wa-leads',    { render: async (ctx, root) => { setHeader('📲 Leads do WhatsApp'); highlight('/wa-leads'); await pageWaLeads(ctx, root); } });
@@ -775,7 +780,7 @@ const APP_VERSION = '88.36';
   router.register('/simuladores', { render: async (ctx, root) => { setHeader('Simuladores');         highlight('/simuladores'); await pageSimuladores(ctx, root); } });
   router.register('/sim-vpl',     { render: async (ctx, root) => { setHeader('Simulador VPL');       highlight('/sim-vpl'); await pageSimVPL(ctx, root); } });
   router.register('/sim-incc',    { render: async (ctx, root) => { setHeader('Simulador INCC');      highlight('/sim-incc'); await pageSimINCC(ctx, root); } });
-  router.register('/proposta',    { render: async (ctx, root) => { setHeader('Proposta comercial');  highlight('/proposta'); await pageProposta(ctx, root); } });
+  router.register('/proposta',    { render: async (ctx, root) => { setHeader('Apresentação comercial');  highlight('/proposta'); await pageProposta(ctx, root); } });
   router.register('/sim-repasse', { render: async (ctx, root) => { setHeader('Simulador Repasse');   highlight('/sim-repasse'); await pageSimRepasse(ctx, root); } });
   router.register('/sim-energia', { render: async (ctx, root) => { setHeader('Simulador Energia');   highlight('/sim-energia'); await pageSimEnergia(ctx, root); } });
   router.register('/sim-amortizacao', { render: async (ctx, root) => { setHeader('Simulador de Amortização'); highlight('/sim-amortizacao'); await pageSimAmortizacao(ctx, root); } });
@@ -787,7 +792,7 @@ const APP_VERSION = '88.36';
   router.register('/sim-criativos', { render: async (ctx, root) => { setHeader('Simulador Criativos'); highlight('/sim-criativos'); await pageSimCriativos(ctx, root); } });
   router.register('/ranking-hub', { render: async (ctx, root) => { setHeader('Ranking HUB · Modo TV'); highlight('/ranking-hub'); await pageRankingHub(ctx, root); } });
   router.register('/okrs',        { render: async (ctx, root) => { setHeader('Objetivos & OKRs');                highlight('/okrs');       await pageOKRs(ctx, root); } });
-  router.register('/kpis',        { render: async () => { location.hash = '#/cockpit?tab=kpis'; } });
+  router.register('/kpis',        { render: async () => { location.hash = '#/cockpit'; } });
   router.register('/metricas-viab', { render: async (ctx, root) => { setHeader('Orçado × Realizado'); highlight('/metricas-viab'); await pageMetricasViab(ctx, root); } });
   router.register('/comissao-conquista', { render: async (ctx, root) => { setHeader('Comissionamento'); highlight('/comissao-conquista'); await pageComissaoConquista(ctx, root); } });
   router.register('/sim-trafego', { render: async (ctx, root) => { setHeader('Simulador de Tráfego'); highlight('/sim-trafego'); await pageSimTrafego(ctx, root); } });
@@ -1027,12 +1032,13 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/gestao-comercial"><span class="sb-ico">📊</span> Gestão Comercial</button>
         <button class="sb-link" data-nav="/produtividade-real"><span class="sb-ico">🎯</span> Produtividade Real</button>
         <button class="sb-link" data-nav="/relatorios"><span class="sb-ico">🖨</span> Relatórios</button>
+        <button class="sb-link" data-nav="/cockpit-conquista"><span class="sb-ico">🚀</span> Cockpit Conquista</button>
+        <button class="sb-link" data-nav="/meu-cerebro"><span class="sb-ico">🎯</span> Meu Cérebro de Vendas</button>
 
         <div class="sb-sec">🏘 Imóveis & Vendas</div>
-        <button class="sb-link" data-nav="/crm"><span class="sb-ico">🔗</span> CRM (RD)</button>
         <button class="sb-link" data-nav="/oportunidades"><span class="sb-ico">💡</span> Oportunidades</button>
-        <button class="sb-link" data-nav="/documentos"><span class="sb-ico">📝</span> Gerar documento</button>
-        <button class="sb-link" data-nav="/proposta"><span class="sb-ico">📑</span> Proposta comercial</button>
+        <button class="sb-link" data-nav="/proposta"><span class="sb-ico">📑</span> Apresentação comercial</button>
+        <button class="sb-link" data-nav="/mapa-venda"><span class="sb-ico">🗺</span> Mapa da Venda</button>
         <button class="sb-link" data-nav="/scripts"><span class="sb-ico">📚</span> Scripts & Cadências</button>
         <button class="sb-link" data-nav="/form-captacao"><span class="sb-ico">📝</span> Formulário de Captação</button>
         <button class="sb-link" data-nav="/mapa"><span class="sb-ico">🗺</span> Mapa Imóveis</button>
@@ -1045,9 +1051,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/equipe"><span class="sb-ico">🛡</span> Equipes</button>
         <button class="sb-link" data-nav="/plantoes"><span class="sb-ico">🛡</span> Plantões</button>
         <button class="sb-link" data-nav="/simuladores"><span class="sb-ico">🧮</span> Simuladores</button>
-        <button class="sb-link" data-nav="/cockpit-conquista"><span class="sb-ico">🚀</span> Cockpit Conquista</button>
         <button class="sb-link" data-nav="/sim-conquista"><span class="sb-ico">🏠</span> Simulador Conquista</button>
-        <button class="sb-link" data-nav="/meu-cerebro"><span class="sb-ico">🎯</span> Meu Cérebro de Vendas</button>
         <button class="sb-link" data-nav="/minha-comissao"><span class="sb-ico">💰</span> Minha Comissão</button>
 
         <div class="sb-sec">🔥 Arena & Performance</div>
@@ -1064,7 +1068,6 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/wa-leads"><span class="sb-ico">📲</span> Leads do WhatsApp</button>
         <button class="sb-link" data-nav="/reativacao"><span class="sb-ico">🔁</span> Reativação MAP</button>
         <button class="sb-link" data-nav="/captacoes"><span class="sb-ico">📥</span> Captações</button>
-        <button class="sb-link" data-nav="/minha-producao"><span class="sb-ico">📈</span> Meu Acompanhamento</button>
         <button class="sb-link" data-nav="/links-uteis"><span class="sb-ico">🔗</span> Links & Incorporadoras</button>
         <button class="sb-link" data-nav="/campanha-wa"><span class="sb-ico">📣</span> Campanha WhatsApp</button>
 
@@ -1119,9 +1122,8 @@ function shellHTML(user) {
      Os chats CEO/CFO/CMO seguem em /agente-* (abas da Rede). Permissões não mudaram. -->
         <div class="sb-subsec">Presidência</div>
         <button class="sb-link" data-nav="/cockpit"><span class="sb-ico">🧭</span> Sala de Comando</button>
-        <button class="sb-link" data-nav="/scorecard"><span class="sb-ico">📊</span> Scorecards</button>
-        <button class="sb-link" data-nav="/fiscalizacao"><span class="sb-ico">👁</span> Fiscalização da Operação</button>
-        <button class="sb-link" data-nav="/psmhub"><span class="sb-ico">🔌</span> Auditoria PSM HUB × RD</button>
+        <button class="sb-link" data-nav="/pontos-atencao"><span class="sb-ico">🚨</span> Pontos de Atenção</button>
+        <button class="sb-link" data-nav="/scorecard"><span class="sb-ico">🚦</span> Farol PSM</button>
         <button class="sb-link" data-nav="/dados-mercado"><span class="sb-ico">🌎</span> Dados de Mercado</button>
         <button class="sb-link" data-nav="/historico-notion"><span class="sb-ico">📜</span> Histórico Notion</button>
         <div class="sb-subsec">Estratégia & Planejamento</div>
@@ -1134,6 +1136,7 @@ function shellHTML(user) {
         <div class="sb-subsec">Governança</div>
         <button class="sb-link" data-nav="/reunioes"><span class="sb-ico">🤝</span> Ritos & Reuniões</button>
         <button class="sb-link" data-nav="/rotina-conquista"><span class="sb-ico">🎯</span> Rotina · PSM Conquista</button>
+        <button class="sb-link" data-nav="/rotina-imoveis"><span class="sb-ico">🏠</span> Rotina · PSM Imóveis</button>
         <button class="sb-link" data-nav="/comunicados"><span class="sb-ico">📢</span> Comunicados</button>
         <div class="sb-subsec">Conselho IA</div>
         <button class="sb-link" data-nav="/diretoria-ceo"><span class="sb-ico">🎩</span> CEO · Diretrizes & Dossiês</button>
@@ -1141,8 +1144,19 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/cmo"><span class="sb-ico">📣</span> CMO · Relatórios</button>
         <button class="sb-link" data-nav="/agentes-diretoria"><span class="sb-ico">🕸</span> Rede & Chats</button>
         <div class="sb-subsec">Mesa do Sócio</div>
-        <button class="sb-link" data-nav="/ponte"><span class="sb-ico">🌉</span> Fila da Ponte</button>
-        <button class="sb-link" data-nav="/paulo"><span class="sb-ico">🧑‍💼</span> Negócios Pessoais</button>
+        <button class="sb-link" data-nav="/ponte"><span class="sb-ico">🌉</span> Carteira MAP - Paulo</button>
+
+<!-- v88.37: 🔎 AUDITORIA — menu próprio (pedido do Paulo, 24/set): tudo que CONFERE a operação
+     num lugar só. Vieram de Início (Check-in), Secretaria (Meu Acompanhamento), Diretoria
+     (Fiscalização, PSM HUB × RD), Imóveis & Vendas (CRM RD) e Sistema (Auditoria).
+     Mover não muda permissão — quem vê segue na matriz por papel. -->
+        <div class="sb-sec">🔎 Auditoria</div>
+        <button class="sb-link" data-nav="/checkin"><span class="sb-ico">🕵️</span> Check-in / Check-out</button>
+        <button class="sb-link" data-nav="/minha-producao"><span class="sb-ico">📈</span> Meu Acompanhamento</button>
+        <button class="sb-link" data-nav="/fiscalizacao"><span class="sb-ico">👁</span> Fiscalização da Operação</button>
+        <button class="sb-link" data-nav="/psmhub"><span class="sb-ico">🔌</span> Auditoria PSM HUB × RD</button>
+        <button class="sb-link" data-nav="/crm"><span class="sb-ico">🔗</span> CRM (RD)</button>
+        <button class="sb-link" data-nav="/auditoria"><span class="sb-ico">📜</span> Auditoria do Sistema</button>
 
 <!-- v87.51: 🏯 MORIMATSU & ASSOCIADOS — menu PRÓPRIO (pedido do Paulo, 07/set): escritório de
      Gestão Patrimonial Imobiliária (Aquisição em leilão/venda direta Caixa → Gestão → Desinvestimento
@@ -1181,6 +1195,8 @@ function shellHTML(user) {
         <div class="sb-sec">⚖️ Jurídico</div>
         <button class="sb-link" data-nav="/minutas"><span class="sb-ico">📜</span> Minutas padrão</button>
         <button class="sb-link" data-nav="/cnds"><span class="sb-ico">⚖️</span> CND's</button>
+        <button class="sb-link" data-nav="/documentos"><span class="sb-ico">📝</span> Gerar documento</button>
+        <button class="sb-link" data-nav="/documentos-psm"><span class="sb-ico">📂</span> Documentos PSM</button>
 
         <div class="sb-sec">🤖 IA Assistentes</div>
         <button class="sb-link" data-nav="/agentes"><span class="sb-ico">🧠</span> Central Agentes</button>
@@ -1191,9 +1207,7 @@ function shellHTML(user) {
         <div class="sb-sec">⚙️ Sistema</div>
         <button class="sb-link" data-nav="/central-ops"><span class="sb-ico">🛰️</span> Central de Operações</button>
         <button class="sb-link" data-nav="/usuarios"><span class="sb-ico">👥</span> Usuários</button>
-        <button class="sb-link" data-nav="/auditoria"><span class="sb-ico">📜</span> Auditoria</button>
         <button class="sb-link" data-nav="/governanca"><span class="sb-ico">🩺</span> Saúde do Sistema</button>
-        <button class="sb-link" data-nav="/checkin"><span class="sb-ico">🕵️</span> Check-in / Check-out</button>
         <button class="sb-link" data-nav="/integracoes"><span class="sb-ico">🔌</span> Integrações</button>
         <button class="sb-link" data-nav="/backup"><span class="sb-ico">💾</span> Backup</button>
         <button class="sb-link" data-nav="/configuracoes"><span class="sb-ico">🔧</span> Configurações</button>

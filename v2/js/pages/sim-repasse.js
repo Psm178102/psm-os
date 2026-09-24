@@ -141,7 +141,7 @@ function pintaSaida() {
     mini('Ágio em R$ (lucro do vendedor)', fmt(c.lucro), corLucro, 'entrada − comissão − valor pago'),
     mini('Ágio em %', c.agioPct != null ? pct(c.agioPct) : '—', corLucro, 'sobre o valor pago'),
     mini('Ágio ÷ tempo', c.rendaMes != null ? pct(c.rendaMes) + ' ao mês' : '—', '', `${num(_s.tempoMeses)} meses p/ vender + prazo da entrada`),
-    mini('R$/m² da venda', c.m2Novo ? 'R$ ' + Math.round(c.m2Novo).toLocaleString('pt-BR') : '—', '', c.m2Contrato ? `no contrato: R$ ${Math.round(c.m2Contrato).toLocaleString('pt-BR')}/m²` : ''),
+    mini('R$/m² da venda', c.m2Novo ? 'R$ ' + (Number(c.m2Novo) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—', '', c.m2Contrato ? `no contrato: R$ ${(Number(c.m2Contrato) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/m²` : ''),
   ].join(''));
   set('#rp-saldo', [
     mini('Mensais restantes', fmt(c.totalMensais), '', `${num(_s.numMensais)} × ${fmt(_s.valorMensais)}`),

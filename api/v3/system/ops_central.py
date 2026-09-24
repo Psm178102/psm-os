@@ -551,12 +551,6 @@ def coletar_integracoes(sb, col, now, live=True):
             f"Último sync {fmt_idade(age)}.", ult, "#/estoque-kenlo", "🏠")
         itens[-1]["herda"] = "vc:kenlo"   # mesmo problema da rotina "Sync estoque Kenlo" → 1 alerta só
 
-    # NIBO
-    add("nibo", "NIBO (financeiro)", "Contas, pagamentos e comissões pagas.",
-        "ok" if _env("NIBO_API_TOKEN") else "error",
-        "Token configurado." if _env("NIBO_API_TOKEN") else "NIBO_API_TOKEN ausente — Financeiro ao vivo fora.",
-        link="#/financeiro", ico="🏦")
-
     # Zoho
     ult = col.tab_max("zoho_conexoes", "last_sync_at")
     if _env("ZOHO_CLIENT_ID") or ult:

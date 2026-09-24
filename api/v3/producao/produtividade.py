@@ -204,7 +204,8 @@ def _compute(sb, janela):
             if not u:
                 motivo = "sem cadastro no House"
             elif (u.get("status") or "ativo") != "ativo":
-                motivo = "desligado/inativo"
+                por.pop(k, None)   # v88.37: quem saiu da PSM some de vez — nem na nota "fora da lista" (Paulo, 24/09)
+                continue
             elif not papel.startswith("corretor"):
                 motivo = papel or "sem papel definido"
             else:
@@ -353,10 +354,10 @@ class handler(BaseHTTPRequestHandler):
                          "em_atendimento": b["em_atendimento"], "vendas_janela": b["vendas"], "vgv_janela": b["vgv"],
                          "conv_pct": (round(b["vendas"] / b["leads"] * 100, 1) if b["leads"] else None),
                          # v87.98 §5: visita OFICIAL — Conquista = atendimento da esteira do HUB (mensal);
-                         # demais = tarefa de visita concluída no RD (coluna se as tarefas não sincronizaram).
+                         # demais = maior entre tarefa "Visita" concluída e coluna "visita realizada" (v88.37).
                          # O registro manual (producao_eventos) segue em visitas_7d: é esforço e base do no-show.
                          "visitas_janela": mx_visitas(b),
-                         "visitas_fonte": ("hub" if mx_fonte(b) == "hub" else ("rd_tarefas" if b.get("visitas") is not None else "rd_coluna"))}
+                         "visitas_fonte": ("hub" if mx_fonte(b) == "hub" else "rd")}
                 novos.append(c)
             data["corretores"] = novos
             data["dados_de"] = mx.get("dados_de")

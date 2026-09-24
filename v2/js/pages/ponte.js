@@ -33,7 +33,7 @@ function render() {
   _root.innerHTML = `
     <div class="card">
       <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
-        <h2 class="card-title" style="margin:0">🌉 Fila da Ponte</h2>
+        <h2 class="card-title" style="margin:0">🌉 Carteira MAP - Paulo</h2>
         <span class="tiny muted">carteira própria (MAP + Terceiros) por VALOR · o gate do mês vira rotina de manhã</span>
         <span style="margin-left:auto"></span>
         <button class="btn btn-ghost btn-sm" id="pt-view">${_view === 'fila' ? '👁 Ver base inteira' : '🎯 Ver lote do dia'}</button>

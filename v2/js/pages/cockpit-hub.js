@@ -1,57 +1,38 @@
-/* PSM-OS v2 — 🧭 Cockpit de Decisão HUB (v77.30, evolução do menu Diretoria).
-   Consolida em UMA tela com abas o que eram 4 itens de menu medindo a mesma coisa:
-   🧭 Decisão (fronts do cockpit) · 📈 KPIs Executivos · 💡 Insights · 🚨 Pontos de Atenção.
-   Cada aba DELEGA à página original (zero duplicação) num sub-root próprio, lazy
-   (só renderiza ao clicar). Deep-link: #/cockpit?tab=kpis|insights|atencao. */
+/* PSM-OS v2 — 🧭 Sala de Comando (v88.37: UMA tela, sem abas).
+   Pedido do Paulo (24/set): "unifique todas essas abas". Antes eram 4 abas medindo
+   a mesma coisa; agora Sala de Comando + KPIs Executivos + Insights vêm empilhados
+   numa rolagem só, e 🚨 Pontos de Atenção virou item próprio do menu Diretoria
+   (#/pontos-atencao). Cada bloco DELEGA à página original (zero duplicação) num
+   sub-root próprio. Links antigos #/cockpit?tab=… caem aqui mesmo; ?tab=atencao
+   vai pro item novo. */
 import { auth } from '../auth.js';
 import { pageSalaComando } from './sala-comando.js';
 import { pageKpis } from './kpis.js';
 import { pageInsights } from './insights.js';
-import { pagePontosAtencao } from './pontos-atencao.js';
 
-const TABS = [
-  { id: 'comando',  lbl: '🧭 Sala de Comando',    page: pageSalaComando },
-  { id: 'kpis',     lbl: '📈 KPIs Executivos',    page: pageKpis },
-  { id: 'insights', lbl: '💡 Insights',           page: pageInsights },
-  { id: 'atencao',  lbl: '🚨 Pontos de Atenção',  page: pagePontosAtencao },
+const BLOCOS = [
+  { id: 'comando',  page: pageSalaComando },
+  { id: 'kpis',     page: pageKpis },
+  { id: 'insights', page: pageInsights },
 ];
 
 export async function pageCockpitHub(ctx, root) {
   if ((auth.user()?.lvl || 0) < 10) { root.innerHTML = '<div class="alert alert-warn">🔒 Sala de Comando é restrita a Sócios (lvl 10).</div>'; return; }
-  const inicial = TABS.some(t => t.id === ctx?.query?.tab) ? ctx.query.tab : 'comando';
+  if (ctx?.query?.tab === 'atencao') { location.hash = '#/pontos-atencao'; return; }
 
-  root.innerHTML = `
-    <div class="cockpit-hub">
-      <div id="ch-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;position:sticky;top:0;z-index:5;background:var(--bg-1,transparent);padding:4px 0">
-        ${TABS.map(t => `<button class="btn ${t.id === inicial ? 'btn-primary' : 'btn-ghost'}" data-chtab="${t.id}" style="font-size:12.5px;padding:7px 14px">${t.lbl}</button>`).join('')}
-      </div>
-      <div id="ch-body"></div>
-    </div>`;
-
-  const body = root.querySelector('#ch-body');
-  const rendered = {};   // sub-root por aba — renderiza 1x, depois só alterna (mantém estado/IA gerada)
-
-  async function showTab(id) {
-    const tab = TABS.find(t => t.id === id) || TABS[0];
-    root.querySelectorAll('[data-chtab]').forEach(b => {
-      const on = b.dataset.chtab === tab.id;
-      b.classList.toggle('btn-primary', on);
-      b.classList.toggle('btn-ghost', !on);
-    });
-    Object.values(rendered).forEach(el => { el.style.display = 'none'; });
-    if (!rendered[tab.id]) {
-      const sub = document.createElement('div');
-      rendered[tab.id] = sub;
-      body.appendChild(sub);
-      try {
-        await tab.page(ctx, sub);
-      } catch (e) {
-        sub.innerHTML = `<div class="alert alert-err">Erro na aba: ${String(e.message || e)}</div>`;
-      }
-    }
-    rendered[tab.id].style.display = '';
-  }
-
-  root.querySelectorAll('[data-chtab]').forEach(b => b.addEventListener('click', () => showTab(b.dataset.chtab)));
-  await showTab(inicial);
+  root.innerHTML = `<div class="cockpit-hub" style="display:flex;flex-direction:column;gap:16px"></div>`;
+  const host = root.querySelector('.cockpit-hub');
+  const subs = BLOCOS.map(b => {
+    const sub = document.createElement('section');
+    sub.dataset.bloco = b.id;
+    host.appendChild(sub);
+    return sub;
+  });
+  // os três carregam em paralelo; um bloco com erro não derruba os outros
+  await Promise.all(BLOCOS.map(async (b, i) => {
+    try { await b.page(ctx, subs[i]); }
+    catch (e) { subs[i].innerHTML = `<div class="alert alert-err">Erro no bloco: ${String(e.message || e)}</div>`; }
+  }));
+  const alvo = ctx?.query?.tab && host.querySelector(`[data-bloco="${ctx.query.tab}"]`);
+  if (alvo) alvo.scrollIntoView({ block: 'start' });
 }

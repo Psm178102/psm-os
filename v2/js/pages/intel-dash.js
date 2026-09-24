@@ -9,7 +9,7 @@ import { auth } from '../auth.js';
 
 let _root = null;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const f$ = n => 'R$ ' + Math.round(+n || 0).toLocaleString('pt-BR');
+const f$ = n => 'R$ ' + (Number(+n || 0) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fNum = n => (+n || 0).toLocaleString('pt-BR');
 function parseFollowers(v) {
   if (v == null) return 0; if (typeof v === 'number') return v;

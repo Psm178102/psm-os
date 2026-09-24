@@ -247,8 +247,7 @@ async function renderAnalises(corpo) {
     }
   }
   const a = _an;
-  const brlK = n => n >= 1e6 ? 'R$ ' + (n / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mi'
-    : 'R$ ' + Math.round(n / 1000).toLocaleString('pt-BR') + ' mil';
+  const brlK = n => 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });   // v88.37: sem mil/mi
   const kpi = (lbl, val, sub = '') => `<div style="flex:1;min-width:150px;background:var(--bg-3);border-radius:10px;padding:10px 12px">
     <div class="tiny muted">${lbl}</div><div style="font-size:18px;font-weight:900">${val}</div>${sub ? `<div class="tiny muted">${sub}</div>` : ''}</div>`;
   const maxTipo = Math.max(1, ...(a.por_tipo || []).map(x => x[1]));

@@ -33,6 +33,11 @@ if _V3 not in sys.path:
     sys.path.append(_V3)
 
 
+def _brl(v):
+    """v88.37: R$ no padrão brasileiro, cheio com centavos."""
+    return "R$ " + f"{float(v or 0):,.2f}".replace(",", "@").replace(".", ",").replace("@", ".")
+
+
 def _kv(sb, key):
     try:
         rows = sb.table("shared_kv").select("value").eq("key", key).limit(1).execute().data or []
@@ -74,8 +79,8 @@ def run_checks(sb):
         if meta > 0 and now.month >= 4:
             pct = real / meta * 100
             add("meta_descolada", pct >= 25,
-                f"Atingimento anual {pct:.0f}% (meta R$ {meta:,.0f} × real R$ {real:,.0f})" if pct >= 25
-                else f"Meta anual DESCOLADA: {pct:.0f}% atingido em {now.month}/{ano} — recalibrar (meta R$ {meta:,.0f} × real R$ {real:,.0f})", "warn")
+                f"Atingimento anual {pct:.0f}% (meta {_brl(meta)} × real {_brl(real)})" if pct >= 25
+                else f"Meta anual DESCOLADA: {pct:.0f}% atingido em {now.month}/{ano} — recalibrar (meta {_brl(meta)} × real {_brl(real)})", "warn")
         else:
             add("meta_descolada", True, "Meta anual: sem avaliação (sem meta ou início de ano)")
     except Exception as e:
@@ -94,7 +99,7 @@ def run_checks(sb):
         estranhos = {k: v for k, v in orfaos.items() if "PARCERIA" not in k.upper() and v > 0}   # R$0 = ruído, não alerta
         add("frentes_orfas", not estranhos,
             "Todos os funis do RD mapeados nas frentes" if not estranhos
-            else "Funis SEM frente mapeada (VGV caindo em 'outros'): " + "; ".join(f"{k} (R$ {v:,.0f})" for k, v in list(estranhos.items())[:5]), "warn")
+            else "Funis SEM frente mapeada (VGV caindo em 'outros'): " + "; ".join(f"{k} ({_brl(v)})" for k, v in list(estranhos.items())[:5]), "warn")
     except Exception as e:
         add("frentes_orfas", True, f"check indisponível: {e}")
 

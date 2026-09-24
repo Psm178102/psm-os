@@ -292,7 +292,7 @@ async function loadPropostaMeta() {
       <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
         <div style="flex:1;min-width:220px">
           <div style="font-weight:900;font-size:15px">🎯 Proposta de meta · trimestre ${escapeHtml(q)}</div>
-          <div style="font-size:13px;margin-top:4px"><b>${p.vendas_mes} venda(s)/mês</b> · <b>${p.vendas_tri} no trimestre</b> · VGV ≈ R$ ${(Number(p.vgv_mes_prev) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}/mês</div>
+          <div style="font-size:13px;margin-top:4px"><b>${p.vendas_mes} venda(s)/mês</b> · <b>${p.vendas_tri} no trimestre</b> · VGV ≈ R$ ${(Number(p.vgv_mes_prev) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mês</div>
           <div class="tiny" style="opacity:.9;margin-top:4px">🎲 Estatística honesta: com essa meta, <b>${(p.poisson_tri || {}).lo}–${(p.poisson_tri || {}).hi}</b> vendas no tri é normal — e o mês pode zerar ${Math.round(((p.poisson_mes || {}).p_zero || 0) * 100)}% das vezes MESMO executando certo. O que o mês cobra é a atividade:</div>
           <div style="margin-top:6px">${atv}</div>
         </div>

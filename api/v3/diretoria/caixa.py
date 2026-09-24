@@ -8,8 +8,7 @@ FONTES (cada número diz de onde veio — nada inventado):
     + comissões calculadas pela premissa + custos lançados + Meta Ads automático).
   • A RECEBER  → Radar de Recebíveis (diretoria/recebiveis: valor, data prevista,
     status previsto/travado/confirmado/recebido, marco da esteira, bloqueio).
-  • A PAGAR    → NIBO (schedules/debit das 2 empresas, quando envs configurados;
-    sem NIBO cai pro custo fixo ORÇADO rateado por semana, avisando) + comissão
+  • A PAGAR    → PSM HUB (contas a pagar) + custo fixo ORÇADO rateado por semana + comissão
     de corretor embutida em cada recebível (sai junto do recebimento).
   • BREAK-EVEN → custo do mês (orçado + tráfego Meta real) ÷ margem marginal
     ponderada das premissas por frente → VGV mínimo e vendas mínimas por frente.
@@ -343,7 +342,7 @@ class handler(BaseHTTPRequestHandler):
         # ── 5) BREAK-EVEN (meta mínima do mês) ──
         fa = fontes_auto.get(str(mes)) or {}
         # custo fixo SEM tráfego + tráfego real (meta_mkt) — evita dobrar o tráfego
-        custo_mes = custo_fixo_mes(itens_orc_sem_traf, mes) + _num(fa.get("meta_mkt")) + _num(fa.get("nibo_fixo"))
+        custo_mes = custo_fixo_mes(itens_orc_sem_traf, mes) + _num(fa.get("meta_mkt"))
         margens, pesos, tickets = {}, {}, {}
         real_ano = realizado_ano(sb, ano)
         peso_total = 0.0

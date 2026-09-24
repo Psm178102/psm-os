@@ -545,7 +545,7 @@ function initMap(items) {
       iconAnchor: [7, 7],
     });
     const m = L.marker([lat, lng], { icon }).addTo(_map);
-    const valor = i.valor ? `R$ ${(+i.valor).toLocaleString('pt-BR')}` : '—';
+    const valor = i.valor ? `R$ ${(+i.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
     m.bindPopup(`
       <div style="font-family:system-ui;font-size:13px">
         <div style="font-weight:800;margin-bottom:4px">${esc(i.codigo || 'Sem código')}</div>
@@ -572,7 +572,7 @@ function imovelMini(i) {
     <div style="background:var(--bg-2);border-left:3px solid ${cor};border-radius:6px;padding:8px;margin-bottom:6px;font-size:12px">
       <div style="font-weight:700">${esc(i.codigo || '—')}</div>
       <div class="tiny muted">${esc(i.bairro || '')} · ${esc(i.tipo || '')}</div>
-      <div style="color:var(--psm-gold);font-weight:700;font-size:11px">R$ ${(+i.valor || 0).toLocaleString('pt-BR')}</div>
+      <div style="color:var(--psm-gold);font-weight:700;font-size:11px">R$ ${(+i.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
     </div>
   `;
 }

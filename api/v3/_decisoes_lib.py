@@ -62,12 +62,9 @@ TEAM_NOME = {"conquista": "Conquista", "map": "MAP", "terceiros": "Terceiros", "
 
 
 def _brl(v):
-    v = float(v or 0)
-    if abs(v) >= 1e6:
-        return "R$ " + f"{v / 1e6:.2f}".replace(".", ",") + " mi"
-    if abs(v) >= 1e3:
-        return "R$ " + f"{v / 1e3:.0f}" + " mil"
-    return "R$ " + f"{v:.0f}"
+    """v88.37 (Paulo, 24/set): R$ sempre cheio com centavos — nunca "mil"/"mi"."""
+    n = float(v or 0)
+    return ("-" if n < 0 else "") + "R$ " + f"{abs(n):,.2f}".replace(",", "@").replace(".", ",").replace("@", ".")
 
 
 def _n(v):

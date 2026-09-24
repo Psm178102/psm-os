@@ -247,9 +247,9 @@ def _dias_sem_venda(sb, agora):
 
 def _fmt_reais(v):
     try:
-        return f"R$ {float(v):,.0f}".replace(",", ".")
+        return "R$ " + f"{float(v):,.2f}".replace(",", "@").replace(".", ",").replace("@", ".")   # v88.37: com centavos
     except Exception:
-        return "R$ 0"
+        return "R$ 0,00"
 
 
 def _apoio_producao(sb, agora):

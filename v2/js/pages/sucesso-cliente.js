@@ -10,7 +10,7 @@
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 
-const BRL = v => (isFinite(v) ? v : 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+const BRL = v => (isFinite(v) ? v : 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 });   // v88.37: sempre com centavos
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const fmtData = d => d ? String(d).substring(0, 10).split('-').reverse().join('/') : '—';
 

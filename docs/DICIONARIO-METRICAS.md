@@ -82,7 +82,7 @@ Contagem por **coluna do funil do RD**: negócios que **entraram** na coluna den
 | Propostas | `proposta` |
 | Contratos | `contrato` |
 
-**Visitas** (o número oficial) = tarefas do RD com `type = visit` e `done = true`, `done_date` no período, atribuídas ao usuário (`users[].email` ↔ `users.email`). Exige sincronizar tarefas do RD (`GET /api/v1/tasks`) para a tabela `rd_tasks`. A coluna "visita realizada" fica como número secundário para conferência.
+**Visitas** (o número oficial, fora da Conquista) = o **maior** entre (a) tarefas do RD com `type = visit` e `done = true`, `done_date` no período, e (b) entradas na coluna "visita realizada" no período (v88.37). A tarefa é creditada ao **dono do negócio** (`deal_id` → dono pelo §3); sem negócio conhecido, ao responsável da tarefa (`users[].email` ↔ `users.email`). Motivo (Paulo, 24/09/2026): o MAP move o card para "visita realizada" sem fechar a tarefa "Visita", e a tarefa costuma ficar no nome de quem co-conduz (Paulo/Isa) — a Rafaela aparecia com 0 visita no mês e 7 no ano, contra 17 pela coluna. As tarefas vêm do sync `GET /api/v1/tasks` → `rd_tasks`.
 
 ### Funil em 7 degraus nas telas (revisão de 17/09/2026, v87.97)
 Toda tela que desenha funil, conversão por etapa, saúde ou meta × realizado por etapa usa `funil_de()` do motor, com as chaves de sempre (a matriz de conversão, o mapa de habilidades e as metas do Norte dependem delas):
@@ -92,7 +92,7 @@ Toda tela que desenha funil, conversão por etapa, saúde ou meta × realizado p
 | lead | Prospecção | Atendimento (`novo_atend`) |
 | contato | Qualificação | Contato / qualificação |
 | agendamento | Agendamento | Agendamento |
-| visita | Atendimento (visita) | Visita realizada (tarefa do RD; coluna se não houver) |
+| visita | Atendimento (visita) | Visita realizada (maior entre tarefa do RD e coluna — v88.37) |
 | proposta | Pasta / proposta | Proposta |
 | pasta | Pasta (espelho: no MCMV é a mesma etapa; a tela não repete) | Contrato |
 | venda | Venda (RD) | Venda (RD) |

@@ -56,7 +56,7 @@ function avisoFaixas() {
     O sócio atualiza em <b>Configurações → configs avançadas</b> (chave <code>sim_conquista_faixas</code>).</div>`;
 }
 
-const BRL = v => (isFinite(v) ? v : 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+const BRL = v => (isFinite(v) ? v : 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 });   // v88.37: sempre com centavos
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 // v87.73: tirar TODO ponto transformava "8.16" de juros em 816% — agora ponto só é milhar em "3.000"
 const num = id => parseNum(document.getElementById(id)?.value || '0');

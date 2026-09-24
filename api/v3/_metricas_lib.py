@@ -23,7 +23,7 @@ from datetime import datetime, timezone, timedelta, date
 BRT = timezone(timedelta(hours=-3))
 # ⚠️ Bumpar o sufixo (v2, v3…) SEMPRE que o formato do retrato mudar: o cache é versionado pelo
 # sync do RD, não pelo código — em 16/09 a v87.87 leu retratos da v87.86 sem pipeline/previsto/norte.
-CACHE_KEY = "metricas_resumo:v6"   # v88.34: origem = "Origem do cliente" (campo personalizado do RD) antes do deal_source
+CACHE_KEY = "metricas_resumo:v7"   # v88.37: visita do MAP = maior entre tarefa e coluna, creditada ao dono do negócio · v88.34: origem = "Origem do cliente" (campo personalizado do RD) antes do deal_source
 CACHE_TTL = 600          # segurança: mesmo sem sync novo, recalcula a cada 10 min
 HUB_TTL = 300            # esteira do PSM HUB (externa) — 5 min
 KV_ORIGENS = "dic_origens"   # override editável da tabela de origens (Configurações → Dicionário)
@@ -682,7 +682,11 @@ def calcular(sb, base, since_d, until_d, hoje=None):
         for b in list(P.values()) + [sem_corretor]:
             b["visitas"] = 0
         for t in base["tarefas"]:
-            uid = email2uid.get((t.get("user_email") or "").lower())
+            # v88.37: a visita é do DONO do negócio (quem atende o cliente); a tarefa no RD muitas
+            # vezes fica no nome de quem a criou (Paulo/Isa co-conduzindo o MAP). Sem negócio
+            # conhecido, vale o responsável da tarefa, como antes.
+            did = str(t.get("deal_id") or "")
+            uid = deal_owner.get(did) if did in deal_owner else email2uid.get((t.get("user_email") or "").lower())
             bucket(uid)["visitas"] += 1
     else:
         avisos.append({"tipo": "visitas", "txt": "ℹ️ Visitas auditadas (tarefas do RD) ainda não sincronizadas: usando a coluna 'visita realizada'.", "n": 1})
@@ -717,7 +721,10 @@ def calcular(sb, base, since_d, until_d, hoje=None):
             avisos.append({"tipo": "hub", "txt": "ℹ️ A esteira do HUB é mensal: os marcos da Conquista referem-se ao(s) mês(es) inteiro(s) da janela.", "n": 1})
     # §1 conferência RD × HUB (RD manda)
     nomes = {u["id"]: u.get("name") for u in pessoas}
+    ativos_ids = {u["id"] for u in pessoas if (u.get("status") or "ativo") == "ativo"}
     for uid, vh in hub_status["vendas_hub"].items():
+        if uid not in ativos_ids:
+            continue   # v88.37: quem saiu da PSM não gera cobrança (Bruno, 24/09) — o HUB segue casando pra não virar "sem par"
         rd_n = P[uid]["vendas"]
         if vh["n"] != rd_n:
             avisos.append({"tipo": "rd_hub", "uid": uid,
@@ -854,7 +861,7 @@ def calcular(sb, base, since_d, until_d, hoje=None):
     empresa["ticket_por_equipe"] = {k: v for k, v in ticket_ref.items() if k != "_empresa"}
     sv = empresa["pipeline"].get("sem_valor", 0)
     if sv:
-        tks = ", ".join(f"{CAT_TEAM.get(k, k)} R$ {v:,.0f}".replace(",", ".") for k, v in ticket_ref.items() if k != "_empresa" and v)
+        tks = ", ".join(f"{CAT_TEAM.get(k, k)} R$ " + f"{v:,.2f}".replace(",", "@").replace(".", ",").replace("@", ".") for k, v in ticket_ref.items() if k != "_empresa" and v)
         avisos.append({"tipo": "sem_valor_pipeline",
                        "txt": f"ℹ️ {sv} negócio(s) aberto(s) sem valor no RD — VGV do pipeline presumido pelo ticket médio da equipe ({tks}). Preencha o valor no RD para trocar o presumido pelo real.",
                        "n": sv})
@@ -891,13 +898,16 @@ def _hub_ou(b, k_hub, k_rd):
 
 
 def visitas_de(b):
-    """Conquista: 'atendimento' da esteira do HUB. Demais: tarefa de visita concluída (se
-    sincronizada); senão a coluna 'visita realizada'."""
+    """Conquista: 'atendimento' da esteira do HUB. Demais: o MAIOR entre as tarefas de visita
+    concluídas e as entradas na coluna 'visita realizada' (v88.37). Antes valia só a tarefa: quem
+    move o card pra "visita realizada" sem fechar a tarefa "Visita" (o MAP) aparecia com 0 visita
+    — Rafaela, 24/09: 17 pela coluna × 7 por tarefa no ano, e 0 no mês."""
     if not b:
         return 0
     if b.get("team") == "conquista" and isinstance(b.get("hub"), dict):
         return int(b["hub"].get("atendimento") or 0)
-    return int(b["visitas"]) if b.get("visitas") is not None else int(b.get("visitas_coluna") or 0)
+    tarefas = int(b["visitas"]) if b.get("visitas") is not None else 0
+    return max(tarefas, int(b.get("visitas_coluna") or 0))
 
 
 def agendamentos_de(b):

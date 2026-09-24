@@ -370,6 +370,8 @@ def _aplicar_dicionario_funil(p, mx, mx_custo, janela_dias, hoje):
     for uid, b in ps.items():
         if b.get("team") not in times:
             continue
+        if b.get("ativo") is False:
+            continue   # v88.37: quem saiu da PSM não aparece na esteira individual (Diogo, 24/09) — soma segue na equipe/empresa
         c = linha(b, b.get("name"), b["team"], uid, sem_hist.get(uid, 0))
         if c["prospec"] or c["visita"] or c["pasta"] or c["venda"]:
             corr.append(c)
@@ -922,6 +924,8 @@ class handler(BaseHTTPRequestHandler):
         for (uid, tk_c), c in por_corr.items():
             if c["team"] == "outros" and not c["venda"]:
                 continue
+            if ((users.get(uid) or {}).get("status") or "ativo") != "ativo":
+                continue   # v88.37: quem saiu da PSM não aparece em "Quantos X pra 1 venda" — soma segue na equipe
             cls, top = canais_do((uid, tk_c), c["venda"])
             corretores.append({"uid": uid, **c, "vgv": round(c["vgv"], 2), **razoes(c),
                                "contato_h_mediana": _mediana([_h_contato(e) for e in na_janela if e["uid"] == uid and e["team"] == tk_c]),

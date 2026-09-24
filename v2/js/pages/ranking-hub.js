@@ -715,12 +715,7 @@ function paraMeta(row, meta, tx, fator) {
     return { lbl, faltam: Math.max(0, precisa - feito), noRitmo: feito * fator >= precisa };
   }) };
 }
-function fmtMi(n) {
-  n = n || 0;
-  if (n >= 1e6) return `R$ ${(n / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} mi`;
-  if (n >= 1e3) return `R$ ${Math.round(n / 1e3).toLocaleString('pt-BR')} mil`;
-  return fmtBRL(n);
-}
+function fmtMi(n) { return fmtBRL(n || 0); }   // v88.37: valor cheio (era R$ 1,2 mi / 340 mil)
 function telaPlacar() {
   if (!_est) return semEsteira();
   const rows = estRows();                            // já respeita o filtro de equipe e os ocultos
@@ -1130,5 +1125,5 @@ function abrirConfig() {
 /* ── utils ── */
 function nowStr() { return new Date().toLocaleTimeString('pt-BR'); }
 function fmtPts(n) { return (n || 0).toLocaleString('pt-BR'); }
-function fmtBRL(n) { return (n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }); }
+function fmtBRL(n) { return (n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }); }   // v88.37: com centavos
 function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

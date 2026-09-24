@@ -334,7 +334,7 @@ async function buildDashCharts() {
   const ex = ((_data.dash || {}).kpis || {}).exec;
   if (!ex) return;
   const mk = (id, cfg) => { const el = document.getElementById(id); if (el) _charts.push(new Chart(el, cfg)); };
-  const yTick = v => 'R$ ' + (v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(0) + 'k' : v);
+  const yTick = v => 'R$ ' + (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });   // v88.37: sem k/M
 
   // 1) VGV mês a mês do ano corrente: barras = realizado; linha = meta (global) OU ano anterior (frente)
   const s = ex.serie || {};
@@ -653,12 +653,9 @@ function money(n) {
 function moneyShort(n) {
   return money(n);
 }
-// compacto p/ o painel executivo: 1,25 Mi · 340 mil · 850 (v81.99)
+// v88.37: era compacto (1,25 Mi · 340 mil) — agora valor cheio com centavos (pedido do Paulo, 24/set)
 function moneyC(n) {
-  n = Number(n) || 0; const a = Math.abs(n);
-  if (a >= 1e6) return (n / 1e6).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Mi';
-  if (a >= 1e3) return (n / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' mil';
-  return n.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+  return (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function pct2(v) { return v == null ? '—' : (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'; }
 function fmtNum(n) {

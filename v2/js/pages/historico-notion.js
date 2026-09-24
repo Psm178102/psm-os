@@ -511,11 +511,8 @@ function bindControls(body) {
 /* ─── formatação ─────────────────────────────────────────────────────── */
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function num(n) { return Number(n || 0).toLocaleString('pt-BR'); }
-function brl(v, cheio) {
-  v = Number(v || 0);
-  if (cheio || Math.abs(v) < 1e3) return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
-  if (Math.abs(v) >= 1e6) return `R$ ${(v / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} mi`;
-  return `R$ ${Math.round(v / 1e3).toLocaleString('pt-BR')} mil`;
+function brl(v) {   // v88.37: sempre cheio com centavos (nunca mil/mi)
+  return 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function pct(x) { return `${Math.round((x || 0) * 100)}%`; }
 function delta(a, b) {

@@ -434,11 +434,9 @@ def meta_spend_ano(sb, ano):
 
 def fontes_auto_ano(sb, ano):
     """Custos que vêm AUTOMÁTICO de integrações, por mês.
-    • meta_mkt = Meta Ads (real, ativo).  • nibo_fixo = GANCHO do NIBO: hoje 0
-      (API não devolve nada); quando o upgrade da API pública estiver ativo, é só
-      preencher aqui que o custo fixo entra automático em todo o realizado/snapshot."""
+    • meta_mkt = Meta Ads (real, ativo). (v88.37: gancho NIBO removido — NIBO cancelado.)"""
     meta = meta_spend_ano(sb, ano)
-    return {str(m): {"meta_mkt": round(meta.get(m, 0.0), 2), "nibo_fixo": 0.0} for m in range(1, 13)}
+    return {str(m): {"meta_mkt": round(meta.get(m, 0.0), 2)} for m in range(1, 13)}
 
 
 def compute_snapshot(sb, ano, mes, fontes=None):
@@ -455,8 +453,8 @@ def compute_snapshot(sb, ano, mes, fontes=None):
         for l in custos: custos[l] += est.get(l, 0.0)
     if fontes is None:
         fontes = fontes_auto_ano(sb, ano)
-    fa = fontes.get(str(mes)) or {"meta_mkt": 0.0, "nibo_fixo": 0.0}
-    auto_total = float(fa.get("meta_mkt") or 0) + float(fa.get("nibo_fixo") or 0)
+    fa = fontes.get(str(mes)) or {"meta_mkt": 0.0}
+    auto_total = float(fa.get("meta_mkt") or 0)
     # v86.70: rateia o custo automático (Meta) pela alocação de tráfego por marca
     # (viab_custos_orcado → aloc). Sem alocação no mês → divide igual (fallback).
     auto_por = {i: auto_total / len(LINHA_IDS) for i in LINHA_IDS}

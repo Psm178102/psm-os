@@ -159,7 +159,7 @@ function htmlGerar(m) {
       ${_negocio ? `
         <div class="flex gap-2 mt-2" style="align-items:center;flex-wrap:wrap;background:var(--bg-3);padding:10px 12px;border-radius:8px">
           <div style="flex:1;min-width:200px"><b>${esc(_negocio.nome)}</b>
-            <div class="tiny muted">${esc(_negocio.funil)} · ${esc(_negocio.etapa)}${_negocio.corretor_nome ? ' · ' + esc(_negocio.corretor_nome) : ''}${_negocio.valor ? ' · R$ ' + Math.round(_negocio.valor).toLocaleString('pt-BR') : ''}</div></div>
+            <div class="tiny muted">${esc(_negocio.funil)} · ${esc(_negocio.etapa)}${_negocio.corretor_nome ? ' · ' + esc(_negocio.corretor_nome) : ''}${_negocio.valor ? ' · R$ ' + (Number(_negocio.valor) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}</div></div>
           <button class="btn btn-ghost btn-sm" id="doc-neg-trocar">Trocar</button>
         </div>` : `
         <div class="flex gap-2 mt-2">
@@ -197,7 +197,7 @@ function htmlListaNegocios() {
   if (!_busca.lista.length) return '<div class="tiny muted">Nenhum negócio encontrado com esse nome.</div>';
   return `<div style="display:grid;gap:6px;max-height:280px;overflow:auto">${_busca.lista.map((n, i) => `
     <button class="btn btn-ghost" data-neg="${i}" style="text-align:left;justify-content:flex-start;display:block;width:100%">
-      <b>${esc(n.nome)}</b> <span class="tiny muted">· ${esc(n.funil)} · ${esc(n.etapa)}${n.ganho ? ' · 🏆 ganho' : ''}${n.corretor_nome ? ' · ' + esc(n.corretor_nome) : ''}${n.valor ? ' · R$ ' + Math.round(n.valor).toLocaleString('pt-BR') : ''}</span>
+      <b>${esc(n.nome)}</b> <span class="tiny muted">· ${esc(n.funil)} · ${esc(n.etapa)}${n.ganho ? ' · 🏆 ganho' : ''}${n.corretor_nome ? ' · ' + esc(n.corretor_nome) : ''}${n.valor ? ' · R$ ' + (Number(n.valor) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}</span>
     </button>`).join('')}</div>`;
 }
 

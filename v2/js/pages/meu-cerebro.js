@@ -12,7 +12,7 @@
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 
-const BRL = v => (isFinite(v) ? v : 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+const BRL = v => (isFinite(v) ? v : 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 });   // v88.37: sempre com centavos
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const TEMP = { quente: { c: '#ef4444', e: '🔥', l: 'Quente' }, morno: { c: '#f59e0b', e: '🟡', l: 'Morno' }, frio: { c: '#0ea5e9', e: '🧊', l: 'Frio' } };
 const loadingCard = msg => `<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> ${esc(msg)} <span class="tiny" style="opacity:.65">— analisando o funil, pode levar alguns segundos</span></div></div>`;

@@ -13,7 +13,7 @@ let _root = null, _conc = [], _segFilter = 'all', _pendingPrint = null;
 const SEGMENTOS = ['all', 'MAP', 'MCMV', 'Terceiros', 'Locacao'];
 const PREMISSA_KEY = 'psm.intelads.premissa_mes';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const f$ = n => 'R$ ' + Math.round(+n || 0).toLocaleString('pt-BR');
+const f$ = n => 'R$ ' + (Number(+n || 0) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fNum = n => (+n || 0).toLocaleString('pt-BR');
 // v87.15: premissa POR SEGMENTO, calibrada nas NOSSAS contas (pedido do Paulo):
 //   MCMV  ← conta PSM Conquista (ago/26: R$ 6.269 ÷ 9 campanhas ≈ R$ 700/criativo/mês)

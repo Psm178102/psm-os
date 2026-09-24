@@ -15,10 +15,6 @@ SETTINGS_SCHEMA = [
     ("rd_mkt_client_id",       "RD MKT · Client ID",          "rd",       True,  "UUID do app RD"),
     ("rd_mkt_client_secret",   "RD MKT · Client Secret",      "rd",       True,  "secret do app RD"),
 
-    # NIBO (informativo — tokens reais ficam em env vars do Vercel)
-    ("nibo_company_imoveis",   "NIBO · CNPJ Imóveis (display)","nibo",    False, "50.741.349/0001-52"),
-    ("nibo_company_locacao",   "NIBO · CNPJ Locação (display)","nibo",    False, "45.078.081/0001-80"),
-
     # IAs
     ("openai_api_key",         "OpenAI · API Key",            "ai",       True,  "sk-..."),
     ("anthropic_api_key",      "Anthropic Claude · API Key",  "ai",       True,  "sk-ant-..."),
@@ -39,7 +35,6 @@ SETTINGS_SCHEMA = [
 
 CATEGORIES = {
     "rd":      {"label": "RD Station",     "ico": "🔗"},
-    "nibo":    {"label": "NIBO",           "ico": "💰"},
     "ai":      {"label": "IA & APIs",      "ico": "🤖"},
     "storage": {"label": "Storage & Docs", "ico": "📦"},
     "comm":    {"label": "Comunicação",    "ico": "📲"},

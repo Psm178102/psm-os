@@ -6,7 +6,7 @@
        + grid[]{user, totals{atingido_vgv, meta_vgv, pct, status}} (atingimento ANUAL por corretor)
      • /api/v3/metrics/overview  → sales{pipeline_vgv, pipeline_count, perdidos_mes,
        vgv_perdido_mes, vgv_30d, vendas_30d, ticket_medio_mes, vgv_ano, vendas_ano} + users
-     • /api/v3/finance/dre       → totals{receita, despesa, saldo} (NIBO; degrada se ok:false)
+     (v88.37: bloco Financeiro removido — NIBO cancelado; financeiro oficial = PSM HUB, menu Financeiro)
 ============================================================================ */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
@@ -28,13 +28,12 @@ export async function pageKpis(ctx, root) {
 
 async function load() {
   try {
-    const [atg, ov, dre, pj] = await Promise.all([
+    const [atg, ov, pj] = await Promise.all([
       api.request('/api/v3/metas/atingimento').catch(() => ({})),
       api.request('/api/v3/metrics/overview').catch(() => ({})),
-      api.request('/api/v3/finance/dre').catch(() => ({ ok: false })),
       api.request('/api/v3/metricas/projecao?h=ano').catch(() => null),   // v87.92: projeção oficial
     ]);
-    _d = { atg, ov, dre, pj };
+    _d = { atg, ov, pj };
     renderContent();
   } catch (e) {
     document.getElementById('kpi-body').innerHTML = `<div class="alert alert-err">${esc(e.message)}</div>`;
@@ -45,7 +44,7 @@ function render() {
   _root.innerHTML = `
     <div class="card">
       <h2 class="card-title">📊 KPIs Executivos</h2>
-      <p class="card-sub">Visão estratégica consolidada (ano corrente) — vendas, meta, pipeline, conversão, equipe e financeiro. Dados reais do RD + metas + NIBO.</p>
+      <p class="card-sub">Visão estratégica consolidada (ano corrente) — vendas, meta, pipeline, conversão e equipe. Dados reais do RD + metas.</p>
       <div id="kpi-lo" class="mt-3"></div>
       <div id="kpi-dec" class="mt-3"></div>
       <div id="kpi-body" class="mt-3"><div class="muted tiny"><span class="spinner"></span> Calculando KPIs…</div></div>
@@ -56,7 +55,7 @@ function render() {
 }
 
 function renderContent() {
-  const { atg, ov, dre, pj } = _d;
+  const { atg, ov, pj } = _d;
   const T = atg.totals || {};
   const sales = ov.sales || {};
   const users = ov.users || {};
@@ -101,12 +100,6 @@ function renderContent() {
   const ativos = PE && pj.empresa ? Object.values(pj.pessoas || {}).filter(p => p.ativo !== false && p.corretor).length : (+users.ativos || 0);
   const coberturaProj = PE && PE.falta_vgv > 0 ? (PE.provavel.vgv - PE.realizado.vgv) / PE.falta_vgv : null;
 
-  // ── Financeiro (NIBO) ──
-  const dreOk = dre && dre.ok !== false && dre.totals;
-  const dT = dre?.totals || {};
-  const receita = +dT.receita || 0, despesa = +dT.despesa || 0, saldo = (receita - despesa);
-  const margem = receita > 0 ? (saldo / receita * 100) : 0;
-  const niboVazio = !dreOk || (receita === 0 && despesa === 0);
 
   document.getElementById('kpi-body').innerHTML = `
     <!-- Vendas & Meta -->
@@ -142,19 +135,8 @@ function renderContent() {
       ${kpi('🔴', pessoasPj ? 'Fora' : 'Crítico', fmtNum(critico), pessoasPj ? 'projeção < 70% — ver decisões acima' : '< 50%', '#ef4444')}
     </div>
 
-    <!-- Financeiro -->
-    ${secTitle('💵 Financeiro (NIBO)')}
-    ${niboVazio ? `
-      <div class="alert alert-warn" style="margin:0">⚠️ Financeiro ao vivo indisponível agora (NIBO ${dreOk ? 'sem dados no período' : 'fora / token'}). Os números acima (vendas/pipeline/equipe) são do RD e seguem reais.</div>
-    ` : `
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:10px">
-        ${kpi('📥', 'Receita', fmtKM(receita), 'NIBO · 12m', '#22c55e')}
-        ${kpi('📤', 'Despesas', fmtKM(despesa), 'NIBO · 12m', '#ef4444')}
-        ${kpi('💎', 'Saldo', fmtKM(saldo), pct2(margem) + ' margem', semStatus(margem, [5, 15, 25]))}
-      </div>
-    `}
 
-    <div class="tiny muted" style="margin-top:14px">Atingimento anual via RD (sincronizado ${fmtWhen(atg.deals_synced_at || atg.fetched_at)}). Pipeline e momentum via /metrics/overview. Financeiro via NIBO (DRE 12m).</div>
+    <div class="tiny muted" style="margin-top:14px">Atingimento anual via RD (sincronizado ${fmtWhen(atg.deals_synced_at || atg.fetched_at)}). Pipeline e momentum via /metrics/overview.</div>
   `;
 }
 

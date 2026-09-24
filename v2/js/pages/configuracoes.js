@@ -144,7 +144,7 @@ function render() {
       <div class="alert alert-warn mt-4">
         <b>⚠ Chaves sensíveis</b> aparecem com bullets (••••) por segurança.
         ${isSocio10 ? 'Toggle "Revelar" exibe valor real. ' : ''}
-        Tokens NIBO/JWT/Supabase ficam nas env vars do Vercel (não aqui).
+        Tokens JWT/Supabase/PSM HUB ficam nas env vars do Vercel (não aqui).
       </div>
     </div>
   `;

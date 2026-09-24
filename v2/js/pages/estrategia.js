@@ -701,7 +701,7 @@ let _pr = null, _prSub = 'real';
 
 const prEsc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const prBrl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const prMi = n => 'R$ ' + (Number(n || 0) / 1e6).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 }) + 'M';
+const prMi = prBrl;   // v88.37: era 'R$ 1,2M' — agora valor cheio com centavos
 const prMd = s => prEsc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
 
 async function renderPlanoResgate(c) {

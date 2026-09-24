@@ -6,12 +6,17 @@
      3. Acompanhamento — Scorecard da Conquista, pendências abertas das reuniões e aderência.
      4. Funções e responsabilidades — mandato de cada um e quem decide o quê (RACI).
    Reuniões = formatos da rotina v2.3 (/api/v3/gp/reunioes_formatos: lembrete, ata, pendência);
-   tarefas/aderência = /api/v3/diretoria/rotina; placar = /api/v3/diretoria/scorecard. */
+   tarefas/aderência = /api/v3/diretoria/rotina; placar = /api/v3/diretoria/scorecard.
+   v88.37: a MESMA tela serve a Rotina · PSM Imóveis (Paulo × equipe MAP) — pageRotinaImoveis
+   passa unidade='imoveis'; papéis, tarefas, reuniões e placar vêm do backend. */
 import { api } from '../api.js';
 
 let _root = null;
 let _r = null, _f = null, _sc = null;
 let _ataAberta = null;
+let _un = 'conquista';
+const qs = () => (_un === 'conquista' ? '' : `?unidade=${_un}`);
+const primeiro = q => String(_r?.papeis?.[q]?.nome || q).split(/[ —]/)[0];
 
 const DIAS = ['seg', 'ter', 'qua', 'qui', 'sex'];
 const CAD = [
@@ -20,15 +25,18 @@ const CAD = [
 ];
 const COR = { verde: '#16a34a', amarelo: '#d97706', vermelho: '#dc2626', cinza: '#94a3b8', info: '#0891b2' };
 
-export async function pageRotinaConquista(ctx, root) {
-  _root = root;
+export async function pageRotinaConquista(ctx, root) { return pageRotina(root, 'conquista'); }
+export async function pageRotinaImoveis(ctx, root) { return pageRotina(root, 'imoveis'); }
+
+async function pageRotina(root, unidade) {
+  _root = root; _un = unidade; _sc = null;
   _root.innerHTML = '<div class="card"><div class="muted tiny"><span class="spinner"></span> Carregando a rotina…</div></div>';
   await load();
 }
 
 async function load() {
   try {
-    const [r, f] = await Promise.all([api.request('/api/v3/diretoria/rotina'), api.request('/api/v3/gp/reunioes_formatos')]);
+    const [r, f] = await Promise.all([api.request('/api/v3/diretoria/rotina' + qs()), api.request('/api/v3/gp/reunioes_formatos')]);
     _r = r; _f = f;
     render();
     // placar é mais pesado — chega depois sem travar a tela
@@ -59,16 +67,17 @@ const dataBRT = iso => new Date(iso).toLocaleDateString('en-CA', { timeZone: 'Am
 /* ─── render ─────────────────────────────────────────────────────────── */
 function render() {
   const r = _r;
+  const [qa, qb] = r.quens || ['isa', 'kaue'];
   const a = r.aderencia;
   const pend = pendencias();
   const venc = pend.filter(p => p.prazo && p.prazo < r.hoje).length;
   _root.innerHTML = `
     <div class="card">
-      <h2 class="card-title">🎯 Rotina de Gestão · PSM Conquista</h2>
-      <p class="card-sub"><b>${esc(r.papeis.isa.nome)}</b> — ${esc(r.papeis.isa.cargo)} × <b>${esc(r.papeis.kaue.nome)}</b> — ${esc(r.papeis.kaue.cargo)}.
+      <h2 class="card-title">${_un === 'imoveis' ? '🏠' : '🎯'} Rotina de Gestão · ${esc(r.titulo || 'PSM Conquista')}</h2>
+      <p class="card-sub"><b>${esc(r.papeis[qa].nome)}</b> — ${esc(r.papeis[qa].cargo)} × <b>${esc(r.papeis[qb].nome)}</b> — ${esc(r.papeis[qb].cargo)}.
         Reuniões com pauta e ata, tarefas com dono e cadência, e o placar que diz se está funcionando.</p>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px" class="mt-2">
-        ${tile('Aderência da semana', pct(a.semana.pct), `Isa ${pct(a.semana.isa)} · Kaue ${pct(a.semana.kaue)}`, corPct(a.semana.pct))}
+        ${tile('Aderência da semana', pct(a.semana.pct), `${esc(primeiro(qa))} ${pct(a.semana[qa])} · ${esc(primeiro(qb))} ${pct(a.semana[qb])}`, corPct(a.semana.pct))}
         ${tile('Aderência do mês', pct(a.mes.pct), `${a.mes.feito}/${a.mes.esperado} tarefas`, corPct(a.mes.pct))}
         ${tile('Pendências abertas', pend.length, venc ? `${venc} vencida(s)` : 'nenhuma vencida', venc ? COR.vermelho : pend.length ? COR.amarelo : COR.verde)}
         ${tile('Reuniões da semana', semanaStats().feitas + '/' + semanaStats().previstas, 'com ata registrada', corPct(semanaStats().previstas ? semanaStats().feitas / semanaStats().previstas * 100 : null))}
@@ -78,10 +87,10 @@ function render() {
     ${semanaHTML()}
     <div id="rc-ata"></div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px" class="mt-3">
-      ${tarefasHTML('isa')}
-      ${tarefasHTML('kaue')}
+      ${tarefasHTML(qa)}
+      ${tarefasHTML(qb)}
     </div>
-    <div class="card mt-3"><div style="font-weight:800">📊 Acompanhamento — Scorecard PSM Conquista</div>
+    <div class="card mt-3"><div style="font-weight:800">📊 Acompanhamento — Farol ${esc(r.titulo || 'PSM Conquista')}</div>
       <div id="rc-placar" class="mt-2"><div class="tiny muted"><span class="spinner"></span> Carregando o placar…</div></div></div>
     ${pendenciasHTML(pend)}
     ${funcoesHTML()}`;
@@ -130,7 +139,7 @@ function semanaHTML() {
   const fs = formatosRotina();
   return `<div class="card mt-3">
     <div style="font-weight:800">📅 Esta semana — reuniões</div>
-    <div class="tiny muted">As 5 reuniões Isa × Kaue + as da diretoria/equipe de que ela participa. Lembrete automático 30 min antes; sem ata, o rito não aconteceu.</div>
+    <div class="tiny muted">${_un === 'imoveis' ? 'A Semanal MAP + as reuniões da diretoria/equipe de que a unidade participa' : 'As 5 reuniões Isa × Kaue + as da diretoria/equipe de que ela participa'}. Lembrete automático 30 min antes; sem ata, o rito não aconteceu.</div>
     <div style="overflow-x:auto;margin-top:8px"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:640px">
       <thead><tr class="tiny muted"><th style="text-align:left;padding:4px 6px">Reunião</th>
         ${dias.map(d => `<th style="padding:4px;text-align:center;${ymd(d) === _r.hoje ? 'color:var(--psm-navy);font-weight:800' : ''}">${DIAS[(d.getDay() + 6) % 7]} ${d.getDate()}/${d.getMonth() + 1}</th>`).join('')}</tr></thead>
@@ -156,7 +165,7 @@ function celula(f, d) {
 function ataForm(fid, dia) {
   const f = (_f.formatos || []).find(x => x.id === fid) || {};
   const el = document.getElementById('rc-ata');
-  _ataAberta = { fid, pend: [{ txt: '', dono: 'Kaue', prazo: '' }] };
+  _ataAberta = { fid, pend: [{ txt: '', dono: primeiro((_r.quens || [])[1] || 'kaue'), prazo: '' }] };
   el.innerHTML = `<div class="card mt-3" style="border:2px solid var(--psm-navy)">
     <div class="flex" style="justify-content:space-between"><div style="font-weight:800">📝 Ata — ${esc(f.emoji || '')} ${esc(f.nome || fid)} · ${dia.split('-').reverse().join('/')}</div>
       <button class="btn btn-ghost btn-sm" id="rc-ata-x">✕</button></div>
@@ -193,7 +202,7 @@ function tarefasHTML(quem) {
   const p = _r.papeis[quem];
   const ts = _r.tarefas.filter(t => t.quem === quem);
   const a = _r.aderencia.semana[quem];
-  return `<div class="card" style="border-top:4px solid ${quem === 'isa' ? 'var(--psm-gold,#d4a843)' : 'var(--psm-navy,#0b1f3a)'}">
+  return `<div class="card" style="border-top:4px solid ${quem === (_r.quens || ['isa'])[0] ? 'var(--psm-gold,#d4a843)' : 'var(--psm-navy,#0b1f3a)'}">
     <div class="flex" style="justify-content:space-between;align-items:center"><div style="font-weight:800">✅ Tarefas — ${esc(p.nome)}</div>
       <span class="tiny" style="font-weight:700;color:${corPct(a)}">semana ${pct(a)}</span></div>
     <div class="tiny muted">${esc(p.cargo)}</div>
@@ -214,10 +223,10 @@ function tarefasHTML(quem) {
 
 /* ─── placar / pendências / funções ──────────────────────────────────── */
 function placarHTML() {
-  const sc = (_sc?.scorecards || []).find(s => s.id === 'un_conquista');
-  if (!sc) return '<div class="tiny muted">Placar da Conquista não disponível para este usuário.</div>';
-  const fmt = (v, un) => v == null ? '—' : un === 'R$' ? 'R$ ' + (Math.abs(v) >= 1e6 ? (v / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' mi' : Math.abs(v) >= 1e4 ? (v / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mil' : v.toLocaleString('pt-BR', { maximumFractionDigits: 2 })) : un === '%' ? v.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + '%' : v.toLocaleString('pt-BR');
-  return `<div class="tiny muted">Mês em andamento: ${_sc.ritmo}% decorrido · dono do placar: ${esc(sc.dono_nome)} · <a href="#/scorecard">abrir Scorecards →</a></div>
+  const sc = (_sc?.scorecards || []).find(s => s.id === (_r.scorecard || 'un_conquista'));
+  if (!sc) return `<div class="tiny muted">Placar da ${esc(_r.titulo || 'unidade')} não disponível para este usuário.</div>`;
+  const fmt = (v, un) => v == null ? '—' : un === 'R$' ? 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : un === '%' ? v.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + '%' : v.toLocaleString('pt-BR');
+  return `<div class="tiny muted">Mês em andamento: ${_sc.ritmo}% decorrido · dono do placar: ${esc(sc.dono_nome)} · <a href="#/scorecard">abrir Farol PSM →</a></div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:6px;margin-top:6px">
     ${sc.indicadores.map(i => `<div style="background:var(--bg-3);border-radius:8px;padding:8px;border-left:3px solid ${COR[i.farol] || COR.cinza}">
       <div class="tiny muted">${esc(i.label)}</div><div style="font-weight:800">${fmt(i.valor, i.un)}</div>
@@ -243,17 +252,18 @@ function pendenciasHTML(pend) {
 
 function funcoesHTML() {
   const p = _r.papeis;
+  const [qa, qb] = _r.quens || ['isa', 'kaue'];
   const COL = { R: ['Executa', COR.info], A: ['Aprova / responde', COR.verde], C: ['Consultado', COR.amarelo], I: ['Informado', COR.cinza] };
   const tag = v => `<span title="${COL[v][0]}" style="display:inline-block;min-width:26px;text-align:center;font-weight:800;border-radius:6px;padding:2px 6px;background:${COL[v][1]}22;color:${COL[v][1]}">${v}</span>`;
   const mand = q => `<div><div style="font-weight:800">${esc(p[q].nome)}</div><div class="tiny muted">${esc(p[q].cargo)}</div>
     <ul style="margin:6px 0 0 18px;font-size:12.5px;line-height:1.6">${p[q].mandato.map(m => `<li>${esc(m)}</li>`).join('')}</ul></div>`;
   return `<div class="card mt-3"><div style="font-weight:800">🧭 Funções e responsabilidades</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:8px">${mand('isa')}${mand('kaue')}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:8px">${mand(qa)}${mand(qb)}</div>
     <div style="font-weight:700;margin-top:14px">Quem decide o quê</div>
     <div class="tiny muted">R = executa · A = aprova e responde pelo resultado · C = é consultado antes · I = é informado depois</div>
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px;min-width:420px">
-      <thead><tr class="tiny muted"><th style="text-align:left;padding:4px 6px">Assunto</th><th style="padding:4px">Isabella</th><th style="padding:4px">Kaue</th></tr></thead>
-      <tbody>${_r.raci.map(x => `<tr style="border-top:1px solid var(--border)"><td style="padding:5px 6px">${esc(x.assunto)}</td><td style="text-align:center">${tag(x.isa)}</td><td style="text-align:center">${tag(x.kaue)}</td></tr>`).join('')}</tbody>
+      <thead><tr class="tiny muted"><th style="text-align:left;padding:4px 6px">Assunto</th><th style="padding:4px">${esc(primeiro(qa))}</th><th style="padding:4px">${esc(qb === 'map' ? 'Equipe MAP' : primeiro(qb))}</th></tr></thead>
+      <tbody>${_r.raci.map(x => `<tr style="border-top:1px solid var(--border)"><td style="padding:5px 6px">${esc(x.assunto)}</td><td style="text-align:center">${tag(x[qa])}</td><td style="text-align:center">${tag(x[qb])}</td></tr>`).join('')}</tbody>
     </table></div></div>`;
 }
 
@@ -261,7 +271,7 @@ function funcoesHTML() {
 function bind() {
   _root.querySelectorAll('[data-t]').forEach(cb => cb.addEventListener('change', async () => {
     cb.disabled = true;
-    try { await api.request('/api/v3/diretoria/rotina', { method: 'POST', body: { action: 'check', item: cb.dataset.t, feito: cb.checked } }); await load(); }
+    try { await api.request('/api/v3/diretoria/rotina', { method: 'POST', body: { action: 'check', unidade: _un, item: cb.dataset.t, feito: cb.checked } }); await load(); }
     catch (e) { alert('Erro: ' + e.message); cb.checked = !cb.checked; cb.disabled = false; }
   }));
   _root.querySelectorAll('[data-ata]').forEach(a => a.addEventListener('click', () => ataForm(a.dataset.ata, a.dataset.dia)));

@@ -167,4 +167,4 @@ function mini(label, value, color) {
   return `<div style="background:var(--bg-3);padding:10px;border-radius:8px"><div class="tiny muted">${label}</div><div style="font-weight:800;font-size:14px;color:${color || 'var(--tx)'}">${value}</div></div>`;
 }
 
-function fmt(n) { return 'R$ ' + Math.round(n).toLocaleString('pt-BR'); }
+function fmt(n) { return 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }

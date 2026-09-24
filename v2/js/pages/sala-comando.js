@@ -20,7 +20,7 @@ const PACE = DIA / DIAS_MES;
 const MES_LBL = hoje.toLocaleDateString('pt-BR', { month: 'long' });
 
 const money = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const moneyK = n => { const v = Number(n) || 0; return Math.abs(v) >= 1e6 ? 'R$ ' + (v / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + 'M' : (Math.abs(v) >= 1e3 ? 'R$ ' + (v / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + 'k' : money(v)); };
+const moneyK = money;   // v88.37: não abrevia (era R$ 840k / 1,2M)
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const num = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
 

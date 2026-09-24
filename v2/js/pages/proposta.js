@@ -699,7 +699,7 @@ function desenharTela() {
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap">
   <div class="card">
     <div class="pp-top">
-      <div><h2 class="card-title">📑 Proposta comercial</h2><p class="card-sub">Até 4 opções, comparativo, fluxo com INCC do simulador oficial e o seu cartão. Sai em PDF pronto pro WhatsApp.</p></div>
+      <div><h2 class="card-title">📑 Apresentação comercial</h2><p class="card-sub">Até 4 opções, comparativo, fluxo com INCC do simulador oficial e o seu cartão. Sai em PDF pronto pro WhatsApp.</p></div>
       <div class="acts">
         <button class="btn btn-ghost" data-a="lista">📂 Minhas propostas</button>
         <button class="btn btn-ghost" data-a="nova">＋ Nova</button>

@@ -8,12 +8,8 @@ import { api } from '../api.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const brl = v => (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const kR$ = v => {
-  const n = Number(v) || 0, a = Math.abs(n);
-  if (a >= 1e6) return (n / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + 'M';
-  if (a >= 1e3) return (n / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + 'k';
-  return n.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
-};
+// v88.37: dinheiro sempre cheio com centavos (nunca k/M)
+const kR$ = v => (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fN = v => { const x = Number(v) || 0; return Number.isInteger(x) ? x.toLocaleString('pt-BR') : x.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }); };
 const dBR = s => { try { const [y, m, d] = String(s).slice(0, 10).split('-'); return `${d}/${m}`; } catch { return s || '—'; } };
 
@@ -22,7 +18,7 @@ let _host = null, _d = null, _ym = null;
 export async function mountCaixa(host, ym) {
   _host = host;
   _ym = ym || _ym || null;
-  host.innerHTML = '<div class="flex items-center gap-2 muted" style="padding:14px"><span class="spinner"></span> Consolidando caixa (CRM + Radar + NIBO)…</div>';
+  host.innerHTML = '<div class="flex items-center gap-2 muted" style="padding:14px"><span class="spinner"></span> Consolidando caixa (CRM + Radar + PSM HUB)…</div>';
   try {
     _d = await api.request('/api/v3/diretoria/caixa' + (_ym ? `?ym=${_ym}` : ''));
     _ym = _d.ym;
@@ -113,7 +109,7 @@ function blocoFluxo(cx) {
     const hEc = Math.round((s.entra_confirmado || 0) / maxAbs * 64);
     const hS = Math.round((s.sai_total || 0) / maxAbs * 64);
     const neg = (s.acumulado || 0) < 0;
-    return `<div style="flex:1;min-width:64px;text-align:center" title="entra R$ ${brl(s.entra_total)} (conf. R$ ${brl(s.entra_confirmado)} · trav. R$ ${brl(s.entra_travado)}) · sai R$ ${brl(s.sai_total)} (${s.base_pagar === 'nibo' ? 'agenda NIBO' : 'custo orçado'} + comissões)">
+    return `<div style="flex:1;min-width:64px;text-align:center" title="entra R$ ${brl(s.entra_total)} (conf. R$ ${brl(s.entra_confirmado)} · trav. R$ ${brl(s.entra_travado)}) · sai R$ ${brl(s.sai_total)} (custo orçado + PSM HUB + comissões)">
       <div style="height:70px;display:flex;align-items:flex-end;justify-content:center;gap:3px">
         <div style="width:16px;background:color-mix(in srgb, var(--ok) 24%, transparent);height:${hE}px;border-radius:3px 3px 0 0;position:relative"><div style="position:absolute;bottom:0;left:0;right:0;height:${hEc}px;background:#16a34a;border-radius:${hEc === hE ? '3px 3px 0 0' : '0'}"></div></div>
         <div style="width:16px;background:#fca5a5;height:${hS}px;border-radius:3px 3px 0 0"></div>

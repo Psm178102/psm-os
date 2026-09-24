@@ -118,12 +118,12 @@ function renderInsights() {
     <div class="card" style="background:linear-gradient(135deg,${statusColor}22,transparent);border:1px solid ${statusColor}40;padding:14px;margin-bottom:10px">
       <div style="font-weight:800;font-size:13px;margin-bottom:8px;color:var(--psm-gold)">🎯 Seu Desempenho</div>
       <div style="display:flex;flex-direction:column;gap:6px;font-size:12px">
-        <div class="flex" style="justify-content:space-between"><span class="muted">VGV Mês:</span><b>R$ ${(+meu.vgv_atingido || 0).toLocaleString('pt-BR')}</b></div>
-        <div class="flex" style="justify-content:space-between"><span class="muted">Meta Mês:</span><b>R$ ${(+meu.meta_vgv || 0).toLocaleString('pt-BR')}</b></div>
+        <div class="flex" style="justify-content:space-between"><span class="muted">VGV Mês:</span><b>R$ ${(+meu.vgv_atingido || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></div>
+        <div class="flex" style="justify-content:space-between"><span class="muted">Meta Mês:</span><b>R$ ${(+meu.meta_vgv || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></div>
         <div class="flex" style="justify-content:space-between"><span class="muted">Atingimento:</span><b style="color:${statusColor}">${pct.toFixed(1)}%</b></div>
         <div class="flex" style="justify-content:space-between"><span class="muted">Vendas:</span><b>${vendasCount}</b></div>
         <div class="flex" style="justify-content:space-between"><span class="muted">Conversão:</span><b>${(ganhos.length + perdas.length) > 0 ? conv.toFixed(1) + '%' : '—'}</b></div>
-        <div class="flex" style="justify-content:space-between"><span class="muted">Ticket Médio:</span><b>R$ ${Math.round(ticketMedio).toLocaleString('pt-BR')}</b></div>
+        <div class="flex" style="justify-content:space-between"><span class="muted">Ticket Médio:</span><b>R$ ${(Number(ticketMedio) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></div>
       </div>
     </div>
 

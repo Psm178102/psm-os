@@ -158,10 +158,6 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             add("captura", "warn", f"Tabela deal_stage_events ausente — rode supabase/sprint9_10_deal_stage_events.sql ({e}).")
 
-        # 5) NIBO (financeiro)
-        if not os.environ.get("NIBO_API_TOKEN"):
-            add("financeiro", "warn", "NIBO_API_TOKEN ausente — Financeiro ao vivo indisponível.")
-
         sev = {i["severity"] for i in issues}
         status = "error" if "error" in sev else ("warn" if "warn" in sev else "ok")
         return self._send(200, {

@@ -88,7 +88,7 @@ const PB = {
     responsabilidades: '• Nenhuma proposta parada por documentação\n• Escala de plantões publicada com antecedência',
   },
   financeiro: {
-    funcoes: '• Contas a pagar/receber e conciliação (NIBO)\n• Comissões: cálculo, conferência e repasses\n• Lançar custos reais na Viabilidade (fonte única)\n• Relatório semanal de caixa pros sócios',
+    funcoes: '• Contas a pagar/receber e conciliação (PSM HUB)\n• Comissões: cálculo, conferência e repasses\n• Lançar custos reais na Viabilidade (fonte única)\n• Relatório semanal de caixa pros sócios',
     rotina: '08h30 — Conciliação bancária do dia\n10h00 — Contas do dia (pagar/receber)\n14h00 — Comissões e repasses da semana\n16h00 — Atualizar custos na Viabilidade\nSEX 16h — Relatório de caixa da semana',
     responsabilidades: '• Zero atraso em obrigações\n• Custos reais SEMPRE atualizados no sistema\n• Comissão paga certa e no prazo',
   },

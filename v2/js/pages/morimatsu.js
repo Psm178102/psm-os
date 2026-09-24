@@ -194,7 +194,7 @@ async function op(body) {
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const uid = p => (p || 'id') + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 export const num = v => { if (typeof v === 'number') return isNaN(v) ? 0 : v; const s = String(v ?? '').trim(); const n = parseFloat(/,\d{1,2}$/.test(s) ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '')); return isNaN(n) ? 0 : n; };
-export const brl = v => 'R$ ' + Math.round(num(v)).toLocaleString('pt-BR');
+export const brl = v => 'R$ ' + (Number(num(v)) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const dtBR = s => { if (!s) return ''; const d = new Date(String(s).length === 10 ? s + 'T12:00:00' : s); return isNaN(d) ? String(s) : d.toLocaleDateString('pt-BR'); };
 export const hojeISO = () => new Date().toISOString().slice(0, 10);
 export const autorNome = () => auth.user()?.nome || auth.user()?.name || auth.user()?.email || 'sócio';

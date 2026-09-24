@@ -12,7 +12,7 @@ import { montarDecisoes } from '../decisoes.js';   // v87.92 🧭 Decidir agora
 let _root = null, _d = null, _janela = 90;
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const fmtK = n => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'k' : String(Math.round(n || 0));
+const fmtK = n => (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });   // v88.37: valor cheio (era 1,0M / 784k)
 
 const QUAD = {
   maquina:             ['🟢 Máquina', '#16a34a', 'Alta atividade, alto rendimento — dar MAIS lead: é o melhor ROI da casa.'],
@@ -38,7 +38,7 @@ async function load(fresh) {
   render();
 }
 
-const VFONTE = { hub: 'HUB · mês', rd_tarefas: 'tarefas RD', rd_coluna: 'coluna RD' };   // v87.98
+const VFONTE = { hub: 'HUB · mês', rd: 'RD · tarefa/coluna', rd_tarefas: 'tarefas RD', rd_coluna: 'coluna RD' };   // v87.98 · v88.37: RD = maior entre tarefa e coluna
 function render() {
   const cs = (_d.corretores || []).slice().sort((a, b) => (b.toques_7d || 0) - (a.toques_7d || 0));
   const linha = c => {

@@ -107,7 +107,7 @@ function renderList() {
       ${kpi('Aprovadas', stats.aprovada, STATUS_COLOR.aprovada)}
       ${kpi('Fechadas', stats.fechada, STATUS_COLOR.fechada)}
       ${kpi('Recusadas', stats.recusada, STATUS_COLOR.recusada)}
-      ${kpi('Valor total', 'R$ ' + Math.round(totalProposto).toLocaleString('pt-BR'), '#fbbf24')}
+      ${kpi('Valor total', 'R$ ' + (Number(totalProposto) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), '#fbbf24')}
     </div>
     ${filtered.length === 0 ? '<div class="muted tiny" style="text-align:center;padding:30px">Nenhuma ficha nesse filtro.</div>' : `
       <table style="width:100%;border-collapse:collapse;font-size:13px">
@@ -128,7 +128,7 @@ function renderList() {
               <tr style="border-bottom:1px solid var(--bd)">
                 <td style="padding:8px"><div style="font-weight:700">${esc(f.cliente)}</div><div class="tiny muted">${esc(f.cliente_contato || '—')}</div></td>
                 <td style="padding:8px">${esc(f.imovel || '—')}</td>
-                <td style="padding:8px;text-align:right;font-weight:800;color:var(--psm-gold)">R$ ${(+f.valor_proposta || 0).toLocaleString('pt-BR')}</td>
+                <td style="padding:8px;text-align:right;font-weight:800;color:var(--psm-gold)">R$ ${(+f.valor_proposta || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td style="padding:8px">${esc(corretor?.name || '—')}</td>
                 <td style="padding:8px;text-align:center"><span style="background:${cor}22;color:${cor};padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700">${STATUS_LBL[f.status]}</span></td>
                 <td style="padding:8px;text-align:center;font-size:11px">${f.data_envio || '—'}</td>
@@ -270,7 +270,7 @@ function collectForm() {
   };
 }
 
-function fmtBRL(v) { const n = +v; return isNaN(n) || !n ? '—' : 'R$ ' + n.toLocaleString('pt-BR'); }
+function fmtBRL(v) { const n = +v; return isNaN(n) || !n ? '—' : 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
 function propostaTexto(f) {
   const L = [];

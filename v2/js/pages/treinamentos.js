@@ -909,7 +909,7 @@ function itemDiag(it, i, podeAgendar, treinado) {
   return `<div class="trn-diag"${i ? ' style="border-left-color:#f59e0b"' : ''}>
     <div class="flex items-center gap-1" style="flex-wrap:wrap"><span class="trn-rank"${i ? ' style="background:#f59e0b"' : ''}>${i + 1}º</span> <span style="font-size:15px">${hb.ico}</span> <b>${esc(hb.nome)}</b></div>
     <div class="tiny" style="margin-top:4px">${evid}</div>
-    ${it.vendas != null && it.vendas >= 0.05 ? `<div class="tiny" style="margin-top:2px;color:#16a34a">≈ +${fmt1(it.vendas)} ${it.vendas >= 2 ? 'vendas' : 'venda'} no período se chegar no nível da equipe${it.vgv ? ` (≈ R$ ${Math.round(it.vgv).toLocaleString('pt-BR')})` : ''}</div>` : ''}
+    ${it.vendas != null && it.vendas >= 0.05 ? `<div class="tiny" style="margin-top:2px;color:#16a34a">≈ +${fmt1(it.vendas)} ${it.vendas >= 2 ? 'vendas' : 'venda'} no período se chegar no nível da equipe${it.vgv ? ` (≈ R$ ${(Number(it.vgv) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})` : ''}</div>` : ''}
     ${treinado ? `<div class="tiny" style="margin-top:2px;color:#0d9488">✔ Treinou isso em ${fmtData(treinado.data)} — acompanhe se a taxa sobe.</div>` : ''}
     <div class="flex items-center gap-2" style="margin-top:6px;flex-wrap:wrap">
       ${hb.trilha ? `<a class="tiny" href="#/academy">📚 ${esc(hb.trilha)} › ${esc(hb.modulo)}</a>` : ''}

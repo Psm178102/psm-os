@@ -16,6 +16,11 @@ GET  ?marca=conquista  → URLs assinadas dos slides da marca
 POST (lvl>=10) {action:"slide", marca, pasta, idx, jpeg}  → sobe 1 slide
 POST (lvl>=10) {action:"publicar", marca, pasta, nome, n_slides} → ativa o deck
 Config em shared_kv 'apresentacoes_cfg' = {marca: {pasta, nome, n_slides, ts, por}}.
+
+v88.37 — COLEÇÕES: o mesmo motor serve o 🗺 MAPA DA VENDA (menu Imóveis & Vendas),
+um PDF por nicho (Conquista · MAP · Terceiros · Locação · Captações). Passe
+?colecao=mapa_venda (GET) ou "colecao": "mapa_venda" (POST). Sem o parâmetro =
+Apresentações PSM, como sempre. Cada coleção tem o próprio kv e prefixo no bucket.
 """
 from http.server import BaseHTTPRequestHandler
 import base64
@@ -31,8 +36,14 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
 
 BUCKET = "apresentacoes"
-KV_CFG = "apresentacoes_cfg"
-MARCAS = ("conquista", "assessoria", "locacoes")
+COLECOES = {
+    "apresentacoes": {"kv": "apresentacoes_cfg", "prefixo": "",
+                      "marcas": ("conquista", "assessoria", "locacoes")},
+    "mapa_venda":    {"kv": "mapa_venda_cfg", "prefixo": "mapa_venda/",
+                      "marcas": ("conquista", "map", "terceiros", "locacao", "captacoes")},
+}
+KV_CFG = COLECOES["apresentacoes"]["kv"]
+MARCAS = COLECOES["apresentacoes"]["marcas"]
 MAX_SLIDES = 80
 RE_PASTA = re.compile(r"^[0-9]{8}_[0-9]{6}$")
 
@@ -47,17 +58,17 @@ def _storage(method, path, data=None, headers=None, timeout=45):
         return r.status, r.read()
 
 
-def _kv(sb):
+def _kv(sb, kv_key=KV_CFG):
     try:
-        rows = sb.table("shared_kv").select("value").eq("key", KV_CFG).limit(1).execute().data or []
+        rows = sb.table("shared_kv").select("value").eq("key", kv_key).limit(1).execute().data or []
         v = rows[0]["value"] if rows else {}
         return (v if isinstance(v, dict) else {}), True
     except Exception:
         return {}, False
 
 
-def _kv_set(sb, value):
-    sb.table("shared_kv").upsert({"key": KV_CFG, "value": value,
+def _kv_set(sb, value, kv_key=KV_CFG):
+    sb.table("shared_kv").upsert({"key": kv_key, "value": value,
                                   "updated_at": datetime.now(timezone.utc).isoformat()},
                                  on_conflict="key").execute()
 
@@ -98,10 +109,14 @@ class handler(BaseHTTPRequestHandler):
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
-        cfg, leu = _kv(sb)
+        q = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
+        col = COLECOES.get(q.get("colecao") or "apresentacoes")
+        if not col:
+            return self._send(422, {"ok": False, "error": "coleção inválida"})
+        MARCAS, pre = col["marcas"], col["prefixo"]
+        cfg, leu = _kv(sb, col["kv"])
         if not leu:
             return self._send(503, {"ok": False, "error": "config indisponível — tente de novo"})
-        q = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
         marca = q.get("marca")
 
         if not marca:
@@ -118,7 +133,7 @@ class handler(BaseHTTPRequestHandler):
         pasta, n = d.get("pasta"), int(d.get("n_slides") or 0)
         slides = []
         for i in range(n):
-            u = _sign(f"{marca}/{pasta}/s{i:03d}.jpg")
+            u = _sign(f"{pre}{marca}/{pasta}/s{i:03d}.jpg")
             if u:
                 slides.append(u)
         return self._send(200, {"ok": True, "nome": d.get("nome"), "ts": d.get("ts"),
@@ -138,6 +153,10 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             return self._send(400, {"ok": False, "error": "JSON inválido"})
         action = body.get("action")
+        col = COLECOES.get(str(body.get("colecao") or "apresentacoes"))
+        if not col:
+            return self._send(422, {"ok": False, "error": "coleção inválida"})
+        MARCAS, pre, kv_key = col["marcas"], col["prefixo"], col["kv"]
         marca = str(body.get("marca") or "")
         if marca not in MARCAS:
             return self._send(422, {"ok": False, "error": "marca inválida"})
@@ -160,7 +179,7 @@ class handler(BaseHTTPRequestHandler):
             except Exception:
                 return self._send(422, {"ok": False, "error": "imagem inválida (1KB–3.5MB)"})
             try:
-                st, _ = _storage("POST", f"/object/{BUCKET}/{marca}/{pasta}/s{idx:03d}.jpg",
+                st, _ = _storage("POST", f"/object/{BUCKET}/{pre}{marca}/{pasta}/s{idx:03d}.jpg",
                                  data=raw, headers={"Content-Type": "image/jpeg", "x-upsert": "true"})
                 if st not in (200, 201):
                     return self._send(502, {"ok": False, "error": f"storage HTTP {st}"})
@@ -179,9 +198,9 @@ class handler(BaseHTTPRequestHandler):
                 return self._send(422, {"ok": False, "error": "n_slides inválido"})
             # confere que os slides realmente subiram antes de apontar a marca
             for i in (0, n - 1):
-                if not _sign(f"{marca}/{pasta}/s{i:03d}.jpg", 60):
+                if not _sign(f"{pre}{marca}/{pasta}/s{i:03d}.jpg", 60):
                     return self._send(422, {"ok": False, "error": f"slide {i} não encontrado no storage — upload incompleto, publique de novo"})
-            cfg, leu = _kv(sb)
+            cfg, leu = _kv(sb, kv_key)
             if not leu:   # lição v84.88: leitura falhou → NÃO regrava por cima
                 return self._send(503, {"ok": False, "error": "config indisponível — tente de novo"})
             antes = dict(cfg)
@@ -189,10 +208,10 @@ class handler(BaseHTTPRequestHandler):
                           "n_slides": n, "ts": datetime.now(timezone.utc).isoformat(),
                           "por": user.get("name")}
             try:
-                _kv_set(sb, cfg)
+                _kv_set(sb, cfg, kv_key)
             except Exception as e:
                 return self._send(500, {"ok": False, "error": str(e)[:150]})
-            audit(self, user, "apresentacao.publicar", target_type="shared_kv", target_id=KV_CFG,
+            audit(self, user, "apresentacao.publicar", target_type="shared_kv", target_id=kv_key,
                   before=antes, after=cfg, notes=f"{marca}: {n} slides")
             return self._send(200, {"ok": True, "marca": marca, "n_slides": n})
 

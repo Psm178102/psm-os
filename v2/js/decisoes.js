@@ -102,7 +102,7 @@ function render(el, o, data, todas) {
     const souDono = d.dono.id === me.id;
     const podeTarefa = ['nova', 'persistiu'].includes(d.estado.status) && (souDono || lvl >= 5);
     const itens = (d.itens || []).length ? `<details><summary>${d.itens.length} ${d.tipo.startsWith('meta') ? 'pessoa(s)' : 'negócio(s)'}</summary><ul>${d.itens.map(i =>
-      `<li>${esc(i.nome)}${i.dias != null ? ` — <b>${i.dias} dias</b> parado` : ''}${i.horas != null ? ` — <b>${i.horas}h</b> sem contato` : ''}${i.valor ? ` — R$ ${Math.round(i.valor).toLocaleString('pt-BR')}` : ''}</li>`).join('')}</ul></details>` : '';
+      `<li>${esc(i.nome)}${i.dias != null ? ` — <b>${i.dias} dias</b> parado` : ''}${i.horas != null ? ` — <b>${i.horas}h</b> sem contato` : ''}${i.valor ? ` — R$ ${(Number(i.valor) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}</li>`).join('')}</ul></details>` : '';
     const prazoVencido = d.prazo < hoje;
     return `<div class="dz-it" style="--dzc:${cor}" data-dz="${esc(d.id)}">
       <div class="bar"></div>

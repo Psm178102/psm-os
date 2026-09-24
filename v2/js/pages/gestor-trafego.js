@@ -53,7 +53,7 @@ async function loadSummary() {
 
 function socio() { return (auth.user()?.lvl || 0) >= 10 || !!_painel?.pode_agir; }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
-function brl(v) { return 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 }); }
+function brl(v) { return 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
 /* v87.27 — renderiza o markdown dos relatórios da IA (##/###, **negrito**, listas)
    em HTML legível: fim do paredão de texto cru. */

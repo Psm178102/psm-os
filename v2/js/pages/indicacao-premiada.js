@@ -56,7 +56,7 @@ async function post(body, okMsg) {
 /* ── Faixas de prêmio (caixinha do funil + aba 💰 Tabela de Prêmios) ─────── */
 function faixasBox() {
   const fv = _d.faixas_venda || [], fl = _d.faixas_locacao || [];
-  const fmt = ([teto, p], i) => `${i === 0 ? 'até' : ''} ${teto >= 999999999 ? 'acima' : 'R$ ' + Number(teto).toLocaleString('pt-BR')} → <b>${brl(p)}</b>`;
+  const fmt = ([teto, p], i) => `${i === 0 ? 'até' : ''} ${teto >= 999999999 ? 'acima' : 'R$ ' + Number(teto).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} → <b>${brl(p)}</b>`;
   return `<div class="tiny muted" style="background:var(--bg-3);border-radius:10px;padding:8px 10px">
     <div class="flex items-center" style="gap:8px">
       <b>💰 Faixas de prêmio:</b>
