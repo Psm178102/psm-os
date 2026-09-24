@@ -166,7 +166,9 @@ class handler(BaseHTTPRequestHandler):
         # Leads = deals criados na janela (lead = entrada no funil)
         # v88.13: paginado + ordem estável (o .limit(5000) era cortado em 1000 pelo
         # PostgREST sem aviso → % fora de Rio Preto saía de amostra arbitrária)
-        rows, truncated, page, size = [], False, 0, 1000
+        # v88.38: página de 300 (era 1000) — o rd_raw inteiro de 1000 negócios passava dos 8s de
+        # statement timeout do Postgres (57014) e a tela caía; teto de páginas ajustado (100×300 = 30 mil)
+        rows, truncated, page, size = [], False, 0, 300
         try:
             while True:
                 chunk = (sb.table("deals").select("id,name,pipeline_name,rd_raw,created_at_rd")
@@ -177,7 +179,7 @@ class handler(BaseHTTPRequestHandler):
                 if len(chunk) < size:
                     break
                 page += 1
-                if page >= 30:
+                if page >= 100:
                     truncated = True
                     break
         except Exception as e:

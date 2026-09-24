@@ -726,13 +726,40 @@ class handler(BaseHTTPRequestHandler):
 
         # ── deals da SAFRA (criados em [since-180d, until] p/ safras + coorte) ──
         safra_ini = since_d - timedelta(days=120)   # safras de até ~6m antes do fim
-        cols = "id,name,amount,win,closed_at,created_at_rd,stage_id,pipeline_id,user_id,user_email,rd_raw,origem_cliente"
+        # v88.38: só os 5 campos do rd_raw que esta tela usa (origem, motivo de perda, campanha e valores).
+        # Ler o JSON bruto inteiro de ~2 mil negócios estourava o statement timeout do Postgres (57014)
+        # e derrubava a Gestão Comercial. _raw() remonta um rd_raw mínimo p/ os helpers do _oo_lib.
+        cols = ("id,name,amount,win,closed_at,created_at_rd,stage_id,pipeline_id,user_id,user_email,origem_cliente,"
+                "rx_src:rd_raw->deal_source,rx_lost:rd_raw->deal_lost_reason,rx_camp:rd_raw->campaign,"
+                "rx_at:rd_raw->amount_total,rx_au:rd_raw->amount_unique")
+
+        def _raw(rows):
+            for d in rows:
+                d["rd_raw"] = {"deal_source": d.pop("rx_src", None), "deal_lost_reason": d.pop("rx_lost", None),
+                               "campaign": d.pop("rx_camp", None), "amount_total": d.pop("rx_at", None),
+                               "amount_unique": d.pop("rx_au", None)}
+            return rows
+        def _pagina(q, ini, n=1000):
+            """Uma página; se o Postgres der statement timeout (57014), refaz em 4 pedaços de n/4
+            em vez de derrubar a tela inteira (v88.38)."""
+            try:
+                return q().range(ini, ini + n - 1).execute().data or []
+            except Exception as e:
+                if "57014" not in str(e) or n <= 250:
+                    raise
+                out = []
+                for k in range(4):
+                    parte = _pagina(q, ini + k * (n // 4), n // 4)
+                    out.extend(parte)
+                    if len(parte) < n // 4:
+                        break
+                return out
+
         deals, pg = [], 0
         while True:
-            ch = (sb.table("deals").select(cols)
-                  .gte("created_at_rd", f"{safra_ini}T00:00:00+00:00").order("id")
-                  .range(pg * 1000, pg * 1000 + 999).execute().data or [])
-            deals.extend(ch)
+            ch = _pagina(lambda: sb.table("deals").select(cols)
+                         .gte("created_at_rd", f"{safra_ini}T00:00:00+00:00").order("id"), pg * 1000)
+            deals.extend(_raw(ch))
             if len(ch) < 1000 or pg >= 25:
                 break
             pg += 1
@@ -745,10 +772,9 @@ class handler(BaseHTTPRequestHandler):
         vistos = {str(d.get("id")) for d in deals}
         pg = 0
         while True:
-            chw = (sb.table("deals").select(cols).eq("win", True)
-                   .gte("closed_at", f"{wins_ini}T03:00:00+00:00").order("id")
-                   .range(pg * 1000, pg * 1000 + 999).execute().data or [])
-            for d in chw:
+            chw = _pagina(lambda: sb.table("deals").select(cols).eq("win", True)
+                          .gte("closed_at", f"{wins_ini}T03:00:00+00:00").order("id"), pg * 1000)
+            for d in _raw(chw):
                 if str(d.get("id")) not in vistos:
                     vistos.add(str(d.get("id")))
                     deals.append(d)
