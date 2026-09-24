@@ -16,6 +16,7 @@
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 import { router } from '../router.js';
+import { setOpsBadge } from '../menu-badges.js';
 
 let _root = null;
 let _data = null;
@@ -311,17 +312,10 @@ function msg(t) { const m = _root.querySelector('[data-op="msg"]'); if (m) m.tex
 /* ───────────────────── badge do menu (exportado pro main.js) ───────────────────── */
 
 export function atualizarBadge(d) {
-  const btn = document.querySelector('.sb-link[data-nav="/central-ops"]');
-  if (!btn) return;
-  let b = btn.querySelector('.ops-badge');
   const ativos = (d?.ativos || (d?.itens || []).filter(i => ['error', 'warn', 'paused'].includes(i.status) && !i.silenciado_ate && i.herda !== 'pausa_intencional'));
   const nErr = ativos.filter(i => i.status === 'error').length;
-  const n = nErr || ativos.length;
-  if (!n) { b?.remove(); return; }
-  if (!b) { b = document.createElement('span'); b.className = 'ops-badge'; btn.appendChild(b); }
-  b.textContent = n;
-  b.title = nErr ? `${nErr} erro(s) na operação` : `${n} ponto(s) de atenção`;
-  b.style.cssText = `margin-left:auto;background:${nErr ? 'var(--err)' : 'var(--warn)'};color:#fff;border-radius:9px;padding:0 7px;font-size:11px;font-weight:700`;
+  // v88.34: mesmo número do menu que os avisos das outras telas (menu-badges.js)
+  setOpsBadge(nErr || ativos.length, nErr > 0);
 }
 
 /** Badge leve do menu: lê o último estado gravado pelo vigia (não re-checa as APIs). */

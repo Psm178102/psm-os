@@ -3,6 +3,7 @@
    Sprint 7.15
 ============================================================================ */
 import { api } from './api.js';
+import { initMenuBadges, refreshMenuBadges } from './menu-badges.js';
 
 let _drawerEl = null;
 let _unread = 0;
@@ -28,6 +29,12 @@ export function initNotifs() {
   refresh();
   if (_pollTimer) clearInterval(_pollTimer);
   _pollTimer = setInterval(refresh, 30000);
+  // 🔴 v88.34: números no menu lateral (avisos não lidos por tela)
+  initMenuBadges();
+  if (!window._psmNotifsRefreshWired) {
+    window._psmNotifsRefreshWired = true;
+    window.addEventListener('psm:notifs-refresh', () => refresh());
+  }
 }
 
 export function teardownNotifs() {
@@ -44,6 +51,7 @@ async function refresh() {
     _unread = r.unread_total || 0;
     _items = r.notifications || [];
     updateBadge();
+    if (prevUnread != null && _unread !== prevUnread) refreshMenuBadges();   // chegou/saiu aviso → menu acompanha
     if (_drawerEl) renderDrawer();
     // Toca som se chegou notif nova
     if (_unread > prevUnread && prevUnread != null) {
