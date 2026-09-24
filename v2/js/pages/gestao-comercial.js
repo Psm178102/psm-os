@@ -969,7 +969,7 @@ function tabFontes() {
       </div>`, 'podio_fontes')}
     ${pan('🌎 Geral — todas as equipes', tabela(_v.fontes?.geral), 'fontes_geral')}
     ${porEquipe}
-    <div class="tiny muted gc-nota" style="margin-top:6px">Safra = lead NASCIDO na janela, acompanhado até hoje (fontes se comparam por coorte; visão instantânea mente com jornada de meses). Linhas apagadas = amostra pequena. Sem fonte e Outro contam como <b>Tráfego pago Imob</b> (regra 15/ago).</div>
+    <div class="tiny muted gc-nota" style="margin-top:6px">Safra = lead NASCIDO na janela, acompanhado até hoje (fontes se comparam por coorte; visão instantânea mente com jornada de meses). Linhas apagadas = amostra pequena. Origem = categoria oficial do Dicionário §2 (mesma do quadro de origens); sem origem no RD conta como <b>Tráfego pago PSM</b>.</div>
     ${histFontes()}`;
 }
 

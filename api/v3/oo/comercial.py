@@ -36,13 +36,15 @@ if _V3 not in _sys.path:
 from _metricas_lib import (resumo as mx_resumo, por_nome as mx_por_nome, _norm as mx_norm,  # type: ignore
                            visitas_de as mx_visitas, agendamentos_de as mx_agend,
                            propostas_de as mx_propostas, qualificados_de as mx_qualif,
-                           prospeccoes_de as mx_prospec, fonte_marcos as mx_fonte)
+                           prospeccoes_de as mx_prospec, fonte_marcos as mx_fonte,
+                           mapa_origens as mx_mapa_origens, origem_categoria as mx_origem_cat,
+                           CAT_LABEL as MX_CAT_LABEL)
 from _projecao_lib import projecao as pj_projecao  # type: ignore   # v87.91
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, supabase_client, lvl_of, notify_all  # type: ignore
 from _oo_lib import (  # type: ignore
-    deal_max_milestone, channel, CHANNEL_LABEL, source, parse_dt, amount,
+    deal_max_milestone, source, parse_dt, amount,
     build_stage_maps, read_meta_accounts, match_team_account, read_team_account_override,
     read_meta_campaigns, lead_campaign_name, match_campaign_cpl, lost_reason,
 )
@@ -72,12 +74,13 @@ MARCO_PASTA = 4
 MIN_LEADS_RANK = 30   # amostra mínima pra fonte entrar no pódio
 MIN_VENDAS_RANK = 3
 
-# 🏷 regra do Paulo (15/ago): lead SEM FONTE e OUTRO são classificados como
-# TRÁFEGO PAGO IMOB (o grosso do não-atribuído é o próprio tráfego pago da casa)
-CANAL_MERGE = {"nao_atribuido": "trafego_imob", "outro": "trafego_imob", "meta": "trafego_imob"}
-CANAL_LBL = {**CHANNEL_LABEL, "trafego_imob": "Tráfego pago Imob"}
-CANAIS_PAGOS = ("trafego_imob", "google")   # v86.38: régua única de "venda de origem paga"
-CACHE_VER = "gc29"   # v86.39: bump aqui invalida página E cron juntos
+# 🏷 v88.33c (Paulo 23/09): canal = categoria OFICIAL do Dicionário §2 (_metricas_lib), a mesma do
+# quadro de origens. A regra por palavra-chave (channel/CANAL_MERGE) jogava Networking, Carteira,
+# Plantão, Ativo de rua e o Instagram/Facebook orgânico em "Tráfego pago Imob". Sem origem continua
+# assumido tráfego pago PSM (regra do Paulo 15/ago, reconfirmada 23/09).
+CANAL_LBL = dict(MX_CAT_LABEL)
+CANAIS_PAGOS = ("trafego_pago_psm",)   # venda de origem paga = só mídia da PSM (corretor paga a própria)
+CACHE_VER = "gc30"   # v86.39: bump aqui invalida página E cron juntos
 
 FUNIS_RD = {"conquista": "funil conquista", "map": "funil map",
             "terceiros": "funil terceiros", "locacao": "funil de locacao"}
@@ -690,6 +693,9 @@ class handler(BaseHTTPRequestHandler):
         since_dt = datetime(since_d.year, since_d.month, since_d.day, tzinfo=timezone.utc) + timedelta(hours=3)
         until_dt = datetime(until_d.year, until_d.month, until_d.day, 23, 59, 59, tzinfo=timezone.utc) + timedelta(hours=3)
         mes_ini = date(hoje.year, hoje.month, 1)
+        # v88.33c: origem → (categoria oficial §2, assumida?) — mesma tabela do quadro de origens
+        _mapa_origens = mx_mapa_origens(sb)
+        _cat_de = lambda nome: mx_origem_cat(nome, _mapa_origens)
 
         # v87.85 (Dicionário §0): contas de serviço (tv, comercial) não são pessoas — negócio
         # no e-mail delas cai em "sem corretor".
@@ -795,8 +801,8 @@ class handler(BaseHTTPRequestHandler):
                 "lost": d.get("win") is False,
                 "motivo": lost_reason(d.get("rd_raw") or {}),
                 "vgv": amount(d),
-                "canal": (lambda _c: CANAL_MERGE.get(_c, _c))(channel(source(d.get("rd_raw") or {}))),
-                "atribuido": channel(source(d.get("rd_raw") or {})) != "nao_atribuido",
+                "canal": _cat_de(source(d.get("rd_raw") or {}))[0],
+                "atribuido": not _cat_de(source(d.get("rd_raw") or {}))[1],
                 "camp": lead_campaign_name(d),
                 "team": team_do_deal(pid, uid),
                 "uid": uid, "nome": u.get("name") or d.get("user_email") or "?",
@@ -1531,8 +1537,7 @@ class handler(BaseHTTPRequestHandler):
             for d in hist_deals:
                 uid = str(d.get("user_id") or "") or email2uid.get((d.get("user_email") or "").lower(), "")
                 tk = team_do_deal(d.get("pipeline_id"), uid)
-                ck = channel(source({"deal_source": d.get("ds")}))
-                ck = CANAL_MERGE.get(ck, ck)
+                ck = _cat_de(source({"deal_source": d.get("ds")}))[0]
                 cm = canais_m.setdefault(ck, {"leads": 0, "vendas": 0, "vgv": 0.0})
                 cr = parse_dt(d.get("created_at_rd"))
                 cl = parse_dt(d.get("closed_at"))

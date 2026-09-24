@@ -605,6 +605,10 @@ def abertos_origem():
     # período personalizado: só agosto → nenhum aberto criado lá
     ago = M.resumo(SB(db), {"since": "2026-08-01", "until": "2026-08-31"}, fresh=True, hoje=date(2026, 9, 30))
     assert ago["empresa"]["abertos_periodo"] == 0, ago["empresa"]["abertos_periodo"]
+    # v88.34: prospecção = tudo que entrou (aberto, ganho, perdido); a soma por origem bate com o total da empresa
+    assert sum(C["por_origem"].values()) == C["interessados"], (C["por_origem"], C["interessados"])
+    assert r["entradas_sem_origem"] >= r["abertos_sem_origem"] and C["entradas_sem_origem"] >= C["abertos_sem_origem"], C
+    assert C["entradas_sem_origem"] == sum(p["entradas_sem_origem"] for p in P.values()) + C["sem_corretor"]["entradas_sem_origem"] + C["inativos"]["entradas_sem_origem"]
     print("OK — leads em andamento × origem × equipe")
 
 
