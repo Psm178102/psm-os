@@ -331,10 +331,20 @@ def bearer_from_headers(headers) -> str:
 
 
 # ─── Helper p/ obter user logado a partir do request ───────────────────────
+def _erro_de_coluna(e) -> bool:
+    """Erro de schema (coluna ainda não migrada) — o único caso em que vale tentar o select menor."""
+    t = str(e)
+    return any(k in t for k in ("42703", "PGRST204", "does not exist", "Could not find"))
+
+
 def current_user(handler) -> Optional[dict]:
     """
     Dado um BaseHTTPRequestHandler, extrai o JWT do header e retorna o user
     completo do Postgres (ou None se sem token/token inválido/usuário sumiu).
+
+    v88.39: se o BANCO não responde (522/timeout/rede), marca handler._auth_indisponivel
+    e retorna None — require_user responde 503 em vez de 401. Antes, uma instabilidade de
+    2 min do Supabase (24/09 17h20) virava "401 → sessão expirada" e o app deslogava todo mundo.
     """
     token = bearer_from_headers(handler.headers)
     claims = verify_jwt(token)
@@ -342,25 +352,35 @@ def current_user(handler) -> Optional[dict]:
         return None
     sb = supabase_client()
     if not sb:
+        _marcar_indisponivel(handler)
         return None
-    try:
-        base_cols = "id,name,email,role,team,ini,color,rd_id,meta_id,status,hide_from_ranking,last_login_at,is_service"
+    base_cols = "id,name,email,role,team,ini,color,rd_id,meta_id,status,hide_from_ranking,last_login_at,is_service"
+    # menu_groups = override de menu por usuário (v77.53) · cargos = multi-cargo (v87.64)
+    ultimo = None
+    for cols in (base_cols + ",menu_groups,cargos", base_cols + ",menu_groups", base_cols):
         try:
-            # menu_groups = override de menu por usuário (v77.53) · cargos = multi-cargo (v87.64)
-            res = sb.table("users").select(base_cols + ",menu_groups,cargos").eq("id", claims.get("sub")).limit(1).execute()
-        except Exception:
-            try:
-                res = sb.table("users").select(base_cols + ",menu_groups").eq("id", claims.get("sub")).limit(1).execute()
-            except Exception:
-                # colunas ainda não migradas em algum ambiente → não quebra o login
-                res = sb.table("users").select(base_cols).eq("id", claims.get("sub")).limit(1).execute()
-        rows = res.data or []
-        if not rows:
-            return None
-        return enrich_user(rows[0])
-    except Exception as e:
-        print(f"[auth_lib] erro buscar user: {e}")
-        return None
+            rows = sb.table("users").select(cols).eq("id", claims.get("sub")).limit(1).execute().data or []
+            if not rows:
+                return None   # usuário apagado → 401 legítimo
+            return enrich_user(rows[0])
+        except Exception as e:
+            ultimo = e
+            if not _erro_de_coluna(e):
+                break   # banco fora/lento: não adianta tentar os selects menores
+    print(f"[auth_lib] erro buscar user: {str(ultimo)[:300]}")
+    _marcar_indisponivel(handler)
+    return None
+
+
+def _marcar_indisponivel(handler):
+    try:
+        handler._auth_indisponivel = True
+    except Exception:
+        pass
+
+
+def auth_indisponivel(handler) -> bool:
+    return bool(getattr(handler, "_auth_indisponivel", False))
 
 
 # ─── Helper: require auth (raise se não autenticado) ───────────────────────
@@ -375,6 +395,8 @@ def require_user(handler, min_lvl: int = 0) -> dict:
     """Eleva exceção se sem auth ou lvl insuficiente. Retorna user dict."""
     u = current_user(handler)
     if not u:
+        if auth_indisponivel(handler):   # v88.39: banco fora ≠ sessão expirada
+            raise AuthError(503, "banco de dados indisponível agora — tente de novo em instantes")
         raise AuthError(401, "autenticação necessária")
     # v86.67: usuário INATIVADO perde o acesso na hora (antes o JWT valia até expirar, 12h)
     if str(u.get("status") or "ativo").strip().lower() in ("inactive", "inativo", "disabled", "desativado", "desligado"):

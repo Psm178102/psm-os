@@ -13,7 +13,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import current_user  # type: ignore
+from _auth_lib import current_user, auth_indisponivel  # type: ignore
 
 
 class handler(BaseHTTPRequestHandler):
@@ -36,5 +36,7 @@ class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         user = current_user(self)
         if not user:
+            if auth_indisponivel(self):   # v88.39: banco fora não derruba a sessão
+                return self._send(503, {"ok": False, "error": "banco de dados indisponível agora"})
             return self._send(401, {"ok": False, "error": "não autenticado"})
         return self._send(200, {"ok": True, "user": user})

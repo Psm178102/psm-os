@@ -29,10 +29,8 @@ async function request(path, { method = 'GET', body = null, auth = true, headers
   if (body && !(body instanceof FormData)) {
     h['Content-Type'] = 'application/json';
   }
-  if (auth) {
-    const tok = tokenStore.get();
-    if (tok) h['Authorization'] = 'Bearer ' + tok;
-  }
+  const tok = auth ? tokenStore.get() : null;
+  if (tok) h['Authorization'] = 'Bearer ' + tok;
 
   let resp;
   try {
@@ -46,8 +44,9 @@ async function request(path, { method = 'GET', body = null, auth = true, headers
     throw new ApiError(0, 'network', e.message || 'falha de rede');
   }
 
-  // 401 → token inválido/expirado
-  if (resp.status === 401) {
+  // 401 → token inválido/expirado. v88.39: antes de deslogar, confirma no /auth/me — um 401
+  // perdido de uma tela (ou o banco oscilando) não derruba mais a sessão de ninguém.
+  if (resp.status === 401 && (!auth || await sessaoCaiu(tok, path))) {
     tokenStore.clear();
     window.dispatchEvent(new CustomEvent('auth:expired'));
   }
@@ -73,6 +72,20 @@ async function request(path, { method = 'GET', body = null, auth = true, headers
     }
   } catch (_) {}
   return data;
+}
+
+// Confirmação única e compartilhada (várias telas recebendo 401 juntas = 1 chamada só).
+// Só um 401 do próprio /auth/me confirma; 503/erro de rede mantém a sessão.
+let _confirmando = null;
+async function sessaoCaiu(tok, path) {
+  if (!tok || tokenStore.isExpired() || String(path).startsWith('/api/v3/auth/me')) return true;
+  if (tokenStore.get() !== tok) return false;   // já logou de novo com outro token
+  if (!_confirmando) {
+    _confirmando = fetch('/api/v3/auth/me', { headers: { Accept: 'application/json', Authorization: 'Bearer ' + tok }, cache: 'no-store' })
+      .then(r => r.status === 401).catch(() => false)
+      .finally(() => setTimeout(() => { _confirmando = null; }, 5000));
+  }
+  return _confirmando;
 }
 
 export class ApiError extends Error {
