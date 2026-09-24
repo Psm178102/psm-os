@@ -75,7 +75,10 @@ export function montarAlertasDecisoes(el) {
     if (gc && !gc._err && gc.alertas && Array.isArray(gc.alertas.itens)) {
       for (const a of gc.alertas.itens.slice(0, 8)) {
         const lbl = a.label || a.metrica || 'métrica';
-        const t = `${a.team ? '[' + a.team + '] ' : ''}${lbl}: ${a.valor}${a.unidade === 'pct' ? '%' : ''} (régua ${a.tipo === 'min' ? '≥' : '≤'} ${a.limite})`;
+        // a API manda `acima` (true = ruim quando passa do limite → régua ≤; false = ruim abaixo → régua ≥) e `fmt`
+        // (brl|pct|num). O código antigo lia `tipo`/`unidade`, que não existem: toda régua saía "≤" e sem unidade.
+        const f = v => a.fmt === 'brl' ? money(v) : a.fmt === 'pct' ? Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + '%' : Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+        const t = `${a.team ? '[' + a.team + '] ' : ''}${lbl}: ${f(a.valor)} (régua ${a.acima === false ? '≥' : '≤'} ${f(a.limite)})`;
         const setor = /cac|cpl|roas|m[íi]dia|tr[áa]fego|an[úu]ncio/i.test(lbl + ' ' + (a.metrica || '')) ? 'Marketing' : 'Comercial';
         push('bad', t, `Corrigir ${lbl} — ${a.team || 'equipe'}`, setor);
       }
