@@ -25,6 +25,8 @@ BRT = timezone(timedelta(hours=-3))
 # sync do RD, não pelo código — em 16/09 a v87.87 leu retratos da v87.86 sem pipeline/previsto/norte.
 CACHE_KEY = "metricas_resumo:v7"   # v88.37: visita do MAP = maior entre tarefa e coluna, creditada ao dono do negócio · v88.34: origem = "Origem do cliente" (campo personalizado do RD) antes do deal_source
 CACHE_TTL = 600          # segurança: mesmo sem sync novo, recalcula a cada 10 min
+LOCK_TTL = 90            # v88.40: janela da trava de cálculo único (o cálculo leva 5–40 s)
+STALE_MAX = 3600         # v88.40: com cálculo em andamento, serve a foto anterior se tiver < 1 h
 HUB_TTL = 300            # esteira do PSM HUB (externa) — 5 min
 KV_ORIGENS = "dic_origens"   # override editável da tabela de origens (Configurações → Dicionário)
 
@@ -255,6 +257,21 @@ def versao_deals(sb):
         return str((r[0] or {}).get("synced_at") or "") if r else ""
     except Exception:
         return ""
+
+
+def ultimo_sync_rd(sb):
+    """v88.40: hora do último sync bem-sucedido do RD (frescor pra exibir "dados de HH:MM" e
+    pros alarmes). O sync agora só grava negócio que mudou, então max(synced_at) = último dado
+    NOVO (é a versão do cache), e este = última vez que o RD foi conferido."""
+    cands = [versao_deals(sb)]
+    try:
+        v = _kv_read(sb, "rd_sync_ultimo")
+        if isinstance(v, dict) and v.get("ts"):
+            cands.append(v["ts"])
+    except Exception:
+        pass
+    dts = [d for d in (parse_dt(c) for c in cands if c) if d]
+    return max(dts).isoformat() if dts else ""
 
 
 def versao_dados(sb):
@@ -1001,7 +1018,21 @@ def resumo(sb, params=None, fresh=False, hoje=None):
                 out = dict(c["data"])
                 out["cached"] = True
                 out["cache_age_s"] = int(age)
+                _carimbar_frescor(sb, out)
                 return out
+            # v88.40: cálculo único — se outra requisição já está recalculando esta janela
+            # (trava < LOCK_TTL), devolve a foto anterior em vez de recalcular junto. Em 24/09,
+            # várias telas recalculando ao mesmo tempo esgotaram a CPU do banco.
+            lk = _kv_read(sb, key + ":calc")
+            lts = parse_dt((lk or {}).get("ts")) if isinstance(lk, dict) else None
+            if lts and (datetime.now(timezone.utc) - lts).total_seconds() < LOCK_TTL and age < STALE_MAX:
+                out = dict(c["data"])
+                out["cached"] = True
+                out["recalculando"] = True
+                out["cache_age_s"] = int(age)
+                _carimbar_frescor(sb, out)
+                return out
+    _kv_write(sb, key + ":calc", {"ts": datetime.now(timezone.utc).isoformat()})
     base = carregar(sb, since_d, until_d)
     data = calcular(sb, base, since_d, until_d, hoje)
     dados_de = to_brt(versao.split("|m")[0])
@@ -1017,7 +1048,16 @@ def resumo(sb, params=None, fresh=False, hoje=None):
         "cached": False,
     })
     _kv_write(sb, key, {"_cached_at": datetime.now(timezone.utc).isoformat(), "versao": versao, "data": data})
+    _carimbar_frescor(sb, data)
     return data
+
+
+def _carimbar_frescor(sb, out):
+    """v88.40: "dados de HH:MM" = último sync conferido (não o último dado novo)."""
+    d = to_brt(ultimo_sync_rd(sb))
+    if d:
+        out["dados_de"] = d.isoformat()
+        out["dados_de_hhmm"] = d.strftime("%d/%m %H:%M")
 
 
 def filtrar_por_viewer(data, user):

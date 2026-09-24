@@ -156,7 +156,9 @@ class handler(BaseHTTPRequestHandler):
         try:
             user = _find_user_by_email(sb, email)
         except Exception as e:
-            return self._send(500, {"ok": False, "error": f"erro consulta: {e}"})
+            print(f"[auth] erro consulta: {str(e)[:300]}")
+            # v88.40: nunca mostra o HTML cru do banco (522 do Cloudflare) na tela de login
+            return self._send(503, {"ok": False, "error": "Sistema temporariamente indisponível (banco de dados sem resposta). Tente de novo em 1 minuto."})
 
         # Mesma resposta pra "user inexistente" vs "senha errada" (não vaza email válido)
         if not user or not verify_password(password, user.get("password_hash")):

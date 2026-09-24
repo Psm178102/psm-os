@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
+from _rdsync_lib import gravar, marcar_sync  # type: ignore   # v88.40
 from sync import _rd_page, _deal_to_row, _list_pipelines  # type: ignore
 
 PAGES_PER_PIPE = 2  # ~200×2×N funis dos deals mais recentes — cobre dias de atividade
@@ -52,8 +53,14 @@ class handler(BaseHTTPRequestHandler):
         last = None
         try:
             rows = sb.table("deals").select("synced_at").order("synced_at", desc=True).limit(1).execute().data or []
-            if rows and rows[0].get("synced_at"):
-                last = datetime.fromisoformat(str(rows[0]["synced_at"]).replace("Z", "+00:00"))
+            cands = [rows[0].get("synced_at")] if rows else []
+            # v88.40: o sync só grava o que mudou — o frescor é o último sync bem-sucedido (shared_kv)
+            kv = sb.table("shared_kv").select("value").eq("key", "rd_sync_ultimo").limit(1).execute().data or []
+            if kv and isinstance(kv[0].get("value"), dict):
+                cands.append(kv[0]["value"].get("ts"))
+            cands = [datetime.fromisoformat(str(c).replace("Z", "+00:00")) for c in cands if c]
+            if cands:
+                last = max(cands)
         except Exception as e:
             return self._send(500, {"ok": False, "error": f"synced_at: {e}"})
         now = datetime.now(timezone.utc)
@@ -100,8 +107,7 @@ class handler(BaseHTTPRequestHandler):
                         buf.append(_deal_to_row(d, users_by_email, pid, pname))
                 if len(buf) >= 200:
                     try:
-                        sb.table("deals").upsert(buf, on_conflict="id").execute()
-                        upserted += len(buf)
+                        upserted += gravar(sb, buf)   # v88.40: só o que mudou
                     except Exception as e:
                         errors.append(f"upsert: {e}")
                     buf = []
@@ -109,10 +115,11 @@ class handler(BaseHTTPRequestHandler):
                     break
         if buf:
             try:
-                sb.table("deals").upsert(buf, on_conflict="id").execute()
-                upserted += len(buf)
+                upserted += gravar(sb, buf)   # v88.40: só o que mudou
             except Exception as e:
                 errors.append(f"upsert final: {e}")
+        if fetched:   # v88.40: RD respondeu → registra o frescor mesmo sem nada novo
+            marcar_sync(sb, "auto", fetched, upserted)
         try:
             audit(self, actor, "crm.sync_auto", target_type="deals", target_id="*",
                   notes=f"stale {age_h:.1f}h -> upserted={upserted} em {time.time()-t0:.1f}s")

@@ -112,7 +112,8 @@ class handler(BaseHTTPRequestHandler):
             if did and (deal.get("deal_stage") or deal.get("deal_custom_fields") or deal.get("custom_fields")):
                 stage = deal.get("deal_stage") or {}
                 upd = {"id": str(did), "rd_raw": deal, "win": deal.get("win"),
-                       "synced_at": datetime.now(timezone.utc).isoformat()}   # v87.94: webhook também conta como dado novo
+                       "synced_at": datetime.now(timezone.utc).isoformat(),   # v87.94: webhook também conta como dado novo
+                       "raw_hash": None}   # v88.40: próximo sync regrava no formato da API
                 if isinstance(stage, dict) and stage.get("id") is not None:
                     upd["stage_id"] = stage.get("id")
                     upd["stage_name"] = stage.get("name")

@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, audit  # type: ignore
+from _rdsync_lib import gravar, marcar_sync  # type: ignore   # v88.40
 
 
 RD_BASE = "https://crm.rdstation.com/api/v1"
@@ -196,8 +197,7 @@ class handler(BaseHTTPRequestHandler):
                         rows_buffer.append(_deal_to_row(d, users_by_email, pid, pname))
                 if len(rows_buffer) >= 200:
                     try:
-                        sb.table("deals").upsert(rows_buffer, on_conflict="id").execute()
-                        upserted += len(rows_buffer)
+                        upserted += gravar(sb, rows_buffer)   # v88.40: só o que mudou
                     except Exception as e:
                         errors.append(f"upsert: {e}")
                     rows_buffer = []
@@ -207,11 +207,12 @@ class handler(BaseHTTPRequestHandler):
 
         if rows_buffer:
             try:
-                sb.table("deals").upsert(rows_buffer, on_conflict="id").execute()
-                upserted += len(rows_buffer)
+                upserted += gravar(sb, rows_buffer)   # v88.40: só o que mudou
             except Exception as e:
                 errors.append(f"upsert final: {e}")
 
+        if total_fetched:   # v88.40: RD respondeu → registra o frescor mesmo sem nada novo
+            marcar_sync(sb, ("cron_inc" if modo_inc else "cron"), total_fetched, upserted)
         duration = round(time.time() - t0, 2)
 
         # Audit (actor=null = sistema)

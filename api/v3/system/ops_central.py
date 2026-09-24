@@ -82,7 +82,7 @@ VERCEL = [
     ("sentinela",   "Sentinela (uptime)",       "Checa banco + site a cada 5 min e alerta no ntfy.", "a cada 5 min",
      ("kv", "uptime_state"), 0.5, 2, "#/governanca"),
     ("rd_full",     "Sync RD completo",         "Sincronização completa do RD (3×/dia).", "3×/dia",
-     ("tab", "deals", "synced_at"), 12, 26, "#/crm"),
+     ("kv", "rd_sync_ultimo"), 12, 26, "#/crm"),   # v88.40: sync só grava o que mudou → frescor no kv
     ("kenlo",       "Sync estoque Kenlo",       "Atualiza o estoque de imóveis da Kenlo.", "diário 5h",
      ("tab", "kenlo_estoque_snapshots", "criado_em"), 30, 54, "#/estoque-kenlo"),
     ("zoho",        "Sync agenda Zoho",         "Sincroniza o Zoho Calendar de quem conectou.", "a cada 30 min",
@@ -473,8 +473,10 @@ def coletar_integracoes(sb, col, now, live=True):
     if not _env("RD_API_TOKEN"):
         add("rd", "RD Station CRM", "Negócios, funis e tarefas.", "error", "RD_API_TOKEN ausente — CRM não sincroniza.", link="#/crm", ico="📇")
     else:
-        ult = col.tab_max("deals", "synced_at")
-        age = _age_h(ult, now)
+        # v88.40: sync só grava o que mudou → frescor = o mais recente entre o registro do sync e o último dado
+        cands = [(x, _age_h(x, now)) for x in (col.kv_updated("rd_sync_ultimo"), col.tab_max("deals", "synced_at")) if x]
+        cands = [c for c in cands if c[1] is not None]
+        ult, age = min(cands, key=lambda c: c[1]) if cands else (None, _age_h(None, now))
         st = avaliar_idade(age, 2, 12)
         add("rd", "RD Station CRM", "Negócios, funis e tarefas.", st,
             f"Último dado sincronizado {fmt_idade(age)}." + (" Token pode ter expirado." if st == "error" else ""),

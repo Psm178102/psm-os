@@ -71,7 +71,9 @@ class handler(BaseHTTPRequestHandler):
             if target and not user_id:
                 user_id = target["id"]
         except Exception as e:
-            return self._send(500, {"ok": False, "error": f"erro consulta: {e}"})
+            print(f"[auth] erro consulta: {str(e)[:300]}")
+            # v88.40: nunca mostra o HTML cru do banco (522 do Cloudflare) na tela de login
+            return self._send(503, {"ok": False, "error": "Sistema temporariamente indisponível (banco de dados sem resposta). Tente de novo em 1 minuto."})
 
         if not target:
             return self._send(404, {"ok": False, "error": "E-mail não encontrado. Peça ao Sócio para cadastrar."})

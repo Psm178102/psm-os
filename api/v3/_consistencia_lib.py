@@ -121,7 +121,7 @@ def _projecao(ck, ctx):
 
 def _frescor(ck, sb, hoje):
     agora = MX.agora_brt()
-    ts = MX.to_brt(MX.versao_deals(sb))
+    ts = MX.to_brt(MX.ultimo_sync_rd(sb))   # v88.40: frescor = último sync conferido
     comercial = agora.weekday() < 6 and 9 <= agora.hour < 20
     if not ts:
         ck.aviso("sync_rd", "Sync do RD", False, "Não consegui ler o último sync do RD (deals.synced_at).")
