@@ -27,7 +27,9 @@ Mudança de regra = mudança neste arquivo + na lib, nunca em uma tela isolada.
 
 ## 2. Origem e lead
 
-Toda origem do RD (`rd_raw.deal_source.name`) cai em exatamente uma categoria:
+Origem do negócio (v88.33d) = campo personalizado **"Origem do cliente"** do RD (coluna `deals.origem_cliente`, preenchida por gatilho a partir do `rd_raw`); vazio → "Fonte" padrão do RD (`rd_raw.deal_source.name`). Motivo: desde ago/2026 a equipe preenche a "Origem do cliente" em ~98% dos negócios, e o "Fonte" ficava vazio em ~30% e nunca trazia indicação, carteira ou networking. Valores do campo personalizado: Trafego pago PSM → `trafego_pago_psm`; Trafego pago corretor → `trafego_pago_corretor`; Instagram PSM, Whatsapp PSM, Instagram corretor, Marketplace, PAP Digital → `organico_site`; Carteira, Ativo de rua → `carteira`; Indicação; Networking; Lista, Reativação → `reativacao`.
+
+Toda origem cai em exatamente uma categoria:
 
 | Categoria | Origens do RD | Observação |
 |---|---|---|

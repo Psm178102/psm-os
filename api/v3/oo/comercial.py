@@ -80,7 +80,7 @@ MIN_VENDAS_RANK = 3
 # assumido tráfego pago PSM (regra do Paulo 15/ago, reconfirmada 23/09).
 CANAL_LBL = dict(MX_CAT_LABEL)
 CANAIS_PAGOS = ("trafego_pago_psm",)   # venda de origem paga = só mídia da PSM (corretor paga a própria)
-CACHE_VER = "gc30"   # v86.39: bump aqui invalida página E cron juntos
+CACHE_VER = "gc31"   # v86.39: bump aqui invalida página E cron juntos
 
 FUNIS_RD = {"conquista": "funil conquista", "map": "funil map",
             "terceiros": "funil terceiros", "locacao": "funil de locacao"}
@@ -696,6 +696,8 @@ class handler(BaseHTTPRequestHandler):
         # v88.33c: origem → (categoria oficial §2, assumida?) — mesma tabela do quadro de origens
         _mapa_origens = mx_mapa_origens(sb)
         _cat_de = lambda nome: mx_origem_cat(nome, _mapa_origens)
+        # v88.34: "Origem do cliente" (campo personalizado do RD) antes do "Fonte" padrão — mesma regra do motor
+        _orig_de = lambda d: (d.get("origem_cliente") or "").strip() or source(d.get("rd_raw") or {})
 
         # v87.85 (Dicionário §0): contas de serviço (tv, comercial) não são pessoas — negócio
         # no e-mail delas cai em "sem corretor".
@@ -722,7 +724,7 @@ class handler(BaseHTTPRequestHandler):
 
         # ── deals da SAFRA (criados em [since-180d, until] p/ safras + coorte) ──
         safra_ini = since_d - timedelta(days=120)   # safras de até ~6m antes do fim
-        cols = "id,name,amount,win,closed_at,created_at_rd,stage_id,pipeline_id,user_id,user_email,rd_raw"
+        cols = "id,name,amount,win,closed_at,created_at_rd,stage_id,pipeline_id,user_id,user_email,rd_raw,origem_cliente"
         deals, pg = [], 0
         while True:
             ch = (sb.table("deals").select(cols)
@@ -801,8 +803,8 @@ class handler(BaseHTTPRequestHandler):
                 "lost": d.get("win") is False,
                 "motivo": lost_reason(d.get("rd_raw") or {}),
                 "vgv": amount(d),
-                "canal": _cat_de(source(d.get("rd_raw") or {}))[0],
-                "atribuido": not _cat_de(source(d.get("rd_raw") or {}))[1],
+                "canal": _cat_de(_orig_de(d))[0],
+                "atribuido": not _cat_de(_orig_de(d))[1],
                 "camp": lead_campaign_name(d),
                 "team": team_do_deal(pid, uid),
                 "uid": uid, "nome": u.get("name") or d.get("user_email") or "?",
@@ -1510,7 +1512,7 @@ class handler(BaseHTTPRequestHandler):
         for filtro in (("created_at_rd", f"{jan1}T00:00:00+00:00"), ("closed_at", f"{jan1}T00:00:00+00:00")):
             pg = 0
             while True:
-                qy = sb.table("deals").select("id,amount,win,closed_at,created_at_rd,user_id,user_email,pipeline_id,ds:rd_raw->deal_source").gte(*filtro)
+                qy = sb.table("deals").select("id,amount,win,closed_at,created_at_rd,user_id,user_email,pipeline_id,ds:rd_raw->deal_source,origem_cliente").gte(*filtro)
                 ch = qy.order("id").range(pg * 1000, pg * 1000 + 999).execute().data or []
                 for d in ch:
                     if str(d.get("id")) not in seen_h:
@@ -1537,7 +1539,7 @@ class handler(BaseHTTPRequestHandler):
             for d in hist_deals:
                 uid = str(d.get("user_id") or "") or email2uid.get((d.get("user_email") or "").lower(), "")
                 tk = team_do_deal(d.get("pipeline_id"), uid)
-                ck = _cat_de(source({"deal_source": d.get("ds")}))[0]
+                ck = _cat_de((d.get("origem_cliente") or "").strip() or source({"deal_source": d.get("ds")}))[0]
                 cm = canais_m.setdefault(ck, {"leads": 0, "vendas": 0, "vgv": 0.0})
                 cr = parse_dt(d.get("created_at_rd"))
                 cl = parse_dt(d.get("closed_at"))

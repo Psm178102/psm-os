@@ -609,6 +609,19 @@ def abertos_origem():
     assert sum(C["por_origem"].values()) == C["interessados"], (C["por_origem"], C["interessados"])
     assert r["entradas_sem_origem"] >= r["abertos_sem_origem"] and C["entradas_sem_origem"] >= C["abertos_sem_origem"], C
     assert C["entradas_sem_origem"] == sum(p["entradas_sem_origem"] for p in P.values()) + C["sem_corretor"]["entradas_sem_origem"] + C["inativos"]["entradas_sem_origem"]
+    # v88.34: "Origem do cliente" (campo personalizado do RD) vale antes do deal_source
+    db2 = copy.deepcopy(db)
+    for d in db2["deals"]:
+        if d["id"] == "3":
+            d["origem_cliente"] = "Indicação"          # deal_source vazio → antes era "sem origem" (pago assumido)
+        if d["id"] == "2":
+            d["origem_cliente"] = " Networking "       # vence o deal_source "Busca Paga | Ads PSM"
+    o2 = M.resumo(SB(db2), {}, fresh=True, hoje=date(2026, 9, 30))
+    r2, k2 = o2["pessoas"]["rafaela"], o2["pessoas"]["kadu"]
+    assert r2["abertos_por_origem"]["indicacao"] == 1 and r2["abertos_sem_origem"] == 0, r2["abertos_por_origem"]
+    assert k2["abertos_por_origem"]["networking"] == 1 and k2["abertos_por_origem"]["trafego_pago_psm"] == 0, k2["abertos_por_origem"]
+    assert M.origem_categoria("Trafego pago PSM ", M.ORIGENS_PADRAO) == ("trafego_pago_psm", False)
+    assert M.origem_categoria("Carteira", M.ORIGENS_PADRAO) == ("carteira", False)
     print("OK — leads em andamento × origem × equipe")
 
 

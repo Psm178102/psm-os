@@ -122,7 +122,7 @@ function avisos(d, team) {
       .sort((a, c) => c[v.so] - a[v.so]).slice(0, 8)
       .map(p => `${esc(p.name || p.id)} (${fN(p[v.so])})`);
     const pct = tot ? ` — <b>${Math.round(so / tot * 100)}%</b> do total` : '';
-    out.push(`⚠️ <b>${fN(so)}</b> lead(s) <b>sem origem preenchida no RD</b>${pct}. Hoje contam em Lead · Tráfego Pago PSM (Dicionário §2), o que infla o pago. Preencha a origem na negociação.`
+    out.push(`⚠️ <b>${fN(so)}</b> lead(s) <b>sem "Origem do cliente" preenchida no RD</b>${pct}. Hoje contam em Lead · Tráfego Pago PSM (Dicionário §2), o que infla o pago. Preencha a origem na negociação.`
       + (quem.length ? `<br><span class="tiny">Quem precisa preencher: ${quem.join(' · ')}</span>` : ''));
   }
   if (nc) out.push(`⚠️ <b>${fN(nc)}</b> lead(s) com origem que ainda não está no Dicionário — estão em "Outros".`);
@@ -170,7 +170,7 @@ export async function montarLeadsOrigem(el, opts = {}) {
       <button class="btn btn-ghost btn-sm lo-fresh" title="sincroniza o RD agora e recalcula">🔄</button>
     </div>
     <div class="lo-body"><div class="muted tiny"><span class="spinner"></span> Lendo o funil do RD…</div></div>
-    <div class="tiny muted" style="margin-top:6px">Entraram no período = toda negociação criada no RD no período (aberta, ganha ou perdida); a Prospecção é a soma de todas as origens. Em andamento = só as que seguem abertas. Origem = campo de origem da negociação no RD. Atualiza sozinho a cada 5 min.</div>
+    <div class="tiny muted" style="margin-top:6px">Entraram no período = toda negociação criada no RD no período (aberta, ganha ou perdida); a Prospecção é a soma de todas as origens. Em andamento = só as que seguem abertas. Origem = campo "Origem do cliente" da negociação no RD (vazio → campo Fonte). Atualiza sozinho a cada 5 min.</div>
   </div>`;
 
   const q = s => el.querySelector(s);

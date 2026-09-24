@@ -23,7 +23,7 @@ from datetime import datetime, timezone, timedelta, date
 BRT = timezone(timedelta(hours=-3))
 # ⚠️ Bumpar o sufixo (v2, v3…) SEMPRE que o formato do retrato mudar: o cache é versionado pelo
 # sync do RD, não pelo código — em 16/09 a v87.87 leu retratos da v87.86 sem pipeline/previsto/norte.
-CACHE_KEY = "metricas_resumo:v5"   # v88.34: + entradas_sem_origem; empresa.por_origem soma sem corretor/quem saiu
+CACHE_KEY = "metricas_resumo:v6"   # v88.34: origem = "Origem do cliente" (campo personalizado do RD) antes do deal_source
 CACHE_TTL = 600          # segurança: mesmo sem sync novo, recalcula a cada 10 min
 HUB_TTL = 300            # esteira do PSM HUB (externa) — 5 min
 KV_ORIGENS = "dic_origens"   # override editável da tabela de origens (Configurações → Dicionário)
@@ -59,6 +59,14 @@ ORIGENS_PADRAO = {
     "networking": "networking",
     "reativacao": "reativacao",
     "lista": "reativacao",
+    # v88.34: valores do campo personalizado "Origem do cliente" do RD (o que a equipe preenche desde ago/26)
+    "trafego pago psm": "trafego_pago_psm",
+    "trafego pago corretor": "trafego_pago_corretor",
+    "instagram psm": "organico_site",
+    "whatsapp psm": "organico_site",
+    "marketplace": "organico_site",
+    "pap digital": "organico_site",
+    "carteira": "carteira",
 }
 # sem origem / desconhecido → assume tráfego pago da PSM (decisão do Paulo), com aviso
 ORIGENS_ASSUMIDAS = {"", "desconhecido"}
@@ -273,6 +281,13 @@ def mapa_origens(sb):
     return mapa
 
 
+def origem_nome(d):
+    """v88.34: origem do negócio = campo personalizado "Origem do cliente" do RD (coluna deals.origem_cliente,
+    preenchida por gatilho) e, vazio, o "Fonte" padrão (deal_source). Desde ago/26 a equipe preenche o
+    personalizado em ~98% dos negócios; o deal_source ficava vazio em ~30% e nunca tinha indicação/carteira."""
+    return (d.get("oc") or "").strip() or d.get("src")
+
+
 def origem_categoria(nome, mapa):
     """→ (categoria, assumida). Sem origem/desconhecido = trafego_pago_psm assumido (§2)."""
     n = _norm(nome)
@@ -329,7 +344,7 @@ def carregar(sb, since_d, until_d):
 
     cols = ("id,amount,win,closed_at,created_at_rd,updated_at_rd,stage_id,stage_name,pipeline_id,pipeline_name,"
             "user_id,user_email,synced_at,"
-            "src:rd_raw->deal_source->>name,amt_total:rd_raw->amount_total,amt_unique:rd_raw->amount_unique,"
+            "src:rd_raw->deal_source->>name,oc:origem_cliente,amt_total:rd_raw->amount_total,amt_unique:rd_raw->amount_unique,"
             "la:rd_raw->>last_activity_at,nint:rd_raw->interactions")
     # negócios que TOCAM a janela: criados nela, fechados nela, ou ainda abertos (em atendimento)
     deals = {}
@@ -543,7 +558,7 @@ def calcular(sb, base, since_d, until_d, hoje=None):
             b["em_atendimento"] += 1
 
         if in_create:
-            cat, assumida = origem_categoria(d.get("src"), mapa)
+            cat, assumida = origem_categoria(origem_nome(d), mapa)
             if win is None:
                 b["abertos_periodo"] += 1
                 b["abertos_por_origem"][cat] += 1
