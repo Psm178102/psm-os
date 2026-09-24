@@ -24,6 +24,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
 
 KV = "rotina_conquista"
+INICIO = date(2026, 9, 23)   # a rotina começou a valer aqui — antes disso não há o que cobrar
 ISA, KAUE = "isa", "kbordini"
 
 # quem: 'isa' | 'kaue' · cad: diario | semanal | quinzenal | mensal | trimestral · link: tela do sistema
@@ -131,6 +132,9 @@ def _dias_uteis_ate(d, desde):
 def aderencia(checks, ini, fim, hoje):
     """% cumprido entre ini e fim (até hoje): diário conta por dia útil; demais, por período que fechou/está aberto."""
     fim = min(fim, hoje)
+    ini = max(ini, INICIO)
+    if fim < ini:
+        return {"pct": None, "feito": 0, "esperado": 0, "isa": None, "kaue": None}
     esperado = feito = 0
     por = {"isa": [0, 0], "kaue": [0, 0]}
     vistos = set()
@@ -210,6 +214,7 @@ class handler(BaseHTTPRequestHandler):
                           "mes": aderencia(checks, hoje.replace(day=1), hoje, hoje)},
             "semanas": semanas,
             "eu": {"id": u.get("id"), "socio": (u.get("role") or "") in ("socio", "diretor")},
+            "inicio": INICIO.isoformat(),
         })
 
     def do_POST(self):

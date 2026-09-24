@@ -99,10 +99,10 @@ const corPct = v => v == null ? COR.cinza : v >= 80 ? COR.verde : v >= 50 ? COR.
 function trilhaHTML() {
   const s = _r.semanas || [];
   if (!s.length) return '';
-  return `<div class="tiny muted mt-2">Aderência das últimas 8 semanas:</div>
+  return `<div class="tiny muted mt-2">Aderência das últimas 8 semanas (a rotina vale desde ${_r.inicio ? _r.inicio.split('-').reverse().join('/') : '—'}):</div>
     <div class="flex gap-1" style="align-items:flex-end;height:46px;margin-top:4px">
       ${s.map(w => `<div title="semana de ${w.semana.split('-').reverse().slice(0, 2).join('/')}: ${pct(w.pct)}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
-        <div style="width:100%;max-width:38px;height:${Math.max(3, (w.pct || 0) * 0.34)}px;background:${corPct(w.pct)};border-radius:3px 3px 0 0"></div>
+        <div style="width:100%;max-width:38px;height:${w.pct == null ? 3 : Math.max(3, w.pct * 0.34)}px;background:${w.pct == null ? 'var(--bg-3)' : corPct(w.pct)};border-radius:3px 3px 0 0"></div>
         <div class="tiny muted" style="font-size:9px">${w.semana.split('-').reverse().slice(0, 2).join('/')}</div></div>`).join('')}
     </div>`;
 }
@@ -120,7 +120,7 @@ function ataDe(fid, d) { return (_f.atas || []).find(a => a.formato_id === fid &
 function semanaStats() {
   let previstas = 0, feitas = 0;
   for (const f of formatosRotina()) for (const d of diasSemana()) {
-    if (!bate(f, d) || ymd(d) > _r.hoje) continue;
+    if (!bate(f, d) || ymd(d) > _r.hoje || (f.desde && ymd(d) < f.desde)) continue;
     previstas++; if (ataDe(f.id, d)) feitas++;
   }
   return { previstas, feitas };
@@ -141,7 +141,7 @@ function semanaHTML() {
     </table></div></div>`;
 }
 function celula(f, d) {
-  if (!bate(f, d)) return '<td style="padding:4px;text-align:center" class="muted">·</td>';
+  if (!bate(f, d) || (f.desde && ymd(d) < f.desde)) return '<td style="padding:4px;text-align:center" class="muted">·</td>';
   const dia = ymd(d), ata = ataDe(f.id, d);
   let ico, cor, tit;
   if (ata) { ico = '✓'; cor = COR.verde; tit = 'ata registrada'; }
