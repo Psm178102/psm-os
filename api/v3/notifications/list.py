@@ -21,6 +21,8 @@ def rota_de(link):
     t = str(link or "").strip()
     if not t or t.startswith("http"):
         return None
+    if "#/" in t:          # '/v2/#/crm', '/v2/index.html#/crm' → 'crm' (achado com dados reais)
+        t = t.split("#/", 1)[1]
     t = t.lstrip("/#")
     base = t.split("?", 1)[0].split("/", 1)[0].strip()
     return "/" + base if base else None

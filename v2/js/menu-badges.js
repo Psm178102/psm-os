@@ -23,6 +23,24 @@ let _porTela = {};                 // { '/crm': { n, ids } }
 let _ops = { n: 0, erro: false };  // Central de Operações
 let _marcando = null;
 
+// Telas que só redirecionam pra outra (router.register → location.hash): o aviso
+// conta no item de destino. Lista tirada do main.js (v88.34).
+const ALIAS = {
+  '/pontos-atencao': '/cockpit', '/insights': '/cockpit', '/kpis': '/cockpit',
+  '/rh-reunioes': '/reunioes', '/intel-dash': '/inteligencia', '/mapa-ciclos': '/governanca',
+};
+
+function juntaAlias(por) {
+  const out = {};
+  for (const [rota, e] of Object.entries(por || {})) {
+    const alvo = ALIAS[rota] || rota;
+    const d = out[alvo] || (out[alvo] = { n: 0, ids: [] });
+    d.n += e.n || 0;
+    d.ids = d.ids.concat(e.ids || []);
+  }
+  return out;
+}
+
 export function initMenuBadges() {
   css();
   refreshMenuBadges();
@@ -38,7 +56,7 @@ export function initMenuBadges() {
 export async function refreshMenuBadges() {
   try {
     const r = await api.request('/api/v3/notifications/list?por_tela=1');
-    _porTela = r.por_tela || {};
+    _porTela = juntaAlias(r.por_tela);
   } catch (_) { /* sem rede: mantém o último */ }
   pintar();
 }
@@ -52,7 +70,7 @@ export function setOpsBadge(n, erro) {
 function rotaAtual() {
   const h = (location.hash || '').replace(/^#/, '');
   const base = h.split('?')[0].split('/').filter(Boolean)[0];
-  return base ? '/' + base : null;
+  return base ? (ALIAS['/' + base] || '/' + base) : null;
 }
 
 // Ficou na tela? Os avisos dela viram lidos (o número daquele item some).
