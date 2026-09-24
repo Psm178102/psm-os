@@ -5,6 +5,7 @@
 
 const SIMS = [
   { id: '/sim-vpl',       ico: '📐', t: 'VPL',           d: 'Valor Presente Líquido do fluxo de pagamentos',     cor: 'linear-gradient(135deg,#0b1f3a,#1e3a5f)' },
+  { id: '/proposta',      ico: '📑', t: 'Proposta comercial', d: 'PDF para o cliente: até 4 opções, comparativo, fluxo com INCC e seu cartão', cor: 'linear-gradient(135deg,#1e2650,#b8955a)' },
   { id: '/sim-incc',      ico: '📊', t: 'INCC',          d: 'Fluxo mês a mês corrigido pelo INCC até as chaves',  cor: 'linear-gradient(135deg,#7c2d12,#9a3412)' },
   { id: '/sim-repasse',   ico: '💰', t: 'Repasse',       d: 'Precificação de repasse com saldo devedor',         cor: 'linear-gradient(135deg,#065f46,#047857)' },
   { id: '/sim-amortizacao', ico: '🏦', t: 'Amortização',  d: 'Financiamento SAC/PRICE + amortização extra (economia de juros)', cor: 'linear-gradient(135deg,#1e3a5f,#2563eb)' },

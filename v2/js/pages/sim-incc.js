@@ -85,8 +85,8 @@ const pctN = n => (Number(n) || 0).toLocaleString('pt-BR', { maximumFractionDigi
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch])); }
 
 /* ═══════════ CÁLCULO ═══════════ */
-function compute() {
-  const v = _s;
+// v88.34: exportada e pura — a Proposta comercial (proposta.js) usa o MESMO motor.
+export function compute(v = _s) {
   const valor = Math.max(0, +v.valorTotal || 0);
   const prazo = Math.max(0, Math.min(480, Math.round(+v.prazo || 0)));
   const inccAA = +v.inccAA || 0;

@@ -206,13 +206,14 @@ function celR$(v, forca) {
   return `<td class="pp-c pp-money"><span class="pp-rs">R$</span><span>${v ? fmt2(v) : '-'}</span></td>`;
 }
 
-function propostaTableHTML(c) {
+// v88.34: exportada — a Proposta comercial mostra o fluxo IGUAL a esta tabela (rotulo = data de cada linha).
+export function propostaTableHTML(c, rotulo = labelMes) {
   const linhas = c.fluxo.map(x => {
     // parcela do ato (meses 0..nAto-1) também é ATO — linha branca, não verde
     const tipo = x.mes < c.nAto ? 'ato' : (x.chaves ? 'chaves' : (x.total > 0.005 ? 'verde' : 'verm'));
     return `<tr class="pp-r pp-${tipo}">
       <td class="pp-c pp-n">${x.mes}</td>
-      <td class="pp-c pp-data">${x.mes === 0 ? 'ATO' : labelMes(x.mes)}${x.mes > 0 && x.mes < c.nAto ? ` <span style="font-size:9px">(ato ${x.mes + 1}/${c.nAto})</span>` : ''}</td>
+      <td class="pp-c pp-data">${x.mes === 0 ? 'ATO' : rotulo(x.mes)}${x.mes > 0 && x.mes < c.nAto ? ` <span style="font-size:9px">(ato ${x.mes + 1}/${c.nAto})</span>` : ''}</td>
       ${celR$(x.ent)}
       ${x.mes === 0 ? celR$(0, true) : celR$(x.m)}
       ${celR$(x.s)}
@@ -252,7 +253,7 @@ function propostaTableHTML(c) {
 }
 
 // CSS fiel à planilha — o MESMO na tela e na via de impressão/compartilhamento
-const PP_CSS = `
+export const PP_CSS = `
   .pp-table{border-collapse:collapse;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#1a1a1a;width:100%;max-width:980px;background:#fff}
   /* v86.85: a planilha é uma FOLHA impressa fiel — fica clara nos 2 temas, com tinta escura própria (antes herdava a letra creme do escuro sobre verde/amarelo claro) */
   .pp-table .pp-c,.pp-table .pp-h{border:1px solid #000;padding:2px 6px;height:19px}

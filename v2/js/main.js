@@ -111,6 +111,7 @@ import { pageIntelBriefing } from './pages/intel-briefing.js';
 import { pageSimuladores } from './pages/simuladores.js';
 import { pageSimVPL } from './pages/sim-vpl.js';
 import { pageSimINCC } from './pages/sim-incc.js';
+import { pageProposta } from './pages/proposta.js';
 import { pageSimRepasse } from './pages/sim-repasse.js';
 import { pageSimEnergia } from './pages/sim-energia.js';
 import { pageSimAmortizacao } from './pages/sim-amortizacao.js';
@@ -155,7 +156,7 @@ export const ROUTE_GROUP = {
   '/crm': 'vendas', '/oportunidades': 'vendas', '/documentos': 'vendas', '/cadencia': 'vendas', '/scripts': 'vendas', '/form-captacao': 'vendas',
   '/imoveis': 'vendas', '/mapa': 'vendas', '/estoque-kenlo': 'vendas', '/tabela-imoveis': 'vendas', '/tabela-conquista': 'vendas', '/tabela-map': 'vendas', '/tabela-sp-capital': 'vendas', '/lancamentos': 'vendas',
   '/metas': 'vendas', '/equipe': 'vendas', '/plantoes': 'vendas',
-  '/sim-vpl': 'vendas', '/sim-incc': 'vendas', '/sim-repasse': 'vendas', '/sim-energia': 'vendas', '/sim-amortizacao': 'vendas',
+  '/sim-vpl': 'vendas', '/sim-incc': 'vendas', '/proposta': 'vendas', '/sim-repasse': 'vendas', '/sim-energia': 'vendas', '/sim-amortizacao': 'vendas',
   '/cockpit-conquista': 'vendas', '/minha-comissao': 'vendas', '/meu-cerebro': 'vendas', '/sim-conquista': 'vendas',  // ferramentas Conquista (v81.44)
   // Locação
   '/locacoes': 'locacao', '/minutas-locacao': 'locacao', '/locacao-dash': 'locacao', '/locacao-estoque': 'locacao',
@@ -518,7 +519,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '88.33m';
+const APP_VERSION = '88.34';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -772,6 +773,7 @@ const APP_VERSION = '88.33m';
   router.register('/simuladores', { render: async (ctx, root) => { setHeader('Simuladores');         highlight('/simuladores'); await pageSimuladores(ctx, root); } });
   router.register('/sim-vpl',     { render: async (ctx, root) => { setHeader('Simulador VPL');       highlight('/sim-vpl'); await pageSimVPL(ctx, root); } });
   router.register('/sim-incc',    { render: async (ctx, root) => { setHeader('Simulador INCC');      highlight('/sim-incc'); await pageSimINCC(ctx, root); } });
+  router.register('/proposta',    { render: async (ctx, root) => { setHeader('Proposta comercial');  highlight('/proposta'); await pageProposta(ctx, root); } });
   router.register('/sim-repasse', { render: async (ctx, root) => { setHeader('Simulador Repasse');   highlight('/sim-repasse'); await pageSimRepasse(ctx, root); } });
   router.register('/sim-energia', { render: async (ctx, root) => { setHeader('Simulador Energia');   highlight('/sim-energia'); await pageSimEnergia(ctx, root); } });
   router.register('/sim-amortizacao', { render: async (ctx, root) => { setHeader('Simulador de Amortização'); highlight('/sim-amortizacao'); await pageSimAmortizacao(ctx, root); } });
@@ -1028,6 +1030,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/crm"><span class="sb-ico">🔗</span> CRM (RD)</button>
         <button class="sb-link" data-nav="/oportunidades"><span class="sb-ico">💡</span> Oportunidades</button>
         <button class="sb-link" data-nav="/documentos"><span class="sb-ico">📝</span> Gerar documento</button>
+        <button class="sb-link" data-nav="/proposta"><span class="sb-ico">📑</span> Proposta comercial</button>
         <button class="sb-link" data-nav="/scripts"><span class="sb-ico">📚</span> Scripts & Cadências</button>
         <button class="sb-link" data-nav="/form-captacao"><span class="sb-ico">📝</span> Formulário de Captação</button>
         <button class="sb-link" data-nav="/mapa"><span class="sb-ico">🗺</span> Mapa Imóveis</button>
