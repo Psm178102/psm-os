@@ -4,6 +4,7 @@ import { auth } from '../auth.js';
 import { montarBlocoOO } from './treinamentos.js';   // 🎓 treinos + habilidade prioritária no 1:1 (v87.77)
 import { montarDecisoes } from '../decisoes.js';     // v87.92 🧭 pauta do 1:1 = decisões abertas da pessoa
 import { competidoresVgv } from '../ranking-regras.js';   // v88.11 régua única do Ranking
+import { montarRotinaOO } from './oo-rotina.js';          // v88.44 🧭 rotina & plano do corretor no 1:1
 
 let _root = null;
 let _view = 'list';            // 'list' | 'detail'
@@ -17,7 +18,7 @@ let _meet = [];                // reuniões 1:1 do corretor
 let _users = [];
 let _scope = 'individual';     // 'individual' | 'equipe' (só líderes têm equipe)
 /* 🧪 Simulador (v86.1) — aba individual por corretor, sócio-only */
-let _dtab = 'cockpit';         // 'cockpit' | 'simulador'
+let _dtab = 'cockpit';         // 'cockpit' | 'rotina' | 'simulador'
 let _sim = null;               // estado calibrado (GET /oo/simulador)
 let _simCen = null;            // cenário em edição
 let _simRes = null;            // último resultado simulado
@@ -199,6 +200,24 @@ function renderDetail() {
     if (_sim) renderSim(); else loadSim();
     return;
   }
+  // 🧭 Aba Rotina & Plano (v88.44) — todo mundo vê (o corretor, a dele)
+  if (_dtab === 'rotina') {
+    const sv = isSelfView();
+    _root.innerHTML = `
+      <div class="card">
+        <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:6px">
+          ${sv ? `<h2 class="card-title" style="margin:0">📊 Meu One-on-One</h2>` : '<button class="btn btn-ghost" id="oo-back">← Corretores</button>'}
+          ${sv ? '' : '<button class="btn btn-primary" id="oo-new" style="margin-left:auto">+ Reunião 1:1</button>'}
+        </div>
+        ${detailHeader(d, c)}
+        ${ooTabBar()}
+        <div id="oo-rotina" class="mt-3"></div>
+        <div id="modal-oo" style="display:none"></div>
+      </div>`;
+    wireTabsCommon();
+    montarRotinaOO(document.getElementById('oo-rotina'), { corretorId: c.id, nome: c.name, selfView: sv });
+    return;
+  }
   // Corretor = cockpit individual. selfView = o PRÓPRIO corretor olhando (v86.3):
   // sem lista/reunião/RH360, e os painéis de custo (ads/CPL/custo fixo) nem chegam
   // do backend — só gestor/diretor/sócio veem dado sensível.
@@ -284,12 +303,12 @@ function renderGestor(d, c) {
   montarDecisoes(document.getElementById('oo-dec-g'), { team: String(c.team || '').toLowerCase().includes('conquista') ? 'conquista' : String(c.team || '').toLowerCase().includes('map') ? 'map' : String(c.team || '').toLowerCase(), titulo: '🧭 Decisões da equipe de ' + (c.name || '').split(' ')[0], max: 8 });
 }
 
-/* 🧪 Abas do 1:1 individual (Cockpit | Simulador) — Simulador é sócio-only */
+/* Abas do 1:1 individual: Cockpit | 🧭 Rotina & Plano (todos, v88.44) | 🧪 Simulador (sócio-only) */
 function ooTabBar() {
-  if ((auth.user()?.lvl || 0) < 10) return '';
+  const socio = (auth.user()?.lvl || 0) >= 10;
   const tb = (id, lbl) => `<button class="btn ${_dtab === id ? 'btn-primary' : 'btn-ghost'} btn-sm" data-dtab="${id}">${lbl}</button>`;
-  const sombra = _sim && _sim.shadow ? '<span class="tiny" style="background:var(--bg-3);color:var(--ink-muted);border:1px solid #cbd5e1;padding:2px 8px;border-radius:999px;font-weight:700">🌒 modo sombra — só sócios veem</span>' : '';
-  return `<div class="flex items-center gap-2" style="margin-top:12px;flex-wrap:wrap">${tb('cockpit', '📊 Cockpit')}${tb('simulador', '🧪 Simulador')}${sombra}</div>`;
+  const sombra = socio && _sim && _sim.shadow ? '<span class="tiny" style="background:var(--bg-3);color:var(--ink-muted);border:1px solid #cbd5e1;padding:2px 8px;border-radius:999px;font-weight:700">🌒 modo sombra — só sócios veem</span>' : '';
+  return `<div class="flex items-center gap-2" style="margin-top:12px;flex-wrap:wrap">${tb('cockpit', '📊 Cockpit')}${tb('rotina', '🧭 Rotina & Plano')}${socio ? tb('simulador', '🧪 Simulador') : ''}${sombra}</div>`;
 }
 
 function wireTabsCommon() {
