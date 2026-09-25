@@ -163,24 +163,12 @@
       "destination": "/api/agent"
     },
     {
-      "source": "/api/properties",
-      "destination": "/api/properties"
-    },
-    {
       "source": "/api/rd",
       "destination": "/api/rd"
     },
     {
       "source": "/api/config",
       "destination": "/api/config"
-    },
-    {
-      "source": "/api/auth",
-      "destination": "/api/auth"
-    },
-    {
-      "source": "/api/dalle",
-      "destination": "/api/dalle"
     },
     {
       "source": "/prompts/:path*",

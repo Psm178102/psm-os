@@ -2,7 +2,7 @@
    Snapshots por concorrente + análise da IA (produto, formatos, ganchos,
    frequência, teste×escala). Dado real da Biblioteca pública do Meta; gasto é
    sempre ESTIMATIVA (Meta não publica verba de anúncio comercial). */
-import { api } from '../api.js';
+import { api, tokenStore } from '../api.js';
 import { auth } from '../auth.js';
 
 let _root = null, _latest = [], _pending = false, _detail = null, _aiPreview = null, _aiBusy = false;
@@ -192,7 +192,7 @@ Entregue em markdown curto e prático:
 6) **Pra PSM**: o que copiar, o que evitar, e 1 ideia de CONTRA-CRIATIVO concreto.
 Na ÚLTIMA linha escreva só: NIVEL_INVEST: baixo|medio|alto${cont ? '\n\nANÚNCIOS (texto):\n' + cont.slice(0, 8000) : ''}`;
   try {
-    const r = await fetch('/api/ai-analysis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, max_tokens: 1400, images: imgs }) });
+    const r = await fetch('/api/ai-analysis', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (tokenStore.get() || '') }, body: JSON.stringify({ prompt, max_tokens: 1400, images: imgs }) });
     const j = await r.json();
     if (j.ok && j.text) {
       let txt = j.text, nivel = null;

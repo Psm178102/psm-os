@@ -4,15 +4,19 @@
 // Devolve: { ok, text, model_used, fallback_reason?, usage }
 
 const { callAI } = require('./_ai.js');
+const { authorize } = require('./_authz.js');
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Cache-Control', 'no-store');
 
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'Method not allowed' });
+  // v88.45: era aberto para a internet. Agora só backend (CRON_SECRET) ou usuário lvl>=5
+  // (mesma régua do /api/v3/ia/analyze e da Biblioteca de Anúncios).
+  if (!authorize(req, 5)) return res.status(401).json({ ok:false, error:'não autenticado' });
 
   let body = req.body || {};
   if (typeof body === 'string') { try { body = JSON.parse(body); } catch(_){ body = {}; } }

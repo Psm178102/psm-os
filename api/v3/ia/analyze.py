@@ -116,7 +116,8 @@ def _legacy_fallback(prompt, model, max_tokens):
     base = (os.environ.get("PUBLIC_BASE_URL") or "https://www.housepsm.com.br").rstrip("/")
     body = json.dumps({"prompt": prompt, "model": model, "max_tokens": min(max_tokens, 4000)}).encode("utf-8")
     req = urllib.request.Request(base + "/api/ai-analysis", data=body,
-                                 headers={"Content-Type": "application/json", "User-Agent": "PSM-OS/analyze"})
+                                 headers={"Content-Type": "application/json", "User-Agent": "PSM-OS/analyze",
+                                          "Authorization": "Bearer " + os.environ.get("CRON_SECRET", "").strip()})
     with urllib.request.urlopen(req, timeout=90) as r:
         return json.loads(r.read().decode("utf-8"))
 

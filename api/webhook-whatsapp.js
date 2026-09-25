@@ -158,7 +158,7 @@ module.exports = async (req, res) => {
 
     const agentResp = await httpsReq(agentUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (process.env.CRON_SECRET || '') },
       body: JSON.stringify({
         agent: agentId,
         message: textMessage,

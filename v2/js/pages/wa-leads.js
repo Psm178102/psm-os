@@ -6,6 +6,9 @@
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 
+// v88.45: nome do perfil e 1ª mensagem vêm de QUALQUER pessoa que escreve no WhatsApp — XSS armazenado.
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
 let _root = null;
 let _data = null;
 let _busy = false;
@@ -55,7 +58,7 @@ function tempo(iso) {
 
 function pill(trilha, labels) {
   const c = TRILHA_COR[trilha] || '#64748b';
-  return `<span class="tiny" style="background:${c}1a;color:${c};border:1px solid ${c}55;border-radius:999px;padding:1px 8px;white-space:nowrap">${(labels || {})[trilha] || trilha}</span>`;
+  return `<span class="tiny" style="background:${c}1a;color:${c};border:1px solid ${c}55;border-radius:999px;padding:1px 8px;white-space:nowrap">${esc((labels || {})[trilha] || trilha)}</span>`;
 }
 
 function linhaLead(l, labels, comAcao) {
@@ -63,24 +66,24 @@ function linhaLead(l, labels, comAcao) {
   const atraso = espera && (Date.now() - new Date(espera).getTime()) / 60000 > (_data?.cfg?.sla_min || 15);
   return `<tr style="border-top:1px solid var(--line,#e5e7eb)">
     <td style="padding:8px 6px;white-space:nowrap">
-      <span class="wa-timer tiny ${atraso ? '' : 'muted'}" data-ts="${espera || l.created_at}"
+      <span class="wa-timer tiny ${atraso ? '' : 'muted'}" data-ts="${esc(espera || l.created_at)}"
         style="${atraso ? 'color:#dc2626;font-weight:700' : ''}">${tempo(espera || l.created_at)}</span></td>
     <td style="padding:8px 6px">
-      <div style="font-weight:600">${l.nome || 'Sem nome no perfil'}</div>
-      <div class="tiny muted">“${(l.primeira_msg || '').slice(0, 70)}”</div></td>
+      <div style="font-weight:600">${esc(l.nome || 'Sem nome no perfil')}</div>
+      <div class="tiny muted">“${esc((l.primeira_msg || '').slice(0, 70))}”</div></td>
     <td style="padding:8px 6px">${pill(l.trilha, labels)}</td>
-    <td style="padding:8px 6px" class="tiny">${ST_LABEL[l.status] || l.status}${l.erro ? `<div class="tiny" style="color:#b45309">⚠ ${l.erro.slice(0, 60)}</div>` : ''}</td>
+    <td style="padding:8px 6px" class="tiny">${ST_LABEL[l.status] || esc(l.status)}${l.erro ? `<div class="tiny" style="color:#b45309">⚠ ${esc(String(l.erro).slice(0, 60))}</div>` : ''}</td>
     <td style="padding:8px 6px;white-space:nowrap">
-      <a class="btn btn-sm" href="https://wa.me/${l.wa_phone}" target="_blank" rel="noopener">💬 Abrir</a>
-      ${comAcao && !l.assumido_em ? `<button class="btn btn-primary btn-sm" data-assumir="${l.id}">✋ Assumi</button>` : ''}
-      ${l.trilha === 'indefinido' ? `<select class="input input-sm" data-classificar="${l.id}" style="width:130px">
+      <a class="btn btn-sm" href="https://wa.me/${esc(String(l.wa_phone || '').replace(/\D/g, ''))}" target="_blank" rel="noopener">💬 Abrir</a>
+      ${comAcao && !l.assumido_em ? `<button class="btn btn-primary btn-sm" data-assumir="${esc(l.id)}">✋ Assumi</button>` : ''}
+      ${l.trilha === 'indefinido' ? `<select class="input input-sm" data-classificar="${esc(l.id)}" style="width:130px">
           <option value="">Classificar…</option>
           ${Object.keys(TRILHA_COR).filter(t => t !== 'indefinido').map(t =>
             `<option value="${t}">${(labels || {})[t] || t}</option>`).join('')}
         </select>` : ''}
-      ${lvl() >= 5 && _data.users_mini ? `<select class="input input-sm" data-reatribuir="${l.id}" style="width:130px">
+      ${lvl() >= 5 && _data.users_mini ? `<select class="input input-sm" data-reatribuir="${esc(l.id)}" style="width:130px">
           <option value="">Passar para…</option>
-          ${_data.users_mini.map(u => `<option value="${u.id}" ${u.id === l.corretor_id ? 'selected' : ''}>${u.name}</option>`).join('')}
+          ${_data.users_mini.map(u => `<option value="${u.id}" ${u.id === l.corretor_id ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}
         </select>` : ''}
     </td></tr>`;
 }
@@ -137,8 +140,8 @@ function render() {
             <div class="tiny muted">etapa RD: ${(cfg.rd_stage || {})[t] ? '✅ configurada' : '⚠️ falta o id'}</div>
             <div style="max-height:150px;overflow:auto;margin-top:4px">${users.map(u =>
               `<label class="flex items-center gap-1 tiny" style="cursor:pointer"><input type="checkbox" data-fila="${t}" value="${u.id}"
-                ${((cfg.trilhas || {})[t] || []).includes(u.id) ? 'checked' : ''}> ${u.name}
-                <span class="muted">(${u.team || u.role})</span></label>`).join('')}</div></div>`).join('')}
+                ${((cfg.trilhas || {})[t] || []).includes(u.id) ? 'checked' : ''}> ${esc(u.name)}
+                <span class="muted">(${esc(u.team || u.role)})</span></label>`).join('')}</div></div>`).join('')}
         </div>
         <div class="flex items-center gap-2" style="margin-top:12px;flex-wrap:wrap">
           <label class="tiny">Modo

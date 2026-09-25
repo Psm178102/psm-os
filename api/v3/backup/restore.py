@@ -6,7 +6,9 @@ Body: { tables: { users: [...], imoveis: [...], ... }, _meta?: {...},
 
 Faz upsert table-by-table das tabelas presentes no dump. AUDIT pesado.
 Não deleta nada — restore é aditivo. Pra wipe+restore, manualmente.
-Requer lvl>=7 (Sócio).
+Requer lvl>=10 (Sócio). v88.45: antes aceitava 7 — um gerente gravava
+role_lvl_overrides pelo shared_kv e virava sócio. Chaves de permissão/cofre nunca
+são restauradas (nem pelo sócio): mudam só pelas telas próprias, com audit.
 """
 from http.server import BaseHTTPRequestHandler
 import json, os, sys
@@ -23,6 +25,9 @@ ALLOWED_TABLES = {
     # audit_log e notifications NÃO restauráveis (append-only)
 }
 
+# shared_kv que o restore NUNCA grava: permissões e cofre de senhas.
+KV_PROTEGIDAS = {"role_lvl_overrides", "route_min_lvl", "role_perms", "vault_creds", "vault_categories"}
+
 
 class handler(BaseHTTPRequestHandler):
     def _send(self, s, b):
@@ -35,7 +40,7 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization"); self.end_headers()
 
     def do_POST(self):
-        try: actor = require_user(self, min_lvl=7)
+        try: actor = require_user(self, min_lvl=10)
         except AuthError as e: return self._send(e.status, {"ok": False, "error": e.message})
         try:
             length = int(self.headers.get("Content-Length") or 0)
@@ -69,6 +74,11 @@ class handler(BaseHTTPRequestHandler):
                     continue
                 _proib = ("role", "status", "password_hash", "password_set_at", "push_subscriptions", "totp_secret", "menu_groups")
                 rows = [{k: v for k, v in (r or {}).items() if k not in _proib} for r in rows if isinstance(r, dict)]
+            if table == "shared_kv":
+                _antes = len(rows) if isinstance(rows, list) else 0
+                rows = [r for r in (rows or []) if isinstance(r, dict) and str(r.get("key") or "") not in KV_PROTEGIDAS]
+                if _antes != len(rows):
+                    report["skipped_tables"].append({"table": "shared_kv", "reason": f"{_antes - len(rows)} chave(s) de permissão/cofre ignorada(s)"})
             if whitelist and table not in whitelist:
                 report["skipped_tables"].append({"table": table, "reason": "fora da whitelist"})
                 continue

@@ -435,6 +435,8 @@ async function rdCreateOrUpdateLead(leadData) {
 // MAIN HANDLER
 // ═══════════════════════════════════════════════════════════════════════════════
 
+const { isInternal } = require('./_authz.js');
+
 module.exports = async (req, res) => {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -442,6 +444,9 @@ module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
 
   if (req.method === 'OPTIONS') return res.status(204).end();
+  // v88.45: só os webhooks (servidor→servidor, CRON_SECRET) chamam o motor.
+  // Antes qualquer pessoa gastava créditos de IA e o GET ?test= mostrava o início da chave.
+  if (!isInternal(req)) return res.status(401).json({ ok: false, error: 'não autenticado' });
 
   // GET = stats/health + diagnostics
   if (req.method === 'GET') {

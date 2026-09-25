@@ -62,7 +62,7 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization"); self.end_headers()
 
     def do_GET(self):
-        try: actor = require_user(self, min_lvl=7)
+        try: actor = require_user(self, min_lvl=10)  # v88.45: dump leva dados só-sócio (Arch Leg, audit_log)
         except AuthError as e: return self._send_json(e.status, {"ok": False, "error": e.message})
 
         sb = supabase_client()

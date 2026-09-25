@@ -16,11 +16,11 @@ export function adsLibraryUrl(pageId) {
   return 'https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=BR'
     + '&is_targeted_country=false&media_type=all&search_type=page'
     + '&sort_data[direction]=desc&sort_data[mode]=total_impressions'
-    + '&view_all_page_id=' + pageId;
+    + '&view_all_page_id=' + encodeURIComponent(String(pageId || ''));  // v88.45: vai direto num href
 }
 
 export function instagramUrl(handle) {
-  return 'https://instagram.com/' + String(handle || '').replace(/^@/, '');
+  return 'https://instagram.com/' + encodeURIComponent(String(handle || '').replace(/^@/, '').trim());  // v88.45: vai direto num href
 }
 
 // Converte "27K" / "1.530" / "12K" → número (p/ ordenação). "—" → 0.

@@ -6,8 +6,8 @@ let _root = null;
 
 export async function pageBackup(ctx, root) {
   _root = root;
-  if ((auth.user()?.lvl || 0) < 7) {
-    root.innerHTML = '<div class="alert alert-warn">🔒 Requer Sócio (lvl 7+).</div>';
+  if ((auth.user()?.lvl || 0) < 10) {
+    root.innerHTML = '<div class="alert alert-warn">🔒 Requer Sócio.</div>';
     return;
   }
   render();

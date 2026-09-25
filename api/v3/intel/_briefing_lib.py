@@ -154,7 +154,8 @@ def _ai_text(prompt, max_tokens=4000):
     body = json.dumps({"prompt": prompt, "max_tokens": max_tokens}).encode("utf-8")
     req = urllib.request.Request(
         PUBLIC_BASE + "/api/ai-analysis", data=body,
-        headers={"Content-Type": "application/json", "User-Agent": "PSM-OS/briefing"})
+        headers={"Content-Type": "application/json", "User-Agent": "PSM-OS/briefing",
+                 "Authorization": "Bearer " + os.environ.get("CRON_SECRET", "").strip()})
     with urllib.request.urlopen(req, timeout=70) as resp:
         d = json.loads(resp.read().decode("utf-8"))
     if not d.get("ok") or not d.get("text"):

@@ -1206,7 +1206,11 @@ class handler(BaseHTTPRequestHandler):
 
         # v87.31: REDE DE AGENTES — todo agente da rede vê o quadro dos colegas
         # e recebe o protocolo de publicação ([[REDE]]…[[/REDE]]).
-        if agent_id in REDE_AGENTS:
+        # v88.45: a rede carrega recados de CEO/CFO/CMO (caixa, dívida, plano) — só entra
+        # quando QUEM conversa é sócio. Antes Sr. Performance/Sr. Gerência (min_lvl 0)
+        # mostravam os recados a corretor e deixavam ele publicar no quadro da diretoria.
+        na_rede = agent_id in REDE_AGENTS and (user.get("lvl") or 0) >= 10
+        if na_rede:
             rctx = _rede_context(sb, agent_id)
             if rctx:
                 system = system + "\n\n" + rctx
@@ -1220,10 +1224,13 @@ class handler(BaseHTTPRequestHandler):
 
         # v87.31: publica na rede os blocos [[REDE]] que o agente emitiu
         rede_pub = 0
-        if agent_id in REDE_AGENTS:
+        if na_rede:
             result["text"], rede_pub = _rede_publish(sb, agent_id, result["text"], autor_user=user.get("name"))
             if not result["text"]:
                 result["text"] = "📡 Recado publicado na rede de agentes."
+        elif "[[REDE" in (result.get("text") or ""):
+            # fora da rede: nunca publica; só limpa um bloco que o modelo tenha inventado
+            result["text"] = _re.sub(r"\[\[REDE\]\].*?\[\[/REDE\]\]", "", result["text"], flags=_re.S).strip() or "(sem resposta)"
 
         # Audit (sem o texto inteiro; só metadata)
         last_user_msg = next((m["content"] for m in reversed(messages) if m.get("role") == "user"), "")

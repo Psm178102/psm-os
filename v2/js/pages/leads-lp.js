@@ -5,6 +5,9 @@
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 
+// v88.45: tudo que vem da landing pública (nome, e-mail, UTM, faixa) passa por aqui — XSS armazenado.
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
 let _root = null;
 let _data = null;
 let _filtros = { status: '', faixa: '', camp: '', nutricao: false, dias: 7 };
@@ -95,11 +98,11 @@ function render() {
       </select>
       <select id="lp-f-faixa" class="input" style="width:auto">
         <option value="">Todas as faixas</option>
-        ${(_data.faixas || []).map(f => `<option value="${f}" ${_filtros.faixa === f ? 'selected' : ''}>${f}</option>`).join('')}
+        ${(_data.faixas || []).map(f => `<option value="${esc(f)}" ${_filtros.faixa === f ? 'selected' : ''}>${esc(f)}</option>`).join('')}
       </select>
       <select id="lp-f-camp" class="input" style="width:auto">
         <option value="">Todas as campanhas</option>
-        ${(_data.campanhas || []).map(c => `<option value="${c}" ${_filtros.camp === c ? 'selected' : ''}>${c}</option>`).join('')}
+        ${(_data.campanhas || []).map(c => `<option value="${esc(c)}" ${_filtros.camp === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}
       </select>
       <select id="lp-f-dias" class="input" style="width:auto">
         ${[3, 7, 14, 30].map(d => `<option value="${d}" ${_filtros.dias === d ? 'selected' : ''}>${d} dias</option>`).join('')}
@@ -117,18 +120,18 @@ function render() {
     const pend = l.status_atendimento === 'novo' && !l.nutricao;
     return `
     <tr style="${pend ? 'background:rgba(220,38,38,.06)' : ''}">
-      <td><span class="lp-timer tiny ${pend ? '' : 'muted'}" data-ts="${l.ts_recebido}"
+      <td><span class="lp-timer tiny ${pend ? '' : 'muted'}" data-ts="${esc(l.ts_recebido)}"
             style="${pend ? 'color:var(--err);font-weight:800' : ''}">${tempoVivo(l.ts_recebido)}</span></td>
-      <td><b>${(l.nome || '?')}</b>${l.email ? `<div class="tiny muted">${l.email}</div>` : ''}</td>
-      <td><span style="background:var(--psm-navy,#1e2650);color:#fffbea;border-radius:6px;padding:2px 8px;font-weight:700;font-size:12px;white-space:nowrap">${l.faixa_label || l.faixa_renda || '—'}</span></td>
-      <td class="tiny muted" style="max-width:140px;overflow:hidden;text-overflow:ellipsis">${camp}</td>
-      <td><span class="tiny" style="color:${ST_COR[l.status_atendimento] || 'inherit'};font-weight:700">${ST_LABEL[l.status_atendimento] || l.status_atendimento}</span>
-        ${l.atendido_por_nome ? `<div class="tiny muted">${l.atendido_por_nome}${rm != null ? ` · ${rm}min` : ''}</div>` : ''}</td>
+      <td><b>${esc(l.nome || '?')}</b>${l.email ? `<div class="tiny muted">${esc(l.email)}</div>` : ''}</td>
+      <td><span style="background:var(--psm-navy,#1e2650);color:#fffbea;border-radius:6px;padding:2px 8px;font-weight:700;font-size:12px;white-space:nowrap">${esc(l.faixa_label || l.faixa_renda || '—')}</span></td>
+      <td class="tiny muted" style="max-width:140px;overflow:hidden;text-overflow:ellipsis">${esc(camp)}</td>
+      <td><span class="tiny" style="color:${ST_COR[l.status_atendimento] || 'inherit'};font-weight:700">${ST_LABEL[l.status_atendimento] || esc(l.status_atendimento)}</span>
+        ${l.atendido_por_nome ? `<div class="tiny muted">${esc(l.atendido_por_nome)}${rm != null ? ` · ${rm}min` : ''}</div>` : ''}</td>
       <td style="white-space:nowrap">
-        <a class="btn btn-sm" target="_blank" rel="noopener" href="https://wa.me/${l.whatsapp}?text=${encodeURIComponent(`Olá ${(l.nome || '').split(' ')[0]}! Aqui é da PSM Conquista — recebemos o seu cadastro. Posso te ajudar a encontrar o seu imóvel?`)}"
-           data-atendi-tb="${l.id}">💬 WhatsApp</a>
-        ${!l.ts_primeira_resposta && !l.nutricao ? `<button class="btn btn-primary btn-sm" data-atendi="${l.id}">✋ Atendi</button>` : ''}
-        <select class="input tiny" data-status="${l.id}" style="width:auto;padding:2px 4px">
+        <a class="btn btn-sm" target="_blank" rel="noopener" href="https://wa.me/${esc(String(l.whatsapp || '').replace(/\D/g, ''))}?text=${encodeURIComponent(`Olá ${(l.nome || '').split(' ')[0]}! Aqui é da PSM Conquista — recebemos o seu cadastro. Posso te ajudar a encontrar o seu imóvel?`)}"
+           data-atendi-tb="${esc(l.id)}">💬 WhatsApp</a>
+        ${!l.ts_primeira_resposta && !l.nutricao ? `<button class="btn btn-primary btn-sm" data-atendi="${esc(l.id)}">✋ Atendi</button>` : ''}
+        <select class="input tiny" data-status="${esc(l.id)}" style="width:auto;padding:2px 4px">
           ${Object.entries(ST_LABEL).map(([s, lb]) => `<option value="${s}" ${l.status_atendimento === s ? 'selected' : ''}>${lb}</option>`).join('')}
         </select>
       </td>
@@ -159,12 +162,12 @@ function render() {
         </div>
       </div>
       ${(m.sem_rd || []).length ? `<details style="margin-top:8px"><summary class="tiny" style="cursor:pointer;color:var(--err);font-weight:700">⚠️ ${m.sem_rd.length} leads maduros SEM par no RD (falha da LP→RD?)</summary>
-        <ul class="tiny muted" style="margin:6px 0 0 16px">${m.sem_rd.map(x => `<li>${x.nome} · ${x.whatsapp} · ${new Date(x.ts).toLocaleString('pt-BR')}</li>`).join('')}</ul></details>` : ''}
-      <div class="tiny muted" style="margin-top:8px">${_data.paridade.nota || ''}</div>
+        <ul class="tiny muted" style="margin:6px 0 0 16px">${m.sem_rd.map(x => `<li>${esc(x.nome)} · ${esc(x.whatsapp)} · ${new Date(x.ts).toLocaleString('pt-BR')}</li>`).join('')}</ul></details>` : ''}
+      <div class="tiny muted" style="margin-top:8px">${esc(_data.paridade.nota || '')}</div>
       ${Object.keys(pc).length ? `<div style="margin-top:10px"><b class="tiny">Leads por campanha (janela ${_filtros.dias}d)</b>
         <table class="tiny" style="width:100%;margin-top:4px"><tr class="muted"><th style="text-align:left">Campanha</th><th>Leads</th><th>Agendados</th></tr>
         ${Object.entries(pc).sort((a, b) => b[1].total - a[1].total).map(([c, v]) =>
-          `<tr><td>${c}</td><td style="text-align:center">${v.total}</td><td style="text-align:center">${v.agendados}</td></tr>`).join('')}
+          `<tr><td>${esc(c)}</td><td style="text-align:center">${v.total}</td><td style="text-align:center">${v.agendados}</td></tr>`).join('')}
         </table><div class="tiny muted" style="margin-top:4px">💰 custo por lead qualificado: cruzamento com o Meta entra na evolução do semáforo de ads (fase 2)</div></div>` : ''}
     </div>`;
   }

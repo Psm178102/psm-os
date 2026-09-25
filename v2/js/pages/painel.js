@@ -615,9 +615,9 @@ async function loadTravados() {
         ${travados.length ? `<div class="tiny"><b style="color:var(--err)">${travados.length} negócio(s) travado(s) antes da assinatura</b></div>` : ''}
       </div>
       ${travados.map(r => `<div class="tiny" style="border-top:1px solid var(--bd,#ebe3ca);padding:6px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <b>${(r.descricao || '').slice(0, 60)}</b>
-        <span class="muted">${MARCO_LBL[r.marco_atual] || r.marco_atual}</span>
-        ${(r.bloqueio || 'nenhum') !== 'nenhum' ? `<span style="color:var(--err);font-weight:800">⛔ ${r.bloqueio.replace(/_/g, ' ')}</span>` : ''}
+        <b>${escapeHtml((r.descricao || '').slice(0, 60))}</b>
+        <span class="muted">${MARCO_LBL[r.marco_atual] || escapeHtml(r.marco_atual)}</span>
+        ${(r.bloqueio || 'nenhum') !== 'nenhum' ? `<span style="color:var(--err);font-weight:800">⛔ ${escapeHtml(r.bloqueio.replace(/_/g, ' '))}</span>` : ''}
         <span style="margin-left:auto">${r.valor_liquido_estimado != null ? brl2(r.valor_liquido_estimado) : ''}</span>
       </div>`).join('')}
     </div>`;
