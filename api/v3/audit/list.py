@@ -45,7 +45,10 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             params = {}
 
-        limit = min(500, max(1, int(params.get("limit", "200") or "200")))
+        try:
+            limit = min(500, max(1, int(params.get("limit", "200") or "200")))
+        except (TypeError, ValueError):
+            limit = 200
         target_id = params.get("target_id")
         actor_id  = params.get("actor_id")
         action    = params.get("action")
@@ -62,12 +65,12 @@ class handler(BaseHTTPRequestHandler):
             if actor_id:  q = q.eq("actor_id", actor_id)
             if action:    q = q.like("action", action + "%")
             if since:     q = q.gte("ts", since)
-            rows = (q.execute().data) or []
-
-            # Não-sócio: filtra pra ver só registros onde ele participa
+            # v88.60: não-sócio → o filtro "só o que é meu" vai NO BANCO, antes do limite (antes filtrava
+            # depois do limit e a lista do gerente vinha quase vazia: "Sem eventos")
             if not is_socio:
-                uid = user["id"]
-                rows = [r for r in rows if r.get("actor_id") == uid or r.get("target_id") == uid]
+                uid = str(user["id"])
+                q = q.or_(f"actor_id.eq.{uid},target_id.eq.{uid}")
+            rows = (q.execute().data) or []
 
             return self._send(200, {"ok": True, "count": len(rows), "entries": rows})
         except Exception as e:

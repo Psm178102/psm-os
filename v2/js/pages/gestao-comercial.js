@@ -10,6 +10,7 @@
    Performance por aba (era 1 por quadro). Notas explicativas ficam escondidas
    atrás do botão ⓘ. Modo TV = mesmo layout em tela cheia (gráficos consertados:
    antes desenhavam no canvas escondido da página e a TV ficava em branco). */
+import { router } from '../router.js';
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 import { loadChartLib } from '../premium.js';
@@ -717,6 +718,9 @@ function tabMetricas() {
 function enterTV() {
   if (_tv) return;
   _tv = true; _tvRotate = true;
+  // v88.60: sair da rota (voltar/link) também desmonta a TV — antes o overlay cobria a tela seguinte e
+  // os timers seguiam forçando recálculo pesado do /oo/comercial (fresh=1) a cada 5 min
+  router.onCleanup(() => { if (_tv) { _root = null; exitTV(); } });
   if (_root) _root.style.display = 'none';
   let ov = document.getElementById('gc-tv-ov');
   if (!ov) { ov = document.createElement('div'); ov.id = 'gc-tv-ov'; ov.className = 'gc-tvov'; document.body.appendChild(ov); }

@@ -99,6 +99,21 @@ class handler(BaseHTTPRequestHandler):
                     "lider_id": t.get("lider_id") or None,
                     "gerente_id": t.get("gerente_id") or None,
                 })
+            # v88.60: não deixa apagar equipe que ainda tem gente — antes a definição sumia, os usuários seguiam
+            # com users.team = id antigo e as métricas (Dicionário §4 = users.team) contavam uma equipe fantasma
+            try:
+                ids_novos = {c["id"].lower() for c in clean}
+                ativos = sb.table("users").select("name,team,status").execute().data or []
+                orfaos = {}
+                for u in ativos:
+                    tm = (u.get("team") or "").strip().lower()
+                    if tm and tm not in ids_novos and tm != "geral" and (u.get("status") or "ativo") == "ativo":
+                        orfaos.setdefault(tm, []).append(u.get("name") or "?")
+                if orfaos:
+                    lista = "; ".join(f"{t}: {', '.join(n[:4])}{'…' if len(n) > 4 else ''}" for t, n in orfaos.items())
+                    return self._send(409, {"ok": False, "error": f"mova as pessoas antes de remover a equipe — {lista}"})
+            except Exception as e:
+                return self._send(503, {"ok": False, "error": f"não consegui conferir os membros ({str(e)[:80]}) — nada foi salvo"})
             try:
                 _write_teams(sb, clean)
             except Exception as e:

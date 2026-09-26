@@ -198,7 +198,7 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             tb = traceback.format_exc()
             print(f"[crm-house] GET crash: {tb}")
-            return self._send(500, {"ok": False, "error": "crash no board", "tb": tb})
+            return self._send(500, {"ok": False, "error": "crash no board — detalhe no log do servidor"})
 
     def _board(self):
         try:
@@ -305,7 +305,7 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             tb = traceback.format_exc()
             print(f"[crm-house] POST crash: {tb}")
-            return self._send(500, {"ok": False, "error": "crash no move", "tb": tb})
+            return self._send(500, {"ok": False, "error": "crash no move — detalhe no log do servidor"})
 
     def _move(self):
         try:

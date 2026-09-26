@@ -23,8 +23,14 @@ const FRENTE_LBL = { conquista: '🏆 Conquista', map: '🏠 MAP', terceiros: '�
 
 // Time comercial vê os números de venda (VGV/meta/pipeline/ticket/ranking).
 // Backoffice/secretaria, marketing e financeiro NÃO — não faz sentido pra eles.
-const COMERCIAL_ROLES = ['corretor', 'lider', 'líder', 'gerente', 'socio', 'sócio', 'diretor'];
-function ehComercial() { return COMERCIAL_ROLES.includes((auth.user()?.role || '').toLowerCase()); }
+// v88.60 (Dicionário §4: papel por PREFIXO): antes era igualdade exata e corretor_conquista, gerente_map,
+// lider_* etc. — quase todo o time — não viam VGV, meta, pipeline nem ranking
+const COMERCIAL_PREFIXOS = ['corretor', 'lider', 'líder', 'gerente'];
+const COMERCIAL_ROLES = ['socio', 'sócio', 'diretor'];
+function ehComercial() {
+  const r = (auth.user()?.role || '').toLowerCase();
+  return COMERCIAL_ROLES.includes(r) || COMERCIAL_PREFIXOS.some(p => r === p || r.startsWith(p + '_'));
+}
 
 const CSS = `<style>
 .gz{flex:1;min-width:230px;background:var(--bg-1,#fff);border:1px solid var(--bd);border-radius:14px;padding:15px 17px}

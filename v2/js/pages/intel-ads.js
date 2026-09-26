@@ -74,7 +74,9 @@ const tierColor = t => t === 'A' ? '#f59e0b' : t === 'B' ? '#3b82f6' : '#64748b'
 
 function renderContent() {
   const body = document.getElementById('ads-body');
-  const filtered = _segFilter === 'all' ? _conc : _conc.filter(c => (c.segmento || '').toLowerCase() === _segFilter.toLowerCase());
+  // v88.60: compara sem acento — o botão é "Locacao" e o cadastro grava "Locação" (o filtro vinha sempre vazio)
+  const semAc = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const filtered = _segFilter === 'all' ? _conc : _conc.filter(c => semAc(c.segmento) === semAc(_segFilter));
   filtered.sort((a, b) => (b.anuncios_count - a.anuncios_count) || (b.investimento_estimado || 0) - (a.investimento_estimado || 0));
 
   const comAds = filtered.filter(c => c.anuncios_count > 0);
