@@ -474,9 +474,13 @@ function bindImport() {
         cur.push(r); tam += t;
       }
       if (cur.length) lotes.push(cur);
+      // v88.46: o 1º lote devolve a hora de início (do servidor); só o último lote remove o que
+      // não veio no arquivo — se algo falhar no meio, o histórico anterior continua inteiro.
+      let inicio = null;
       for (let i = 0; i < lotes.length; i++) {
         st.innerHTML = `<div class="tiny muted mb-1">Enviando lote ${i + 1} de ${lotes.length}…</div><div class="hn-prog"><i style="width:${i / lotes.length * 100}%"></i></div>`;
-        await api.request('/api/v3/diretoria/historico', { method: 'POST', body: { action: 'import', records: lotes[i], reset: i === 0, fim: i === lotes.length - 1 } });
+        const r = await api.request('/api/v3/diretoria/historico', { method: 'POST', body: { action: 'import', records: lotes[i], primeiro: i === 0, inicio, fim: i === lotes.length - 1 } });
+        if (i === 0) inicio = r.inicio;
       }
       st.innerHTML = `<div class="alert alert-ok">Importado: ${j.records.length} registros.</div>`;
       _arq = null; F.anos = null;

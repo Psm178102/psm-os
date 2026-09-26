@@ -12,6 +12,7 @@
 ============================================================================ */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { parseNum } from '../sim-campos.js';   // v88.46: aceita "450.000", "450.000,00", "450000"
 import { pageOKRs } from './okrs.js';
 import { renderRecebiveis } from './recebiveis.js';
 
@@ -841,10 +842,12 @@ function prPaint(c) {
   c.querySelectorAll('.pr-editmes').forEach(b => b.onclick = async () => {
     const m = (_pr.plano.meses || []).find(x => x.id === b.dataset.mes); if (!m) return;
     const cq = prompt(`Meta CONQUISTA de ${m.nome} (só números):`, m.conquista); if (cq === null) return;
-    const pp = prompt(`Meta VGV PRÓPRIO de ${m.nome} (só números):`, m.proprio); if (pp === null) return;
+    const pp = prompt(`Meta VGV PRÓPRIO de ${m.nome} (ex.: 1.500.000):`, m.proprio); if (pp === null) return;
+    // v88.46: Number("1.500.000") = NaN → ia como null e APAGAVA a meta; campo vazio virava 0
+    if (!/\d/.test(cq) || !/\d/.test(pp)) { alert('Valor inválido — nada foi salvo.'); return; }
     try {
-      await api.request('/api/v3/diretoria/plano_resgate', { method: 'POST', body: { action: 'set_mes', id: m.id, campo: 'conquista', valor: Number(cq) } });
-      const r2 = await api.request('/api/v3/diretoria/plano_resgate', { method: 'POST', body: { action: 'set_mes', id: m.id, campo: 'proprio', valor: Number(pp) } });
+      await api.request('/api/v3/diretoria/plano_resgate', { method: 'POST', body: { action: 'set_mes', id: m.id, campo: 'conquista', valor: parseNum(cq) } });
+      const r2 = await api.request('/api/v3/diretoria/plano_resgate', { method: 'POST', body: { action: 'set_mes', id: m.id, campo: 'proprio', valor: parseNum(pp) } });
       _pr.plano = r2.plano; prPaint(c);
     } catch (e) { alert('❌ NÃO SALVOU: ' + e.message); }
   });

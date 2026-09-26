@@ -53,7 +53,10 @@ def _read(sb):
         val = rows[0]["value"] if rows else {}
         if isinstance(val, str):
             val = json.loads(val)
-    except Exception:
+    except Exception as _e_kv:
+        # v88.46: leitura do BANCO que falha aborta (nunca vira vazio e regrava o blob inteiro)
+        if not isinstance(_e_kv, ValueError):
+            raise RuntimeError("leitura do shared_kv falhou (" + str(_e_kv)[:80] + ") — nada foi gravado")
         val = {}
     if not isinstance(val, dict):
         val = {}

@@ -112,7 +112,10 @@ def _read_cats(sb):
             val = json.loads(val)
         items = (val or {}).get("items") if isinstance(val, dict) else None
         cats = [str(c).strip() for c in items if str(c).strip()] if isinstance(items, list) else None
-    except Exception:
+    except Exception as _e_kv:
+        # v88.46: leitura do BANCO que falha aborta (nunca vira vazio e regrava o blob inteiro)
+        if not isinstance(_e_kv, ValueError):
+            raise RuntimeError("leitura do shared_kv falhou (" + str(_e_kv)[:80] + ") — nada foi gravado")
         cats = None
     return cats if cats else list(DEFAULT_CATS)
 
@@ -259,6 +262,11 @@ class handler(BaseHTTPRequestHandler):
             c = _clean(body.get("item") or {})
             if not c["titulo"]:
                 return self._send(400, {"ok": False, "error": "Título é obrigatório"})
+            # v88.46: se a VAULT_KEY sumiu/mudou, a senha gravada não decifra e chega VAZIA
+            # no formulário — salvar qualquer campo regravava "" por cima. Mantém a cifrada.
+            _antiga = str(hit.get("senha") or "")
+            if not c.get("senha") and _antiga.startswith(_ENC_PREFIX) and _dec(_antiga) == "":
+                c["senha"] = _antiga
             hit.update(c)
             hit["updated_at"] = datetime.now(timezone.utc).isoformat()
             hit["updated_by"] = actor.get("name")

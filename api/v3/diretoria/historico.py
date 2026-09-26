@@ -142,23 +142,35 @@ class handler(BaseHTTPRequestHandler):
         recs = body.get("records")
         if not isinstance(recs, list) or not recs or len(recs) > LOTE_MAX:
             return self._send(400, {"ok": False, "error": f"records: lista de 1 a {LOTE_MAX}"})
+        agora = datetime.now(timezone.utc).isoformat()   # v88.46: um carimbo só por lote (base do "início")
         limpos = []
         for r in recs:
             if not isinstance(r, dict) or not r.get("id") or r.get("kind") not in KINDS:
                 return self._send(400, {"ok": False, "error": "registro inválido (id/kind)"})
             limpo = {k: r.get(k) for k in CAMPOS}
-            limpo["importado_em"] = datetime.now(timezone.utc).isoformat()
+            limpo["importado_em"] = agora
             limpos.append(limpo)
         sb = supabase_client()
         if not sb: return self._send(503, {"ok": False, "error": "backend"})
+        # v88.46: importação atômica. Antes o 1º lote APAGAVA a tabela inteira (reset) e um
+        # lote que falhasse no meio deixava o histórico vazio/parcial. Agora: todos os lotes
+        # fazem upsert (o antigo continua lá) e só o ÚLTIMO lote, depois de tudo gravado,
+        # remove o que não veio no arquivo novo (importado_em anterior ao início desta carga).
+        inicio = str(body.get("inicio") or "")
+        primeiro = bool(body.get("reset") or body.get("primeiro"))
+        if primeiro and not inicio:
+            inicio = agora
+        removidos = 0
         try:
-            if body.get("reset"):
-                sb.table(TB).delete().neq("id", "").execute()
             for i in range(0, len(limpos), 100):
                 sb.table(TB).upsert(limpos[i:i + 100], on_conflict="id").execute()
+            if body.get("fim") and inicio:
+                r = sb.table(TB).delete().lt("importado_em", inicio).execute()
+                removidos = len(r.data or [])
         except Exception as e:
-            return self._send(500, {"ok": False, "error": str(e)})
-        if body.get("reset") or body.get("fim"):
+            return self._send(500, {"ok": False, "error": str(e) + " — o histórico anterior foi mantido"})
+        if primeiro or body.get("fim"):
             audit(self, u, "historico.import", target_type="hist_notion",
-                  notes=("início (reset)" if body.get("reset") else "fim") + f" · lote {len(limpos)}")
-        return self._send(200, {"ok": True, "gravados": len(limpos)})
+                  notes=("início" if primeiro else "fim") + f" · lote {len(limpos)}"
+                        + (f" · {removidos} antigos removidos" if body.get("fim") else ""))
+        return self._send(200, {"ok": True, "gravados": len(limpos), "inicio": inicio, "removidos": removidos})

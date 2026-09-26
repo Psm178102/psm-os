@@ -36,7 +36,10 @@ def _read(sb):
         rows = sb.table("shared_kv").select("value").eq("key", KV_KEY).limit(1).execute().data or []
         v = rows[0].get("value") if rows else None
         return v if isinstance(v, dict) else None
-    except Exception:
+    except Exception as _e_kv:
+        # v88.46: leitura do BANCO que falha aborta (nunca vira vazio e regrava o blob inteiro)
+        if not isinstance(_e_kv, ValueError):
+            raise RuntimeError("leitura do shared_kv falhou (" + str(_e_kv)[:80] + ") — nada foi gravado")
         return None
 
 

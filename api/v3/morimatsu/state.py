@@ -75,7 +75,10 @@ def _load(sb, cols):
     out, ups = {}, {}
     try:
         rows = sb.table("shared_kv").select("key,value,updated_at").in_("key", keys).execute().data or []
-    except Exception:
+    except Exception as _e_kv:
+        # v88.46: leitura do BANCO que falha aborta (nunca vira vazio e regrava o blob inteiro)
+        if not isinstance(_e_kv, ValueError):
+            raise RuntimeError("leitura do shared_kv falhou (" + str(_e_kv)[:80] + ") — nada foi gravado")
         rows = []
     by = {r["key"]: r for r in rows}
     # compat v87.51: chave única morimatsu_state (investidores/roteiro/notas) — migra na leitura
@@ -86,7 +89,10 @@ def _load(sb, cols):
             legado = lr[0]["value"] if lr else None
             if isinstance(legado, str):
                 legado = json.loads(legado)
-        except Exception:
+        except Exception as _e_kv:
+            # v88.46: leitura do BANCO que falha aborta (nunca vira vazio e regrava o blob inteiro)
+            if not isinstance(_e_kv, ValueError):
+                raise RuntimeError("leitura do shared_kv falhou (" + str(_e_kv)[:80] + ") — nada foi gravado")
             legado = None
     for c in cols:
         r = by.get(PREFIX + c)

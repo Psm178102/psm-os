@@ -6,7 +6,8 @@
 ============================================================================ */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
-import { montarDecisoes } from '../decisoes.js';   // v87.92 🧭 Decidir agora
+import { montarDecisoes } from '../decisoes.js';
+import { parseNum } from '../sim-campos.js';   // v88.46: "1.500.000,50" e "1500000.50" dão o mesmo número   // v87.92 🧭 Decidir agora
 
 const MES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
@@ -317,8 +318,9 @@ async function saveCell(inp) {
   const mes = parseInt(mesStr);
   const k = mc();
   const raw = inp.value;
+  // v88.46: o parse antigo apagava TODOS os pontos — "1500000.50" (ou célula com centavos) virava 100× maior
   const value = k.money
-    ? (parseFloat(String(raw).replace(/\./g, '').replace(',', '.').replace(/[^\d.]/g, '')) || 0)
+    ? parseNum(String(raw))
     : (parseInt(String(raw).replace(/[^\d-]/g, '')) || 0);
   const g = (_data.grid || []).find(x => x.user && x.user.id === userId);
   if (!g) return;
@@ -397,6 +399,7 @@ function openMetaEquipe() {
     const team = ov.querySelector('#me-team').value;
     const mes = parseInt(ov.querySelector('#me-mes').value);
     const vals = readMetaFields(ov);
+    if (!Object.keys(vals).length) { ov.querySelector('#me-msg').innerHTML = '<div class="alert alert-warn">Preencha ao menos uma meta — campo em branco mantém o valor atual.</div>'; return; }
     const ids = (_data?.grid || []).filter(g => (g.user?.team || '') === team).map(g => g.user.id);
     const msg = ov.querySelector('#me-msg');
     msg.innerHTML = `<div class="muted tiny"><span class="spinner"></span> Aplicando a ${ids.length} corretores…</div>`;
@@ -408,7 +411,8 @@ function openMetaEquipe() {
   });
 }
 function metaFields(v) {
-  const f = (key, label, money) => `<div><label class="tiny muted">${label}</label><input class="input" data-mf="${key}" type="${money ? 'text' : 'number'}" value="${v[key] || 0}" inputmode="${money ? 'decimal' : 'numeric'}"></div>`;
+  // v88.46: em branco = "manter o que cada corretor já tem" (antes vinha 0 e zerava as outras metas do time)
+  const f = (key, label, money) => `<div><label class="tiny muted">${label}</label><input class="input" data-mf="${key}" type="${money ? 'text' : 'number'}" value="${v[key] ?? ''}" placeholder="manter atual" inputmode="${money ? 'decimal' : 'numeric'}"></div>`;
   return `${f('meta_vgv', '💰 VGV (R$)', true)}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       ${f('meta_vendas', '🏆 Vendas')}${f('meta_agendamentos', '📅 Agendamentos')}
@@ -419,9 +423,8 @@ function readMetaFields(scope) {
   const vals = {};
   scope.querySelectorAll('[data-mf]').forEach(el => {
     const k = el.dataset.mf;
-    vals[k] = k === 'meta_vgv'
-      ? (parseFloat(String(el.value).replace(/\./g, '').replace(',', '.').replace(/[^\d.]/g, '')) || 0)
-      : (parseInt(el.value) || 0);
+    if (String(el.value).trim() === '') return;   // em branco → não envia → o upsert mantém o valor atual
+    vals[k] = k === 'meta_vgv' ? parseNum(String(el.value)) : (parseInt(el.value) || 0);
   });
   return vals;
 }

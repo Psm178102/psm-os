@@ -35,7 +35,10 @@ def _read(sb):
         if isinstance(v, str):
             v = json.loads(v)
         return v if isinstance(v, dict) else {}
-    except Exception:
+    except Exception as _e_kv:
+        # v88.46: leitura do BANCO que falha aborta (nunca vira vazio e regrava o blob inteiro)
+        if not isinstance(_e_kv, ValueError):
+            raise RuntimeError("leitura do shared_kv falhou (" + str(_e_kv)[:80] + ") — nada foi gravado")
         return {}
 
 

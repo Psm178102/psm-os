@@ -6,6 +6,7 @@
    Backend: /api/v3/producao/indicacoes */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { parseNum } from '../sim-campos.js';   // v88.46: aceita "450.000", "450.000,00", "450000"
 import { kanbanAba } from './indicacao-kanban.js';
 
 let _root = null, _d = null, _filtro = '', _deals = null, _busy = false, _formAberto = false;
@@ -419,9 +420,13 @@ async function acao(id, act) {
   if (act === 'aprovar') return post({ action: 'status', id, status: 'premio_aprovado' }, '✔ Prêmio aprovado.');
   if (act === 'pagar') { if (!confirm('Confirmar prêmio PAGO?')) return; return post({ action: 'status', id, status: 'premio_pago' }, '💸 Prêmio marcado como pago.'); }
   if (act === 'vender') {
-    const v = prompt('Valor do negócio (VGV da venda ou aluguel mensal, só números):');
+    const v = prompt('Valor do negócio (VGV da venda ou aluguel mensal). Ex.: 450.000 ou 450.000,00');
     if (!v) return;
-    return post({ action: 'status', id, status: 'vendida', valor: Number(v) }, '💰 Venda registrada!');
+    // v88.46: Number("450.000") dava 450 → prêmio saía na menor faixa sem aviso
+    const valor = parseNum(v);
+    if (!(valor > 0)) { alert('Valor inválido: ' + v); return; }
+    if (!confirm('Registrar venda de R$ ' + valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + '?')) return;
+    return post({ action: 'status', id, status: 'vendida', valor }, '💰 Venda registrada!');
   }
   if (act === 'vincular') {
     if (!_deals) {

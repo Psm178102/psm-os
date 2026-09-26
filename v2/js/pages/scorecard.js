@@ -5,6 +5,7 @@
    define meta própria, lança indicador manual e troca o dono (sócio). */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { parseNum } from '../sim-campos.js';   // v88.46: aceita "450.000", "450.000,00", "450000"
 
 let _root = null;
 let _d = null;
@@ -247,11 +248,14 @@ async function bind(body) {
     const atual = ind?.meta_origem === 'própria' ? ind.meta : '';
     const v = prompt(`Meta própria para "${ind?.label}"${ind?.un === '%' ? ' (em %)' : ind?.un === 'R$' ? ' (em R$)' : ''}.\nDeixe vazio para voltar à meta ${ind?.meta_origem && ind.meta_origem !== 'própria' ? 'da ' + ind.meta_origem : 'padrão'}.`, atual ?? '');
     if (v === null) return;
-    await post({ action: 'set_meta', ind: a.dataset.meta, meta: v.trim() === '' ? null : Number(v.replace(',', '.')) });
+    // v88.46: "1.500.000" virava NaN → null → apagava a meta sem aviso
+    if (v.trim() !== '' && !/\d/.test(v)) { alert('Valor inválido — nada foi salvo.'); return; }
+    await post({ action: 'set_meta', ind: a.dataset.meta, meta: v.trim() === '' ? null : parseNum(v) });
   }));
   body.querySelectorAll('[data-manual]').forEach(inp => inp.addEventListener('change', async () => {
     const v = inp.value.trim();
-    await post({ action: 'set_manual', ym: _ym, ind: inp.dataset.manual, valor: v === '' ? null : Number(v.replace(',', '.')) });
+    if (v !== '' && !/\d/.test(v)) { alert('Valor inválido — nada foi salvo.'); return; }
+    await post({ action: 'set_manual', ym: _ym, ind: inp.dataset.manual, valor: v === '' ? null : parseNum(v) });
   }));
   const donos = body.querySelectorAll('[data-dono]');
   if (donos.length) {
