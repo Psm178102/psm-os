@@ -76,7 +76,7 @@ export function embedInfo(url) {
     return null;
   } catch (_) { return null; }
 }
-function embedIframe(info, title) {
+export function embedIframe(info, title) {
   if (info.kind === 'spotify') {
     return `<iframe src="${esc(info.src)}" title="${esc(title || 'player')}" style="width:100%;height:${info.height}px;border:0;border-radius:12px" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>`;
   }
@@ -358,7 +358,7 @@ function renderJourney() {
       </a>
       <a class="ac-tcard" href="#/formacao" style="display:flex;gap:14px;align-items:center;text-decoration:none;color:inherit">
         <div style="font-size:30px">📚</div>
-        <div style="flex:1;min-width:0"><div style="font-weight:800">Formação PSM · Kiwify</div><div class="tiny muted">Onboarding, tutoriais, mercado básico, mentorias e MCMV na plataforma externa.</div></div>
+        <div style="flex:1;min-width:0"><div style="font-weight:800">Formação PSM</div><div class="tiny muted">Onboarding, tutoriais, mercado básico, mentorias e MCMV — assista aqui dentro.</div></div>
         <span class="tiny muted">Abrir →</span>
       </a>
     </div>
