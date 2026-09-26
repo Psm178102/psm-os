@@ -82,8 +82,9 @@ module.exports = function handler(req, res) {
     serverTime: new Date().toISOString(),
     firebase: fb,
     supabase: supabase,                                // v73 NOVO
-    googleApiKey: process.env.GOOGLE_API_KEY || null,  // Drive + Maps (configurar HTTP referrer restrictions no GCP)
-    adminSha256: process.env.ADMIN_SHA256 || null,     // SHA-256 hex da senha do /admin.html (gerar: echo -n "senha" | shasum -a 256)
+    // v88.49 (vistoria 24/09): googleApiKey e adminSha256 SAÍRAM daqui. Este endpoint é público:
+    // entregava a chave do Google (a mesma que o motor usa pro Gemini) e o hash sem sal da senha
+    // do /admin.html (legado, fora do ar). O app v2 não usa este endpoint.
     integrations: {
       sentryDsnPublic: process.env.PSM_SENTRY_DSN_PUBLIC || null
     }

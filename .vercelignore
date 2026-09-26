@@ -1,0 +1,35 @@
+# v88.49 (vistoria 24/09): só vai para o ar o que o app serve.
+# Antes o site entregava a qualquer um as auditorias (com as falhas de segurança),
+# o schema do banco, seeds da diretoria, a matriz de permissões, o app v1 e o v74.
+# O código continua no GitHub — isto só tira do DEPLOY público.
+/*.md
+/*.sql
+/*.py
+/*.tsx
+/*.sh
+/*.spec.js
+/*.test.js
+/ci.yml
+/db_*.json
+/index-v1.html
+/admin.html
+/psm-os-v74
+/docs
+/tests
+/scripts
+/supabase
+/supabase-config
+/historico-notion
+/claude.js
+/dalle.js
+/gemini.js
+/geminigen.js
+/api-gemini-text.js
+/api-meta-ads.js
+/cloudflare-worker.js
+/psm-backup.js
+/psm-ia.js
+/psm-monitor.js
+/psm-native.js
+/psm-offline.js
+/psm-supabase.js
