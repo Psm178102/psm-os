@@ -1,7 +1,8 @@
-/* PSM-OS v2 — Formação PSM (Sprint 8.1 · v88.58: aulas tocam dentro do House)
+/* PSM-OS v2 — Formação PSM (Sprint 8.1 · v88.58: aulas tocam dentro do House · v88.59: progresso no banco)
    Os vídeos são os mesmos da Kiwify, hospedados no YouTube como "não listado".
    Para plugar/trocar uma aula: preencha `url` (link normal do YouTube) na lista abaixo.
    Aula sem `url` aparece como "em breve" com atalho para a Kiwify. */
+import { api } from '../api.js';
 import { embedInfo, embedIframe } from './academy.js';
 
 const KIWIFY_URL = 'https://members.kiwify.com/?club=ccdc35d2-08c0-47cd-8268-4bf2c30ca597';
@@ -49,20 +50,53 @@ const MODULOS = [
 
 let _root = null;
 let _sel = null; // { m, a } — aula aberta
+let _done = new Set(); // v88.59: progresso no banco (academy_progress), item_id = "formacao:<id do vídeo>"
 
-const key = (m, a) => `${m}.${a}`;
-function lerDone() { try { return new Set(JSON.parse(localStorage.getItem(LS_DONE) || '[]')); } catch { return new Set(); } }
-function gravarDone(s) { try { localStorage.setItem(LS_DONE, JSON.stringify([...s])); } catch {} }
+const key = (m, a) => {
+  const u = MODULOS[m]?.aulas[a]?.url || '';
+  const v = (u.match(/[?&]v=([\w-]+)/) || [])[1];
+  return 'formacao:' + (v || `${m}.${a}`);
+};
+
+async function carregarDone() {
+  const r = await api.request('/api/v3/diretoria/academy_progress').catch(() => null);
+  _done = new Set(((r && r.completed) || []).map(x => (typeof x === 'string' ? x : x && x.item_id)).filter(id => id && id.startsWith('formacao:')));
+  // migra o que ficou marcado só neste aparelho (v88.58 gravava no localStorage "m.a")
+  let local = [];
+  try { local = JSON.parse(localStorage.getItem(LS_DONE) || '[]'); } catch {}
+  if (r && r.ok !== false && local.length) {
+    const novos = local.map(k => { const [m, a] = String(k).split('.').map(Number); return MODULOS[m]?.aulas[a] ? key(m, a) : null; })
+      .filter(id => id && !_done.has(id));
+    const res = await Promise.all(novos.map(id => api.request('/api/v3/diretoria/academy_progress', { method: 'POST', body: { item_id: id, done: true } }).then(() => id).catch(() => null)));
+    res.filter(Boolean).forEach(id => _done.add(id));
+    if (res.every(Boolean)) { try { localStorage.removeItem(LS_DONE); } catch {} }
+  }
+}
+
+async function marcar(id, done) {
+  if (done) _done.add(id); else _done.delete(id);
+  try {
+    const r = await api.request('/api/v3/diretoria/academy_progress', { method: 'POST', body: { item_id: id, done } });
+    if (r && r.ok === false) throw new Error(r.error || 'não salvou');
+    return true;
+  } catch (e) {
+    if (done) _done.delete(id); else _done.add(id);
+    alert('❌ NÃO SALVOU seu progresso: ' + e.message + '\nMarque de novo.');
+    return false;
+  }
+}
 
 export async function pageFormacao(ctx, root) {
   _root = root;
   _sel = null;
+  root.innerHTML = '<div class="card"><div class="muted">Carregando Formação PSM…</div></div>';
+  await carregarDone();
   render();
 }
 
 function render() {
   if (_sel) return renderAula();
-  const done = lerDone();
+  const done = _done;
   const totalA = MODULOS.reduce((t, m) => t + m.aulas.length, 0);
   const feitas = MODULOS.reduce((t, m, mi) => t + m.aulas.filter((_, ai) => done.has(key(mi, ai))).length, 0);
   const pct = totalA ? Math.round((feitas / totalA) * 100) : 0;
@@ -101,7 +135,7 @@ function render() {
           </details>`;
         }).join('')}
       </div>
-      <div class="tiny muted" style="margin-top:14px">Progresso salvo neste aparelho. Outras aulas (mentorias seguintes, Paulo Cuenca — Branding) seguem na <a href="${KIWIFY_URL}" target="_blank" rel="noopener">Kiwify ↗</a>.</div>
+      <div class="tiny muted" style="margin-top:14px">Seu progresso fica salvo na sua conta e conta na meta de aulas da semana da Academy. Outras aulas (mentorias seguintes, Paulo Cuenca — Branding) seguem na <a href="${KIWIFY_URL}" target="_blank" rel="noopener">Kiwify ↗</a>.</div>
     </div>
   `;
   _root.querySelectorAll('[data-open]').forEach(el => el.addEventListener('click', () => {
@@ -117,8 +151,7 @@ function renderAula() {
   const mod = MODULOS[m];
   const aula = mod.aulas[a];
   const info = embedInfo(aula.url);
-  const done = lerDone();
-  const feito = done.has(key(m, a));
+  const feito = _done.has(key(m, a));
   const temProx = a + 1 < mod.aulas.length;
 
   _root.innerHTML = `
@@ -140,11 +173,10 @@ function renderAula() {
     </div>
   `;
   document.getElementById('fm-volta').addEventListener('click', () => { _sel = null; render(); });
-  document.getElementById('fm-done').addEventListener('click', () => {
-    const s = lerDone();
-    s.has(key(m, a)) ? s.delete(key(m, a)) : s.add(key(m, a));
-    gravarDone(s);
-    if (!feito && temProx) _sel = { m, a: a + 1 };
+  document.getElementById('fm-done').addEventListener('click', async (ev) => {
+    ev.currentTarget.disabled = true;
+    const ok = await marcar(key(m, a), !feito);
+    if (ok && !feito && temProx) _sel = { m, a: a + 1 };
     render();
   });
   const ant = document.getElementById('fm-ant'); if (ant) ant.addEventListener('click', () => { _sel = { m, a: a - 1 }; render(); });
