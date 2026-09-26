@@ -398,6 +398,10 @@ class handler(BaseHTTPRequestHandler):
                 st = str(body.get("status") or "")
                 if st not in STATUS:
                     return self._send(400, {"ok": False, "error": "status inválido"})
+                # v88.52: dinheiro que ENTROU (confirmado/recebido/perdido) só a diretoria/financeiro marca —
+                # antes o corretor dono ou vinculado marcava a PRÓPRIA comissão como recebida
+                if st in ("confirmado", "recebido", "perdido") and not _pode_tudo(user):
+                    return self._send(403, {"ok": False, "error": "confirmar/receber/perder é da diretoria e do financeiro"})
                 patch = {"status": st, "atualizado_em": _now().isoformat(),
                          "historico": _hist(r, user, "status", r.get("status"), st)}
                 if st == "recebido":

@@ -99,14 +99,21 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization"); self.end_headers()
 
     def do_GET(self):
-        try: _gate(self, 2)
+        try: actor = _gate(self, 2)
         except AuthError as e: return self._send(e.status, {"ok": False, "error": e.message})
         sb = supabase_client()
         if not sb: return self._send(503, {"ok": False, "error": "backend"})
-        return self._send(200, {"ok": True, "registros": _read(sb)})
+        regs = _read(sb)
+        # v88.52: abaixo de líder (lvl<5) só as fichas da própria pessoa (campo "pessoa") — antes o corretor
+        # com /rh-clima ou /rh-avaliacoes na matriz lia PDI, clima e avaliação de todo mundo
+        if (actor.get("lvl") or 0) < 5:
+            eu = (actor.get("name") or "").strip().lower()
+            regs = {m: [r for r in (regs.get(m) or []) if eu and str(r.get("pessoa") or "").strip().lower() == eu]
+                    for m in MODULOS}
+        return self._send(200, {"ok": True, "registros": regs})
 
     def do_POST(self):
-        try: actor = _gate(self, 2)
+        try: actor = _gate(self, 5)   # v88.52: gravar/apagar ficha = líder+ (a doc sempre disse lvl>=5)
         except AuthError as e: return self._send(e.status, {"ok": False, "error": e.message})
         try:
             length = int(self.headers.get("Content-Length") or 0)

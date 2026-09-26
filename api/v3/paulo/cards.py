@@ -89,11 +89,29 @@ class handler(BaseHTTPRequestHandler):
         return self._send(200, {"ok": True, "board": board, "cards": rows})
 
     def _board_of(self, sb, cid):
+        return self._card_info(sb, cid)[0]
+
+    def _card_info(self, sb, cid):
+        """(board, owner_id) do card REAL no banco."""
         try:
-            r = sb.table("paulo_cards").select("board").eq("id", cid).limit(1).execute().data or []
-            return (r[0].get("board") if r else None)
+            r = sb.table("paulo_cards").select("board,owner_id").eq("id", cid).limit(1).execute().data or []
+            return ((r[0].get("board"), r[0].get("owner_id")) if r else (None, None))
         except Exception:
-            return None
+            return (None, None)
+
+    def _pode_mexer(self, actor, board, owner):
+        """v88.52: alçada sobre um card EXISTENTE — pelo board REAL (não o que veio no corpo).
+        negocios = privado: só o dono (ou nível 10). criativos: corretor (lvl<3) só mexe no próprio pedido."""
+        lvl = actor.get("lvl") or 0
+        if board is None:
+            return False, "card não encontrado"
+        if lvl < _board_min_lvl(board, write=True):
+            return False, f"requer nível ≥ {_board_min_lvl(board, write=True)}"
+        if board == "negocios" and lvl < 10 and owner and owner != actor.get("id"):
+            return False, "negócios pessoais: só o dono"
+        if board == "criativos" and lvl < 3 and owner and owner != actor.get("id"):
+            return False, "só o próprio pedido (ou marketing+)"
+        return True, ""
 
     def _resolve_user(self, sb, nome):
         """user_id por nome (igual / primeiro nome / contém). None se não achar."""
@@ -166,9 +184,9 @@ class handler(BaseHTTPRequestHandler):
             cid = body.get("id")
             if not cid:
                 return self._send(400, {"ok": False, "error": "id"})
-            _bd = self._board_of(sb, cid)
-            if (actor.get("lvl") or 0) < _board_min_lvl(_bd, write=True):
-                return self._send(403, {"ok": False, "error": f"requer nível ≥ {_board_min_lvl(_bd, write=True)}"})
+            ok_, msg_ = self._pode_mexer(actor, *self._card_info(sb, cid))
+            if not ok_:
+                return self._send(403, {"ok": False, "error": msg_})
             try:
                 sb.table("paulo_cards").delete().eq("id", cid).execute()
                 try: sb.table("eventos").delete().eq("id", "evp_" + cid).execute()  # remove da Agenda
@@ -182,9 +200,9 @@ class handler(BaseHTTPRequestHandler):
             cid = body.get("id"); status = (body.get("status") or "").strip()
             if not cid or not status:
                 return self._send(400, {"ok": False, "error": "id e status"})
-            _bd = self._board_of(sb, cid)
-            if (actor.get("lvl") or 0) < _board_min_lvl(_bd, write=True):
-                return self._send(403, {"ok": False, "error": f"requer nível ≥ {_board_min_lvl(_bd, write=True)}"})
+            ok_, msg_ = self._pode_mexer(actor, *self._card_info(sb, cid))
+            if not ok_:
+                return self._send(403, {"ok": False, "error": msg_})
             try:
                 sb.table("paulo_cards").update({"status": status, "updated_at": now}).eq("id", cid).execute()
                 self._sync_event(sb, cid)  # status mudou → atualiza/limpa evento na Agenda
@@ -228,9 +246,12 @@ class handler(BaseHTTPRequestHandler):
         board = body.get("board") if body.get("board") in BOARDS else "negocios"
         if (actor.get("lvl") or 0) < _board_min_lvl(board, write=True):
             return self._send(403, {"ok": False, "error": f"requer nível ≥ {_board_min_lvl(board, write=True)}"})
-        # editar card existente de negocios também trava abaixo de 7
-        if body.get("id") and self._board_of(sb, body.get("id")) == "negocios" and not is_socio:
-            return self._send(403, {"ok": False, "error": "negócios pessoais: requer nível ≥ 7"})
+        # v88.52: card EXISTENTE → alçada pelo board REAL no banco (antes valia o "board" do corpo:
+        # um corretor mandava board:"criativos" e editava card de projetos/academy/negócios)
+        if body.get("id"):
+            ok_, msg_ = self._pode_mexer(actor, *self._card_info(sb, body.get("id")))
+            if not ok_:
+                return self._send(403, {"ok": False, "error": msg_})
         cid = body.get("id")
         row = {k: body.get(k) for k in FIELDS if k in body}
         # normaliza vazios
@@ -273,6 +294,9 @@ class handler(BaseHTTPRequestHandler):
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
+        ok_, msg_ = self._pode_mexer(actor, *self._card_info(sb, cid))   # v88.52: dono/board real
+        if not ok_:
+            return self._send(403, {"ok": False, "error": msg_})
         try:
             sb.table("paulo_cards").delete().eq("id", cid).execute()
             return self._send(200, {"ok": True, "deleted": cid})

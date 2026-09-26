@@ -214,14 +214,18 @@ SEED_V23 = {
 }
 
 
-def _kv_get(sb):
+def _kv_get(sb, estrito=False):
+    """estrito=True (gravação): falha de leitura do BANCO levanta erro — v88.52: antes virava None, o POST
+    recomeçava do SEED e gravava por cima do plano inteiro (mesmo padrão corrigido na v88.46)."""
     try:
         rows = sb.table("shared_kv").select("value").eq("key", KV_KEY).limit(1).execute().data or []
         v = rows[0]["value"] if rows else None
         if isinstance(v, str):
             v = json.loads(v)
         return v
-    except Exception:
+    except Exception as e:
+        if estrito and not isinstance(e, ValueError):
+            raise RuntimeError("leitura do plano falhou (" + str(e)[:80] + ") — nada foi gravado")
         return None
 
 
@@ -431,7 +435,13 @@ class handler(BaseHTTPRequestHandler):
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
-        plano = _kv_get(sb) or json.loads(json.dumps(SEED))
+        # v88.52: POST passa pela mesma matriz do GET (antes só lvl 7, sem _can_route)
+        if not _can_route(sb, actor, "/plano-resgate"):
+            return self._send(403, {"ok": False, "error": "sem permissão — ajustável na matriz (Configurações → Permissões)"})
+        try:
+            plano = _kv_get(sb, estrito=True) or json.loads(json.dumps(SEED))
+        except RuntimeError as e:
+            return self._send(503, {"ok": False, "error": str(e)})
         action = (body.get("action") or "").strip()
 
         if action == "set_secao":
@@ -476,6 +486,15 @@ class handler(BaseHTTPRequestHandler):
                   before={"conta_cheia_por_mes": antes}, after={"conta_cheia_por_mes": None},
                   notes="fonte única = calculada (custo_fixo_mes); kv manual aposentado")
         elif action == "reset_seed":
+            # v88.52: sobrescrever o plano inteiro = só sócio, e ARQUIVA antes (antes lvl 7 apagava sem volta)
+            if (actor.get("lvl") or 0) < 10:
+                return self._send(403, {"ok": False, "error": "resetar o plano é do sócio"})
+            try:
+                sb.table("shared_kv").upsert({"key": KV_KEY + "_arquivo_" + datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S"),
+                                              "value": plano, "updated_at": datetime.now(timezone.utc).isoformat()},
+                                             on_conflict="key").execute()
+            except Exception as e:
+                return self._send(500, {"ok": False, "error": f"arquivamento falhou — reset abortado: {str(e)[:150]}"})
             plano = json.loads(json.dumps(SEED))
         elif action == "migrar_v23":
             # arquiva o plano atual (v1 + marcações do Paulo) ANTES de instalar o v2.3 — nada se perde

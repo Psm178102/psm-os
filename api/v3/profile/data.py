@@ -12,7 +12,28 @@ import json, os, sys, urllib.parse
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError, audit  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, audit, lvl_of  # type: ignore
+
+def _pode_gerir(sb, actor, target_id):
+    """v88.52: quem pode ver/editar dados de gestão (perfil, 1:1) de outra pessoa.
+    Sócio (lvl 10) → todos. Própria pessoa → sim. Gestor (lvl ≥ 5) → só alguém da PRÓPRIA equipe
+    com nível MENOR que o dele. Antes qualquer lvl 5 lia/editava perfil e 1:1 de qualquer um,
+    inclusive de sócios e de outras equipes."""
+    lvl = actor.get("lvl") or 0
+    if not target_id or target_id == actor.get("id") or lvl >= 10:
+        return True
+    if lvl < 5:
+        return False
+    try:
+        r = sb.table("users").select("team,role").eq("id", target_id).limit(1).execute().data or []
+    except Exception:
+        return False
+    if not r:
+        return False
+    alvo = r[0]
+    mesma_equipe = (alvo.get("team") or "").strip().lower() == (actor.get("team") or "").strip().lower()
+    return mesma_equipe and lvl_of(alvo.get("role")) < lvl
+
 
 FIELDS = ["data_inicio", "contrato_url", "perfil_comportamental",
           "meta_produtividade", "meta_resultado", "metas_pessoais",
@@ -44,6 +65,8 @@ class handler(BaseHTTPRequestHandler):
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
+        if not is_self and not _pode_gerir(sb, actor, target):
+            return self._send(403, {"ok": False, "error": "só a própria equipe (e abaixo do seu nível)"})
         # usuário alvo
         try:
             urows = sb.table("users").select("id,name,email,role,team,color,ini,status,last_login_at").eq("id", target).limit(1).execute().data or []
@@ -97,6 +120,8 @@ class handler(BaseHTTPRequestHandler):
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
+        if not is_self and not _pode_gerir(sb, actor, target):
+            return self._send(403, {"ok": False, "error": "só a própria equipe (e abaixo do seu nível)"})
         row = {"user_id": target, "updated_at": datetime.now(timezone.utc).isoformat(),
                "updated_by": actor.get("id")}
         for k in FIELDS:

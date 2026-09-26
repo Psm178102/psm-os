@@ -97,6 +97,16 @@ class handler(BaseHTTPRequestHandler):
         if not key:
             return self._send(400, {"ok": False, "error": "modulo inválido"})
         lst = _read(sb, key)
+        # v88.52 (alçada): abaixo de backoffice (lvl<6) a pessoa SOLICITA — cria e edita só o que ela mesma
+        # criou, sem mexer em status/valores de aprovação; estoque e patrimônio, e apagar, só backoffice+.
+        # Antes qualquer corretor aprovava compra, mudava valor final ou apagava patrimônio pela API.
+        gestao = (actor.get("lvl") or 0) >= 6 or (actor.get("role") or "").lower() in ("financeiro", "backoffice")
+        CAMPOS_ALCADA = ("status", "valor_final", "valor_aprovado", "aprovado_por", "fornecedor_escolhido", "orcamentos")
+
+        if action == "delete" and not gestao:
+            return self._send(403, {"ok": False, "error": "apagar é do backoffice/gestão"})
+        if not gestao and modulo in ("estoque", "patrimonio"):
+            return self._send(403, {"ok": False, "error": "estoque e patrimônio são do backoffice/gestão"})
 
         if action == "delete":
             rid = body.get("id")
@@ -116,13 +126,26 @@ class handler(BaseHTTPRequestHandler):
             found = False
             for i, r in enumerate(lst):
                 if r.get("id") == rid:
+                    if not gestao:
+                        if r.get("criado_por") and r.get("criado_por") != actor.get("id"):
+                            return self._send(403, {"ok": False, "error": "só quem solicitou (ou a gestão) edita"})
+                        for k in CAMPOS_ALCADA:   # solicitante não aprova nem muda valor aprovado
+                            if k in r: reg[k] = r[k]
+                            else: reg.pop(k, None)
                     reg["criado_em"] = r.get("criado_em") or NOW()
                     reg["criado_por"] = r.get("criado_por") or actor.get("id")
                     reg["updated_at"] = NOW()
                     lst[i] = reg; found = True; break
             if not found:
+                if not gestao:   # id inventado não vira atalho pra gravar pedido já "aprovado"
+                    for k in CAMPOS_ALCADA: reg.pop(k, None)
+                    reg["status"] = "solicitada" if modulo == "manutencoes" else "solicitado"
+                    reg["criado_por"] = actor.get("id"); reg["criado_em"] = NOW()
                 lst.insert(0, reg)
         else:
+            if not gestao:   # pedido novo nasce "solicitado/a", sem valores de aprovação
+                for k in CAMPOS_ALCADA: reg.pop(k, None)
+                reg["status"] = "solicitada" if modulo == "manutencoes" else "solicitado"
             reg["id"] = f"{modulo[:3]}_{int(datetime.now().timestamp()*1000)}"
             reg["criado_em"] = NOW(); reg["criado_por"] = actor.get("id"); reg["updated_at"] = NOW()
             if len(lst) >= MAX_ROWS:

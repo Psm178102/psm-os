@@ -62,7 +62,9 @@ class handler(BaseHTTPRequestHandler):
         if asked and asked != uid and lvl >= 5:
             return asked, True
         if asked and asked != uid:
-            return asked, False           # gestor não é, só lê
+            # v88.52: quem não é gestão NÃO lê o painel de outra pessoa (perfil comportamental, metas de
+            # ganho, PDF de análise). Antes devolvia os dados com can_edit=False — bastava trocar o ?uid=.
+            return None, False
         return uid, True                  # próprio painel
 
     def do_GET(self):
@@ -76,6 +78,8 @@ class handler(BaseHTTPRequestHandler):
         from urllib.parse import urlparse, parse_qs
         asked = (parse_qs(urlparse(self.path).query).get("uid", [""])[0] or "").strip()
         target, can_edit = self._target(actor, asked)
+        if target is None:
+            return self._send(403, {"ok": False, "error": "sem permissão para ver o painel de outra pessoa"})
         data = _read(sb, target)
         return self._send(200, {"ok": True, "data": data, "can_edit": can_edit, "uid": target})
 

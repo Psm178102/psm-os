@@ -765,6 +765,9 @@ class handler(BaseHTTPRequestHandler):
 
         # ── export CSV (segmento RD ou lista) ──────────────────────────
         if action == "segmento_csv":
+            # v88.52: CSV com nome/telefone/e-mail da base = sócio (antes lvl 5, base inteira de todas as frentes)
+            if (user.get("lvl") or 0) < 10:
+                return self._send(403, {"ok": False, "error": "exportar contatos é do sócio"})
             fonte = body.get("fonte") or "crm"
             if fonte == "lista":
                 lid = str(body.get("lista_id") or "")

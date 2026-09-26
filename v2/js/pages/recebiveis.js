@@ -103,8 +103,8 @@ function linha(r) {
     ${r.status !== 'recebido' ? `<div class="flex" style="gap:5px;flex-wrap:wrap;margin-top:7px">
       <button class="btn btn-ghost btn-sm rc-a" data-a="marco" data-v="nota_solicitada">🧾 nota solicitada</button>
       <button class="btn btn-ghost btn-sm rc-a" data-a="marco" data-v="contrato_assinado">✍️ assinatura ok</button>
-      <button class="btn btn-ghost btn-sm rc-a" data-a="status" data-v="confirmado" style="color:var(--ok)">✅ confirmado</button>
-      <button class="btn btn-ghost btn-sm rc-a" data-a="status" data-v="recebido" style="color:var(--ciano);font-weight:800">💰 recebido</button>
+      ${_d.completo ? `<button class="btn btn-ghost btn-sm rc-a" data-a="status" data-v="confirmado" style="color:var(--ok)">✅ confirmado</button>
+      <button class="btn btn-ghost btn-sm rc-a" data-a="status" data-v="recebido" style="color:var(--ciano);font-weight:800">💰 recebido</button>` : ''}   <!-- v88.52: só diretoria/financeiro -->
       <button class="btn btn-ghost btn-sm rc-a" data-a="travar" style="color:var(--err)">⛔ travou…</button>
       ${_d.completo ? `<button class="btn btn-ghost btn-sm rc-a" data-a="editar" style="margin-left:auto">✏️</button>` : ''}
     </div>` : ''}

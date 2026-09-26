@@ -104,7 +104,7 @@ class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         try:
-            _gate(self, 2)   # v81.58: acesso decidido na matriz por papel
+            _gate(self, 4)   # v88.52: matriz por papel + piso 4 (corretor/marketing nunca leem desligamentos)
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
         sb = supabase_client()
@@ -115,7 +115,7 @@ class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         try:
-            actor = _gate(self, 2)   # v81.58: acesso decidido na matriz por papel
+            actor = _gate(self, 4)   # v88.52: matriz por papel + piso 4
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
         try:

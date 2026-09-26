@@ -54,7 +54,9 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization"); self.end_headers()
 
     def do_GET(self):
-        try: actor = require_user(self, min_lvl=5)
+        # v88.52: export em massa (usuários, locações c/ proprietário e inquilino, audit_log, TODOS os deals)
+        # = sócio. Antes qualquer líder (lvl 5) baixava a base inteira, furando o escopo por equipe.
+        try: actor = require_user(self, min_lvl=10)
         except AuthError as e: return self._send_json(e.status, {"ok": False, "error": e.message})
         try:
             params = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))

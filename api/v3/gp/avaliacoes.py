@@ -185,6 +185,19 @@ class handler(BaseHTTPRequestHandler):
                     existing = None
             if existing and existing.get("avaliador_id") not in (actor.get("id"),) and lvl < 7:
                 return self._send(403, {"ok": False, "error": "só o avaliador ou gestão edita"})
+            # v88.52: tipo só da lista; quem não é gestão (lvl<5) não se declara "gestor" nem grava o 9-box
+            # (desempenho/potencial) — antes um corretor se punha no quadrante alto/alto. Autoavaliação só de si.
+            if row["tipo"] not in ("auto", "gestor", "par", "subordinado"):
+                row["tipo"] = "gestor" if lvl >= 5 else "par"
+            if lvl < 5:
+                if row["tipo"] == "gestor":
+                    row["tipo"] = "auto" if avaliado == actor.get("id") else "par"
+                if row["tipo"] == "auto" and avaliado != actor.get("id"):
+                    return self._send(403, {"ok": False, "error": "autoavaliação só de si mesmo"})
+                row["desempenho"] = None
+                row["potencial"] = None
+            if existing and existing.get("avaliador_id"):
+                row["avaliador_id"] = existing["avaliador_id"]   # gestão editando não apaga a autoria
             if not existing:
                 row["criado_em"] = NOW()
             try:
