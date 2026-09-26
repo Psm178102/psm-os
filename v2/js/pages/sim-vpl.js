@@ -1,3 +1,4 @@
+import { hojeISO } from '../api.js';   // v88.55: "hoje" em Brasília (toISOString é UTC: depois das 21h já era amanhã)
 /* PSM-OS v2 — Simulador VPL (Sprint 8.4 · v86.17 layout PROPOSTA PERSONALIZADA)
    O fluxo aparece IGUAL à planilha oficial (faixa amarela, N°/Data, colunas
    ENTRADA/MENSAIS/SEMESTRAIS/ANUAIS/FINANCIAMENTO-CHAVES/TOTAL, linhas verdes,
@@ -12,7 +13,7 @@ let _s = null;
 
 const DEFAULTS = {
   empreendimento: '', torreUnidade: '', m2: 45, cliente: '',
-  dataInicio: new Date().toISOString().slice(0, 10),
+  dataInicio: hojeISO(),
   valorTabela: 480000, taxaAA: 6.168, prazoObra: 42,
   pctAto: 5, pctMensal: 14, pctAnual: 6, pctSemestral: 0, pctFinanc: 75,
   numAto: 1,                                        // 1 = ato à vista; 3 = ato em 3x

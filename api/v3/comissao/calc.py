@@ -176,7 +176,7 @@ def _calc_map(sb, cfg, mes_lbl, ini, fim, nomes, inativos=None):
     senior_min = float(cfg.get("map_senior_vgv_min") or 3000000)
     ano_ini, ano_fim = _ano_range(mes_lbl)
 
-    sel = "id,name,amount,win,closed_at,pipeline_name,user_id,user_email,rd_raw"
+    sel = "id,name,amount,win,closed_at,pipeline_name,user_id,user_email,origem_cliente,rd_raw"
     # VGV MAP acumulado no ANO (define quem é sênior) — 1 varredura só
     ano = _page(lambda: sb.table("deals").select(sel).eq("win", True)
                 .gte("closed_at", ano_ini).lt("closed_at", ano_fim).order("id"), cap=12000)
@@ -193,8 +193,12 @@ def _calc_map(sb, cfg, mes_lbl, ini, fim, nomes, inativos=None):
             o["n_vendas"] += 1
             o["vgv"] += _vgv(d)
     ano = [d for d in ano if not _inativo(d.get("user_id") or d.get("user_email") or "?", ina)]
+    # v88.55: senioridade pelo acumulado do ano ATÉ O FIM DO MÊS CONSULTADO — antes somava o ano inteiro
+    # (inclusive meses seguintes), e uma venda de novembro mudava a comissão de agosto já paga
     vgv_ano = {}
     for d in ano:
+        if not d.get("closed_at") or d["closed_at"] >= fim:
+            continue
         cid = str(d.get("user_id") or d.get("user_email") or "?")
         vgv_ano[cid] = vgv_ano.get(cid, 0.0) + _vgv(d)
 
@@ -205,11 +209,13 @@ def _calc_map(sb, cfg, mes_lbl, ini, fim, nomes, inativos=None):
         did = str(d.get("id"))
         vgv = _vgv(d)
         src = _source_name(d.get("rd_raw"))
-        if src:
-            fontes[src] = fontes.get(src, 0) + 1
+        oc = (d.get("origem_cliente") or "").strip()   # v88.55: origem oficial primeiro, Fonte de reserva
+        for nome_ in (oc, src):
+            if nome_:
+                fontes[nome_] = fontes.get(nome_, 0) + 1
         sen = ("estagiario" if cid in estag
                else "senior" if vgv_ano.get(cid, 0.0) >= senior_min else "corretor")
-        origem = ovr.get(did) or mapa.get(src.lower()) or None
+        origem = ovr.get(did) or (mapa.get(oc.lower()) if oc else None) or (mapa.get(src.lower()) if src else None) or None
         if origem and origem in o_by_id:
             o = o_by_id[origem]
             taxa = float((o.get("taxas") or {}).get(sen) or 0)

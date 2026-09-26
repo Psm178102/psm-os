@@ -352,13 +352,34 @@ class handler(BaseHTTPRequestHandler):
                 if b:
                     c = {**c, "leads_janela": b["leads"], "interessados_janela": b["interessados"],
                          "em_atendimento": b["em_atendimento"], "vendas_janela": b["vendas"], "vgv_janela": b["vgv"],
-                         "conv_pct": (round(b["vendas"] / b["leads"] * 100, 1) if b["leads"] else None),
+                         # v88.55 (§2): conversão = vendas de TRÁFEGO PAGO ÷ leads (antes vendas de todas as origens ÷ leads pagos)
+                         "conv_pct": (round((b.get("vendas_pago_psm") or 0) / b["leads"] * 100, 1) if b["leads"] else None),
                          # v87.98 §5: visita OFICIAL — Conquista = atendimento da esteira do HUB (mensal);
                          # demais = maior entre tarefa "Visita" concluída e coluna "visita realizada" (v88.37).
                          # O registro manual (producao_eventos) segue em visitas_7d: é esforço e base do no-show.
                          "visitas_janela": mx_visitas(b),
                          "visitas_fonte": ("hub" if mx_fonte(b) == "hub" else "rd")}
                 novos.append(c)
+            # v88.55: o QUADRANTE passa a julgar pela MESMA conversão que a tela mostra, contra a mediana da equipe
+            # na mesma régua (antes: safra de todos os negócios criados × coluna do motor — o corretor podia sair
+            # "🔴 Escada" com conversão exibida acima da equipe)
+            _por_funil = {}
+            for c in novos:
+                if c.get("conv_pct") is not None and (c.get("leads_janela") or 0) >= 30:
+                    _por_funil.setdefault(c.get("funil"), []).append(c["conv_pct"])
+            _med = {f: median(v) for f, v in _por_funil.items() if v}
+            _Q = {("alta", "alto"): "maquina", ("baixa", "alto"): "talento_ocioso",
+                  ("alta", "baixo"): "esforco_sem_tecnica", ("baixa", "baixo"): "escada"}
+            for c in novos:
+                base_ = _med.get(c.get("funil"))
+                c["conv_equipe_pct"] = round(base_, 1) if base_ is not None else None
+                c["amostra_ok"] = (c.get("leads_janela") or 0) >= 30
+                rend_ = None
+                if c.get("conv_pct") is not None and base_ is not None and c["amostra_ok"]:
+                    rend_ = "alto" if c["conv_pct"] >= base_ else "baixo"
+                ap = c.get("atividade_pct")
+                ativ_ = None if ap is None else ("alta" if ap >= 70 else "baixa")
+                c["quadrante"] = _Q.get((ativ_, rend_)) if (ativ_ and rend_) else None
             data["corretores"] = novos
             data["dados_de"] = mx.get("dados_de")
             data["dados_de_hhmm"] = mx.get("dados_de_hhmm")

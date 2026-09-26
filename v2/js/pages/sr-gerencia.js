@@ -28,12 +28,14 @@ export async function pageSrGerencia(ctx, root) {
 
 async function load() {
   try {
-    const [atg, deals, audit] = await Promise.all([
-      api.request('/api/v3/metas/atingimento').catch(() => ({})),
+    // v88.55: mês corrente pelo motor único (antes vendas = ganhos entre 200 negócios de QUALQUER data e
+    // corretores = todo o grid anual, inclusive quem saiu)
+    const [mx, deals, audit] = await Promise.all([
+      api.request('/api/v3/metricas/resumo').catch(() => ({})),
       api.request('/api/v3/crm/deals?limit=200').catch(() => ({ deals: [] })),
       api.request('/api/v3/audit/list?limit=20').catch(() => ({ entries: [] })),
     ]);
-    _data = { atg, deals: deals.deals || [], audit: audit.entries || [] };
+    _data = { mx, deals: deals.deals || [], audit: audit.entries || [] };
     renderInsights();
   } catch (e) { /* silent */ }
 }
@@ -110,9 +112,12 @@ function render() {
 function renderInsights() {
   const wrap = document.getElementById('srg-insights');
   if (!wrap || !_data) return;
-  const corretores = _data.atg.por_corretor || [];
-  const baixos = corretores.filter(c => (c.vgv_atingido / Math.max(c.meta_vgv, 1)) < 0.5);
-  const fechados = (_data.deals || []).filter(d => d.win);
+  const mx = _data.mx || {};
+  const pess = Object.values(mx.pessoas || {}).filter(p => p.ativo && p.corretor);
+  const corretores = pess.map(p => ({ name: p.name, vgv_atingido: +p.vgv || 0, meta_vgv: +((p.meta || {}).meta_vgv) || 0 }));
+  // só quem TEM meta no mês; é o acumulado ATÉ AGORA (no começo do mês quase todos ficam abaixo)
+  const baixos = corretores.filter(c => c.meta_vgv > 0 && (c.vgv_atingido / c.meta_vgv) < 0.5);
+  const vendasMes = mx.empresa ? mx.empresa.vendas : pess.reduce((a, p) => a + (+p.vendas || 0), 0);
   const auditos = (_data.audit || []).slice(0, 5);
 
   wrap.innerHTML = `
@@ -120,8 +125,8 @@ function renderInsights() {
       <div style="font-weight:800;font-size:13px;margin-bottom:8px;color:var(--ciano)">📊 Status Operacional</div>
       <div style="display:flex;flex-direction:column;gap:6px;font-size:12px">
         <div class="flex" style="justify-content:space-between"><span class="muted">Corretores ativos:</span><b>${corretores.length}</b></div>
-        <div class="flex" style="justify-content:space-between"><span class="muted">Vendas no mês:</span><b style="color:#22c55e">${fechados.length}</b></div>
-        <div class="flex" style="justify-content:space-between"><span class="muted">Sub-50% meta:</span><b style="color:var(--err-suave)">${baixos.length}</b></div>
+        <div class="flex" style="justify-content:space-between"><span class="muted">Vendas no mês:</span><b style="color:#22c55e">${vendasMes || 0}</b></div>
+        <div class="flex" style="justify-content:space-between"><span class="muted" title="corretores com meta no mês e menos de 50% dela atingida até agora">Abaixo de 50% da meta (até agora):</span><b style="color:var(--err-suave)">${baixos.length}</b></div>
       </div>
     </div>
 

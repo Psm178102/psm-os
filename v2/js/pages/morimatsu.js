@@ -196,7 +196,7 @@ export const uid = p => (p || 'id') + '_' + Date.now().toString(36) + Math.rando
 export const num = v => { if (typeof v === 'number') return isNaN(v) ? 0 : v; const s = String(v ?? '').trim(); const n = parseFloat(/,\d{1,2}$/.test(s) ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '')); return isNaN(n) ? 0 : n; };
 export const brl = v => 'R$ ' + (Number(num(v)) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const dtBR = s => { if (!s) return ''; const d = new Date(String(s).length === 10 ? s + 'T12:00:00' : s); return isNaN(d) ? String(s) : d.toLocaleDateString('pt-BR'); };
-export const hojeISO = () => new Date().toISOString().slice(0, 10);
+export const hojeISO = () => { const x = new Date(), q = v => String(v).padStart(2, '0'); return `${x.getFullYear()}-${q(x.getMonth() + 1)}-${q(x.getDate())}`; };   // v88.55: data LOCAL (Brasília), não UTC
 export const autorNome = () => auth.user()?.nome || auth.user()?.name || auth.user()?.email || 'sócio';
 export const cfg = () => ({ fee: { ...FEE_DEFAULT, ...(S.config?.fee || {}) }, honorarios: (S.config?.honorarios?.length ? S.config.honorarios : HONORARIOS_DEFAULT), nao_incluso: S.config?.nao_incluso ?? NAO_INCLUSO_DEFAULT, notas: S.config?.notas || '' });
 export const invPorId = id => S.investidores.find(i => i.id === id);

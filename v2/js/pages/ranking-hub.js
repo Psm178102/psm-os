@@ -9,7 +9,7 @@
    Incorporadoras publica) — texto passando, pausa no mouse, só re-renderiza
    quando o dado muda (senão o letreiro reiniciava a cada poll).
 ============================================================================ */
-import { api } from '../api.js';
+import { api, hojeISO } from '../api.js';
 import { sounds } from '../sounds.js';
 import { enableWakeLock, disableWakeLock } from '../wakelock.js';
 
@@ -222,7 +222,7 @@ async function reload() {
   if (Date.now() - _ritmoAt > 600000) {
     _ritmoAt = Date.now();
     const ini = new Date(); ini.setDate(1);
-    api.request(`/api/v3/oo/comercial?since=${ini.toISOString().slice(0, 10)}&until=${new Date().toISOString().slice(0, 10)}`).then(r => {
+    api.request(`/api/v3/oo/comercial?since=${ini.toISOString().slice(0, 10)}&until=${hojeISO()}`).then(r => {
       const m = {};
       ((r && r.ritmo_vendas && r.ritmo_vendas.corretores) || []).forEach(c => {
         const key = String(c.nome || '').split(' ')[0].toLowerCase();

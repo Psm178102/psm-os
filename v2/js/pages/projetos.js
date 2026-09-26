@@ -1,7 +1,7 @@
 /* PSM-OS v2 — Diretoria · Projetos. Centro de controle dos PROJETOS da empresa
    (kanban por etapa, área, prioridade, responsável, prazo, escopo, checklist,
    métricas, IA de plano). board=projetos — independente da Academy. v77.60 */
-import { api } from '../api.js';
+import { api, hojeISO } from '../api.js';
 
 let _root = null;
 let _cards = [];
@@ -43,7 +43,7 @@ const areaCor = a => COR[(AREAS.indexOf(a) + 7) % COR.length] || '#64748b';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const fmtData = d => d ? String(d).substring(0, 10).split('-').reverse().join('/') : '';
-const hoje = () => new Date().toISOString().substring(0, 10);
+const hoje = () => hojeISO();
 
 export async function pageProjetos(ctx, root) {
   _root = root; _view = 'kanban'; _fArea = ''; _fResp = '';
@@ -226,7 +226,7 @@ function renderMetricas() {
 }
 
 /* ── INSIGHTS: sinais reais da carteira + leitura executiva por IA ── */
-const _plusDays = n => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().substring(0, 10); };
+const _plusDays = n => { const d = new Date(); d.setDate(d.getDate() + n); return hojeISO(d); };   // v88.55: data local
 const _diasAtraso = d => Math.max(0, Math.round((new Date(hoje()) - new Date(d)) / 86400000));
 const _ativo = c => c.status !== 'concluido' && c.status !== 'pausado';
 

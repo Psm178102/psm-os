@@ -9,7 +9,7 @@
      projeto ativo que não move nenhum OKR.
    Backend: /api/v3/okrs/cascata (leitura calculada), /api/v3/okrs/list (grava OKR),
    /api/v3/diretoria/estrategia (grava objetivo), /api/v3/paulo/cards (liga projeto). */
-import { api } from '../api.js';
+import { api, hojeISO } from '../api.js';
 import { auth } from '../auth.js';
 
 let _root = null;
@@ -396,7 +396,7 @@ async function salvarOkr() {
   lerCampos();
   const o = _editing;
   if (!o.objetivo) { alert('Escreva o objetivo do OKR.'); return; }
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = hojeISO();
   const krs = o.krs.filter(k => (k.label || '').trim()).map(k => {
     const auto = k.fonte === 'vgv' || k.fonte === 'vendas';
     const out = { label: k.label.trim(), fonte: k.fonte || 'manual' };

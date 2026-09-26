@@ -10,7 +10,7 @@
 
    Quadros visuais persistidos como JSON em /api/v3/diretoria/strategy.
 ============================================================================ */
-import { api } from '../api.js';
+import { api, hojeISO } from '../api.js';
 import { auth } from '../auth.js';
 import { parseNum } from '../sim-campos.js';   // v88.46: aceita "450.000", "450.000,00", "450000"
 import { pageOKRs } from './okrs.js';
@@ -495,7 +495,7 @@ function cronoCard(i) {
         <span style="background:${st.cor}1f;color:${st.cor};padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700">${st.lbl}</span>
         ${i.responsavel ? `<span style="background:rgba(148,163,184,.16);padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700">👤 ${esc(i.responsavel)}</span>` : ''}
         ${i.fonte ? `<span style="background:rgba(124,58,237,.12);color:var(--roxo);padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700" title="progresso medido automaticamente nesta fonte">🔗 auto</span>` : ''}
-        ${(() => { if (!i.prazo) return ''; const atras = i.status !== 'concluido' && i.status !== 'excluido' && i.prazo < new Date().toISOString().slice(0, 10); return `<span style="background:${atras ? 'rgba(239,68,68,.16)' : 'rgba(148,163,184,.16)'};color:${atras ? '#dc2626' : 'inherit'};padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700">📅 ${i.prazo.split('-').reverse().join('/')}${atras ? ' ⚠ atrasado' : ''}</span>`; })()}
+        ${(() => { if (!i.prazo) return ''; const atras = i.status !== 'concluido' && i.status !== 'excluido' && i.prazo < hojeISO(); return `<span style="background:${atras ? 'rgba(239,68,68,.16)' : 'rgba(148,163,184,.16)'};color:${atras ? '#dc2626' : 'inherit'};padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700">📅 ${i.prazo.split('-').reverse().join('/')}${atras ? ' ⚠ atrasado' : ''}</span>`; })()}
       </div>
       ${(() => {   /* v84.96 — barra de % (manual ou nutrida pela fonte) */
         const pct = cronoPct(i);

@@ -7,7 +7,7 @@
         próxima reunião/recorrência que cai na Agenda. Resolve: perder histórico,
         combinado não cumprido, prazo de rotina.
 ============================================================================ */
-import { api } from '../api.js';
+import { api, hojeISO } from '../api.js';
 
 let _root = null, _tab = 'reunioes';
 
@@ -20,7 +20,7 @@ let _fTipo = '', _fStatus = '', _loadedR = false;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const nl2br = s => esc(s).replace(/\n/g, '<br>');
 const fmtData = d => d ? String(d).substring(0, 10).split('-').reverse().join('/') : '';
-const hoje = () => new Date().toISOString().substring(0, 10);
+const hoje = () => hojeISO();
 const body = () => _root.querySelector('#rn-body');
 
 export async function pageReunioes(ctx, root) {

@@ -9,7 +9,7 @@
    Reusa o board engine paulo_cards (board=criativos). Brief estruturado vai no
    campo checklist (jsonb). Sem SQL.
 ============================================================================ */
-import { api } from '../api.js';
+import { api, hojeISO } from '../api.js';
 import { auth } from '../auth.js';
 import { getAdsLibrary, saveAdsLink, deleteAdsLink, getResourcePerms, canSeeResource, openResourcePermsModal } from '../links.js';
 
@@ -61,7 +61,7 @@ const stageInfo = id => STAGES.find(s => s.id === id) || { lbl: id || '—', cor
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const fmtData = d => d ? String(d).substring(0, 10).split('-').reverse().join('/') : '';
-const hoje = () => new Date().toISOString().substring(0, 10);
+const hoje = () => hojeISO();
 // Cronograma da demanda: Início ▶ / Entrega 📦 (alerta de atraso) / Post 📣 (v81.35)
 const dateChips = c => {
   const atrasE = c.data_entrega && c.status !== 'publicado' && c.status !== 'aprovado' && String(c.data_entrega).substring(0, 10) < hoje();

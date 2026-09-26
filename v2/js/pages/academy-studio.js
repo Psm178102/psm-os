@@ -1,7 +1,7 @@
 /* PSM-OS v2 — Academy · Produção (centro de construção da PSM Academy).
    Controla a CONSTRUÇÃO dos cursos: linha de curso × etapa de produção,
    com tema, roteiro, responsável e data de gravação. board=academy. v77.58 */
-import { api } from '../api.js';
+import { api, hojeISO } from '../api.js';
 import { auth } from '../auth.js';
 import { CURRICULUM, NIVEIS } from './academy.js';   // ementa oficial (fonte única) — v84.8
 
@@ -47,7 +47,7 @@ const linhaCor = l => COR[(LINHAS.indexOf(l) + 11) % COR.length] || '#64748b';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const fmtData = d => d ? String(d).substring(0, 10).split('-').reverse().join('/') : '';
-const hoje = () => new Date().toISOString().substring(0, 10);
+const hoje = () => hojeISO();
 
 export async function pageAcademyStudio(ctx, root) {
   _root = root;

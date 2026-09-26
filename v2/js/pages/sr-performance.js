@@ -20,11 +20,12 @@ export async function pageSrPerformance(ctx, root) {
 async function load() {
   try {
     const me = auth.user();
-    const [atg, deals] = await Promise.all([
-      api.request('/api/v3/metas/atingimento').catch(() => ({})),
+    // v88.55: números do MÊS pelo motor único (antes /metas/atingimento, que é ANUAL, rotulado "Mês")
+    const [mx, deals] = await Promise.all([
+      api.request('/api/v3/metricas/resumo').catch(() => ({})),
       api.request('/api/v3/crm/deals?limit=200').catch(() => ({ deals: [] })),
     ]);
-    _data = { atg, deals: deals.deals || [], me };
+    _data = { mx, deals: deals.deals || [], me };
     renderInsights();
   } catch (e) { /* silent */ }
 }
@@ -100,7 +101,8 @@ function renderInsights() {
   const wrap = document.getElementById('srp-insights');
   if (!wrap || !_data) return;
   const me = _data.me;
-  const meu = (_data.atg.por_corretor || []).find(c => c.id === me?.id) || {};
+  const P = ((_data.mx || {}).pessoas || {})[me?.id] || {};
+  const meu = { vgv_atingido: +P.vgv || 0, meta_vgv: +((P.meta || {}).meta_vgv) || 0, vendas: +P.vendas || 0 };
   // deals do RD trazem o dono em d.user.email e valor em amount_total/amount_unique
   const myEmail = (me?.email || '').toLowerCase();
   const meusDeals = myEmail ? (_data.deals || []).filter(d => ((d.user && d.user.email) || '').toLowerCase() === myEmail) : [];
@@ -122,7 +124,7 @@ function renderInsights() {
         <div class="flex" style="justify-content:space-between"><span class="muted">Meta Mês:</span><b>R$ ${(+meu.meta_vgv || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></div>
         <div class="flex" style="justify-content:space-between"><span class="muted">Atingimento:</span><b style="color:${statusColor}">${pct.toFixed(1)}%</b></div>
         <div class="flex" style="justify-content:space-between"><span class="muted">Vendas:</span><b>${vendasCount}</b></div>
-        <div class="flex" style="justify-content:space-between"><span class="muted">Conversão:</span><b>${(ganhos.length + perdas.length) > 0 ? conv.toFixed(1) + '%' : '—'}</b></div>
+        <div class="flex" style="justify-content:space-between" title="ganhos ÷ (ganhos + perdidos) entre os seus últimos negócios do RD (amostra de 200)"><span class="muted">Conversão (amostra):</span><b>${(ganhos.length + perdas.length) > 0 ? conv.toFixed(1) + '%' : '—'}</b></div>
         <div class="flex" style="justify-content:space-between"><span class="muted">Ticket Médio:</span><b>R$ ${(Number(ticketMedio) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></div>
       </div>
     </div>
