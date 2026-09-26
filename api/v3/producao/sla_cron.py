@@ -3,7 +3,8 @@ GET/POST /api/v3/producao/sla_cron — Peça 2 da Produtividade Real (v86.78).
 
 Roda a cada 10 min em horário comercial (vercel.json). Lead NOVO (deal criado nas
 últimas 24h, em aberto) sem PRIMEIRO CONTATO há mais de 15 min em horário comercial
-→ notifica os gestores (sino + push), 1 alerta por lead (dedupe em shared_kv).
+→ entra na fila do RESUMO; 1x por hora os gestores recebem 1 aviso só com os que
+seguem sem contato (v88.56 — antes era 1 aviso por lead: ~1.5k/mês, 459 não lidos).
 
 Primeiro contato = toque humano registrado (producao_eventos toque_*) OU segunda
 observação de etapa no espelho (deal_stage_events) — ver _prod_lib.first_touch_map.
@@ -19,6 +20,8 @@ from _fisc_lib import gestores_ids  # type: ignore
 from _prod_lib import first_touch_map, em_horario_comercial, KV_SLA_ALERTAS, BRT  # type: ignore
 
 SLA_ALERTA_MIN = 15   # minutos até alertar o gestor (o alvo do time é 5)
+RESUMO_MIN = 55      # intervalo mínimo entre resumos (cron roda a cada 10 min)
+KV_SLA_RESUMO = "sla_lead_resumo"
 
 
 def _authorized(handler):
@@ -49,17 +52,21 @@ def _run(sb):
         return {"ok": True, "leads_novos": 0, "alertas": 0}
 
     touched = first_touch_map(sb, [d["id"] for d in deals])
-    # dedupe de alerta por lead
-    ja = {}
+
+    def _le_kv(chave):
+        rows = sb.table("shared_kv").select("value").eq("key", chave).limit(1).execute().data or []
+        v = rows[0]["value"] if rows else {}
+        if isinstance(v, str):
+            v = json.loads(v)
+        return v if isinstance(v, dict) else {}
+
+    # dedupe por lead + fila do resumo. Leitura que falha ABORTA (não reenvia tudo).
     try:
-        rows = sb.table("shared_kv").select("value").eq("key", KV_SLA_ALERTAS).limit(1).execute().data or []
-        ja = rows[0]["value"] if rows else {}
-        if isinstance(ja, str):
-            ja = json.loads(ja)
-        if not isinstance(ja, dict):
-            ja = {}
-    except Exception:
-        ja = {}
+        ja = _le_kv(KV_SLA_ALERTAS)
+        resumo = _le_kv(KV_SLA_RESUMO)
+    except Exception as e:
+        return {"ok": False, "error": f"shared_kv: {e}"}
+    fila = resumo.get("fila") if isinstance(resumo.get("fila"), list) else []
 
     atrasados = []
     for d in deals:
@@ -75,30 +82,57 @@ def _run(sb):
         if (now - criado).total_seconds() >= SLA_ALERTA_MIN * 60:
             atrasados.append(d)
 
+    for d in atrasados:
+        did = str(d["id"])
+        ja[did] = now.isoformat()
+        fila.append({"id": did, "nome": (d.get("name") or "Lead")[:60],
+                     "funil": d.get("pipeline_name") or "", "dono": d.get("user_email") or "",
+                     "criado": d.get("created_at_rd")})
+
     n = 0
-    if atrasados:
-        gids = gestores_ids(sb)
-        for d in atrasados[:10]:  # no máx 10 alertas por rodada (anti-tempestade)
-            did = str(d["id"])
-            mins = int((now - datetime.fromisoformat(str(d["created_at_rd"]).replace("Z", "+00:00"))).total_seconds() // 60)
+    ultimo = resumo.get("ultimo")
+    try:
+        desde_ultimo = (now - datetime.fromisoformat(str(ultimo).replace("Z", "+00:00"))).total_seconds() / 60 if ultimo else 1e9
+    except Exception:
+        desde_ultimo = 1e9
+    if fila and desde_ultimo >= RESUMO_MIN:
+        # só entra no aviso quem AINDA está sem contato na hora do resumo
+        ainda = first_touch_map(sb, [x["id"] for x in fila])
+        pend = [x for x in fila if x["id"] not in ainda]
+        if pend:
+            def _mins(x):
+                try:
+                    return int((now - datetime.fromisoformat(str(x["criado"]).replace("Z", "+00:00"))).total_seconds() // 60)
+                except Exception:
+                    return 0
+            pend.sort(key=_mins, reverse=True)
+            linhas = [f"{x['nome'].split(' ')[0]} ({_mins(x)}min, {(x['dono'] or 'sem dono').split('@')[0]})" for x in pend[:6]]
+            if len(pend) > 6:
+                linhas.append(f"+ {len(pend) - 6} outro(s)")
             try:
-                notify_all(gids, "sla_lead",
-                           f"⏱ Lead sem 1º contato há {mins} min",
-                           body=f"{(d.get('name') or 'Lead')[:60]} · {d.get('pipeline_name') or ''} · dono: {d.get('user_email') or 'sem dono'}",
-                           link=f"https://crm.rdstation.com/deals/{did}")
-                ja[did] = now.isoformat()
-                n += 1
+                notify_all(gestores_ids(sb), "sla_lead",
+                           f"⏱ {len(pend)} lead(s) sem 1º contato há 15+ min",
+                           body=" · ".join(linhas),
+                           link="#/produtividade-real")
+                n = 1
             except Exception as e:
                 print(f"[sla] notify falhou: {e}")
-        # poda o dedupe (mantém só 48h)
-        corte = (now - timedelta(hours=48)).isoformat()
-        ja = {k: v for k, v in ja.items() if str(v) >= corte}
-        try:
-            sb.table("shared_kv").upsert({"key": KV_SLA_ALERTAS, "value": ja,
-                                          "updated_at": now.isoformat()}, on_conflict="key").execute()
-        except Exception:
-            pass
-    return {"ok": True, "leads_novos": len(deals), "sem_contato": len(atrasados), "alertas": n}
+                pend = None  # mantém a fila pra tentar no próximo ciclo
+        if pend is not None:
+            fila = []
+            ultimo = now.isoformat()
+
+    # poda o dedupe (mantém só 48h) e grava dedupe + fila
+    corte = (now - timedelta(hours=48)).isoformat()
+    ja = {k: v for k, v in ja.items() if str(v) >= corte}
+    try:
+        sb.table("shared_kv").upsert([
+            {"key": KV_SLA_ALERTAS, "value": ja, "updated_at": now.isoformat()},
+            {"key": KV_SLA_RESUMO, "value": {"fila": fila[-200:], "ultimo": ultimo}, "updated_at": now.isoformat()},
+        ], on_conflict="key").execute()
+    except Exception:
+        pass
+    return {"ok": True, "leads_novos": len(deals), "sem_contato": len(atrasados), "na_fila": len(fila), "resumos": n}
 
 
 class handler(BaseHTTPRequestHandler):
