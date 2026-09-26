@@ -5,7 +5,7 @@
 // Fallback: OpenAI GPT-4o (if Gemini fails and OPENAI_API_KEY is set)
 
 const https = require('https');
-const { properties, filterProperties, recommendProperties } = require('./properties.js');
+const { properties, filterProperties, recommendProperties } = require('./_properties.js');
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PROPERTY CONTEXT INJECTION — Auto-detects client preferences from message

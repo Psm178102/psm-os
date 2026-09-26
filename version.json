@@ -1,6 +1,6 @@
 {
-  "version": "88.45",
-  "meta": "2026.09.25-v88.45-seguranca-passo1",
+  "version": "88.45b",
+  "meta": "2026.09.25-v88.45b-agent-properties",
   "built": "2026-09-25T23:05:00Z",
   "sw": "v86.68-2026-08-24",
   "sprint": "v88.45 — 🔒 SEGURANÇA · PASSO 1 DA VISTORIA DE 24/09. (1) Endpoints legados sem login removidos: api/v2/dir_tasks|commissions|transfers|rd_pipelines|health e api/claude|sr|sol-coach|geminigen|dalle|prompt-builder|auth|properties (só o v1 usava; /api/v2/dir_tasks entregava as tarefas da diretoria a qualquer um). (2) /api/ai-analysis e /api/agent ganham trava (api/_authz.js): backend via CRON_SECRET ou usuário lvl>=5 (JWT do House); webhooks e v3 mandam o CRON_SECRET. (3) Backup: export, Drive e restore só sócio; restore nunca grava role_lvl_overrides/route_min_lvl/role_perms/vault_*. (4) Rede de Agentes só quando quem conversa é sócio (Sr. Performance/Sr. Gerência vazavam recados de CEO/CFO e publicavam no quadro). (5) XSS: escape em Leads LP, WA Leads, Meu Painel e links da Concorrência. (6) Banco (já aplicado): RLS em rd_tasks, gp_avaliacoes, gp_feedbacks.",
