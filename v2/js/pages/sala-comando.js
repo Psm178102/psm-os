@@ -179,7 +179,9 @@ function farois() {
   if (!m) spin('VGV do ano × meta');
   else if (m._err || !m.totals) card('VGV do ano × meta', '—', 'metas indisponível', COR.mute);
   else {
-    const pct = m.totals.meta_vgv ? m.totals.atingido_vgv / m.totals.meta_vgv : 0;
+    // v88.50 (§1 v88.0): % da meta só com quem tem meta — vendas de quem saiu/sem corretor seguem no total
+    const daMeta = m.totals.atingido_vgv_da_meta != null ? m.totals.atingido_vgv_da_meta : m.totals.atingido_vgv;
+    const pct = m.totals.meta_vgv ? daMeta / m.totals.meta_vgv : 0;
     const paceAno = ((hoje - new Date(hoje.getFullYear(), 0, 1)) / 864e5) / 365;
     card('VGV do ano × meta', `${moneyK(m.totals.atingido_vgv)} <span class="tiny muted">/ ${moneyK(m.totals.meta_vgv)}</span>`,
       `${m.total_vendas || 0} vendas · ${Math.round(pct * 100)}% da meta (ano ${Math.round(paceAno * 100)}% decorrido)`,

@@ -70,9 +70,11 @@ function computeCards() {
     cards.push({
       // v88.47: renomeado — é pipeline BRUTO (sem ponderar) ÷ falta; a "Cobertura da Meta" da aba KPIs é outra conta
       icon: '📈', titulo: 'Pipeline bruto ÷ o que falta', valor: falta > 0 ? (cob).toFixed(1) + '×' : 'meta batida',
-      tom: cob >= 3 ? 'good' : cob >= 1.5 ? 'warn' : 'bad',
+      // v88.50: bruto não dá veredito de "confortável" — inclui milhares de negócios parados;
+      // quem diz se a meta fecha é o Fechamento provável (projeção oficial), no card ao lado
+      tom: cob < 1 ? 'bad' : 'warn',
       insight: falta > 0
-        ? `Falta R$ ${km(falta)} e o pipeline aberto é R$ ${km(s.pipeline_vgv)} (${cob.toFixed(1)}× o gap). ${cob < 1.5 ? 'Cobertura baixa — gere oportunidade.' : cob < 3 ? 'Saudável, mas sem folga.' : 'Cobertura confortável.'}`
+        ? `Falta R$ ${km(falta)} e o pipeline aberto BRUTO é R$ ${km(s.pipeline_vgv)} (${cob.toFixed(1)}× o gap) — soma sem ponderar, com negócios parados. ${cob < 1 ? 'Nem o bruto cobre o que falta — gere oportunidade.' : 'Use o Fechamento provável para saber se fecha.'}`
         : 'Meta do mês já atingida — foco em adiantar o próximo mês.',
     });
   }

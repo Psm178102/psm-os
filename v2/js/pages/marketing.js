@@ -958,7 +958,7 @@ function tabExecutiva() {
 
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px">
         ${crmKpiDark('💰 Investimento Total', 'R$ ' + money(t.spend), `${accounts.length} conta(s) Meta`, '#f87171')}
-        ${crmKpiDark('🧮 CAC', cac ? 'R$ ' + money(cac) : '—', `${g.vendas} venda(s) no período`, '#fb923c')}
+        ${crmKpiDark('🧮 CAC', cac ? 'R$ ' + money(cac) : '—', `${vendasPagas} de tráfego pago (de ${g.vendas} no período)`, '#fb923c')}
         ${crmKpiDark('🏛 VGV Influenciado', vgvInf > 0 ? 'R$ ' + moneyShort(vgvInf) : '—', vgvInfLbl, '#c4b5fd')}
         ${crmKpiDark('📈 ROAS Imobiliário', roas ? roas.toFixed(1) + 'x' : '—', vgvInf > 0 ? 'VGV influenciado ÷ investimento' : 'sem ganhos com origem paga marcada', '#4ade80')}
       </div>
@@ -979,7 +979,7 @@ function tabExecutiva() {
         <thead><tr style="color:#94a3b8;font-size:11px;border-bottom:1px solid rgba(255,255,255,0.1)">
           <th style="text-align:left;padding:6px 10px">Marca</th><th style="text-align:right;padding:6px 8px">Investido</th>
           <th style="text-align:right;padding:6px 8px">Leads</th><th style="text-align:right;padding:6px 8px">Vendas</th>
-          <th style="text-align:right;padding:6px 8px">CAC</th><th style="text-align:right;padding:6px 8px">VGV</th>
+          <th style="text-align:right;padding:6px 8px" title="gasto ÷ vendas de tráfego pago da marca (Vendas = todas as origens)">CAC</th><th style="text-align:right;padding:6px 8px">VGV</th>
           <th style="text-align:right;padding:6px 8px">ROAS</th>
         </tr></thead><tbody>
           ${execBrandRows(byBrand)}

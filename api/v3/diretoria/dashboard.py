@@ -137,8 +137,13 @@ class handler(BaseHTTPRequestHandler):
         try:
             start = f"{ano}-01-01T03:00:00+00:00"     # 1º/jan 00:00 BRT
             end   = f"{ano+1}-01-01T03:00:00+00:00"
-            dq = _deals_win(sb, start, end)
+            dq = _deals_win(sb, start, end, cols="amount,closed_at,user_id,user_email")
             kpis["atingido_vgv_ano"] = sum(_amt(d) for d in dq)
+            # v88.50 (Dicionário §1 v88.0/§3): o % da meta só conta venda de quem TEM meta (ativo);
+            # quem saiu / sem corretor segue no VGV total. Antes: total ÷ meta dos ativos (47% × 27,6%).
+            _mail2id = {(u.get("email") or "").lower(): u.get("id") for u in (ativos if kpis.get("users_ativos") else [])}
+            _dono = lambda d: d.get("user_id") if d.get("user_id") in (ids_ativos or set()) else _mail2id.get((d.get("user_email") or "").lower())
+            kpis["atingido_vgv_ano_da_meta"] = round(sum(_amt(d) for d in dq if _dono(d)), 2) if ids_ativos else None
             kpis["atingido_vendas_ano"] = len(dq)
             # Mês atual + série mensal real (12 meses) p/ sparklines/gráfico premium
             kpis["atingido_vgv_mes"] = 0; kpis["atingido_vendas_mes"] = 0
@@ -161,7 +166,10 @@ class handler(BaseHTTPRequestHandler):
             kpis["vendas_por_mes"] = vendas_mes
             # v88.2: meta do mês = metas cadastradas do mês (era meta anual ÷ 12)
             kpis["meta_vgv_mes"] = round(kpis.pop("meta_vgv_mes_real", None) or 0, 2)
-            kpis["atingimento_pct"] = (kpis["atingido_vgv_ano"] / kpis["meta_vgv_ano"] * 100) if kpis["meta_vgv_ano"] > 0 else None
+            _base_pct = kpis.get("atingido_vgv_ano_da_meta")
+            if _base_pct is None:
+                _base_pct = kpis["atingido_vgv_ano"]
+            kpis["atingimento_pct"] = (_base_pct / kpis["meta_vgv_ano"] * 100) if kpis["meta_vgv_ano"] > 0 else None
         except Exception as e:
             errors.append(f"deals: {e}")
             # v88.47 (Dicionário §0): erro de leitura vira None ("—" + aviso), nunca zero que parece real

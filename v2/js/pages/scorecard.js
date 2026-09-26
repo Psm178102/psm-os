@@ -208,6 +208,10 @@ function evolucaoHTML() {
   </div>`;
 }
 
+// v88.50: indicadores cuja REGRA mudou na v88.47 (CAC e conversão por venda de tráfego pago) — a
+// variação contra meses gravados antes de 2026-09 compara réguas diferentes (ex.: CAC "▲82%" falso)
+const REGRA_NOVA_DESDE = { 'p.cac': '2026-09', 'mk.cac': '2026-09', 'c.conv': '2026-09' };
+
 function spark(i) {
   const ser = (_h && _h.series && _h.series[i.id]) || [];
   const pts = ser.map((x, k) => ({ k, v: x && x[0] != null ? Number(x[0]) : null, f: x && x[2] })).filter(p => p.v != null && isFinite(p.v));
@@ -218,9 +222,12 @@ function spark(i) {
   const ult = pts[pts.length - 1], pen = pts[pts.length - 2];
   const cor = (FAROL[ult.f] || FAROL.info).cor;
   const bom = i.dir === 'menor' ? ult.v < pen.v : ult.v > pen.v;
-  const dlt = pen.v ? Math.round((ult.v - pen.v) / Math.abs(pen.v) * 100) : null;
+  const desde = REGRA_NOVA_DESDE[i.id];
+  const penYm = desde && _h && _h.meses ? _h.meses[pen.k] : null;
+  const regraMudou = !!(desde && penYm && penYm < desde);
+  const dlt = regraMudou ? null : (pen.v ? Math.round((ult.v - pen.v) / Math.abs(pen.v) * 100) : null);
   const [lx, ly] = xy(ult);
-  return `<div class="flex gap-1" style="align-items:center" title="${pts.length} meses registrados">
+  return `<div class="flex gap-1" style="align-items:center" title="${pts.length} meses registrados${regraMudou ? ' · regra do cálculo mudou em set/2026 (só venda de tráfego pago) — sem comparação com os meses anteriores' : ''}">
     <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><polyline fill="none" stroke="${cor}" stroke-width="1.6" stroke-linejoin="round" points="${pts.map(p => xy(p).join(',')).join(' ')}"/><circle cx="${lx}" cy="${ly}" r="2.4" fill="${cor}"/></svg>
     ${dlt != null && ult.v !== pen.v ? `<span class="tiny" style="color:${bom ? FAROL.verde.cor : FAROL.vermelho.cor};font-weight:700">${ult.v > pen.v ? '▲' : '▼'}${Math.abs(dlt)}%</span>` : ''}
   </div>`;
