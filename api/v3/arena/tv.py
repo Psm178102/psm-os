@@ -34,7 +34,7 @@ def _all_deals(sb):
     rows, page = [], 0
     while True:
         q = sb.table("deals").select("id,amount,closed_at,created_at_rd,user_id,win,pipeline_name,amt_total:rd_raw->amount_total,"
-                                     "amt_unique:rd_raw->amount_unique,src:rd_raw->deal_source->>name") \
+                                     "amt_unique:rd_raw->amount_unique,src:rd_raw->deal_source->>name,origem_cliente") \
             .order("id").range(page * 1000, page * 1000 + 999)
         chunk = q.execute().data or []
         rows.extend(chunk)
@@ -206,7 +206,8 @@ def _aplicar_motor(sb, out, deals, hoje_ini):
     try:
         mapa = MX.mapa_origens(sb)
         out["destaques"]["leads_hoje"] = sum(1 for r in deals if (r.get("created_at_rd") or "") >= hoje_ini
-                                             and MX.origem_categoria(r.get("src"), mapa)[0] in MX.LEAD_CATS)
+                                             # v88.51 (§2 v88.34): origem oficial = "Origem do cliente"; vazia → Fonte
+                                             and MX.origem_categoria((r.get("origem_cliente") or "").strip() or r.get("src"), mapa)[0] in MX.LEAD_CATS)
         out["destaques"]["interessados_hoje"] = sum(1 for r in deals if (r.get("created_at_rd") or "") >= hoje_ini)
     except Exception as e:
         avisos.append(f"leads de hoje: {e}")

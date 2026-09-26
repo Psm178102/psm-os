@@ -47,7 +47,7 @@ def _rd_espelho(sb):
     """Vendas ganhas do RD agregadas por mês, por ano×corretor e por ano×origem (regras do
     Dicionário de Métricas §1–§3: win=true, mês = closed_at em Brasília, VGV = vgv_de)."""
     cols = ("id,win,closed_at,amount,user_id,user_email,"
-            "src:rd_raw->deal_source->>name,amt_total:rd_raw->amount_total,amt_unique:rd_raw->amount_unique")
+            "src:rd_raw->deal_source->>name,oc:origem_cliente,amt_total:rd_raw->amount_total,amt_unique:rd_raw->amount_unique")
     deals = ML._paginado(lambda: sb.table("deals").select(cols).eq("win", True).order("id"), keyset="id")
     users = sb.table("users").select("id,name,email,is_service").execute().data or []
     pessoas = [u for u in users if u.get("id") and not u.get("is_service")]
@@ -71,7 +71,7 @@ def _rd_espelho(sb):
         uid = ML._dono(d, email2uid, set(nome), servico)
         quem = (nome.get(uid) or "Sem corretor").split(" ")[0].title() if uid else "Sem corretor"
         corretor[(ano, quem)]["n"] += 1; corretor[(ano, quem)]["vgv"] += v
-        cat, _ = ML.origem_categoria(d.get("src"), mapa)
+        cat, _ = ML.origem_categoria(ML.origem_nome(d), mapa)   # v88.51: "Origem do cliente" → Fonte (§2)
         origem[(ano, cat)]["n"] += 1; origem[(ano, cat)]["vgv"] += v
     return {
         "mensal": [{"mes": k, **v} for k, v in sorted(mensal.items())],

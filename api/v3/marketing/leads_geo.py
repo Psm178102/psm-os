@@ -171,7 +171,7 @@ class handler(BaseHTTPRequestHandler):
         rows, truncated, page, size = [], False, 0, 300
         try:
             while True:
-                chunk = (sb.table("deals").select("id,name,pipeline_name,rd_raw,created_at_rd")
+                chunk = (sb.table("deals").select("id,name,pipeline_name,rd_raw,created_at_rd,origem_cliente")
                          .gte("created_at_rd", since_iso).lt("created_at_rd", until_iso)
                          .order("id").range(page * size, page * size + size - 1)
                          .execute().data or [])
@@ -226,7 +226,8 @@ class handler(BaseHTTPRequestHandler):
             if isinstance(raw, str):
                 try: raw = json.loads(raw)
                 except Exception: raw = {}
-            if _eh_lead and not _eh_lead(_source(raw)):
+            # v88.51 (§2 v88.34): origem oficial = "Origem do cliente"; vazia → Fonte do RD
+            if _eh_lead and not _eh_lead((d.get("origem_cliente") or "").strip() or _source(raw)):
                 prospeccao += 1
                 continue  # origem ≠ tráfego pago → prospecção, não lead
             marca = brand_labels.get(bkey, bkey)
