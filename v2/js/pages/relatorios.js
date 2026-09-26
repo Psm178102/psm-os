@@ -93,14 +93,25 @@ function reportFooter() {
 }
 
 async function loadVendasMes(out) {
-  const r = await api.request('/api/v3/crm/deals?limit=500');
-  const amt = d => (+d.amount_total || +d.amount_unique || 0);
-  const deals = (r.deals || []).filter(d => d.win === true).sort((a, b) => (b.closed_at || '').localeCompare(a.closed_at || ''));
+  // v88.53: antes eram os 500 primeiros negócios do RD de QUALQUER data (só filtrava "ganho").
+  // Agora: ganhos com fechamento no mês corrente (Brasília) + conferência com o motor único.
+  const [r, mx] = await Promise.all([
+    api.request('/api/v3/crm/deals?win=true&limit=500'),
+    api.request('/api/v3/metricas/resumo').catch(() => null),
+  ]);
+  const amt = d => (+d.amount || +d.amount_total || +d.amount_unique || 0);
+  const brtYm = iso => { if (!iso) return ''; const t = new Date(new Date(iso).getTime() - 3 * 3600e3); return t.toISOString().slice(0, 7); };
+  const ymAgora = brtYm(new Date().toISOString());
+  const deals = (r.deals || []).filter(d => d.win === true && brtYm(d.closed_at) === ymAgora)
+    .sort((a, b) => (b.closed_at || '').localeCompare(a.closed_at || ''));
   const total = deals.reduce((s, d) => s + amt(d), 0);
+  const oficial = mx && mx.empresa ? mx.empresa.vendas : null;
+  const aviso = oficial != null && oficial !== deals.length
+    ? `<div class="alert alert-warn tiny no-print" style="margin-bottom:8px">⚠️ O motor oficial conta ${oficial} venda(s) no mês e esta lista trouxe ${deals.length} — a lista vem ao vivo do RD (limite de 500). Vale o número do motor.</div>` : '';
 
   out.innerHTML = `
     <div class="card print-area">
-      ${reportHeader('Vendas do Mês', `${deals.length} vendas · R$ ${formatBR(total)}`)}
+      ${aviso}${reportHeader('Vendas do Mês', `${deals.length} vendas · R$ ${formatBR(total)} · ${new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`)}
       <table style="width:100%;border-collapse:collapse;font-size:12px">
         <thead>
           <tr style="background:#0b1f3a;color:#fff">
@@ -136,13 +147,15 @@ async function loadVendasMes(out) {
 async function loadRankingGeral(out) {
   // Usa /metas/atingimento (por_corretor) ao invés de endpoint ranking inexistente
   const r = await api.request('/api/v3/metas/atingimento');
-  const items = (r.por_corretor || [])
+  // v88.53: é o ACUMULADO DO ANO (o /metas/atingimento é anual) — o título dizia o mês. Quem saiu e
+  // "sem corretor" ficam fora do ranking (Dicionário §4 e §0: ranking só de membros ativos).
+  const items = (r.por_corretor || []).filter(c => !c.inativo)
     .map(c => ({ name: c.name, team: c.team || c.frente, vgv: +c.vgv_atingido || 0, deals: +c.vendas || 0 }))
     .sort((a, b) => b.vgv - a.vgv)
     .slice(0, 20);
   out.innerHTML = `
     <div class="card print-area">
-      ${reportHeader('Ranking Geral', `Top 20 — ${new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`)}
+      ${reportHeader('Ranking Geral', `Top 20 — acumulado de ${new Date().getFullYear()} (VGV do ano)`)}
       <table style="width:100%;border-collapse:collapse;font-size:12px">
         <thead>
           <tr style="background:#0b1f3a;color:#fff">

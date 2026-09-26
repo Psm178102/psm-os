@@ -127,12 +127,14 @@ class handler(BaseHTTPRequestHandler):
         }
 
         # ── funil CRM de locação (se houver pipeline com 'loca' no nome) ──
+        # v88.53: "aberto" = win nulo (a tabela deals não tem coluna "status" — a consulta falhava sempre e a
+        # tela dizia "nenhum funil de locação"). Erro agora vira aviso (Dicionário §0), não zero calado.
         crm = {"n": 0, "valor": 0.0}
         try:
             deals = sb.table("deals").select("id,amount,pipeline_name,stage_name") \
-                .eq("status", "aberto").ilike("pipeline_name", "%loca%").limit(1000).execute().data or []
+                .is_("win", "null").ilike("pipeline_name", "%loca%").limit(1000).execute().data or []
             crm = {"n": len(deals), "valor": sum(_f(d.get("amount")) for d in deals)}
-        except Exception:
-            pass
+        except Exception as e:
+            crm = {"n": None, "valor": None, "erro": str(e)[:120]}
 
         return self._send(200, {"ok": True, "carteira": carteira, "estoque": estoque, "crm": crm})

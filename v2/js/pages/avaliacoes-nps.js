@@ -194,7 +194,8 @@ function wireKanban() {
     await post({ action: 'novo', nome, contato: fone });
     reload();
   };
-  $('#av-busca').oninput = e => { _busca = e.target.value; render(); };
+  // v88.53: o render recria o campo — devolve o foco e o cursor (antes só dava pra digitar 1 letra)
+  $('#av-busca').oninput = e => { _busca = e.target.value; const pos = e.target.selectionStart; render(); { const n = document.getElementById('av-busca'); if (n) { n.focus(); n.setSelectionRange(pos, pos); } } };
   _host.querySelectorAll('.av-fo').forEach(b => b.onclick = () => { _fOrigem = b.dataset.o; render(); });
   _host.querySelectorAll('.av-mais').forEach(b => b.onclick = () => { _showMax[b.dataset.col] = (_showMax[b.dataset.col] || 40) + 40; render(); });
   if ($('#av-cfg')) $('#av-cfg').onclick = abrirCfg;

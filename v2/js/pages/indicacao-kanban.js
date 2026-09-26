@@ -178,7 +178,7 @@ function wire() {
   $('#ik-sync').onclick = async () => {
     $('#ik-sync').disabled = true; $('#ik-sync').textContent = '⏳ Sincronizando…';
     const r = await post({ action: 'sincronizar' });
-    if (r) alert(`🔄 Sincronizado: ${r.criadas} card(s) novo(s)\n🏆 Fechou 12m: ${r.por_base.fechou_12m} · 👣 Visita 60d: ${r.por_base.visita_60d} · 🗂 Carteira MAP: ${r.por_base.carteira_map}`);
+    if (r) alert(`🔄 Sincronizado: ${r.criadas} card(s) novo(s)\n🏆 Fechou 12m: ${r.por_base.fechou_12m} · 👣 Visita 60d: ${r.por_base.visita_60d} · 🗂 Carteira MAP: ${r.por_base.funil_map ?? r.por_base.carteira_map ?? 0}`);
     reload();
   };
   $('#ik-novo').onclick = async () => {
@@ -188,7 +188,8 @@ function wire() {
     await post({ action: 'novo', nome, contato: fone });
     reload();
   };
-  $('#ik-busca').oninput = e => { _busca = e.target.value; render(); };
+  // v88.53: devolve o foco e o cursor depois do render (antes só dava pra digitar 1 letra)
+  $('#ik-busca').oninput = e => { _busca = e.target.value; const pos = e.target.selectionStart; render(); { const n = document.getElementById('ik-busca'); if (n) { n.focus(); n.setSelectionRange(pos, pos); } } };
   _host.querySelectorAll('.ik-fb').forEach(b => b.onclick = () => { _fBase = b.dataset.b; render(); });
   _host.querySelectorAll('.ik-mais').forEach(b => b.onclick = () => { _showMax[b.dataset.col] = (_showMax[b.dataset.col] || 40) + 40; render(); });
   if ($('#ik-cfg')) $('#ik-cfg').onclick = abrirCfg;

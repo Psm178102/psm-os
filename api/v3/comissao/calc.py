@@ -256,7 +256,7 @@ def calcular(sb, mes=None):
 
     # vendas Conquista ganhas no mês
     deals = _page(lambda: sb.table("deals").select(
-        "id,name,amount,win,closed_at,pipeline_name,user_id,user_email,rd_raw")
+        "id,name,amount,win,closed_at,pipeline_name,user_id,user_email,origem_cliente,rd_raw")
         .eq("win", True).gte("closed_at", ini).lt("closed_at", fim).order("id"), cap=6000)
     deals = [d for d in deals if frente_of(d.get("pipeline_name")) == "conquista"]
 
@@ -281,10 +281,15 @@ def calcular(sb, mes=None):
         cid = str(d.get("user_id") or d.get("user_email") or "?")
         vgv = _vgv(d)
         src = _source_name(d.get("rd_raw"))
-        if src:
-            fontes[src] = fontes.get(src, 0) + 1
+        # v88.53 (Dicionário §2 v88.34): a origem oficial é a "Origem do cliente". Tenta ela no mapa da
+        # comissão e, se o nome ainda não foi mapeado, cai na Fonte como antes — nenhuma venda perde a taxa
+        # que já tinha; os nomes novos aparecem na lista de fontes pra o sócio mapear.
+        oc = (d.get("origem_cliente") or "").strip()
+        for nome_ in (oc, src):
+            if nome_:
+                fontes[nome_] = fontes.get(nome_, 0) + 1
         did = str(d.get("id"))
-        origem = overrides.get(did) or mapa.get(src.lower()) or None
+        origem = overrides.get(did) or (mapa.get(oc.lower()) if oc else None) or (mapa.get(src.lower()) if src else None) or None
         estag = cid in estagiarios
         if estag:
             nivel, taxa, origem_lbl = 1, float(cfg.get("taxa_estagiario") or 1.4), "Estagiário"

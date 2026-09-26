@@ -185,7 +185,8 @@ function render() {
   document.getElementById('rf-seg').addEventListener('change', e => { _f.seg = e.target.value; render(); });
   document.getElementById('rf-tipo').addEventListener('change', e => { _f.tipo = e.target.value; render(); });
   document.getElementById('rf-sort').addEventListener('change', e => { _sort = e.target.value; render(); });
-  document.getElementById('rf-q').addEventListener('input', e => { _f.q = e.target.value; render(); });
+  // v88.53: devolve o foco e o cursor depois do render (antes só dava pra digitar 1 letra)
+  document.getElementById('rf-q').addEventListener('input', e => { _f.q = e.target.value; const pos = e.target.selectionStart; render(); { const n = document.getElementById('rf-q'); if (n) { n.focus(); n.setSelectionRange(pos, pos); } } });
   if (edit) {
     const nw = document.getElementById('rc-new'); if (nw) nw.addEventListener('click', () => { _editing = {}; openForm(); });
     const im = document.getElementById('rc-import'); if (im) im.addEventListener('click', importarSeed);

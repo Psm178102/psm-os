@@ -100,8 +100,9 @@ function render() {
       </div>
       <div class="card" style="flex:1;min-width:240px;margin:0">
         <b>🎯 Funil CRM · Locação</b>
-        ${crm.n ? `<div class="flex mt-1" style="gap:8px;flex-wrap:wrap">
-            ${kpi('Leads abertos', crm.n)}${kpi('Valor no funil', brl(crm.valor))}
+        ${crm.erro ? `<div class="tiny mt-1" style="color:var(--err)">⚠️ Funil do CRM indisponível agora (${esc(crm.erro)}).</div>`
+      : crm.n ? `<div class="flex mt-1" style="gap:8px;flex-wrap:wrap">
+            ${kpi('Em atendimento', crm.n)}${kpi('Valor no funil', brl(crm.valor))}
           </div>`
       : '<div class="tiny muted mt-1">Nenhum funil de locação identificado no CRM (pipeline com "locação" no nome). Quando existir, os leads aparecem aqui sozinhos.</div>'}
       </div>

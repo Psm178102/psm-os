@@ -130,7 +130,7 @@ export async function pageEtica(ctx, root) {
       <div style="background:var(--bg-3);border-radius:10px;padding:14px 18px;margin-bottom:18px">
         <div style="font-weight:800;color:var(--psm-gold);margin-bottom:8px">📑 Sumário</div>
         <ol style="margin:0;padding-left:22px;line-height:1.9;font-size:13px">
-          ${CAPITULOS.map(c => `<li><a href="#cap-${c.num}" style="color:var(--tx);text-decoration:none">${esc(c.tit)}</a></li>`).join('')}
+          ${CAPITULOS.map(c => `<li><a href="javascript:void(0)" data-cap="${c.num}" style="color:var(--tx);text-decoration:none">${esc(c.tit)}</a></li>`).join('')}
         </ol>
       </div>
 
@@ -162,6 +162,11 @@ export async function pageEtica(ctx, root) {
     </div>
   `;
   root.querySelectorAll('[data-nav]').forEach(b => b.addEventListener('click', () => { location.hash = b.dataset.nav; }));
+  // v88.53: sumário rola até o capítulo (antes href="#cap-N" mudava a rota do SPA e caía no 404)
+  root.querySelectorAll('[data-cap]').forEach(a => a.addEventListener('click', e => {
+    e.preventDefault();
+    root.querySelector('#cap-' + a.dataset.cap)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }));
 }
 
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
