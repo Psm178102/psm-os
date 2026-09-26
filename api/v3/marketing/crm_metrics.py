@@ -220,7 +220,7 @@ def _fetch_period_deals(sb, since_d, until_d):
     # v88.13: limite SUPERIOR (fim do dia BRT de `until`) — antes `last_month` ou
     # `year_2024` puxava todo deal até hoje (lento e estourava o teto de 30k)
     until_iso = (until_d + timedelta(days=1)).isoformat() + "T03:00:00Z"
-    cols = "id,name,amount,win,closed_at,created_at_rd,updated_at_rd,pipeline_id,pipeline_name,stage_name,user_email,user_id,rd_raw"
+    cols = "id,name,amount,win,closed_at,created_at_rd,updated_at_rd,pipeline_id,pipeline_name,stage_name,user_email,user_id,origem_cliente,rd_raw"
     out = []
     page = 0
     size = 1000
@@ -521,9 +521,12 @@ class handler(BaseHTTPRequestHandler):
             import _metricas_lib as MX  # type: ignore
             _mapa_origens = MX.mapa_origens(sb)
             _eh_lead = lambda src: MX.origem_categoria(src, _mapa_origens)[0] in MX.LEAD_CATS
+            # v88.47 (Dicionário §2, "uma regra só"): venda paga do CAC de mídia = só trafego_pago_psm
+            _eh_venda_paga = lambda src: MX.origem_categoria(src, _mapa_origens)[0] == "trafego_pago_psm"
         except Exception as e:
             print(f"[crm_metrics] dicionário de origens indisponível: {e}")
             _eh_lead = None
+            _eh_venda_paga = None
 
         brands = defaultdict(_blank_brand)
         # localizar posição da etapa do deal p/ contact/visita
@@ -557,6 +560,9 @@ class handler(BaseHTTPRequestHandler):
             closed = _parse_dt(d.get("closed_at")) or _parse_dt(raw.get("closed_at"))
             src = _source(raw)
             ch = _channel(src)
+            # v88.47: lead e venda paga pela ORIGEM OFICIAL (§2 v88.34) — "Origem do cliente" do RD e,
+            # vazia, o "Fonte". Antes só o Fonte (vazio em ~30%), divergindo do motor e do 1:1.
+            origem_of = (d.get("origem_cliente") or "").strip() or src
             owner_email = (d.get("user_email") or "").lower()
             owner_name = name_by_email.get(owner_email) or (raw.get("user") or {}).get("name") or owner_email or "—"
 
@@ -585,7 +591,7 @@ class handler(BaseHTTPRequestHandler):
                     B["origens"][src] += 1
                 B["channels"][ch]["vendas"] += 1
                 B["channels"][ch]["vgv"] += amt
-                if ch in PAID_CHANNELS:  # honesto: só meta+google contam como pago
+                if (_eh_venda_paga(origem_of) if _eh_venda_paga else ch in PAID_CHANNELS):
                     B["vendas_pago"] += 1
                     B["vgv_pago"] += amt
                 ow = B["owners"]["__servico" if owner_email in servico_emails else owner_email]
@@ -608,7 +614,7 @@ class handler(BaseHTTPRequestHandler):
             # ── Coorte de leads criados na janela (contact/visita/SLA/origem) ──
             if in_create_win:
                 B["leads_criados"] += 1
-                if _eh_lead and _eh_lead(src):
+                if _eh_lead and _eh_lead(origem_of):
                     B["leads"] += 1
                 B["channels"][ch]["leads"] += 1
                 _did = str(d.get("id") or "")
@@ -686,7 +692,7 @@ class handler(BaseHTTPRequestHandler):
                 "vgv_unassigned": round(vgv_unassigned, 2),
                 # cobertura = % do VGV ganho que tem origem marcada no RD
                 "coverage_pct": round(vgv_attributed / vgv_total * 100, 2) if vgv_total else None,
-                "vgv_paid": round(B["vgv_pago"], 2),      # só meta+google
+                "vgv_paid": round(B["vgv_pago"], 2),      # v88.47: origem trafego_pago_psm (§2)
                 "vendas_paid": B["vendas_pago"],
             }
             return {

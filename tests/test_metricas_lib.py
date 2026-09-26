@@ -578,7 +578,12 @@ def inativos():
     assert "camila" not in out["equipes"]["conquista"]["membros"]
     assert E["meta"]["meta_vgv"] == e0["meta"]["meta_vgv"]
     assert any(a["tipo"] == "vendas_inativos" for a in out["avisos"])
-    print("OK — vendas de quem saiu: somam na empresa, fora da equipe e da meta")
+    # v88.47: o % da meta NÃO muda com a venda de quem saiu (antes subia — atingimento inflado)
+    assert E["atingimento_vgv_pct"] == e0["atingimento_vgv_pct"], (E["atingimento_vgv_pct"], e0["atingimento_vgv_pct"])
+    assert E["vgv_da_meta"] == e0["vgv_da_meta"]
+    # v88.47: venda sem origem (rd_raw vazio) = tráfego pago PSM assumido (§2) → entra na base do CAC
+    assert E["vendas_pago_psm"] == e0["vendas_pago_psm"] + 1, (E["vendas_pago_psm"], e0["vendas_pago_psm"])
+    print("OK — vendas de quem saiu: somam na empresa, fora da equipe e da meta (e do % da meta)")
 
 
 inativos()

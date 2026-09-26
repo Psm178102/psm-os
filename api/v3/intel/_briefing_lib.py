@@ -76,19 +76,41 @@ def compile_facts(sb, today):
         spend, spend_preset = read_meta_spend(sb, return_preset=True)
     except Exception:
         spend = None
-    leads_30d = None
+    # v88.47 (Dicionário §2): CPL = gasto ÷ LEADS (só tráfego pago, pela "Origem do cliente") na MESMA
+    # janela do gasto. Antes dividia o gasto do mês parcial por TODO negócio criado em 30 dias
+    # (qualquer origem) — CPL artificialmente baixo, e a IA escrevia as ordens da semana em cima dele.
+    leads_janela, janela_txt = None, None
     try:
-        m30 = (today - timedelta(days=29)).isoformat() + "T00:00:00+00:00"
-        r = sb.table("deals").select("id", count="exact").gte("created_at_rd", m30).limit(1).execute()
-        leads_30d = r.count or 0
-    except Exception:
-        pass
+        import sys as _sys
+        _v3 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if _v3 not in _sys.path:
+            _sys.path.append(_v3)
+        import _metricas_lib as MX  # type: ignore
+        if spend_preset == "this_month":
+            ini_d, janela_txt = today.replace(day=1), "mês corrente"
+        else:
+            ini_d, janela_txt = today - timedelta(days=29), "últimos 30 dias"
+        ini_iso = ini_d.isoformat() + "T03:00:00+00:00"   # 00h em Brasília
+        mapa = MX.mapa_origens(sb)
+        rows, pg = [], 0
+        while True:
+            lote = (sb.table("deals").select("id,origem_cliente,src:rd_raw->deal_source->>name")
+                    .gte("created_at_rd", ini_iso).order("id").range(pg * 1000, pg * 1000 + 999).execute().data or [])
+            rows += lote
+            if len(lote) < 1000 or pg >= 20:
+                break
+            pg += 1
+        leads_janela = sum(1 for d in rows
+                           if MX.origem_categoria((d.get("origem_cliente") or "").strip() or d.get("src"), mapa)[0] in MX.LEAD_CATS)
+    except Exception as e:
+        print(f"[briefing] leads por origem indisponível: {e}")
     facts["ads"] = {
         "meta_spend_mensal": round(spend, 2) if spend else None,
         "meta_spend_preset": spend_preset,
-        "leads_30d": leads_30d,
-        "cpl": round(spend / leads_30d, 2) if (spend and leads_30d) else None,
-        "cpl_base": f"gasto {spend_preset} / leads 30d" if (spend and leads_30d) else None,
+        "leads_30d": leads_janela,   # nome mantido por compat; agora = leads pagos na janela do gasto
+        "leads_janela": janela_txt,
+        "cpl": round(spend / leads_janela, 2) if (spend and leads_janela) else None,
+        "cpl_base": f"gasto {spend_preset} ÷ leads de tráfego pago ({janela_txt})" if (spend and leads_janela) else None,
     }
 
     # ── Concorrência (Biblioteca de Anúncios) ──

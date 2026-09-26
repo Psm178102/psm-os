@@ -107,7 +107,7 @@ function buildInsights() {
     if (spend >= 500) {
       const roas = vgvPago ? vgvPago / spend : 0;
       if (roas < 1) add('mkt', roas === 0 ? 'alto' : 'medio', `ROAS baixo em ${b.label}`,
-        `Investido R$ ${money(spend)}, retorno (comissão paga marcada) ${roas ? roas.toFixed(2) + 'x' : 'R$ 0'}.`,
+        `Investido R$ ${money(spend)}, VGV de tráfego pago ÷ gasto: ${roas ? roas.toFixed(2) + 'x' : 'R$ 0'}.`,
         'Rever oferta/segmentação dessa linha ou mover verba pra linha mais rentável.', '#/marketing');
     }
     // rejeição por renda/crédito/perfil
@@ -234,7 +234,7 @@ function render() {
           ['Leads', fmtNum((_d.sum && _d.sum.accounts || []).reduce((a, c) => a + (c.results || 0), 0))],
           ['CPL médio', cplMedio()],
         ])}
-        ${pillar('🔗 Marketing', cac(), 'CAC (pago ÷ vendas)', '#7c3aed', [
+        ${pillar('🔗 Marketing', cac(), 'CAC (mídia ÷ vendas de tráfego pago)', '#7c3aed', [
           ['ROAS', roasGlobal()],
           ['Leads fora RP', (_d.geo && _d.geo.pct_outras != null) ? pct2(_d.geo.pct_outras) : '—'],
         ])}
@@ -351,7 +351,8 @@ function roasGlobal() {
 }
 function cac() {
   const sp = ((_d.sum && _d.sum.accounts) || []).reduce((x, c) => x + (c.spend || 0), 0);
-  const v = (_d.crm && _d.crm.global && _d.crm.global.vendas) || 0;
+  // v88.47 (Dicionário §2): CAC de mídia = gasto ÷ vendas de TRÁFEGO PAGO (antes ÷ todas as vendas)
+  const v = (_d.crm && _d.crm.global && _d.crm.global.attribution && _d.crm.global.attribution.vendas_paid) || 0;
   return v > 0 ? 'R$ ' + moneyShort(sp / v) : '—';
 }
 function mdLite(t) {

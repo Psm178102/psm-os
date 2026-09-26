@@ -258,6 +258,9 @@ def calcular(sb, user, ano, force_rd=False, now=None):
             return (u.get("team") or "").lower() == (user.get("team") or "").lower()
         return uid == user["id"]
     extra_corretores = []
+    # v88.47 (Dicionário §1 v88.0): a meta é só de quem está no grid (ativos) → o % também.
+    # Vendas de quem saiu / sem corretor continuam no TOTAL (atingido_vgv), mas fora do % da meta.
+    atingido_da_meta, count_da_meta = tot_atingido, tot_count
     fora_grid_mensal = {}   # v86.72: {mes: {vendas, vgv}} — desligados + sem corretor, pro grid da tela FECHAR com o total
     for uid in {k[0] for k in atingido_idx.keys()}:
         if not uid or uid in grid_ids:
@@ -307,7 +310,9 @@ def calcular(sb, user, ano, force_rd=False, now=None):
         "totals": {
             "meta_vgv": tot_meta, "atingido_vgv": tot_atingido,
             "vendas_count": tot_count,
-            "pct": (tot_atingido / tot_meta * 100) if tot_meta > 0 else None,
+            "pct": (atingido_da_meta / tot_meta * 100) if tot_meta > 0 else None,
+            "atingido_vgv_da_meta": atingido_da_meta,   # só quem tem meta (base do %)
+            "vendas_da_meta": count_da_meta,
         },
         # aliases de topo (metricas-viab lê total_vgv/total_vendas)
         "total_vgv": tot_atingido,

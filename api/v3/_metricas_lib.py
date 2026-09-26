@@ -489,6 +489,8 @@ PIPE_CAMPOS = ("abertos", "ponderado_vendas", "ponderado_vgv", "quentes", "quent
 
 def _vazio():
     z = {"vendas": 0, "vgv": 0.0, "ticket": None, "perdidos": 0,
+         # v88.47 (§2): venda de origem paga = só trafego_pago_psm → base do CAC de mídia
+         "vendas_pago_psm": 0, "vgv_pago_psm": 0.0,
          "interessados": 0, "leads": 0, "leads_pago_psm": 0, "leads_pago_corretor": 0, "leads_origem_assumida": 0,
          "em_atendimento": 0, "por_origem": {c: 0 for c in CATEGORIAS},
          # v88.16 (Paulo 23/09): leads EM ANDAMENTO criados na janela × origem — mínimo de todo painel
@@ -568,6 +570,9 @@ def calcular(sb, base, since_d, until_d, hoje=None):
                     vendas_sem_valor += 1
                 b["vendas"] += 1
                 b["vgv"] += v
+                if origem_categoria(origem_nome(d), mapa)[0] == "trafego_pago_psm":
+                    b["vendas_pago_psm"] += 1
+                    b["vgv_pago_psm"] += v
         elif win is False:
             if in_close:
                 b["perdidos"] += 1
@@ -767,6 +772,7 @@ def calcular(sb, base, since_d, until_d, hoje=None):
     def fechar(b, meta):
         b["ticket"] = round(b["vgv"] / b["vendas"], 2) if b["vendas"] else None
         b["vgv"] = round(b["vgv"], 2)
+        b["vgv_pago_psm"] = round(b.get("vgv_pago_psm") or 0, 2)
         b["meta"] = {k: round(v, 2) for k, v in (meta or {}).items()}
         mv = (meta or {}).get("meta_vgv") or 0
         b["atingimento_vgv_pct"] = round(b["vgv"] / mv * 100, 1) if mv > 0 else None
@@ -807,7 +813,7 @@ def calcular(sb, base, since_d, until_d, hoje=None):
         meta = {k: 0.0 for k in METAS_CAMPOS}
         norte = None
         for b in lista:
-            for k in ("vendas", "vgv", "perdidos", "interessados", "leads", "leads_pago_psm",
+            for k in ("vendas", "vgv", "vendas_pago_psm", "vgv_pago_psm", "perdidos", "interessados", "leads", "leads_pago_psm",
                       "leads_pago_corretor", "leads_origem_assumida", "em_atendimento",
                       "abertos_periodo", "abertos_sem_origem", "entradas_sem_origem") + MARCOS_RD:
                 t[k] += b[k]
@@ -847,14 +853,18 @@ def calcular(sb, base, since_d, until_d, hoje=None):
     # projeções (§4), mas a venda que fez continua sendo venda da PSM. Antes o total da empresa só somava
     # pessoas ativas — em 2026, 19 vendas (~R$ 6,1 mi, jan–jul) de corretores desligados sumiam dos totais
     # de ano e de meses passados. Mesmo tratamento do "sem corretor": soma só na empresa, com aviso.
-    CAMPOS_EMP = ("vendas", "vgv", "perdidos", "interessados", "leads", "leads_pago_psm", "leads_pago_corretor", "em_atendimento",
+    CAMPOS_EMP = ("vendas", "vgv", "vendas_pago_psm", "vgv_pago_psm", "perdidos", "interessados", "leads", "leads_pago_psm", "leads_pago_corretor", "em_atendimento",
                   "abertos_periodo", "abertos_sem_origem", "leads_origem_assumida", "entradas_sem_origem")
+    # v88.47 (§1 v88.0): a meta é só dos ativos → o atingimento também. Antes o % somava as vendas de
+    # "sem corretor" e de quem saiu no numerador contra a meta só dos ativos (atingimento inflado).
+    vgv_da_meta, vendas_da_meta = empresa["vgv"], empresa["vendas"]
     inat_lista = [b for b in pessoas_out.values() if not b["ativo"]]
     inat = {k: 0 for k in CAMPOS_EMP}
     for b in inat_lista:
         for k in CAMPOS_EMP:
             inat[k] += b.get(k) or 0
     inat["vgv"] = round(inat["vgv"], 2)
+    inat["vgv_pago_psm"] = round(inat["vgv_pago_psm"], 2)
     inat["abertos_por_origem"] = {c: sum((b.get("abertos_por_origem") or {}).get(c, 0) for b in inat_lista) for c in CATEGORIAS}
     inat["por_origem"] = {c: sum((b.get("por_origem") or {}).get(c, 0) for b in inat_lista) for c in CATEGORIAS}
     inat["quem"] = sorted(b.get("name") or b["id"] for b in inat_lista if b.get("vendas") or b.get("leads") or b.get("em_atendimento"))
@@ -863,10 +873,11 @@ def calcular(sb, base, since_d, until_d, hoje=None):
         # v88.34: antes só as pessoas ativas entravam aqui — a soma por origem não batia com "interessados"
         empresa["por_origem"][c] += (sc.get("por_origem") or {}).get(c, 0) + inat["por_origem"][c]
     for k in CAMPOS_EMP:
-        empresa[k] = round(empresa[k] + sc.get(k, 0) + inat[k], 2) if k == "vgv" else empresa[k] + sc.get(k, 0) + inat[k]
+        empresa[k] = round(empresa[k] + sc.get(k, 0) + inat[k], 2) if k in ("vgv", "vgv_pago_psm") else empresa[k] + sc.get(k, 0) + inat[k]
     empresa["ticket"] = round(empresa["vgv"] / empresa["vendas"], 2) if empresa["vendas"] else None
     mv_emp = (empresa.get("meta") or {}).get("meta_vgv") or 0
-    empresa["atingimento_vgv_pct"] = round(empresa["vgv"] / mv_emp * 100, 1) if mv_emp > 0 else None
+    empresa["atingimento_vgv_pct"] = round(vgv_da_meta / mv_emp * 100, 1) if mv_emp > 0 else None
+    empresa["vgv_da_meta"], empresa["vendas_da_meta"] = round(vgv_da_meta, 2), vendas_da_meta
     empresa["sem_corretor"] = sc
     empresa["inativos"] = inat
     if inat["vendas"]:

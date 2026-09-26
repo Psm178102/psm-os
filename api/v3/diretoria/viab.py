@@ -392,13 +392,25 @@ def realizado_ano(sb, ano):
 
 
 def leads_ano(sb, ano):
-    """Leads CRIADOS no RD por linha × mês (v85.11). É o denominador do custo por
-    lead: sem isso só dá pra saber quanto se gastou, não quanto cada lead custou."""
+    """LEADS criados no RD por linha × mês (v85.11). É o denominador do custo por lead.
+    v88.47 (Dicionário §2): lead = só tráfego pago (PSM ou corretor; sem origem assume pago), pela
+    "Origem do cliente". Antes contava TODO negócio criado (indicação, carteira…) → CPL baixo demais."""
     out = {i: {m: 0 for m in range(1, 13)} for i in LINHA_IDS}
+    try:
+        import sys as _sys
+        _v3 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if _v3 not in _sys.path:
+            _sys.path.append(_v3)
+        import _metricas_lib as MX  # type: ignore
+        mapa = MX.mapa_origens(sb)
+        eh_lead = lambda d: MX.origem_categoria((d.get("origem_cliente") or "").strip() or d.get("src"), mapa)[0] in MX.LEAD_CATS
+    except Exception as e:
+        print(f"[viab] dicionário de origens indisponível: {e}")
+        return None   # sem a régua de origem não há "lead" — a tela mostra sem número, não um CPL falso
     try:
         pg = 0
         while True:
-            rows = (sb.table("deals").select("created_at_rd,pipeline_name")
+            rows = (sb.table("deals").select("created_at_rd,pipeline_name,origem_cliente,src:rd_raw->deal_source->>name")
                     .gte("created_at_rd", f"{ano}-01-01T03:00:00+00:00")
                     .lt("created_at_rd", f"{ano+1}-01-01T03:00:00+00:00")
                     .order("id").range(pg * 1000, pg * 1000 + 999).execute().data or [])
@@ -408,7 +420,7 @@ def leads_ano(sb, ano):
                 except Exception:
                     continue
                 ln = _frente_of(d.get("pipeline_name"))
-                if ln in out and 1 <= dt.month <= 12:
+                if ln in out and 1 <= dt.month <= 12 and eh_lead(d):
                     out[ln][dt.month] += 1
             if len(rows) < 1000 or pg >= 30:
                 break

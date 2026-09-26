@@ -319,7 +319,11 @@ def calcular(sb, params, hoje=None):
         return float(e.get("ticket_referencia") or (base.get("empresa") or {}).get("ticket_referencia") or 0) or \
             float(next((x.get("ticket_referencia") for x in equipes.values() if x.get("ticket_referencia")), 0) or 0)
 
-    def bloco(real_n, real_vgv, h_vendas, h_vgv, f_vendas, f_vgv, meta, ticket, extra):
+    def bloco(real_n, real_vgv, h_vendas, h_vgv, f_vendas, f_vgv, meta, ticket, extra, fora=(0, 0.0)):
+        # v88.47 (Dicionário §1 v88.0): venda de quem saiu / sem corretor SOMA no realizado da empresa,
+        # mas fica FORA da meta — então o % da meta, o status e o "falta" usam só o realizado de quem tem
+        # meta. Antes o % e o "batida" contavam essas vendas contra a meta só dos ativos (favorável).
+        fora_vgv = float(fora[1] or 0)
         prov_n = real_n + max(h_vendas, f_vendas)
         prov_vgv = real_vgv + (h_vgv if h_vendas >= f_vendas else f_vgv)
         cons_n = real_n + min(h_vendas, f_vendas)
@@ -329,11 +333,12 @@ def calcular(sb, params, hoje=None):
         lo, hi = _poisson_faixa(max(h_vendas, f_vendas))
         meta_vgv = meta["vgv"]
         meta_vendas = meta["vendas"] or ((meta_vgv / ticket) if ticket else 0.0)
-        pct = (prov_vgv / meta_vgv * 100) if meta_vgv > 0 else None
-        gap = max(0.0, meta_vgv - real_vgv)
+        real_meta_vgv = real_vgv - fora_vgv
+        pct = ((prov_vgv - fora_vgv) / meta_vgv * 100) if meta_vgv > 0 else None
+        gap = max(0.0, meta_vgv - real_meta_vgv)
         if meta_vgv <= 0:
             status = "sem_meta"
-        elif real_vgv >= meta_vgv:
+        elif real_meta_vgv >= meta_vgv:
             status = "batida"
         elif pct is not None and pct >= 100:
             status = "no_ritmo"
@@ -346,7 +351,7 @@ def calcular(sb, params, hoje=None):
                      "vgv_ate_hoje": round(meta["vgv_ate_hoje"], 2),
                      "fonte_vendas": "meta_vendas" if meta["vendas"] else ("vgv ÷ ticket" if meta_vgv else None)},
             "realizado": {"vendas": real_n, "vgv": round(real_vgv, 2),
-                          "pct_meta": (round(real_vgv / meta_vgv * 100, 1) if meta_vgv > 0 else None)},
+                          "pct_meta": (round(real_meta_vgv / meta_vgv * 100, 1) if meta_vgv > 0 else None)},
             "historico": {"vendas": round(h_vendas, 2), "vgv": round(h_vgv, 2)},
             "funil": {"vendas": round(f_vendas, 2), "vgv": round(f_vgv, 2)},
             "provavel": {"vendas": round(prov_n, 1), "vgv": round(prov_vgv, 2), "pct_meta": (round(pct, 1) if pct is not None else None)},
@@ -408,7 +413,8 @@ def calcular(sb, params, hoje=None):
         ticket = (z["h_vgv"] / z["h_n"]) if z["h_n"] > 0 else next((out_p[i]["ticket"] for i in ids if out_p[i]["ticket"]), 0) or 0
         return bloco(z["real_n"], z["real_vgv"], z["h_n"], z["h_vgv"], z["f_n"], z["f_vgv"], z["meta"], ticket,
                      {**extra, "base": {"vendas_180d": z["v180"], "vendas_mes_ritmo": round(z["h_n"] / du_restantes * 26, 2) if du_restantes else None,
-                                        "propostas_abertas": z["prop"], "propostas_sem_valor": z["prop_sv"]}})
+                                        "propostas_abertas": z["prop"], "propostas_sem_valor": z["prop_sv"]}},
+                     fora=real_fora)
 
     out_e = {}
     for tk, mem in membros_eq.items():

@@ -938,7 +938,10 @@ function tabExecutiva() {
   const g = _crm.global;
   const attr = g.attribution || {};
   const byBrand = metaSpendByBrand(accounts);
-  const cac = g.vendas > 0 ? t.spend / g.vendas : 0;
+  // v88.47 (Dicionário §2): CAC de mídia = gasto ÷ vendas de TRÁFEGO PAGO PSM (antes ÷ todas as vendas,
+  // incluindo indicação/carteira — o CAC saía menor do que é)
+  const vendasPagas = attr.vendas_paid ?? 0;
+  const cac = vendasPagas > 0 ? t.spend / vendasPagas : 0;
   // Honesto (Sprint 9.14): VGV Influenciado = só ganhos com origem Meta/Google
   // marcada no RD. SEM fallback p/ VGV total (que fingiria que tudo veio de ads).
   const vgvInf = attr.vgv_paid || 0;
@@ -1040,7 +1043,8 @@ function execBrandRows(byBrand) {
     const vendas = crm?.vendas || 0;
     const vgv = crm?.vgv || 0;
     const leads = (crm?.leads ?? crm?.leads_criados) || 0;   // v88.3: lead = tráfego pago (Dicionário §2)
-    const cac = vendas ? spend / vendas : 0;
+    const vendasPagas = crm?.attribution?.vendas_paid ?? 0;   // v88.47: CAC só com venda de tráfego pago (§2)
+    const cac = vendasPagas ? spend / vendasPagas : 0;
     const vgvInf = (crm?.attribution?.vgv_paid) || 0;  // honesto: só Meta/Google, sem fallback
     const roas = (spend && vgvInf) ? vgvInf / spend : 0;
     const bi = brandInfo(k === 'conquista' ? 'conquista' : k === 'locacao' ? 'locacao' : 'imoveis');
@@ -1708,7 +1712,7 @@ function marcaPanel(key, camps) {
   const ativas = camps.filter(c => (c.status||'').toLowerCase() === 'active').length;
   // CRM cruzado p/ essa marca
   const crm = _crm?.brands?.[bi.key];
-  const cac = crm && crm.vendas ? t.spend / crm.vendas : 0;
+  const cac = crm && crm.attribution?.vendas_paid ? t.spend / crm.attribution.vendas_paid : 0;   // v88.47: §2
   const leadsPagos = crm ? (crm.leads ?? crm.leads_criados) : 0;   // v88.3: lead = tráfego pago (Dicionário §2)
   const cpo = leadsPagos ? t.spend / leadsPagos : 0;
   return `
@@ -1732,7 +1736,7 @@ function marcaPanel(key, camps) {
         <div class="flex gap-2 mt-1" style="flex-wrap:wrap;margin-top:4px">
           ${miniKpi('Leads RD', fmtNum(leadsPagos), '#2563eb', crm.leads != null ? `tráfego pago · ${fmtNum(crm.leads_criados)} negócios` : undefined)}
           ${miniKpi('Vendas', fmtNum(crm.vendas), '#16a34a')}
-          ${miniKpi('CAC', cac ? 'R$ ' + money(cac) : '—', '#ea580c', 'gasto ÷ vendas')}
+          ${miniKpi('CAC', cac ? 'R$ ' + money(cac) : '—', '#ea580c', 'gasto ÷ vendas de tráfego pago')}
           ${miniKpi(bi.key==='conquista'?'CPL-R':'CPO', cpo ? 'R$ ' + money(cpo) : '—', cpo && cpo <= bi.cplAlvo ? '#16a34a' : '#d97706', 'gasto ÷ leads')}
           ${miniKpi('VGV', 'R$ ' + moneyShort(crm.vgv), '#7c3aed')}
           ${miniKpi('Conversão', crm.taxa_conversao != null ? pct2(crm.taxa_conversao) : '—', '#0891b2')}
@@ -2223,7 +2227,7 @@ function funilBrand(bkey, camps, accs) {
     st.push({ k: 'visita', t: 'VISITA / REUNIÃO', sub: 'Do digital para o físico', n: o.visita, taxaLbl: '÷ qualificados', taxa: pc(o.visita, o.qualif), bench: FUNIL_BENCH.visita, custo: cost(o.visita), custoLbl: 'custo/visita',
       extra: o.visitaFonte === 'coluna' ? 'coluna "visita realizada" do RD (tarefas de visita não sincronizadas)' : (o.visitaFonte === 'tarefa' && o.visitaColuna !== o.visita ? `coluna "visita realizada": ${fmtNum(o.visitaColuna)}` : '') });
     st.push({ k: 'pasta', t: o.pastaLbl.toUpperCase(), sub: bkey === 'conquista' ? 'Pasta montada (MCMV)' : 'Proposta enviada', n: o.pasta, taxaLbl: '÷ visitas', taxa: pc(o.pasta, o.visita), bench: FUNIL_BENCH.pasta, custo: cost(o.pasta), custoLbl: 'custo/' + o.pastaLbl.toLowerCase() });
-    st.push({ k: 'venda', t: 'VENDA CONCLUÍDA', sub: 'Receita', n: o.vendas, taxaLbl: '÷ ' + o.pastaLbl.toLowerCase() + 's', taxa: pc(o.vendas, o.pasta), bench: FUNIL_BENCH.venda, custo: cost(o.vendas), custoLbl: 'CAC',
+    st.push({ k: 'venda', t: 'VENDA CONCLUÍDA', sub: 'Receita', n: o.vendas, taxaLbl: '÷ ' + o.pastaLbl.toLowerCase() + 's', taxa: pc(o.vendas, o.pasta), bench: FUNIL_BENCH.venda, custo: cost(o.vendas), custoLbl: 'custo/venda (todas as origens)',
       extra: `VGV R$ ${moneyShort(o.vgv)}${o.vgv && spend ? ` · comissão ÷ mídia ${(o.vgv * OO_COMISSAO_PCT / spend).toFixed(1)}x` : ''}` });
   }
   // status + gargalo (pior taxa ÷ referência)

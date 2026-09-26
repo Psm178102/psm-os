@@ -113,7 +113,9 @@ function render() {
 
   const totalAno = yearSum(grid);
   const atingidoVgv = (d.totals && d.totals.atingido_vgv) || 0;
-  const pctVgv = (m.id === 'vgv' && totalAno > 0) ? (atingidoVgv / totalAno * 100) : null;
+  // v88.47 (§1 v88.0): % da meta só com quem tem meta — vendas de quem saiu/sem corretor ficam no total, fora do %
+  const atingidoDaMeta = (d.totals && d.totals.atingido_vgv_da_meta != null) ? d.totals.atingido_vgv_da_meta : atingidoVgv;
+  const pctVgv = (m.id === 'vgv' && totalAno > 0) ? (atingidoDaMeta / totalAno * 100) : null;
 
   const colCount = per.buckets.length;
 
@@ -135,7 +137,7 @@ function render() {
       <div class="flex gap-3 mt-3" style="flex-wrap:wrap">
         ${kpi(`${m.ico} Meta ${m.lbl} · ${_ano}`, fmtVal(totalAno, m.money), `total · ${grid.length} corretores`, m.color)}
         ${m.id === 'vgv' ? kpi('↑ Atingido VGV', 'R$ ' + money(atingidoVgv), `${(d.totals && d.totals.vendas_count) || 0} vendas (RD)`, atingidoVgv >= totalAno ? '#16a34a' : '#d97706') : ''}
-        ${pctVgv != null ? kpi('% Atingimento', pct2(pctVgv), 'atingido ÷ meta', pctColor(pctVgv)) : ''}
+        ${pctVgv != null ? kpi('% Atingimento', pct2(pctVgv), atingidoDaMeta !== atingidoVgv ? 'só de quem tem meta (sem desligados/sem corretor)' : 'atingido ÷ meta', pctColor(pctVgv)) : ''}
       </div>
 
       <div id="mt-dec" class="mt-3"></div>

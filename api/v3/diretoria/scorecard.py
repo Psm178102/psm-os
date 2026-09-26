@@ -77,7 +77,7 @@ CATALOGO = [
         I("p.breakeven", "Cobertura da conta cheia (projetada)", "%", "maior", False, "F.cobertura_be", meta_pad=100,
           nota="contribuição projetada ÷ (custo fixo + pró-labore + mídia). 100% = mês no zero a zero"),
         I("p.midia", "Investimento em mídia (Meta)", "R$", "menor", True, "M.spend_total", "M.spend_orc", nota="meta = verba de tráfego orçada no mês"),
-        I("p.cac", "CAC de mídia", "R$", "menor", False, "M.cac_total", nota="mídia ÷ vendas"),
+        I("p.cac", "CAC de mídia", "R$", "menor", False, "M.cac_total", nota="mídia ÷ vendas de tráfego pago"),
         I("p.pipeline", "Pipeline comprometido × falta pra meta", "%", "maior", False, "E.cobertura_pipeline", meta_pad=100,
           nota="VGV em proposta/pasta das equipes ativas ÷ o que falta pra bater a meta do mês (negócio sem equipe fica fora)"),
         I("p.corretores", "Corretores ativos", "n", "maior", False, "E.corretores", meta_pad=16,
@@ -246,7 +246,7 @@ def _valores(sb, ano, mes, hoje, avisos):
             if not b: return
             meta = b.get("meta") or {}
             pipe = b.get("pipeline") or {}
-            for k in ("vgv", "vendas", "leads", "agendamentos", "visitas", "propostas", "ticket"):
+            for k in ("vgv", "vendas", "vendas_pago_psm", "leads", "agendamentos", "visitas", "propostas", "ticket"):
                 V[f"{pref}.{k}"] = b.get(k)
             for k in ("meta_vgv", "meta_vendas", "meta_agendamentos", "meta_visitas", "meta_propostas"):
                 V[f"{pref}.{k}"] = meta.get(k) or None
@@ -254,7 +254,9 @@ def _valores(sb, ano, mes, hoje, avisos):
             V[f"{pref}.sem_valor"] = pipe.get("sem_valor")
             V[f"{pref}.ponderado_vgv"] = pipe.get("ponderado_vgv")
             V[f"{pref}.comprometido_vgv"] = pipe.get("comprometido_vgv")
-            V[f"{pref}.conv"] = _div(b.get("vendas"), b.get("leads"), 100)
+            # v88.47 (§2): conversão lead→venda = vendas de tráfego pago ÷ leads (antes vendas de TODAS as
+            # origens ÷ leads só pagos — inflava). Sem o campo no motor (versão velha), fica sem número.
+            V[f"{pref}.conv"] = _div(b.get("vendas_pago_psm"), b.get("leads"), 100) if b.get("vendas_pago_psm") is not None else None
             V[f"{pref}.lead_visita"] = _div(b.get("visitas"), b.get("leads"), 100)
             V[f"{pref}.corretores"] = b.get("n_corretores")
             V[f"{pref}.gestores"] = b.get("n_gestores")
@@ -368,7 +370,8 @@ def _valores(sb, ano, mes, hoje, avisos):
     except Exception as e:
         avisos.append(f"Mídia por marca indisponível: {e}")
     V["M.cpl_total"] = _div(V.get("M.spend_total"), V.get("E.leads")) if V.get("M.spend_total") else None
-    V["M.cac_total"] = _div(V.get("M.spend_total"), V.get("E.vendas")) if V.get("M.spend_total") else None
+    # v88.47 (§2): CAC de mídia = mídia ÷ vendas de TRÁFEGO PAGO PSM (antes ÷ todas as vendas → CAC menor)
+    V["M.cac_total"] = _div(V.get("M.spend_total"), V.get("E.vendas_pago_psm")) if V.get("M.spend_total") else None
 
     # 4) locação (foto da carteira)
     try:

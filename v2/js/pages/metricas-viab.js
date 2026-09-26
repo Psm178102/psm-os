@@ -1803,7 +1803,7 @@ function eficienciaCard() {
         <th style="padding:5px 8px" title="negócios criados no RD">Leads</th>
         <th style="padding:5px 8px" title="tráfego ÷ leads">Custo/lead</th>
         <th style="padding:5px 8px" title="deals ganhos no RD">Vendas</th>
-        <th style="padding:5px 8px" title="vendas ÷ leads">Conversão</th>
+        <th style="padding:5px 8px" title="vendas de TODAS as origens ÷ leads de tráfego pago — não é a conversão do lead pago (a Viabilidade ainda não separa venda por origem)">Vendas ÷ leads</th>
         <th style="padding:5px 8px" title="tráfego ÷ vendas — só mídia">Custo/venda</th>
         <th style="padding:5px 8px" title="(tráfego + custo da frente) ÷ vendas — com estrutura">C/venda cheio</th>
         <th style="padding:5px 8px" title="margem líquida gerada ÷ tráfego investido — abaixo de 1× a mídia não se paga">ROAS margem</th>
