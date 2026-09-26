@@ -166,6 +166,33 @@ def meses_da_janela(since_d, until_d):
     return out
 
 
+def dias_uteis(a, b):
+    """Dias úteis (seg–sáb, §8) de a até b, inclusive. 0 se b < a."""
+    n, d = 0, a
+    while d <= b:
+        if d.weekday() < 6:
+            n += 1
+        d += timedelta(days=1)
+    return n
+
+
+def fator_meta_mes(y, m, since_d, until_d, hoje=None):
+    """v88.47 (§8A): quanto da meta MENSAL (y, m) cabe na janela [since, until].
+    1.0 quando a janela cobre o mês inteiro — do dia 1 até o fim do mês ou, no mês corrente, até hoje
+    (o card do mês mostra a meta cheia + "esperado até hoje"). Recorte parcial (Semana, Quinzena,
+    datas livres) → proporcional aos dias úteis. Antes toda janela somava a meta cheia dos meses
+    tocados: 7 dias de venda × meta do mês inteiro → semáforo sempre "fora do ritmo"."""
+    import calendar
+    hoje = hoje or hoje_brt()
+    p1, pu = date(y, m, 1), date(y, m, calendar.monthrange(y, m)[1])
+    ini, fim = max(since_d, p1), min(until_d, pu)
+    if fim < ini:
+        return 0.0
+    if ini == p1 and (fim == pu or (p1 <= hoje <= pu and fim >= hoje)):
+        return 1.0
+    return dias_uteis(ini, fim) / (dias_uteis(p1, pu) or 1)
+
+
 def vgv_de(d):
     """§1 Valor: amount → rd_raw.amount_total → rd_raw.amount_unique."""
     for v in (d.get("amount"), d.get("amt_total"), d.get("amt_unique")):
@@ -758,9 +785,11 @@ def calcular(sb, base, since_d, until_d, hoje=None):
     meta_by = {uid: {k: 0.0 for k in METAS_CAMPOS} for uid in P}
     for m in base["metas"]:
         uid = m.get("corretor_id")
-        if uid in meta_by and (int(m.get("ano") or 0), int(m.get("mes") or 0)) in meses:
+        ym = (int(m.get("ano") or 0), int(m.get("mes") or 0))
+        if uid in meta_by and ym in meses:
+            f = fator_meta_mes(ym[0], ym[1], since_d, until_d, hoje)   # v88.47: recorte parcial = proporcional
             for k in METAS_CAMPOS:
-                meta_by[uid][k] += float(m.get(k) or 0)
+                meta_by[uid][k] += float(m.get(k) or 0) * f
 
     # ritmo (§8): só quando a janela é o mês corrente até hoje; dias úteis seg–sáb
     ritmo_on = since_d == hoje.replace(day=1) and until_d == hoje

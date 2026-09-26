@@ -643,3 +643,17 @@ def visitas_map():
 
 
 visitas_map()
+
+
+def meta_proporcional():
+    """v88.47 (§8A): recorte parcial do mês = meta proporcional aos dias úteis (seg–sáb)."""
+    h = date(2026, 9, 24)
+    assert M.fator_meta_mes(2026, 9, date(2026, 9, 1), h, h) == 1.0                   # mês corrente até hoje: cheia
+    assert M.fator_meta_mes(2026, 8, date(2026, 8, 1), date(2026, 8, 31), h) == 1.0   # mês passado inteiro
+    assert abs(M.fator_meta_mes(2026, 9, date(2026, 9, 1), date(2026, 9, 15), h) - 0.5) < 1e-9   # quinzena
+    assert abs(M.fator_meta_mes(2026, 9, date(2026, 9, 21), h, h) - 4 / 26) < 1e-9     # semana seg→qui
+    assert M.fator_meta_mes(2026, 10, date(2026, 9, 1), date(2026, 9, 30), h) == 0.0   # mês fora da janela
+    print("OK — meta proporcional: semana/quinzena pelos dias úteis, mês inteiro cheio")
+
+
+meta_proporcional()

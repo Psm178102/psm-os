@@ -23,9 +23,10 @@ export async function pageMapaCiclos(ctx, root) {
   if ((auth.user()?.lvl || 0) < 7) { root.innerHTML = '<div class="alert alert-warn">🔒 Requer Sócio/Diretor (lvl 7+).</div>'; return; }
   render(null, true);
   const ANO = new Date().getFullYear();
-  const [hist, atg] = await Promise.all([
+  const [hist, atg, pj] = await Promise.all([
     api.request('/api/v3/marketing/history?ano=' + ANO).catch(() => null),
     api.request('/api/v3/metas/atingimento').catch(() => null),
+    api.request('/api/v3/metricas/projecao?h=ano').catch(() => null),   // v88.47: projeção OFICIAL do ano (§8A)
   ]);
   // Meta (média mensal do ano arquivado)
   const ht = (hist && hist.totais) || {}, mh = (hist && hist.meses_com_dado) || 0;
@@ -43,10 +44,13 @@ export async function pageMapaCiclos(ctx, root) {
     conv: meta.leadsAno > 0 ? (vendasAno / meta.leadsAno * 100) : 0,
     ticket: vendasAno > 0 ? vgvAno / vendasAno : 0,
   };
-  // Forecast (run-rate)
+  // v88.47 (§8): projeção do ano = a OFICIAL (antes VGV médio/mês × 12, uma "5ª projeção") e o
+  // atingimento sem as vendas de quem saiu / sem corretor (§1 v88.0)
+  const PE = pj && pj.empresa;
   const fc = {
-    projAno: crm.vgvMes * 12, metaAno,
-    ating: metaAno > 0 ? (vgvAno / metaAno * 100) : null,
+    projAno: PE ? PE.provavel.vgv : null, metaAno: PE ? PE.meta.vgv : metaAno,
+    ating: PE ? PE.realizado.pct_meta : null,
+    fontes: { meta: !!hist, crm: !!atg, proj: !!PE },
   };
   // Financeiro: NIBO cancelado (v88.37) — o custo realizado vive no Orçado × Realizado e o caixa no PSM HUB
   const finc = { ok: true };
@@ -71,7 +75,8 @@ function render(d, loading) {
   const atingCor = fc.ating == null ? '' : (fc.ating >= 100 ? '#16a34a' : fc.ating >= 70 ? '#d97706' : '#dc2626');
 
   const ciclo = (n, nome, desc, status) => {
-    const st = status === 'ok' ? { t: '✅ ativo', c: '#16a34a' } : status === 'warn' ? { t: '⚠️ degradado', c: '#d97706' } : { t: '🔜 a fechar', c: '#64748b' };
+    // v88.47: "✅ ativo" só quando a fonte do ciclo respondeu agora; ciclo que é só desenho de fluxo não finge status
+    const st = status === 'ok' ? { t: '✅ fonte ok', c: '#16a34a' } : status === 'warn' ? { t: '⚠️ fonte fora', c: '#d97706' } : { t: '📐 fluxo', c: '#64748b' };
     return `<div class="mc-ciclo">
       <div class="mc-cn" style="color:${st.c}">${n}</div>
       <div style="flex:1"><b>${esc(nome)}</b><div class="tiny muted">${desc}</div></div>
@@ -90,7 +95,7 @@ function render(d, loading) {
       ])}
       ${arrow('leads viram oportunidades')}
       ${node('#/crm', '🤝', 'Vendas (CRM/RD)', '#2563eb', 'leads → vendas → VGV', [
-        { v: fK(c.vgvMes), l: 'VGV/mês' }, { v: f1(c.vendasMes), l: 'vendas/mês' }, { v: pct2(c.conv), l: 'conversão real' },
+        { v: fK(c.vgvMes), l: 'VGV/mês' }, { v: f1(c.vendasMes), l: 'vendas/mês' }, { v: pct2(c.conv), l: 'vendas (todas) ÷ leads Meta' },
       ])}
       ${arrow('comissão vira caixa')}
       ${node('#/financeiro', '💰', 'Financeiro', '#0891b2', 'PSM HUB · caixa & contas', [
@@ -103,13 +108,13 @@ function render(d, loading) {
     <div class="mc-band">INSTRUMENTOS DE DECISÃO <span class="tiny muted" style="font-weight:400">— leem o real e projetam o futuro</span></div>
     <div class="mc-grid">
       ${node('#/sim-trafego', '📣', 'Simulador de Tráfego', '#7c3aed', 'real → simulado + otimizador', [
-        { v: f$(m.cpl), l: 'CPL real usado' }, { v: pct2(c.conv), l: 'conversão base' },
+        { v: f$(m.cpl), l: 'CPL real usado' }, { v: pct2(c.conv), l: 'vendas (todas) ÷ leads Meta' },
       ])}
       ${node('#/metricas-viab', '🧪', 'Métrica de Viabilidade', '#16a34a', 'realizado × premissa + equilíbrio', [
         { v: fK(c.vgvMes), l: 'VGV real/mês' },
       ])}
-      ${node('#/forecast', '🎯', 'Projeção / Metas', '#d97706', 'run-rate → projeção → meta', [
-        { v: fK(fc.projAno), l: 'projeção ano' }, { v: fc.ating == null ? '—' : pct2(fc.ating), l: 'da meta', cor: atingCor },
+      ${node('#/gestao-comercial', '🎯', 'Projeção / Metas', '#d97706', 'projeção oficial (ritmo × funil) → meta', [
+        { v: fc.projAno == null ? '—' : fK(fc.projAno), l: 'fechamento provável do ano' }, { v: fc.ating == null ? '—' : pct2(fc.ating), l: 'da meta', cor: atingCor },
       ])}
       ${node('#/sim-trafego', '⚡', 'Otimizador de Verba', '#0ea5e9', 'aloca orçamento ótimo', [
         { v: f$(m.investMes), l: 'verba atual/mês' }, { v: fK(c.vgvMes), l: 'VGV gerado' },
@@ -120,10 +125,10 @@ function render(d, loading) {
 
     <div class="mc-band">OS 4 CICLOS</div>
     <div class="mc-ciclos">
-      ${ciclo('🔄 #1', 'Meta + CRM → Simulador', 'CPL e conversão reais calibram o cenário simulado (botão "usar no simulado").', 'ok')}
-      ${ciclo('🔄 #2', 'Financeiro → Viabilidade', 'Custo realizado (lançado no Orçado × Realizado; caixa no PSM HUB) confronta a planilha de custos da Viab.', 'ok')}
-      ${ciclo('🔄 #3', 'Viabilidade → Orçamento', 'VGV de equilíbrio/meta → "Orçamento pra meta" no Simulador calcula quanto investir em tráfego (engenharia reversa).', 'ok')}
-      ${ciclo('🔄 #4', 'Vendas → Projeção → Meta', 'O run-rate do realizado projeta o ano e ajusta a meta na aba Metas.', 'ok')}
+      ${ciclo('🔄 #1', 'Meta + CRM → Simulador', 'CPL e conversão reais calibram o cenário simulado (botão "usar no simulado").', fc.fontes && (fc.fontes.meta && fc.fontes.crm ? 'ok' : 'warn'))}
+      ${ciclo('🔄 #2', 'Financeiro → Viabilidade', 'Custo realizado (lançado no Orçado × Realizado; caixa no PSM HUB) confronta a planilha de custos da Viab.', 'fluxo')}
+      ${ciclo('🔄 #3', 'Viabilidade → Orçamento', 'VGV de equilíbrio/meta → "Orçamento pra meta" no Simulador calcula quanto investir em tráfego (engenharia reversa).', 'fluxo')}
+      ${ciclo('🔄 #4', 'Vendas → Projeção → Meta', 'A projeção oficial (ritmo 180 d × funil calibrado) projeta o ano e orienta a meta na aba Metas.', fc.fontes && (fc.fontes.proj ? 'ok' : 'warn'))}
     </div>
     <div class="tiny muted" style="margin-top:10px">💡 Clique em qualquer bloco pra abrir a tela. Os números são a média mensal do ano (Meta ${m.meses} mês(es) arquivado(s); CRM ÷ ${f1(MESES)} meses decorridos).</div>
   </div>

@@ -38,7 +38,7 @@ from _metricas_lib import (resumo as mx_resumo, por_nome as mx_por_nome, _norm a
                            propostas_de as mx_propostas, qualificados_de as mx_qualif,
                            prospeccoes_de as mx_prospec, fonte_marcos as mx_fonte,
                            mapa_origens as mx_mapa_origens, origem_categoria as mx_origem_cat,
-                           CAT_LABEL as MX_CAT_LABEL)
+                           CAT_LABEL as MX_CAT_LABEL, fator_meta_mes as mx_fator_meta)
 from _projecao_lib import projecao as pj_projecao  # type: ignore   # v87.91
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -1280,8 +1280,11 @@ class handler(BaseHTTPRequestHandler):
                 # do Painel Metas por causa disso.
                 meta_aqui = team_de(uid, (users.get(uid) or {}).get("team")) == tk
                 # meta = soma dos meses da janela (mês único → aquele mês; período → todos)
-                mv = sum(_num((metas_idx.get((uid, _y, _m)) or {}).get("meta_vendas")) for _y, _m in meses_janela) if meta_aqui else 0.0
-                mvgv = sum(_num((metas_idx.get((uid, _y, _m)) or {}).get("meta_vgv")) for _y, _m in meses_janela) if meta_aqui else 0.0
+                # v88.47 (§8A): recorte parcial do mês (Semana/Quinzena) = meta PROPORCIONAL aos dias úteis
+                mv = sum(_num((metas_idx.get((uid, _y, _m)) or {}).get("meta_vendas")) * mx_fator_meta(_y, _m, since_d, until_d, hoje)
+                         for _y, _m in meses_janela) if meta_aqui else 0.0
+                mvgv = sum(_num((metas_idx.get((uid, _y, _m)) or {}).get("meta_vgv")) * mx_fator_meta(_y, _m, since_d, until_d, hoje)
+                           for _y, _m in meses_janela) if meta_aqui else 0.0
                 if mv or mvgv:
                     com_meta += 1
                 meta_v += mv

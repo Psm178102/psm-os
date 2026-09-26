@@ -267,7 +267,7 @@ async function reload() {
   // só re-renderiza se o DADO mudou — senão o letreiro reiniciava a cada 30s
   const sig = JSON.stringify([_data, _est, _recados.map(x => x.id + (x.texto || '')), _oport.map(x => x.id + (x.titulo || '')), _err, _estErr]);
   if (sig !== _sig) { _sig = sig; render(); }
-  else { const el = document.getElementById('rh-upd'); if (el && _fetchedAt) el.textContent = `Atualizado às ${_fetchedAt.toLocaleTimeString('pt-BR')}`; }
+  else { const el = document.getElementById('rh-upd'); if (el && _fetchedAt) el.textContent = _err ? `⚠️ HUB fora do ar — dados de ${_fetchedAt.toLocaleTimeString('pt-BR')}` : `Atualizado às ${_fetchedAt.toLocaleTimeString('pt-BR')}`; }
 }
 
 function fala(txt) {
@@ -720,11 +720,18 @@ function telaPlacar() {
   if (!_est) return semEsteira();
   const rows = estRows();                            // já respeita o filtro de equipe e os ocultos
   const tx = _taxas || calcTaxas([]);
-  const hj = new Date(); const dia = hj.getDate();
-  const diasMes = new Date(hj.getFullYear(), hj.getMonth() + 1, 0).getDate();
-  const fator = dia > 0 ? diasMes / dia : 1;
-  let uteis = 0; const fimMes = new Date(hj.getFullYear(), hj.getMonth() + 1, 0);
-  for (let d = new Date(hj); d <= fimMes; d.setDate(d.getDate() + 1)) { const w = d.getDay(); if (w !== 0 && w !== 6) uteis++; }
+  // v88.47 (Dicionário §8 "Ritmo"): dias ÚTEIS seg–sáb, decorridos × do mês. Antes era dia corrido
+  // (diasMes/dia): no dia 1 a produção era multiplicada por ~30 e o placar prometia um mês irreal.
+  const hj = new Date();
+  const fimMes = new Date(hj.getFullYear(), hj.getMonth() + 1, 0);
+  let uteisTot = 0, uteisDec = 0, uteis = 0;
+  for (let d = new Date(hj.getFullYear(), hj.getMonth(), 1); d <= fimMes; d.setDate(d.getDate() + 1)) {
+    if (d.getDay() === 0) continue;
+    uteisTot++;
+    if (d.getDate() <= hj.getDate()) uteisDec++;
+    if (d.getDate() >= hj.getDate()) uteis++;
+  }
+  const fator = uteisDec >= 3 ? uteisTot / uteisDec : 1;   // < 3 dias úteis: amostra pequena demais pra extrapolar
   // meta do mês: soma das metas individuais do HUB; fallback = metas do mês na aba Metas (v88.11)
   const metaHub = ranked().reduce((t, a) => t + (a.vgvMeta || 0), 0);
   const metaMes = metaHub || metaMesMetas();
@@ -968,7 +975,7 @@ function modoFechamento() {
   const diasRestantes = fim.getDate() - h.getDate();
   if (diasRestantes > 6) return '';
   let uteis = 0;
-  for (let d = new Date(h); d <= fim; d.setDate(d.getDate() + 1)) { const w = d.getDay(); if (w !== 0 && w !== 6) uteis++; }
+  for (let d = new Date(h); d <= fim; d.setDate(d.getDate() + 1)) { if (d.getDay() !== 0) uteis++; }   // v88.47: seg–sáb (§8)
   const sv = (_ov && _ov.sales) || {};
   const metaMes = metaMesMetas();
   const falta = Math.max(0, metaMes - (sv.vgv_mes || 0));
@@ -1021,7 +1028,7 @@ function shell(body) {
       </div>
       <div style="margin-left:auto;text-align:right">
         <div id="rh-clock" style="font-size:30px;font-weight:800;color:#facc15;font-variant-numeric:tabular-nums">${nowStr()}</div>
-        <div id="rh-upd" style="font-size:11px;color:#64748b">${_fetchedAt ? `Atualizado às ${_fetchedAt.toLocaleTimeString('pt-BR')}` : '&nbsp;'}</div>
+        <div id="rh-upd" style="font-size:11px;color:${_err ? '#f87171' : '#64748b'}">${_err && _fetchedAt ? `⚠️ HUB fora do ar — dados de ${_fetchedAt.toLocaleTimeString('pt-BR')}` : _fetchedAt ? `Atualizado às ${_fetchedAt.toLocaleTimeString('pt-BR')}` : '&nbsp;'}</div>
       </div>
       ${_cfgCanEdit ? '<button id="rh-cfg" title="Configurar a TV (gestão)" style="border:1px solid rgba(148,163,184,.35);background:transparent;color:#cbd5e1;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:16px">⚙️</button>' : ''}
       <button id="rh-prev" title="Tela anterior (←)" style="border:1px solid rgba(148,163,184,.35);background:transparent;color:#cbd5e1;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:18px;font-weight:900">‹</button>

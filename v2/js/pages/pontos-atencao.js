@@ -31,19 +31,29 @@ export async function pagePontosAtencao(ctx, root) {
   root.innerHTML = `<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Varrendo o sistema em busca de pontos de atenção…</div></div>`;
 
   const isGestor = (auth.user()?.lvl || 0) >= 5;
-  const [health, metrics, oo, caps, notes] = await Promise.all([
+  const [health, metrics, oo, caps, notes, pj] = await Promise.all([
     api.request('/api/v3/system_health').catch(() => null),
     api.request('/api/v3/metrics/overview').catch(() => null),
     isGestor ? api.request('/api/v3/oo/overview?date_preset=this_month').catch(() => null) : Promise.resolve(null),
     api.request('/api/v3/captacoes/kanban').catch(() => null),
     api.request('/api/v3/diretoria/notes?kind=atencao').catch(() => null),
+    api.request('/api/v3/metricas/projecao?h=mes').catch(() => null),   // v88.47: projeção OFICIAL do mês (§8A)
   ]);
   _notes = (notes && notes.notes) || [];
   _notesPending = !!(notes && notes.pending);
 
   const signals = [];
+  // v88.47 (Dicionário §0: erro de leitura nunca vira silêncio): fonte que não respondeu vira sinal —
+  // antes os coletores saíam calados e a tela dizia "✅ Tudo sob controle" com as APIs fora
+  const falhas = [];
+  if (!metrics) falhas.push('vendas e metas (overview)');
+  if (!pj || !pj.empresa) falhas.push('projeção oficial do mês');
+  if (isGestor && !oo) falhas.push('equipe (1:1)');
+  if (!caps) falhas.push('captações');
+  if (falhas.length) push(signals, 'warn', 'Fontes indisponíveis', '⚠️', `${falhas.length} fonte(s) não responderam — a varredura está incompleta`,
+    'Sem resposta de: ' + falhas.join(', ') + '. Não dá pra afirmar que está tudo bem nessas áreas. Recarregue a página em instantes.');
   collectInfra(signals, health);
-  collectVendas(signals, metrics);
+  collectVendas(signals, metrics, pj);
   collectCaptacoes(signals, caps);
   collectEquipe(signals, oo);
   collectOperacao(signals, metrics);
@@ -86,35 +96,26 @@ function collectInfra(arr, health) {
   });
 }
 
-function collectVendas(arr, m) {
-  if (!m || !m.sales) return;
-  const s = m.sales, meta = (m.metas && m.metas.meta_vgv) || 0;
-  // 1) Projeção de meta no ritmo atual (run-rate por dia corrido do mês)
-  if (meta > 0) {
-    const now = new Date();
-    const dia = now.getDate();
-    const diasMes = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const frac = Math.max(dia / diasMes, 0.01);
-    const proj = (s.vgv_mes || 0) / frac;
-    const pct = proj / meta * 100;
-    const pctReal = (s.vgv_mes || 0) / meta * 100;
-    if (pct < 80) {
-      push(arr, 'crit', 'Vendas & Metas', '🎯', `Meta do mês em risco — projeção ~${pct2(pct)}`,
-        `Hoje ${pct2(pctReal)} atingido (R$ ${km(s.vgv_mes)} de R$ ${km(meta)}). No ritmo atual o mês fecha em ~${pct2(pct)} da meta.`,
-        '#/metas', 'Metas');
+function collectVendas(arr, m, pj) {
+  // 1) Meta do mês pela projeção OFICIAL (§8A: dias úteis seg–sáb, ritmo 180 d × funil calibrado).
+  // v88.47: antes era um run-rate próprio por dia corrido e um "pipeline cobre?" com o pipeline BRUTO
+  // (sem ponderar) — as duas contas favoreciam o número. O funil ponderado já está dentro do Provável.
+  const PE = pj && pj.empresa;
+  if (PE && PE.meta && PE.meta.vgv > 0 && PE.status !== 'batida') {
+    const pct = PE.provavel.pct_meta || 0, pctReal = PE.realizado.pct_meta || 0;
+    const falta = PE.falta_vgv || 0;
+    if (pct < 70) {
+      push(arr, 'crit', 'Vendas & Metas', '🎯', `Meta do mês em risco — fechamento provável ~${pct2(pct)}`,
+        `Hoje ${pct2(pctReal)} atingido; faltam R$ ${km(falta)}. Pela projeção oficial o mês fecha em ~${pct2(pct)} da meta.`,
+        '#/gestao-comercial', 'Projeção');
     } else if (pct < 100) {
-      push(arr, 'warn', 'Vendas & Metas', '🎯', `Meta do mês apertada — projeção ~${pct2(pct)}`,
-        `${pct2(pctReal)} atingido (R$ ${km(s.vgv_mes)} de R$ ${km(meta)}). Projeção no ritmo atual: ~${pct2(pct)}.`,
-        '#/metas', 'Metas');
-    }
-    // 2) Pipeline cobre o que falta?
-    const falta = Math.max(meta - (s.vgv_mes || 0), 0);
-    if (falta > 0 && (s.pipeline_vgv || 0) < falta) {
-      push(arr, 'warn', 'Vendas & Metas', '📈', 'Pipeline não cobre o restante da meta',
-        `Falta R$ ${km(falta)} pra meta, mas o pipeline aberto soma só R$ ${km(s.pipeline_vgv)} (${s.pipeline_count || 0} negócios). Precisa gerar oportunidade.`,
-        '#/crm', 'CRM');
+      push(arr, 'warn', 'Vendas & Metas', '🎯', `Meta do mês apertada — fechamento provável ~${pct2(pct)}`,
+        `${pct2(pctReal)} atingido; faltam R$ ${km(falta)}. Projeção oficial: ~${pct2(pct)}.`,
+        '#/gestao-comercial', 'Projeção');
     }
   }
+  if (!m || !m.sales) return;
+  const s = m.sales;
   // 3) Mais perdas que vendas no mês
   if ((s.perdidos_mes || 0) >= 3 && (s.perdidos_mes || 0) > (s.vendas_mes || 0)) {
     push(arr, 'warn', 'Vendas & Metas', '❌', 'Mais perdas que vendas no mês',

@@ -12,11 +12,17 @@ import { montarLeadsOrigem } from '../leads-origem.js';   // v88.16 📥 leads e
 let _root = null;
 const _d = {};            // resultados por fonte
 
-const hoje = new Date();
-const DIA = hoje.getDate();
-const DIAS_MES = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
-const PACE = DIA / DIAS_MES;
-const MES_LBL = hoje.toLocaleDateString('pt-BR', { month: 'long' });
+// v88.47: datas recalculadas a cada abertura (antes congelavam no carregamento do módulo e
+// ficavam erradas com a aba aberta na virada do dia/mês)
+let hoje, DIA, DIAS_MES, PACE, MES_LBL;
+function _datas() {
+  hoje = new Date();
+  DIA = hoje.getDate();
+  DIAS_MES = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
+  PACE = DIA / DIAS_MES;
+  MES_LBL = hoje.toLocaleDateString('pt-BR', { month: 'long' });
+}
+_datas();
 
 const money = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const moneyK = money;   // v88.37: não abrevia (era R$ 840k / 1,2M)
@@ -28,6 +34,7 @@ const farolDot = c => `<span style="color:${c};font-size:13px">●</span>`;
 
 export async function pageSalaComando(ctx, root) {
   _root = root;
+  _datas();
   if ((auth.user()?.lvl || 0) < 10) { root.innerHTML = '<div class="alert alert-warn">🔒 Sala de Comando é restrita a Sócios.</div>'; return; }
   shell();
   carregar();   // dispara tudo em paralelo; cada bloco redesenha o próprio slot
@@ -75,7 +82,9 @@ async function carregar(fresh) {
     hubPainel: () => api.request('/api/v3/psmhub/financeiro?secao=painel' + nc),
     hubContas: () => api.request('/api/v3/psmhub/financeiro?secao=contas' + nc),
     hubAcomp:  () => api.request('/api/v3/psmhub/financeiro?secao=acompanhamento' + nc),
-    gc:        () => api.request(`/api/v3/oo/comercial?since=${ini}&until=${fim}`),
+    // v88.47: projeção OFICIAL do mês (§8A) no lugar do forecast da Gestão Comercial (pipeline ponderado
+    // apresentado como previsão, proibido no §8) — e bem mais leve que o /oo/comercial
+    pjMes:     () => api.request('/api/v3/metricas/projecao?h=mes' + (fresh ? '&fresh=1' : '')),
   };
   await Promise.all(Object.entries(calls).map(async ([k, fn]) => {
     try { _d[k] = await fn(); } catch (e) { _d[k] = { _err: e.message }; }
@@ -150,12 +159,18 @@ function farois() {
   if (!ov) spin('Vendas do mês');
   else if (ov._err || !ov.sales) card('Vendas do mês', '—', 'overview indisponível', COR.mute);
   else {
-    const mt = _d.metas && _d.metas.totals;
-    const metaMes = mt && mt.meta_vgv ? mt.meta_vgv / 12 : null;   // sem grade mensal → meta anual ÷12
+    // v88.47 (Dicionário §6/§8A): meta do mês = soma das metas MENSAIS (antes meta anual ÷ 12) e o
+    // "esperado até hoje" proporcional aos dias úteis — os mesmos números da Gestão Comercial e do 1:1
+    const PE = _d.pjMes && !_d.pjMes._err ? _d.pjMes.empresa : null;
     const vm = ov.sales.vgv_mes || 0;
-    const ritmo = metaMes ? vm / (metaMes * PACE) : null;
+    const metaMes = PE && PE.meta ? PE.meta.vgv : null;
+    const esperado = PE && PE.meta ? PE.meta.vgv_ate_hoje : null;
+    const vDaMeta = PE && PE.realizado && PE.realizado.pct_meta != null && metaMes ? PE.realizado.pct_meta / 100 * metaMes : vm;
+    const ritmo = esperado ? vDaMeta / esperado : null;
     card(`Vendas de ${MES_LBL}`, `${ov.sales.vendas_mes || 0} · ${moneyK(vm)}`,
-      metaMes ? `meta ÷12 ${moneyK(metaMes)} · ritmo ${Math.round((ritmo || 0) * 100)}% do pace` : 'sem meta definida',
+      !_d.pjMes ? 'carregando a meta do mês…'
+        : metaMes ? `meta do mês ${moneyK(metaMes)} · ${Math.round((ritmo || 0) * 100)}% do esperado até hoje (dias úteis)`
+        : (_d.pjMes._err ? 'projeção indisponível' : 'sem meta cadastrada no mês'),
       ritmo == null ? COR.mute : ritmo >= 1 ? COR.ok : ritmo >= 0.7 ? COR.warn : COR.bad);
   }
 
@@ -171,14 +186,16 @@ function farois() {
       pct >= paceAno ? COR.ok : pct >= paceAno * 0.7 ? COR.warn : COR.bad);
   }
 
-  // 3) Pipeline esperado (forecast GC do mês)
-  const gc = _d.gc;
-  if (!gc) spin('Pipeline esperado');
-  else if (gc._err || !gc.forecast) card('Pipeline esperado', '—', 'gestão comercial indisponível', COR.mute);
+  // 3) Fechamento provável do mês — projeção OFICIAL (§8A: realizado + maior entre ritmo e funil)
+  const pj = _d.pjMes;
+  if (!pj) spin('Fechamento provável do mês');
+  else if (pj._err || !pj.empresa) card('Fechamento provável do mês', '—', 'projeção indisponível', COR.mute);
   else {
-    let tv = 0, tvgv = 0;
-    Object.values(gc.forecast).forEach(f => { if (f && typeof f === 'object') { tv += num(f.pipeline_vendas_esp); tvgv += num(f.pipeline_vgv_esp); } });
-    card('Pipeline esperado', `${tv.toFixed(1)} vendas`, `${moneyK(tvgv)} esperados da esteira atual`, tv > 0 ? COR.ok : COR.warn);
+    const P = pj.empresa, st = P.status;
+    const pct = P.provavel && P.provavel.pct_meta;
+    card('Fechamento provável do mês', `${(P.provavel?.vendas ?? 0).toLocaleString('pt-BR')} vendas`,
+      `${moneyK(P.provavel?.vgv)}${pct != null ? ` · ${Math.round(pct)}% da meta` : ''} · <a href="#/gestao-comercial">ver projeção</a>`,
+      st === 'batida' || st === 'no_ritmo' ? COR.ok : st === 'atras' ? COR.warn : st === 'fora' ? COR.bad : COR.mute);
   }
 
   // 4) Caixa (contas bancárias do HUB)

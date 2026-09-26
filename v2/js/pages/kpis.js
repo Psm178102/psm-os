@@ -60,13 +60,15 @@ function renderContent() {
   const sales = ov.sales || {};
   const users = ov.users || {};
   // v87.92: ano pela projeção OFICIAL (mesma régua da Gestão Comercial, Metas e 1:1)
-  const PE = pj && (pj.empresa || Object.values(pj.equipes || {})[0]);
+  // v88.47: só o bloco da EMPRESA (antes, sem ele, caía na 1ª equipe e mostrava uma equipe como se fosse a empresa)
+  const PE = pj && pj.empresa ? pj.empresa : null;
 
   // ── Vendas & Meta (ANO) ──
   const metaVGV = PE ? PE.meta.vgv : (+T.meta_vgv || 0);
   const realVGV = PE ? PE.realizado.vgv : (+T.atingido_vgv || 0);
   const vendas = PE ? PE.realizado.vendas : (+T.vendas_count || 0);
-  const pctMeta = metaVGV > 0 ? (realVGV / metaVGV * 100) : 0;
+  // v88.47 (§1 v88.0): % da meta sem as vendas de quem saiu / sem corretor (que seguem no VGV realizado)
+  const pctMeta = PE && PE.realizado.pct_meta != null ? PE.realizado.pct_meta : (metaVGV > 0 ? (realVGV / metaVGV * 100) : 0);
   const gap = Math.max(metaVGV - realVGV, 0);
   const ticketMedio = vendas > 0 ? realVGV / vendas : 0;
 
@@ -74,8 +76,9 @@ function renderContent() {
   const now = new Date();
   const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
   const fracAno = Math.max(dayOfYear / 365, 0.01);
-  const projAno = PE ? PE.provavel.vgv : realVGV / fracAno;
-  const pctProj = metaVGV > 0 ? (projAno / metaVGV * 100) : 0;
+  // v88.47 (§8): sem a projeção oficial NÃO inventa uma linear (era a "5ª projeção") — mostra "—"
+  const projAno = PE ? PE.provavel.vgv : null;
+  const pctProj = PE && PE.provavel.pct_meta != null ? PE.provavel.pct_meta : null;
 
   // ── Pipeline & Funil (overview) ──
   const pipeVgv = +sales.pipeline_vgv || 0;
@@ -109,7 +112,7 @@ function renderContent() {
       ${kpi('🎯', 'Meta do Ano', fmtKM(metaVGV), gap > 0 ? 'Falta ' + fmtKM(gap) : '✓ Batida', '#d4a843')}
       ${kpi('📊', 'Atingimento', pct2(pctMeta), `${vendas} venda(s) no ano`, semStatus(pctMeta, [50, 80, 100]))}
       ${kpi('🏆', 'Ticket Médio', fmtKM(ticketMedio), 'por venda fechada', '#22c55e')}
-      ${kpi('🔮', 'Fechamento provável', fmtKM(projAno), PE ? `${pct2(pctProj)} da meta · faixa ${fmtKM(PE.conservador.vgv)}–${fmtKM(PE.otimista.vgv)}` : `~${pct2(pctProj)} da meta no ritmo`, pctProj >= 100 ? '#22c55e' : pctProj >= 70 ? '#f59e0b' : '#ef4444')}
+      ${kpi('🔮', 'Fechamento provável', PE ? fmtKM(projAno) : '—', PE ? `${pctProj != null ? pct2(pctProj) + ' da meta · ' : ''}faixa ${fmtKM(PE.conservador.vgv)}–${fmtKM(PE.otimista.vgv)}` : 'projeção oficial indisponível', pctProj == null ? 'var(--ink-muted)' : pctProj >= 100 ? '#22c55e' : pctProj >= 70 ? '#f59e0b' : '#ef4444')}
       ${PE && PE.por_dia_util_vgv ? kpi('⏱', 'Pra bater a meta', fmtKM(PE.por_dia_util_vgv), `por dia útil · ${pj.horizonte.dias_uteis.restantes} dias úteis restantes`, '#ef4444') : ''}
     </div>
 

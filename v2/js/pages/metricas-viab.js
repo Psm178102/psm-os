@@ -602,7 +602,7 @@ function render() {
         <div class="vb-kpi"><div class="l">Custo do mês</div><div class="v">${fmt(k.custo)}</div><div class="s">${fmt(k.custo / k.nd)}/dia</div></div>
         <div class="vb-kpi"><div class="l">Margem realizada · ${MESES_N3[k.mr - 1]}</div><div class="v" style="color:${k.margem > 0 ? 'var(--vbgi)' : '#E4907B'}">${fmt(k.margem)}</div><div class="s">${k.vendas} venda(s) · VGV ${fmtC(k.vgv)}</div></div>
         <div class="vb-kpi"><div class="l">Cobertura do custo</div><div class="v" style="color:${corCob}">${k.cob.toFixed(0)}%</div><div class="s">esperado no dia ${k.dia}: ${k.esp.toFixed(0)}%</div></div>
-        <div class="vb-kpi"><div class="l">Projeção ${_ano}</div><div class="v">${pj ? fmtC(pj.projetado) : '—'}</div><div class="s">${pj && pj.atingProj != null ? pj.atingProj.toFixed(0) + '% da meta de ' + fmtC(pj.metaAno) : 'sem meses fechados'}</div></div>
+        <div class="vb-kpi" title="Média dos meses fechados × 12, contra o ORÇAMENTO da Viabilidade. Não é a projeção oficial (Gestão Comercial → 🎯), que usa ritmo 180 d × funil e a tabela de Metas."><div class="l">Ritmo linear ${_ano}</div><div class="v">${pj ? fmtC(pj.projetado) : '—'}</div><div class="s">${pj && pj.atingProj != null ? pj.atingProj.toFixed(0) + '% do orçamento de ' + fmtC(pj.metaAno) : 'sem meses fechados'}</div></div>
       </div>
       <nav class="vb-tabs">
         ${tab('mes', 'VISÃO DO MÊS')}${tab('ano', 'RESULTADO ' + _ano)}${tab('caixa', 'CAIXA')}${tab('cenarios', 'CENÁRIOS')}${tab('admin', 'ADMINISTRAR')}
@@ -1841,11 +1841,11 @@ function projecaoAnoCard() {
   const ok = p.gap <= 0, cor = ok ? '#16a34a' : '#dc2626';
   const salto = p.mediaMes > 0 ? p.precisaMes / p.mediaMes : null;
   return `<div class="card" style="margin:0 0 14px;border:2px solid ${cor}33">
-    <h3 class="card-title">🔮 Projeção de ${_ano} <span class="tiny muted" style="font-weight:400">· no ritmo dos ${p.ateFechado} mês(es) já fechados</span></h3>
+    <h3 class="card-title">🔮 Ritmo linear de ${_ano} × orçamento <span class="tiny muted" style="font-weight:400">· média dos ${p.ateFechado} mês(es) já fechados · não é a <a href="#/gestao-comercial">projeção oficial</a></span></h3>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
       <div><div class="tiny muted">Fechado até agora</div><div style="font-size:17px;font-weight:900">${fmt(p.realFechado)}</div><div class="tiny muted">${p.vendasFechadas} venda(s) · ${fmt(p.mediaMes)}/mês</div></div>
       <div><div class="tiny muted">Projeção fim do ano</div><div style="font-size:17px;font-weight:900;color:${cor}">${fmt(p.projetado)}</div><div class="tiny muted">${p.atingProj != null ? pct(p.atingProj) + ' da meta' : 'sem meta lançada'}</div></div>
-      <div><div class="tiny muted">Meta do ano</div><div style="font-size:17px;font-weight:900">${fmt(p.metaAno)}</div></div>
+      <div><div class="tiny muted">Orçamento do ano (Viabilidade)</div><div style="font-size:17px;font-weight:900">${fmt(p.metaAno)}</div></div>
       <div><div class="tiny muted">${ok ? '🎉 Sobra projetada' : '⚠️ Falta projetada'}</div><div style="font-size:17px;font-weight:900;color:${cor}">${fmt(Math.abs(p.gap))}</div></div>
     </div>
     ${p.metaAno ? `<div style="margin-top:10px">

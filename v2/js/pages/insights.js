@@ -22,12 +22,13 @@ export async function pageInsights(ctx, root) {
     return;
   }
   root.innerHTML = `<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Lendo os números…</div></div>`;
-  const [m, oo, notes] = await Promise.all([
+  const [m, oo, notes, pj] = await Promise.all([
     api.request('/api/v3/metrics/overview').catch(() => null),
     api.request('/api/v3/oo/overview?date_preset=this_month').catch(() => null),
     api.request('/api/v3/diretoria/notes?kind=insight').catch(() => null),
+    api.request('/api/v3/metricas/projecao?h=mes').catch(() => null),   // v88.47: projeção OFICIAL do mês (§8A)
   ]);
-  _m = m; _oo = oo;
+  _m = m; _oo = oo; _pj = pj;
   _notes = (notes && notes.notes) || [];
   _notesPending = !!(notes && notes.pending);
   render();
@@ -43,31 +44,32 @@ async function reloadNotes() {
 }
 
 /* ─── Insights computados ─────────────────────────────────────────────── */
+let _pj = null;
 function computeCards() {
   const cards = [];
   const s = (_m && _m.sales) || {};
   const meta = (_m && _m.metas && _m.metas.meta_vgv) || 0;
 
-  // run-rate da meta
-  const now = new Date();
-  const dia = now.getDate();
-  const diasMes = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  const frac = Math.max(dia / diasMes, 0.01);
-  if (meta > 0) {
-    const proj = (s.vgv_mes || 0) / frac;
-    const pct = proj / meta * 100;
-    const pctReal = (s.vgv_mes || 0) / meta * 100;
+  // v88.47 (§8): ritmo pela projeção OFICIAL do mês (dias úteis seg–sáb, ritmo 180 d × funil) — antes
+  // uma projeção própria por dias corridos, diferente da aba KPIs ao lado
+  const PE = _pj && _pj.empresa;
+  if (PE && PE.meta && PE.meta.vgv > 0) {
+    const pctReal = PE.realizado.pct_meta || 0;
+    const pct = PE.provavel.pct_meta || 0;
     cards.push({
       icon: '🎯', titulo: 'Ritmo da meta', valor: pct2(pctReal),
-      tom: pct >= 100 ? 'good' : pct >= 80 ? 'warn' : 'bad',
+      tom: pct >= 100 ? 'good' : pct >= 70 ? 'warn' : 'bad',
       insight: pct >= 100
-        ? `No ritmo atual o mês fecha em ~${pct2(pct)} da meta. Mantenha a pressão.`
-        : `Atingido ${pct2(pctReal)}. Projeção no ritmo de hoje: ~${pct2(pct)} — ${pct < 80 ? 'precisa acelerar forte' : 'falta um empurrão'}.`,
+        ? `Pela projeção oficial o mês fecha em ~${pct2(pct)} da meta. Mantenha a pressão.`
+        : `Atingido ${pct2(pctReal)}. Fechamento provável (projeção oficial): ~${pct2(pct)} — ${pct < 70 ? 'precisa acelerar forte' : 'falta um empurrão'}.`,
     });
+  }
+  if (meta > 0) {
     const falta = Math.max(meta - (s.vgv_mes || 0), 0);
     const cob = falta > 0 ? (s.pipeline_vgv || 0) / falta : 99;
     cards.push({
-      icon: '📈', titulo: 'Cobertura de pipeline', valor: falta > 0 ? (cob).toFixed(1) + '×' : 'meta batida',
+      // v88.47: renomeado — é pipeline BRUTO (sem ponderar) ÷ falta; a "Cobertura da Meta" da aba KPIs é outra conta
+      icon: '📈', titulo: 'Pipeline bruto ÷ o que falta', valor: falta > 0 ? (cob).toFixed(1) + '×' : 'meta batida',
       tom: cob >= 3 ? 'good' : cob >= 1.5 ? 'warn' : 'bad',
       insight: falta > 0
         ? `Falta R$ ${km(falta)} e o pipeline aberto é R$ ${km(s.pipeline_vgv)} (${cob.toFixed(1)}× o gap). ${cob < 1.5 ? 'Cobertura baixa — gere oportunidade.' : cob < 3 ? 'Saudável, mas sem folga.' : 'Cobertura confortável.'}`
