@@ -171,39 +171,69 @@ class handler(BaseHTTPRequestHandler):
 
         # Varredura POR FUNIL (a listagem do RD não retorna o funil por deal) —
         # carimba pipeline_name pra classificação de marca funcionar no sistema.
+        # v88.54: (1) varredura completa busca as páginas em LOTES de 4 em paralelo — sequencial levava
+        # ~300 s (o teto da função) e desde 21/09 morria antes de terminar; (2) o incremental também puxa
+        # tudo que FECHOU (ganho/perdido) nos últimos 3 dias — antes só as 2 páginas mais recentes por
+        # CRIAÇÃO, e venda de negócio antigo (criado em fev/mai) nunca chegava: 24–25/09, 2 vendas
+        # (R$ 461.890) ficaram fora do House.
+        from concurrent.futures import ThreadPoolExecutor
+        from datetime import timedelta as _td
+
+        def processar(deals, pid, pname):
+            nonlocal total_fetched, upserted, rows_buffer
+            total_fetched += len(deals)
+            try:
+                from _events_lib import record_changes  # type: ignore
+                record_changes(sb, deals, source="sync")
+            except Exception as _e:
+                print(f"[sync_cron] record_changes: {_e}")
+            for d in deals:
+                if d.get("id"):
+                    rows_buffer.append(_deal_to_row(d, users_by_email, pid, pname))
+            if len(rows_buffer) >= 200:
+                try:
+                    upserted += gravar(sb, rows_buffer)   # v88.40: só o que mudou
+                except Exception as e:
+                    errors.append(f"upsert: {e}")
+                rows_buffer = []
+
+        def buscar(pparams, pname, paginas, lote):
+            """Busca páginas 1..paginas em lotes paralelos; para na 1ª página curta. → (páginas, completou)"""
+            nonlocal pages_done
+            page = 1
+            with ThreadPoolExecutor(max_workers=lote) as ex:
+                while page <= paginas:
+                    nums = list(range(page, min(page + lote, paginas + 1)))
+                    futs = [(n, ex.submit(_rd_page, rd_token, pparams, n)) for n in nums]
+                    fim = False
+                    for n, f in futs:
+                        try:
+                            data = f.result()
+                        except Exception as e:
+                            errors.append(f"{pname or '-'} p{n}: {e}")
+                            return False
+                        deals = data.get("deals") or []
+                        pages_done += 1
+                        if deals:
+                            processar(deals, pparams.get("deal_pipeline_id"), pname)
+                        if len(deals) < 200:
+                            fim = True
+                            break
+                    if fim:
+                        return True
+                    page += lote
+            return False
+
         pipelines = _list_pipelines(sb, rd_token) or [(None, None)]
+        desde = (datetime.now(timezone.utc) - _td(days=3)).strftime("%Y-%m-%dT%H:%M:%S")
         for pid, pname in pipelines:
             pparams = {"deal_pipeline_id": pid} if pid else {}
             pipes_done += 1
-            for page in range(1, max_pages + 1):
-                try:
-                    data = _rd_page(rd_token, pparams, page)
-                except Exception as e:
-                    errors.append(f"{pname or '-'} p{page}: {e}")
-                    break
-                deals = data.get("deals") or []
-                pages_done += 1
-                if not deals: break
-                total_fetched += len(deals)
-                # Event sourcing (rede de segurança 3x/dia): grava transições de etapa
-                # ANTES do upsert sobrescrever a etapa. Idempotente, best-effort.
-                try:
-                    from _events_lib import record_changes  # type: ignore
-                    record_changes(sb, deals, source="sync")
-                except Exception as _e:
-                    print(f"[sync_cron] record_changes: {_e}")
-                for d in deals:
-                    if d.get("id"):
-                        rows_buffer.append(_deal_to_row(d, users_by_email, pid, pname))
-                if len(rows_buffer) >= 200:
-                    try:
-                        upserted += gravar(sb, rows_buffer)   # v88.40: só o que mudou
-                    except Exception as e:
-                        errors.append(f"upsert: {e}")
-                    rows_buffer = []
-                if len(deals) < 200: break
-            else:
+            if not buscar(pparams, pname, max_pages, 1 if modo_inc else 4) and not modo_inc:
                 truncado.append(pname or pid or "-")
+            if modo_inc:
+                # fechados (ganho/perdido) nos últimos 3 dias, qualquer data de criação
+                buscar({**pparams, "closed_at_period": "true", "start_date": desde}, (pname or "-") + " (fechados 3d)", 5, 1)
 
         if rows_buffer:
             try:
