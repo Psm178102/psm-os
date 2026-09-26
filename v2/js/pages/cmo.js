@@ -254,6 +254,7 @@ function renderStatus(body) {
     .fb-onde{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd);font-size:12.5px;align-items:baseline}
     .fb-onde b{min-width:130px}
   </style>
+  <div class="alert alert-warn tiny" style="margin-bottom:12px">📌 <b>Retrato escrito à mão em 08/set</b> — não é status ao vivo. Semáforo, "posts publicados" e "coisas travadas" abaixo não se atualizam sozinhos; o que é dado vivo está em ✅ Validar peças, 🎛 Números e 📊 Notas e testes.</div>
 
   <div class="fb-hero">
     <div style="font-weight:900;font-size:17px">📖 O que é isto aqui</div>

@@ -53,17 +53,22 @@ function render(health, audit, dash) {
   const env = health.env || {};
   const sb = health.supabase || {};
   const k = dash?.kpis || {};
+  // v88.47 (§0): null = fonte falhou → "—" (antes `|| 0` mostrava zero como se fosse real)
+  const nv = v => (v == null ? '—' : v);
+  const errs = (dash && dash.errors) || [];
 
   _root.innerHTML = `
     <div class="card">
       <h2 class="card-title">⚖️ Governança & Compliance</h2>
       <p class="card-sub">Saúde do sistema, auditoria, integrações ativas. Apenas Sócio/Gerente.</p>
 
+      ${!dash ? '<div class="alert alert-warn tiny mt-2">⚠️ Painel da diretoria não respondeu — os números abaixo estão indisponíveis.</div>'
+        : errs.length ? `<div class="alert alert-warn tiny mt-2">⚠️ ${errs.length} leitura(s) falharam: ${escapeHtml(errs.map(e => String(e).split(':')[0]).join(', '))} — onde aparecer "—" o dado não carregou.</div>` : ''}
       <h3 class="card-title mt-4">🩺 Status do sistema</h3>
       <div class="flex gap-3" style="flex-wrap:wrap">
         ${kpi('Sistema', health.ok ? '✅ OK' : '⚠ Erro', health.version, health.ok ? '#16a34a' : '#dc2626')}
         ${kpi('Postgres', sb.connected ? '✅ Conectado' : '✕ Off', `${sb.users_total || 0} users, ${sb.users_with_password || 0} com senha`, sb.connected ? '#16a34a' : '#dc2626')}
-        ${kpi('Audit 24h', k.audit_24h || 0, 'eventos registrados', '#7c3aed')}
+        ${kpi('Audit 24h', nv(k.audit_24h), 'eventos registrados', '#7c3aed')}
         ${kpi('Notificações ativas', k.recados_ativos || 0, `${k.recados_criticos || 0} críticos`, '#d97706')}
       </div>
 
@@ -80,9 +85,9 @@ function render(health, audit, dash) {
       <h3 class="card-title mt-4">📊 Operação atual</h3>
       <div class="flex gap-3" style="flex-wrap:wrap">
         ${kpi('Users ativos', k.users_ativos || 0, `${k.users_total || 0} cadastrados`, '#2563eb')}
-        ${kpi('Tarefas abertas', k.tarefas_abertas || 0, '', '#d97706')}
-        ${kpi('Eventos próximos 7d', k.eventos_proxima_semana || 0, '', '#7c3aed')}
-        ${kpi('Atingimento ano', k.atingimento_pct == null ? '—' : pct2(k.atingimento_pct), `R$ ${money(k.atingido_vgv_ano)}`, '#16a34a')}
+        ${kpi('Tarefas abertas', nv(k.tarefas_abertas), '', '#d97706')}
+        ${kpi('Eventos próximos 7d', nv(k.eventos_proxima_semana), '', '#7c3aed')}
+        ${kpi('Atingimento ano', k.atingimento_pct == null ? '—' : pct2(k.atingimento_pct), k.atingido_vgv_ano == null ? 'VGV indisponível' : `R$ ${money(k.atingido_vgv_ano)}`, '#16a34a')}
       </div>
 
       <h3 class="card-title mt-4">📜 Últimos 20 eventos do audit</h3>

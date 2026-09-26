@@ -164,8 +164,10 @@ class handler(BaseHTTPRequestHandler):
             kpis["atingimento_pct"] = (kpis["atingido_vgv_ano"] / kpis["meta_vgv_ano"] * 100) if kpis["meta_vgv_ano"] > 0 else None
         except Exception as e:
             errors.append(f"deals: {e}")
-            kpis["atingido_vgv_ano"] = 0; kpis["atingido_vendas_ano"] = 0
-            kpis["atingido_vgv_mes"] = 0; kpis["atingido_vendas_mes"] = 0
+            # v88.47 (Dicionário §0): erro de leitura vira None ("—" + aviso), nunca zero que parece real
+            kpis["atingido_vgv_ano"] = None; kpis["atingido_vendas_ano"] = None
+            kpis["atingido_vgv_mes"] = None; kpis["atingido_vendas_mes"] = None
+            kpis["atingimento_pct"] = None
 
         # 4. Tarefas (count)
         try:
@@ -178,7 +180,7 @@ class handler(BaseHTTPRequestHandler):
             kpis["tarefas_abertas"] = counts.get("aberta", 0) + counts.get("em_andamento", 0)
         except Exception as e:
             errors.append(f"tarefas: {e}")
-            kpis["tarefas"] = {}; kpis["tarefas_abertas"] = 0
+            kpis["tarefas"] = {}; kpis["tarefas_abertas"] = None
 
         # 5. Eventos hoje + próximos 7 dias
         try:
@@ -187,10 +189,12 @@ class handler(BaseHTTPRequestHandler):
             in7 = (now.date() + timedelta(days=7)).isoformat()
             eq = sb.table("eventos").select("id,tipo,status").gte("data", today_iso).lte("data", in7).execute().data or []
             kpis["eventos_proxima_semana"] = len(eq)
-            kpis["eventos_hoje"] = len([e for e in eq if eq])  # simplificado
+            # v88.47: contava os 7 dias como "hoje" (len([e for e in eq if eq]))
+            eh = sb.table("eventos").select("id", count="exact").eq("data", today_iso).limit(1).execute()
+            kpis["eventos_hoje"] = eh.count or 0
         except Exception as e:
             errors.append(f"eventos: {e}")
-            kpis["eventos_proxima_semana"] = 0
+            kpis["eventos_proxima_semana"] = None; kpis["eventos_hoje"] = None
 
         # 6. Audit últimas 24h
         try:
@@ -214,7 +218,7 @@ class handler(BaseHTTPRequestHandler):
             kpis["top_actions_24h"] = [{"action": k, "count": v} for k, v in kpis["top_actions_24h"]]
         except Exception as e:
             errors.append(f"audit: {e}")
-            kpis["audit_24h"] = 0; kpis["top_actions_24h"] = []
+            kpis["audit_24h"] = None; kpis["top_actions_24h"] = []
 
         # 7. Recados ativos
         try:

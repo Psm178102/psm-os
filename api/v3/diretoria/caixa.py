@@ -29,7 +29,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit, hoje_brt, agora_brt  # type: ignore
 from viab import (  # type: ignore
     read_kv, write_kv, orc_for, custo_fixo_mes, compute_snapshot, fontes_auto_ano,
-    realizado_ano, LINHAS, LINHA_IDS, TRAFEGO_CATS,
+    realizado_ano, LINHAS, LINHA_IDS, TRAFEGO_CATS, FALHAS as VIAB_FALHAS,
 )
 import calendar
 
@@ -152,6 +152,7 @@ class handler(BaseHTTPRequestHandler):
         avisos = []
 
         # ── 1) REALIZADO (motor da Viabilidade — competência) ──
+        VIAB_FALHAS.clear()
         fontes_auto = fontes_auto_ano(sb, ano)
         realizado = compute_snapshot(sb, ano, mes, fontes=fontes_auto)
         # acumulado do ano: snapshots fechados + mês corrente calculado agora
@@ -391,8 +392,9 @@ class handler(BaseHTTPRequestHandler):
 
         return self._send(200, {
             "ok": True, "ym": ym,
-            "fontes": {"crm": True, "recebiveis": receb_ok, "hub_fin": hub_ok,
-                       "hub_err": hub_err or None, "meta_ads": True},
+            # v88.47 (§0): antes "crm" e "meta_ads" eram True fixo — os chips ficavam verdes com a fonte fora
+            "fontes": {"crm": "crm" not in VIAB_FALHAS, "recebiveis": receb_ok, "hub_fin": hub_ok,
+                       "hub_err": hub_err or None, "meta_ads": "meta_ads" not in VIAB_FALHAS},
             "avisos": avisos,
             "realizado": {"mes": realizado, "acumulado_ano": acum,
                           "recebido_caixa_mes": round(sum(entrada_de(r)[0] for r in recebidos_mes), 2),

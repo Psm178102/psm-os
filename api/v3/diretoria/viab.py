@@ -364,6 +364,11 @@ def snapshot_linha(vgv, vendas, orc, custo):
             "margem": round(lucro / vgv * 100, 1) if vgv else 0.0}
 
 
+# v88.47 (Dicionário §0): leitura que falhou fica registrada aqui — quem mostra "fonte ok" consulta.
+# O chamador limpa no início da requisição (a função serverless reaproveita o módulo entre chamadas).
+FALHAS = set()
+
+
 def realizado_ano(sb, ano):
     """VGV/vendas REAIS do CRM por linha × mês (1..12) — deals ganhos do ano."""
     real = {i: {str(m): {"vgv": 0.0, "vendas": 0} for m in range(1, 13)} for i in LINHA_IDS}
@@ -386,8 +391,9 @@ def realizado_ano(sb, ano):
             if ln not in real or not (1 <= dt.month <= 12): continue
             real[ln][str(dt.month)]["vgv"] += _amt(d)
             real[ln][str(dt.month)]["vendas"] += 1
-    except Exception:
-        pass
+    except Exception as e:
+        FALHAS.add("crm")
+        print(f"[viab] realizado_ano falhou: {e}")
     return real
 
 
@@ -439,8 +445,9 @@ def meta_spend_ano(sb, ano):
         for r in rows:
             m = int(r.get("mes") or 0)
             if 1 <= m <= 12: out[m] = float(r.get("spend") or 0)
-    except Exception:
-        pass
+    except Exception as e:
+        FALHAS.add("meta_ads")
+        print(f"[viab] meta_spend_ano falhou: {e}")
     return out
 
 

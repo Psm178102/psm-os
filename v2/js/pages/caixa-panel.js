@@ -44,10 +44,10 @@ function render() {
       <div style="font-weight:900;font-size:15px">💵 Caixa · ${esc(mesNome)}</div>
       <input type="month" class="input" id="cx-ym" value="${_ym}" style="width:auto;padding:4px 8px;font-size:12px">
       <span style="flex:1"></span>
-      ${chip(true, 'CRM (RD)', 'VGV/vendas reais por frente')}
+      ${chip(f.crm !== false, 'CRM (RD)', f.crm !== false ? 'VGV/vendas reais por frente' : 'leitura do CRM falhou — realizado pode estar zerado')}   <!-- v88.47: era verde fixo -->
       ${chip(f.recebiveis, 'Radar de Recebíveis', 'a receber das frentes fora da Conquista (valor, data, marco)')}
       ${chip(f.hub_fin, 'PSM HUB financeiro', f.hub_fin ? 'vendas da Conquista com líquido + comissões EXATAS + parcelas' : (f.hub_err || 'ponte indisponível'))}
-      ${chip(true, 'Meta Ads', 'tráfego real do mês entra no custo')}
+      ${chip(f.meta_ads !== false, 'Meta Ads', f.meta_ads !== false ? 'tráfego real do mês entra no custo' : 'leitura do Meta falhou — custo de tráfego pode estar zerado')}
     </div>
     ${(d.avisos || []).length ? `<div class="alert alert-warn" style="font-size:12px">${d.avisos.map(esc).join('<br>')}</div>` : ''}
     ${blocoRealizado(r)}

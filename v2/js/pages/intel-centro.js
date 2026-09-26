@@ -50,15 +50,19 @@ export async function pageIntelCentro(ctx, root) {
 async function reload(quiet) {
   if (!quiet) _root.innerHTML = spinner('Cruzando Ads × Marketing × Vendas…');
   const qp = '?date_preset=' + encodeURIComponent(_preset);
-  const [sum, crm, geo, oo, dir] = await Promise.allSettled([
+  const [sum, crm, geo, oo, dir, pj] = await Promise.allSettled([
     api.request('/api/v3/marketing/summary' + qp),
     api.request('/api/v3/marketing/crm_metrics' + qp),
     api.request('/api/v3/marketing/leads_geo' + qp),
     api.request('/api/v3/oo/overview?date_preset=this_month'),
     api.request('/api/v3/diretoria/dashboard'),
+    api.request('/api/v3/metricas/projecao?h=mes'),   // v88.47: projeção OFICIAL do mês (§8A)
   ]);
   const v = r => (r.status === 'fulfilled' ? r.value : null);
-  _d = { sum: v(sum), crm: v(crm), geo: v(geo), oo: v(oo), dir: v(dir) };
+  _d = { sum: v(sum), crm: v(crm), geo: v(geo), oo: v(oo), dir: v(dir), pj: v(pj) };
+  // v88.47 (Dicionário §0): fonte que falhou fica registrada — o diagnóstico não pode dizer "tudo ok" sem ela
+  _d.falhas = [['Meta Ads', sum], ['CRM (RD)', crm], ['Geografia de leads', geo], ['Equipe (1:1)', oo], ['Diretoria', dir], ['Projeção oficial', pj]]
+    .filter(([, r]) => r.status !== 'fulfilled' || !r.value).map(([n]) => n);
   _ai = null;
   if (_tab === 'diag') render();
 }
@@ -142,7 +146,7 @@ function buildInsights() {
 
   // ── META (ritmo) ──
   const fc = forecast();
-  if (fc && fc.pct_meta != null && fc.pct_meta < 80)
+  if (fc && fc.pct_meta != null && fc.pct_meta < 70)
     add('vendas', fc.pct_meta < 50 ? 'alto' : 'medio', 'Abaixo do ritmo da meta do mês',
       `Projeção de fechamento R$ ${moneyShort(fc.projecao)} vs meta R$ ${moneyShort(fc.meta)} (${pct2(fc.pct_meta)}).`,
       'Acelerar pipeline: priorizar deals quentes e visitas.', '#/diretoria');
@@ -153,14 +157,14 @@ function buildInsights() {
 }
 
 function forecast() {
-  const k = (_d.dir && _d.dir.kpis) || {};
-  const vgvMes = k.atingido_vgv_mes || 0;
-  const meta = k.meta_vgv_mes || 0;
+  // v88.47 (§8): projeção OFICIAL do mês (realizado + maior entre ritmo 180 d e funil calibrado, dias úteis
+  // seg–sáb). Antes: VGV ÷ dia × dias do mês (dias corridos) — uma projeção própria, proibida pelo §8.
+  const PE = _d.pj && _d.pj.empresa;
   const now = new Date();
-  const dia = now.getDate();
-  const diasMes = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  const projecao = dia > 0 ? vgvMes / dia * diasMes : 0;
-  return { vgvMes, meta, projecao, dia, diasMes, pct_meta: meta > 0 ? projecao / meta * 100 : null };
+  const dia = now.getDate(), diasMes = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  if (!PE) return { vgvMes: 0, meta: 0, projecao: null, dia, diasMes, pct_meta: null, indisponivel: true };
+  return { vgvMes: PE.realizado.vgv, meta: PE.meta.vgv, projecao: PE.provavel.vgv, dia, diasMes,
+           pct_meta: PE.provavel.pct_meta };
 }
 
 /* ───────────────────────── RENDER ───────────────────────── */
@@ -253,7 +257,9 @@ function render() {
       <!-- Insights -->
       <h3 class="card-title mt-4" style="margin-top:16px">⚡ Diagnóstico priorizado</h3>
       ${ins.length ? `<div style="display:grid;gap:8px;margin-top:8px">${ins.map(insightCard).join('')}</div>`
-        : '<div style="font-size:13px;color:var(--ok);padding:10px">✅ Nenhum problema crítico detectado no período. Tudo dentro dos parâmetros.</div>'}
+        : (_d.falhas && _d.falhas.length)
+          ? `<div style="font-size:13px;color:var(--warn,#d97706);padding:10px">⚠️ Nenhum problema detectado nas fontes que responderam — mas <b>${_d.falhas.length}</b> não responderam (${escapeHtml(_d.falhas.join(', '))}). Diagnóstico incompleto: recarregue.</div>`
+          : '<div style="font-size:13px;color:var(--ok);padding:10px">✅ Nenhum problema crítico detectado no período. Tudo dentro dos parâmetros.</div>'}
 
       <div class="tiny muted" style="margin-top:12px">Regras determinísticas sobre dado real (Meta + CRM + metas). A IA escreve o plano executivo a partir desses fatos — clique em "Análise executiva da IA".</div>
     </div>`;
@@ -274,10 +280,11 @@ function pillar(title, big, sub, color, rows) {
 }
 
 function forecastPanel(fc) {
+  if (fc.indisponivel) return `<div style="margin-top:14px" class="alert alert-warn tiny">🔮 Projeção oficial do mês indisponível agora — sem ela não há previsão nesta tela.</div>`;
   if (!fc.meta && !fc.vgvMes) return '';
   const col = fc.pct_meta == null ? '#64748b' : fc.pct_meta >= 100 ? '#16a34a' : fc.pct_meta >= 80 ? '#d97706' : '#dc2626';
   return `<div style="margin-top:14px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:14px">
-    <div style="font-weight:800;font-size:13px;margin-bottom:8px">🔮 Projeção do mês (pelo ritmo)</div>
+    <div style="font-weight:800;font-size:13px;margin-bottom:8px">🔮 Projeção oficial do mês <span style="font-weight:400;color:var(--ink-muted)">(ritmo × funil, dias úteis — a mesma da Gestão Comercial)</span></div>
     <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end">
       <div><div style="font-size:11px;color:var(--ink-muted)">Realizado (dia ${fc.dia}/${fc.diasMes})</div><div style="font-size:20px;font-weight:900">R$ ${moneyShort(fc.vgvMes)}</div></div>
       <div style="font-size:20px;color:var(--ink-muted)">→</div>
@@ -321,7 +328,7 @@ async function runAI() {
 Seja direto, sem encher linguiça. Não invente números além dos fatos.
 
 VENDAS GLOBAL: ${g.vendas || 0} vendas, R$ ${money(g.vgv || 0)} VGV, win rate ${g.taxa_conversao ?? '—'}%.
-FORECAST DO MÊS: projeção R$ ${money(fc.projecao)} vs meta R$ ${money(fc.meta)} (${fc.pct_meta ?? '—'}%).
+FORECAST DO MÊS (projeção oficial): ${fc.indisponivel ? 'indisponível' : `R$ ${money(fc.projecao)} vs meta R$ ${money(fc.meta)} (${fc.pct_meta ?? '—'}%)`}.
 
 FATOS/DIAGNÓSTICOS:
 ${fatos || '(nenhum problema crítico detectado)'}`;

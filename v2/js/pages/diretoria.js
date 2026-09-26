@@ -116,7 +116,7 @@ function renderDashboard() {
     <!-- Operação -->
     <div class="flex gap-3" style="flex-wrap:wrap;margin:16px 0 4px">
       ${kpi('👥 Equipe ativa', k.users_ativos || 0, `${k.users_total || 0} cadastrados`, '#0891b2')}
-      ${kpi('📋 Tarefas abertas', k.tarefas_abertas || 0, totalTarefas(k.tarefas), (k.tarefas_abertas || 0) > 0 ? '#d97706' : '#16a34a')}
+      ${kpi('📋 Tarefas abertas', k.tarefas_abertas ?? '—', totalTarefas(k.tarefas), (k.tarefas_abertas || 0) > 0 ? '#d97706' : '#16a34a')}
       ${kpi('📅 Eventos 7d', k.eventos_proxima_semana || 0, 'próximos 7 dias', '#7c3aed')}
       ${kpi('📢 Recados', k.recados_ativos || 0, `${k.recados_criticos || 0} críticos`, k.recados_criticos > 0 ? '#dc2626' : '#16a34a')}
     </div>
