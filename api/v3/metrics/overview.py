@@ -47,7 +47,10 @@ def _cache_key(scope, user):
     return CACHE_BASE + ":self:" + str(user.get("id"))
 
 
-def _cache_read(sb, key):
+MIN_REFRESH = 120   # v88.48: versão nova do dado só invalida a foto com mais de 2 min (ver _metricas_lib)
+
+
+def _cache_read(sb, key, versao=None):
     try:
         rows = sb.table("shared_kv").select("value").eq("key", key).limit(1).execute().data or []
         if not rows:
@@ -61,16 +64,18 @@ def _cache_read(sb, key):
         age = (datetime.now(timezone.utc) - datetime.fromisoformat(ts)).total_seconds()
         if age > CACHE_TTL:
             return None
+        if versao is not None and v.get("versao") != versao and age >= MIN_REFRESH:
+            return None
         data = v.get("data")
         return data if isinstance(data, dict) else None
     except Exception:
         return None
 
 
-def _cache_write(sb, key, data):
+def _cache_write(sb, key, data, versao=None):
     try:
         sb.table("shared_kv").upsert(
-            {"key": key, "value": {"_cached_at": datetime.now(timezone.utc).isoformat(), "data": data},
+            {"key": key, "value": {"_cached_at": datetime.now(timezone.utc).isoformat(), "data": data, "versao": versao},
              "updated_at": datetime.now(timezone.utc).isoformat()},
             on_conflict="key").execute()
     except Exception:
@@ -400,12 +405,16 @@ class handler(BaseHTTPRequestHandler):
         scope = _scope_of(user)
         user_field = {"id": user["id"], "name": user.get("name"), "role": user.get("role"), "team": user.get("team"), "lvl": user.get("lvl")}
         fresh = "fresh=1" in (self.path or "")
-        # v87.86: chave com a VERSÃO do dado (último sync do RD) — mesma foto em todas as telas
-        ckey = _cache_key(scope, user) + "|" + versao_dados(sb)
+        # v87.86: VERSÃO do dado (último sync do RD) — mesma foto em todas as telas.
+        # v88.48: a versão vai DENTRO do valor (não na chave): cada versão criava uma linha nova em
+        # shared_kv, e webhook do RD a cada minuto derrubava o cache. Agora versão nova só força
+        # recálculo se a foto tem > 2 min.
+        versao = versao_dados(sb)
+        ckey = _cache_key(scope, user)
 
         # Cache hit → responde na hora (sobrepondo o 'user' do request atual). v81.74
         if not fresh:
-            cached = _cache_read(sb, ckey)
+            cached = _cache_read(sb, ckey, versao)
             if cached is not None:
                 cached["user"] = user_field
                 cached["cached"] = True
@@ -467,5 +476,5 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             print(f"[metrics/overview] motor de métricas indisponível: {e}")
 
-        _cache_write(sb, ckey, result)   # alimenta o cache p/ as próximas aberturas (90s)
+        _cache_write(sb, ckey, result, versao)   # alimenta o cache p/ as próximas aberturas (90s)
         return self._send(200, result)

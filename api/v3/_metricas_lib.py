@@ -27,6 +27,9 @@ CACHE_KEY = "metricas_resumo:v7"   # v88.37: visita do MAP = maior entre tarefa 
 CACHE_TTL = 600          # segurança: mesmo sem sync novo, recalcula a cada 10 min
 LOCK_TTL = 90            # v88.40: janela da trava de cálculo único (o cálculo leva 5–40 s)
 STALE_MAX = 3600         # v88.40: com cálculo em andamento, serve a foto anterior se tiver < 1 h
+MIN_REFRESH = 120        # v88.48: versão nova do dado (webhook do RD) só força recálculo se a foto tem > 2 min.
+                         # Antes cada negócio atualizado no RD derrubava o cache de TODAS as janelas —
+                         # em horário comercial o motor recalculava sem parar (3,4 mil leituras/dia de 12,5 mil abertos).
 HUB_TTL = 300            # esteira do PSM HUB (externa) — 5 min
 KV_ORIGENS = "dic_origens"   # override editável da tabela de origens (Configurações → Dicionário)
 
@@ -1054,7 +1057,7 @@ def resumo(sb, params=None, fresh=False, hoje=None):
         if isinstance(c, dict) and c.get("data"):
             ts = parse_dt(c.get("_cached_at"))
             age = (datetime.now(timezone.utc) - ts).total_seconds() if ts else 1e9
-            if c.get("versao") == versao and age < CACHE_TTL:
+            if age < CACHE_TTL and (c.get("versao") == versao or age < MIN_REFRESH):
                 out = dict(c["data"])
                 out["cached"] = True
                 out["cache_age_s"] = int(age)

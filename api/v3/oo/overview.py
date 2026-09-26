@@ -55,6 +55,7 @@ def _norte_proj(sb, uid, today):
 # por uma janela curta — o dashboard (date_preset=this_month) vira instantâneo.
 CACHE_BASE = "oo_overview_cache"
 CACHE_TTL = 180  # segundos (3 min)
+MIN_REFRESH = 120  # v88.48: versão nova do dado só invalida a foto com mais de 2 min (ver _metricas_lib)
 
 
 def _cache_key(params, user=None):
@@ -71,7 +72,7 @@ def _cache_key(params, user=None):
     ])
 
 
-def _cache_read(sb, key):
+def _cache_read(sb, key, versao=None):
     try:
         rows = sb.table("shared_kv").select("value").eq("key", key).limit(1).execute().data or []
         if not rows:
@@ -82,7 +83,10 @@ def _cache_read(sb, key):
         ts = v.get("_cached_at") if isinstance(v, dict) else None
         if not ts:
             return None
-        if (datetime.now(timezone.utc) - datetime.fromisoformat(ts)).total_seconds() > CACHE_TTL:
+        age = (datetime.now(timezone.utc) - datetime.fromisoformat(ts)).total_seconds()
+        if age > CACHE_TTL:
+            return None
+        if versao is not None and v.get("versao") != versao and age >= MIN_REFRESH:
             return None
         data = v.get("data")
         return data if isinstance(data, dict) else None
@@ -90,10 +94,10 @@ def _cache_read(sb, key):
         return None
 
 
-def _cache_write(sb, key, data):
+def _cache_write(sb, key, data, versao=None):
     try:
         sb.table("shared_kv").upsert(
-            {"key": key, "value": {"_cached_at": datetime.now(timezone.utc).isoformat(), "data": data},
+            {"key": key, "value": {"_cached_at": datetime.now(timezone.utc).isoformat(), "data": data, "versao": versao},
              "updated_at": datetime.now(timezone.utc).isoformat()},
             on_conflict="key").execute()
     except Exception:
@@ -160,9 +164,11 @@ class handler(BaseHTTPRequestHandler):
         fresh = params.get("fresh") == "1"
         # v87.86: a chave leva a VERSÃO do dado (último sync do RD) — negócio novo invalida
         # o cache de todas as telas ao mesmo tempo ("mesma língua em tempo real").
-        ckey = _cache_key(params, user) + "|" + versao_dados(sb)
+        # v88.48: versão DENTRO do valor (não na chave) — ver metrics/overview
+        versao = versao_dados(sb)
+        ckey = _cache_key(params, user)
         if not fresh:
-            cached = _cache_read(sb, ckey)
+            cached = _cache_read(sb, ckey, versao)
             if cached is not None:
                 cached["cached"] = True
                 return self._send(200, cached)
@@ -354,5 +360,5 @@ class handler(BaseHTTPRequestHandler):
             "meta_accounts": _ma["accounts"], "cpl_periodo": _ma["preset_used"],
             "fetched_at": datetime.now(timezone.utc).isoformat(),
         }
-        _cache_write(sb, ckey, payload)   # alimenta o cache p/ as próximas aberturas (90s)
+        _cache_write(sb, ckey, payload, versao)   # alimenta o cache p/ as próximas aberturas (90s)
         return self._send(200, payload)
