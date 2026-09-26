@@ -5,6 +5,7 @@
    Respeita opt-out. Nada é enviado sem o clique. */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { router } from '../router.js';
 
 let _root = null, _aud = [], _imoveis = [], _status = null, _cfg = {};
 let _sending = false, _stop = false;
@@ -39,6 +40,8 @@ let _segment = 'reativacao';
 
 export async function pageCampanhaWa(ctx, root) {
   _root = root;
+  // v88.56 — trocar de tela PARA o disparo (antes seguia enviando escondido).
+  router.onCleanup(() => { if (_sending) _stop = true; });
   if ((auth.user()?.lvl || 0) < 5) { root.innerHTML = '<div class="alert alert-warn">🔒 Requer Líder (lvl 5+) — ajustável na Central de Permissões.</div>'; return; }
   render(true);
   const [aud, imv, st, cfg] = await Promise.all([
@@ -197,6 +200,8 @@ async function disparar() {
   if (!confirm(`Vai enviar a oferta pra ${alvos.length} cliente(s) parado(s), 1 a cada ${int}s.\n\nPrévia:\n${msgBase.replace(/\{primeiro_nome\}/g, (alvos[0].nome || '').split(' ')[0])}\n\nConfirma o disparo?`)) return;
 
   _sending = true; _stop = false;
+  const avisoSaida = e => { e.preventDefault(); e.returnValue = ''; };
+  window.addEventListener('beforeunload', avisoSaida);
   const btn = document.getElementById('cw-disparar');
   btn.textContent = '⏹ Parar disparo'; btn.classList.remove('btn-primary'); btn.classList.add('btn-ghost');
   let ok = 0, fail = 0, skip = 0;
@@ -213,6 +218,7 @@ async function disparar() {
     if (k < alvos.length - 1 && !_stop) await new Promise(res => setTimeout(res, int * 1000));
   }
   _sending = false;
+  window.removeEventListener('beforeunload', avisoSaida);
   btn.textContent = `▶ Revisar e Disparar (${_aud.length})`; btn.classList.add('btn-primary'); btn.classList.remove('btn-ghost');
   prog.innerHTML = `<b style="color:var(--ok)">✅ Disparo ${_stop ? 'interrompido' : 'concluído'}:</b> ${ok} enviados · ${skip} pulados (opt-out) · ${fail} falhas. As respostas "sim" aparecem em 🔥 Quentes.`;
   try { _status = await api.request('/api/v3/wa/list'); renderQuentes(_status.quentes || []); } catch {}

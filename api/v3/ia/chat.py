@@ -1232,6 +1232,13 @@ class handler(BaseHTTPRequestHandler):
             # fora da rede: nunca publica; só limpa um bloco que o modelo tenha inventado
             result["text"] = _re.sub(r"\[\[REDE\]\].*?\[\[/REDE\]\]", "", result["text"], flags=_re.S).strip() or "(sem resposta)"
 
+        # v88.56: a nota da Sala de Treino é gravada AQUI, pelo servidor, a partir da
+        # resposta do avaliador. Antes o navegador mandava {nota} pro academy_treino e
+        # o corretor podia gravar a nota que quisesse.
+        treino_salvo = None
+        if agent_id == "treino_nota" and sb:
+            treino_salvo = _salvar_treino(sb, user, body, messages, result["text"])
+
         # Audit (sem o texto inteiro; só metadata)
         last_user_msg = next((m["content"] for m in reversed(messages) if m.get("role") == "user"), "")
         audit(self, user, "ia.chat", target_type="ia", target_id=agent_id,
@@ -1246,7 +1253,44 @@ class handler(BaseHTTPRequestHandler):
             "model": result.get("model"),
             "duration_s": dur,
             "rede_pub": rede_pub,   # v87.31: nº de recados publicados na rede nesta resposta
+            "treino_salvo": treino_salvo,
         })
+
+
+def _salvar_treino(sb, user, body, messages, reply):
+    """Grava o treino avaliado em academy_treinos. Nota vem só da resposta do avaliador."""
+    cenario = (body.get("cenario") or "").strip()
+    if cenario not in TREINO_CENARIOS:
+        return None
+    txt = str(reply or "")
+    j = None
+    try:
+        j = json.loads(txt)
+    except Exception:
+        m = _re.search(r"\{[\s\S]*\}", txt)
+        if m:
+            try:
+                j = json.loads(m.group(0))
+            except Exception:
+                j = None
+    nota = None
+    if isinstance(j, dict):
+        try:
+            nota = max(0.0, min(10.0, float(j.get("nota"))))
+        except Exception:
+            nota = None
+    fb = {"raw": txt[:4000]} if not isinstance(j, dict) else {
+        k: j.get(k) for k in ("resumo", "fortes", "melhorar", "trilha")}
+    transcript = next((m.get("content") or "" for m in messages if m.get("role") == "user"), "")
+    msgs = len(_re.findall(r"(?m)^(CORRETOR|CLIENTE): ", str(transcript)))
+    row = {"user_id": user.get("id"), "cenario": cenario[:80], "nota": nota,
+           "feedback": json.dumps(fb, ensure_ascii=False)[:7900], "msgs": msgs}
+    try:
+        r = sb.table("academy_treinos").insert(row).execute()
+        rid = ((r.data or [{}])[0] or {}).get("id")
+        return {"id": rid, "nota": nota}
+    except Exception:
+        return None
 
 
 # Endpoint utilitário pra UI listar agents

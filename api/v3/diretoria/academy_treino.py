@@ -4,7 +4,8 @@ Histórico de treinos de role-play (cenário + nota + feedback do avaliador IA).
 
 GET  (lvl>=2): últimos 30 treinos do usuário logado
      ?user_id=X (lvl>=7): treinos de outro colaborador (gestão acompanha evolução)
-POST (lvl>=2): { cenario, nota, feedback, msgs } → salva o treino concluído
+POST: desativado (v88.56) — o treino é gravado pelo /api/v3/ia/chat (agent=treino_nota),
+     com a nota tirada da resposta do avaliador. O navegador não grava nota.
 """
 from http.server import BaseHTTPRequestHandler
 import json, os, sys, urllib.parse
@@ -61,40 +62,5 @@ class handler(BaseHTTPRequestHandler):
             return self._send(500, {"ok": False, "error": str(e)})
 
     def do_POST(self):
-        try:
-            actor = require_user(self, min_lvl=2)
-        except AuthError as e:
-            return self._send(e.status, {"ok": False, "error": e.message})
-        try:
-            length = int(self.headers.get("Content-Length") or 0)
-            body = json.loads(self.rfile.read(length).decode("utf-8") if length > 0 else "{}")
-        except Exception:
-            return self._send(400, {"ok": False, "error": "JSON inválido"})
-        cenario = (body.get("cenario") or "").strip()[:80]
-        if not cenario:
-            return self._send(400, {"ok": False, "error": "cenario obrigatório"})
-        try:
-            nota = float(body.get("nota"))
-            nota = max(0.0, min(10.0, nota))
-        except Exception:
-            nota = None
-        row = {
-            "user_id": actor.get("id"),
-            "cenario": cenario,
-            "nota": nota,
-            "feedback": (body.get("feedback") or "").strip()[:8000] or None,
-            "msgs": int(body.get("msgs") or 0),
-        }
-        sb = supabase_client()
-        if not sb:
-            return self._send(503, {"ok": False, "error": "backend"})
-        try:
-            r = sb.table("academy_treinos").insert(row).execute()
-        except Exception as e:
-            if _missing(e):
-                return self._send(200, {"ok": False, "pending": True,
-                                        "error": "Tabela academy_treinos ainda não existe"})
-            return self._send(500, {"ok": False, "error": str(e)})
-        audit(self, actor, "academy.treino", target_type="academy_treinos",
-              notes=f"{cenario} nota={nota}")
-        return self._send(200, {"ok": True, "row": (r.data or [row])[0]})
+        # v88.56: antes aceitava {nota} do navegador → nota forjável. Agora só o servidor grava.
+        return self._send(410, {"ok": False, "error": "o treino é gravado pelo avaliador (/api/v3/ia/chat)"})

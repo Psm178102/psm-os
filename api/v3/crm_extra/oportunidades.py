@@ -5,6 +5,7 @@ POST:   upsert (lvl>=5 escrever, qualquer user pode "pegar")
 DELETE: ?id=X (lvl>=5)
 
 POST tem ação especial `action=pegar` — qualquer user assume oportunidade.
+`action=status` (v88.56) — quem pegou marca fechada/perdida; líder muda qualquer status.
 """
 from http.server import BaseHTTPRequestHandler
 import json, os, sys, urllib.parse
@@ -66,6 +67,31 @@ class handler(BaseHTTPRequestHandler):
                 sb.table("oportunidades_psm").update(upd).eq("id", oid).execute()
                 audit(self, actor, "oportunidade.pegar", target_type="oportunidades_psm",
                       target_id=oid, notes=f"pegou: {row.get('titulo','')[:80]}")
+                return self._send(200, {"ok": True})
+            except Exception as e:
+                return self._send(500, {"ok": False, "error": str(e)})
+
+        if action == "status":
+            # v88.56: fechar/perder/reabrir. Quem pegou fecha ou perde a SUA;
+            # líder (lvl>=5) muda qualquer uma, inclusive reabrir.
+            oid = body.get("id")
+            novo = (body.get("status") or "").strip()
+            if not oid or novo not in ("fechada", "perdida", "aberta", "pegou"):
+                return self._send(400, {"ok": False, "error": "id e status (fechada|perdida|aberta|pegou) obrigatórios"})
+            try:
+                row = sb.table("oportunidades_psm").select("id,titulo,status,pegou_por").eq("id", oid).limit(1).execute().data
+                if not row: return self._send(404, {"ok": False, "error": "oportunidade não encontrada"})
+                row = row[0]
+                lider = (actor.get("lvl") or 0) >= 5
+                dono = row.get("pegou_por") and row.get("pegou_por") == actor.get("id")
+                if not lider and not (dono and row.get("status") == "pegou" and novo in ("fechada", "perdida")):
+                    return self._send(403, {"ok": False, "error": "só quem pegou (ou um líder) fecha ou perde a oportunidade"})
+                upd = {"status": novo, "updated_at": datetime.now(timezone.utc).isoformat()}
+                if novo == "aberta":
+                    upd.update({"pegou_por": None, "pegou_em": None})
+                sb.table("oportunidades_psm").update(upd).eq("id", oid).execute()
+                audit(self, actor, "oportunidade.status", target_type="oportunidades_psm",
+                      target_id=oid, notes=f"{row.get('status')}→{novo}: {(row.get('titulo') or '')[:80]}")
                 return self._send(200, {"ok": True})
             except Exception as e:
                 return self._send(500, {"ok": False, "error": str(e)})

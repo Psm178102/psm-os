@@ -168,13 +168,22 @@ def _alertas(sb):
     hoje = _hoje(); hoje_s = hoje.isoformat()
     fin = _financeiro_ids(sb); dirs = _diretoria_ids(sb)
     n = 0
+    # v88.56: o mesmo aviso repetia TODO DIA (1.111 avisos em 30 dias para 67 casos,
+    # até 22x o mesmo) e empilhava 1.3k não lidas. Agora só reenvia a quem já LEU o
+    # anterior — enquanto o aviso segue não lido no sino, não duplica.
+    try:
+        pend = (sb.table("notifications").select("user_id,target_id,title")
+                .eq("tipo", "recebivel").eq("lida", False).limit(5000).execute().data or [])
+        nao_lidas = {(x.get("user_id"), str(x.get("target_id")), x.get("title")) for x in pend}
+    except Exception:
+        nao_lidas = set()
 
     def manda(chave, alvos, titulo, corpo, rid):
         nonlocal n
         k = f"{chave}:{hoje_s}"
         if enviados.get(k):
             return
-        alvos = [a for a in set(alvos) if a]
+        alvos = [a for a in set(alvos) if a and (a, str(rid), titulo) not in nao_lidas]
         if not alvos:
             return
         try:

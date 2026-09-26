@@ -164,6 +164,7 @@ function renderList() {
   const abertas = _items.filter(o => o.status === 'aberta');
   const minhas = _items.filter(o => o.pegou_por === me?.id && o.status !== 'fechada' && o.status !== 'perdida');
   const fechadas = _items.filter(o => o.status === 'fechada' || o.status === 'perdida');
+  const daEquipe = isLider ? _items.filter(o => o.status === 'pegou' && o.pegou_por !== me?.id) : [];
 
   body.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));gap:10px;margin-bottom:14px">
@@ -184,6 +185,13 @@ function renderList() {
       <h3 style="color:var(--azul-claro);font-size:14px;margin:14px 0 10px">📌 Minhas Oportunidades</h3>
       <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:12px;margin-bottom:18px">
         ${minhas.map(o => opCard(o, isLider, false)).join('')}
+      </div>
+    ` : ''}
+
+    ${daEquipe.length > 0 ? `
+      <h3 style="color:#3b82f6;font-size:14px;margin:14px 0 10px">🔵 Em andamento com a equipe</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:12px;margin-bottom:18px">
+        ${daEquipe.map(o => opCard(o, isLider, false)).join('')}
       </div>
     ` : ''}
 
@@ -221,6 +229,8 @@ function opCard(o, isLider, canPegar) {
       ${o.kenlo_link ? `<div class="mt-2"><a href="${esc(o.kenlo_link)}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="text-decoration:none">🔗 Ver anúncio no site PSM</a></div>` : ''}
       <div class="flex gap-2 mt-2">
         ${canPegar ? `<button class="btn btn-primary btn-sm" data-pegar="${o.id}">✋ Pegar</button>` : ''}
+        ${o.status === 'pegou' && (isLider || o.pegou_por === auth.user()?.id) ? `<button class="btn btn-ghost btn-sm" data-st="fechada" data-id="${o.id}">✅ Fechou</button><button class="btn btn-ghost btn-sm" data-st="perdida" data-id="${o.id}">❌ Perdeu</button>` : ''}
+        ${isLider && (o.status === 'fechada' || o.status === 'perdida') ? `<button class="btn btn-ghost btn-sm" data-st="aberta" data-id="${o.id}">↩ Reabrir</button>` : ''}
         ${isLider ? `<button class="btn btn-ghost btn-sm" data-edit="${o.id}">✏️</button><button class="btn btn-ghost btn-sm" data-del="${o.id}">🗑</button>` : ''}
       </div>
     </div>
@@ -232,6 +242,15 @@ function bindList() {
     if (!confirm('Pegar essa oportunidade? Você ficará responsável.')) return;
     try {
       await api.request('/api/v3/crm_extra/oportunidades', { method: 'POST', body: { action: 'pegar', id: b.dataset.pegar } });
+      await load();
+    } catch (e) { alert('Erro: ' + e.message); }
+  }));
+  document.querySelectorAll('[data-st]').forEach(b => b.addEventListener('click', async () => {
+    const st = b.dataset.st;
+    const txt = { fechada: 'Marcar como FECHADA (virou negócio)?', perdida: 'Marcar como PERDIDA?', aberta: 'Reabrir e devolver para o pool?' }[st];
+    if (!confirm(txt)) return;
+    try {
+      await api.request('/api/v3/crm_extra/oportunidades', { method: 'POST', body: { action: 'status', id: b.dataset.id, status: st } });
       await load();
     } catch (e) { alert('Erro: ' + e.message); }
   }));

@@ -873,12 +873,8 @@ async function encerrarTreino() {
   }
   _trAval = aval;
   _trBusy = false;
-  // salva no histórico (não bloqueia a tela)
-  const cen = _trCen;
-  const fb = JSON.stringify({ resumo: aval.resumo, fortes: aval.fortes, melhorar: aval.melhorar, trilha: aval.trilha, raw: aval.raw }).slice(0, 7900);
-  api.request('/api/v3/diretoria/academy_treino', { method: 'POST', body: {
-    cenario: cen, nota: aval.nota, feedback: fb, msgs: _trChat.length,
-  } }).then(() => api.request('/api/v3/diretoria/academy_treino').then(t => { _treinos = (t && t.treinos) || _treinos; })).catch(() => {});
+  // v88.56: o servidor já gravou o treino com a nota do avaliador; só recarrega o histórico
+  api.request('/api/v3/diretoria/academy_treino').then(t => { _treinos = (t && t.treinos) || _treinos; if (_view === 'treino') render(); }).catch(() => {});
   if (_view === 'treino') render();
 }
 

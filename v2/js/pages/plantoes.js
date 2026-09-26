@@ -72,7 +72,7 @@ function render() {
         ${day.map(p => {
           const u = _users.find(x => x.id === p.corretor_id);
           const per = PERIODOS.find(x => x.id === p.periodo) || PERIODOS[2];
-          return `<div style="background:${u?.color || '#64748b'};color:#fff;font-size:10px;padding:2px 4px;border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escapeHtml(u?.name || '?')} - ${per.lbl}">${per.ico} ${escapeHtml((u?.name || '?').split(' ')[0])}</div>`;
+          return `<div ${canEdit ? `data-pid="${escapeHtml(p.id)}"` : ''} style="background:${u?.color || '#64748b'};color:#fff;font-size:10px;padding:2px 4px;border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escapeHtml(u?.name || '?')} - ${per.lbl}">${per.ico} ${escapeHtml((u?.name || '?').split(' ')[0])}</div>`;
         }).join('')}
       </div>
     `);
@@ -81,7 +81,7 @@ function render() {
   _root.innerHTML = `
     <div class="card">
       <h2 class="card-title">🛡 Plantões</h2>
-      <p class="card-sub">Escala de plantão (fim de semana destacado). ${_items.length} no mês.</p>
+      <p class="card-sub">Escala de plantão (fim de semana destacado). ${_items.length} no mês.${canEdit ? ' Clique no dia para criar, no nome para editar ou excluir.' : ''}</p>
 
       <div class="flex gap-2 mt-2" style="align-items:center">
         <button class="btn btn-ghost" id="prev-mes">‹</button>
@@ -121,6 +121,10 @@ function render() {
   document.getElementById('hoje-mes').addEventListener('click', async () => { _mes = new Date(); await reload(); });
   const btnNovo = document.getElementById('btn-novo');
   if (btnNovo) btnNovo.addEventListener('click', () => openModal());
+  // v88.56 — clicar no nome abre o plantão para editar/excluir (antes abria sempre "Novo")
+  document.querySelectorAll('[data-pid]').forEach(el => el.addEventListener('click', ev => {
+    ev.stopPropagation(); openModal(el.dataset.pid);
+  }));
   document.querySelectorAll('[data-day]').forEach(el => el.addEventListener('click', () => {
     const day = parseInt(el.dataset.day);
     const dateIso = `${ano}-${String(mesIdx+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
@@ -129,7 +133,7 @@ function render() {
 }
 
 function openModal(pid, preDate) {
-  const p = pid ? _items.find(x => x.id === pid) : null;
+  const p = pid ? _items.find(x => String(x.id) === String(pid)) : null;
   const modal = document.getElementById('modal-pl');
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:5vh 20px 20px;overflow:auto';
   modal.innerHTML = `
