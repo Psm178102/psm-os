@@ -30,18 +30,18 @@ export async function mountCaixa(host, ym) {
 
 function pan(title, inner, extraStyle) {
   return `<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px;${extraStyle || ''}">
-    <div style="font-weight:800;font-size:13px;margin-bottom:8px">${title}</div>${inner}</div>`;
+    <div style="font-weight:600;font-size:13px;margin-bottom:8px">${title}</div>${inner}</div>`;
 }
 
 function render() {
   const d = _d, f = d.fontes || {}, r = d.realizado || {}, cx = d.caixa || {}, be = d.breakeven || {};
-  const chip = (ok, lbl, tip) => `<span title="${esc(tip || '')}" style="display:inline-block;border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700;border:1px solid ${ok ? '#bbf7d0' : '#fde68a'};background:${ok ? '#f0fdf4' : '#fffbeb'};color:${ok ? '#166534' : '#92400e'}">${ok ? '✓' : '⚠'} ${lbl}</span>`;
+  const chip = (ok, lbl, tip) => `<span title="${esc(tip || '')}" style="display:inline-block;border-radius:var(--radius-full);padding:2px 10px;font-size:11px;font-weight:600;border:1px solid ${ok ? 'var(--border)' : 'var(--border)'};background:${ok ? 'var(--ok-soft)' : 'var(--warn-soft)'};color:${ok ? 'var(--ok)' : 'var(--warn)'}">${ok ? '✓' : '⚠'} ${lbl}</span>`;
   const [anoS, mesS] = _ym.split('-');
   const mesNome = new Date(+anoS, +mesS - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
   _host.innerHTML = `
     <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:10px">
-      <div style="font-weight:900;font-size:15px">💵 Caixa · ${esc(mesNome)}</div>
+      <div style="font-weight:600;font-size:14px">💵 Caixa · ${esc(mesNome)}</div>
       <input type="month" class="input" id="cx-ym" value="${_ym}" style="width:auto;padding:4px 8px;font-size:12px">
       <span style="flex:1"></span>
       ${chip(f.crm !== false, 'CRM (RD)', f.crm !== false ? 'VGV/vendas reais por frente' : 'leitura do CRM falhou — realizado pode estar zerado')}   <!-- v88.47: era verde fixo -->
@@ -81,23 +81,23 @@ function blocoRealizado(r) {
       <td style="text-align:right;font-size:12px">R$ ${kR$(s.receita)}</td>
       <td style="text-align:right;font-size:12px;color:var(--warn-escuro)">R$ ${kR$((s.com_corretor || 0) + (s.com_senior || 0) + (s.com_gerente || 0))}</td>
       <td style="text-align:right;font-size:12px;color:var(--warn-escuro)">R$ ${kR$(s.imposto)}</td>
-      <td style="text-align:right;font-size:12px;font-weight:800;color:${(s.lucro || 0) >= 0 ? '#166534' : '#dc2626'}">R$ ${kR$(s.lucro)}</td>
+      <td style="text-align:right;font-size:12px;font-weight:600;color:${(s.lucro || 0) >= 0 ? 'var(--ok)' : 'var(--err)'}">R$ ${kR$(s.lucro)}</td>
       <td style="text-align:right;font-size:11px;color:var(--ink-muted)">${s.margem != null ? fN(s.margem) + '%' : '—'}</td>
     </tr>`;
   }).join('');
   return pan('📈 Realizado do mês — competência (motor da Viabilidade: CRM + premissas + custos + Meta)', `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:10px;text-align:center">
-      <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:18px;font-weight:900">${fN(c.vendas || 0)}</div><div class="tiny muted">vendas no mês</div></div>
-      <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:18px;font-weight:900">R$ ${kR$(c.vgv)}</div><div class="tiny muted">VGV</div></div>
-      <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:18px;font-weight:900">R$ ${kR$(c.receita)}</div><div class="tiny muted">receita bruta PSM</div></div>
-      <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:18px;font-weight:900;color:${(c.lucro || 0) >= 0 ? '#166534' : '#dc2626'}">R$ ${kR$(c.lucro)}</div><div class="tiny muted">lucro (margem ${c.margem != null ? fN(c.margem) + '%' : '—'})</div></div>
-      ${r.recebido_caixa_mes != null ? `<div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:18px;font-weight:900">R$ ${kR$(r.recebido_caixa_mes)}</div><div class="tiny muted">ENTROU no caixa (radar)</div></div>` : ''}
-      ${r.hub_mes ? `<div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:18px;font-weight:900">R$ ${kR$(r.hub_mes.liquido)}</div><div class="tiny muted">líquido HUB no mês (${fN(r.hub_mes.vendas)} venda/s · com. R$ ${kR$(r.hub_mes.com_corretor + r.hub_mes.com_gestor)})</div></div>` : ''}
+      <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px"><div style="font-size:16px;font-weight:600">${fN(c.vendas || 0)}</div><div class="tiny muted">vendas no mês</div></div>
+      <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px"><div style="font-size:16px;font-weight:600">R$ ${kR$(c.vgv)}</div><div class="tiny muted">VGV</div></div>
+      <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px"><div style="font-size:16px;font-weight:600">R$ ${kR$(c.receita)}</div><div class="tiny muted">receita bruta PSM</div></div>
+      <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px"><div style="font-size:16px;font-weight:600;color:${(c.lucro || 0) >= 0 ? 'var(--ok)' : 'var(--err)'}">R$ ${kR$(c.lucro)}</div><div class="tiny muted">lucro (margem ${c.margem != null ? fN(c.margem) + '%' : '—'})</div></div>
+      ${r.recebido_caixa_mes != null ? `<div style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px"><div style="font-size:16px;font-weight:600">R$ ${kR$(r.recebido_caixa_mes)}</div><div class="tiny muted">ENTROU no caixa (radar)</div></div>` : ''}
+      ${r.hub_mes ? `<div style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px"><div style="font-size:16px;font-weight:600">R$ ${kR$(r.hub_mes.liquido)}</div><div class="tiny muted">líquido HUB no mês (${fN(r.hub_mes.vendas)} venda/s · com. R$ ${kR$(r.hub_mes.com_corretor + r.hub_mes.com_gestor)})</div></div>` : ''}
     </div>
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
       <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Frente</th><th>Vendas</th><th>VGV</th><th>Receita</th><th>Comissões</th><th>Imposto</th><th>Lucro</th><th>Mg</th></tr></thead>
       <tbody>${rows}</tbody></table></div>
-    <div class="tiny muted" style="margin-top:6px">Acumulado ${_ym.slice(0, 4)} (${ac.meses || 0} mês/es): <b>${fN(ac.vendas || 0)} vendas</b> · VGV <b>R$ ${kR$(ac.vgv)}</b> · receita <b>R$ ${kR$(ac.receita)}</b> · lucro <b style="color:${(ac.lucro || 0) >= 0 ? '#166534' : '#dc2626'}">R$ ${kR$(ac.lucro)}</b>. Competência = quando VENDEU; o caixa (embaixo) = quando o dinheiro ENTRA.</div>`);
+    <div class="tiny muted" style="margin-top:6px">Acumulado ${_ym.slice(0, 4)} (${ac.meses || 0} mês/es): <b>${fN(ac.vendas || 0)} vendas</b> · VGV <b>R$ ${kR$(ac.vgv)}</b> · receita <b>R$ ${kR$(ac.receita)}</b> · lucro <b style="color:${(ac.lucro || 0) >= 0 ? 'var(--ok)' : 'var(--err)'}">R$ ${kR$(ac.lucro)}</b>. Competência = quando VENDEU; o caixa (embaixo) = quando o dinheiro ENTRA.</div>`);
 }
 
 /* ── 2) FLUXO DE CAIXA — a receber × a pagar, semana a semana ── */
@@ -111,44 +111,44 @@ function blocoFluxo(cx) {
     const neg = (s.acumulado || 0) < 0;
     return `<div style="flex:1;min-width:64px;text-align:center" title="entra R$ ${brl(s.entra_total)} (conf. R$ ${brl(s.entra_confirmado)} · trav. R$ ${brl(s.entra_travado)}) · sai R$ ${brl(s.sai_total)} (custo orçado + PSM HUB + comissões)">
       <div style="height:70px;display:flex;align-items:flex-end;justify-content:center;gap:3px">
-        <div style="width:16px;background:color-mix(in srgb, var(--ok) 24%, transparent);height:${hE}px;border-radius:3px 3px 0 0;position:relative"><div style="position:absolute;bottom:0;left:0;right:0;height:${hEc}px;background:#16a34a;border-radius:${hEc === hE ? '3px 3px 0 0' : '0'}"></div></div>
-        <div style="width:16px;background:#fca5a5;height:${hS}px;border-radius:3px 3px 0 0"></div>
+        <div style="width:16px;background:color-mix(in srgb, var(--ok) 24%, transparent);height:${hE}px;border-radius:3px 3px 0 0;position:relative"><div style="position:absolute;bottom:0;left:0;right:0;height:${hEc}px;background:var(--ok-soft);border-radius:${hEc === hE ? '3px 3px 0 0' : '0'}"></div></div>
+        <div style="width:16px;background:var(--err-soft);height:${hS}px;border-radius:3px 3px 0 0"></div>
       </div>
-      <div class="tiny" style="font-weight:700;margin-top:2px">${dBR(s.ini)}</div>
-      <div class="tiny" style="font-weight:800;color:${neg ? '#dc2626' : '#166534'}">${neg ? '−' : ''}R$ ${kR$(Math.abs(s.acumulado))}</div>
+      <div class="tiny" style="font-weight:600;margin-top:2px">${dBR(s.ini)}</div>
+      <div class="tiny" style="font-weight:600;color:${neg ? 'var(--err)' : 'var(--ok)'}">${neg ? '−' : ''}R$ ${kR$(Math.abs(s.acumulado))}</div>
     </div>`;
   }).join('');
-  const STB = { confirmado: ['#16a34a', '✅'], previsto: ['#2563eb', '📅'], travado: ['#dc2626', '🔒'] };
+  const STB = { confirmado: ['#16a34a', '✅'], previsto: ['#806d50', '📅'], travado: ['#dc2626', '🔒'] };
   const prox = (cx.proximos || []).slice(0, 12).map(p => {
     const [cor, ico] = STB[p.status] || ['#64748b', '•'];
-    return `<div style="display:flex;gap:8px;align-items:center;border-left:3px solid ${cor};background:var(--bg-3);border-radius:6px;padding:5px 9px">
-      <span class="tiny" style="font-weight:800;white-space:nowrap">${p.data ? dBR(p.data) : '<span style="color:var(--warn)">s/ data</span>'}</span>
+    return `<div style="display:flex;gap:8px;align-items:center;border-left:3px solid ${cor};background:var(--bg-3);border-radius:var(--radius-sm);padding:5px 9px">
+      <span class="tiny" style="font-weight:600;white-space:nowrap">${p.data ? dBR(p.data) : '<span style="color:var(--warn)">s/ data</span>'}</span>
       <span class="tiny" style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ico} ${esc(p.desc || '')}${p.corretor ? ' · ' + esc(p.corretor) : ''}${p.bloqueio && p.bloqueio !== 'nenhum' ? ` <b style="color:var(--err)">⛔ ${esc(p.bloqueio)}</b>` : ''}</span>
-      <span class="tiny" style="font-weight:800;white-space:nowrap">R$ ${kR$(p.valor)}${p.estimado ? '<span class="muted" title="valor estimado pela premissa — preencher no Radar">*</span>' : ''}</span>
+      <span class="tiny" style="font-weight:600;white-space:nowrap">R$ ${kR$(p.valor)}${p.estimado ? '<span class="muted" title="valor estimado pela premissa — preencher no Radar">*</span>' : ''}</span>
     </div>`;
   }).join('');
   const hub = cx.hub || {};
-  const semAgenda = (hub.sem_agenda || []).map(x => `<div class="tiny" style="display:flex;gap:8px;background:color-mix(in srgb, var(--warn) 12%, transparent);border-left:3px solid #d97706;border-radius:6px;padding:4px 9px">
-      <span style="font-weight:700;white-space:nowrap">${dBR(x.venda)}</span>
+  const semAgenda = (hub.sem_agenda || []).map(x => `<div class="tiny" style="display:flex;gap:8px;background:color-mix(in srgb, var(--warn) 12%, transparent);border-left:3px solid var(--warn);border-radius:var(--radius-sm);padding:4px 9px">
+      <span style="font-weight:600;white-space:nowrap">${dBR(x.venda)}</span>
       <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.cliente || '?')} · ${esc(x.produto || '')} · ${esc(x.corretor || '')}</span>
-      <span style="font-weight:800;white-space:nowrap">R$ ${kR$(x.liquido)}</span></div>`).join('');
+      <span style="font-weight:600;white-space:nowrap">R$ ${kR$(x.liquido)}</span></div>`).join('');
   return pan(`📆 Fluxo de caixa · próximas ${sem.length} semanas — Conquista pelo HUB (parcela + comissão EXATA) · demais frentes pelo Radar · a pagar = custo orçado + comissões`, `
     <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:8px">
       <span class="tiny">Ponto de partida: <b>${cx.posicao_inicial != null ? 'R$ ' + brl(cx.posicao_inicial) : 'R$ 0 (fluxo puro)'}</b></span>
       <button class="btn btn-ghost btn-sm" id="cx-setpos">✏️ posição de caixa</button>
-      ${cx.furo ? `<span class="tiny" style="font-weight:800;color:var(--err)">🚨 fura na semana de ${dBR(cx.furo)}</span>` : '<span class="tiny" style="font-weight:700;color:var(--ok-escuro)">✓ não fura no horizonte</span>'}
+      ${cx.furo ? `<span class="tiny" style="font-weight:600;color:var(--err)">🚨 fura na semana de ${dBR(cx.furo)}</span>` : '<span class="tiny" style="font-weight:600;color:var(--ok-escuro)">✓ não fura no horizonte</span>'}
       <span style="flex:1"></span>
       <span class="tiny muted">🟩 entra (escuro = confirmado) · 🟥 sai · nº = acumulado</span>
     </div>
     <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px">${cols}</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin:10px 0;text-align:center">
-      <div style="background:color-mix(in srgb, var(--ok) 12%, transparent);border:1px solid #bbf7d0;border-radius:8px;padding:7px"><div style="font-weight:900">R$ ${kR$(rs.confirmado)}</div><div class="tiny muted">confirmado</div></div>
-      <div style="background:color-mix(in srgb, var(--info) 12%, transparent);border:1px solid #bfdbfe;border-radius:8px;padding:7px"><div style="font-weight:900">R$ ${kR$(rs.previsto)}</div><div class="tiny muted">previsto</div></div>
-      <div style="background:color-mix(in srgb, var(--err) 12%, transparent);border:1px solid #fecaca;border-radius:8px;padding:7px"><div style="font-weight:900">R$ ${kR$(rs.travado)}</div><div class="tiny muted">travado (fora do saldo)</div></div>
-      <div style="background:var(--bg-3);border-radius:8px;padding:7px"><div style="font-weight:900">${rs.sem_data || 0} / ${rs.sem_valor || 0}</div><div class="tiny muted">sem data / sem valor ⚠</div></div>
+      <div style="background:color-mix(in srgb, var(--ok) 12%, transparent);border:1px solid var(--border);border-radius:var(--radius-md);padding:7px"><div style="font-weight:600">R$ ${kR$(rs.confirmado)}</div><div class="tiny muted">confirmado</div></div>
+      <div style="background:color-mix(in srgb, var(--info) 12%, transparent);border:1px solid var(--border);border-radius:var(--radius-md);padding:7px"><div style="font-weight:600">R$ ${kR$(rs.previsto)}</div><div class="tiny muted">previsto</div></div>
+      <div style="background:color-mix(in srgb, var(--err) 12%, transparent);border:1px solid var(--border);border-radius:var(--radius-md);padding:7px"><div style="font-weight:600">R$ ${kR$(rs.travado)}</div><div class="tiny muted">travado (fora do saldo)</div></div>
+      <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:7px"><div style="font-weight:600">${rs.sem_data || 0} / ${rs.sem_valor || 0}</div><div class="tiny muted">sem data / sem valor ⚠</div></div>
     </div>
     <div style="display:grid;gap:4px">${prox || '<div class="tiny muted">Nenhum recebível ativo no Radar.</div>'}</div>
-    ${hub.sem_agenda_n ? `<div style="margin-top:8px;font-weight:800;font-size:12px">⚠ Vendas do HUB SEM data de parcela (R$ fora do fluxo até agendar lá)${hub.sem_agenda_n > (hub.sem_agenda || []).length ? ` — mostrando ${(hub.sem_agenda || []).length} de ${hub.sem_agenda_n}` : ''}</div>
+    ${hub.sem_agenda_n ? `<div style="margin-top:8px;font-weight:600;font-size:12px">⚠ Vendas do HUB SEM data de parcela (R$ fora do fluxo até agendar lá)${hub.sem_agenda_n > (hub.sem_agenda || []).length ? ` — mostrando ${(hub.sem_agenda || []).length} de ${hub.sem_agenda_n}` : ''}</div>
     <div style="display:grid;gap:3px;margin-top:4px">${semAgenda}</div>` : ''}
     <div class="tiny muted" style="margin-top:6px">Saldo NÃO conta o travado (realista). Atrasados caem na 1ª semana. * = valor estimado pela premissa — o exato da Conquista vem do HUB; das demais frentes, preenche no Radar. Parcela HUB vencida há +45d é presumida liquidada.</div>`);
 }
@@ -164,21 +164,21 @@ function blocoBreakeven(be) {
       <td style="text-align:right;font-size:12px">${fN(l.share_pct)}%</td>
       <td style="text-align:right;font-size:12px">R$ ${kR$(l.vgv_min)}</td>
       <td style="text-align:right;font-size:12px">${l.ticket ? 'R$ ' + kR$(l.ticket) : '—'}</td>
-      <td style="text-align:right;font-size:12px;font-weight:800">${l.vendas_min != null ? fN(l.vendas_min) : '—'}</td>
+      <td style="text-align:right;font-size:12px;font-weight:600">${l.vendas_min != null ? fN(l.vendas_min) : '—'}</td>
     </tr>`).join('');
   return pan('🎯 Meta mínima do mês — break-even (custo ÷ margem marginal das premissas)', `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:10px;text-align:center">
-      <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:18px;font-weight:900">R$ ${kR$(be.custo_mes)}</div><div class="tiny muted">custo do mês (orçado + Meta real)</div></div>
-      <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:18px;font-weight:900">${fN(be.margem_ponderada_pct)}%</div><div class="tiny muted">margem marginal ponderada</div></div>
-      <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:18px;font-weight:900">${be.vgv_minimo ? 'R$ ' + kR$(be.vgv_minimo) : '—'}</div><div class="tiny muted">VGV mínimo pra zerar</div></div>
-      <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:18px;font-weight:900">R$ ${kR$(be.gerado_mes)}</div><div class="tiny muted">gerado no mês (receita − com. − imposto)</div></div>
+      <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px"><div style="font-size:16px;font-weight:600">R$ ${kR$(be.custo_mes)}</div><div class="tiny muted">custo do mês (orçado + Meta real)</div></div>
+      <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px"><div style="font-size:16px;font-weight:600">${fN(be.margem_ponderada_pct)}%</div><div class="tiny muted">margem marginal ponderada</div></div>
+      <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px"><div style="font-size:16px;font-weight:600">${be.vgv_minimo ? 'R$ ' + kR$(be.vgv_minimo) : '—'}</div><div class="tiny muted">VGV mínimo pra zerar</div></div>
+      <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px"><div style="font-size:16px;font-weight:600">R$ ${kR$(be.gerado_mes)}</div><div class="tiny muted">gerado no mês (receita − com. − imposto)</div></div>
     </div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-      <div style="flex:1;height:16px;background:var(--bg-3);border-radius:8px;overflow:hidden;position:relative">
-        <div style="height:100%;width:${Math.min(100, pct / 140 * 100)}%;background:${cor};border-radius:8px"></div>
+      <div style="flex:1;height:16px;background:var(--bg-3);border-radius:var(--radius-md);overflow:hidden;position:relative">
+        <div style="height:100%;width:${Math.min(100, pct / 140 * 100)}%;background:${cor};border-radius:var(--radius-md)"></div>
         <div style="position:absolute;left:${100 / 140 * 100}%;top:-2px;bottom:-2px;width:2px;background:var(--ink)" title="break-even (100%)"></div>
       </div>
-      <span class="tiny" style="font-weight:800;color:${cor};white-space:nowrap">${be.cobertura_pct != null ? fN(be.cobertura_pct) + '%' : '—'} · ${lbl}</span>
+      <span class="tiny" style="font-weight:600;color:${cor};white-space:nowrap">${be.cobertura_pct != null ? fN(be.cobertura_pct) + '%' : '—'} · ${lbl}</span>
     </div>
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
       <thead><tr class="tiny muted" style="text-align:right"><th style="text-align:left">Frente</th><th>Margem</th><th>Peso</th><th>VGV mín.</th><th>Ticket</th><th>Vendas mín.</th></tr></thead>

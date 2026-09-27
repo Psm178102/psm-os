@@ -37,7 +37,7 @@ const ORG = [
     ],
   },
   {
-    id: 'imoveis', nome: '🏢 PSM IMÓVEIS', cor: '#0891b2',
+    id: 'imoveis', nome: '🏢 PSM IMÓVEIS', cor: '#806d50',
     sub: 'Alto padrão: MAP (empreendimentos) · Terceiros · Locações',
     niveis: [
       { titulo: 'Gestão', cargos: ['gerente', 'gerente_map', 'gerente_terceiros', 'gerente_locacao'] },
@@ -163,7 +163,7 @@ function avatar(u, size = 34) {
   const p = _perfil[u.id] || {};
   const ini = esc((u.ini || (u.name || '?').slice(0, 2)).toUpperCase());
   if (p.foto) return `<img src="${esc(p.foto)}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex:none" alt="">`;
-  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${u.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:${Math.round(size * 0.36)}px;flex:none">${ini}</div>`;
+  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${u.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:${Math.round(size * 0.36)}px;flex:none">${ini}</div>`;
 }
 
 function render() {
@@ -172,12 +172,12 @@ function render() {
   const myP = _perfil[u.id] || {};
   _root.innerHTML = `
     <style>
-      .og-emp{border:1px solid var(--border);border-top:4px solid var(--c);border-radius:14px;overflow:hidden;background:var(--bg-2)}
-      .og-emp-h{background:linear-gradient(135deg,var(--c),transparent 300%);color:#fff;padding:12px 14px}
-      .og-nivel{padding:4px 12px;font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;font-weight:800;color:var(--c);opacity:.9;border-top:1px dashed var(--border);margin-top:6px}
-      .og-cargo{background:var(--bg-1,#fff);border:1px solid var(--border);border-radius:10px;padding:9px 11px;margin:6px 10px;cursor:pointer;transition:box-shadow .12s,transform .12s}
-      .og-cargo:hover{box-shadow:0 8px 22px rgba(0,0,0,.14);transform:translateY(-1px)}
-      .og-pessoa{display:flex;align-items:center;gap:6px;font-size:11.5px}
+      .og-emp{border:1px solid var(--border);border-top:4px solid var(--c);border-radius:var(--radius-lg);overflow:hidden;background:var(--bg-2)}
+      .og-emp-h{background:var(--surface-2);color:var(--ink);padding:12px 14px}
+      .og-nivel{padding:4px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.6px;font-weight:600;color:var(--c);opacity:.9;border-top:1px dashed var(--border);margin-top:6px}
+      .og-cargo{background:var(--bg-1,#fff);border:1px solid var(--border);border-radius:var(--radius-md);padding:9px 11px;margin:6px 10px;cursor:pointer;transition:box-shadow .12s,transform .12s}
+      .og-cargo:hover{box-shadow:var(--shadow-1);transform:translateY(-1px)}
+      .og-pessoa{display:flex;align-items:center;gap:6px;font-size:11px}
     </style>
     <div class="card">
       <h2 class="card-title">🗂 Funções & Organograma</h2>
@@ -186,7 +186,7 @@ function render() {
 
     <!-- Meu cargo -->
     <div class="card mt-3">
-      <div style="font-weight:800;margin-bottom:8px">👤 Meu perfil & meu cargo</div>
+      <div style="font-weight:600;margin-bottom:8px">👤 Meu perfil & meu cargo</div>
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">
         <div style="text-align:center">
           ${avatar(u, 84)}
@@ -194,7 +194,7 @@ function render() {
           ${myP.foto ? '<div><button class="btn btn-ghost btn-sm" id="cg-foto-rm" style="color:var(--err)">remover</button></div>' : ''}
         </div>
         <div style="flex:1;min-width:220px">
-          <div style="font-weight:700">${esc(u.name || '')} <span class="tiny muted">· ${esc(cargoLbl(u.role))} · nível ${CARGO_LVL[u.role] || u.lvl || '?'}</span></div>
+          <div style="font-weight:600">${esc(u.name || '')} <span class="tiny muted">· ${esc(cargoLbl(u.role))} · nível ${CARGO_LVL[u.role] || u.lvl || '?'}</span></div>
           <label class="tiny muted" style="display:block;margin-top:6px">Sua bio (texto livre)
             <textarea id="cg-bio" class="input" rows="3" placeholder="Conte um pouco sobre você…">${esc(myP.bio || '')}</textarea></label>
           <button class="btn btn-primary btn-sm mt-2" id="cg-bio-save">💾 Salvar perfil</button>
@@ -202,8 +202,8 @@ function render() {
           <span class="tiny muted" id="cg-msg"></span>
         </div>
         ${meuPB.responsabilidades ? `
-        <div style="flex:1;min-width:250px;background:var(--bg-3);border-radius:10px;padding:10px;font-size:12px">
-          <div style="font-weight:800;margin-bottom:4px">🎯 Suas responsabilidades</div>
+        <div style="flex:1;min-width:250px;background:var(--bg-3);border-radius:var(--radius-md);padding:10px;font-size:12px">
+          <div style="font-weight:600;margin-bottom:4px">🎯 Suas responsabilidades</div>
           <div>${nl2br(meuPB.responsabilidades)}</div>
         </div>` : ''}
       </div>
@@ -211,7 +211,7 @@ function render() {
 
     <!-- Organograma societário -->
     <div class="card mt-3">
-      <div style="font-weight:800;margin-bottom:2px">🌳 Organograma PSM</div>
+      <div style="font-weight:600;margin-bottom:2px">🌳 Organograma PSM</div>
       <div class="tiny muted" style="margin-bottom:12px">Estrutura societária: a Holding no topo (sócios + time compartilhado) e as duas operações. Número = pessoas ativas no cargo.</div>
       <div style="max-width:760px;margin:0 auto 14px">${empBloco(ORG[0])}</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px">
@@ -244,8 +244,8 @@ function empBloco(emp) {
   return `
     <div class="og-emp" style="--c:${emp.cor}">
       <div class="og-emp-h">
-        <div style="font-weight:900;font-size:15px">${esc(emp.nome)}</div>
-        <div style="font-size:11.5px;opacity:.9">${esc(emp.sub)}</div>
+        <div style="font-weight:600;font-size:14px">${esc(emp.nome)}</div>
+        <div style="font-size:11px;opacity:.9">${esc(emp.sub)}</div>
       </div>
       ${emp.niveis.map(nv => {
         const cards = nv.cargos.map(cargoMini).filter(Boolean).join('');
@@ -263,8 +263,8 @@ function cargoMini(role) {
   return `
     <div class="og-cargo" data-cargo="${esc(role)}" style="${ppl.length ? '' : 'opacity:.65'}">
       <div class="flex items-center" style="justify-content:space-between;gap:6px">
-        <span style="font-weight:700;font-size:12.5px">${esc(cargoLbl(role))}</span>
-        <span class="tiny" style="background:var(--bg-3);border-radius:99px;padding:1px 8px;font-weight:700">${ppl.length || '—'}</span>
+        <span style="font-weight:600;font-size:13px">${esc(cargoLbl(role))}</span>
+        <span class="tiny" style="background:var(--bg-3);border-radius:var(--radius-full);padding:1px 8px;font-weight:600">${ppl.length || '—'}</span>
       </div>
       ${ppl.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:7px">${ppl.map(p => `<span class="og-pessoa">${avatar(p, 22)}<span>${esc((p.name || '').split(' ')[0])}</span></span>`).join('')}</div>` : ''}
       <div class="tiny muted" style="margin-top:5px">nível ${CARGO_LVL[role] || '?'} · clique pra ver funções, rotina e responsabilidades${pb.custom ? ' · ✏️ personalizado' : ''}</div>
@@ -279,9 +279,9 @@ function openCargoView(role) {
   const ov = document.createElement('div');
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:4vh 14px;overflow:auto';
   const bloco = (ico, titulo, txt) => txt ? `
-    <div style="background:var(--bg-3);border-radius:12px;padding:12px 14px;margin-top:10px">
-      <div style="font-weight:800;font-size:13px;margin-bottom:6px">${ico} ${titulo}</div>
-      <div style="font-size:12.5px;line-height:1.65">${nl2br(txt)}</div>
+    <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:12px 14px;margin-top:10px">
+      <div style="font-weight:600;font-size:13px;margin-bottom:6px">${ico} ${titulo}</div>
+      <div style="font-size:13px;line-height:1.65">${nl2br(txt)}</div>
     </div>` : '';
   ov.innerHTML = `
     <div class="card" style="max-width:680px;width:100%;margin:auto">
@@ -297,7 +297,7 @@ function openCargoView(role) {
       </div>
       ${ppl.length ? `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">${ppl.map(p => {
         const bio = (_perfil[p.id] || {}).bio;
-        return `<span class="og-pessoa" title="${esc(bio || '')}" style="background:var(--bg-3);border-radius:99px;padding:3px 10px 3px 4px">${avatar(p, 24)}<b style="font-size:12px">${esc(p.name || '')}</b></span>`;
+        return `<span class="og-pessoa" title="${esc(bio || '')}" style="background:var(--bg-3);border-radius:var(--radius-full);padding:3px 10px 3px 4px">${avatar(p, 24)}<b style="font-size:12px">${esc(p.name || '')}</b></span>`;
       }).join('')}</div>` : '<div class="tiny muted" style="margin-top:8px">Nenhuma pessoa neste cargo hoje (estrutura-alvo).</div>'}
       ${bloco('📋', 'Funções & Tarefas', [pb.funcoes, pb.tarefas].filter(Boolean).join('\n'))}
       ${bloco('⏰', 'Rotina sugerida (pra cumprir os objetivos do cargo)', pb.rotina)}

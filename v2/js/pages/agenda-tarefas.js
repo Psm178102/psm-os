@@ -455,7 +455,7 @@ function visaoSemana(lista) {
           ${horario(i) ? `<small>${esc(i.hora_inicio)}</small>` : `<small>${icoDe(i)}</small>`}<b>${esc(i.titulo)}</b></div>`).join('')}</div>
     </div>`;
   }).join('')}</div>
-  <div class="at-muted" style="font-size:11.5px;margin-top:8px">Arraste um item pra outro dia pra reagendar · clique no dia pra ver os horários.</div>`;
+  <div class="at-muted" style="font-size:11px;margin-top:8px">Arraste um item pra outro dia pra reagendar · clique no dia pra ver os horários.</div>`;
 }
 
 /* ── MÊS ─────────────────────────────────────────────────────────────── */
@@ -511,7 +511,7 @@ function visaoQuadro(lista) {
       <div class="at-bcol-h">${g.lbl}<em>${g.itens.length}</em></div>
       <div class="at-list">${g.itens.length ? g.itens.map(i => linha(i, { data: !['hoje', 'amanha'].includes(g.id), arrastavel: true })).join('') : '<div class="at-muted" style="font-size:12px;text-align:center;padding:14px 0">—</div>'}</div>
     </div>`).join('')}</div>
-    <div class="at-muted" style="font-size:11.5px;margin-top:6px">Arraste pra Hoje, Amanhã ou Sem data · nas outras colunas você escolhe o dia.</div>`;
+    <div class="at-muted" style="font-size:11px;margin-top:6px">Arraste pra Hoje, Amanhã ou Sem data · nas outras colunas você escolhe o dia.</div>`;
 }
 
 /* ── minicalendário ──────────────────────────────────────────────────── */
@@ -773,7 +773,7 @@ function formConclusao(i, defs) {
   };
   const { el, fechar } = abrirModal({
     titulo: `✓ Concluir — ${i.titulo}`,
-    corpo: `<p class="at-muted" style="margin:0 0 10px;font-size:12.5px">Preencha pra registrar a entrega:</p><div class="at-f">${defs.map(campo).join('')}<div class="c6 at-err" id="cf-err"></div></div>`,
+    corpo: `<p class="at-muted" style="margin:0 0 10px;font-size:13px">Preencha pra registrar a entrega:</p><div class="at-f">${defs.map(campo).join('')}<div class="c6 at-err" id="cf-err"></div></div>`,
     rodape: `<span class="at-sp"></span><button class="btn btn-ghost" data-x>Cancelar</button><button class="btn btn-primary" data-ok>✓ Concluir</button>`,
     largura: 460,
   });
@@ -834,7 +834,7 @@ function menuReagendar(ancora, i, faixa) {
   }
   const pop = abrirPop(ancora, itens);
   const extra = document.createElement('div');
-  extra.innerHTML = `<hr><label style="font-size:11px;font-weight:800;color:var(--ink-muted);padding:4px 6px;display:block">Escolher dia<input type="date" value="${esc(i.data || h)}"></label>`;
+  extra.innerHTML = `<hr><label style="font-size:11px;font-weight:600;color:var(--ink-muted);padding:4px 6px;display:block">Escolher dia<input type="date" value="${esc(i.data || h)}"></label>`;
   pop.appendChild(extra);
   extra.querySelector('input').addEventListener('change', e => { if (e.target.value) { fecharPop(); reagendar(i, e.target.value); } });
 }
@@ -1042,14 +1042,14 @@ function abrirForm({ item, preset = {} } = {}) {
     .filter(u => !corresp.includes(u.id) && u.id !== respAtual()).map(u => `<option value="${esc(u.id)}">${esc(u.name)}</option>`).join('')}`;
   const chipsCo = () => corresp.length
     ? corresp.map(p => `<span class="at-pchip">${esc(nomeU(p))}${podeTudo ? `<button type="button" data-rmco="${esc(p)}" aria-label="Remover">✕</button>` : ''}</span>`).join('')
-    : '<span class="at-muted" style="font-size:11.5px;text-transform:none;letter-spacing:0;font-weight:500">Só o responsável acima. Adicione mais gente se a tarefa for dividida.</span>';
+    : '<span class="at-muted" style="font-size:11px;text-transform:none;letter-spacing:0;font-weight:500">Só o responsável acima. Adicione mais gente se a tarefa for dividida.</span>';
   const catAtual = () => { const c = formEl && formEl.querySelector('#f-cat'); return c ? c.value : (ed ? ed.categoria || '' : ''); };
   const campoCategoria = (sel = catAtual()) => {
     const lista = (S.cats && S.cats.lista) || [];
     const at = sel === '__nova' ? '' : sel;
     const ops = at && !lista.includes(at) ? [at, ...lista] : lista;
     const editor = editCats ? `<div class="c6 at-cated" id="f-cated">
-        <div class="at-muted" style="font-size:11.5px;margin-bottom:6px">Renomear aqui troca o nome em todas as tarefas que já usam a categoria. Remover tira só da lista.</div>
+        <div class="at-muted" style="font-size:11px;margin-bottom:6px">Renomear aqui troca o nome em todas as tarefas que já usam a categoria. Remover tira só da lista.</div>
         ${lista.map((c, k) => `<div class="at-cat-row"><input data-cat-i="${k}" data-orig="${esc(c)}" value="${esc(c)}" maxlength="60" aria-label="Categoria ${esc(c)}"><button type="button" class="at-ib" data-cat-rm="${k}" aria-label="Remover ${esc(c)}" title="Remover da lista">🗑</button></div>`).join('')}
         <div class="at-cat-row"><input id="f-cat-nova" maxlength="60" placeholder="+ Nova categoria"></div>
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px"><button type="button" class="btn btn-ghost" data-cat-x>Cancelar</button><button type="button" class="btn btn-primary" data-cat-ok>Salvar categorias</button></div>
@@ -1085,7 +1085,7 @@ function abrirForm({ item, preset = {} } = {}) {
         <div class="c6"><label>Convidados</label>
           <select id="f-part-add" style="margin-top:4px"><option value="">+ Convidar alguém…</option>${selectableUsers(S.users || []).filter(u => !participantes.includes(u.id)).map(u => `<option value="${esc(u.id)}">${esc(u.name)}</option>`).join('')}</select>
           <div class="at-pchips" id="f-parts">${participantes.map(p => `<span class="at-pchip">${esc(((S.users || []).find(u => u.id === p) || {}).name || p)}<button type="button" data-rm="${esc(p)}" aria-label="Remover">✕</button></span>`).join('')}</div>
-          <div class="at-muted" style="font-size:11.5px;margin-top:4px;text-transform:none;letter-spacing:0;font-weight:500">Cada convidado recebe o convite no sino/celular e decide se entra na agenda dele.</div></div>` : ''}
+          <div class="at-muted" style="font-size:11px;margin-top:4px;text-transform:none;letter-spacing:0;font-weight:500">Cada convidado recebe o convite no sino/celular e decide se entra na agenda dele.</div></div>` : ''}
       ${ed ? `<label class="c3">Status<select id="f-status">${(ehT ? STATUS_TAREFA : STATUS_EVT).map(([k, l]) => `<option value="${k}"${ed.status === k ? ' selected' : ''}>${l}</option>`).join('')}</select></label>` : ''}
       ${ehT ? campoCategoria() : ''}
       ${porItem ? `<label class="c3">Lembrete<select id="f-lembrete">${opLembrete(tipo, ed ? ed.lembrete_min : null)}</select></label>` : ''}
@@ -1412,7 +1412,7 @@ function abrirForecast() {
   const f = (S.resumo && S.resumo.forecast) || {};
   const { el, fechar } = abrirModal({
     titulo: '📣 Forecast do mês',
-    corpo: `<p class="at-muted" style="margin:0 0 10px;font-size:12.5px">Quantas <b>vendas</b> você fecha em ${MES_NOME[deIso(hoje()).getMonth()]}? A acurácia é comparada no Fecho do Mês — declare o que você sustenta na Reunião Semanal.</p>
+    corpo: `<p class="at-muted" style="margin:0 0 10px;font-size:13px">Quantas <b>vendas</b> você fecha em ${MES_NOME[deIso(hoje()).getMonth()]}? A acurácia é comparada no Fecho do Mês — declare o que você sustenta na Reunião Semanal.</p>
       <div class="at-f">
         <label class="c2 keep">Comprometido<input type="number" min="0" step="1" id="fc-c" value="${esc(f.comprometido ?? '')}" placeholder="garantidas"></label>
         <label class="c2 keep">Provável<input type="number" min="0" step="1" id="fc-p" value="${esc(f.provavel ?? '')}" placeholder="prováveis"></label>

@@ -14,7 +14,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': 
 // I=Águia, C=Gato, A=Tubarão, O=Lobo  (×4 = %)
 const LETRA_ANIMAL = { I: 'aguia', C: 'gato', A: 'tubarao', O: 'lobo' };
 const PERFIS = {
-  aguia:   { nome: 'Águia',   emoji: '🦅', cor: '#2563eb', lema: 'Fazer Diferente', resumo: 'Criativa, intuitiva, visionária — foco no futuro, flexível e curiosa.', forte: 'Antecipa o futuro, provoca mudanças, criatividade e visão global.', melhoria: 'Falta de atenção ao aqui e agora; impaciência; defender o novo só por ser novo.', motiva: 'Liberdade de expressão, ausência de controles rígidos, ambiente descentralizado, delegar detalhes.' },
+  aguia:   { nome: 'Águia',   emoji: '🦅', cor: '#806d50', lema: 'Fazer Diferente', resumo: 'Criativa, intuitiva, visionária — foco no futuro, flexível e curiosa.', forte: 'Antecipa o futuro, provoca mudanças, criatividade e visão global.', melhoria: 'Falta de atenção ao aqui e agora; impaciência; defender o novo só por ser novo.', motiva: 'Liberdade de expressão, ausência de controles rígidos, ambiente descentralizado, delegar detalhes.' },
   gato:    { nome: 'Gato',    emoji: '🐱', cor: '#16a34a', lema: 'Fazer Junto',     resumo: 'Sensível, relacional, focada em time, harmonia e contribuição.', forte: 'Mantém comunicação harmoniosa, desenvolve a cultura, une o grupo.', melhoria: 'Esconder conflitos; colocar a felicidade acima dos resultados; manipular pelos sentimentos.', motiva: 'Aceitação social, reconhecimento da equipe, ambiente harmônico, trabalho em grupo.' },
   tubarao: { nome: 'Tubarão', emoji: '🦈', cor: '#dc2626', lema: 'Fazer Rápido',   resumo: 'Senso de urgência, ação, prática — vence desafios, aqui e agora.', forte: 'Faz acontecer, para com a burocracia, iniciativa e foco em resultado.', melhoria: 'Impaciência e rebeldia; não gostar de delegar; competir demais.', motiva: 'Liberdade para agir, controle das próprias atividades, competição individual, variedade de tarefas.' },
   lobo:    { nome: 'Lobo',    emoji: '🐺', cor: '#7c3aed', lema: 'Fazer Certo',     resumo: 'Detalhista, organizado, estrategista — pontual, conservador, previsível.', forte: 'Consistência, conformidade e qualidade; estratégia e profundidade.', melhoria: 'Dificuldade de se adaptar a mudanças; pode travar o progresso; sistematização excessiva.', motiva: 'Regras claras, ausência de riscos/erros, segurança, ver o produto acabado (começo, meio e fim).' },
@@ -77,14 +77,14 @@ function render() {
   _box.innerHTML = `
     <style>
       .dev-sec{margin-top:18px}
-      .dev-h{font-size:15px;font-weight:800;margin:0 0 8px;display:flex;align-items:center;gap:8px}
-      .pf-bar{height:14px;border-radius:7px;background:var(--bg-3);overflow:hidden}
-      .pf-bar > i{display:block;height:100%;border-radius:7px}
+      .dev-h{font-size:14px;font-weight:600;margin:0 0 8px;display:flex;align-items:center;gap:8px}
+      .pf-bar{height:14px;border-radius:var(--radius-sm);background:var(--bg-3);overflow:hidden}
+      .pf-bar > i{display:block;height:100%;border-radius:var(--radius-sm)}
       .pf-grid{display:grid;grid-template-columns:90px 1fr 46px;gap:8px 10px;align-items:center}
       .plan{width:100%;border-collapse:collapse}.plan th,.plan td{border:1px solid var(--bd);padding:4px;vertical-align:top}
       .plan th{font-size:11px;background:var(--bg-3)}.plan textarea{width:100%;border:0;background:transparent;resize:vertical;min-height:42px;font-size:12px;color:inherit;font-family:inherit}
       .ev-row{display:flex;gap:8px;align-items:center;margin-bottom:6px}
-      .dev-card{border:1px solid var(--bd);border-radius:12px;padding:13px 15px;margin-bottom:12px}
+      .dev-card{border:1px solid var(--bd);border-radius:var(--radius-md);padding:13px 15px;margin-bottom:12px}
     </style>
 
     <!-- ===== PERFIL COMPORTAMENTAL ===== -->
@@ -106,14 +106,14 @@ function render() {
     <!-- ===== METAS PESSOAIS ===== -->
     <div class="dev-card dev-sec">
       <h3 class="dev-h">🎯 Metas pessoais <span id="meta-st" class="tiny muted" style="font-weight:400;margin-left:auto"></span></h3>
-      <div class="tiny muted" style="font-weight:700;margin:2px 0 6px">🏁 Metas de RESULTADO</div>
+      <div class="tiny muted" style="font-weight:600;margin:2px 0 6px">🏁 Metas de RESULTADO</div>
       <div class="flex gap-2" style="flex-wrap:wrap">
         <div style="flex:1;min-width:150px"><label class="tiny muted">VGV (meta R$)</label><input id="m-vgv" class="input" type="text" value="${esc(metas.vgv || '')}" placeholder="Ex.: 2.000.000" ${_canEdit ? '' : 'disabled'}></div>
         <div style="flex:1;min-width:150px"><label class="tiny muted">Ganhos / comissões (meta R$)</label><input id="m-ganhos" class="input" type="text" value="${esc(metas.ganhos || '')}" placeholder="Ex.: 60.000" ${_canEdit ? '' : 'disabled'}></div>
       </div>
       <div class="mt-2"><label class="tiny muted">Outras metas de resultado</label><input id="m-result-obs" class="input" value="${esc(metas.resultado_obs || '')}" placeholder="Ex.: 6 vendas/mês, 4 captações/semana…" ${_canEdit ? '' : 'disabled'}></div>
 
-      <div class="tiny muted" style="font-weight:700;margin:12px 0 6px">🌱 Metas de EVOLUÇÃO — conquistas & realizações</div>
+      <div class="tiny muted" style="font-weight:600;margin:12px 0 6px">🌱 Metas de EVOLUÇÃO — conquistas & realizações</div>
       <div id="ev-list">${(metas.evolucao || []).map((e, i) => evRow(e, i)).join('') || '<div class="tiny muted" id="ev-empty">Nenhuma ainda. Adicione conquistas/realizações que você busca.</div>'}</div>
       ${_canEdit ? `<button class="btn btn-ghost btn-sm mt-1" id="ev-add">➕ Adicionar conquista/realização</button>
         <div class="mt-2"><button class="btn btn-primary btn-sm" id="meta-save">💾 Salvar metas</button></div>` : ''}
@@ -128,7 +128,7 @@ function render() {
       <label class="tiny muted" style="margin-top:8px;display:block">Texto da análise (cole aqui o conteúdo do laudo/relatório)</label>
       <textarea id="pdf-texto" class="input" rows="4" placeholder="Cole o texto da análise comportamental para a IA interpretar…" ${_canEdit ? '' : 'disabled'}>${esc(pdf.texto || '')}</textarea>
       ${_canEdit ? `<div class="flex gap-2 mt-2"><button class="btn btn-primary btn-sm" id="pdf-save">💾 Salvar</button><button class="btn btn-ghost btn-sm" id="pdf-ia">🤖 Interpretar com IA</button></div>` : ''}
-      ${pdf.interpretacao ? `<div class="mt-2" style="background:var(--bg-3);border-radius:10px;padding:11px 13px"><div class="tiny muted" style="font-weight:700;margin-bottom:4px">🤖 Interpretação da IA</div><div class="tiny" style="white-space:pre-wrap">${esc(pdf.interpretacao)}</div></div>` : ''}
+      ${pdf.interpretacao ? `<div class="mt-2" style="background:var(--bg-3);border-radius:var(--radius-md);padding:11px 13px"><div class="tiny muted" style="font-weight:600;margin-bottom:4px">🤖 Interpretação da IA</div><div class="tiny" style="white-space:pre-wrap">${esc(pdf.interpretacao)}</div></div>` : ''}
     </div>`;
   wire();
   // Corretor PSM Conquista: sem Planner Semanal nem Análise Comportamental (PDF). v81.61
@@ -140,15 +140,15 @@ function resultadoHTML(comp) {
   const ordem = ['aguia', 'gato', 'tubarao', 'lobo'].sort((a, b) => (pct[b] || 0) - (pct[a] || 0));
   const dom = PERFIS[comp.dominante] || PERFIS[ordem[0]];
   return `
-    <div style="background:${dom.cor}14;border:1px solid ${dom.cor}55;border-radius:10px;padding:11px 13px;margin-bottom:10px">
-      <div style="font-size:15px;font-weight:800;color:${dom.cor}">${dom.emoji} Perfil dominante: ${dom.nome} <span class="tiny" style="opacity:.7">— "${dom.lema}"</span></div>
+    <div style="background:${dom.cor}14;border:1px solid ${dom.cor}55;border-radius:var(--radius-md);padding:11px 13px;margin-bottom:10px">
+      <div style="font-size:14px;font-weight:600;color:${dom.cor}">${dom.emoji} Perfil dominante: ${dom.nome} <span class="tiny" style="opacity:.7">— "${dom.lema}"</span></div>
       <div class="tiny" style="margin-top:3px">${esc(dom.resumo)}</div>
       <div class="tiny" style="margin-top:5px"><b>💪 Forças:</b> ${esc(dom.forte)}</div>
       <div class="tiny" style="margin-top:3px"><b>🎯 A desenvolver:</b> ${esc(dom.melhoria)}</div>
       <div class="tiny" style="margin-top:3px"><b>🔋 Motiva:</b> ${esc(dom.motiva)}</div>
     </div>
     <div class="pf-grid">
-      ${ordem.map(k => { const p = pct[k] || 0; return `<div style="font-weight:700">${PERFIS[k].emoji} ${PERFIS[k].nome}</div><div class="pf-bar"><i style="width:${p}%;background:${PERFIS[k].cor}"></i></div><div style="text-align:right;font-weight:800;color:${PERFIS[k].cor}">${p}%</div>`; }).join('')}
+      ${ordem.map(k => { const p = pct[k] || 0; return `<div style="font-weight:600">${PERFIS[k].emoji} ${PERFIS[k].nome}</div><div class="pf-bar"><i style="width:${p}%;background:${PERFIS[k].cor}"></i></div><div style="text-align:right;font-weight:600;color:${PERFIS[k].cor}">${p}%</div>`; }).join('')}
     </div>`;
 }
 
@@ -221,16 +221,16 @@ function abrirTeste() {
   const ov = document.createElement('div');
   ov.id = 'pf-ov';
   ov.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(15,23,42,.7);backdrop-filter:blur(2px);display:flex;align-items:flex-start;justify-content:center;padding:24px 14px;overflow:auto';
-  ov.innerHTML = `<div style="width:680px;max-width:96vw;background:var(--bg-2,#fff);color:var(--ink,#0f172a);border:1px solid var(--bd);border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.4)">
+  ov.innerHTML = `<div style="width:680px;max-width:96vw;background:var(--bg-2,#fff);color:var(--ink,#0f172a);border:1px solid var(--bd);border-radius:var(--radius-lg);box-shadow:var(--shadow-1)">
     <div style="position:sticky;top:0;background:inherit;padding:14px 18px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;gap:10px;border-radius:14px 14px 0 0">
-      <b style="font-size:15px">🧭 Avaliação de Perfil Comportamental</b>
+      <b style="font-size:14px">🧭 Avaliação de Perfil Comportamental</b>
       <button id="pf-x" class="btn btn-ghost btn-sm">✕</button>
     </div>
     <div style="padding:14px 18px">
-      <div class="tiny muted" style="margin-bottom:10px">Escolha <b>uma</b> alternativa por questão. São 25 — o resultado é calculado e salvo automaticamente. <span id="pf-prog" style="font-weight:700"></span></div>
+      <div class="tiny muted" style="margin-bottom:10px">Escolha <b>uma</b> alternativa por questão. São 25 — o resultado é calculado e salvo automaticamente. <span id="pf-prog" style="font-weight:600"></span></div>
       <div id="pf-qs">${QUESTOES.map((q, qi) => `
         <div class="dev-card" data-q="${qi}" style="padding:11px 13px;margin-bottom:9px">
-          <div style="font-weight:700;font-size:13.5px;margin-bottom:6px">${qi + 1}. ${esc(q[0])}</div>
+          <div style="font-weight:600;font-size:13px;margin-bottom:6px">${qi + 1}. ${esc(q[0])}</div>
           ${q[1].map((o, oi) => `<label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;padding:4px 0;cursor:pointer">
             <input type="radio" name="q${qi}" value="${o[0]}" style="margin-top:3px"> <span>${esc(o[1])}</span></label>`).join('')}
         </div>`).join('')}</div>

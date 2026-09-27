@@ -16,7 +16,7 @@ const fmtK = n => (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigi
 
 const QUAD = {
   maquina:             ['🟢 Máquina', '#16a34a', 'Alta atividade, alto rendimento — dar MAIS lead: é o melhor ROI da casa.'],
-  talento_ocioso:      ['🔵 Talento ocioso', '#2563eb', 'Converte bem e trabalha pouco — cobrar VOLUME: o upside mais barato.'],
+  talento_ocioso:      ['🔵 Talento ocioso', '#806d50', 'Converte bem e trabalha pouco — cobrar VOLUME: o upside mais barato.'],
   esforco_sem_tecnica: ['🟡 Esforço sem técnica', '#d97706', 'Trabalha muito e converte pouco — role-play, campo com o gestor, revisar script.'],
   escada:              ['🔴 Escada', '#dc2626', 'Atividade e rendimento baixos — degrau 1 da escada de consequência, no 1:1.'],
 };
@@ -44,8 +44,8 @@ function render() {
   const linha = c => {
     const q = QUAD[c.quadrante];
     return `<tr>
-      <td style="font-weight:700;white-space:nowrap">${esc(c.corretor)}<div class="tiny muted">${esc(c.funil)}</div></td>
-      <td>${q ? `<span title="${esc(q[2])}" style="color:${q[1]};font-weight:800;white-space:nowrap">${q[0]}</span>`
+      <td style="font-weight:600;white-space:nowrap">${esc(c.corretor)}<div class="tiny muted">${esc(c.funil)}</div></td>
+      <td>${q ? `<span title="${esc(q[2])}" style="color:${q[1]};font-weight:600;white-space:nowrap">${q[0]}</span>`
              : (c.sem_registro_producao
                 ? `<span class="tiny muted" title="Este corretor ainda não registrou nenhum toque/visita. Sem esse dado o quadrante não opina — não é 'baixa atividade', é falta de registro.">— sem registro</span>`
                 : `<span class="tiny muted" title="Amostra < 30 leads — mês 1 é baseline">— baseline</span>`)}</td>

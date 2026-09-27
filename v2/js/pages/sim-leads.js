@@ -56,24 +56,24 @@ function render() {
       <p class="card-sub">Custo por lead, CAC, conversão de funil e ROI do investimento em marketing</p>
 
       <div class="ld-grid" style="display:grid;grid-template-columns:300px minmax(0,1fr);gap:14px;margin-top:12px;align-items:start">
-        <div style="background:var(--bg-3);border-radius:10px;padding:14px">
-          <div class="tiny muted" style="text-transform:uppercase;font-weight:800;margin-bottom:6px">Investimento Mensal</div>
+        <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:14px">
+          <div class="tiny muted" style="text-transform:uppercase;font-weight:600;margin-bottom:6px">Investimento Mensal</div>
           ${inp('Meta Ads (R$)', 'metaAds')}
           ${inp('Google Ads (R$)', 'googleAds')}
           ${inp('Outros (R$)', 'instagramOrg')}
 
-          <div class="tiny muted" style="text-transform:uppercase;font-weight:800;margin:14px 0 6px">Métricas de Mídia</div>
+          <div class="tiny muted" style="text-transform:uppercase;font-weight:600;margin:14px 0 6px">Métricas de Mídia</div>
           ${inp('CPC Médio (R$)', 'cpc')}
           ${inp('CTR (%)', 'ctr', '%')}
           ${inp('Conv. Landing (%)', 'cvrLP', '%')}
 
-          <div class="tiny muted" style="text-transform:uppercase;font-weight:800;margin:14px 0 6px">Taxas de Funil</div>
+          <div class="tiny muted" style="text-transform:uppercase;font-weight:600;margin:14px 0 6px">Taxas de Funil</div>
           ${inp('Qualificação (%)', 'taxaQualif', '%')}
           ${inp('Lead → Visita (%)', 'taxaVisita', '%')}
           ${inp('Visita → Proposta (%)', 'taxaProposta', '%')}
           ${inp('Fechamento (%)', 'taxaFech', '%')}
 
-          <div class="tiny muted" style="text-transform:uppercase;font-weight:800;margin:14px 0 6px">Vendas</div>
+          <div class="tiny muted" style="text-transform:uppercase;font-weight:600;margin:14px 0 6px">Vendas</div>
           ${inp('Ticket Médio (R$)', 'ticketMedio')}
           ${inp('Comissão (%)', 'comissaoPct', '%')}
         </div>
@@ -82,16 +82,16 @@ function render() {
           <div id="ld-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px"></div>
 
           <div class="card" style="padding:14px;margin-bottom:14px">
-            <div style="font-weight:800;margin-bottom:10px">🔻 Funil de Conversão</div>
+            <div style="font-weight:600;margin-bottom:10px">🔻 Funil de Conversão</div>
             <div id="ld-funil" style="display:flex;flex-direction:column;gap:6px"></div>
           </div>
 
           <div class="card" style="padding:14px">
-            <div style="font-weight:800;margin-bottom:10px">💰 Análise Financeira</div>
+            <div style="font-weight:600;margin-bottom:10px">💰 Análise Financeira</div>
             <div id="ld-fin" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px"></div>
           </div>
 
-          <div class="alert" style="background:rgba(99,102,241,.1);color:var(--violeta);border:1px solid rgba(99,102,241,.3);margin-top:14px;padding:12px;border-radius:8px">
+          <div class="alert" style="background:var(--accent-soft);color:var(--violeta);border:1px solid var(--accent-ink);margin-top:14px;padding:12px;border-radius:var(--radius-md)">
             <b>💡 Benchmark:</b> CAC saudável no imobiliário ≤ 30% da comissão. LTV/CAC ≥ 3x = operação sustentável. ROI > 200% no marketing digital de luxo, > 400% no MCMV.
           </div>
 
@@ -111,12 +111,12 @@ function pintaSaida() {
   const c = compute();
   const set = (sel, html) => { const el = _root.querySelector(sel); if (el) el.innerHTML = html; };
   set('#ld-kpis', kpi('Investimento', fmt(c.invTotal), 'var(--psm-navy)', '#fff')
-    + kpi('CPL', fmt(c.cpl), '#3b82f6')
+    + kpi('CPL', fmt(c.cpl), '#806d50')
     + kpi('CAC', fmt(c.cac), '#f59e0b')
     + kpi('ROI', dec(c.roi, 1) + '%', c.roi >= 0 ? '#22c55e' : '#ef4444'));
   set('#ld-funil',
-    (c.impressoes > 0 ? funnelStep('👀 Impressões', int(c.impressoes), 100, '#0ea5e9') : '')
-    + funnelStep('💸 Cliques', int(c.cliques), c.impressoes > 0 ? pct(c.cliques, c.impressoes) : 100, '#3b82f6')
+    (c.impressoes > 0 ? funnelStep('👀 Impressões', int(c.impressoes), 100, '#806d50') : '')
+    + funnelStep('💸 Cliques', int(c.cliques), c.impressoes > 0 ? pct(c.cliques, c.impressoes) : 100, '#806d50')
     + funnelStep('🎯 Leads', int(c.leads), pct(c.leads, c.cliques), '#6366f1')
     + funnelStep('✅ Qualificados', int(c.qualificados), pct(c.qualificados, c.leads), '#8b5cf6')
     + funnelStep('🚪 Visitas', int(c.visitas), pct(c.visitas, c.qualificados), '#a855f7')
@@ -137,10 +137,10 @@ function dec(n, casas) { return (Number(n) || 0).toLocaleString('pt-BR', { minim
 function funnelStep(label, value, p, color) {
   const width = Math.max(20, Math.min(100, parseFloat(String(p).replace(/\./g, '').replace(',', '.'))));
   return `
-    <div style="background:var(--bg-3);border-radius:6px;overflow:hidden;position:relative">
+    <div style="background:var(--bg-3);border-radius:var(--radius-sm);overflow:hidden;position:relative">
       <div style="background:${color}33;width:${width}%;height:100%;position:absolute;left:0;top:0"></div>
       <div style="position:relative;padding:8px 12px;display:flex;justify-content:space-between;align-items:center">
-        <span style="font-weight:700">${label}</span>
+        <span style="font-weight:600">${label}</span>
         <span><b style="color:${color}">${value}</b> <span class="tiny muted">(${p}%)</span></span>
       </div>
     </div>
@@ -156,15 +156,15 @@ function bind() {
 }
 
 function inp(label, key, suffix) {
-  return `<div style="margin-bottom:6px"><label class="tiny muted" style="font-weight:600;display:block;margin-bottom:2px">${label}</label><div class="flex gap-1">${/R\$/.test(label) ? '<span class="tiny muted" style="align-self:center;font-weight:700">R$</span>' : ''}<input ${ATTR_NUM} class="input" data-key="${key}" value="${numCampo(_s[key])}" style="flex:1;min-width:0;font-size:12px;padding:6px 8px">${suffix ? `<span class="tiny muted" style="align-self:center">${suffix}</span>` : ''}</div></div>`;
+  return `<div style="margin-bottom:6px"><label class="tiny muted" style="font-weight:600;display:block;margin-bottom:2px">${label}</label><div class="flex gap-1">${/R\$/.test(label) ? '<span class="tiny muted" style="align-self:center;font-weight:600">R$</span>' : ''}<input ${ATTR_NUM} class="input" data-key="${key}" value="${numCampo(_s[key])}" style="flex:1;min-width:0;font-size:12px;padding:6px 8px">${suffix ? `<span class="tiny muted" style="align-self:center">${suffix}</span>` : ''}</div></div>`;
 }
 
 function kpi(label, value, bg, color) {
-  return `<div style="background:${bg};color:${color || '#fff'};padding:14px;border-radius:8px;text-align:center"><div style="font-size:9px;text-transform:uppercase;opacity:.8;font-weight:700">${label}</div><div style="font-size:18px;font-weight:800;margin-top:4px">${value}</div></div>`;
+  return `<div style="background:${bg};color:${color || '#fff'};padding:14px;border-radius:var(--radius-md);text-align:center"><div style="font-size:11px;text-transform:uppercase;opacity:.8;font-weight:600">${label}</div><div style="font-size:16px;font-weight:600;margin-top:4px">${value}</div></div>`;
 }
 
 function mini(label, value, color) {
-  return `<div style="background:var(--bg-3);padding:10px;border-radius:8px"><div class="tiny muted">${label}</div><div style="font-weight:800;font-size:14px;color:${color || 'var(--tx)'}">${value}</div></div>`;
+  return `<div style="background:var(--bg-3);padding:10px;border-radius:var(--radius-md)"><div class="tiny muted">${label}</div><div style="font-weight:600;font-size:14px;color:${color || 'var(--tx)'}">${value}</div></div>`;
 }
 
 function fmt(n) { return 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }

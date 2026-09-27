@@ -65,18 +65,18 @@ export async function pageQualidade(ctx, root) {
 
 function render(issues, counts) {
   issues.sort((a, b) => a.sev - b.sev || a.area.localeCompare(b.area, 'pt-BR'));
-  const sevLbl = { 1: { t: '🔴 Alta', c: '#dc2626', bg: '#fee2e2' }, 2: { t: '🟡 Média', c: '#b45309', bg: '#fef3c7' }, 3: { t: '🔵 Baixa', c: '#1d4ed8', bg: '#dbeafe' } };
+  const sevLbl = { 1: { t: '🔴 Alta', c: '#dc2626', bg: '#fee2e2' }, 2: { t: '🟡 Média', c: '#b45309', bg: '#fef3c7' }, 3: { t: '🔵 Baixa', c: '#806d50', bg: '#dbeafe' } };
   const n1 = issues.filter(i => i.sev === 1).length, n2 = issues.filter(i => i.sev === 2).length, n3 = issues.filter(i => i.sev === 3).length;
   const total = counts.I + counts.S + counts.L + counts.C + counts.V;
 
   _root.innerHTML = `
     <style>
       .q-stat{display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 6px}
-      .q-stat .s{flex:1;min-width:120px;border:1px solid var(--bd);border-radius:10px;padding:9px 12px;text-align:center}
-      .q-stat .n{font-size:22px;font-weight:800;line-height:1}.q-stat .l{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-top:3px;color:var(--ink-muted,#64748b)}
-      .q-row{display:flex;align-items:center;gap:10px;border:1px solid var(--bd);border-left:4px solid var(--c);border-radius:10px;padding:9px 13px;margin-bottom:7px}
-      .q-row .b{flex:1;min-width:0}.q-row .t{font-size:13.5px;font-weight:700}.q-row .d{font-size:12px;color:var(--ink-muted,#64748b)}
-      .q-tag{font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px}
+      .q-stat .s{flex:1;min-width:120px;border:1px solid var(--bd);border-radius:var(--radius-md);padding:9px 12px;text-align:center}
+      .q-stat .n{font-size:20px;font-weight:600;line-height:1}.q-stat .l{font-size:11px;text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-top:3px;color:var(--ink-muted,#64748b)}
+      .q-row{display:flex;align-items:center;gap:10px;border:1px solid var(--bd);border-left:4px solid var(--c);border-radius:var(--radius-md);padding:9px 13px;margin-bottom:7px}
+      .q-row .b{flex:1;min-width:0}.q-row .t{font-size:13px;font-weight:600}.q-row .d{font-size:12px;color:var(--ink-muted,#64748b)}
+      .q-tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-lg)}
     </style>
     <div class="card">
       <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:10px">
@@ -85,14 +85,14 @@ function render(issues, counts) {
         <button class="btn btn-ghost btn-sm" id="q-reload">🔄 Re-escanear</button>
       </div>
       <div class="q-stat">
-        <div class="s" style="${n1 ? 'border-color:#fca5a5;background:color-mix(in srgb, var(--err) 12%, transparent)' : ''}"><div class="n" style="color:var(--err)">${n1}</div><div class="l">🔴 Alta</div></div>
+        <div class="s" style="${n1 ? 'border-color:var(--err);background:color-mix(in srgb, var(--err) 12%, transparent)' : ''}"><div class="n" style="color:var(--err)">${n1}</div><div class="l">🔴 Alta</div></div>
         <div class="s" style="${n2 ? 'border-color:#fdba74;background:color-mix(in srgb, var(--warn) 12%, transparent)' : ''}"><div class="n" style="color:var(--warn-escuro)">${n2}</div><div class="l">🟡 Média</div></div>
         <div class="s"><div class="n" style="color:var(--azul-medio)">${n3}</div><div class="l">🔵 Baixa</div></div>
         <div class="s"><div class="n" style="color:var(--ok)">${total}</div><div class="l">Registros</div></div>
       </div>
-      ${!issues.length ? `<div class="card mt-2" style="text-align:center;padding:30px;background:var(--bg-3)"><div style="font-size:30px">✨</div><div class="muted tiny" style="margin-top:6px">Tudo limpo! Nenhum problema encontrado nos cadastros.</div></div>`
+      ${!issues.length ? `<div class="card mt-2" style="text-align:center;padding:30px;background:var(--bg-3)"><div style="font-size:26px">✨</div><div class="muted tiny" style="margin-top:6px">Tudo limpo! Nenhum problema encontrado nos cadastros.</div></div>`
         : issues.map(i => { const sv = sevLbl[i.sev]; return `<div class="q-row" style="--c:${sv.c}">
-            <span style="font-size:17px">${i.ico}</span>
+            <span style="font-size:16px">${i.ico}</span>
             <div class="b"><div class="t">${esc(i.titulo)}</div><div class="d">${esc(i.det)}</div></div>
             <span class="q-tag" style="background:${sv.bg};color:${sv.c}">${i.area}</span>
             <a class="btn btn-ghost btn-sm" href="${i.hash}">corrigir →</a>

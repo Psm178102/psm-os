@@ -42,7 +42,7 @@ function render() {
       <div class="flex gap-3 mt-3" style="flex-wrap:wrap">
         ${kpi('🟢 Disponíveis', _kpis.disponiveis || 0, '', '#16a34a')}
         ${kpi('💰 Valor estoque', 'R$ ' + money(_kpis.valor_total), 'soma disponíveis', '#7c3aed')}
-        ${kpi('🏠 Próprios', _kpis.proprios || 0, 'do PSM', '#2563eb')}
+        ${kpi('🏠 Próprios', _kpis.proprios || 0, 'do PSM', '#806d50')}
         ${kpi('🤝 Terceiros', _kpis.terceiros || 0, 'Kenlo/outros', '#d97706')}
       </div>
 
@@ -81,11 +81,11 @@ function itemCard(i) {
     <div data-im="${i.id}" style="background:var(--bg-3);border-left:4px solid ${st.color};border-radius:var(--r-md);padding:12px 16px;cursor:pointer">
       <div class="flex items-center gap-2" style="margin-bottom:6px">
         <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:14px">${escapeHtml(i.endereco)}${i.codigo ? ` <span class="tiny muted">#${escapeHtml(i.codigo)}</span>` : ''}</div>
+          <div style="font-weight:600;font-size:14px">${escapeHtml(i.endereco)}${i.codigo ? ` <span class="tiny muted">#${escapeHtml(i.codigo)}</span>` : ''}</div>
           <div class="tiny muted">${escapeHtml(i.tipo || '')} · ${escapeHtml(i.bairro || '')}${i.cidade ? ' · ' + escapeHtml(i.cidade) : ''}</div>
         </div>
-        ${i.fonte === 'captacao' ? `<span class="tiny" title="Veio do kanban de Captações (etapa: ${escapeHtml(i.etapa_captacao || '')})" style="background:#0891b2;color:#fff;padding:3px 10px;border-radius:var(--r-full);font-weight:700">📥 Captação</span>` : ''}
-        <span class="tiny" style="background:${st.color};color:#fff;padding:3px 10px;border-radius:var(--r-full);font-weight:700">${st.lbl}</span>
+        ${i.fonte === 'captacao' ? `<span class="tiny" title="Veio do kanban de Captações (etapa: ${escapeHtml(i.etapa_captacao || '')})" style="background:var(--accent-soft);color:var(--accent-ink);padding:3px 10px;border-radius:var(--r-full);font-weight:600">📥 Captação</span>` : ''}
+        <span class="tiny" style="background:${st.color};color:#fff;padding:3px 10px;border-radius:var(--r-full);font-weight:600">${st.lbl}</span>
       </div>
       <div class="flex gap-3" style="flex-wrap:wrap;font-size:12px">
         <div>💰 <b>R$ ${money(i.valor)}</b></div>
@@ -153,7 +153,7 @@ function openModal(iid) {
 }
 
 function kpi(label, big, sub, color) {
-  return `<div style="flex:1;min-width:180px;background:var(--bg-3);border-radius:var(--r-md);padding:14px 16px;border-left:4px solid ${color}"><div class="tiny muted" style="letter-spacing:1px;text-transform:uppercase;font-weight:700">${label}</div><div style="font-size:20px;font-weight:900;color:${color};margin-top:2px">${big}</div><div class="tiny muted">${sub||''}</div></div>`;
+  return `<div style="flex:1;min-width:180px;background:var(--bg-3);border-radius:var(--r-md);padding:14px 16px;border-left:4px solid ${color}"><div class="tiny muted" style="letter-spacing:1px;text-transform:uppercase;font-weight:600">${label}</div><div style="font-size:20px;font-weight:600;color:${color};margin-top:2px">${big}</div><div class="tiny muted">${sub||''}</div></div>`;
 }
 function money(n) { return n == null || isNaN(n) ? '0' : Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function escapeHtml(s) {

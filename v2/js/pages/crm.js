@@ -52,7 +52,7 @@ function funnelTab(f) {
   const active = _selectedFunnel === id;
   const label = f.name || '—';
   return `
-    <button data-funnel="${escapeHtml(id)}" class="btn" style="border-radius:var(--r-sm) var(--r-sm) 0 0;background:${active ? 'var(--psm-navy)' : 'transparent'};color:${active ? '#fff' : 'var(--ink-muted)'};border-bottom:none;font-weight:700">
+    <button data-funnel="${escapeHtml(id)}" class="btn" style="border-radius:var(--r-sm) var(--r-sm) 0 0;background:${active ? 'var(--psm-navy)' : 'transparent'};color:${active ? '#fff' : 'var(--ink-muted)'};border-bottom:none;font-weight:600">
       ${escapeHtml(label)}${f.excluded ? ' <span class="tiny">⊘</span>' : ''}
     </button>
   `;
@@ -89,9 +89,9 @@ function stagesOnly() {
       <h3 class="card-title">${escapeHtml(f.name || '')} — ${f.stages.length} stages</h3>
       <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:8px">
         ${f.stages.map(s => `
-          <div style="padding:10px;background:var(--bg-3);border-radius:var(--r-sm);font-size:12.5px">
+          <div style="padding:10px;background:var(--bg-3);border-radius:var(--r-sm);font-size:13px">
             <div class="tiny muted">Stage #${s.position ?? '?'}</div>
-            <div style="font-weight:700">${escapeHtml(s.name)}</div>
+            <div style="font-weight:600">${escapeHtml(s.name)}</div>
             <div class="tiny" style="margin-top:4px">${s.is_won ? '🏆 Ganho' : s.is_lost ? '❌ Perdido' : '🔄 Em andamento'}</div>
           </div>
         `).join('')}
@@ -126,7 +126,7 @@ function renderDeals() {
 
     <div class="flex gap-3" style="flex-wrap:wrap;margin-bottom:14px">
       ${kpi('# Deals',  d.summary?.total_count || 0)}
-      ${kpi('Em aberto', d.summary?.open  || 0, '#2563eb')}
+      ${kpi('Em aberto', d.summary?.open  || 0, '#806d50')}
       ${kpi('🏆 Ganho',  d.summary?.won   || 0, '#16a34a')}
       ${kpi('❌ Perdido',d.summary?.lost  || 0, '#dc2626')}
       ${kpi('💰 VGV',    'R$ ' + money(d.summary?.total_valor || 0), '#7c3aed')}
@@ -148,20 +148,20 @@ function stageCard(name, data, stageMeta) {
   const valor = data?.valor || 0;
   const isWon = stageMeta?.is_won;
   const isLost = stageMeta?.is_lost;
-  const accent = isWon ? '#16a34a' : isLost ? '#dc2626' : '#2563eb';
+  const accent = isWon ? '#16a34a' : isLost ? '#dc2626' : '#806d50';
   const ico = isWon ? '🏆' : isLost ? '❌' : '🔄';
 
   return `
     <div class="card" style="margin:0;border-top:3px solid ${accent}">
       <div class="flex items-center gap-2" style="margin-bottom:6px">
-        <div style="font-weight:700;font-size:13px;flex:1">${ico} ${escapeHtml(name)}</div>
-        <span class="tiny" style="background:${accent};color:#fff;padding:2px 8px;border-radius:var(--r-full);font-weight:700">${count}</span>
+        <div style="font-weight:600;font-size:13px;flex:1">${ico} ${escapeHtml(name)}</div>
+        <span class="tiny" style="background:${accent};color:#fff;padding:2px 8px;border-radius:var(--r-full);font-weight:600">${count}</span>
       </div>
-      <div style="font-size:14px;font-weight:800;color:${accent};margin-bottom:6px">R$ ${money(valor)}</div>
+      <div style="font-size:14px;font-weight:600;color:${accent};margin-bottom:6px">R$ ${money(valor)}</div>
       ${data?.deals_amostra?.length ? `
         <div style="display:grid;gap:3px;font-size:11px">
           ${data.deals_amostra.map(dx => `
-            <div style="padding:4px 6px;background:var(--bg);border-radius:3px">
+            <div style="padding:4px 6px;background:var(--bg);border-radius:var(--radius-sm)">
               <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escapeHtml(dx.name || '')}">${escapeHtml(dx.name || '—')}</div>
               <div class="tiny muted">${escapeHtml(dx.user || '')} · R$ ${money(dx.amount)}</div>
             </div>
@@ -176,7 +176,7 @@ function stageCard(name, data, stageMeta) {
 function kpi(label, value, color) {
   return `<div style="background:var(--bg-3);border-radius:var(--r-sm);padding:10px 14px;min-width:140px">
     <div class="tiny muted" style="letter-spacing:1px;text-transform:uppercase">${label}</div>
-    <div style="font-size:18px;font-weight:800;color:${color || 'var(--ink)'}">${value}</div>
+    <div style="font-size:16px;font-weight:600;color:${color || 'var(--ink)'}">${value}</div>
   </div>`;
 }
 function money(n) {

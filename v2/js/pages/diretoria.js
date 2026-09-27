@@ -12,14 +12,14 @@ let _charts = [];
 
 const TIPOS_EST = [
   { id: 'visao',      lbl: 'Visão',      ico: '🎯', color: '#7c3aed' },
-  { id: 'missao',     lbl: 'Missão',     ico: '🚀', color: '#2563eb' },
+  { id: 'missao',     lbl: 'Missão',     ico: '🚀', color: '#806d50' },
   { id: 'objetivo',   lbl: 'Objetivos',  ico: '📍', color: '#16a34a' },
   { id: 'okr',        lbl: 'OKRs',       ico: '✅', color: '#d97706' },
   { id: 'iniciativa', lbl: 'Iniciativas',ico: '🛠', color: '#dc2626' },
 ];
 
 const PRIOR_LBL = {
-  info:    { lbl: 'Info',     bg: '#dbeafe', fg: '#1e40af', ico: 'ℹ️' },
+  info:    { lbl: 'Info',     bg: '#dbeafe', fg: '#806d50', ico: 'ℹ️' },
   alerta:  { lbl: 'Alerta',   bg: '#fef3c7', fg: '#78350f', ico: '⚠️' },
   critica: { lbl: 'Crítica',  bg: '#fee2e2', fg: '#991b1b', ico: '🔴' },
 };
@@ -115,7 +115,7 @@ function renderDashboard() {
 
     <!-- Operação -->
     <div class="flex gap-3" style="flex-wrap:wrap;margin:16px 0 4px">
-      ${kpi('👥 Equipe ativa', k.users_ativos || 0, `${k.users_total || 0} cadastrados`, '#0891b2')}
+      ${kpi('👥 Equipe ativa', k.users_ativos || 0, `${k.users_total || 0} cadastrados`, '#806d50')}
       ${kpi('📋 Tarefas abertas', k.tarefas_abertas ?? '—', totalTarefas(k.tarefas), (k.tarefas_abertas || 0) > 0 ? '#d97706' : '#16a34a')}
       ${kpi('📅 Eventos 7d', k.eventos_proxima_semana || 0, 'próximos 7 dias', '#7c3aed')}
       ${kpi('📢 Recados', k.recados_ativos || 0, `${k.recados_criticos || 0} críticos`, k.recados_criticos > 0 ? '#dc2626' : '#16a34a')}
@@ -152,10 +152,10 @@ function filterBar() {
   const frOpts = `<option value="todas"${_frente === 'todas' ? ' selected' : ''}>Todas as frentes</option>` +
     frentes.map(f => `<option value="${f.code}"${f.code === _frente ? ' selected' : ''}>${escapeHtml(f.label)}</option>`).join('');
   return `
-    <div class="flex gap-2" style="flex-wrap:wrap;align-items:center;background:var(--bg-3);padding:10px 12px;border-radius:12px;margin-bottom:14px">
-      <div class="flex" style="align-items:center;gap:4px;background:var(--bg-2);border-radius:8px;padding:2px">
+    <div class="flex gap-2" style="flex-wrap:wrap;align-items:center;background:var(--bg-3);padding:10px 12px;border-radius:var(--radius-md);margin-bottom:14px">
+      <div class="flex" style="align-items:center;gap:4px;background:var(--bg-2);border-radius:var(--radius-md);padding:2px">
         <button class="btn btn-ghost btn-sm" data-ano-set="${_ano - 1}" title="Ano anterior" style="padding:4px 9px">◄</button>
-        <span style="font-weight:800;min-width:52px;text-align:center">${_ano}</span>
+        <span style="font-weight:600;min-width:52px;text-align:center">${_ano}</span>
         <button class="btn btn-ghost btn-sm" data-ano-set="${_ano + 1}" title="Próximo ano" style="padding:4px 9px" ${_ano >= anoAtual ? 'disabled' : ''}>►</button>
       </div>
       <label class="tiny muted" style="display:flex;flex-direction:column;gap:2px">Período
@@ -164,32 +164,32 @@ function filterBar() {
       <label class="tiny muted" style="display:flex;flex-direction:column;gap:2px">Frente / unidade
         <select id="dir-f-frente" class="select" style="min-width:150px">${frOpts}</select>
       </label>
-      ${ex ? `<span class="badge" style="background:var(--psm-navy);color:#fff;font-weight:700;align-self:flex-end;margin-bottom:2px">${escapeHtml(ex.kpis.label_periodo)}</span>` : ''}
+      ${ex ? `<span class="badge" style="background:var(--psm-navy);color:#fff;font-weight:600;align-self:flex-end;margin-bottom:2px">${escapeHtml(ex.kpis.label_periodo)}</span>` : ''}
       <button class="btn btn-ghost btn-sm" id="dir-refresh" style="margin-left:auto;align-self:flex-end">🔄 Atualizar</button>
     </div>`;
 }
 
 // ─── Hero executivo (dark) ───────────────────────────────────────────────
-function subline(txt) { return `<div style="font-size:12px;color:#94a3b8;margin-top:2px">${txt}</div>`; }
+function subline(txt) { return `<div style="font-size:12px;color:var(--ink-muted);margin-top:2px">${txt}</div>`; }
 function deltaBadge(pct) {
-  if (pct == null) return `<span style="font-size:12px;color:#94a3b8">— vs anterior</span>`;
+  if (pct == null) return `<span style="font-size:12px;color:var(--ink-muted)">— vs anterior</span>`;
   const up = pct >= 0, c = up ? '#34d399' : '#f87171', ar = up ? '▲' : '▼';
-  return `<span style="font-size:12px;color:${c};font-weight:700">${ar} ${Math.abs(pct).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%</span> <span style="font-size:11px;color:#94a3b8">vs anterior</span>`;
+  return `<span style="font-size:12px;color:${c};font-weight:600">${ar} ${Math.abs(pct).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%</span> <span style="font-size:11px;color:var(--ink-muted)">vs anterior</span>`;
 }
 function heroCard(label, val, subHtml, color) {
-  return `<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:14px 16px">
-    <div style="font-size:11px;color:#cbd5e1;text-transform:uppercase;letter-spacing:1px;font-weight:700">${label}</div>
-    <div style="font-size:25px;font-weight:900;color:${color};margin:3px 0;line-height:1.1">${val}</div>
+  return `<div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px">
+    <div style="font-size:11px;color:#cbd5e1;text-transform:uppercase;letter-spacing:1px;font-weight:600">${label}</div>
+    <div style="font-size:26px;font-weight:600;color:${color};margin:3px 0;line-height:1.1">${val}</div>
     ${subHtml || ''}
   </div>`;
 }
 function atingCard(pct) {
   const col = pct == null ? '#94a3b8' : pct < 60 ? '#f87171' : pct < 95 ? '#fbbf24' : '#34d399';
   const w = Math.min(100, Math.max(0, pct || 0));
-  return `<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:14px 16px">
-    <div style="font-size:11px;color:#cbd5e1;text-transform:uppercase;letter-spacing:1px;font-weight:700">📊 % Atingimento</div>
-    <div style="font-size:25px;font-weight:900;color:${col};margin:3px 0;line-height:1.1">${pct == null ? '—' : pct2(pct)}</div>
-    <div style="height:7px;background:rgba(255,255,255,.12);border-radius:99px;overflow:hidden;margin-top:5px"><div style="height:100%;width:${w}%;background:${col};transition:width .4s"></div></div>
+  return `<div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px">
+    <div style="font-size:11px;color:#cbd5e1;text-transform:uppercase;letter-spacing:1px;font-weight:600">📊 % Atingimento</div>
+    <div style="font-size:26px;font-weight:600;color:${col};margin:3px 0;line-height:1.1">${pct == null ? '—' : pct2(pct)}</div>
+    <div style="height:7px;background:var(--surface-2);border-radius:var(--radius-full);overflow:hidden;margin-top:5px"><div style="height:100%;width:${w}%;background:${col};transition:width .4s"></div></div>
   </div>`;
 }
 function execHero(ex) {
@@ -198,9 +198,9 @@ function execHero(ex) {
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px">
       ${heroCard('💎 VGV realizado', 'R$ ' + moneyC(k.vgv), subline(deltaBadge(k.delta_vgv_pct)), '#c084fc')}
       ${k.has_meta
-        ? heroCard('🎯 Meta do período', 'R$ ' + moneyC(k.meta), subline(k.gap > 0 ? `faltam <b style="color:var(--err-claro)">R$ ${moneyC(k.gap)}</b>` : `<b style="color:#34d399">meta batida</b> (+R$ ${moneyC(-k.gap)})`), '#60a5fa')
-        : heroCard('🎟 Ticket médio', 'R$ ' + moneyC(k.ticket), subline(`${fmtNum(k.vendas)} vendas no período`), '#60a5fa')}
-      ${k.has_meta ? atingCard(k.ating_pct) : heroCard('🥧 Participação', shareOfSelected(ex), subline('do VGV total do período'), '#22d3ee')}
+        ? heroCard('🎯 Meta do período', 'R$ ' + moneyC(k.meta), subline(k.gap > 0 ? `faltam <b style="color:var(--err-claro)">R$ ${moneyC(k.gap)}</b>` : `<b style="color:var(--ok)">meta batida</b> (+R$ ${moneyC(-k.gap)})`), '#806d50')
+        : heroCard('🎟 Ticket médio', 'R$ ' + moneyC(k.ticket), subline(`${fmtNum(k.vendas)} vendas no período`), '#806d50')}
+      ${k.has_meta ? atingCard(k.ating_pct) : heroCard('🥧 Participação', shareOfSelected(ex), subline('do VGV total do período'), '#806d50')}
       ${heroCard('🤝 Vendas', fmtNum(k.vendas), subline(deltaBadge(k.delta_vendas_pct)), '#2dd4bf')}
     </div>`;
   return heroWrap('🏛 Diretoria PSM · Painel Executivo', `${k.label_periodo} · ${escapeHtml(frenteLabel(ex))}`, cards);
@@ -246,15 +246,15 @@ function porFrenteTable(ex) {
         <tbody>
           ${rows.map(r => `
             <tr style="border-bottom:1px solid var(--border);cursor:pointer" data-frente-row="${r.code}" title="Filtrar por ${escapeHtml(r.label)}">
-              <td style="padding:8px"><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:${r.cor};margin-right:7px"></span><b>${escapeHtml(r.label)}</b></td>
+              <td style="padding:8px"><span style="display:inline-block;width:9px;height:9px;border-radius:var(--radius-sm);background:${r.cor};margin-right:7px"></span><b>${escapeHtml(r.label)}</b></td>
               <td style="padding:8px;text-align:right">
-                <div style="font-weight:700">R$ ${moneyC(r.vgv)}</div>
-                <div style="height:5px;background:var(--bg-3);border-radius:99px;overflow:hidden;margin-top:3px"><div style="height:100%;width:${(r.vgv / maxV * 100).toFixed(1)}%;background:${r.cor}"></div></div>
+                <div style="font-weight:600">R$ ${moneyC(r.vgv)}</div>
+                <div style="height:5px;background:var(--bg-3);border-radius:var(--radius-full);overflow:hidden;margin-top:3px"><div style="height:100%;width:${(r.vgv / maxV * 100).toFixed(1)}%;background:${r.cor}"></div></div>
               </td>
               <td style="padding:8px;text-align:right">${fmtNum(r.vendas)}</td>
               <td style="padding:8px;text-align:right">R$ ${moneyC(r.ticket)}</td>
               <td style="padding:8px;text-align:right">${pct2(r.share_pct)}</td>
-              <td style="padding:8px;text-align:right">${r.delta_pct == null ? '<span class="muted">—</span>' : `<span style="color:${r.delta_pct >= 0 ? '#16a34a' : '#dc2626'};font-weight:700">${r.delta_pct >= 0 ? '▲' : '▼'} ${Math.abs(r.delta_pct).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%</span>`}</td>
+              <td style="padding:8px;text-align:right">${r.delta_pct == null ? '<span class="muted">—</span>' : `<span style="color:${r.delta_pct >= 0 ? 'var(--ok)' : 'var(--err)'};font-weight:600">${r.delta_pct >= 0 ? '▲' : '▼'} ${Math.abs(r.delta_pct).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%</span>`}</td>
             </tr>`).join('')}
         </tbody>
       </table></div>
@@ -274,12 +274,12 @@ function rankingTable(rk) {
         <tbody>
           ${rk.map((r, i) => `
             <tr style="border-bottom:1px solid var(--border)">
-              <td style="padding:7px 8px;width:34px;font-weight:800">${medal(i)}</td>
+              <td style="padding:7px 8px;width:34px;font-weight:600">${medal(i)}</td>
               <td style="padding:7px 8px;font-weight:600">${escapeHtml(r.nome)}</td>
               <td style="padding:7px 8px;width:44%">
-                <div style="height:6px;background:var(--bg-3);border-radius:99px;overflow:hidden"><div style="height:100%;width:${(r.vgv / maxV * 100).toFixed(1)}%;background:linear-gradient(90deg,#7c3aed,#a855f7)"></div></div>
+                <div style="height:6px;background:var(--bg-3);border-radius:var(--radius-full);overflow:hidden"><div style="height:100%;width:${(r.vgv / maxV * 100).toFixed(1)}%;background:linear-gradient(90deg,#7c3aed,#a855f7)"></div></div>
               </td>
-              <td style="padding:7px 8px;text-align:right;font-weight:700;white-space:nowrap">R$ ${moneyC(r.vgv)}</td>
+              <td style="padding:7px 8px;text-align:right;font-weight:600;white-space:nowrap">R$ ${moneyC(r.vgv)}</td>
               <td style="padding:7px 8px;text-align:right;color:var(--ink-muted);white-space:nowrap">${fmtNum(r.vendas)} vd</td>
             </tr>`).join('')}
         </tbody>
@@ -303,7 +303,7 @@ function execMetrics(k) {
   const pr = k.exec_premissas || {};
   const ex = (lbl, val, sub, color) => `<div style="flex:1;min-width:150px;background:var(--bg-3);border-radius:var(--r-md);padding:12px 14px;border-left:4px solid ${color}">
     <div style="font-size:11px;color:var(--ink-muted);font-weight:600">${lbl}</div>
-    <div style="font-size:22px;font-weight:900;color:${color};margin:2px 0">${val}</div>
+    <div style="font-size:20px;font-weight:600;color:${color};margin:2px 0">${val}</div>
     <div class="tiny muted">${sub}</div></div>`;
   const cfHint = k.custo_fixo_por_venda != null ? 'mês ÷ vendas do mês' : 'defina o custo fixo mensal nas premissas';
   // margem % vem do backend (kpis.margem_pct) quando existe; senão deriva das
@@ -315,7 +315,7 @@ function execMetrics(k) {
     <div class="card" style="margin:14px 0">
       <h3 class="card-title">📊 Métricas Executivas <span class="tiny muted" style="font-weight:400">· só Diretoria</span></h3>
       <div class="flex gap-2" style="flex-wrap:wrap">
-        ${ex('🎟 Ticket médio', 'R$ ' + moneyShort(k.ticket_medio || 0), 'VGV ÷ vendas (ano)', '#0ea5e9')}
+        ${ex('🎟 Ticket médio', 'R$ ' + moneyShort(k.ticket_medio || 0), 'VGV ÷ vendas (ano)', '#806d50')}
         ${ex('🏦 Custo fixo / venda', k.custo_fixo_por_venda != null ? 'R$ ' + moneyShort(k.custo_fixo_por_venda) : '—', cfHint, '#ef4444')}
         ${ex('💚 Margem contrib. / venda', 'R$ ' + moneyShort(k.margem_contrib_venda || 0), 'comissão − custo variável', '#16a34a')}
         ${ex('♻️ LTV (comissão/cliente)', 'R$ ' + moneyShort(k.ltv || 0), 'comissão média por cliente', '#a855f7')}
@@ -341,7 +341,7 @@ async function buildDashCharts() {
   if ((s.vgv || []).length) {
     const ds = [{ type: 'bar', label: 'VGV realizado', data: s.vgv, backgroundColor: 'rgba(168,85,247,0.65)', borderRadius: 4, order: 2 }];
     if (s.meta) ds.push({ type: 'line', label: 'Meta mensal', data: s.meta, borderColor: '#f59e0b', borderDash: [5, 4], pointRadius: 0, borderWidth: 2, order: 1 });
-    else if (s.vgv_ano_ant) ds.push({ type: 'line', label: `${_ano - 1}`, data: s.vgv_ano_ant, borderColor: '#38bdf8', pointRadius: 0, borderWidth: 2, order: 1 });
+    else if (s.vgv_ano_ant) ds.push({ type: 'line', label: `${_ano - 1}`, data: s.vgv_ano_ant, borderColor: '#806d50', pointRadius: 0, borderWidth: 2, order: 1 });
     mk('dir-ch-vgv', {
       type: 'bar',
       data: { labels: s.meses || [], datasets: ds },
@@ -362,7 +362,7 @@ async function buildDashCharts() {
     });
   } else {
     const el = document.getElementById('dir-ch-frente');
-    if (el && el.parentElement) el.parentElement.innerHTML = '<div style="color:#94a3b8;font-size:12px;text-align:center;padding:40px 10px">Sem VGV no período.</div>';
+    if (el && el.parentElement) el.parentElement.innerHTML = '<div style="color:var(--ink-muted);font-size:12px;text-align:center;padding:40px 10px">Sem VGV no período.</div>';
   }
 }
 
@@ -393,8 +393,8 @@ function recadoCard(r, isSocio) {
     <div style="background:${p.bg};color:${p.fg};border-left:4px solid ${p.fg};border-radius:var(--r-sm);padding:12px 16px">
       <div class="flex items-center gap-2" style="margin-bottom:6px">
         <span style="font-size:16px">${p.ico}</span>
-        <span style="font-weight:800">${p.lbl}</span>
-        ${r.fixado ? '<span class="tiny" style="background:var(--bg-2);color:var(--ink);padding:2px 8px;border-radius:var(--r-full);font-weight:700">📌 FIXADO</span>' : ''}
+        <span style="font-weight:600">${p.lbl}</span>
+        ${r.fixado ? '<span class="tiny" style="background:var(--bg-2);color:var(--ink);padding:2px 8px;border-radius:var(--r-full);font-weight:600">📌 FIXADO</span>' : ''}
         <span style="margin-left:auto;font-size:11px;opacity:0.7">${dt} · ${ate}</span>
         ${isSocio ? `<button class="btn btn-ghost tiny" data-rec-edit="${r.id}" style="padding:3px 8px">✏️</button>` : ''}
         ${isSocio ? `<button class="btn btn-ghost tiny" data-rec-del="${r.id}" style="padding:3px 8px">🗑</button>` : ''}
@@ -490,7 +490,7 @@ function renderEstrategia() {
   const isSocio = (me?.lvl || 0) >= 7;
   return `
     <div class="flex gap-2" style="align-items:center;margin-bottom:14px">
-      <label class="tiny muted" style="font-weight:700">ANO:</label>
+      <label class="tiny muted" style="font-weight:600">ANO:</label>
       <select id="est-ano" class="select" style="padding:5px 10px;font-size:12px">
         ${[2024, 2025, 2026, 2027].map(a => `<option value="${a}"${a === _ano ? ' selected' : ''}>${a}</option>`).join('')}
       </select>
@@ -521,7 +521,7 @@ function estItem(it, isSocio) {
     <div style="background:var(--bg-3);border-radius:var(--r-sm);padding:10px 12px">
       <div class="flex items-center gap-2">
         <div style="flex:1">
-          <div style="font-weight:700">${escapeHtml(it.titulo)}</div>
+          <div style="font-weight:600">${escapeHtml(it.titulo)}</div>
           ${it.descricao ? `<div class="tiny muted" style="margin-top:2px">${escapeHtml(it.descricao)}</div>` : ''}
         </div>
         <span class="tiny" style="background:${it.status === 'concluido' ? '#dcfce7;color:var(--ok-escuro)' : it.status === 'ativo' ? '#dbeafe;color:var(--azul-forte)' : '#fef3c7;color:var(--marrom)'};padding:3px 8px;border-radius:var(--r-full);font-weight:600">${escapeHtml(it.status)}</span>
@@ -529,8 +529,8 @@ function estItem(it, isSocio) {
         ${isSocio ? `<button class="btn btn-ghost tiny" data-est-del="${it.id}" style="padding:3px 8px">🗑</button>` : ''}
       </div>
       ${it.progresso != null ? `
-        <div style="background:var(--bg);height:6px;border-radius:3px;overflow:hidden;margin-top:6px">
-          <div style="background:#16a34a;height:100%;width:${Math.min(100, it.progresso)}%"></div>
+        <div style="background:var(--bg);height:6px;border-radius:var(--radius-sm);overflow:hidden;margin-top:6px">
+          <div style="background:var(--ok-soft);height:100%;width:${Math.min(100, it.progresso)}%"></div>
         </div>
         <div class="tiny muted" style="margin-top:2px">Progresso: ${pct2(it.progresso)}</div>
       ` : ''}
@@ -626,12 +626,12 @@ function openEstModal(itid) {
 const MES_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
 function tabBtn(id, lbl) {
-  return `<button class="btn" data-tab="${id}" style="border-radius:var(--r-sm) var(--r-sm) 0 0;background:${_tab === id ? 'var(--psm-navy)' : 'transparent'};color:${_tab === id ? '#fff' : 'var(--ink-muted)'};border-bottom:none;font-weight:700">${lbl}</button>`;
+  return `<button class="btn" data-tab="${id}" style="border-radius:var(--r-sm) var(--r-sm) 0 0;background:${_tab === id ? 'var(--psm-navy)' : 'transparent'};color:${_tab === id ? '#fff' : 'var(--ink-muted)'};border-bottom:none;font-weight:600">${lbl}</button>`;
 }
 function kpi(label, big, sub, color) {
   return `<div style="flex:1;min-width:180px;background:var(--bg-3);border-radius:var(--r-md);padding:14px 16px;border-left:4px solid ${color}">
-    <div class="tiny muted" style="letter-spacing:1px;text-transform:uppercase;font-weight:700">${label}</div>
-    <div style="font-size:22px;font-weight:900;color:${color};margin-top:2px">${big ?? '—'}</div>
+    <div class="tiny muted" style="letter-spacing:1px;text-transform:uppercase;font-weight:600">${label}</div>
+    <div style="font-size:20px;font-weight:600;color:${color};margin-top:2px">${big ?? '—'}</div>
     <div class="tiny muted">${sub}</div>
   </div>`;
 }

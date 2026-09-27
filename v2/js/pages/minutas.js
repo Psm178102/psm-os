@@ -81,7 +81,7 @@ function render() {
 
       ${!filt.length ? `
         <div class="card mt-3" style="text-align:center;padding:30px;background:var(--bg-3)">
-          <div style="font-size:30px">🗂️</div>
+          <div style="font-size:26px">🗂️</div>
           <div class="muted tiny" style="margin-top:6px">${_items.length ? 'Nenhum documento no filtro.' : 'Nenhuma minuta cadastrada ainda.'}</div>
           ${_canEdit && !_items.length ? `<button class="btn btn-primary btn-sm mt-2" id="mn-add2">➕ Adicionar a primeira</button>` : ''}
         </div>` : catNames.map(cat => groupHTML(cat, groups[cat])).join('')}
@@ -95,7 +95,7 @@ function groupHTML(cat, items) {
   return `
     <div class="card mt-3">
       <h3 class="card-title" style="font-size:13px;display:flex;align-items:center;gap:7px">
-        <span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:${cor}"></span>
+        <span style="display:inline-block;width:9px;height:9px;border-radius:var(--radius-sm);background:${cor}"></span>
         ${esc(cat)} <span class="tiny muted" style="font-weight:400">(${items.length})</span>
       </h3>
       <div style="display:flex;flex-direction:column;gap:8px">
@@ -106,9 +106,9 @@ function groupHTML(cat, items) {
 
 function rowHTML(it, cor) {
   return `
-    <div class="flex items-center" style="justify-content:space-between;gap:10px;flex-wrap:wrap;border:1px solid var(--bd);border-left:3px solid ${cor};border-radius:10px;padding:10px 12px">
+    <div class="flex items-center" style="justify-content:space-between;gap:10px;flex-wrap:wrap;border:1px solid var(--bd);border-left:3px solid ${cor};border-radius:var(--radius-md);padding:10px 12px">
       <div style="min-width:200px;flex:1">
-        <div style="font-weight:700;font-size:13.5px">📄 ${esc(it.nome)}</div>
+        <div style="font-weight:600;font-size:13px">📄 ${esc(it.nome)}</div>
         ${it.obs ? `<div class="tiny muted" style="margin-top:2px">${esc(it.obs)}</div>` : ''}
         ${it.updated_by || it.created_by ? `<div class="tiny muted" style="margin-top:3px;opacity:.7">por ${esc(it.updated_by || it.created_by)}</div>` : ''}
       </div>

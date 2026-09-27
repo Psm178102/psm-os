@@ -34,7 +34,7 @@ const checkDone = c => CHECK.filter(x => (c.checklist || {})[x.k]).length;
 
 const STAGES = [
   { id: 'ideia',     lbl: '💡 Ideia / Tema', cor: '#64748b' },
-  { id: 'roteiro',   lbl: '📝 Roteiro',      cor: '#0ea5e9' },
+  { id: 'roteiro',   lbl: '📝 Roteiro',      cor: '#806d50' },
   { id: 'gravacao',  lbl: '🎬 Gravação',     cor: '#f59e0b' },
   { id: 'edicao',    lbl: '✂️ Edição',       cor: '#8b5cf6' },
   { id: 'revisao',   lbl: '👁 Revisão',      cor: '#d97706' },
@@ -42,7 +42,7 @@ const STAGES = [
 ];
 const stageInfo = id => STAGES.find(s => s.id === id) || { lbl: id || '—', cor: '#64748b' };
 
-const COR = ['#0ea5e9', '#16a34a', '#d6249f', '#8b5cf6', '#f59e0b', '#ef4444', '#0891b2', '#ca8a04', '#64748b', '#7c3aed', '#db2777'];
+const COR = ['#806d50', '#16a34a', '#d6249f', '#8b5cf6', '#f59e0b', '#ef4444', '#806d50', '#ca8a04', '#64748b', '#7c3aed', '#db2777'];
 const linhaCor = l => COR[(LINHAS.indexOf(l) + 11) % COR.length] || '#64748b';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
@@ -80,26 +80,26 @@ function filtered() {
 
 const STYLE = `
   <style>
-    .as-tab{display:inline-flex;align-items:center;gap:6px;padding:7px 15px;border-radius:999px;font-weight:700;font-size:13px;cursor:pointer;border:1px solid rgba(148,163,184,.25);background:var(--bg-1,#fff);color:var(--ink,#334155)}
-    .as-tab.on{background:#7c3aed;border-color:#7c3aed;color:#fff}
+    .as-tab{display:inline-flex;align-items:center;gap:6px;padding:7px 15px;border-radius:var(--radius-full);font-weight:600;font-size:13px;cursor:pointer;border:1px solid var(--border);background:var(--bg-1,#fff);color:var(--ink,#334155)}
+    .as-tab.on{background:var(--accent-soft);border-color:var(--accent-ink);color:var(--accent-ink)}
     .as-board{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 14px}
-    .as-col{min-width:248px;max-width:280px;flex:0 0 auto;background:var(--bg-3,#f1f5f9);border-radius:12px;padding:8px;display:flex;flex-direction:column}
-    .as-col.drop{background:rgba(124,58,237,.12);box-shadow:inset 0 0 0 2px #7c3aed}
-    .as-card{background:var(--bg-1,#fff);border-radius:10px;padding:10px 11px;margin-bottom:8px;cursor:grab;box-shadow:0 1px 2px rgba(15,23,42,.06);border:1px solid rgba(148,163,184,.16);transition:transform .12s,box-shadow .12s}
-    .as-card:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(15,23,42,.12)}
+    .as-col{min-width:248px;max-width:280px;flex:0 0 auto;background:var(--bg-3,#f1f5f9);border-radius:var(--radius-md);padding:8px;display:flex;flex-direction:column}
+    .as-col.drop{background:var(--accent-soft);box-shadow:inset 0 0 0 2px #7c3aed}
+    .as-card{background:var(--bg-1,#fff);border-radius:var(--radius-md);padding:10px 11px;margin-bottom:8px;cursor:grab;box-shadow:var(--shadow-1);border:1px solid var(--border);transition:transform .12s,box-shadow .12s}
+    .as-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-1)}
     .as-card.dragging{opacity:.45}
-    .as-chip{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700}
-    .as-kpi{background:var(--bg-1,#fff);border:1px solid rgba(148,163,184,.18);border-radius:12px;padding:10px 14px;flex:1;min-width:120px}
-    .as-day{background:var(--bg-1,#fff);border:1px solid rgba(148,163,184,.18);border-radius:12px;padding:12px 14px;margin-bottom:12px}
-    .as-row{display:flex;align-items:center;gap:10px;padding:7px 4px;border-top:1px solid rgba(148,163,184,.12);cursor:pointer}
-    .as-row:hover{background:rgba(124,58,237,.06)}
+    .as-chip{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:var(--radius-full);font-size:11px;font-weight:600}
+    .as-kpi{background:var(--bg-1,#fff);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 14px;flex:1;min-width:120px}
+    .as-day{background:var(--bg-1,#fff);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;margin-bottom:12px}
+    .as-row{display:flex;align-items:center;gap:10px;padding:7px 4px;border-top:1px solid var(--border);cursor:pointer}
+    .as-row:hover{background:var(--accent-soft)}
   </style>`;
 
 function header() {
   return `
     <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
       <div>
-        <div style="font-size:20px;font-weight:800">🎬 Academy · Produção</div>
+        <div style="font-size:20px;font-weight:600">🎬 Academy · Produção</div>
         <div class="tiny muted">Da ideia à postagem: briefing → gravação → edição → <b>publicar direto na trilha do aluno</b>.</div>
       </div>
       <div class="flex gap-2">
@@ -130,10 +130,10 @@ function kpis() {
   const agendadas = f.filter(c => c.data_ref && c.status !== 'publicada' && c.data_ref >= hoje()).length;
   return `
     <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
-      <div class="as-kpi"><div class="tiny muted">Aulas no funil</div><div style="font-size:18px;font-weight:800">${f.length}</div></div>
-      <div class="as-kpi"><div class="tiny muted">📝 Em roteiro</div><div style="font-size:18px;font-weight:800;color:var(--azul-ceu)">${porEtapa('roteiro')}</div></div>
-      <div class="as-kpi"><div class="tiny muted">🎬 Gravações agendadas</div><div style="font-size:18px;font-weight:800;color:#f59e0b">${agendadas}</div></div>
-      <div class="as-kpi"><div class="tiny muted">✅ Publicadas</div><div style="font-size:18px;font-weight:800;color:var(--ok)">${porEtapa('publicada')}</div></div>
+      <div class="as-kpi"><div class="tiny muted">Aulas no funil</div><div style="font-size:16px;font-weight:600">${f.length}</div></div>
+      <div class="as-kpi"><div class="tiny muted">📝 Em roteiro</div><div style="font-size:16px;font-weight:600;color:var(--azul-ceu)">${porEtapa('roteiro')}</div></div>
+      <div class="as-kpi"><div class="tiny muted">🎬 Gravações agendadas</div><div style="font-size:16px;font-weight:600;color:var(--warn)">${agendadas}</div></div>
+      <div class="as-kpi"><div class="tiny muted">✅ Publicadas</div><div style="font-size:16px;font-weight:600;color:var(--ok)">${porEtapa('publicada')}</div></div>
     </div>`;
 }
 
@@ -150,11 +150,11 @@ function col(st) {
   return `
     <div class="as-col" data-col="${st.id}">
       <div class="flex items-center" style="justify-content:space-between;padding:2px 4px 8px">
-        <span style="font-weight:800;font-size:12px;color:${st.cor}">${st.lbl}</span>
-        <span class="tiny muted" style="font-weight:700">${cards.length}</span>
+        <span style="font-weight:600;font-size:12px;color:${st.cor}">${st.lbl}</span>
+        <span class="tiny muted" style="font-weight:600">${cards.length}</span>
       </div>
       ${cards.map(card).join('') || '<div class="tiny muted" style="padding:8px;text-align:center;opacity:.6">—</div>'}
-      <button class="btn btn-ghost tiny as-add" data-st="${st.id}" style="margin-top:auto;border:1px dashed rgba(148,163,184,.4)">+ adicionar</button>
+      <button class="btn btn-ghost tiny as-add" data-st="${st.id}" style="margin-top:auto;border:1px dashed var(--border)">+ adicionar</button>
     </div>`;
 }
 
@@ -162,16 +162,16 @@ function card(c) {
   const ini = (c.responsavel || '').substring(0, 1).toUpperCase();
   return `
     <div class="as-card" draggable="true" data-card="${esc(c.id)}">
-      <div style="font-weight:800;font-size:13px;line-height:1.3">${esc(c.titulo || 'Sem tema')}</div>
+      <div style="font-weight:600;font-size:13px;line-height:1.3">${esc(c.titulo || 'Sem tema')}</div>
       <div class="flex gap-1" style="flex-wrap:wrap;margin-top:6px">
         ${c.plataforma ? `<span class="as-chip" style="background:${linhaCor(c.plataforma)}1f;color:${linhaCor(c.plataforma)}">${esc(c.plataforma)}</span>` : ''}
-        ${c.formato ? `<span class="as-chip" style="background:rgba(124,58,237,.12);color:var(--roxo)">${esc(c.formato)}</span>` : ''}
-        ${c.data_ref ? `<span class="as-chip" style="background:rgba(245,158,11,.16);color:var(--warn-escuro)">🎬 ${esc(fmtData(c.data_ref))}</span>` : ''}
-        ${c.data_ref && c.data_ref < hoje() && c.status !== 'publicada' ? `<span class="as-chip" style="background:#dc262622;color:var(--err)">🔴 atrasada</span>` : ''}
+        ${c.formato ? `<span class="as-chip" style="background:var(--accent-soft);color:var(--roxo)">${esc(c.formato)}</span>` : ''}
+        ${c.data_ref ? `<span class="as-chip" style="background:var(--warn-soft);color:var(--warn-escuro)">🎬 ${esc(fmtData(c.data_ref))}</span>` : ''}
+        ${c.data_ref && c.data_ref < hoje() && c.status !== 'publicada' ? `<span class="as-chip" style="background:var(--err-soft);color:var(--err)">🔴 atrasada</span>` : ''}
       </div>
-      ${(() => { const d = checkDone(c); return d ? `<div style="margin-top:7px"><div style="height:5px;border-radius:3px;background:rgba(148,163,184,.25);overflow:hidden"><div style="height:100%;width:${Math.round(d / CHECK.length * 100)}%;background:${d === CHECK.length ? '#16a34a' : '#7c3aed'}"></div></div><div class="tiny muted" style="margin-top:2px">✔ ${d}/${CHECK.length} produção</div></div>` : ''; })()}
+      ${(() => { const d = checkDone(c); return d ? `<div style="margin-top:7px"><div style="height:5px;border-radius:var(--radius-sm);background:rgba(148,163,184,.25);overflow:hidden"><div style="height:100%;width:${Math.round(d / CHECK.length * 100)}%;background:${d === CHECK.length ? 'var(--ok-soft)' : 'var(--accent-soft)'}"></div></div><div class="tiny muted" style="margin-top:2px">✔ ${d}/${CHECK.length} produção</div></div>` : ''; })()}
       <div class="flex gap-2" style="margin-top:8px;align-items:center">
-        ${c.responsavel ? `<span class="tiny" style="font-weight:700">👤 ${esc(c.responsavel)}</span>` : ''}
+        ${c.responsavel ? `<span class="tiny" style="font-weight:600">👤 ${esc(c.responsavel)}</span>` : ''}
         ${c.obs ? '<span class="tiny" title="Tem roteiro" style="color:var(--ok)">📝</span>' : ''}
         ${c.link ? `<a href="${esc(c.link)}" target="_blank" rel="noopener" data-stop="1" class="tiny" style="text-decoration:none">🔗</a>` : ''}
         <button class="btn btn-ghost tiny as-edit" data-card="${esc(c.id)}" style="margin-left:auto">editar</button>
@@ -188,9 +188,9 @@ function renderAgenda() {
   const datas = Object.keys(groups).sort();
   if (!datas.length && !semData.length) return '<div class="muted tiny">Nenhuma aula ainda. Crie a primeira em "+ Nova aula".</div>';
   const row = c => `<div class="as-row" data-card="${esc(c.id)}">
-      <span style="font-size:15px">${stageInfo(c.status).lbl.split(' ')[0]}</span>
+      <span style="font-size:14px">${stageInfo(c.status).lbl.split(' ')[0]}</span>
       <div style="flex:1;min-width:0">
-        <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.titulo || 'Sem tema')}</div>
+        <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.titulo || 'Sem tema')}</div>
         <div class="tiny muted">${esc(c.plataforma || '—')}${c.formato ? ' · ' + esc(c.formato) : ''}${c.responsavel ? ' · 👤 ' + esc(c.responsavel) : ''}</div>
       </div>
       <span class="as-chip" style="background:${stageInfo(c.status).cor}1f;color:${stageInfo(c.status).cor};white-space:nowrap">${stageInfo(c.status).lbl}</span>
@@ -200,13 +200,13 @@ function renderAgenda() {
       const isHoje = d === hoje(), isPast = d < hoje();
       return `<div class="as-day">
         <div class="flex items-center" style="justify-content:space-between">
-          <div style="font-weight:800;font-size:14px;color:${isHoje ? '#16a34a' : isPast ? '#94a3b8' : '#b45309'}">🎬 ${fmtData(d)}${isHoje ? ' · HOJE' : isPast ? ' · (passou)' : ''}</div>
-          <span class="tiny muted" style="font-weight:700">${groups[d].length} gravação${groups[d].length === 1 ? '' : 'ões'}</span>
+          <div style="font-weight:600;font-size:14px;color:${isHoje ? 'var(--ok)' : isPast ? 'var(--ink-muted)' : 'var(--warn)'}">🎬 ${fmtData(d)}${isHoje ? ' · HOJE' : isPast ? ' · (passou)' : ''}</div>
+          <span class="tiny muted" style="font-weight:600">${groups[d].length} gravação${groups[d].length === 1 ? '' : 'ões'}</span>
         </div>
         ${groups[d].map(row).join('')}
       </div>`;
     }).join('')}
-    ${semData.length ? `<div class="as-day"><div style="font-weight:800;font-size:14px;color:var(--ink-muted)">📌 Sem data de gravação (${semData.length})</div>${semData.map(row).join('')}</div>` : ''}`;
+    ${semData.length ? `<div class="as-day"><div style="font-weight:600;font-size:14px;color:var(--ink-muted)">📌 Sem data de gravação (${semData.length})</div>${semData.map(row).join('')}</div>` : ''}`;
 }
 
 /* ── MÉTRICAS: dashboard de produção da Academy ── */
@@ -220,7 +220,7 @@ function renderMetricas() {
   const pubs = f.filter(c => c.status === 'publicada' && c.created_at && c.updated_at);
   let lead = '—';
   if (pubs.length) { const d = pubs.reduce((s, c) => s + Math.max(0, (new Date(c.updated_at) - new Date(c.created_at)) / 86400000), 0) / pubs.length; lead = Math.round(d) + 'd'; }
-  const bar = (v, max, cor) => `<div style="height:8px;border-radius:4px;background:rgba(148,163,184,.2);overflow:hidden"><div style="height:100%;width:${max ? Math.round(v / max * 100) : 0}%;background:${cor}"></div></div>`;
+  const bar = (v, max, cor) => `<div style="height:8px;border-radius:var(--radius-sm);background:rgba(148,163,184,.2);overflow:hidden"><div style="height:100%;width:${max ? Math.round(v / max * 100) : 0}%;background:${cor}"></div></div>`;
   // por etapa
   const stg = STAGES.map(s => ({ s, n: f.filter(c => (c.status || 'ideia') === s.id).length }));
   const stgMax = Math.max(1, ...stg.map(x => x.n));
@@ -233,22 +233,22 @@ function renderMetricas() {
   return `
     ${coberturaCurriculo()}
     <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
-      <div class="as-kpi"><div class="tiny muted">Total de aulas</div><div style="font-size:20px;font-weight:800">${n}</div></div>
-      <div class="as-kpi"><div class="tiny muted">Publicadas</div><div style="font-size:20px;font-weight:800;color:var(--ok)">${pubTotal} <span class="tiny muted">(${pct}%)</span></div></div>
-      <div class="as-kpi"><div class="tiny muted">Lead-time médio</div><div style="font-size:20px;font-weight:800">${lead}</div><div class="tiny muted">ideia→publicada</div></div>
-      <div class="as-kpi"><div class="tiny muted">🎬 Gravações agendadas</div><div style="font-size:20px;font-weight:800;color:#f59e0b">${agendadas}</div></div>
+      <div class="as-kpi"><div class="tiny muted">Total de aulas</div><div style="font-size:20px;font-weight:600">${n}</div></div>
+      <div class="as-kpi"><div class="tiny muted">Publicadas</div><div style="font-size:20px;font-weight:600;color:var(--ok)">${pubTotal} <span class="tiny muted">(${pct}%)</span></div></div>
+      <div class="as-kpi"><div class="tiny muted">Lead-time médio</div><div style="font-size:20px;font-weight:600">${lead}</div><div class="tiny muted">ideia→publicada</div></div>
+      <div class="as-kpi"><div class="tiny muted">🎬 Gravações agendadas</div><div style="font-size:20px;font-weight:600;color:var(--warn)">${agendadas}</div></div>
     </div>
     <div class="as-day">
-      <div style="font-weight:800;font-size:14px;margin-bottom:8px">Funil de produção</div>
-      ${stg.map(x => `<div style="margin-bottom:8px"><div class="flex" style="justify-content:space-between"><span class="tiny" style="font-weight:700;color:${x.s.cor}">${x.s.lbl}</span><span class="tiny muted">${x.n}</span></div>${bar(x.n, stgMax, x.s.cor)}</div>`).join('')}
+      <div style="font-weight:600;font-size:14px;margin-bottom:8px">Funil de produção</div>
+      ${stg.map(x => `<div style="margin-bottom:8px"><div class="flex" style="justify-content:space-between"><span class="tiny" style="font-weight:600;color:${x.s.cor}">${x.s.lbl}</span><span class="tiny muted">${x.n}</span></div>${bar(x.n, stgMax, x.s.cor)}</div>`).join('')}
     </div>
     <div class="as-day">
-      <div style="font-weight:800;font-size:14px;margin-bottom:8px">Progresso por linha de curso</div>
-      ${linhasArr.map(([l, v]) => `<div style="margin-bottom:8px"><div class="flex" style="justify-content:space-between"><span class="tiny" style="font-weight:700">${esc(l)}</span><span class="tiny muted">${v.pub}/${v.tot} publicadas</span></div>${bar(v.pub, v.tot, linhaCor(l))}</div>`).join('')}
+      <div style="font-weight:600;font-size:14px;margin-bottom:8px">Progresso por linha de curso</div>
+      ${linhasArr.map(([l, v]) => `<div style="margin-bottom:8px"><div class="flex" style="justify-content:space-between"><span class="tiny" style="font-weight:600">${esc(l)}</span><span class="tiny muted">${v.pub}/${v.tot} publicadas</span></div>${bar(v.pub, v.tot, linhaCor(l))}</div>`).join('')}
     </div>
     <div class="as-day">
-      <div style="font-weight:800;font-size:14px;margin-bottom:8px">Carga por responsável</div>
-      ${respArr.map(([r, v]) => `<div style="margin-bottom:8px"><div class="flex" style="justify-content:space-between"><span class="tiny" style="font-weight:700">👤 ${esc(r)}</span><span class="tiny muted">${v} aula${v === 1 ? '' : 's'}</span></div>${bar(v, respMax, '#7c3aed')}</div>`).join('')}
+      <div style="font-weight:600;font-size:14px;margin-bottom:8px">Carga por responsável</div>
+      ${respArr.map(([r, v]) => `<div style="margin-bottom:8px"><div class="flex" style="justify-content:space-between"><span class="tiny" style="font-weight:600">👤 ${esc(r)}</span><span class="tiny muted">${v} aula${v === 1 ? '' : 's'}</span></div>${bar(v, respMax, '#7c3aed')}</div>`).join('')}
     </div>`;
 }
 
@@ -261,8 +261,8 @@ function openImportEmenta() {
   const conta = t => t.modulos.reduce((s, m) => s + m.aulas.length, 0);
   const novasDe = t => t.modulos.reduce((s, m) => s + m.aulas.filter(a => !jaTem.has(a.trim().toLowerCase())).length, 0);
   ov.innerHTML = `
-    <div style="background:var(--bg-1,#fff);border-radius:14px;max-width:520px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
-      <div style="font-size:16px;font-weight:800;margin-bottom:6px">📥 Importar ementa oficial → fila de produção</div>
+    <div style="background:var(--bg-1,#fff);border-radius:var(--radius-lg);max-width:520px;width:100%;padding:20px;box-shadow:var(--shadow-1)">
+      <div style="font-size:16px;font-weight:600;margin-bottom:6px">📥 Importar ementa oficial → fila de produção</div>
       <div class="tiny muted" style="margin-bottom:10px">Cada aula do currículo vira um card em 💡 Ideia com o briefing pré-anotado (trilha/nível/módulo). Aulas que já existem no kanban são puladas.</div>
       <label class="tiny muted">Trilha</label>
       <select id="ie-trilha" class="select" style="width:100%">
@@ -310,8 +310,8 @@ function openPublicar(c, ovAnterior) {
   const ov = document.createElement('div');
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:10000;display:flex;align-items:flex-start;justify-content:center;padding:5vh 16px 16px;overflow:auto';
   ov.innerHTML = `
-    <div style="background:var(--bg-1,#fff);border-radius:14px;max-width:520px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
-      <div style="font-size:16px;font-weight:800;margin-bottom:4px">🚀 Publicar na PSM Academy</div>
+    <div style="background:var(--bg-1,#fff);border-radius:var(--radius-lg);max-width:520px;width:100%;padding:20px;box-shadow:var(--shadow-1)">
+      <div style="font-size:16px;font-weight:600;margin-bottom:4px">🚀 Publicar na PSM Academy</div>
       <div class="tiny muted" style="margin-bottom:10px">"${esc(c.titulo || '')}" vira aula VISÍVEL pros alunos na trilha — e o card marca ✅ Publicada.</div>
       <div class="flex gap-2" style="margin-bottom:8px">
         <div style="flex:1"><label class="tiny muted">Trilha</label>
@@ -356,21 +356,21 @@ function openPublicar(c, ovAnterior) {
 
 /* ── 🧭 COBERTURA DO CURRÍCULO (v84.8): ementa oficial × produção × publicado ── */
 function coberturaCurriculo() {
-  const bar = (v, max, cor) => `<div style="height:8px;border-radius:4px;background:rgba(148,163,184,.2);overflow:hidden"><div style="height:100%;width:${max ? Math.round(v / max * 100) : 0}%;background:${cor}"></div></div>`;
+  const bar = (v, max, cor) => `<div style="height:8px;border-radius:var(--radius-sm);background:rgba(148,163,184,.2);overflow:hidden"><div style="height:100%;width:${max ? Math.round(v / max * 100) : 0}%;background:${cor}"></div></div>`;
   const rows = CURRICULUM.map(t => {
     const ementa = t.modulos.reduce((s, m) => s + m.aulas.length, 0);
     const cardsT = _cards.filter(c => (c.plataforma || '') === t.trilha);
     const pub = cardsT.filter(c => c.status === 'publicada').length;
     const prod = cardsT.length - pub;
     return `<div style="margin-bottom:9px">
-      <div class="flex" style="justify-content:space-between"><span class="tiny" style="font-weight:700">${t.icon || ''} ${esc(t.trilha)}</span>
+      <div class="flex" style="justify-content:space-between"><span class="tiny" style="font-weight:600">${t.icon || ''} ${esc(t.trilha)}</span>
       <span class="tiny muted">✅ ${pub} publicadas · 🔧 ${prod} em produção · ementa ${ementa}</span></div>
       ${bar(pub, ementa, '#16a34a')}</div>`;
   }).join('');
   const totE = CURRICULUM.reduce((s, t) => s + t.modulos.reduce((x, m) => x + m.aulas.length, 0), 0);
   const totP = _cards.filter(c => c.status === 'publicada').length;
   return `<div class="as-day">
-    <div style="font-weight:800;font-size:14px;margin-bottom:2px">🧭 Cobertura do currículo oficial</div>
+    <div style="font-weight:600;font-size:14px;margin-bottom:2px">🧭 Cobertura do currículo oficial</div>
     <div class="tiny muted" style="margin-bottom:10px">Quanto da ementa completa (${totE} aulas) já virou aula publicada: <b>${totE ? Math.round(totP / totE * 100) : 0}%</b>. Importe a ementa pra puxar o backlog.</div>
     ${rows}</div>`;
 }
@@ -436,8 +436,8 @@ function openEditor(seed) {
   const ov = document.createElement('div');
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto';
   ov.innerHTML = `
-    <div style="background:var(--bg-1,#fff);border-radius:14px;max-width:560px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
-      <div style="font-size:17px;font-weight:800;margin-bottom:12px">${c.id ? 'Editar aula' : 'Nova aula'}</div>
+    <div style="background:var(--bg-1,#fff);border-radius:var(--radius-lg);max-width:560px;width:100%;padding:20px;box-shadow:var(--shadow-1)">
+      <div style="font-size:16px;font-weight:600;margin-bottom:12px">${c.id ? 'Editar aula' : 'Nova aula'}</div>
       <label class="tiny muted">Tema / título da aula</label>
       <input id="as-f-titulo" class="input" value="${esc(c.titulo || '')}" placeholder="Ex: Como tirar o CRECI / Funil de vendas na prática" style="margin-bottom:10px">
       <div class="flex gap-2" style="margin-bottom:10px">
@@ -475,7 +475,7 @@ function openEditor(seed) {
       <div class="flex gap-2 mt-3" style="justify-content:space-between">
         <button class="btn btn-ghost" id="as-del" ${c.id ? '' : 'style="visibility:hidden"'}>🗑 Excluir</button>
         <div class="flex gap-2">
-          ${c.id ? '<button class="btn btn-ghost" id="as-pub" style="color:var(--ok);font-weight:700">🚀 Publicar na Academy</button>' : ''}
+          ${c.id ? '<button class="btn btn-ghost" id="as-pub" style="color:var(--ok);font-weight:600">🚀 Publicar na Academy</button>' : ''}
           <button class="btn btn-ghost" id="as-cancel">Cancelar</button>
           <button class="btn btn-primary" id="as-save">Salvar</button>
         </div>

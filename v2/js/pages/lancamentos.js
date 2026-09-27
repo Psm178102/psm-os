@@ -20,7 +20,7 @@ const ETAPAS = [
 
 // Raias da linha do tempo (marcas/equipes)
 const MARCAS = [
-  { id: 'map',       lbl: 'MAP',       color: '#2563eb' },
+  { id: 'map',       lbl: 'MAP',       color: '#806d50' },
   { id: 'conquista', lbl: 'Conquista', color: '#16a34a' },
 ];
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
@@ -58,28 +58,28 @@ function render() {
   _root.innerHTML = `
     <style>
       .lc-tl{position:relative;margin-top:6px}
-      .lc-month{display:flex;align-items:center;gap:8px;font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-muted,#64748b);margin:16px 0 8px}
+      .lc-month{display:flex;align-items:center;gap:8px;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-muted,#64748b);margin:16px 0 8px}
       .lc-month::before{content:'';width:11px;height:11px;border-radius:50%;background:var(--psm-gold,#d4a843);box-shadow:0 0 0 3px rgba(30,38,80,.2)}
       .lc-row{display:flex;gap:0;align-items:stretch}
       .lc-rail{width:34px;flex:0 0 34px;position:relative;display:flex;justify-content:center}
       .lc-rail::before{content:'';position:absolute;top:0;bottom:0;width:2px;background:var(--border)}
       .lc-dot{position:relative;z-index:1;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;background:var(--bg-1,#fff);border:2px solid var(--c);margin-top:12px}
-      .lc-card{flex:1;min-width:0;background:var(--bg-1,#fff);border:1px solid var(--border);border-left:4px solid var(--c);border-radius:12px;padding:12px 15px;margin:6px 0 6px 10px;transition:transform .12s,box-shadow .12s}
+      .lc-card{flex:1;min-width:0;background:var(--bg-1,#fff);border:1px solid var(--border);border-left:4px solid var(--c);border-radius:var(--radius-md);padding:12px 15px;margin:6px 0 6px 10px;transition:transform .12s,box-shadow .12s}
       .lc-card.click{cursor:pointer}
-      .lc-card.click:hover{transform:translateX(2px);box-shadow:0 4px 14px rgba(15,23,42,.10)}
+      .lc-card.click:hover{transform:translateX(2px);box-shadow:var(--shadow-1)}
       .lc-step{display:flex;align-items:center;gap:3px;flex-wrap:wrap;margin:8px 0}
-      .lc-step .st{display:flex;align-items:center;gap:3px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;background:var(--bg-3);color:var(--ink-muted,#94a3b8)}
+      .lc-step .st{display:flex;align-items:center;gap:3px;font-size:11px;font-weight:600;padding:2px 7px;border-radius:var(--radius-full);background:var(--bg-3);color:var(--ink-muted,#94a3b8)}
       .lc-step .st.on{background:var(--c);color:#fff}
-      .lc-step .sep{color:var(--border);font-size:10px}
-      .lc-stat{font-size:12px}.lc-stat b{font-weight:800}
-      .tl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;margin-top:8px}
+      .lc-step .sep{color:var(--border);font-size:11px}
+      .lc-stat{font-size:12px}.lc-stat b{font-weight:600}
+      .tl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-md);margin-top:8px}
       .tl-grid{display:grid;grid-template-columns:120px repeat(12,minmax(94px,1fr));min-width:1180px}
-      .tl-h{background:var(--bg-3);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-muted,#64748b);padding:8px 4px;text-align:center;border-bottom:1px solid var(--border)}
+      .tl-h{background:var(--bg-3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-muted,#64748b);padding:8px 4px;text-align:center;border-bottom:1px solid var(--border)}
       .tl-h.now{color:var(--info)}
-      .tl-lane{position:sticky;left:0;z-index:2;background:var(--bg-1,#fff);font-weight:800;font-size:12.5px;padding:10px 12px;border-right:2px solid var(--border);border-bottom:1px solid var(--border);display:flex;flex-direction:column;justify-content:center;gap:2px}
+      .tl-lane{position:sticky;left:0;z-index:2;background:var(--bg-1,#fff);font-weight:600;font-size:13px;padding:10px 12px;border-right:2px solid var(--border);border-bottom:1px solid var(--border);display:flex;flex-direction:column;justify-content:center;gap:2px}
       .tl-cell{border-left:1px solid var(--border);border-bottom:1px solid var(--border);min-height:64px;padding:5px;position:relative}
-      .tl-cell.now{background:rgba(37,99,235,.06)}
-      .tl-chip{display:block;font-size:10.5px;font-weight:700;padding:3px 7px;border-radius:7px;margin-bottom:4px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:1.5px solid var(--c)}
+      .tl-cell.now{background:var(--accent-soft)}
+      .tl-chip{display:block;font-size:11px;font-weight:600;padding:3px 7px;border-radius:var(--radius-sm);margin-bottom:4px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:1.5px solid var(--c)}
       .tl-chip.real{background:var(--c);color:#fff}
       .tl-chip.prev{background:transparent;color:var(--c);border-style:dashed}
       .tl-add{position:absolute;right:4px;bottom:3px;font-size:14px;line-height:1;opacity:0;cursor:pointer;color:var(--ink-muted,#94a3b8);transition:opacity .12s}
@@ -93,12 +93,12 @@ function render() {
       <div class="flex gap-3 mt-3" style="flex-wrap:wrap">
         ${kpi('🚀 Ativos',       ativos, _items.length + ' total', '#16a34a')}
         ${kpi('💰 VGV total',    'R$ ' + money(totVgv), 'soma dos VGV', '#7c3aed')}
-        ${kpi('🏢 Unidades',     totUnits, totSold + ' vendidas', '#2563eb')}
+        ${kpi('🏢 Unidades',     totUnits, totSold + ' vendidas', '#806d50')}
         ${kpi('📊 % Vendido',    totUnits > 0 ? pct2(totSold/totUnits*100) : '—', 'do total', '#d97706')}
       </div>
 
       <div class="flex gap-2 mt-3" style="flex-wrap:wrap;align-items:center;padding:10px;background:var(--bg-3);border-radius:var(--r-sm)">
-        <label class="tiny muted" style="font-weight:700">STATUS:</label>
+        <label class="tiny muted" style="font-weight:600">STATUS:</label>
         <select id="f-st" class="select" style="padding:5px 10px;font-size:12px">
           <option value="">Todos</option>
           ${STATUS.map(s => `<option value="${s.id}"${_filterStatus===s.id?' selected':''}>${s.lbl}</option>`).join('')}
@@ -112,7 +112,7 @@ function render() {
           <h3 class="card-title" style="margin:0">📅 Linha do tempo · MAP × Conquista</h3>
           <div class="tl-nav">
             <button class="btn btn-ghost btn-sm" data-tl-nav="-1">‹</button>
-            <b style="min-width:54px;text-align:center;font-size:15px">${_tlYear}</b>
+            <b style="min-width:54px;text-align:center;font-size:14px">${_tlYear}</b>
             <button class="btn btn-ghost btn-sm" data-tl-nav="1">›</button>
           </div>
         </div>
@@ -157,7 +157,7 @@ function timeline2026(canEdit) {
       && parseD(i.data_lancamento).getFullYear() === _tlYear);
     const vgv = dos.reduce((s, i) => s + Number(i.vgv_total || 0), 0);
     const laneCell = `<div class="tl-lane">
-        <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:${mc.color}"></span>${mc.lbl}</span>
+        <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:var(--radius-sm);background:${mc.color}"></span>${mc.lbl}</span>
         <span class="tiny muted" style="font-weight:600">${dos.length} · R$ ${money(vgv)}</span>
       </div>`;
     const cells = MESES.map((_, m) => {
@@ -214,10 +214,10 @@ function launchRow(i, canEdit) {
       <div class="lc-card${canEdit ? ' click' : ''}" style="--c:${status.color}" ${canEdit ? `data-lc="${i.id}"` : ''}>
         <div class="flex items-center gap-2" style="flex-wrap:wrap">
           <div style="flex:1;min-width:0">
-            <div style="font-weight:800;font-size:14.5px">${esc(i.nome)}${marcaBadge(i.marca)}</div>
+            <div style="font-weight:600;font-size:14px">${esc(i.nome)}${marcaBadge(i.marca)}</div>
             <div class="tiny muted">${esc(i.construtora || 'sem construtora')} · 📅 ${esc(data)}</div>
           </div>
-          <span class="tiny" style="background:${status.color};color:#fff;padding:3px 11px;border-radius:999px;font-weight:700">${status.lbl}</span>
+          <span class="tiny" style="background:${status.color};color:#fff;padding:3px 11px;border-radius:var(--radius-full);font-weight:600">${status.lbl}</span>
         </div>
         <div class="lc-step">${stepper}</div>
         <div class="flex gap-3" style="flex-wrap:wrap">
@@ -227,7 +227,7 @@ function launchRow(i, canEdit) {
           ${resp ? `<div class="lc-stat">👤 ${esc(resp.name)}</div>` : ''}
           ${i.link_pasta ? `<a class="lc-stat" href="${esc(i.link_pasta)}" target="_blank" rel="noopener" data-stop="1" style="text-decoration:none">📁 pasta</a>` : ''}
         </div>
-        ${i.unidades_total > 0 ? `<div style="background:var(--bg-3);height:5px;border-radius:3px;overflow:hidden;margin-top:7px"><div style="background:${status.color};height:100%;width:${pct}%;transition:width .4s"></div></div>` : ''}
+        ${i.unidades_total > 0 ? `<div style="background:var(--bg-3);height:5px;border-radius:var(--radius-sm);overflow:hidden;margin-top:7px"><div style="background:${status.color};height:100%;width:${pct}%;transition:width .4s"></div></div>` : ''}
       </div>
     </div>
   `;
@@ -240,7 +240,7 @@ function monthLabel(d) {
 const esc = (s) => escapeHtml(s);
 function marcaBadge(m) {
   const mc = MARCAS.find(x => x.id === normMarca(m));
-  return mc ? ` <span class="tiny" style="background:${mc.color}1f;color:${mc.color};padding:1px 7px;border-radius:999px;font-weight:800;vertical-align:middle">${mc.lbl}</span>` : '';
+  return mc ? ` <span class="tiny" style="background:${mc.color}1f;color:${mc.color};padding:1px 7px;border-radius:var(--radius-full);font-weight:600;vertical-align:middle">${mc.lbl}</span>` : '';
 }
 
 function openModal(lid, prefill) {
@@ -321,8 +321,8 @@ function openModal(lid, prefill) {
 
 function kpi(label, big, sub, color) {
   return `<div style="flex:1;min-width:180px;background:var(--bg-3);border-radius:var(--r-md);padding:14px 16px;border-left:4px solid ${color}">
-    <div class="tiny muted" style="letter-spacing:1px;text-transform:uppercase;font-weight:700">${label}</div>
-    <div style="font-size:20px;font-weight:900;color:${color};margin-top:2px">${big}</div>
+    <div class="tiny muted" style="letter-spacing:1px;text-transform:uppercase;font-weight:600">${label}</div>
+    <div style="font-size:20px;font-weight:600;color:${color};margin-top:2px">${big}</div>
     <div class="tiny muted">${sub}</div>
   </div>`;
 }

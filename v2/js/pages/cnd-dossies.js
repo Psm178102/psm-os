@@ -51,12 +51,12 @@ const PAPEIS_LOC = { locatario: 'Locatário', locador: 'Locador', fiador: 'Fiado
 const PAPEIS_INT = { candidato: 'Candidato' };
 /* as 3 categorias do módulo — rótulo e cor num lugar só (v86.56) */
 const TIPOS = {
-  venda:   { lbl: '🏠 Venda', cor: '#2563eb' },
-  locacao: { lbl: '🔑 Locação', cor: '#0891b2' },
+  venda:   { lbl: '🏠 Venda', cor: '#806d50' },
+  locacao: { lbl: '🔑 Locação', cor: '#806d50' },
   interno: { lbl: '🧑‍💼 Interno', cor: '#b45309' },
 };
 const tipoDe = t => TIPOS[t] || TIPOS.venda;
-const chipTipo = t => { const x = tipoDe(t); return `<span class="tiny" style="background:${x.cor}20;color:${x.cor};border-radius:20px;padding:1px 9px;font-weight:800">${x.lbl}</span>`; };
+const chipTipo = t => { const x = tipoDe(t); return `<span class="tiny" style="background:${x.cor}20;color:${x.cor};border-radius:var(--radius-lg);padding:1px 9px;font-weight:600">${x.lbl}</span>`; };
 const ECIV = ['solteiro', 'casado', 'divorciado', 'viuvo', 'uniao_estavel'];
 const ECIV_LBL = { solteiro: 'Solteiro(a)', casado: 'Casado(a)', divorciado: 'Divorciado(a)', viuvo: 'Viúvo(a)', uniao_estavel: 'União estável' };
 const CASADO = ['casado', 'uniao_estavel'];
@@ -127,7 +127,7 @@ function render() {
         <h2 class="card-title" style="margin:0;font-size:16px">📁 Dossiês de CND</h2>
         <span class="tiny muted">venda · locação · interno — você vê os casos em que está envolvido</span>
         <span style="margin-left:auto"></span>
-        ${podeInterno() ? '<button class="btn btn-sm" id="cd-cand" style="background:#b4530915;color:var(--warn-escuro);font-weight:700">🧑‍💼 Do candidato (R&S)</button>' : ''}
+        ${podeInterno() ? '<button class="btn btn-sm" id="cd-cand" style="background:var(--warn-soft);color:var(--warn-escuro);font-weight:600">🧑‍💼 Do candidato (R&S)</button>' : ''}
         <button class="btn btn-primary btn-sm" id="cd-novo">➕ Novo dossiê</button>
         <button class="btn btn-ghost btn-sm" id="cd-reload">↻</button>
       </div>
@@ -146,8 +146,8 @@ function render() {
             ${chipTipo(d.tipo_negocio)}
             <b>${esc(d.titulo)}</b>
             <span class="tiny muted">${(d.partes || []).length} parte(s)</span>
-            ${d.responsavel_id ? `<span class="tiny" style="background:var(--bg-3);border-radius:20px;padding:1px 9px">👤 ${esc(userName(d.responsavel_id))}</span>` : '<span class="tiny" style="color:var(--ambar-escuro);font-weight:700">⚠️ sem responsável</span>'}
-            ${d.tipo_negocio === 'locacao' ? `<span class="tiny" style="color:${gc};font-weight:700">${gl}</span>` : ''}
+            ${d.responsavel_id ? `<span class="tiny" style="background:var(--bg-3);border-radius:var(--radius-lg);padding:1px 9px">👤 ${esc(userName(d.responsavel_id))}</span>` : '<span class="tiny" style="color:var(--ambar-escuro);font-weight:600">⚠️ sem responsável</span>'}
+            ${d.tipo_negocio === 'locacao' ? `<span class="tiny" style="color:${gc};font-weight:600">${gl}</span>` : ''}
             <span style="margin-left:auto" class="tiny">
               <b>${p.emitidas}/${p.total}</b> emitidas
               ${p.positivas ? ` · <b style="color:var(--err)">${p.positivas} POSITIVA(S)</b>` : ''}
@@ -155,8 +155,8 @@ function render() {
               ${p.vencidas ? ` · <b style="color:var(--ambar-escuro)">${p.vencidas} vencida(s)</b>` : ''}
             </span>
           </div>
-          <div style="height:6px;background:var(--bd,#eef2f7);border-radius:20px;overflow:hidden;margin-top:6px">
-            <div style="height:100%;width:${p.total ? (p.emitidas / p.total) * 100 : 0}%;background:${p.positivas ? '#dc2626' : '#16a34a'};border-radius:20px"></div>
+          <div style="height:6px;background:var(--bd,#eef2f7);border-radius:var(--radius-lg);overflow:hidden;margin-top:6px">
+            <div style="height:100%;width:${p.total ? (p.emitidas / p.total) * 100 : 0}%;background:${p.positivas ? 'var(--err-soft)' : 'var(--ok-soft)'};border-radius:var(--radius-lg)"></div>
           </div>
         </div>`;
       }).join('')}`;
@@ -207,13 +207,13 @@ async function abrirPickerCandidato() {
       <input class="input" id="pk-q" placeholder="🔎 Buscar candidato…" value="${esc(q)}">
       <label class="tiny muted" style="display:block;margin-top:6px"><input type="checkbox" id="pk-dd"${soDD ? ' checked' : ''}> mostrar só quem está em ${dd.map(esc).join(' · ') || 'avaliação'}</label>
       <div class="mt-2" style="max-height:52vh;overflow:auto">
-        ${list.length ? list.map(t => `<div class="flex items-center pk-row" data-id="${esc(t.id)}" style="gap:8px;border-top:1px solid var(--bd,#eef2f7);padding:7px 2px;cursor:pointer">
+        ${list.length ? list.map(t => `<div class="flex items-center pk-row" data-id="${esc(t.id)}" style="gap:8px;border-top:1px solid var(--bd,var(--border));padding:7px 2px;cursor:pointer">
           <div style="flex:1;min-width:0">
             <b style="font-size:13px">${esc(t.nome || '(sem nome)')}</b>
             <div class="tiny muted">${esc(t.cargo || t.funcao || t.vaga || '—')}${t.setor ? ' · ' + esc(t.setor) : ''}${t.cpf ? ' · CPF ' + esc(t.cpf) : ' · <b style="color:var(--ambar-escuro)">sem CPF na ficha</b>'}</div>
           </div>
-          <span class="tiny" style="background:var(--bg-3);border-radius:20px;padding:1px 9px">${esc(t.etapa || 'Triagem')}</span>
-          ${t.dossie_id ? '<span class="tiny" style="color:var(--ok);font-weight:700">📁 já tem dossiê</span>' : '<span class="btn btn-primary btn-sm">➕ criar</span>'}
+          <span class="tiny" style="background:var(--bg-3);border-radius:var(--radius-lg);padding:1px 9px">${esc(t.etapa || 'Triagem')}</span>
+          ${t.dossie_id ? '<span class="tiny" style="color:var(--ok);font-weight:600">📁 já tem dossiê</span>' : '<span class="btn btn-primary btn-sm">➕ criar</span>'}
         </div>`).join('') : '<div class="tiny muted" style="padding:14px;text-align:center">Nenhum candidato encontrado.</div>'}
       </div>
     </div>`;
@@ -264,8 +264,8 @@ function pfCampos(p, pref) {
       <input class="input ${pref}profissao" placeholder="Profissão" value="${esc(p.profissao || '')}" style="flex:1;min-width:120px">
     </div>
     <input class="input ${pref}endereco mt-1" placeholder="Endereço completo" value="${esc(p.endereco || '')}" style="width:100%">
-    <div class="mt-1" style="background:${casado ? '#2563eb0d' : 'transparent'};border-radius:8px;padding:${casado ? '7px' : '0'}">
-      ${casado ? '<div class="tiny" style="font-weight:700;color:var(--info)">💍 Cônjuge — casado/união estável gera CND do cônjuge também</div>' : ''}
+    <div class="mt-1" style="background:${casado ? '#2563eb0d' : 'transparent'};border-radius:var(--radius-md);padding:${casado ? '7px' : '0'}">
+      ${casado ? '<div class="tiny" style="font-weight:600;color:var(--info)">💍 Cônjuge — casado/união estável gera CND do cônjuge também</div>' : ''}
       <div class="flex mt-1" style="gap:6px;flex-wrap:wrap">
         <input class="input ${pref}conjuge_nome" placeholder="Nome do cônjuge" value="${esc(p.conjuge_nome || '')}" style="flex:2;min-width:160px">
         <input class="input ${pref}conjuge_cpf" placeholder="CPF do cônjuge" value="${esc(p.conjuge_cpf || '')}" style="flex:1;min-width:120px">
@@ -276,9 +276,9 @@ function pfCampos(p, pref) {
 
 function parteHtml(p, i, tipoNeg) {
   const pj = p.tipo === 'pj';
-  return `<div class="card" style="margin:0 0 8px;padding:11px 13px;border-left:3px solid ${pj ? '#7c3aed' : '#2563eb'}" data-parte="${i}" data-pid="${esc(p.id || '')}">
+  return `<div class="card" style="margin:0 0 8px;padding:11px 13px;border-left:3px solid ${pj ? 'var(--accent-ink)' : 'var(--accent-ink)'}" data-parte="${i}" data-pid="${esc(p.id || '')}">
     <div class="flex items-center" style="gap:6px;flex-wrap:wrap">
-      <select class="input fp-papel" style="width:135px;font-weight:700">
+      <select class="input fp-papel" style="width:135px;font-weight:600">
         ${Object.entries(papeisDe(tipoNeg)).map(([k, v]) => `<option value="${k}"${p.papel === k ? ' selected' : ''}>${v}</option>`).join('')}
       </select>
       <select class="input fp-tipo" style="width:105px">
@@ -295,7 +295,7 @@ function parteHtml(p, i, tipoNeg) {
           <input class="input fp-inscricao_estadual" placeholder="Inscr. estadual" value="${esc(p.inscricao_estadual || '')}" style="flex:1;min-width:120px">
         </div>
         <input class="input fp-endereco mt-1" placeholder="Endereço da empresa" value="${esc(p.endereco || '')}" style="width:100%">
-        <div class="mt-2" style="background:#7c3aed0d;border-radius:8px;padding:8px">
+        <div class="mt-2" style="background:var(--accent-soft);border-radius:var(--radius-md);padding:8px">
           <div class="flex items-center" style="gap:6px">
             <b class="tiny" style="color:var(--roxo)">👥 Sócios representantes</b>
             <span class="tiny muted">cada sócio gera o pacote completo de CND (banco e cartório exigem)</span>
@@ -353,8 +353,8 @@ function renderForm() {
           ${Object.keys(TIPOS).map(t => `<option value="${t}"${tn === t ? ' selected' : ''}${t === 'interno' && !podeInterno() ? ' disabled' : ''}>${TIPOS[t].lbl}</option>`).join('')}
         </select>
       </div>
-      ${interno ? `<div class="mt-1" style="background:#b453090d;border:1px solid #b4530933;border-radius:8px;padding:8px">
-        <div class="tiny" style="font-weight:700;color:var(--warn-escuro)">🧑‍💼 Dossiê interno — candidato à contratação</div>
+      ${interno ? `<div class="mt-1" style="background:var(--warn-soft);border:1px solid var(--warn);border-radius:var(--radius-md);padding:8px">
+        <div class="tiny" style="font-weight:600;color:var(--warn-escuro)">🧑‍💼 Dossiê interno — candidato à contratação</div>
         <div class="tiny muted" style="margin-top:2px">${d.talento_id ? 'Vinculado à ficha do Recrutamento — o andamento das CNDs aparece lá automaticamente.' : 'Sem vínculo com o pipeline. Para não redigitar dados, prefira <b>🧑‍💼 Do candidato (R&S)</b> na lista de dossiês.'}</div>
         <input class="input mt-1" id="cf-cargo" placeholder="Cargo / vaga (contendo «corretor» adiciona a consulta CRECI)" value="${esc(d.cargo || '')}" style="width:100%">
       </div>` : ''}
@@ -536,9 +536,9 @@ function renderDossie() {
       </div>
       <div class="flex mt-2" style="gap:10px;flex-wrap:wrap">
         <span class="tiny"><b>${p.emitidas}/${p.total}</b> emitidas</span>
-        ${p.positivas ? `<span class="tiny" style="color:var(--err);font-weight:800">🔴 ${p.positivas} POSITIVA(S) — tem débito</span>` : ''}
-        ${p.bloqueadas ? `<span class="tiny" style="color:var(--err);font-weight:700">🚫 ${p.bloqueadas} bloqueada(s)</span>` : ''}
-        ${p.vencidas ? `<span class="tiny" style="color:var(--ambar-escuro);font-weight:700">⏰ ${p.vencidas} vencida(s)</span>` : ''}
+        ${p.positivas ? `<span class="tiny" style="color:var(--err);font-weight:600">🔴 ${p.positivas} POSITIVA(S) — tem débito</span>` : ''}
+        ${p.bloqueadas ? `<span class="tiny" style="color:var(--err);font-weight:600">🚫 ${p.bloqueadas} bloqueada(s)</span>` : ''}
+        ${p.vencidas ? `<span class="tiny" style="color:var(--ambar-escuro);font-weight:600">⏰ ${p.vencidas} vencida(s)</span>` : ''}
       </div>
     </div>
 
@@ -547,10 +547,10 @@ function renderDossie() {
     ${Object.entries(grupos).map(([rot, cs]) => `<div class="card mt-2">
       <b class="tiny">${esc(rot)}</b>
       <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:12px">
-        ${cs.map(c => `<tr style="border-top:1px solid var(--bd,#eef2f7)" data-cert="${esc(c.alvo)}|${esc(c.tipo)}">
+        ${cs.map(c => `<tr style="border-top:1px solid var(--bd,var(--border))" data-cert="${esc(c.alvo)}|${esc(c.tipo)}">
           <td style="padding:6px 4px;width:38%">
             <a href="${esc(c.link)}" target="_blank" rel="noopener" style="font-weight:600">${esc(c.nome)} ↗</a>
-            ${vencida(c) ? '<div class="tiny" style="color:var(--ambar-escuro);font-weight:700">⏰ VENCIDA</div>' : ''}
+            ${vencida(c) ? '<div class="tiny" style="color:var(--ambar-escuro);font-weight:600">⏰ VENCIDA</div>' : ''}
           </td>
           <td style="width:130px">
             <select class="input cc-status" style="padding:1px 5px;font-size:11px;width:100%" ${!podeEditar ? 'disabled' : ''}>
@@ -581,7 +581,7 @@ function htmlGarantia(g, ed) {
   return `<div class="card mt-2" style="border-left:3px solid ${gc}">
     <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
       <b class="tiny">🛡 Garantia da locação</b>
-      <span class="tiny" style="color:${gc};font-weight:800">${gl}</span>
+      <span class="tiny" style="color:${gc};font-weight:600">${gl}</span>
       ${g.decidido_por ? `<span class="tiny muted">por ${esc(userName(g.decidido_por))} em ${esc(String(g.decidido_em || '').substring(0, 10).split('-').reverse().join('/'))}</span>` : ''}
     </div>
     <div class="flex mt-2" style="gap:6px;flex-wrap:wrap">

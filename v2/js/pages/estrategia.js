@@ -19,7 +19,7 @@ import { renderRecebiveis } from './recebiveis.js';
 let _root = null;
 let _tab = 'plano';
 
-const PALETTE = ['#2563eb', '#16a34a', '#d97706', '#dc2626', '#7c3aed', '#0891b2', '#db2777', '#475569', '#d4a843'];
+const PALETTE = ['#806d50', '#16a34a', '#d97706', '#dc2626', '#7c3aed', '#806d50', '#db2777', '#475569', '#d4a843'];
 const TABS = [
   { id: 'plano', lbl: '🧭 Plano de Resgate' },
   { id: 'recebiveis', lbl: '💰 Radar de Recebíveis' },
@@ -46,20 +46,20 @@ function renderShell() {
   _root.innerHTML = `
     <style>
       .est-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
-      .est-tab{padding:8px 14px;border-radius:10px 10px 0 0;border:1px solid var(--border);border-bottom:none;background:var(--bg-2);cursor:pointer;font-weight:700;font-size:13px;color:var(--ink-muted,#64748b)}
+      .est-tab{padding:8px 14px;border-radius:10px 10px 0 0;border:1px solid var(--border);border-bottom:none;background:var(--bg-2);cursor:pointer;font-weight:600;font-size:13px;color:var(--ink-muted,#64748b)}
       .est-tab.on{background:var(--bg-1,#fff);color:var(--ink,#0f172a);box-shadow:0 -2px 0 var(--psm-gold,#d4a843) inset}
       .est-canvas{position:relative;width:100%;height:62vh;min-height:420px;overflow:auto;background:
         radial-gradient(circle, rgba(148,163,184,.20) 1px, transparent 1px) 0 0/22px 22px,
         var(--bg-3,#f1f5f9);border:1px solid var(--border);border-radius:0 10px 10px 10px}
       .est-stage{position:relative;width:2400px;height:1500px}
-      .est-node{position:absolute;min-width:120px;max-width:210px;background:var(--bg-1,#fff);border:2px solid #2563eb;border-radius:12px;
-        padding:8px 11px;font-size:12.5px;font-weight:700;box-shadow:0 2px 6px rgba(15,23,42,.12);cursor:grab;user-select:none;z-index:2}
+      .est-node{position:absolute;min-width:120px;max-width:210px;background:var(--bg-1,#fff);border:2px solid var(--accent-ink);border-radius:var(--radius-md);
+        padding:8px 11px;font-size:13px;font-weight:600;box-shadow:var(--shadow-1);cursor:grab;user-select:none;z-index:2}
       .est-node.sel{box-shadow:0 0 0 3px rgba(212,168,67,.55),0 6px 16px rgba(15,23,42,.18);z-index:3}
       .est-node .nlabel{outline:none;white-space:pre-wrap;word-break:break-word}
       .est-node[contenteditable]{cursor:text}
       .est-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:var(--bg-1,#fff);border:1px solid var(--border);border-bottom:none;border-radius:10px 10px 0 0;padding:8px 10px}
       .est-sw{width:18px;height:18px;border-radius:50%;cursor:pointer;border:2px solid #fff;box-shadow:0 0 0 1px rgba(15,23,42,.15)}
-      .crono-col{min-width:280px;max-width:320px;flex:0 0 auto;background:var(--bg-3,#f1f5f9);border-radius:12px;padding:10px}
+      .crono-col{min-width:280px;max-width:320px;flex:0 0 auto;background:var(--bg-3,#f1f5f9);border-radius:var(--radius-md);padding:10px}
     </style>
     <div class="card">
       <div class="flex" style="justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
@@ -103,7 +103,7 @@ async function openTab(tab) {
    quadro original, linkado abaixo — zero duplicação de CRUD. ── */
 const PA_TIPOS = [
   { id: 'visao',      lbl: 'Visão',       ico: '🎯', color: '#7c3aed' },
-  { id: 'missao',     lbl: 'Missão',      ico: '🚀', color: '#2563eb' },
+  { id: 'missao',     lbl: 'Missão',      ico: '🚀', color: '#806d50' },
   { id: 'objetivo',   lbl: 'Objetivos',   ico: '📍', color: '#16a34a' },
   { id: 'okr',        lbl: 'OKRs',        ico: '✅', color: '#d97706' },
   { id: 'iniciativa', lbl: 'Iniciativas', ico: '🛠', color: '#dc2626' },
@@ -114,13 +114,13 @@ async function renderPlanoAnual(c) {
   try { e = await api.request('/api/v3/diretoria/estrategia?ano=' + _paAno); }
   catch (err) { c.innerHTML = `<div class="card" style="border-radius:0 10px 10px 10px"><div class="alert alert-err">${esc(err.message)}</div></div>`; return; }
   const groups = (e && e.groups) || {};
-  const item = it => `<div style="background:var(--bg-3);border-radius:8px;padding:8px 12px">
+  const item = it => `<div style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px 12px">
       <div class="flex items-center gap-2">
         <div style="flex:1"><b style="font-size:13px">${esc(it.titulo || '')}</b>
           ${it.descricao ? `<div class="tiny muted" style="margin-top:2px">${esc(it.descricao)}</div>` : ''}</div>
-        ${it.status ? `<span class="tiny" style="font-weight:700;opacity:.75">${esc(it.status)}</span>` : ''}
+        ${it.status ? `<span class="tiny" style="font-weight:600;opacity:.75">${esc(it.status)}</span>` : ''}
       </div>
-      ${it.progresso != null ? `<div style="height:5px;background:var(--bg-2);border-radius:3px;margin-top:6px;overflow:hidden"><div style="height:100%;width:${Math.max(0, Math.min(100, Number(it.progresso) || 0))}%;background:#16a34a"></div></div>` : ''}
+      ${it.progresso != null ? `<div style="height:5px;background:var(--bg-2);border-radius:var(--radius-sm);margin-top:6px;overflow:hidden"><div style="height:100%;width:${Math.max(0, Math.min(100, Number(it.progresso) || 0))}%;background:var(--ok-soft)"></div></div>` : ''}
     </div>`;
   c.innerHTML = `
     <div class="card" style="border-radius:0 10px 10px 10px">
@@ -132,7 +132,7 @@ async function renderPlanoAnual(c) {
       <div class="tiny muted" style="margin:4px 0 10px">Visão consolidada (leitura) do planejamento anual — a edição continua no quadro original.</div>
       <div style="display:grid;gap:12px">
         ${PA_TIPOS.map(t => { const its = groups[t.id] || []; return `
-          <div style="border-top:3px solid ${t.color};border-radius:6px;background:var(--bg-2);padding:10px 12px">
+          <div style="border-top:3px solid ${t.color};border-radius:var(--radius-sm);background:var(--bg-2);padding:10px 12px">
             <b class="tiny">${t.ico} ${t.lbl} <span class="muted" style="font-weight:400">(${its.length})</span></b>
             ${its.length ? `<div style="display:grid;gap:6px;margin-top:8px">${its.map(item).join('')}</div>` : '<div class="tiny muted" style="margin-top:4px">nenhum item</div>'}
           </div>`; }).join('')}
@@ -214,7 +214,7 @@ function paintNodes() {
     el.dataset.id = n.id;
     el.style.left = (n.x || 0) + 'px';
     el.style.top = (n.y || 0) + 'px';
-    el.style.borderColor = n.color || '#2563eb';
+    el.style.borderColor = n.color || '#806d50';
     el.innerHTML = `<div class="nlabel">${esc(n.text || '')}</div>`;
     attachNode(el, n);
     stage.appendChild(el);
@@ -304,7 +304,7 @@ function renderSelBar() {
   const others = _ed.nodes.filter(x => x.id !== n.id);
   bar.innerHTML = `
     <input id="nd-text" class="input" value="${esc(n.text || '')}" style="max-width:200px;height:30px;font-size:12px" />
-    <span style="display:flex;gap:4px">${PALETTE.map(c => `<span class="est-sw" data-color="${c}" style="background:${c};${c === n.color ? 'outline:2px solid #0f172a' : ''}"></span>`).join('')}</span>
+    <span style="display:flex;gap:4px">${PALETTE.map(c => `<span class="est-sw" data-color="${c}" style="background:${c};${c === n.color ? 'outline:2px solid var(--border)' : ''}"></span>`).join('')}</span>
     <select id="nd-parent" class="input" style="max-width:170px;height:30px;font-size:12px">
       <option value="">${_ed.board === 'orgchart' ? 'Sem superior' : 'Sem conexão'}</option>
       ${others.map(o => `<option value="${esc(o.id)}"${n.parent === o.id ? ' selected' : ''}>${_ed.board === 'orgchart' ? '↳ ' : '→ '}${esc((o.text || '').slice(0, 24))}</option>`).join('')}
@@ -342,7 +342,7 @@ async function seedOrg() {
     users = (r.users || r || []).filter(u => (u.status || 'ativo') === 'ativo');
   } catch (_) { alert('Não consegui carregar os usuários.'); return; }
   const TIER = { socio: 0, diretor: 0, gerente: 1, lider: 2, corretor: 3, marketing: 3, backoffice: 3, financeiro: 3 };
-  const COR = { socio: '#d4a843', diretor: '#d4a843', gerente: '#7c3aed', lider: '#2563eb', corretor: '#16a34a' };
+  const COR = { socio: '#d4a843', diretor: '#d4a843', gerente: '#7c3aed', lider: '#806d50', corretor: '#16a34a' };
   const rowCount = {};
   users.forEach(u => {
     const tier = TIER[(u.role || 'corretor').toLowerCase()] ?? 3;
@@ -375,7 +375,7 @@ let _cr = null;
 
 const CR_STATUS = {
   planejado: { lbl: 'Planejado', cor: '#64748b' },
-  andamento: { lbl: 'Em andamento', cor: '#2563eb' },
+  andamento: { lbl: 'Em andamento', cor: '#806d50' },
   pausado: { lbl: 'Pausado', cor: '#a16207' },          // v84.96
   risco: { lbl: 'Em risco', cor: '#d97706' },
   concluido: { lbl: 'Concluído', cor: '#16a34a' },
@@ -439,8 +439,8 @@ function paintCronograma(container) {
     <div class="card" style="border-radius:0 10px 10px 10px">
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
         <div class="flex gap-2" style="flex-wrap:wrap">
-          <span class="cap-chip" style="background:rgba(37,99,235,.12);color:var(--info);padding:3px 10px;border-radius:999px;font-weight:700;font-size:12px">🎯 ${metas} meta(s)${pctMetas != null ? ` · <b>${pctMetas}%</b> atingido` : ''}</span>
-          <span class="cap-chip" style="background:rgba(22,163,74,.12);color:var(--ok);padding:3px 10px;border-radius:999px;font-weight:700;font-size:12px">🚩 ${objs} objetivo(s)${pctObjs != null ? ` · <b>${pctObjs}%</b> atingido` : ''}</span>
+          <span class="cap-chip" style="background:var(--accent-soft);color:var(--info);padding:3px 10px;border-radius:var(--radius-full);font-weight:600;font-size:12px">🎯 ${metas} meta(s)${pctMetas != null ? ` · <b>${pctMetas}%</b> atingido` : ''}</span>
+          <span class="cap-chip" style="background:var(--ok-soft);color:var(--ok);padding:3px 10px;border-radius:var(--radius-full);font-weight:600;font-size:12px">🚩 ${objs} objetivo(s)${pctObjs != null ? ` · <b>${pctObjs}%</b> atingido` : ''}</span>
           ${excluidos.length ? `<button class="btn btn-ghost btn-sm" id="cr-toggle-exc" style="font-size:11px">🗑 ${_crVerExcluidos ? 'ocultar' : 'ver'} excluídos (${excluidos.length})</button>` : ''}
         </div>
         <button class="btn btn-primary btn-sm" id="cr-new">➕ Novo item</button>
@@ -448,7 +448,7 @@ function paintCronograma(container) {
       ${_cr.pending ? `<div class="alert alert-warn" style="margin-top:8px">⏳ Rode <code>supabase/sprint9_24_estrategia.sql</code> pra salvar o cronograma.</div>` : ''}
       ${!_cr.items.length ? `
         <div style="text-align:center;padding:40px 20px">
-          <div style="font-size:42px">🗓️</div>
+          <div style="font-size:36px">🗓️</div>
           <h3 style="margin:8px 0 4px">Monte o cronograma estratégico</h3>
           <p class="muted" style="max-width:480px;display:inline-block;margin:0">Adicione metas e objetivos por período (trimestre/ano), cada um com status, responsável e observações. Tudo num só lugar pra acompanhar a execução do plano.</p>
         </div>` : `
@@ -470,7 +470,7 @@ function cronoCol(periodo) {
   const items = base.filter(i => (i.periodo || 'Sem período') === periodo);
   return `
     <div class="crono-col">
-      <div style="font-weight:800;font-size:13px;margin-bottom:8px">📅 ${esc(periodo)} <span class="tiny muted">· ${items.length}</span></div>
+      <div style="font-weight:600;font-size:13px;margin-bottom:8px">📅 ${esc(periodo)} <span class="tiny muted">· ${items.length}</span></div>
       <div style="display:grid;gap:8px">
         ${items.map(cronoCard).join('')}
       </div>
@@ -481,9 +481,9 @@ function cronoCard(i) {
   const st = CR_STATUS[i.status] || CR_STATUS.planejado;
   const isMeta = i.tipo === 'meta';
   return `
-    <div style="background:var(--bg-1,#fff);border:1px solid var(--border);border-left:4px solid ${st.cor};border-radius:10px;padding:10px 12px">
+    <div style="background:var(--bg-1,#fff);border:1px solid var(--border);border-left:4px solid ${st.cor};border-radius:var(--radius-md);padding:10px 12px">
       <div class="flex" style="justify-content:space-between;align-items:flex-start;gap:6px">
-        <div style="font-weight:800;font-size:13px;line-height:1.25">${isMeta ? '🎯' : '🚩'} ${esc(i.titulo)}</div>
+        <div style="font-weight:600;font-size:13px;line-height:1.25">${isMeta ? '🎯' : '🚩'} ${esc(i.titulo)}</div>
         <div class="flex gap-1" style="flex-shrink:0">
           <button class="btn btn-ghost btn-sm" data-cr-edit="${esc(i.id)}" style="padding:1px 6px">✏️</button>
           ${i.status === 'excluido'
@@ -492,10 +492,10 @@ function cronoCard(i) {
         </div>
       </div>
       <div class="flex gap-1" style="flex-wrap:wrap;margin-top:6px">
-        <span style="background:${st.cor}1f;color:${st.cor};padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700">${st.lbl}</span>
-        ${i.responsavel ? `<span style="background:rgba(148,163,184,.16);padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700">👤 ${esc(i.responsavel)}</span>` : ''}
-        ${i.fonte ? `<span style="background:rgba(124,58,237,.12);color:var(--roxo);padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700" title="progresso medido automaticamente nesta fonte">🔗 auto</span>` : ''}
-        ${(() => { if (!i.prazo) return ''; const atras = i.status !== 'concluido' && i.status !== 'excluido' && i.prazo < hojeISO(); return `<span style="background:${atras ? 'rgba(239,68,68,.16)' : 'rgba(148,163,184,.16)'};color:${atras ? '#dc2626' : 'inherit'};padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700">📅 ${i.prazo.split('-').reverse().join('/')}${atras ? ' ⚠ atrasado' : ''}</span>`; })()}
+        <span style="background:${st.cor}1f;color:${st.cor};padding:1px 8px;border-radius:var(--radius-full);font-size:11px;font-weight:600">${st.lbl}</span>
+        ${i.responsavel ? `<span style="background:rgba(148,163,184,.16);padding:1px 8px;border-radius:var(--radius-full);font-size:11px;font-weight:600">👤 ${esc(i.responsavel)}</span>` : ''}
+        ${i.fonte ? `<span style="background:var(--accent-soft);color:var(--roxo);padding:1px 8px;border-radius:var(--radius-full);font-size:11px;font-weight:600" title="progresso medido automaticamente nesta fonte">🔗 auto</span>` : ''}
+        ${(() => { if (!i.prazo) return ''; const atras = i.status !== 'concluido' && i.status !== 'excluido' && i.prazo < hojeISO(); return `<span style="background:${atras ? 'rgba(239,68,68,.16)' : 'rgba(148,163,184,.16)'};color:${atras ? 'var(--err)' : 'inherit'};padding:1px 8px;border-radius:var(--radius-full);font-size:11px;font-weight:600">📅 ${i.prazo.split('-').reverse().join('/')}${atras ? ' ⚠ atrasado' : ''}</span>`; })()}
       </div>
       ${(() => {   /* v84.96 — barra de % (manual ou nutrida pela fonte) */
         const pct = cronoPct(i);
@@ -506,10 +506,10 @@ function cronoCard(i) {
               ? `${fmtReal(i.fonte, pr.real)} de ${fmtReal(i.fonte, pr.alvo)} — ${CR_FONTES[i.fonte] || i.fonte}`
               : (pr ? 'defina o ALVO no ✏️ pra medir' : 'medindo…'))
           : 'informado manualmente';
-        const cor = pct == null ? '#94a3b8' : pct >= 100 ? '#16a34a' : pct >= 60 ? '#2563eb' : pct >= 30 ? '#d97706' : '#dc2626';
+        const cor = pct == null ? '#94a3b8' : pct >= 100 ? '#16a34a' : pct >= 60 ? '#806d50' : pct >= 30 ? '#d97706' : '#dc2626';
         return `<div style="margin-top:7px">
-          <div class="flex" style="justify-content:space-between;font-size:10px;font-weight:700"><span style="color:${cor}">${pct != null ? pct + '%' : '—'}</span><span class="muted" style="font-weight:400">${legenda}</span></div>
-          <div style="height:6px;background:var(--bg-3);border-radius:99px;margin-top:2px;overflow:hidden"><div style="height:100%;width:${pct || 0}%;background:${cor};border-radius:99px"></div></div>
+          <div class="flex" style="justify-content:space-between;font-size:11px;font-weight:600"><span style="color:${cor}">${pct != null ? pct + '%' : '—'}</span><span class="muted" style="font-weight:400">${legenda}</span></div>
+          <div style="height:6px;background:var(--bg-3);border-radius:var(--radius-full);margin-top:2px;overflow:hidden"><div style="height:100%;width:${pct || 0}%;background:${cor};border-radius:var(--radius-full)"></div></div>
         </div>`;
       })()}
       ${i.obs ? `<div class="tiny muted" style="margin-top:6px;white-space:pre-wrap;line-height:1.45;border-top:1px dashed var(--border);padding-top:6px">📝 ${esc(i.obs)}</div>` : ''}
@@ -527,35 +527,35 @@ function openCronoForm(item) {
           <button class="btn btn-ghost btn-sm" id="cr-x">✕</button>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
-          <div style="grid-column:1/-1"><label class="tiny muted" style="font-weight:700">Título</label>
+          <div style="grid-column:1/-1"><label class="tiny muted" style="font-weight:600">Título</label>
             <input id="cr-titulo" class="input" value="${esc(i.titulo || '')}" placeholder="Ex.: Abrir filial zona sul" style="width:100%" /></div>
-          <div><label class="tiny muted" style="font-weight:700">Tipo</label>
+          <div><label class="tiny muted" style="font-weight:600">Tipo</label>
             <select id="cr-tipo" class="input" style="width:100%">
               <option value="objetivo"${i.tipo !== 'meta' ? ' selected' : ''}>🚩 Objetivo</option>
               <option value="meta"${i.tipo === 'meta' ? ' selected' : ''}>🎯 Meta</option>
             </select></div>
-          <div><label class="tiny muted" style="font-weight:700">Período</label>
+          <div><label class="tiny muted" style="font-weight:600">Período</label>
             <input id="cr-periodo" class="input" list="cr-per-dl" value="${esc(i.periodo || 'Q1 2026')}" style="width:100%" />
             <datalist id="cr-per-dl">${CR_PERIODOS.map(p => `<option value="${p}">`).join('')}</datalist></div>
-          <div><label class="tiny muted" style="font-weight:700">Status</label>
+          <div><label class="tiny muted" style="font-weight:600">Status</label>
             <select id="cr-status" class="input" style="width:100%">
               ${Object.entries(CR_STATUS).map(([k, v]) => `<option value="${k}"${(i.status || 'planejado') === k ? ' selected' : ''}>${v.lbl}</option>`).join('')}
             </select></div>
-          <div><label class="tiny muted" style="font-weight:700">Responsável</label>
+          <div><label class="tiny muted" style="font-weight:600">Responsável</label>
             <input id="cr-resp" class="input" value="${esc(i.responsavel || '')}" placeholder="Nome" style="width:100%" /></div>
-          <div><label class="tiny muted" style="font-weight:700">📅 Prazo (opcional)</label>
+          <div><label class="tiny muted" style="font-weight:600">📅 Prazo (opcional)</label>
             <input id="cr-prazo" class="input" type="date" value="${esc(i.prazo || '')}" style="width:100%" />
             <div class="tiny muted" style="margin-top:2px">passou do prazo sem concluir → card acusa atraso</div></div>
-          <div style="grid-column:1/-1;border-top:1px dashed var(--border);padding-top:10px"><label class="tiny muted" style="font-weight:700">📈 Progresso — de onde vem o %?</label>
+          <div style="grid-column:1/-1;border-top:1px dashed var(--border);padding-top:10px"><label class="tiny muted" style="font-weight:600">📈 Progresso — de onde vem o %?</label>
             <select id="cr-fonte" class="input" style="width:100%">
               ${Object.entries(CR_FONTES).map(([k, v]) => `<option value="${k}"${(i.fonte || '') === k ? ' selected' : ''}>${v}</option>`).join('')}
             </select>
             <div class="tiny muted" style="margin-top:2px">Fonte automática = o House mede sozinho (mês/ano corrente) e o card se atualiza. Manual = você digita.</div></div>
-          <div id="cr-alvo-box" style="${(i.fonte || '') ? '' : 'display:none'}"><label class="tiny muted" style="font-weight:700">Alvo (número/R$)</label>
+          <div id="cr-alvo-box" style="${(i.fonte || '') ? '' : 'display:none'}"><label class="tiny muted" style="font-weight:600">Alvo (número/R$)</label>
             <input id="cr-alvo" class="input" type="number" step="any" value="${i.alvo ?? ''}" placeholder="ex: 2100000 ou 8" style="width:100%" /></div>
-          <div id="cr-prog-box" style="${(i.fonte || '') ? 'display:none' : ''}"><label class="tiny muted" style="font-weight:700">% atingido (manual)</label>
+          <div id="cr-prog-box" style="${(i.fonte || '') ? 'display:none' : ''}"><label class="tiny muted" style="font-weight:600">% atingido (manual)</label>
             <input id="cr-prog" class="input" type="number" min="0" max="100" value="${i.progresso ?? ''}" placeholder="0–100" style="width:100%" /></div>
-          <div style="grid-column:1/-1"><label class="tiny muted" style="font-weight:700">Observações</label>
+          <div style="grid-column:1/-1"><label class="tiny muted" style="font-weight:600">Observações</label>
             <textarea id="cr-obs" class="input" rows="4" style="width:100%" placeholder="Notas, contexto, dependências, próximos passos…">${esc(i.obs || '')}</textarea></div>
         </div>
         <div id="cr-err" class="tiny" style="color:var(--err);margin-top:8px"></div>
@@ -638,8 +638,8 @@ async function iaEstrategista() {
     const j = await api.request('/api/v3/ia/analyze', { method: 'POST', body: { prompt, max_tokens: 3500, dossie: true } });   // cérebro novo (Sonnet 5 + dossiê) v84.4
     if (j.ok && j.text) {
       modal.innerHTML = wrapModal(`
-        <div style="font-weight:800;color:var(--roxo);margin-bottom:8px">🤖 Leitura estratégica <span class="tiny muted" style="font-weight:400">· ${esc(j.model_used || 'IA')}</span></div>
-        <div style="font-size:13.5px;line-height:1.6">${mdLite(j.text)}</div>`);
+        <div style="font-weight:600;color:var(--roxo);margin-bottom:8px">🤖 Leitura estratégica <span class="tiny muted" style="font-weight:400">· ${esc(j.model_used || 'IA')}</span></div>
+        <div style="font-size:13px;line-height:1.6">${mdLite(j.text)}</div>`);
     } else {
       modal.innerHTML = wrapModal(`<div class="alert alert-warn">IA indisponível: ${esc(j.error || 'erro')}</div>`);
     }
@@ -682,9 +682,9 @@ function bindModalClose() {
 /* ─── helpers ─── */
 function mdLite(t) {
   return esc(t)
-    .replace(/^#### (.*)$/gm, '<div style="font-weight:800;margin:8px 0 2px">$1</div>')
-    .replace(/^### (.*)$/gm, '<div style="font-weight:800;margin:8px 0 2px">$1</div>')
-    .replace(/^## (.*)$/gm, '<div style="font-weight:800;font-size:14px;margin:12px 0 4px">$1</div>')
+    .replace(/^#### (.*)$/gm, '<div style="font-weight:600;margin:8px 0 2px">$1</div>')
+    .replace(/^### (.*)$/gm, '<div style="font-weight:600;margin:8px 0 2px">$1</div>')
+    .replace(/^## (.*)$/gm, '<div style="font-weight:600;font-size:14px;margin:12px 0 4px">$1</div>')
     .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
     .replace(/^\s*\d+\.\s+(.*)$/gm, '<div style="margin:3px 0 3px 6px">▸ $1</div>')
     .replace(/^\s*[-*] (.*)$/gm, '<div style="margin:2px 0 2px 12px">• $1</div>')
@@ -719,7 +719,7 @@ function prBarra(lbl, real, meta, cor = '#16a34a') {
   const pct = meta ? Math.min(100, Math.round(100 * real / meta)) : 0;
   return `<div class="tiny" style="margin:5px 0">
     <div class="flex" style="justify-content:space-between"><span>${lbl}</span><b>${prMi(real)} / ${prMi(meta)} (${pct}%)</b></div>
-    <div style="background:var(--bg-3);border-radius:6px;height:11px"><div style="width:${pct}%;background:${cor};height:11px;border-radius:6px"></div></div>
+    <div style="background:var(--bg-3);border-radius:var(--radius-sm);height:11px"><div style="width:${pct}%;background:${cor};height:11px;border-radius:var(--radius-sm)"></div></div>
   </div>`;
 }
 
@@ -730,7 +730,7 @@ function prPaint(c) {
   let corpo = '';
 
   const brief = _pr.briefing;
-  const briefBox = brief && brief.texto ? `<div class="card" style="margin:0 0 8px;background:#7c3aed0d;border:1px dashed #7c3aed55">
+  const briefBox = brief && brief.texto ? `<div class="card" style="margin:0 0 8px;background:var(--accent-soft);border:1px dashed var(--accent-ink)">
     <div class="tiny"><b>📬 Briefing de segunda</b> <span class="muted">(${new Date(brief.ts).toLocaleDateString('pt-BR')} · ${prEsc(brief.provider || '')})</span></div>
     <div class="tiny mt-1" style="line-height:1.5">${prMd(brief.texto)}</div>
   </div>` : '';
@@ -751,31 +751,31 @@ function prPaint(c) {
           <b>🎯 Amortecedor da Semana ${emj}</b>
           <span class="tiny muted">conta cheia do mês: <b>${prBrl(am.conta_cheia)}</b> ${am.conta_cheia_fonte === 'calculada' ? '(calculada dos custos orçados — fonte única)' : '(kv manual/fallback)'}</span>
         </div>
-        <div style="font-size:26px;font-weight:900;color:${cor};margin:6px 0 2px">${am.falta_proprio > 0 ? 'Faltam ' + prBrl(am.falta_proprio) + ' de VGV próprio' : '✅ Mês coberto no ritmo atual'}</div>
+        <div style="font-size:26px;font-weight:600;color:${cor};margin:6px 0 2px">${am.falta_proprio > 0 ? 'Faltam ' + prBrl(am.falta_proprio) + ' de VGV próprio' : '✅ Mês coberto no ritmo atual'}</div>
         <div class="tiny">pra fechar o mês ≥ 0 · Conquista projetada no ritmo real: <b>${prBrl(am.contrib_conquista_projetada)}</b> de contribuição · próprio já vendido: <b>${prBrl(am.proprio_ja_vendido)}</b></div>
         <div class="flex mt-2" style="gap:8px;flex-wrap:wrap">
-          <div style="flex:1;min-width:170px;background:var(--bg-2);border-radius:8px;padding:6px 10px"><div class="tiny muted">📏 Régua Conquista</div><div style="font-weight:800">${prBrl(am.regua_conquista_sem)}/sem</div></div>
-          <div style="flex:1;min-width:170px;background:var(--bg-2);border-radius:8px;padding:6px 10px"><div class="tiny muted">📏 Régua próprio (recalculada)</div><div style="font-weight:800;color:${cor}">${prBrl(am.regua_proprio_sem)}/sem</div></div>
+          <div style="flex:1;min-width:170px;background:var(--bg-2);border-radius:var(--radius-md);padding:6px 10px"><div class="tiny muted">📏 Régua Conquista</div><div style="font-weight:600">${prBrl(am.regua_conquista_sem)}/sem</div></div>
+          <div style="flex:1;min-width:170px;background:var(--bg-2);border-radius:var(--radius-md);padding:6px 10px"><div class="tiny muted">📏 Régua próprio (recalculada)</div><div style="font-weight:600;color:${cor}">${prBrl(am.regua_proprio_sem)}/sem</div></div>
         </div>
         <div class="tiny muted" style="margin-top:4px">Regra do Amortecedor: o que a Conquista não atingir vira meta própria de Paulo/Isa — recalculada toda segunda (push automático).</div>
-        ${am.divergencia ? `<div class="tiny" style="color:var(--warn);font-weight:700;margin-top:4px">⚠️ kv manual (${prBrl(am.divergencia.kv_manual)}) ≠ calculado (${prBrl(am.divergencia.calculada)}) — o calculado manda; limpe/ajuste o kv na Viabilidade.</div>` : ''}
+        ${am.divergencia ? `<div class="tiny" style="color:var(--warn);font-weight:600;margin-top:4px">⚠️ kv manual (${prBrl(am.divergencia.kv_manual)}) ≠ calculado (${prBrl(am.divergencia.calculada)}) — o calculado manda; limpe/ajuste o kv na Viabilidade.</div>` : ''}
       </div>`;
     })() : '';
     corpo = amBox + briefBox + `
       <div class="tiny muted">Mês corrente: <b>${prEsc(mesAtual.nome || r.mes_id)}</b> · VGV = vendas GANHAS no CRM (win, mês do fechamento) · frentes pela Central de Frentes</div>
       ${prBarra('🏆 Conquista (equipe)', vgvC, mesAtual.conquista || 0, '#16a34a')}
-      ${prBarra('🤝 VGV próprio (MAP + Terceiros)', vgvP, mesAtual.proprio || 0, '#2563eb')}
+      ${prBarra('🤝 VGV próprio (MAP + Terceiros)', vgvP, mesAtual.proprio || 0, '#806d50')}
       <div class="tiny mt-2"><b>💰 Contribuição estimada do mês: ${prBrl(contrib)}</b> (Conquista ×${cts.margem_conquista_pct}% + próprio ×${cts.margem_proprio_pct}%)</div>
-      ${r.caixa_recebido != null ? `<div class="tiny" style="margin-top:2px"><b>🏦 CAIXA do mês: recebido ${prBrl(r.caixa_recebido)}</b> de ${prBrl(r.caixa_previsto || 0)} previstos${(r.caixa_travado || 0) > 0 ? ` · <span style='color:var(--err);font-weight:800'>⛔ ${prBrl(r.caixa_travado)} travados</span>` : ''} — <span class="muted">competência ≠ caixa: o gap vendido×recebido</span></div>` : ''}
-      <div style="background:var(--bg-3);border-radius:6px;height:14px;position:relative;margin:4px 0 2px">
-        <div style="width:${pctBe}%;background:${contrib >= beOp ? '#16a34a' : '#d97706'};height:14px;border-radius:6px"></div>
-        <div style="position:absolute;left:${Math.round(100 * beOp / bePl)}%;top:-3px;bottom:-3px;width:2px;background:#dc2626" title="break-even operacional"></div>
+      ${r.caixa_recebido != null ? `<div class="tiny" style="margin-top:2px"><b>🏦 CAIXA do mês: recebido ${prBrl(r.caixa_recebido)}</b> de ${prBrl(r.caixa_previsto || 0)} previstos${(r.caixa_travado || 0) > 0 ? ` · <span style='color:var(--err);font-weight:600'>⛔ ${prBrl(r.caixa_travado)} travados</span>` : ''} — <span class="muted">competência ≠ caixa: o gap vendido×recebido</span></div>` : ''}
+      <div style="background:var(--bg-3);border-radius:var(--radius-sm);height:14px;position:relative;margin:4px 0 2px">
+        <div style="width:${pctBe}%;background:${contrib >= beOp ? 'var(--ok-soft)' : 'var(--warn-soft)'};height:14px;border-radius:var(--radius-sm)"></div>
+        <div style="position:absolute;left:${Math.round(100 * beOp / bePl)}%;top:-3px;bottom:-3px;width:2px;background:var(--err-soft)" title="break-even operacional"></div>
       </div>
       <div class="tiny muted">marco vermelho = break-even operacional ${prBrl(beOp)} · barra cheia = pleno ${prBrl(bePl)} (com pró-labore)</div>
       <div class="flex mt-2" style="gap:8px;flex-wrap:wrap">
-        <div style="flex:1;min-width:150px;background:var(--bg-3);border-radius:10px;padding:8px 10px"><div class="tiny muted">🔑 Locação: carteira</div><div style="font-weight:900;font-size:17px">${(r.locacao || {}).carteira || 0} <span class="tiny muted">(meta dez: ${cts.locacao_meta_dez || 27})</span></div></div>
-        <div style="flex:1;min-width:150px;background:var(--bg-3);border-radius:10px;padding:8px 10px"><div class="tiny muted">🔑 Contratos no mês</div><div style="font-weight:900;font-size:17px">${(r.locacao || {}).contratos_mes || 0}</div></div>
-        <div style="flex:1;min-width:150px;background:var(--bg-3);border-radius:10px;padding:8px 10px"><div class="tiny muted">📈 Vendas ganhas (mês)</div><div style="font-weight:900;font-size:17px">${Object.values(r.n_vendas || {}).reduce((a, b) => a + b, 0)}</div></div>
+        <div style="flex:1;min-width:150px;background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px"><div class="tiny muted">🔑 Locação: carteira</div><div style="font-weight:600;font-size:16px">${(r.locacao || {}).carteira || 0} <span class="tiny muted">(meta dez: ${cts.locacao_meta_dez || 27})</span></div></div>
+        <div style="flex:1;min-width:150px;background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px"><div class="tiny muted">🔑 Contratos no mês</div><div style="font-weight:600;font-size:16px">${(r.locacao || {}).contratos_mes || 0}</div></div>
+        <div style="flex:1;min-width:150px;background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px"><div class="tiny muted">📈 Vendas ganhas (mês)</div><div style="font-weight:600;font-size:16px">${Object.values(r.n_vendas || {}).reduce((a, b) => a + b, 0)}</div></div>
       </div>
       <div class="tiny muted mt-2">👁 Fiscalização no mês: ${Object.entries(r.fiscalizacao || {}).map(([k, ts]) =>
         `<b>${prEsc(k)}</b> ${Object.values(ts).reduce((a, b) => a + b, 0)} eventos`).join(' · ') || 'sem eventos ainda'}
@@ -795,7 +795,7 @@ function prPaint(c) {
       const gchave = `${m.id}:gate`;
       const gfeito = (p.checklist || {})[gchave];
       const done = (m.acoes || []).filter((a, i) => (p.checklist || {})[`${m.id}:acao:${i}`]).length;
-      return `<div class="card" style="margin:0 0 8px;border-left:3px solid ${gfeito ? '#16a34a' : '#d4a843'}">
+      return `<div class="card" style="margin:0 0 8px;border-left:3px solid ${gfeito ? 'var(--ok)' : 'var(--accent-ink)'}">
         <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
           <b>${prEsc(m.nome)}</b>
           <span class="tiny muted">Conquista ${prMi(m.conquista)} · próprio ${prMi(m.proprio)} · trilha ${prBrl(m.trilha_fin)}</span>
@@ -803,7 +803,7 @@ function prPaint(c) {
           <span style="margin-left:auto" class="tiny muted">${done}/${(m.acoes || []).length} ações</span>
         </div>
         ${itens}
-        <label class="tiny" style="display:flex;gap:7px;align-items:flex-start;padding:5px 8px;margin-top:4px;background:${gfeito ? '#16a34a18' : '#d4a84318'};border-radius:8px;cursor:pointer">
+        <label class="tiny" style="display:flex;gap:7px;align-items:flex-start;padding:5px 8px;margin-top:4px;background:${gfeito ? '#16a34a18' : '#d4a84318'};border-radius:var(--radius-md);cursor:pointer">
           <input type="checkbox" class="pr-ck" data-chave="${prEsc(gchave)}" ${gfeito ? 'checked' : ''} style="margin-top:2px">
           <span><b>🚪 GATE:</b> ${prEsc(m.gate)}${gfeito ? ` <span class="muted">✓ ${prEsc(gfeito.por || '')}</span>` : ''}</span>
         </label>
@@ -823,7 +823,7 @@ function prPaint(c) {
   c.innerHTML = `
     <div class="card" style="border-radius:0 10px 10px 10px">
       <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
-        <b style="font-size:15px">🧭 ${prEsc(p.titulo || 'Plano de Resgate')}</b>
+        <b style="font-size:14px">🧭 ${prEsc(p.titulo || 'Plano de Resgate')}</b>
         <span class="tiny muted">${prEsc(p.periodo || '')} · ${prEsc(p.versao || '')}</span>
       </div>
       <div class="flex mt-2" style="gap:6px;flex-wrap:wrap">
@@ -878,7 +878,7 @@ async function prAds(c) {
   const g = a.global;
   const cor = { '▲': '#16a34a', '⏸': '#d97706', '▼': '#dc2626', '—': '#64748b' };
   host.innerHTML = `
-    <div style="background:var(--bg-3);border-radius:10px;padding:8px 10px">
+    <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px">
       <b>💸 Semáforo de ads (mês)</b> — GLOBAL:
       <b style="color:${cor[g.farol]}">${g.farol} ROAS ${g.roas != null ? g.roas + '×' : '—'}</b>
       <span class="muted">(contribuição ${prBrl(g.contribuicao)} ÷ spend ${prBrl(g.spend)} · piso ${g.piso}×)</span>

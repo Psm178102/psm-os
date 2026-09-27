@@ -15,7 +15,7 @@ let _busy = false;
 let _tick = null;
 
 const TRILHA_COR = {
-  comprar: '#1d4ed8', captacao: '#b45309', locacao: '#0f766e',
+  comprar: '#806d50', captacao: '#b45309', locacao: '#0f766e',
   conquista: '#15803d', indefinido: '#64748b',
 };
 const ST_LABEL = {
@@ -58,21 +58,21 @@ function tempo(iso) {
 
 function pill(trilha, labels) {
   const c = TRILHA_COR[trilha] || '#64748b';
-  return `<span class="tiny" style="background:${c}1a;color:${c};border:1px solid ${c}55;border-radius:999px;padding:1px 8px;white-space:nowrap">${esc((labels || {})[trilha] || trilha)}</span>`;
+  return `<span class="tiny" style="background:${c}1a;color:${c};border:1px solid ${c}55;border-radius:var(--radius-full);padding:1px 8px;white-space:nowrap">${esc((labels || {})[trilha] || trilha)}</span>`;
 }
 
 function linhaLead(l, labels, comAcao) {
   const espera = l.assumido_em ? null : (l.distribuido_em || l.created_at);
   const atraso = espera && (Date.now() - new Date(espera).getTime()) / 60000 > (_data?.cfg?.sla_min || 15);
-  return `<tr style="border-top:1px solid var(--line,#e5e7eb)">
+  return `<tr style="border-top:1px solid var(--line,var(--border))">
     <td style="padding:8px 6px;white-space:nowrap">
       <span class="wa-timer tiny ${atraso ? '' : 'muted'}" data-ts="${esc(espera || l.created_at)}"
-        style="${atraso ? 'color:#dc2626;font-weight:700' : ''}">${tempo(espera || l.created_at)}</span></td>
+        style="${atraso ? 'color:var(--err);font-weight:600' : ''}">${tempo(espera || l.created_at)}</span></td>
     <td style="padding:8px 6px">
       <div style="font-weight:600">${esc(l.nome || 'Sem nome no perfil')}</div>
       <div class="tiny muted">“${esc((l.primeira_msg || '').slice(0, 70))}”</div></td>
     <td style="padding:8px 6px">${pill(l.trilha, labels)}</td>
-    <td style="padding:8px 6px" class="tiny">${ST_LABEL[l.status] || esc(l.status)}${l.erro ? `<div class="tiny" style="color:#b45309">⚠ ${esc(String(l.erro).slice(0, 60))}</div>` : ''}</td>
+    <td style="padding:8px 6px" class="tiny">${ST_LABEL[l.status] || esc(l.status)}${l.erro ? `<div class="tiny" style="color:var(--warn)">⚠ ${esc(String(l.erro).slice(0, 60))}</div>` : ''}</td>
     <td style="padding:8px 6px;white-space:nowrap">
       <a class="btn btn-sm" href="https://wa.me/${esc(String(l.wa_phone || '').replace(/\D/g, ''))}" target="_blank" rel="noopener">💬 Abrir</a>
       ${comAcao && !l.assumido_em ? `<button class="btn btn-primary btn-sm" data-assumir="${esc(l.id)}">✋ Assumi</button>` : ''}
@@ -95,19 +95,19 @@ function render() {
   const cfg = _data.cfg || {};
   const socio = !!_data.pode_editar;
 
-  const aviso = _data.ativo ? '' : `<div class="card" style="margin:0 0 12px;border-left:4px solid #b45309">
+  const aviso = _data.ativo ? '' : `<div class="card" style="margin:0 0 12px;border-left:4px solid var(--warn)">
       <b>🌓 Modo sombra.</b> <span class="muted">A porteira está registrando os leads e a classificação, mas não distribui e não cria card no RD.</span>
       ${socio ? '<div class="tiny muted" style="margin-top:4px">Para ligar de verdade, use o botão no fim da página.</div>' : ''}
     </div>`;
 
   const kpis = `<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:12px">
       <div class="card" style="margin:0;text-align:center"><div class="tiny muted">Leads hoje</div>
-        <div style="font-size:26px;font-weight:800">${p.hoje ?? 0}</div></div>
+        <div style="font-size:26px;font-weight:600">${p.hoje ?? 0}</div></div>
       <div class="card" style="margin:0;text-align:center"><div class="tiny muted">Aguardando assumir</div>
-        <div style="font-size:26px;font-weight:800;color:${(p.aguardando || 0) ? '#dc2626' : 'inherit'}">${p.aguardando ?? 0}</div>
+        <div style="font-size:26px;font-weight:600;color:${(p.aguardando || 0) ? 'var(--err)' : 'inherit'}">${p.aguardando ?? 0}</div>
         <div class="tiny muted">meta ≤ ${cfg.sla_min || 15}min</div></div>
       <div class="card" style="margin:0;text-align:center"><div class="tiny muted">Sem dono</div>
-        <div style="font-size:26px;font-weight:800;color:${(p.sem_dono || 0) ? '#b45309' : 'inherit'}">${p.sem_dono ?? 0}</div>
+        <div style="font-size:26px;font-weight:600;color:${(p.sem_dono || 0) ? 'var(--warn)' : 'inherit'}">${p.sem_dono ?? 0}</div>
         <div class="tiny muted">fila vazia na trilha</div></div>
       <div class="card" style="margin:0;text-align:center"><div class="tiny muted">Por trilha</div>
         <div class="tiny" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;justify-content:center">

@@ -11,7 +11,7 @@ let _root = null, _d = null, _mes = '', _aba = 'corretores', _busy = false;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const brl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const pct = n => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 }) + '%';
-const NIVEL_COR = { 1: '#64748b', 2: '#2563eb', 3: '#7c3aed', 4: '#16a34a' };
+const NIVEL_COR = { 1: '#64748b', 2: '#806d50', 3: '#7c3aed', 4: '#16a34a' };
 
 export async function pageComissaoConquista(ctx, root) { _root = root; await reload(); }
 
@@ -97,9 +97,9 @@ function htmlCorretores() {
   const vgvGeral = cs.reduce((s, c) => s + c.vgv_total, 0);
   return `
     <div class="flex" style="gap:8px;flex-wrap:wrap;margin-bottom:8px">
-      <div style="flex:1;min-width:150px;background:var(--bg-2);border-radius:10px;padding:8px 12px"><div class="tiny muted">VGV Conquista do mês</div><div style="font-weight:900;font-size:17px">${brl(vgvGeral)}</div></div>
-      <div style="flex:1;min-width:150px;background:var(--bg-2);border-radius:10px;padding:8px 12px;border-left:3px solid #16a34a"><div class="tiny muted">Comissão total a pagar</div><div style="font-weight:900;font-size:17px">${brl(totalGeral)}</div></div>
-      <div style="flex:1;min-width:120px;background:var(--bg-2);border-radius:10px;padding:8px 12px"><div class="tiny muted">Corretores</div><div style="font-weight:900;font-size:17px">${cs.length}</div></div>
+      <div style="flex:1;min-width:150px;background:var(--bg-2);border-radius:var(--radius-md);padding:8px 12px"><div class="tiny muted">VGV Conquista do mês</div><div style="font-weight:600;font-size:16px">${brl(vgvGeral)}</div></div>
+      <div style="flex:1;min-width:150px;background:var(--bg-2);border-radius:var(--radius-md);padding:8px 12px;border-left:3px solid var(--ok)"><div class="tiny muted">Comissão total a pagar</div><div style="font-weight:600;font-size:16px">${brl(totalGeral)}</div></div>
+      <div style="flex:1;min-width:120px;background:var(--bg-2);border-radius:var(--radius-md);padding:8px 12px"><div class="tiny muted">Corretores</div><div style="font-weight:600;font-size:16px">${cs.length}</div></div>
     </div>
     ${_ocultos}
     ${cs.map(corretorCard).join('')}`;
@@ -112,19 +112,19 @@ function corretorCard(c) {
       <b>${esc(c.corretor_nome)}</b>
       <span class="badge">${c.n_vendas} venda(s)</span>
       <span class="tiny muted">VGV ${brl(c.vgv_total)} · N2/N3 ${brl(c.vgv_n2n3)}</span>
-      ${acel ? '<span class="badge" style="background:#16a34a22;color:var(--ok);font-weight:800">🚀 Acelerador N4 (1,9%)</span>'
+      ${acel ? '<span class="badge" style="background:var(--ok-soft);color:var(--ok);font-weight:600">🚀 Acelerador N4 (1,9%)</span>'
              : `<span class="tiny muted">faltam ${brl(Math.max(0, (_d.cfg.acelerador?.vgv_min || 850000) - c.vgv_n2n3))} p/ o N4</span>`}
       <b style="margin-left:auto;color:var(--ok);font-size:16px">${brl(c.comissao_total)}</b>
     </div>
     <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:12px">
       <tr class="tiny muted" style="text-align:left"><th style="padding:3px 6px">Cliente</th><th>Origem</th><th style="text-align:right">VGV</th><th style="text-align:right">Taxa</th><th style="text-align:right">Desc. indic.</th><th style="text-align:right">Comissão</th><th></th></tr>
-      ${c.vendas.map(v => `<tr style="border-top:1px solid var(--bd,#eef2f7)">
+      ${c.vendas.map(v => `<tr style="border-top:1px solid var(--bd,var(--border))">
         <td style="padding:5px 6px">${esc(v.cliente || '—')}</td>
-        <td><span style="color:${v.definida ? (NIVEL_COR[v.acelerada ? 4 : v.nivel] || '#64748b') : '#dc2626'};font-weight:700">${esc(v.origem_lbl)}${v.acelerada ? ' 🚀' : ''}</span>${v.fonte_rd ? `<div class="tiny muted">RD: ${esc(v.fonte_rd)}</div>` : ''}</td>
+        <td><span style="color:${v.definida ? (NIVEL_COR[v.acelerada ? 4 : v.nivel] || 'var(--ink-muted)') : 'var(--err)'};font-weight:600">${esc(v.origem_lbl)}${v.acelerada ? ' 🚀' : ''}</span>${v.fonte_rd ? `<div class="tiny muted">RD: ${esc(v.fonte_rd)}</div>` : ''}</td>
         <td style="text-align:right">${brl(v.vgv)}</td>
-        <td style="text-align:right;font-weight:700">${pct(v.taxa_aplicada)}</td>
-        <td style="text-align:right;color:${v.desconto_indicacao ? '#dc2626' : 'inherit'}">${v.desconto_indicacao ? '− ' + brl(v.desconto_indicacao) : '—'}</td>
-        <td style="text-align:right;font-weight:800">${brl(v.comissao_liquida)}</td>
+        <td style="text-align:right;font-weight:600">${pct(v.taxa_aplicada)}</td>
+        <td style="text-align:right;color:${v.desconto_indicacao ? 'var(--err)' : 'inherit'}">${v.desconto_indicacao ? '− ' + brl(v.desconto_indicacao) : '—'}</td>
+        <td style="text-align:right;font-weight:600">${brl(v.comissao_liquida)}</td>
         <td style="text-align:right"><button class="btn btn-ghost btn-sm cm-ori" data-did="${esc(v.deal_id)}" title="Definir/corrigir a origem desta venda" style="padding:1px 7px;font-size:11px">✏️</button></td>
       </tr>`).join('')}
     </table>
@@ -173,18 +173,18 @@ function htmlOperador(m, opts) {
   const un = opts.unidade;
   return `<div class="card">
     <div class="flex items-center" style="gap:10px;flex-wrap:wrap">
-      <div style="flex:1;min-width:150px"><div class="tiny muted">${un.charAt(0).toUpperCase() + un.slice(1)}(s) fechada(s) em ${esc(_mes)}</div><div style="font-weight:900;font-size:22px">${m.qtd || 0}</div></div>
-      <div style="min-width:120px"><div class="tiny muted">Faixa atual</div><div style="font-weight:800;font-size:16px">${m.qtd ? brl(m.rate) + '/un' : '—'}</div></div>
-      <div style="min-width:180px;background:#16a34a15;border-radius:10px;padding:8px 12px;border-left:3px solid #16a34a"><div class="tiny muted">Comissão no mês</div><div style="font-weight:900;font-size:20px">${brl(m.total)}${m.no_teto ? ' <span class="tiny" style="color:var(--warn)">(no teto)</span>' : ''}</div></div>
+      <div style="flex:1;min-width:150px"><div class="tiny muted">${un.charAt(0).toUpperCase() + un.slice(1)}(s) fechada(s) em ${esc(_mes)}</div><div style="font-weight:600;font-size:20px">${m.qtd || 0}</div></div>
+      <div style="min-width:120px"><div class="tiny muted">Faixa atual</div><div style="font-weight:600;font-size:16px">${m.qtd ? brl(m.rate) + '/un' : '—'}</div></div>
+      <div style="min-width:180px;background:var(--ok-soft);border-radius:var(--radius-md);padding:8px 12px;border-left:3px solid var(--ok)"><div class="tiny muted">Comissão no mês</div><div style="font-weight:600;font-size:20px">${brl(m.total)}${m.no_teto ? ' <span class="tiny" style="color:var(--warn)">(no teto)</span>' : ''}</div></div>
     </div>
     <div class="tiny muted mt-2">Tabela PROGRESSIVA e retroativa: a faixa do total do mês vale pra todas. Teto mensal: <b>${brl(m.teto)}</b>. Conta ${esc(opts.o_que)}.</div>
     <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:13px;max-width:420px">
       <tr class="tiny muted" style="text-align:left"><th style="padding:4px 8px">Fechamentos no mês</th><th style="text-align:right">R$ por ${esc(un)}</th></tr>
-      ${faixas.map((fx, i) => { const ativa = m.qtd && m.rate === Number(fx[1]) && (i === 0 ? m.qtd <= fx[0] : (m.qtd > faixas[i - 1][0] && m.qtd <= fx[0])); return `<tr style="border-top:1px solid var(--bd,#eef2f7);${ativa ? 'background:#16a34a12;font-weight:800' : ''}"><td style="padding:5px 8px">${faixaLbl(fx, i, faixas)}${ativa ? ' ← agora' : ''}</td><td style="text-align:right">${brl(fx[1])}</td></tr>`; }).join('')}
+      ${faixas.map((fx, i) => { const ativa = m.qtd && m.rate === Number(fx[1]) && (i === 0 ? m.qtd <= fx[0] : (m.qtd > faixas[i - 1][0] && m.qtd <= fx[0])); return `<tr style="border-top:1px solid var(--bd,var(--border));${ativa ? 'background:var(--ok-soft);font-weight:600' : ''}"><td style="padding:5px 8px">${faixaLbl(fx, i, faixas)}${ativa ? ' ← agora' : ''}</td><td style="text-align:right">${brl(fx[1])}</td></tr>`; }).join('')}
     </table>
     <div class="mt-2">${(m.fechadas || []).length ? `<b class="tiny">Fechamentos deste mês:</b><table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:4px">
       <tr class="tiny muted" style="text-align:left"><th style="padding:4px 8px">Cliente</th><th></th><th style="text-align:right">VGV</th></tr>
-      ${m.fechadas.map(f => `<tr style="border-top:1px solid var(--bd,#eef2f7)"><td style="padding:6px 8px">${esc(f.indicador || f.nome || '—')}</td><td class="tiny muted">${f.indicado ? '→ ' + esc(f.indicado) : ''}</td><td style="text-align:right">${f.vgv ? brl(f.vgv) : '—'}</td></tr>`).join('')}
+      ${m.fechadas.map(f => `<tr style="border-top:1px solid var(--bd,var(--border))"><td style="padding:6px 8px">${esc(f.indicador || f.nome || '—')}</td><td class="tiny muted">${f.indicado ? '→ ' + esc(f.indicado) : ''}</td><td style="text-align:right">${f.vgv ? brl(f.vgv) : '—'}</td></tr>`).join('')}
     </table>` : `<div class="muted tiny" style="text-align:center;padding:16px">Nenhuma ${esc(un)} fechou neste mês ainda.</div>`}</div>
   </div>`;
 }
@@ -202,28 +202,28 @@ function htmlLeire() {
   const est = m.estoque || [], lanc = m.lancamento || [], vol = m.volume || [];
   return `<div class="card">
     <div class="flex items-center" style="gap:10px;flex-wrap:wrap">
-      <div style="flex:1;min-width:140px"><div class="tiny muted">Reativações fechadas em ${esc(_mes)}</div><div style="font-weight:900;font-size:22px">${m.qtd || 0}</div></div>
-      <div style="min-width:110px"><div class="tiny muted">Base do mês</div><div style="font-weight:800;font-size:15px">${brl(m.base)}</div></div>
-      <div style="min-width:110px"><div class="tiny muted">Bônus volume</div><div style="font-weight:800;font-size:15px">×${(m.mult || 1).toLocaleString('pt-BR', { minimumFractionDigits: 1 })}</div></div>
-      <div style="min-width:170px;background:#16a34a15;border-radius:10px;padding:8px 12px;border-left:3px solid #16a34a"><div class="tiny muted">Comissão da Leire no mês</div><div style="font-weight:900;font-size:20px">${brl(m.total)}${m.no_teto ? ' <span class="tiny" style="color:var(--warn)">(no teto)</span>' : ''}</div></div>
+      <div style="flex:1;min-width:140px"><div class="tiny muted">Reativações fechadas em ${esc(_mes)}</div><div style="font-weight:600;font-size:20px">${m.qtd || 0}</div></div>
+      <div style="min-width:110px"><div class="tiny muted">Base do mês</div><div style="font-weight:600;font-size:14px">${brl(m.base)}</div></div>
+      <div style="min-width:110px"><div class="tiny muted">Bônus volume</div><div style="font-weight:600;font-size:14px">×${(m.mult || 1).toLocaleString('pt-BR', { minimumFractionDigits: 1 })}</div></div>
+      <div style="min-width:170px;background:var(--ok-soft);border-radius:var(--radius-md);padding:8px 12px;border-left:3px solid var(--ok)"><div class="tiny muted">Comissão da Leire no mês</div><div style="font-weight:600;font-size:20px">${brl(m.total)}${m.no_teto ? ' <span class="tiny" style="color:var(--warn)">(no teto)</span>' : ''}</div></div>
     </div>
     <div class="tiny muted mt-2">Cada reativação vale pela faixa de VGV × tipo; o total é multiplicado pelo bônus de volume (progressivo) e travado no teto de <b>${brl(m.teto)}</b>. Marque 🚀 nos fechamentos de lançamento (pagam menos, é mais fácil).</div>
     <div class="flex mt-2" style="gap:10px;flex-wrap:wrap">
       <table style="flex:1;min-width:280px;border-collapse:collapse;font-size:12px">
         <tr class="tiny muted" style="text-align:left"><th style="padding:3px 6px">VGV</th><th style="text-align:right">🎯 Estoque</th><th style="text-align:right">🚀 Lançam.</th></tr>
-        ${est.map((fx, i) => `<tr style="border-top:1px solid var(--bd,#eef2f7)"><td style="padding:4px 6px">${bandaLbl(fx, i, est)}</td><td style="text-align:right;font-weight:700">${brl(fx[1])}</td><td style="text-align:right">${brl((lanc[i] || [])[1] || 0)}</td></tr>`).join('')}
+        ${est.map((fx, i) => `<tr style="border-top:1px solid var(--bd,var(--border))"><td style="padding:4px 6px">${bandaLbl(fx, i, est)}</td><td style="text-align:right;font-weight:600">${brl(fx[1])}</td><td style="text-align:right">${brl((lanc[i] || [])[1] || 0)}</td></tr>`).join('')}
       </table>
       <table style="width:190px;border-collapse:collapse;font-size:12px;align-self:flex-start">
         <tr class="tiny muted" style="text-align:left"><th style="padding:3px 6px">Fechamentos</th><th style="text-align:right">Bônus</th></tr>
-        ${vol.map((fx, i) => { const de = i === 0 ? 1 : Number(vol[i - 1][0]) + 1; const lbl = fx[0] >= 999999 ? de + '+' : (de === fx[0] ? de : de + ' a ' + fx[0]); const ativa = m.qtd && m.mult === Number(fx[1]) && (i === 0 ? m.qtd <= fx[0] : (m.qtd > vol[i - 1][0] && m.qtd <= fx[0])); return `<tr style="border-top:1px solid var(--bd,#eef2f7);${ativa ? 'background:#16a34a12;font-weight:800' : ''}"><td style="padding:4px 6px">${lbl}${ativa ? ' ←' : ''}</td><td style="text-align:right">×${Number(fx[1]).toLocaleString('pt-BR', { minimumFractionDigits: 1 })}</td></tr>`; }).join('')}
+        ${vol.map((fx, i) => { const de = i === 0 ? 1 : Number(vol[i - 1][0]) + 1; const lbl = fx[0] >= 999999 ? de + '+' : (de === fx[0] ? de : de + ' a ' + fx[0]); const ativa = m.qtd && m.mult === Number(fx[1]) && (i === 0 ? m.qtd <= fx[0] : (m.qtd > vol[i - 1][0] && m.qtd <= fx[0])); return `<tr style="border-top:1px solid var(--bd,var(--border));${ativa ? 'background:var(--ok-soft);font-weight:600' : ''}"><td style="padding:4px 6px">${lbl}${ativa ? ' ←' : ''}</td><td style="text-align:right">×${Number(fx[1]).toLocaleString('pt-BR', { minimumFractionDigits: 1 })}</td></tr>`; }).join('')}
       </table>
     </div>
     <div class="mt-2">${(m.fechadas || []).length ? `<b class="tiny">Fechamentos deste mês:</b><table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:4px">
       <tr class="tiny muted" style="text-align:left"><th style="padding:4px 8px">Cliente</th><th style="text-align:right">VGV</th><th style="text-align:right">Vale</th><th>Tipo</th></tr>
-      ${m.fechadas.map(f => `<tr style="border-top:1px solid var(--bd,#eef2f7)">
+      ${m.fechadas.map(f => `<tr style="border-top:1px solid var(--bd,var(--border))">
         <td style="padding:6px 8px">${esc(f.nome || '—')}</td>
         <td style="text-align:right">${brl(f.vgv)}</td>
-        <td style="text-align:right;font-weight:700">${brl(f.valor)}</td>
+        <td style="text-align:right;font-weight:600">${brl(f.valor)}</td>
         <td><button class="btn btn-ghost btn-sm lei-tipo" data-did="${esc(f.deal_id)}" data-lanc="${f.tipo === 'lancamento' ? '1' : '0'}" style="padding:2px 9px;font-size:11px">${f.tipo === 'lancamento' ? '🚀 Lançamento' : '🎯 Estoque'}</button></td>
       </tr>`).join('')}
     </table><div class="tiny muted mt-1">Clique no tipo pra alternar estoque ⇄ lançamento (recalcula na hora).</div>` : '<div class="muted tiny" style="text-align:center;padding:16px">Nenhuma reativação fechou neste mês ainda.</div>'}</div>
@@ -240,19 +240,19 @@ function wireLeire() {
 }
 
 /* ── 🏢 MAP / Empreendimentos (origem × senioridade) ────────────────────── */
-const SEN_COR = { estagiario: '#94a3b8', corretor: '#2563eb', senior: '#16a34a' };
+const SEN_COR = { estagiario: '#94a3b8', corretor: '#806d50', senior: '#16a34a' };
 
 /* corretor desligado é tirado da conta — mas NUNCA em silêncio */
 function avisoOcultos(lst) {
   if (!(lst || []).length) return '';
   const vgv = lst.reduce((s, o) => s + (o.vgv || 0), 0);
-  return `<div class="card mt-2" style="border-left:3px solid #f59e0b">
+  return `<div class="card mt-2" style="border-left:3px solid var(--warn)">
     <b class="tiny">⚠️ ${lst.length} corretor(es) desligado(s) fora da conta</b>
     <div class="tiny muted">Não entram no cálculo (nem no acumulado do Sênior) por estarem inativos. Estão aqui porque tiveram venda no mês — confira se ficou comissão a pagar.</div>
     <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:13px">
       <tr class="tiny muted" style="text-align:left"><th style="padding:4px 8px">Quem</th><th style="text-align:right">Vendas</th><th style="text-align:right">VGV</th></tr>
-      ${lst.map(o => `<tr style="border-top:1px solid var(--bd,#eef2f7)"><td style="padding:6px 8px">${esc(o.quem)}</td><td style="text-align:right">${o.n_vendas}</td><td style="text-align:right">${brl(o.vgv)}</td></tr>`).join('')}
-      <tr style="border-top:1px solid var(--bd,#eef2f7)"><td class="tiny muted" style="padding:6px 8px">total</td><td></td><td style="text-align:right;font-weight:700">${brl(vgv)}</td></tr>
+      ${lst.map(o => `<tr style="border-top:1px solid var(--bd,var(--border))"><td style="padding:6px 8px">${esc(o.quem)}</td><td style="text-align:right">${o.n_vendas}</td><td style="text-align:right">${brl(o.vgv)}</td></tr>`).join('')}
+      <tr style="border-top:1px solid var(--bd,var(--border))"><td class="tiny muted" style="padding:6px 8px">total</td><td></td><td style="text-align:right;font-weight:600">${brl(vgv)}</td></tr>
     </table>
   </div>`;
 }
@@ -265,17 +265,17 @@ function htmlMap() {
   const naoDef = cs.reduce((s, c) => s + (c.vendas || []).filter(v => !v.definida).length, 0);
   return `<div class="card">
     <div class="flex items-center" style="gap:10px;flex-wrap:wrap">
-      <div><div class="tiny muted">VGV MAP do mês</div><div style="font-weight:900;font-size:20px">${brl(vgv)}</div></div>
-      <div style="background:#16a34a15;border-radius:10px;padding:8px 12px;border-left:3px solid #16a34a"><div class="tiny muted">Comissão total a pagar</div><div style="font-weight:900;font-size:20px">${brl(total)}</div></div>
-      <div><div class="tiny muted">Corretores</div><div style="font-weight:800;font-size:18px">${cs.length}</div></div>
-      ${naoDef ? `<div style="background:#f59e0b15;border-radius:10px;padding:8px 12px;border-left:3px solid #f59e0b"><div class="tiny muted">Vendas sem origem</div><div style="font-weight:800;font-size:18px">${naoDef}</div></div>` : ''}
+      <div><div class="tiny muted">VGV MAP do mês</div><div style="font-weight:600;font-size:20px">${brl(vgv)}</div></div>
+      <div style="background:var(--ok-soft);border-radius:var(--radius-md);padding:8px 12px;border-left:3px solid var(--ok)"><div class="tiny muted">Comissão total a pagar</div><div style="font-weight:600;font-size:20px">${brl(total)}</div></div>
+      <div><div class="tiny muted">Corretores</div><div style="font-weight:600;font-size:16px">${cs.length}</div></div>
+      ${naoDef ? `<div style="background:var(--warn-soft);border-radius:var(--radius-md);padding:8px 12px;border-left:3px solid var(--warn)"><div class="tiny muted">Vendas sem origem</div><div style="font-weight:600;font-size:16px">${naoDef}</div></div>` : ''}
     </div>
     <div class="tiny muted mt-2">A origem do cliente (comprovada no CRM) define a taxa, cruzada com a senioridade. <b>Sênior é automático</b>: sai sozinho quando o VGV MAP acumulado no ano cruza ${brl(m.senior_vgv_min)}. Estagiário é a única marcação manual.</div>
     <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:12px">
       <tr class="tiny muted" style="text-align:left"><th style="padding:4px 6px">Origem do cliente</th><th style="text-align:right">Estagiário</th><th style="text-align:right">Corretor</th><th style="text-align:right">Sênior</th></tr>
-      ${origens.map(o => `<tr style="border-top:1px solid var(--bd,#eef2f7)">
+      ${origens.map(o => `<tr style="border-top:1px solid var(--bd,var(--border))">
         <td style="padding:5px 6px">${esc(o.rotulo)}</td>
-        ${['estagiario', 'corretor', 'senior'].map(s => `<td style="text-align:right;font-weight:700;color:${SEN_COR[s]}">${pct((o.taxas || {})[s])}</td>`).join('')}
+        ${['estagiario', 'corretor', 'senior'].map(s => `<td style="text-align:right;font-weight:600;color:${SEN_COR[s]}">${pct((o.taxas || {})[s])}</td>`).join('')}
       </tr>`).join('')}
     </table>
   </div>
@@ -283,15 +283,15 @@ function htmlMap() {
   ${cs.length ? cs.map(c => `<div class="card mt-2">
     <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
       <b>${esc(c.corretor_nome || '—')}</b>
-      <span class="tiny" style="background:${SEN_COR[c.senioridade]}20;color:${SEN_COR[c.senioridade]};border-radius:20px;padding:2px 9px;font-weight:800">${esc(c.senioridade_lbl)}</span>
+      <span class="tiny" style="background:${SEN_COR[c.senioridade]}20;color:${SEN_COR[c.senioridade]};border-radius:var(--radius-lg);padding:2px 9px;font-weight:600">${esc(c.senioridade_lbl)}</span>
       <span class="tiny muted">${c.n_vendas} venda(s) · VGV mês ${brl(c.vgv_total)}</span>
       <span class="tiny muted">· ano ${brl(c.vgv_ano)}${c.senioridade === 'corretor' ? ` · faltam <b>${brl(c.falta_senior)}</b> p/ Sênior` : ''}</span>
       ${canEdit() ? `<button class="btn btn-ghost btn-sm mp-estag" data-uid="${esc(c.corretor_id)}" data-on="${c.senioridade === 'estagiario' ? '1' : '0'}" style="padding:1px 8px;font-size:11px">${c.senioridade === 'estagiario' ? '↩︎ tirar estagiário' : '🎓 marcar estagiário'}</button>` : ''}
-      <span style="margin-left:auto;font-weight:900;font-size:17px;color:var(--ok)">${brl(c.comissao_total)}</span>
+      <span style="margin-left:auto;font-weight:600;font-size:16px;color:var(--ok)">${brl(c.comissao_total)}</span>
     </div>
     <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:13px">
       <tr class="tiny muted" style="text-align:left"><th style="padding:4px 8px">Cliente</th><th>Origem</th><th style="text-align:right">VGV</th><th style="text-align:right">Taxa</th><th style="text-align:right">Comissão</th></tr>
-      ${(c.vendas || []).map(v => `<tr style="border-top:1px solid var(--bd,#eef2f7)">
+      ${(c.vendas || []).map(v => `<tr style="border-top:1px solid var(--bd,var(--border))">
         <td style="padding:6px 8px">${esc(v.cliente || '—')}</td>
         <td>${canEdit() ? `<select class="input mp-org" data-did="${esc(v.deal_id)}" style="padding:2px 6px;font-size:12px">
             <option value="">— indefinida —</option>
@@ -299,8 +299,8 @@ function htmlMap() {
           </select>` : `<span class="tiny ${v.definida ? '' : 'muted'}">${esc(v.origem_lbl)}</span>`}
           ${v.fonte_rd ? `<div class="tiny muted">RD: ${esc(v.fonte_rd)}</div>` : ''}</td>
         <td style="text-align:right">${brl(v.vgv)}</td>
-        <td style="text-align:right;font-weight:700">${pct(v.taxa)}</td>
-        <td style="text-align:right;font-weight:700">${brl(v.comissao)}</td>
+        <td style="text-align:right;font-weight:600">${pct(v.taxa)}</td>
+        <td style="text-align:right;font-weight:600">${brl(v.comissao)}</td>
       </tr>`).join('')}
     </table>
   </div>`).join('') : '<div class="card mt-2"><div class="muted tiny" style="text-align:center;padding:18px">Nenhuma venda MAP fechou neste mês.</div></div>'}`;
@@ -330,9 +330,9 @@ function htmlConfig(podeEditar) {
       <b class="tiny">🎯 Matriz de comissão por origem</b>
       <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:13px">
         <tr class="tiny muted" style="text-align:left"><th style="padding:4px 8px">Nível</th><th>Origens</th><th style="text-align:right">Taxa</th></tr>
-        <tr style="border-top:1px solid var(--bd,#eef2f7)"><td style="padding:6px 8px"><b style="color:${NIVEL_COR[1]}">N1</b></td><td>Estagiário</td><td style="text-align:right;font-weight:800">${pct(cfg.taxa_estagiario)}</td></tr>
-        ${[1, 2, 3].map(n => (porNivel[n] || []).length ? `<tr style="border-top:1px solid var(--bd,#eef2f7)"><td style="padding:6px 8px"><b style="color:${NIVEL_COR[n]}">N${n}</b></td><td>${porNivel[n].map(o => esc(o.rotulo)).join(' · ')}</td><td style="text-align:right;font-weight:800">${pct(porNivel[n][0].taxa)}</td></tr>` : '').join('')}
-        <tr style="border-top:1px solid var(--bd,#eef2f7);background:#16a34a10"><td style="padding:6px 8px"><b style="color:${NIVEL_COR[4]}">N4 🚀</b></td><td>Acelerador: VGV mensal N2/N3 ≥ ${brl(acel.vgv_min)} → todas as vendas N2/N3 do mês sobem</td><td style="text-align:right;font-weight:800">${pct(acel.taxa)}</td></tr>
+        <tr style="border-top:1px solid var(--bd,var(--border))"><td style="padding:6px 8px"><b style="color:${NIVEL_COR[1]}">N1</b></td><td>Estagiário</td><td style="text-align:right;font-weight:600">${pct(cfg.taxa_estagiario)}</td></tr>
+        ${[1, 2, 3].map(n => (porNivel[n] || []).length ? `<tr style="border-top:1px solid var(--bd,var(--border))"><td style="padding:6px 8px"><b style="color:${NIVEL_COR[n]}">N${n}</b></td><td>${porNivel[n].map(o => esc(o.rotulo)).join(' · ')}</td><td style="text-align:right;font-weight:600">${pct(porNivel[n][0].taxa)}</td></tr>` : '').join('')}
+        <tr style="border-top:1px solid var(--bd,var(--border));background:var(--ok-soft)"><td style="padding:6px 8px"><b style="color:${NIVEL_COR[4]}">N4 🚀</b></td><td>Acelerador: VGV mensal N2/N3 ≥ ${brl(acel.vgv_min)} → todas as vendas N2/N3 do mês sobem</td><td style="text-align:right;font-weight:600">${pct(acel.taxa)}</td></tr>
       </table>
       ${podeEditar ? `<div class="flex mt-2" style="gap:6px;flex-wrap:wrap;align-items:center">
         <label class="tiny">Estagiário <input class="input" id="cf-estag" type="number" step="0.1" value="${cfg.taxa_estagiario}" style="width:70px;padding:2px 6px">%</label>
@@ -363,7 +363,7 @@ function htmlConfig(podeEditar) {
     <div class="card mt-2">
       <b class="tiny">🔁 Tabela da Leire (Reativação MAP) — VGV × tipo × volume</b>
       <div class="tiny muted">Cada reativação que fecha vale pela faixa de VGV e pelo tipo (🎯 estoque / 🚀 lançamento). O total do mês é multiplicado pelo bônus de volume e travado no teto.</div>
-      <div class="tiny muted mt-1" style="font-weight:700">Valor por faixa de VGV</div>
+      <div class="tiny muted mt-1" style="font-weight:600">Valor por faixa de VGV</div>
       <div id="cf-lbands" style="margin-top:4px">
         ${(cfg.leire_estoque || []).map((fx, i, arr) => `<div class="flex" style="gap:6px;margin-top:4px;align-items:center" data-lb>
           <span class="tiny muted">VGV até R$</span>
@@ -376,7 +376,7 @@ function htmlConfig(podeEditar) {
         </div>`).join('')}
       </div>
       ${podeEditar ? '<button class="btn btn-ghost btn-sm mt-1" id="cf-lbadd" type="button">+ faixa de VGV</button>' : ''}
-      <div class="tiny muted mt-2" style="font-weight:700">Bônus por volume de fechamentos no mês</div>
+      <div class="tiny muted mt-2" style="font-weight:600">Bônus por volume de fechamentos no mês</div>
       <div id="cf-lvol" style="margin-top:4px">
         ${(cfg.leire_volume || []).map((fx, i, arr) => `<div class="flex" style="gap:6px;margin-top:4px;align-items:center" data-lv>
           <span class="tiny muted" style="width:90px">até</span>
@@ -397,7 +397,7 @@ function htmlConfig(podeEditar) {
       <div class="tiny muted">Fontes que apareceram nas vendas Conquista deste mês. As não mapeadas caem em "origem indefinida" (ajuste manual por venda também funciona).</div>
       <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:13px">
         <tr class="tiny muted" style="text-align:left"><th style="padding:4px 8px">Fonte no RD</th><th style="text-align:right">Vendas</th><th>Mapeia para</th></tr>
-        ${fontes.length ? fontes.map(f => `<tr style="border-top:1px solid var(--bd,#eef2f7)">
+        ${fontes.length ? fontes.map(f => `<tr style="border-top:1px solid var(--bd,var(--border))">
           <td style="padding:6px 8px">${esc(f.fonte)}</td>
           <td style="text-align:right">${f.n}</td>
           <td>${podeEditar ? `<select class="input cf-map" data-fonte="${esc(f.fonte)}" style="padding:2px 6px;font-size:12px">
@@ -428,10 +428,10 @@ function htmlConfigMap(podeEditar) {
       <label class="tiny">Vira <b style="color:var(--ok)">Sênior</b> com VGV no ano ≥ R$ <input class="input" id="cf-mpsen" type="number" value="${m.senior_vgv_min}" style="width:130px;padding:2px 6px"></label>
       <button class="btn btn-primary btn-sm" id="cf-mpsave" style="margin-left:auto">💾 Salvar matriz MAP</button>
     </div>` : `<div class="tiny muted mt-1">Sênior automático a partir de ${brl(m.senior_vgv_min)} de VGV no ano.</div>`}
-    <div class="tiny muted mt-2" style="font-weight:700">🔗 Fontes do RD nas vendas MAP → origem</div>
+    <div class="tiny muted mt-2" style="font-weight:600">🔗 Fontes do RD nas vendas MAP → origem</div>
     <table style="width:100%;border-collapse:collapse;margin-top:4px;font-size:13px">
       <tr class="tiny muted" style="text-align:left"><th style="padding:4px 8px">Fonte no RD</th><th style="text-align:right">Vendas</th><th>Mapeia para</th></tr>
-      ${mfontes.length ? mfontes.map(f => `<tr style="border-top:1px solid var(--bd,#eef2f7)">
+      ${mfontes.length ? mfontes.map(f => `<tr style="border-top:1px solid var(--bd,var(--border))">
         <td style="padding:6px 8px">${esc(f.fonte)}</td>
         <td style="text-align:right">${f.n}</td>
         <td>${podeEditar ? `<select class="input cf-mpmap" data-fonte="${esc(f.fonte)}" style="padding:2px 6px;font-size:12px">

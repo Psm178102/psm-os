@@ -12,7 +12,7 @@ import { api } from '../api.js';
 import { auth } from '../auth.js';
 
 const TIPO_LBL = { diario: '📅 Diário (19h15)', semanal: '🗓 Placar Semanal (seg)', mensal: '📊 Fechamento de mês', trimestral: '♟️ Plano do trimestre' };
-const TIPO_COR = { diario: '#fb923c', semanal: '#38bdf8', mensal: '#22c55e', trimestral: '#a855f7' };
+const TIPO_COR = { diario: '#fb923c', semanal: '#806d50', mensal: '#22c55e', trimestral: '#a855f7' };
 const TABS = [
   { id: 'status', lbl: '📖 Como funciona' },
   { id: 'validar', lbl: '✅ Validar peças' },
@@ -117,41 +117,41 @@ function render() {
   <style>
     .cmomd-p{margin:5px 0;line-height:1.55}
     .cmomd-ul{margin:5px 0 5px 18px;line-height:1.55}
-    .cmomd-h1,.cmomd-h2{font-weight:800;margin:12px 0 4px;font-size:14px}
-    .cmomd-h3{font-weight:700;margin:9px 0 3px;font-size:12.5px}
-    .cmo-chip{display:inline-block;padding:4px 12px;border-radius:999px;border:1px solid var(--bd);cursor:pointer;font-size:11.5px;user-select:none}
-    .cmo-chip.on{background:#38bdf8;color:#04121f;border-color:transparent;font-weight:800}
+    .cmomd-h1,.cmomd-h2{font-weight:600;margin:12px 0 4px;font-size:14px}
+    .cmomd-h3{font-weight:600;margin:9px 0 3px;font-size:13px}
+    .cmo-chip{display:inline-block;padding:4px 12px;border-radius:var(--radius-full);border:1px solid var(--bd);cursor:pointer;font-size:11px;user-select:none}
+    .cmo-chip.on{background:var(--accent-soft);color:#04121f;border-color:transparent;font-weight:600}
     .cmo-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
-    .cmo-tab{padding:7px 14px;border-radius:999px;border:1px solid var(--bd);cursor:pointer;font-size:12.5px;font-weight:600;user-select:none}
-    .cmo-tab.on{background:#22c55e;color:#04170c;border-color:transparent;font-weight:800}
-    .cmo-card{background:var(--bg-3);border:1px solid var(--bd);border-radius:12px;padding:14px 16px}
+    .cmo-tab{padding:7px 14px;border-radius:var(--radius-full);border:1px solid var(--bd);cursor:pointer;font-size:13px;font-weight:600;user-select:none}
+    .cmo-tab.on{background:var(--ok-soft);color:#04170c;border-color:transparent;font-weight:600}
+    .cmo-card{background:var(--bg-3);border:1px solid var(--bd);border-radius:var(--radius-md);padding:14px 16px}
     .cmo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
     .cmo-grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:10px}
-    .cmo-table{width:100%;border-collapse:collapse;font-size:12.5px}
-    .cmo-table th{text-align:left;font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.55;padding:8px 10px;border-bottom:1px solid var(--bd)}
+    .cmo-table{width:100%;border-collapse:collapse;font-size:13px}
+    .cmo-table th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.55;padding:8px 10px;border-bottom:1px solid var(--bd)}
     .cmo-table td{padding:9px 10px;border-bottom:1px solid var(--bd);vertical-align:top}
     .cmo-table tr:last-child td{border-bottom:none}
-    .cmo-gate{color:#f87171;font-weight:600}
-    .cmo-sla{white-space:nowrap;color:#eab308;font-weight:700}
+    .cmo-gate{color:var(--ok);font-weight:600}
+    .cmo-sla{white-space:nowrap;color:var(--ok);font-weight:600}
     .cmo-flowline{display:flex;align-items:stretch;gap:0;flex-wrap:nowrap;overflow-x:auto;padding:4px 0}
-    .cmo-fnode{min-width:150px;flex:0 0 auto;background:var(--bg-3);border:1px solid #22c55e55;border-radius:10px;padding:8px 12px;font-size:11.5px}
+    .cmo-fnode{min-width:150px;flex:0 0 auto;background:var(--bg-3);border:1px solid var(--ok);border-radius:var(--radius-md);padding:8px 12px;font-size:11px}
     .cmo-fnode b{display:block;font-size:12px}
-    .cmo-fnode.ext{border-color:#38bdf855}
-    .cmo-fnode.gate{border-color:#f43f5e88;background:rgba(244,63,94,.07)}
-    .cmo-fnode.hum{border-style:dashed;border-color:#eab30888}
+    .cmo-fnode.ext{border-color:var(--accent-ink)}
+    .cmo-fnode.gate{border-color:var(--err);background:rgba(244,63,94,.07)}
+    .cmo-fnode.hum{border-style:dashed;border-color:var(--warn)}
     .cmo-farr{flex:0 0 auto;align-self:center;padding:0 6px;color:var(--muted);font-size:11px;text-align:center;min-width:44px}
-    .cmo-svgwrap{overflow-x:auto;background:var(--bg-3);border:1px solid var(--bd);border-radius:12px;padding:12px}
-    .cmo-nota{display:inline-block;min-width:34px;text-align:center;font-weight:900;border-radius:8px;padding:2px 8px}
-    .cmo-kpi{background:var(--bg-3);border:1px solid var(--bd);border-radius:12px;padding:12px 14px;text-align:center}
-    .cmo-kpi .v{font-size:22px;font-weight:900}
-    .cmo-kpi .l{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;opacity:.55;margin-top:2px}
+    .cmo-svgwrap{overflow-x:auto;background:var(--bg-3);border:1px solid var(--bd);border-radius:var(--radius-md);padding:12px}
+    .cmo-nota{display:inline-block;min-width:34px;text-align:center;font-weight:600;border-radius:var(--radius-md);padding:2px 8px}
+    .cmo-kpi{background:var(--bg-3);border:1px solid var(--bd);border-radius:var(--radius-md);padding:12px 14px;text-align:center}
+    .cmo-kpi .v{font-size:20px;font-weight:600}
+    .cmo-kpi .l{font-size:11px;letter-spacing:.06em;text-transform:uppercase;opacity:.55;margin-top:2px}
   </style>
 
-  <div style="background:linear-gradient(135deg,var(--bg-3),transparent);border:1px solid var(--bd);border-radius:12px;padding:14px 18px;margin-bottom:14px">
+  <div style="background:linear-gradient(135deg,var(--bg-3),transparent);border:1px solid var(--bd);border-radius:var(--radius-md);padding:14px 18px;margin-bottom:14px">
     <div class="flex" style="align-items:center;gap:10px;flex-wrap:wrap">
-      <div style="font-weight:900;font-size:16px">🎯 CMO · Marketing</div>
+      <div style="font-weight:600;font-size:16px">🎯 CMO · Marketing</div>
       <span class="tiny muted">C-level do marketing · Conquista primeiro · só sócios</span>
-      <span style="margin-left:auto" class="tiny"><a href="#/agente-cmo" style="color:#38bdf8">💬 conversar com o CMO →</a></span>
+      <span style="margin-left:auto" class="tiny"><a href="#/agente-cmo" style="color:var(--accent-ink)">💬 conversar com o CMO →</a></span>
     </div>
     <div class="tiny" style="margin-top:4px;color:var(--muted)">Decide onde o dinheiro entra, aciona a esteira, cobra os 13 agentes e fecha CAC/ROAS por nicho. Ele recomenda, o sócio decide. Rotina no Windows 24h → relatórios chegam aqui sozinhos.</div>
   </div>
@@ -178,7 +178,7 @@ function render() {
    está, no House não sei nem onde acompanhar". Esta aba é a resposta: uma tela,
    verde/amarelo/vermelho, com o que destrava cada item e de quem é a vez. */
 
-const ST = { ok: ['#22c55e', '✅ funcionando'], meio: ['#eab308', '🟡 parcial'], off: ['#f43f5e', '🔴 travado'], espera: ['#38bdf8', '⏳ aguarda você'] };
+const ST = { ok: ['#22c55e', '✅ funcionando'], meio: ['#eab308', '🟡 parcial'], off: ['#f43f5e', '🔴 travado'], espera: ['#806d50', '⏳ aguarda você'] };
 
 const STATUS_BLOCOS = [
   { titulo: '🏭 A ESTEIRA (as 8 estações produzindo)', itens: [
@@ -244,20 +244,20 @@ function renderStatus(body) {
 
   body.innerHTML = `
   <style>
-    .fb-hero{background:linear-gradient(135deg,rgba(34,197,94,.12),transparent);border:1px solid var(--bd);border-radius:14px;padding:18px 20px;margin-bottom:16px}
-    .fb-step{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:12px;background:var(--bg-3);border:1px solid var(--bd);position:relative}
-    .fb-num{width:26px;height:26px;border-radius:99px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;flex:0 0 26px;background:var(--bd)}
-    .fb-arrow{text-align:center;color:var(--muted);font-size:15px;line-height:1;padding:3px 0}
-    .fb-eu{border-color:#eab308;box-shadow:0 0 0 1px #eab308}
-    .fb-acao{background:var(--bg-3);border:1px solid var(--bd);border-radius:12px;padding:14px 16px}
-    .fb-acao b{display:block;font-size:13.5px;margin-bottom:3px}
-    .fb-onde{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd);font-size:12.5px;align-items:baseline}
+    .fb-hero{background:linear-gradient(135deg,rgba(34,197,94,.12),transparent);border:1px solid var(--bd);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:16px}
+    .fb-step{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:var(--radius-md);background:var(--bg-3);border:1px solid var(--bd);position:relative}
+    .fb-num{width:26px;height:26px;border-radius:var(--radius-full);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex:0 0 26px;background:var(--bd)}
+    .fb-arrow{text-align:center;color:var(--muted);font-size:14px;line-height:1;padding:3px 0}
+    .fb-eu{border-color:var(--warn);box-shadow:0 0 0 1px #eab308}
+    .fb-acao{background:var(--bg-3);border:1px solid var(--bd);border-radius:var(--radius-md);padding:14px 16px}
+    .fb-acao b{display:block;font-size:13px;margin-bottom:3px}
+    .fb-onde{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd);font-size:13px;align-items:baseline}
     .fb-onde b{min-width:130px}
   </style>
   <div class="alert alert-warn tiny" style="margin-bottom:12px">📌 <b>Retrato escrito à mão em 08/set</b> — não é status ao vivo. Semáforo, "posts publicados" e "coisas travadas" abaixo não se atualizam sozinhos; o que é dado vivo está em ✅ Validar peças, 🎛 Números e 📊 Notas e testes.</div>
 
   <div class="fb-hero">
-    <div style="font-weight:900;font-size:17px">📖 O que é isto aqui</div>
+    <div style="font-weight:600;font-size:16px">📖 O que é isto aqui</div>
     <div class="tiny" style="margin-top:6px;line-height:1.7;max-width:70ch">
       Uma <b>fábrica de conteúdo</b> pra PSM Conquista. São 14 assistentes de IA, cada um com uma função,
       trabalhando em fila: um acha o assunto, outro escreve, outro desenha, outro dá nota — e no fim
@@ -265,14 +265,14 @@ function renderStatus(body) {
       <b>O seu trabalho é um só: dizer sim ou não.</b> O resto acontece sozinho.
     </div>
     <div class="cmo-grid" style="margin-top:14px">
-      <div class="cmo-kpi"><div class="v" style="color:#eab308">${pend}</div><div class="l">peças esperando você</div></div>
-      <div class="cmo-kpi"><div class="v" style="color:#22c55e">${ns.filter(n => (+n.nota||0) >= 8).length}</div><div class="l">entregas aprovadas pelo auditor</div></div>
+      <div class="cmo-kpi"><div class="v" style="color:var(--warn)">${pend}</div><div class="l">peças esperando você</div></div>
+      <div class="cmo-kpi"><div class="v" style="color:var(--ok)">${ns.filter(n => (+n.nota||0) >= 8).length}</div><div class="l">entregas aprovadas pelo auditor</div></div>
       <div class="cmo-kpi"><div class="v">0</div><div class="l">posts publicados</div></div>
-      <div class="cmo-kpi"><div class="v" style="color:#f43f5e">${D.reduce((a,b)=>a+b.itens.filter(i=>i[1]==='off').length,0)}</div><div class="l">coisas travadas</div></div>
+      <div class="cmo-kpi"><div class="v" style="color:var(--err)">${D.reduce((a,b)=>a+b.itens.filter(i=>i[1]==='off').length,0)}</div><div class="l">coisas travadas</div></div>
     </div>
   </div>
 
-  <div style="font-weight:800;font-size:15px;margin:20px 0 10px">🏭 Como uma peça nasce (o caminho completo)</div>
+  <div style="font-weight:600;font-size:14px;margin:20px 0 10px">🏭 Como uma peça nasce (o caminho completo)</div>
   <div style="display:flex;flex-direction:column;gap:0">
     ${LINHA.map((e, i) => {
       const c = ST[e.st];
@@ -281,8 +281,8 @@ function renderStatus(body) {
         <div class="fb-num" style="background:${c[0]};color:#04121f">${e.n}</div>
         <div style="flex:1;min-width:0">
           <div class="flex" style="gap:8px;align-items:baseline;flex-wrap:wrap">
-            <b style="font-size:13.5px">${e.ico} ${esc(e.quem)}</b>
-            <span class="tiny" style="color:${c[0]};font-weight:700">${c[1]}</span>
+            <b style="font-size:13px">${e.ico} ${esc(e.quem)}</b>
+            <span class="tiny" style="color:${c[0]};font-weight:600">${c[1]}</span>
           </div>
           <div class="tiny muted" style="margin-top:2px;line-height:1.5">${esc(e.faz)}</div>
           <div class="tiny" style="margin-top:4px;color:${c[0]}">→ ${esc(e.saiu)}</div>
@@ -292,24 +292,24 @@ function renderStatus(body) {
     }).join('')}
   </div>
 
-  <div style="font-weight:800;font-size:15px;margin:22px 0 10px">👤 O que VOCÊ faz (e só você pode fazer)</div>
+  <div style="font-weight:600;font-size:14px;margin:22px 0 10px">👤 O que VOCÊ faz (e só você pode fazer)</div>
   <div class="cmo-grid3">
-    <div class="fb-acao" style="border-left:4px solid #eab308">
+    <div class="fb-acao" style="border-left:4px solid var(--warn)">
       <b>1. Aprovar as peças</b>
       <div class="tiny muted" style="line-height:1.55">Na aba <b>✅ Validar peças</b>. Você lê o gancho e o resumo, e clica: aprovar, pedir ajuste ou reprovar. Se pedir ajuste, escreve 1 linha do motivo — e isso vira regra pra equipe não repetir o erro.</div>
-      ${pend ? `<div class="tiny" style="margin-top:6px"><a href="#" data-ir2="validar" style="color:#eab308;font-weight:800">→ ${pend} esperando agora</a></div>` : ''}
+      ${pend ? `<div class="tiny" style="margin-top:6px"><a href="#" data-ir2="validar" style="color:var(--warn);font-weight:600">→ ${pend} esperando agora</a></div>` : ''}
     </div>
-    <div class="fb-acao" style="border-left:4px solid #38bdf8">
+    <div class="fb-acao" style="border-left:4px solid var(--accent-ink)">
       <b>2. Decidir o que só você decide</b>
       <div class="tiny muted" style="line-height:1.55">Verba, confirmar números oficiais (faixas do MCMV), quem aparece nos vídeos, autorizar ferramenta nova. A equipe recomenda com número; a palavra final é sua.</div>
     </div>
-    <div class="fb-acao" style="border-left:4px solid #22c55e">
+    <div class="fb-acao" style="border-left:4px solid var(--ok)">
       <b>3. Ler o placar de segunda</b>
       <div class="tiny muted" style="line-height:1.55">Toda segunda 8h chega um resumo de 1 tela: o que funcionou, o que não, e 3 decisões pra semana. Fica na aba <b>📜 Relatórios</b>.</div>
     </div>
   </div>
 
-  <div style="font-weight:800;font-size:15px;margin:22px 0 10px">🚦 O que está funcionando e o que não está</div>
+  <div style="font-weight:600;font-size:14px;margin:22px 0 10px">🚦 O que está funcionando e o que não está</div>
   ${D.map(b => `
   <div class="cmo-card" style="margin-bottom:12px">
     <b>${esc(b.titulo)}</b>
@@ -317,21 +317,21 @@ function renderStatus(body) {
       ${b.itens.map(i => {
         const c = ST[i[1]];
         return `<div style="display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--bd)">
-          <span style="width:9px;border-radius:99px;background:${c[0]};flex:0 0 9px"></span>
+          <span style="width:9px;border-radius:var(--radius-full);background:${c[0]};flex:0 0 9px"></span>
           <div style="flex:1">
             <div class="flex" style="gap:8px;align-items:baseline;flex-wrap:wrap">
               <b style="font-size:13px">${esc(i[0])}</b>
-              <span class="tiny" style="color:${c[0]};font-weight:700">${c[1]}</span>
+              <span class="tiny" style="color:${c[0]};font-weight:600">${c[1]}</span>
             </div>
             <div class="tiny muted" style="margin-top:2px;line-height:1.5">${esc(i[2])}</div>
-            ${i[3] ? `<div class="tiny" style="margin-top:3px;color:#eab308">🔑 destrava com: ${esc(i[3])}</div>` : ''}
+            ${i[3] ? `<div class="tiny" style="margin-top:3px;color:var(--warn)">🔑 destrava com: ${esc(i[3])}</div>` : ''}
           </div>
         </div>`;
       }).join('')}
     </div>
   </div>`).join('')}
 
-  <div class="cmo-card" style="border-left:4px solid #f43f5e;margin-bottom:12px">
+  <div class="cmo-card" style="border-left:4px solid var(--err);margin-bottom:12px">
     <b>⏳ Suas pendências — ~40 minutos no total</b>
     <div style="margin-top:8px">
       ${STATUS_VOCE.map(v => `
@@ -339,7 +339,7 @@ function renderStatus(body) {
         <span style="font-size:16px">${v[0]}</span>
         <div style="flex:1"><b style="font-size:13px">${esc(v[1])}</b>
           <div class="tiny muted" style="margin-top:2px;line-height:1.5">${esc(v[2])}</div></div>
-        <span class="tiny" style="white-space:nowrap;align-self:center;color:#eab308;font-weight:700">${esc(v[3])}</span>
+        <span class="tiny" style="white-space:nowrap;align-self:center;color:var(--warn);font-weight:600">${esc(v[3])}</span>
       </div>`).join('')}
     </div>
   </div>
@@ -393,7 +393,7 @@ function renderValidar(body) {
   const feitas = lista.filter(p => (p.status || 'pendente') !== 'pendente');
 
   body.innerHTML = `
-  <div class="cmo-card" style="border-left:4px solid ${pend.length ? '#eab308' : '#22c55e'};margin-bottom:14px">
+  <div class="cmo-card" style="border-left:4px solid ${pend.length ? 'var(--warn)' : 'var(--ok)'};margin-bottom:14px">
     <b>${pend.length ? `⏳ ${pend.length} peça${pend.length > 1 ? 's' : ''} esperando seu veredito` : '✅ Nada pendente — fila limpa'}</b>
     <div class="tiny muted" style="margin-top:4px;line-height:1.6">
       Este é o portão da esteira: <b>nenhuma peça vai ao ar sem passar por aqui</b> (lei 5).
@@ -405,22 +405,22 @@ function renderValidar(body) {
   ${pend.length ? pend.map(p => {
     const aberta = _vAberta === p.id;
     return `
-    <div class="cmo-card" style="border-left:4px solid #eab308;margin-bottom:12px">
+    <div class="cmo-card" style="border-left:4px solid var(--warn);margin-bottom:12px">
       <div class="flex" style="align-items:baseline;gap:8px;flex-wrap:wrap">
         <b style="font-size:14px">${esc(p.titulo || 'Peça sem título')}</b>
         ${p.nota ? `<span class="cmo-nota" style="${notaCor(+p.nota)}">${esc(p.nota)}</span>` : ''}
-        ${p.serie ? `<span class="tiny" style="color:#38bdf8">${esc(p.serie)}</span>` : ''}
+        ${p.serie ? `<span class="tiny" style="color:var(--accent-ink)">${esc(p.serie)}</span>` : ''}
         ${p.canal ? `<span class="tiny muted">· ${esc(p.canal)}</span>` : ''}
       </div>
-      ${p.gancho ? `<div class="tiny" style="margin-top:6px;padding:8px 10px;background:var(--bg-2,rgba(255,255,255,.04));border-radius:8px;line-height:1.5"><b>Gancho 0-2s:</b> ${esc(p.gancho)}</div>` : ''}
+      ${p.gancho ? `<div class="tiny" style="margin-top:6px;padding:8px 10px;background:var(--bg-2,rgba(255,255,255,.04));border-radius:var(--radius-md);line-height:1.5"><b>Gancho 0-2s:</b> ${esc(p.gancho)}</div>` : ''}
       ${p.resumo ? `<div class="tiny muted" style="margin-top:6px;line-height:1.55">${esc(p.resumo)}</div>` : ''}
       ${p.cta ? `<div class="tiny" style="margin-top:5px"><b>CTA:</b> ${esc(p.cta)}</div>` : ''}
-      ${p.pendencia ? `<div class="tiny" style="margin-top:5px;color:#fb923c">⚠️ ${esc(p.pendencia)}</div>` : ''}
+      ${p.pendencia ? `<div class="tiny" style="margin-top:5px;color:var(--warn)">⚠️ ${esc(p.pendencia)}</div>` : ''}
       ${p.arquivo ? `<div class="tiny muted" style="margin-top:5px">📄 texto completo: <code>${esc(p.arquivo)}</code></div>` : ''}
-      ${p.texto ? `<details style="margin-top:8px"><summary class="tiny" style="cursor:pointer;color:#38bdf8">📄 ver a peça completa${p.origem === 'estudio' ? ' (📸 Estúdio)' : ''}</summary>
-        <pre class="tiny" style="white-space:pre-wrap;margin-top:6px;padding:10px 12px;background:var(--bg-2,rgba(255,255,255,.04));border-radius:8px;line-height:1.55;font-family:inherit">${esc(p.texto)}</pre></details>` : ''}
+      ${p.texto ? `<details style="margin-top:8px"><summary class="tiny" style="cursor:pointer;color:var(--accent-ink)">📄 ver a peça completa${p.origem === 'estudio' ? ' (📸 Estúdio)' : ''}</summary>
+        <pre class="tiny" style="white-space:pre-wrap;margin-top:6px;padding:10px 12px;background:var(--bg-2,rgba(255,255,255,.04));border-radius:var(--radius-md);line-height:1.55;font-family:inherit">${esc(p.texto)}</pre></details>` : ''}
       <div class="flex gap-2" style="margin-top:10px;flex-wrap:wrap">
-        <button class="btn tiny" style="background:#22c55e;color:#04170c;font-weight:800" data-ap="${esc(p.id)}" ${_vBusy ? 'disabled' : ''}>✅ Aprovar</button>
+        <button class="btn tiny" style="background:var(--ok-soft);color:#04170c;font-weight:600" data-ap="${esc(p.id)}" ${_vBusy ? 'disabled' : ''}>✅ Aprovar</button>
         <button class="btn btn-ghost tiny" data-aj="${esc(p.id)}" ${_vBusy ? 'disabled' : ''}>✏️ Ajustar</button>
         <button class="btn btn-ghost tiny" data-rp="${esc(p.id)}" ${_vBusy ? 'disabled' : ''}>🚫 Reprovar</button>
       </div>
@@ -437,13 +437,13 @@ function renderValidar(body) {
       Sem peças na fila. Quando a esteira produzir, elas aparecem aqui automaticamente.
     </div>`}
 
-  ${feitas.length ? `<div style="font-weight:800;margin:18px 0 8px">Já decididas (${feitas.length})</div>
+  ${feitas.length ? `<div style="font-weight:600;margin:18px 0 8px">Já decididas (${feitas.length})</div>
     ${feitas.map(p => {
       const v = VER[p.status] || VER.pendente;
       return `<div class="cmo-card" style="border-left:4px solid ${v[0]};margin-bottom:8px;padding:10px 14px">
         <div class="flex" style="gap:8px;align-items:baseline;flex-wrap:wrap">
           <b style="font-size:13px">${esc(p.titulo || '')}</b>
-          <span class="tiny" style="color:${v[0]};font-weight:700">${v[1]}</span>
+          <span class="tiny" style="color:${v[0]};font-weight:600">${v[1]}</span>
           <span class="tiny muted">· ${fmtTs(p.validado_em)}</span>
         </div>
         ${p.motivo ? `<div class="tiny muted" style="margin-top:3px">💬 ${esc(p.motivo)}</div>` : ''}
@@ -475,7 +475,7 @@ function renderPainel(body) {
   const testando = backlog().filter(b => b.status === 'testando').length;
 
   body.innerHTML = `
-  ${alerta ? `<div style="background:rgba(244,63,94,.12);border:1px solid #f43f5e;border-radius:10px;padding:10px 14px;margin-bottom:12px">
+  ${alerta ? `<div style="background:rgba(244,63,94,.12);border:1px solid var(--err);border-radius:var(--radius-md);padding:10px 14px;margin-bottom:12px">
     <b>🚨 Alerta vivo do CMO</b> <span class="tiny muted">· ${fmtTs(alerta.ts)}</span>
     <div class="tiny" style="margin-top:4px">${md(alerta.texto)}</div></div>` : ''}
 
@@ -491,10 +491,10 @@ function renderPainel(body) {
     ${['diario', 'semanal', 'mensal'].map(t => {
       const u = ultimo(t);
       return `<div class="cmo-card">
-        <div style="font-weight:800;color:${TIPO_COR[t]}">${TIPO_LBL[t]}</div>
+        <div style="font-weight:600;color:${TIPO_COR[t]}">${TIPO_LBL[t]}</div>
         ${u ? `<div class="tiny muted" style="margin:2px 0 6px">${fmtTs(u.ts)}${u.periodo ? ' · ' + esc(u.periodo) : ''}</div>
                <div class="tiny" style="line-height:1.5;max-height:110px;overflow:hidden">${md(String(u.texto || '').slice(0, 400))}</div>
-               <div class="tiny" style="margin-top:6px"><a href="#" data-cmo-ir="relatorios" style="color:#38bdf8">ver completo →</a></div>`
+               <div class="tiny" style="margin-top:6px"><a href="#" data-cmo-ir="relatorios" style="color:var(--accent-ink)">ver completo →</a></div>`
              : `<div class="tiny muted" style="margin-top:6px">Ainda sem rodada. A tarefa roda no Windows (${t === 'diario' ? 'todo dia 19h15' : t === 'semanal' ? 'segunda 8h' : 'dia 1º 9h'}) e aparece aqui sozinha.</div>`}
       </div>`;
     }).join('')}
@@ -515,7 +515,7 @@ function renderPainel(body) {
 /* ─────────────────────────── 🏭 Esteira ─────────────────────────── */
 function svgFabrica() {
   /* Porte do fluxograma-mãe (artifact Esteira Conquista) pro tema do House. */
-  const V = '#22c55e', VT = 'rgba(34,197,94,.10)', T = '#f43f5e', TT = 'rgba(244,63,94,.08)', A = '#eab308', AT = 'rgba(234,179,8,.10)', Z = '#38bdf8', ZT = 'rgba(56,189,248,.08)';
+  const V = '#22c55e', VT = 'rgba(34,197,94,.10)', T = '#f43f5e', TT = 'rgba(244,63,94,.08)', A = '#eab308', AT = 'rgba(234,179,8,.10)', Z = '#806d50', ZT = 'rgba(56,189,248,.08)';
   const box = (x, y, w, h, fill, stroke, dash, lines, bold) => `
     <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="11" fill="${fill}" stroke="${stroke}" stroke-width="${bold ? 2.4 : 1.6}" ${dash ? 'stroke-dasharray="5 4"' : ''}/>
     ${lines.map((l, i) => `<text x="${x + w / 2}" y="${y + 24 + i * 16}" text-anchor="middle" font-size="${i ? 10.5 : 12.5}" ${i ? 'opacity=".75"' : 'font-weight="800"'} fill="currentColor">${l}</text>`).join('')}`;
@@ -582,12 +582,12 @@ function flowChips(itens) {
 
 function renderEsteira(body) {
   body.innerHTML = `
-  <div class="tiny muted" style="margin-bottom:10px">Fluxograma oficial (documento-mãe: <a href="https://claude.ai/code/artifact/4bb315e9-fdc6-4151-af1d-39fca18303e2" target="_blank" style="color:#38bdf8">artifact Esteira Conquista ↗</a>). Verde = estação · vermelho = portão · tracejado amarelo = humano decide · azul = sistema externo.</div>
+  <div class="tiny muted" style="margin-bottom:10px">Fluxograma oficial (documento-mãe: <a href="https://claude.ai/code/artifact/4bb315e9-fdc6-4151-af1d-39fca18303e2" target="_blank" style="color:var(--accent-ink)">artifact Esteira Conquista ↗</a>). Verde = estação · vermelho = portão · tracejado amarelo = humano decide · azul = sistema externo.</div>
 
-  <div style="font-weight:800;margin-bottom:6px">FLUXO 1 · Fábrica de conteúdo orgânico (ciclo semanal)</div>
+  <div style="font-weight:600;margin-bottom:6px">FLUXO 1 · Fábrica de conteúdo orgânico (ciclo semanal)</div>
   <div class="cmo-svgwrap">${svgFabrica()}</div>
 
-  <div style="font-weight:800;margin:18px 0 6px">FLUXO 2 · Tráfego pago (Meta Ads)</div>
+  <div style="font-weight:600;margin:18px 0 6px">FLUXO 2 · Tráfego pago (Meta Ads)</div>
   ${flowChips([
     { t: 'CMO', s: 'budget por nicho + CFO' },
     { t: 'PAULO', s: 'verba é decisão dele', cls: 'hum', lblArr: 'aprova' },
@@ -599,7 +599,7 @@ function renderEsteira(body) {
   ])}
   <div class="tiny muted" style="margin-top:2px">Criativo de anúncio passa pela MESMA fábrica do Fluxo 1 (briefing → copy/design → Auditor → Paulo). Anúncio novo = form NOVO nomeado — o form é a chave do CAC.</div>
 
-  <div style="font-weight:800;margin:18px 0 6px">FLUXO 3 · RD Station Marketing (MKT MRR)</div>
+  <div style="font-weight:600;margin:18px 0 6px">FLUXO 3 · RD Station Marketing (MKT MRR)</div>
   ${flowChips([
     { t: 'LEAD ENTRA', s: 'form · LP · DM · indicação', cls: 'ext' },
     { t: 'MRR · FUNDAÇÃO', s: 'UTM/origem · dedupe · segmento' },
@@ -610,7 +610,7 @@ function renderEsteira(body) {
   ])}
   <div class="tiny muted" style="margin-top:2px">Interação vira score de volta (loop). Score recalibrado todo mês contra venda REAL. Disparo = sempre aprovação do Paulo.</div>
 
-  <div style="font-weight:800;margin:18px 0 6px">FLUXO 4 · Alcance orgânico & SEO</div>
+  <div style="font-weight:600;margin:18px 0 6px">FLUXO 4 · Alcance orgânico & SEO</div>
   ${flowChips([
     { t: 'ORGÂNICO', s: 'algoritmo · trending · horários' },
     { t: 'SEO', s: 'GMB · reviews · YouTube SEO', lblArr: '+' },
@@ -619,13 +619,13 @@ function renderEsteira(body) {
     { t: 'CMO · PLACAR', s: 'aprendizado vira regra da pauta', lblArr: 'resultado' },
   ])}
 
-  <div style="font-weight:800;margin:18px 0 6px">HANDOFFS · passagem de bastão (o Auditor fiscaliza cada linha)</div>
-  <div style="overflow-x:auto;border:1px solid var(--bd);border-radius:12px"><table class="cmo-table">
+  <div style="font-weight:600;margin:18px 0 6px">HANDOFFS · passagem de bastão (o Auditor fiscaliza cada linha)</div>
+  <div style="overflow-x:auto;border:1px solid var(--bd);border-radius:var(--radius-md)"><table class="cmo-table">
     <thead><tr><th>#</th><th>De → Para</th><th>O que passa de mão</th><th>SLA</th><th>Portão</th></tr></thead>
-    <tbody>${HANDOFFS.map((h, i) => `<tr><td>${i + 1}</td><td style="font-weight:700;white-space:nowrap">${esc(h[0])}</td><td>${esc(h[1])}</td><td class="cmo-sla">${esc(h[2])}</td><td class="cmo-gate">${esc(h[3])}</td></tr>`).join('')}</tbody>
+    <tbody>${HANDOFFS.map((h, i) => `<tr><td>${i + 1}</td><td style="font-weight:600;white-space:nowrap">${esc(h[0])}</td><td>${esc(h[1])}</td><td class="cmo-sla">${esc(h[2])}</td><td class="cmo-gate">${esc(h[3])}</td></tr>`).join('')}</tbody>
   </table></div>
 
-  <div style="font-weight:800;margin:18px 0 6px">AS 6 LEIS DA ESTEIRA</div>
+  <div style="font-weight:600;margin:18px 0 6px">AS 6 LEIS DA ESTEIRA</div>
   <div class="cmo-grid3">${LEIS.map(l => `<div class="cmo-card"><b>${esc(l[0])}</b><div class="tiny muted" style="margin-top:3px">${esc(l[1])}</div></div>`).join('')}</div>`;
 }
 
@@ -637,13 +637,13 @@ function renderDepto(body) {
   <div class="tiny muted" style="margin-bottom:10px">As ${DEPTO_V.length} cadeiras do departamento Conquista — <b>${ativos} ativas</b>, ${DEPTO_V.length - ativos} a criar (uma por conversa, lendo o fluxograma-mãe antes). Todo agente nasce subordinado ao CMO e herda os guardrails: publicar/disparar/gastar = só com aprovação do Paulo.</div>
   <div class="cmo-grid3">
     ${DEPTO_V.map(d => `
-    <div class="cmo-card" style="border-left:4px solid ${d.ok ? '#22c55e' : 'var(--bd)'}">
+    <div class="cmo-card" style="border-left:4px solid ${d.ok ? 'var(--ok)' : 'var(--bd)'}">
       <div class="flex" style="align-items:center;gap:8px">
-        <span style="font-size:18px">${d.ico}</span>
+        <span style="font-size:16px">${d.ico}</span>
         <b>${d.n} · ${esc(d.nome)}</b>
         <span style="margin-left:auto" class="tiny ${d.ok ? '' : 'muted'}">${d.ok ? '✅ ativo' : '⏳ a criar'}</span>
       </div>
-      <div class="tiny" style="margin-top:2px;color:#38bdf8">estação ${esc(d.est)}</div>
+      <div class="tiny" style="margin-top:2px;color:var(--accent-ink)">estação ${esc(d.est)}</div>
       <div class="tiny" style="margin-top:6px;line-height:1.5"><b>Dono de:</b> ${esc(d.dono)}</div>
       <div class="tiny" style="margin-top:5px;line-height:1.5;color:var(--muted)"><b>CMO cobra:</b> ${esc(d.cobra)}</div>
     </div>`).join('')}
@@ -660,7 +660,7 @@ function renderRelatorios(body) {
     <button class="btn btn-ghost tiny" id="cmo-add" style="margin-left:auto">➕ Registrar relatório</button>
     <button class="btn btn-ghost tiny" id="cmo-reload" title="recarregar">🔄</button>
   </div>
-  <div id="cmo-form" ${_formAberto ? '' : 'hidden'} style="background:var(--bg-3);border-radius:10px;padding:14px;margin-bottom:12px">
+  <div id="cmo-form" ${_formAberto ? '' : 'hidden'} style="background:var(--bg-3);border-radius:var(--radius-md);padding:14px;margin-bottom:12px">
     <div class="tiny muted" style="margin-bottom:8px">Contingência manual — a rotina do Windows grava sozinha.</div>
     <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:8px">
       <select id="cmo-f-tipo" class="input" style="max-width:230px">${Object.entries(TIPO_LBL).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>
@@ -671,7 +671,7 @@ function renderRelatorios(body) {
     <div style="margin-top:8px"><button class="btn btn-primary tiny" id="cmo-f-salvar">Salvar</button></div>
   </div>
   ${lista.length ? lista.map((r, i) => `
-    <div style="background:var(--bg-3);border-left:4px solid ${r.alerta ? '#f43f5e' : (TIPO_COR[r.tipo] || '#fb923c')};border-radius:10px;padding:12px 16px;margin-bottom:10px">
+    <div style="background:var(--bg-3);border-left:4px solid ${r.alerta ? 'var(--err)' : (TIPO_COR[r.tipo] || 'var(--warn)')};border-radius:var(--radius-md);padding:12px 16px;margin-bottom:10px">
       <div class="flex" style="align-items:center;gap:8px;cursor:pointer;flex-wrap:wrap" data-cmo-tg="${i}">
         <b>${r.alerta ? '🚨 ' : ''}${TIPO_LBL[r.tipo] || esc(r.tipo)}</b>
         ${r.periodo ? `<span class="tiny" style="opacity:.8">· ${esc(r.periodo)}</span>` : ''}
@@ -740,7 +740,7 @@ function renderMonitor(body) {
       </div>
       <div style="overflow-x:auto;margin-top:10px"><table class="cmo-table">
         <thead><tr><th>Quando</th><th>Agente</th><th>Entregável/tarefa</th><th>Nota</th><th>Motivo</th></tr></thead>
-        <tbody>${ns.slice(0, 30).map(n => `<tr><td class="tiny muted" style="white-space:nowrap">${fmtTs(n.ts)}</td><td style="font-weight:700">${esc(n.agente || '—')}</td><td>${esc(n.entregavel || n.tipo || '—')}</td><td><span class="cmo-nota" style="${notaCor(+n.nota || 0)}">${esc(n.nota)}</span></td><td class="tiny muted">${esc(n.motivo || '')}</td></tr>`).join('')}</tbody>
+        <tbody>${ns.slice(0, 30).map(n => `<tr><td class="tiny muted" style="white-space:nowrap">${fmtTs(n.ts)}</td><td style="font-weight:600">${esc(n.agente || '—')}</td><td>${esc(n.entregavel || n.tipo || '—')}</td><td><span class="cmo-nota" style="${notaCor(+n.nota || 0)}">${esc(n.nota)}</span></td><td class="tiny muted">${esc(n.motivo || '')}</td></tr>`).join('')}</tbody>
       </table></div>`
     : `<div class="tiny muted" style="margin-top:8px">Sem notas ainda — o Auditor de Marketing (a criar) grava aqui em <code>shared_kv cmo_notas</code>: <code>{itens:[{ts, agente, entregavel, nota, motivo}]}</code>. Assim que ele rodar o 1º ciclo, este placar acende.</div>`}
   </div>
@@ -749,7 +749,7 @@ function renderMonitor(body) {
     <b>💡 Backlog de ideias & testes (ICE)</b> <span class="tiny muted">· 1 teste ativo por nicho · kill criteria na largada</span>
     ${bl.length ? `<div style="overflow-x:auto;margin-top:10px"><table class="cmo-table">
         <thead><tr><th>Status</th><th>Ideia</th><th>Hipótese</th><th>ICE</th><th>Nicho</th></tr></thead>
-        <tbody>${bl.slice(0, 30).map(b => `<tr><td style="white-space:nowrap">${stChip[b.status] || esc(b.status || '💡')}</td><td style="font-weight:700">${esc(b.ideia || '')}</td><td class="tiny muted">${esc(b.hipotese || '')}</td><td style="font-weight:800">${ICE(b) ?? '—'}</td><td class="tiny">${esc(b.nicho || '')}</td></tr>`).join('')}</tbody>
+        <tbody>${bl.slice(0, 30).map(b => `<tr><td style="white-space:nowrap">${stChip[b.status] || esc(b.status || '💡')}</td><td style="font-weight:600">${esc(b.ideia || '')}</td><td class="tiny muted">${esc(b.hipotese || '')}</td><td style="font-weight:600">${ICE(b) ?? '—'}</td><td class="tiny">${esc(b.nicho || '')}</td></tr>`).join('')}</tbody>
       </table></div>`
     : `<div class="tiny muted" style="margin-top:8px">Backlog vazio — o CMO alimenta em <code>shared_kv cmo_backlog</code> nos ritos (toda ideia entra pontuada por Impacto × Confiança × Esforço).</div>`}
   </div>
@@ -760,7 +760,7 @@ function renderMonitor(body) {
         <thead><tr><th>Quando</th><th>Decisão</th><th>Número-base</th><th>Revisão</th><th>Resultado</th></tr></thead>
         <tbody>${dc.slice(0, 30).map(d => {
           const venc = d.revisao_em && Date.parse(d.revisao_em) <= Date.now() && !d.resultado;
-          return `<tr><td class="tiny muted" style="white-space:nowrap">${fmtTs(d.ts)}</td><td style="font-weight:700">${esc(d.decisao || '')}</td><td class="tiny">${esc(d.numero_base || '')}</td><td class="tiny" style="${venc ? 'color:#f43f5e;font-weight:800' : ''}">${esc(String(d.revisao_em || '—').slice(0, 10))}${venc ? ' ⚠ vencida' : ''}</td><td class="tiny">${esc(d.resultado || 'aguardando')}</td></tr>`;
+          return `<tr><td class="tiny muted" style="white-space:nowrap">${fmtTs(d.ts)}</td><td style="font-weight:600">${esc(d.decisao || '')}</td><td class="tiny">${esc(d.numero_base || '')}</td><td class="tiny" style="${venc ? 'color:var(--err);font-weight:600' : ''}">${esc(String(d.revisao_em || '—').slice(0, 10))}${venc ? ' ⚠ vencida' : ''}</td><td class="tiny">${esc(d.resultado || 'aguardando')}</td></tr>`;
         }).join('')}</tbody>
       </table></div>`
     : `<div class="tiny muted" style="margin-top:8px">Log vazio — o CMO registra decisões em <code>shared_kv cmo_decisoes</code> (decisão, contexto, número-base, alternativa rejeitada, resultado esperado, revisão em). Antes de decidir de novo, ele consulta aqui.</div>`}

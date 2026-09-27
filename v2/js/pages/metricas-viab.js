@@ -99,7 +99,7 @@ const pct = n => (Number(n) || 0).toLocaleString('pt-BR', { maximumFractionDigit
 const dc = n => (n || 0) >= 0 ? '#16a34a' : '#dc2626';
 
 /* ── gráficos (Chart.js sob demanda) v83.4 ── */
-const CHART_PAL = ['#7c3aed', '#2563eb', '#0891b2', '#d97706', '#16a34a', '#dc2626', '#db2777', '#0d9488', '#ca8a04', '#4f46e5', '#9333ea', '#059669', '#e11d48', '#f59e0b', '#64748b'];
+const CHART_PAL = ['#7c3aed', '#806d50', '#806d50', '#d97706', '#16a34a', '#dc2626', '#db2777', '#0d9488', '#ca8a04', '#4f46e5', '#9333ea', '#059669', '#e11d48', '#f59e0b', '#64748b'];
 async function mkChart(canvasId, cfg) {
   const el = document.getElementById(canvasId); if (!el) return;
   try {
@@ -222,9 +222,9 @@ function bucketOf(it) {
   return ['mensal', 'tri', 'sem', 'anual'].includes(p) ? p : 'mensal';
 }
 const BUCKETS = [
-  ['mensal', '🔁 Mensal recorrente', '#1e2650', 'bate todo mês — é o custo de operar'],
-  ['tri', '📆 Trimestral', '#0891b2', 'a cada 3 meses'],
-  ['sem', '📆 Semestral', '#0e7490', 'a cada 6 meses'],
+  ['mensal', '🔁 Mensal recorrente', '#806d50', 'bate todo mês — é o custo de operar'],
+  ['tri', '📆 Trimestral', '#806d50', 'a cada 3 meses'],
+  ['sem', '📆 Semestral', '#806d50', 'a cada 6 meses'],
   ['anual', '🗓 Anual', '#7c3aed', 'cai inteiro no mês marcado — desembolso de calendário'],
   ['parcelado', '💳 Parcelado', '#d97706', 'parcela em cada mês listado'],
   ['extra', '✨ Extra pontual', '#db2777', 'gasto avulso nos meses marcados'],
@@ -321,13 +321,13 @@ function coerenciaBar() {
   const perf = perfilGasto();
   const stat = (lbl, val, sub, cor) => `<div style="flex:1;min-width:130px">
     <div class="tiny" style="opacity:.75">${lbl}</div>
-    <div style="font-weight:900;font-size:15px;color:${cor || '#fff'}">${val}</div>
+    <div style="font-weight:600;font-size:14px;color:${cor || '#fff'}">${val}</div>
     ${sub ? `<div class="tiny" style="opacity:.7">${sub}</div>` : ''}</div>`;
   return `<div class="card" style="margin:0 0 12px;background:var(--psm-navy);color:#fff;padding:10px 14px">
     <div class="flex" style="gap:12px;flex-wrap:wrap;align-items:flex-start">
       <div style="flex:none;min-width:96px">
         <div class="tiny" style="opacity:.75">⚓ Âncora</div>
-        <div style="font-weight:900;font-size:15px">${MESES_N3[mr - 1]}/${String(_ano).slice(2)}</div>
+        <div style="font-weight:600;font-size:14px">${MESES_N3[mr - 1]}/${String(_ano).slice(2)}</div>
         <div class="tiny" style="opacity:.7">todas as abas</div>
       </div>
       ${stat('🏦 Custo do mês', fmt(custoMes), `${fmt(perf.mensal.mes)} recorrente + ${fmt(custoMes - perf.mensal.mes - perf.variavel.mes)} calendário`)}
@@ -335,16 +335,16 @@ function coerenciaBar() {
       ${stat('💰 VGV orçado', fmt(vgv), 'meta do mês')}
       ${stat('🎯 Conta cheia', fmt((_d.conta_cheia_calc || {})[mr] ?? custoMes), 'lida pelo Amortecedor', '#fbbf24')}
       <div style="flex:none;align-self:center;display:flex;gap:6px;flex-wrap:wrap">${erros.length
-        ? `<button class="btn btn-sm" id="viab-div-toggle" style="background:#f59e0b;color:var(--ink);font-weight:800;border:none">⚠ ${erros.length} divergência${erros.length > 1 ? 's' : ''}</button>`
-        : `<span class="tiny" style="background:#16a34a33;color:#4ade80;font-weight:800;padding:5px 10px;border-radius:99px">✅ abas em sincronia</span>`}
-        ${sims.length ? `<button class="btn btn-sm" id="viab-sim-toggle" style="background:#38bdf833;color:#7dd3fc;font-weight:800;border:none">🧪 ${sims.length} simulação${sims.length > 1 ? 'ões' : ''} ativa${sims.length > 1 ? 's' : ''}</button>` : ''}</div>
+        ? `<button class="btn btn-sm" id="viab-div-toggle" style="background:var(--warn-soft);color:var(--ink);font-weight:600;border:none">⚠ ${erros.length} divergência${erros.length > 1 ? 's' : ''}</button>`
+        : `<span class="tiny" style="background:var(--ok-soft);color:var(--ok);font-weight:600;padding:5px 10px;border-radius:var(--radius-full)">✅ abas em sincronia</span>`}
+        ${sims.length ? `<button class="btn btn-sm" id="viab-sim-toggle" style="background:var(--accent-soft);color:var(--accent-ink);font-weight:600;border:none">🧪 ${sims.length} simulação${sims.length > 1 ? 'ões' : ''} ativa${sims.length > 1 ? 's' : ''}</button>` : ''}</div>
     </div>
-    ${div.length && _divOpen ? `<div style="margin-top:10px;background:rgba(255,255,255,.08);border-radius:8px;padding:10px 12px">
+    ${div.length && _divOpen ? `<div style="margin-top:10px;background:var(--surface-2);border-radius:var(--radius-md);padding:10px 12px">
       ${div.map(d => `<div class="tiny" style="margin-bottom:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <span style="flex:1;min-width:220px">${d.tipo === 'sim' ? '🧪' : '•'} ${d.txt}</span>
-        ${d.fix === 'salvar' ? '<button class="btn btn-sm" id="viab-fix-salvar" style="background:#22c55e;border:none;color:#052e16;font-weight:800">💾 salvar agora</button>' : ''}
-        ${d.fix === 'be' ? '<button class="btn btn-sm viab-fix-be" style="background:var(--bg-2);border:none;color:var(--ink);font-weight:800">⟳ usar o orçado</button>' : ''}
-        ${d.fix === 'betraf' ? '<button class="btn btn-sm viab-fix-betraf" style="background:var(--bg-2);border:none;color:var(--ink);font-weight:800">⟳ puxar tráfego orçado</button>' : ''}
+        ${d.fix === 'salvar' ? '<button class="btn btn-sm" id="viab-fix-salvar" style="background:var(--ok-soft);border:none;color:#052e16;font-weight:600">💾 salvar agora</button>' : ''}
+        ${d.fix === 'be' ? '<button class="btn btn-sm viab-fix-be" style="background:var(--bg-2);border:none;color:var(--ink);font-weight:600">⟳ usar o orçado</button>' : ''}
+        ${d.fix === 'betraf' ? '<button class="btn btn-sm viab-fix-betraf" style="background:var(--bg-2);border:none;color:var(--ink);font-weight:600">⟳ puxar tráfego orçado</button>' : ''}
       </div>`).join('')}
     </div>` : ''}
   </div>`;
@@ -380,49 +380,49 @@ function trafegoAlaHTML() {
     const contas = contasDe(l);
     const cellsReal = Array.from({ length: 12 }, (_, i) => {
       const m = i + 1, v = trafReal(l.id, m);
-      return `<td style="padding:2px 3px;text-align:right;font-size:10.5px;color:${v ? 'var(--ink)' : 'var(--ink-muted)'};${m === mr ? 'background:#1e26500a;font-weight:800' : ''}">${v ? fmt(v).replace('R$ ', '') : '—'}</td>`;
+      return `<td style="padding:2px 3px;text-align:right;font-size:11px;color:${v ? 'var(--ink)' : 'var(--ink-muted)'};${m === mr ? 'background:var(--accent-soft);font-weight:600' : ''}">${v ? fmt(v).replace('R$ ', '') : '—'}</td>`;
     }).join('');
     const cellsUso = Array.from({ length: 12 }, (_, i) => {
       const m = i + 1, ov = trafOver(l.id, m), v = trafEfetivo(l.id, m);
       return `<td style="padding:1px"><input class="input tf-in" data-l="${l.id}" data-m="${m}" value="${v ? Math.round(v) : ''}" placeholder="0"
         title="${ov != null ? 'editado à mão — apague pra voltar ao valor da Meta' : 'valor da Meta; digite pra sobrescrever só este mês'}"
-        style="width:100%;min-width:52px;padding:2px 3px;font-size:11px;text-align:right;${ov != null ? 'background:#d9770618;border-color:#d97706;font-weight:800' : ''}${m === mr ? ';box-shadow:inset 0 0 0 2px #1e265022' : ''}"></td>`;
+        style="width:100%;min-width:52px;padding:2px 3px;font-size:11px;text-align:right;${ov != null ? 'background:var(--warn-soft);border-color:var(--warn);font-weight:600' : ''}${m === mr ? ';box-shadow:inset 0 0 0 2px #1e265022' : ''}"></td>`;
     }).join('');
     let anoReal = 0, anoUso = 0;
     for (let m = 1; m <= 12; m++) { anoReal += trafReal(l.id, m); anoUso += trafEfetivo(l.id, m); }
     return `<tr style="border-top:2px solid var(--border)">
-        <td rowspan="2" style="padding:3px 6px;white-space:nowrap;font-weight:700;border-left:3px solid ${l.cor};vertical-align:top">${l.icon} ${esc(l.nome)}
+        <td rowspan="2" style="padding:3px 6px;white-space:nowrap;font-weight:600;border-left:3px solid ${l.cor};vertical-align:top">${l.icon} ${esc(l.nome)}
           <div class="tiny muted" style="font-weight:400;max-width:140px;white-space:normal">${contas.length ? esc(contas.join(' + ')) : '<span style="color:var(--warn)">sem conta ligada</span>'}</div></td>
         <td class="tiny muted" style="padding:2px 5px;white-space:nowrap">📡 Meta</td>
         ${cellsReal}
         <td style="padding:2px 6px;text-align:right;white-space:nowrap;font-size:11px" class="muted">${fmt(anoReal)}</td>
       </tr>
       <tr style="border-bottom:1px solid var(--border)">
-        <td class="tiny" style="padding:2px 5px;white-space:nowrap;font-weight:700">✏️ usado</td>
+        <td class="tiny" style="padding:2px 5px;white-space:nowrap;font-weight:600">✏️ usado</td>
         ${cellsUso}
-        <td style="padding:2px 6px;text-align:right;white-space:nowrap;font-weight:800;color:${l.cor}">${fmt(anoUso)}</td>
+        <td style="padding:2px 6px;text-align:right;white-space:nowrap;font-weight:600;color:${l.cor}">${fmt(anoUso)}</td>
       </tr>`;
   }).join('');
   const totCells = Array.from({ length: 12 }, (_, i) => {
     const m = i + 1;
-    return `<td style="padding:3px 2px;text-align:right;font-size:10.5px;font-weight:800;${m === mr ? 'color:var(--psm-navy)' : 'opacity:.7'}">${traf.totMes[m] ? fmt(traf.totMes[m]) : '—'}</td>`;
+    return `<td style="padding:3px 2px;text-align:right;font-size:11px;font-weight:600;${m === mr ? 'color:var(--psm-navy)' : 'opacity:.7'}">${traf.totMes[m] ? fmt(traf.totMes[m]) : '—'}</td>`;
   }).join('');
   const sy = (_traf && _traf.atualizado_em) || {};
   const quando = sy.em ? new Date(sy.em).toLocaleString('pt-BR') : null;
-  return `<div class="card" style="margin:0 0 10px;border:2px solid #7c3aed44;background:#7c3aed08">
+  return `<div class="card" style="margin:0 0 10px;border:2px solid var(--accent-ink);background:var(--accent-soft)">
     <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
       <b>📣 Tráfego pago — gasto real da Meta, mês a mês</b>
       <span class="tiny muted">${fmt(traf.totMes[mr])} em ${MESES_N3[mr - 1]} · ${fmt(grand)}/ano</span>
       <button class="btn btn-ghost btn-sm" id="tf-sync" title="puxa da Meta o gasto de cada conta em cada mês do ano">📡 Atualizar da Meta</button>
     </div>
     <div class="tiny muted" style="margin-top:2px">Cada marca soma as contas de anúncio ligadas a ela — <b>valor exato do mês</b>, nunca média. A linha <b>📡 Meta</b> é o que foi cobrado; a linha <b>✏️ usado</b> é o que entra no custo (digite para sobrescrever um mês; apague para voltar ao número da Meta).${quando ? ` Última leitura: ${quando}.` : ''}</div>
-    <div style="overflow-x:auto;margin-top:8px"><table style="width:100%;border-collapse:collapse;font-size:11.5px;min-width:820px">
+    <div style="overflow-x:auto;margin-top:8px"><table style="width:100%;border-collapse:collapse;font-size:11px;min-width:820px">
       <thead><tr style="background:var(--bg-3)"><th style="padding:4px 6px;text-align:left">Marca</th><th></th>
-        ${MESES_N3.map((n, i) => `<th style="padding:4px 2px;text-align:center;${i + 1 === mr ? 'color:var(--psm-navy);font-weight:900' : ''}">${n}</th>`).join('')}
+        ${MESES_N3.map((n, i) => `<th style="padding:4px 2px;text-align:center;${i + 1 === mr ? 'color:var(--psm-navy);font-weight:600' : ''}">${n}</th>`).join('')}
         <th style="padding:4px 6px;text-align:right">Ano</th></tr></thead>
       <tbody>${rows}</tbody>
-      <tfoot><tr style="background:var(--bg-3);border-top:2px solid var(--psm-navy)"><td colspan="2" style="padding:3px 6px;font-weight:800">Σ usado no mês</td>${totCells}
-        <td style="padding:3px 6px;text-align:right;font-weight:900">${fmt(grand)}</td></tr></tfoot>
+      <tfoot><tr style="background:var(--bg-3);border-top:2px solid var(--psm-navy)"><td colspan="2" style="padding:3px 6px;font-weight:600">Σ usado no mês</td>${totCells}
+        <td style="padding:3px 6px;text-align:right;font-weight:600">${fmt(grand)}</td></tr></tfoot>
     </table></div>
     <div class="tiny muted mt-1">${traf.compart[mr] ? `⚠ ${fmt(traf.compart[mr])}/mês de tráfego está em item <b>compartilhado</b> na tabela de custos (fora do rateio por marca) — mova pra uma marca se quiser atribuição limpa. ` : ''}${LINHAS.some(l => !((_traf?.mapa || {})[l.id] || []).length) ? `<b>Marcas sem conta ligada</b> ficam zeradas: ${LINHAS.filter(l => !((_traf?.mapa || {})[l.id] || []).length).map(l => esc(l.nome)).join(', ')}.` : ''}</div>
   </div>`;
@@ -457,12 +457,12 @@ function perfilGastoHTML() {
   const recorrenteAno = p.mensal.ano, calendarioAno = p.tri.ano + p.sem.ano + p.anual.ano + p.parcelado.ano + p.extra.ano;
   const recorrenteMes = p.mensal.mes, calendarioMes = p.tri.mes + p.sem.mes + p.anual.mes + p.parcelado.mes + p.extra.mes;
   const totFixo = recorrenteAno + calendarioAno;
-  const barra = (v, tot, cor) => `<div style="height:8px;background:var(--bg-3);border-radius:99px;overflow:hidden;margin-top:4px"><div style="height:100%;width:${tot ? (v / tot * 100).toFixed(1) : 0}%;background:${cor}"></div></div>`;
+  const barra = (v, tot, cor) => `<div style="height:8px;background:var(--bg-3);border-radius:var(--radius-full);overflow:hidden;margin-top:4px"><div style="height:100%;width:${tot ? (v / tot * 100).toFixed(1) : 0}%;background:${cor}"></div></div>`;
   const chip = ([k, lbl, cor, hint]) => {
     const b = p[k]; if (!b.n) return '';
-    return `<div title="${hint}" style="flex:1;min-width:148px;background:var(--bg-3);border-radius:8px;padding:7px 10px;border-left:3px solid ${cor}">
+    return `<div title="${hint}" style="flex:1;min-width:148px;background:var(--bg-3);border-radius:var(--radius-md);padding:7px 10px;border-left:3px solid ${cor}">
       <div class="tiny muted">${lbl} · ${b.n} item(ns)</div>
-      <div style="font-weight:800;color:${cor}">${fmt(b.ano)}<span class="tiny muted" style="font-weight:400">/ano</span></div>
+      <div style="font-weight:600;color:${cor}">${fmt(b.ano)}<span class="tiny muted" style="font-weight:400">/ano</span></div>
       <div class="tiny muted">${b.mes ? fmt(b.mes) + ' em ' + MESES_N3[mr - 1] : 'não bate em ' + MESES_N3[mr - 1]}</div>
     </div>`;
   };
@@ -472,21 +472,21 @@ function perfilGastoHTML() {
       <span class="tiny muted">a leitura que separa "custo de operar" de "vai cair na fatura"</span>
     </div>
     <div class="flex gap-2 mt-2" style="flex-wrap:wrap">
-      <div style="flex:1;min-width:230px;background:#1e265010;border:1px solid #1e265030;border-radius:10px;padding:10px 12px">
+      <div style="flex:1;min-width:230px;background:var(--accent-soft);border:1px solid var(--accent-ink);border-radius:var(--radius-md);padding:10px 12px">
         <div class="tiny muted">🔁 RECORRENTE MENSAL — bate todo mês · <b>${MESES_N3[mr - 1]}</b></div>
-        <div style="font-size:20px;font-weight:900;color:var(--psm-navy)">${fmt(recorrenteMes)}<span class="tiny muted" style="font-weight:400">/mês</span></div>
+        <div style="font-size:20px;font-weight:600;color:var(--psm-navy)">${fmt(recorrenteMes)}<span class="tiny muted" style="font-weight:400">/mês</span></div>
         ${barra(recorrenteAno, totFixo, 'var(--psm-navy)')}
         <div class="tiny muted mt-1">${fmt(recorrenteAno)}/ano · média ${fmt(recorrenteAno / 12)}/mês · ${totFixo ? (recorrenteAno / totFixo * 100).toFixed(0) : 0}% do orçamento fixo</div>
       </div>
-      <div style="flex:1;min-width:230px;background:#7c3aed10;border:1px solid #7c3aed30;border-radius:10px;padding:10px 12px">
+      <div style="flex:1;min-width:230px;background:var(--accent-soft);border:1px solid var(--accent-ink);border-radius:var(--radius-md);padding:10px 12px">
         <div class="tiny muted">🗓 CALENDÁRIO — anual, semestral, trimestral, parcelas e extras</div>
-        <div style="font-size:20px;font-weight:900;color:var(--roxo)">${fmt(calendarioAno)}<span class="tiny muted" style="font-weight:400">/ano</span></div>
+        <div style="font-size:20px;font-weight:600;color:var(--roxo)">${fmt(calendarioAno)}<span class="tiny muted" style="font-weight:400">/ano</span></div>
         ${barra(calendarioAno, totFixo, '#7c3aed')}
         <div class="tiny muted mt-1">${calendarioMes ? `<b>${fmt(calendarioMes)}</b> cai em ${MESES_N3[mr - 1]}` : `nada cai em ${MESES_N3[mr - 1]}`} · média diluída ${fmt(calendarioAno / 12)}/mês</div>
       </div>
-      <div style="flex:1;min-width:200px;background:#16a34a10;border:1px solid #16a34a30;border-radius:10px;padding:10px 12px">
+      <div style="flex:1;min-width:200px;background:var(--ok-soft);border:1px solid var(--ok);border-radius:var(--radius-md);padding:10px 12px">
         <div class="tiny muted">📈 VARIÁVEL (% do VGV) — só existe se vender</div>
-        <div style="font-size:20px;font-weight:900;color:var(--ok)">${fmt(p.variavel.ano)}<span class="tiny muted" style="font-weight:400">/ano</span></div>
+        <div style="font-size:20px;font-weight:600;color:var(--ok)">${fmt(p.variavel.ano)}<span class="tiny muted" style="font-weight:400">/ano</span></div>
         <div class="tiny muted mt-1">${fmt(p.variavel.mes)} sobre o VGV orçado de ${MESES_N3[mr - 1]} · fora da conta cheia</div>
       </div>
     </div>
@@ -588,8 +588,8 @@ function render() {
   _root.innerHTML = `<div class="card" id="vb-root" style="padding-top:16px"><style>${VB_CSS}</style>
     <div class="vb-mast">
       <div style="display:flex;gap:12px;align-items:baseline;flex-wrap:wrap">
-        <span class="vb-serif" style="font-size:19px;font-weight:600">Métricas de Viabilidade</span>
-        <span style="font-size:11.5px;color:var(--vbgm)">Holding PSM · ${MES[k.mr - 1]} ${_ano} · dia ${k.dia} de ${k.nd} · RD CRM e Meta Ads em sincronização automática</span>
+        <span class="vb-serif" style="font-size:20px;font-weight:600">Métricas de Viabilidade</span>
+        <span style="font-size:11px;color:var(--vbgm)">Holding PSM · ${MES[k.mr - 1]} ${_ano} · dia ${k.dia} de ${k.nd} · RD CRM e Meta Ads em sincronização automática</span>
         <span style="margin-left:auto;display:flex;gap:6px;align-items:center">
           <button class="btn btn-ghost btn-sm" data-ano="${_ano - 1}" style="padding:2px 8px;color:var(--vbgm)">◄</button>
           <b style="color:var(--vbgi)">${_ano}</b>
@@ -611,9 +611,9 @@ function render() {
     ${div.length && _divOpen ? `<div style="background:var(--vbg);color:var(--vbgi);margin:0 -16px;padding:10px 22px;font-size:12px">
       ${div.map(d => `<div style="margin-bottom:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <span style="flex:1;min-width:220px">${d.tipo === 'sim' ? '🧪' : '•'} ${d.txt}</span>
-        ${d.fix === 'salvar' ? '<button class="btn btn-sm" id="viab-fix-salvar" style="background:#7CBC93;border:0;color:#0D1410;font-weight:700">Salvar agora</button>' : ''}
-        ${d.fix === 'be' ? '<button class="btn btn-sm viab-fix-be" style="background:rgba(255,255,255,.9);border:0;color:var(--verde-musgo);font-weight:700">Usar o orçado</button>' : ''}
-        ${d.fix === 'betraf' ? '<button class="btn btn-sm viab-fix-betraf" style="background:rgba(255,255,255,.9);border:0;color:var(--verde-musgo);font-weight:700">Puxar tráfego orçado</button>' : ''}
+        ${d.fix === 'salvar' ? '<button class="btn btn-sm" id="viab-fix-salvar" style="background:#7CBC93;border:0;color:#0D1410;font-weight:600">Salvar agora</button>' : ''}
+        ${d.fix === 'be' ? '<button class="btn btn-sm viab-fix-be" style="background:rgba(255,255,255,.9);border:0;color:var(--verde-musgo);font-weight:600">Usar o orçado</button>' : ''}
+        ${d.fix === 'betraf' ? '<button class="btn btn-sm viab-fix-betraf" style="background:rgba(255,255,255,.9);border:0;color:var(--verde-musgo);font-weight:600">Puxar tráfego orçado</button>' : ''}
       </div>`).join('')}</div>` : ''}
     <div style="display:flex;justify-content:flex-end"><span class="tiny muted" id="viab-msg" style="padding:4px 0">${esc(_msg)}</span></div>
     <div id="viab-body"></div>
@@ -667,22 +667,22 @@ function renderMes() {
   const totCat = cats.reduce((s, c) => s + c.mes, 0) || 1;
   const catRows = cats.slice(0, 8).map(c => `<tr><td>${esc(c.cat)}</td><td class="r num">${fmt(c.mes)}</td><td class="r num" style="color:var(--vbm)">${(c.mes / totCat * 100).toFixed(0)}%</td></tr>`).join('');
   const T = `<style>#vb-root table{border-collapse:collapse;width:100%;font-size:13px}
-    #vb-root th{text-align:right;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--vbm);font-weight:600;padding:7px 10px;border-bottom:1px solid var(--vbh2)}
+    #vb-root th{text-align:right;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--vbm);font-weight:600;padding:7px 10px;border-bottom:1px solid var(--vbh2)}
     #vb-root th:first-child{text-align:left}
     #vb-root td{padding:7px 10px;border-bottom:1px solid var(--vbh);text-align:right}
     #vb-root td:first-child{text-align:left}#vb-root td.r{text-align:right}</style>`;
   return T + `
-    <div style="background:var(--vbc);border:1px solid var(--vbh);border-radius:8px">
+    <div style="background:var(--vbc);border:1px solid var(--vbh);border-radius:var(--radius-md)">
       <div style="padding:11px 16px;border-bottom:1px solid var(--vbh);display:flex;justify-content:space-between;align-items:center">
         <b style="font-size:13px">Situação de ${MES[k.mr - 1].toLowerCase()}</b>
         <span class="vb-chip" style="background:${status[2]};color:${status[1]}">${status[0]}</span>
       </div>
       <div style="padding:14px 16px">
-        <p style="margin:0;max-width:70ch;font-size:13.5px">${frase}</p>
+        <p style="margin:0;max-width:70ch;font-size:13px">${frase}</p>
         <div style="margin-top:14px">
-          <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--vbm)" class="num"><span>Cobertura do custo do mês</span><span>${fmt(k.margem)} de ${fmt(k.custo)}</span></div>
-          <div style="height:6px;background:var(--bg-3);border-radius:3px;margin-top:5px;position:relative">
-            <div style="height:100%;width:${Math.min(100, k.cob).toFixed(1)}%;background:${status[1]};border-radius:3px"></div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--vbm)" class="num"><span>Cobertura do custo do mês</span><span>${fmt(k.margem)} de ${fmt(k.custo)}</span></div>
+          <div style="height:6px;background:var(--bg-3);border-radius:var(--radius-sm);margin-top:5px;position:relative">
+            <div style="height:100%;width:${Math.min(100, k.cob).toFixed(1)}%;background:${status[1]};border-radius:var(--radius-sm)"></div>
             <span style="position:absolute;left:${k.esp.toFixed(1)}%;top:-3px;bottom:-3px;width:2px;background:var(--vbwarn)" title="esperado no dia ${k.dia} (${k.esp.toFixed(0)}%)"></span>
           </div>
           <div style="font-size:11px;color:var(--vbm);margin-top:4px">A marca amarela indica onde a cobertura deveria estar hoje.</div>
@@ -733,25 +733,25 @@ function renderOrcado() {
         <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
           <b style="font-size:14px">${l.icon} ${l.nome}</b>
           <span class="tiny muted">meta ano: <b>${fmt(totVgv)}</b> · custo: <b>${fmt(totCusto)}</b></span>
-          <span class="tiny" style="background:#16a34a18;color:var(--ok);font-weight:700;padding:2px 8px;border-radius:99px" title="VGV realmente fechado no RD CRM em ${_ano} (deals ganhos)">📡 RD: ${fmt(totVgvReal)} · ${totVendasReal} venda(s)${totVgv ? ` · ${pct(totVgvReal / totVgv * 100)} da meta` : ''}</span>
+          <span class="tiny" style="background:var(--ok-soft);color:var(--ok);font-weight:600;padding:2px 8px;border-radius:var(--radius-full)" title="VGV realmente fechado no RD CRM em ${_ano} (deals ganhos)">📡 RD: ${fmt(totVgvReal)} · ${totVendasReal} venda(s)${totVgv ? ` · ${pct(totVgvReal / totVgv * 100)} da meta` : ''}</span>
           <button class="btn btn-ghost btn-sm orc-copy" data-l="${l.id}" title="Replica o VGV e vendas do 1º mês preenchido nos 12 meses">⧉ replicar nos 12 meses</button>
           <button class="btn btn-ghost btn-sm orc-pull" data-l="${l.id}" title="Copia o VGV e as vendas REAIS do RD para os meses já encerrados — o plano dos meses futuros fica intacto">📥 puxar realizado do RD</button>
-          <span style="margin-left:auto;font-weight:800;color:${dc(totLucro)}">Lucro orçado ano: ${fmt(totLucro)}</span>
+          <span style="margin-left:auto;font-weight:600;color:${dc(totLucro)}">Lucro orçado ano: ${fmt(totLucro)}</span>
         </div>
         <div class="flex gap-2 mt-2" style="flex-wrap:wrap">${premInp}</div>
         <div style="overflow-x:auto;margin-top:8px"><table style="border-collapse:collapse;font-size:11px">
           <thead><tr><th style="text-align:left;padding:3px 6px;position:sticky;left:0;background:var(--bg-2)"></th>${MES.map(mn => `<th style="padding:3px 6px;text-align:right;color:var(--ink-muted)">${mn}</th>`).join('')}</tr></thead>
           <tbody>
-            <tr><td style="padding:3px 6px;font-weight:700;position:sticky;left:0;background:var(--bg-2)">VGV meta</td>${cols.map(c => `<td style="padding:2px 4px">${inp(c.m, 'vgv', c.vgv)}</td>`).join('')}</tr>
-            <tr title="VGV fechado no RD CRM — atualiza sozinho a cada sync"><td style="padding:3px 6px;font-weight:700;color:var(--ok);position:sticky;left:0;background:var(--bg-2)">📡 VGV real</td>${cols.map(c => {
+            <tr><td style="padding:3px 6px;font-weight:600;position:sticky;left:0;background:var(--bg-2)">VGV meta</td>${cols.map(c => `<td style="padding:2px 4px">${inp(c.m, 'vgv', c.vgv)}</td>`).join('')}</tr>
+            <tr title="VGV fechado no RD CRM — atualiza sozinho a cada sync"><td style="padding:3px 6px;font-weight:600;color:var(--ok);position:sticky;left:0;background:var(--bg-2)">📡 VGV real</td>${cols.map(c => {
               if (!c.passado) return '<td style="padding:3px 4px;text-align:right;color:var(--ink-muted)">·</td>';
               const at = c.vgv ? c.real.vgv / c.vgv * 100 : null;
               const cor = at == null ? 'var(--ink-muted)' : at >= 100 ? '#16a34a' : at >= 60 ? '#d97706' : '#dc2626';
-              return `<td style="padding:3px 4px;text-align:right;font-weight:700;color:${cor}" title="${c.real.vendas} venda(s)${at != null ? ' · ' + pct(at) + ' da meta do mês' : ''}">${c.real.vgv ? fmtC(c.real.vgv) : '—'}</td>`;
+              return `<td style="padding:3px 4px;text-align:right;font-weight:600;color:${cor}" title="${c.real.vendas} venda(s)${at != null ? ' · ' + pct(at) + ' da meta do mês' : ''}">${c.real.vgv ? fmtC(c.real.vgv) : '—'}</td>`;
             }).join('')}</tr>
-            <tr><td style="padding:3px 6px;font-weight:700;position:sticky;left:0;background:var(--bg-2)">Vendas meta</td>${cols.map(c => `<td style="padding:2px 4px">${inp(c.m, 'vendas', c.vendas)}</td>`).join('')}</tr>
-            <tr><td style="padding:3px 6px;font-weight:700;color:var(--ok);position:sticky;left:0;background:var(--bg-2)">📡 Vendas reais</td>${cols.map(c => `<td style="padding:3px 4px;text-align:right;font-weight:700;color:${!c.passado ? 'var(--ink-muted)' : c.real.vendas >= (c.vendas || 0) && c.vendas ? '#16a34a' : c.real.vendas ? '#d97706' : '#dc2626'}">${!c.passado ? '·' : (c.real.vendas || '—')}</td>`).join('')}</tr>
-            <tr><td style="padding:3px 6px;font-weight:700;color:var(--ink-muted);position:sticky;left:0;background:var(--bg-2)">Lucro</td>${cols.map(c => `<td style="padding:3px 4px;text-align:right;font-weight:700;color:${dc(c.lucro)}">${fmtC(c.lucro)}</td>`).join('')}</tr>
+            <tr><td style="padding:3px 6px;font-weight:600;position:sticky;left:0;background:var(--bg-2)">Vendas meta</td>${cols.map(c => `<td style="padding:2px 4px">${inp(c.m, 'vendas', c.vendas)}</td>`).join('')}</tr>
+            <tr><td style="padding:3px 6px;font-weight:600;color:var(--ok);position:sticky;left:0;background:var(--bg-2)">📡 Vendas reais</td>${cols.map(c => `<td style="padding:3px 4px;text-align:right;font-weight:600;color:${!c.passado ? 'var(--ink-muted)' : c.real.vendas >= (c.vendas || 0) && c.vendas ? 'var(--ok)' : c.real.vendas ? 'var(--warn)' : 'var(--err)'}">${!c.passado ? '·' : (c.real.vendas || '—')}</td>`).join('')}</tr>
+            <tr><td style="padding:3px 6px;font-weight:600;color:var(--ink-muted);position:sticky;left:0;background:var(--bg-2)">Lucro</td>${cols.map(c => `<td style="padding:3px 4px;text-align:right;font-weight:600;color:${dc(c.lucro)}">${fmtC(c.lucro)}</td>`).join('')}</tr>
           </tbody>
         </table></div>
       </div>`;
@@ -760,7 +760,7 @@ function renderOrcado() {
     <div class="alert" style="background:var(--bg-3);border:none;font-size:12px;margin-bottom:12px">📋 <b>Plano do ano</b> — edite VGV e Vendas por mês (sazonalidade) e as premissas de comissão. O <b>custo</b> vem da aba <b>Custos detalhados</b>. É o baseline que o Realizado compara.</div>
     ${blocks}
     <div class="card" style="margin:0;background:var(--psm-navy);color:#fff">
-      <div class="flex items-center"><b style="font-size:15px">🏛 Consolidado — Lucro orçado do ano</b><span style="margin-left:auto;font-size:22px;font-weight:900;color:${consAno >= 0 ? '#4ade80' : '#f87171'}">${fmt(consAno)}</span></div>
+      <div class="flex items-center"><b style="font-size:14px">🏛 Consolidado — Lucro orçado do ano</b><span style="margin-left:auto;font-size:20px;font-weight:600;color:${consAno >= 0 ? 'var(--ok)' : 'var(--err)'}">${fmt(consAno)}</span></div>
     </div>`;
 }
 function wireOrcado() {
@@ -881,7 +881,7 @@ function abrirComposicaoMes(m) {
   ov.innerHTML = `<div class="card" style="max-width:520px;width:100%;max-height:80vh;overflow:auto;background:var(--bg-2)">
     <div class="flex" style="justify-content:space-between"><b>📅 Composição de ${MESES_A[m - 1]}: ${fmt(tot)}</b><button class="btn btn-ghost btn-sm" id="cm-x">✕</button></div>
     <table class="tiny" style="width:100%;margin-top:8px;border-collapse:collapse">
-      ${itens.map(x => `<tr style="border-top:1px solid var(--border)"><td style="padding:3px 5px">${esc(x.desc || '?')}</td><td class="muted" style="text-align:center">${x.classe}</td><td style="text-align:right;font-weight:700">${fmt(x.v)}</td></tr>`).join('')}
+      ${itens.map(x => `<tr style="border-top:1px solid var(--border)"><td style="padding:3px 5px">${esc(x.desc || '?')}</td><td class="muted" style="text-align:center">${x.classe}</td><td style="text-align:right;font-weight:600">${fmt(x.v)}</td></tr>`).join('')}
     </table></div>`;
   document.body.appendChild(ov);
   ov.querySelector('#cm-x').onclick = () => ov.remove();
@@ -894,7 +894,7 @@ function changelogHTML() {
   const f$ = v => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
   return `<div class="card" style="margin:0 0 10px"><b class="tiny">🕘 Últimas alterações nos custos orçados</b>
     ${ents.slice(0, 12).map(e => `<div class="tiny" style="border-top:1px dashed var(--border);padding:5px 0">
-      <b style="color:${(e.delta_ano_fixo || 0) > 0 ? '#dc2626' : '#16a34a'}">${(e.delta_ano_fixo || 0) >= 0 ? '+' : ''}${f$(e.delta_ano_fixo)}/ano</b>
+      <b style="color:${(e.delta_ano_fixo || 0) > 0 ? 'var(--err)' : 'var(--ok)'}">${(e.delta_ano_fixo || 0) >= 0 ? '+' : ''}${f$(e.delta_ano_fixo)}/ano</b>
       · mês corrente ${(e.delta_mes_corrente || 0) >= 0 ? '+' : ''}${f$(e.delta_mes_corrente)}
       · <span class="muted">${e.por || '?'} em ${new Date(e.ts).toLocaleString('pt-BR').slice(0, 16)}</span><br>
       ${(e.mudancas || []).slice(0, 5).map(m => `<span class="muted">→ ${m.tipo} <b>${m.desc || '?'}</b>${m.campo ? ` (${m.campo}: ${JSON.stringify(m.antes)} → ${JSON.stringify(m.depois)})` : ''}</span>`).join('<br>')}
@@ -911,7 +911,7 @@ function abrirModalMeses(i) {
     <b class="tiny">📅 Meses de "${esc(it.desc || '?')}"</b>
     <div class="tiny muted" style="margin:2px 0 8px">${it.classe === 'parcelado' ? 'cada mês marcado = 1 parcela do valor' : ((it.period || 'mensal') !== 'mensal' ? 'marque só o mês INICIAL — a recorrência segue dele' : 'vazio = todos os meses')}</div>
     <div class="grid" style="grid-template-columns:repeat(4,1fr);gap:6px">
-      ${MESES_A.map((n, ix) => `<label class="tiny" style="display:flex;gap:4px;align-items:center;cursor:pointer;background:var(--bg-3);border-radius:6px;padding:5px 8px"><input type="checkbox" class="mm-ck" value="${ix + 1}" ${sel.has(ix + 1) ? 'checked' : ''}>${n}</label>`).join('')}
+      ${MESES_A.map((n, ix) => `<label class="tiny" style="display:flex;gap:4px;align-items:center;cursor:pointer;background:var(--bg-3);border-radius:var(--radius-sm);padding:5px 8px"><input type="checkbox" class="mm-ck" value="${ix + 1}" ${sel.has(ix + 1) ? 'checked' : ''}>${n}</label>`).join('')}
     </div>
     <div class="flex gap-2 mt-3" style="justify-content:flex-end">
       <button class="btn btn-ghost btn-sm" id="mm-x">Cancelar</button>
@@ -942,31 +942,31 @@ function renderCustosDet() {
   const mesCorr = new Date().getMonth() + 1;
   const mesCorrNome = MESES_N[mesCorr - 1] + '/' + String(new Date().getFullYear()).slice(2);
   const ttCard = 'Custo de ' + MESES_N[mesCorr - 1] + ' = soma dos itens ativos no mês (meses marcados, parcelas do mês, anuais que caem aqui) + variável sobre o VGV orçado do mês.';
-  const empChips = LINHAS.map(l => `<div title="${ttCard}" style="flex:1;min-width:150px;background:var(--bg-3);border-radius:8px;padding:8px 10px"><div class="tiny muted">${l.icon} ${l.nome} · <b>${mesCorrNome}</b></div><div style="font-weight:800;font-size:16px;color:${l.cor}">${fmt(det[l.id][mesCorr])}<span class="tiny muted" style="font-weight:400">/mês</span></div><div class="tiny muted">média/mês no ano: ${fmt(totEmp[l.id] / 12)} · ${fmt(totEmpST[l.id] / 12)} s/ tráfego</div></div>`).join('');
+  const empChips = LINHAS.map(l => `<div title="${ttCard}" style="flex:1;min-width:150px;background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px"><div class="tiny muted">${l.icon} ${l.nome} · <b>${mesCorrNome}</b></div><div style="font-weight:600;font-size:16px;color:${l.cor}">${fmt(det[l.id][mesCorr])}<span class="tiny muted" style="font-weight:400">/mês</span></div><div class="tiny muted">média/mês no ano: ${fmt(totEmp[l.id] / 12)} · ${fmt(totEmpST[l.id] / 12)} s/ tráfego</div></div>`).join('');
   // timeline 12 meses (Σ empresas) — degrau visível; clique = composição do mês
   const totMes = {}; for (let m = 1; m <= 12; m++) { totMes[m] = 0; LIDS.forEach(l => totMes[m] += det[l][m]); }
   const maxMes = Math.max(...Object.values(totMes), 1);
   const timeline = `<div class="card" style="margin:0 0 10px">
-    <div class="tiny" style="font-weight:800;margin-bottom:6px">📅 Custo mês a mês (${new Date().getFullYear()}) — clique no mês pra ver a composição</div>
+    <div class="tiny" style="font-weight:600;margin-bottom:6px">📅 Custo mês a mês (${new Date().getFullYear()}) — clique no mês pra ver a composição</div>
     <div class="flex" style="gap:4px;align-items:flex-end;height:86px">
       ${Array.from({length: 12}, (_, i) => { const m = i + 1; const h = Math.max(6, Math.round(72 * totMes[m] / maxMes)); const atual = m === mesCorr;
         return `<div class="cd-tl" data-m="${m}" title="${MESES_N[i]}: ${fmt(totMes[m])}" style="flex:1;cursor:pointer;text-align:center">
-          <div class="tiny" style="font-size:9px;font-weight:700;color:${atual ? 'var(--psm-navy)' : 'var(--ink-muted)'}">${fmt(totMes[m])}</div>
+          <div class="tiny" style="font-size:11px;font-weight:600;color:${atual ? 'var(--psm-navy)' : 'var(--ink-muted)'}">${fmt(totMes[m])}</div>
           <div style="height:${h}px;border-radius:4px 4px 0 0;background:${atual ? 'var(--psm-navy)' : '#b8ad8c'};${atual ? 'box-shadow:0 0 0 2px #1e265033' : ''}"></div>
-          <div class="tiny" style="font-size:10px;${atual ? 'font-weight:900' : ''}">${MESES_N[i]}</div>
+          <div class="tiny" style="font-size:11px;${atual ? 'font-weight:600' : ''}">${MESES_N[i]}</div>
         </div>`; }).join('')}
     </div></div>`;
   // C — conta cheia (fonte única do backend) + aviso de divergência com o kv do plano
   const ccCalc = (_d.conta_cheia_calc || {})[mesCorr];
   const ccKv = (_d.conta_cheia_kv || {})['2026-' + String(mesCorr).padStart(2, '0')] ?? (_d.conta_cheia_kv || {}).default;
   const diverge = ccCalc != null && ccKv != null && Math.abs(ccCalc - ccKv) > 1000;
-  const contaCheia = ccCalc == null ? '' : `<div class="card" style="margin:0 0 10px;border:2px solid var(--psm-navy);background:#1e26500d" title="custo fixo do mês (fixo+extra+parcelado, COM tráfego e pró-labore; variável fora) — o mesmo número que o Amortecedor do Real vs Plano usa">
+  const contaCheia = ccCalc == null ? '' : `<div class="card" style="margin:0 0 10px;border:2px solid var(--psm-navy);background:var(--accent-soft)" title="custo fixo do mês (fixo+extra+parcelado, COM tráfego e pró-labore; variável fora) — o mesmo número que o Amortecedor do Real vs Plano usa">
     <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
       <b>🧮 Conta cheia de ${MESES_N[mesCorr - 1]} (Plano v2.3)</b>
-      <span style="font-size:24px;font-weight:900;color:var(--psm-navy)">${fmt(ccCalc)}<span class="tiny muted" style="font-weight:400">/mês</span></span>
+      <span style="font-size:26px;font-weight:600;color:var(--psm-navy)">${fmt(ccCalc)}<span class="tiny muted" style="font-weight:400">/mês</span></span>
     </div>
     <div class="tiny muted">custo fixo do mês com tráfego e pró-labore — fonte única: é este número que o 🎯 Amortecedor da Estratégia lê.</div>
-    ${diverge ? `<div class="tiny" style="color:var(--warn);font-weight:700;margin-top:4px">⚠️ Divergência: o kv manual do plano diz ${fmt(ccKv)} — o calculado (${fmt(ccCalc)}) é quem manda; ajuste ou limpe o kv.</div>` : ''}
+    ${diverge ? `<div class="tiny" style="color:var(--warn);font-weight:600;margin-top:4px">⚠️ Divergência: o kv manual do plano diz ${fmt(ccKv)} — o calculado (${fmt(ccCalc)}) é quem manda; ajuste ou limpe o kv.</div>` : ''}
   </div>`;
   const nPend = (_custosOrc || []).filter(isPendente).length + (_custosOrc || []).filter(isKenlo).length;
   const MESES_A = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
@@ -994,11 +994,11 @@ function renderCustosDet() {
     const rateioSel = comp ? `<select class="select cd-f" data-i="${i}" data-k="rateio" style="font-size:11px;padding:2px;max-width:118px">${opt(RATEIOS, it.rateio)}</select>` : '<span class="tiny muted">direto</span>';
     let detalhe = '';
     if (comp && it.rateio === 'especifico') detalhe = `<div class="flex gap-1" style="flex-wrap:wrap;margin-top:3px">${LINHAS.map(l => `<label class="tiny" style="display:inline-flex;gap:2px;align-items:center"><input type="checkbox" class="cd-esp" data-i="${i}" value="${l.id}"${(it.linhas || []).includes(l.id) ? ' checked' : ''}>${l.id}</label>`).join('')}</div>`;
-    if (comp && it.rateio === 'manual') detalhe = `<div class="flex gap-1" style="flex-wrap:wrap;margin-top:3px">${LINHAS.map(l => `<label class="tiny" style="display:inline-flex;flex-direction:column;align-items:center">${l.id}<input class="input cd-man" data-i="${i}" data-l="${l.id}" value="${(it.pesos || {})[l.id] ?? ''}" style="width:44px;padding:1px 3px;font-size:10px" placeholder="%"></label>`).join('')}</div>`;
+    if (comp && it.rateio === 'manual') detalhe = `<div class="flex gap-1" style="flex-wrap:wrap;margin-top:3px">${LINHAS.map(l => `<label class="tiny" style="display:inline-flex;flex-direction:column;align-items:center">${l.id}<input class="input cd-man" data-i="${i}" data-l="${l.id}" value="${(it.pesos || {})[l.id] ?? ''}" style="width:44px;padding:1px 3px;font-size:11px" placeholder="%"></label>`).join('')}</div>`;
     const mesesCell = `<button class="btn btn-ghost btn-sm cd-meses" data-i="${i}" title="clique pra marcar os meses" style="padding:2px 8px;font-size:11px;white-space:nowrap">${chipsMeses(it)}</button>`;
     const pendBadge = isKenlo(it)
-      ? `<div class="tiny" style="color:var(--err);font-weight:800">🔻 CANCELAR no fornecedor — Locação pausada <button class="btn btn-ghost btn-sm cd-kenlo-ok" data-i="${i}" style="padding:0 6px">✓ cancelei</button></div>`
-      : (isPendente(it) ? `<div class="tiny" style="color:var(--warn);font-weight:700">⚠ verificar <button class="btn btn-ghost btn-sm cd-verif" data-i="${i}" style="padding:0 6px" title="confirmar que R$ ${it.valor || 0} está certo">✓ confirmar</button></div>` : '');
+      ? `<div class="tiny" style="color:var(--err);font-weight:600">🔻 CANCELAR no fornecedor — Locação pausada <button class="btn btn-ghost btn-sm cd-kenlo-ok" data-i="${i}" style="padding:0 6px">✓ cancelei</button></div>`
+      : (isPendente(it) ? `<div class="tiny" style="color:var(--warn);font-weight:600">⚠ verificar <button class="btn btn-ghost btn-sm cd-verif" data-i="${i}" style="padding:0 6px" title="confirmar que R$ ${it.valor || 0} está certo">✓ confirmar</button></div>` : '');
     return `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:3px 5px"><input class="input cd-f" data-i="${i}" data-k="desc" value="${esc(it.desc)}" style="width:100%;min-width:120px;padding:2px 5px;font-size:12px">${pendBadge}</td>
       <td style="padding:3px 5px"><select class="select cd-f" data-i="${i}" data-k="cat" style="font-size:11px;padding:2px">${opt(_cats.map(c => [c, c]), it.cat)}</select></td>
@@ -1019,7 +1019,7 @@ function renderCustosDet() {
   const somaMes = arr => arr.reduce((s, it) => s + (mesAtivo(it, mesCorr) ? valorItemMes(it, mesCorr) : 0), 0);
   const grupoHead = (lbl, cor, itens, hint) => `<tr style="background:${cor}14">
     <td colspan="10" style="padding:6px 8px;border-left:4px solid ${cor}">
-      <b style="font-size:12.5px;color:${cor}">${lbl}</b>
+      <b style="font-size:13px;color:${cor}">${lbl}</b>
       <span class="tiny muted"> · ${itens.length} item(ns) · <b>${fmt(somaAno(itens))}</b>/ano · ${fmt(somaMes(itens))} em ${MESES_N[mesCorr - 1]}${hint ? ' · ' + hint : ''}</span>
     </td></tr>`;
   let rows = '';
@@ -1038,8 +1038,8 @@ function renderCustosDet() {
   }
   return `
     <div class="alert" style="background:var(--bg-3);border:none;font-size:12px;margin-bottom:10px">🧾 <b>Custos orçados detalhados</b> — fixos, variáveis (% do VGV), extras e <b>parcelados</b> (valor da parcela × meses listados), por empresa. <b>Recorrência</b> = de quanto em quanto tempo o custo bate (anual não infla 12x). Compartilhados rateiam (igual/proporcional/específico/manual). Pré-carregado com seus custos reais — ajuste e <b>salve</b>. Alimenta o lucro orçado.</div>
-    <div class="flex gap-2 mb-2" style="flex-wrap:wrap;align-items:center;background:#7c3aed12;border:1px solid #7c3aed33;border-radius:8px;padding:8px 10px">
-      <span class="tiny" style="font-weight:800;color:var(--roxo)">⚖️ Quem rateia o overhead (Igual/Proporcional):</span>
+    <div class="flex gap-2 mb-2" style="flex-wrap:wrap;align-items:center;background:var(--accent-soft);border:1px solid var(--accent-ink);border-radius:var(--radius-md);padding:8px 10px">
+      <span class="tiny" style="font-weight:600;color:var(--roxo)">⚖️ Quem rateia o overhead (Igual/Proporcional):</span>
       ${LINHAS.map(l => `<label class="tiny" style="display:inline-flex;gap:4px;align-items:center;font-weight:600;cursor:pointer"><input type="checkbox" class="re-emp" value="${l.id}"${ratEmp().includes(l.id) ? ' checked' : ''}>${l.icon} ${l.nome}</label>`).join('')}
       <span class="tiny muted">desmarque quem não divide a estrutura (ex.: Terceiros). Salva na hora.</span>
     </div>
@@ -1049,7 +1049,7 @@ function renderCustosDet() {
       ${perfilGastoHTML()}
       ${timeline}
       <div class="flex gap-2 mb-2" style="flex-wrap:wrap">${empChips}
-        <div style="flex:1;min-width:150px;background:var(--psm-navy);color:#fff;border-radius:8px;padding:8px 10px"><div class="tiny" style="opacity:.8">Total custos/ano</div><div style="font-weight:800;font-size:16px">${fmt(grand)}</div><div class="tiny" style="opacity:.85">Fixo ${fmtC(porClasse.fixo)} · Var ${fmtC(porClasse.variavel)} · Extra ${fmtC(porClasse.extra)} · Parc ${fmtC(porClasse.parcelado)}</div></div>
+        <div style="flex:1;min-width:150px;background:var(--psm-navy);color:#fff;border-radius:var(--radius-md);padding:8px 10px"><div class="tiny" style="opacity:.8">Total custos/ano</div><div style="font-weight:600;font-size:16px">${fmt(grand)}</div><div class="tiny" style="opacity:.85">Fixo ${fmtC(porClasse.fixo)} · Var ${fmtC(porClasse.variavel)} · Extra ${fmtC(porClasse.extra)} · Parc ${fmtC(porClasse.parcelado)}</div></div>
       </div>
     </div></details>
     <div class="flex gap-2 mb-2" style="flex-wrap:wrap;align-items:center">
@@ -1057,7 +1057,7 @@ function renderCustosDet() {
       <button class="btn btn-ghost btn-sm" id="cd-changelog">🕘 O que mudou?</button>
       <span style="margin-left:auto"></span>
       <span class="tiny muted">Agrupar por:</span>
-      <select class="select" id="cd-grupo" style="font-size:11.5px;padding:3px 6px">
+      <select class="select" id="cd-grupo" style="font-size:11px;padding:3px 6px">
         ${[['recorrencia', '🔁 Recorrência (mensal × anual)'], ['categoria', '🏷 Categoria'], ['empresa', '🏢 Empresa'], ['nenhum', '— sem agrupar']]
           .map(([v, l]) => `<option value="${v}"${_grupoCustos === v ? ' selected' : ''}>${l}</option>`).join('')}
       </select>
@@ -1070,15 +1070,15 @@ function renderCustosDet() {
       <tbody>${rows || '<tr><td colspan="10" class="tiny muted" style="padding:12px;text-align:center">Nenhum custo — clique em "adicionar custo".</td></tr>'}</tbody>
       <tfoot><tr><td colspan="10" style="padding:0">
         <div class="flex" style="gap:10px;flex-wrap:wrap;background:var(--bg-3);border-radius:0 0 8px 8px;padding:10px 12px;margin-top:2px">
-          ${[['fixo', '📌 Fixo', '#1e2650'], ['variavel', '📈 Variável', '#7c3aed'], ['extra', '✨ Extra', '#d97706'], ['parcelado', '📆 Parcelado', '#0891b2']].map(([k, lbl, cor]) => `
+          ${[['fixo', '📌 Fixo', '#806d50'], ['variavel', '📈 Variável', '#7c3aed'], ['extra', '✨ Extra', '#d97706'], ['parcelado', '📆 Parcelado', '#806d50']].map(([k, lbl, cor]) => `
             <div style="flex:1;min-width:150px">
               <div class="tiny muted">${lbl}</div>
-              <div style="font-weight:800;color:${cor}">${fmt(porClasse[k] || 0)}<span class="tiny muted" style="font-weight:400">/ano</span></div>
+              <div style="font-weight:600;color:${cor}">${fmt(porClasse[k] || 0)}<span class="tiny muted" style="font-weight:400">/ano</span></div>
               <div class="tiny muted">${fmt((porClasse[k] || 0) / 12)}/mês</div>
             </div>`).join('')}
-          <div style="flex:1.2;min-width:170px;background:var(--psm-navy);color:#fffbea;border-radius:8px;padding:6px 12px">
+          <div style="flex:1.2;min-width:170px;background:var(--psm-navy);color:#fffbea;border-radius:var(--radius-md);padding:6px 12px">
             <div class="tiny" style="opacity:.8">Σ TOTAL DOS ITENS</div>
-            <div style="font-weight:900;font-size:16px">${fmt(grand)}<span class="tiny" style="font-weight:400;opacity:.8">/ano</span></div>
+            <div style="font-weight:600;font-size:16px">${fmt(grand)}<span class="tiny" style="font-weight:400;opacity:.8">/ano</span></div>
             <div class="tiny" style="opacity:.85">${fmt(grand / 12)}/mês (média)</div>
           </div>
         </div>
@@ -1234,9 +1234,9 @@ function renderRealizado() {
   const dVgv = R.acc.vgv - O.acc.vgv, dLucro = R.acc.lucro - O.acc.lucro;
   const kpi = (lbl, orc, real, isMoney) => {
     const d = real - orc; const f = isMoney ? fmtC : (v => pct(v));
-    return `<div style="flex:1;min-width:170px;background:var(--bg-3);border-radius:10px;padding:12px 14px">
-      <div class="tiny muted" style="text-transform:uppercase;letter-spacing:.5px;font-weight:700">${lbl}</div>
-      <div style="font-size:19px;font-weight:900;margin:2px 0">${isMoney ? fmtC(real) : pct(real)}</div>
+    return `<div style="flex:1;min-width:170px;background:var(--bg-3);border-radius:var(--radius-md);padding:12px 14px">
+      <div class="tiny muted" style="text-transform:uppercase;letter-spacing:.5px;font-weight:600">${lbl}</div>
+      <div style="font-size:20px;font-weight:600;margin:2px 0">${isMoney ? fmtC(real) : pct(real)}</div>
       <div class="tiny">orçado ${isMoney ? fmtC(orc) : pct(orc)} · <b style="color:${dc(d)}">${d >= 0 ? '▲' : '▼'} ${isMoney ? fmtC(Math.abs(d)) : pct(Math.abs(d))}</b></div>
     </div>`;
   };
@@ -1246,12 +1246,12 @@ function renderRealizado() {
     const o = O.porLinha[l.id], r = R.porLinha[l.id];
     const dv = r.vgv - o.vgv, dl = r.lucro - o.lucro;
     return `<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:7px 8px"><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:${l.cor};margin-right:6px"></span>${l.nome}</td>
+      <td style="padding:7px 8px"><span style="display:inline-block;width:9px;height:9px;border-radius:var(--radius-sm);background:${l.cor};margin-right:6px"></span>${l.nome}</td>
       <td style="padding:7px 8px;text-align:right">${fmtC(o.vgv)}</td>
-      <td style="padding:7px 8px;text-align:right;font-weight:700">${fmtC(r.vgv)}</td>
+      <td style="padding:7px 8px;text-align:right;font-weight:600">${fmtC(r.vgv)}</td>
       <td style="padding:7px 8px;text-align:right;color:${dc(dv)}">${dv >= 0 ? '▲' : '▼'} ${fmtC(Math.abs(dv))}</td>
       <td style="padding:7px 8px;text-align:right">${fmtC(o.lucro)}</td>
-      <td style="padding:7px 8px;text-align:right;font-weight:700;color:${dc(r.lucro)}">${fmtC(r.lucro)}</td>
+      <td style="padding:7px 8px;text-align:right;font-weight:600;color:${dc(r.lucro)}">${fmtC(r.lucro)}</td>
       <td style="padding:7px 8px;text-align:right;color:${dc(dl)}">${dl >= 0 ? '▲' : '▼'} ${fmtC(Math.abs(dl))}</td>
     </tr>`;
   }).join('');
@@ -1267,16 +1267,16 @@ function renderRealizado() {
       <td style="padding:6px 8px;font-weight:600">${MES[m - 1]}${fechado ? ' <span class="tiny" style="color:var(--ok)">🔒 fechado</span>' : ''}</td>
       <td style="padding:6px 8px;text-align:right">${fmtC(vgv)}</td>
       <td style="padding:6px 8px;text-align:right">${fmtC(custo)}${custoEstimado(m) ? ' <span class="tiny muted" title="Sem custo lançado neste mês: custo fixo do orçamento + mídia real da Meta">est.</span>' : ''}</td>
-      <td style="padding:6px 8px;text-align:right;font-weight:700;color:${dc(lucro)}">${fmtC(lucro)}</td>
+      <td style="padding:6px 8px;text-align:right;font-weight:600;color:${dc(lucro)}">${fmtC(lucro)}</td>
       <td style="padding:6px 8px;text-align:right">${fechado ? `<button class="btn btn-ghost btn-sm" data-reabrir="${m}" style="padding:2px 7px">reabrir</button>` : `<button class="btn btn-ghost btn-sm" data-fechar="${m}" style="padding:2px 7px">🔒 fechar</button>`}</td>
     </tr>`);
   }
   _rSeries = { lbl: chLbl, vgvR: chVgvR, vgvO: chVgvO, lucroR: chLucroR };
   return `
-    <div class="flex gap-2" style="flex-wrap:wrap;align-items:end;background:var(--bg-3);padding:10px 12px;border-radius:10px;margin-bottom:12px">
+    <div class="flex gap-2" style="flex-wrap:wrap;align-items:end;background:var(--bg-3);padding:10px 12px;border-radius:var(--radius-md);margin-bottom:12px">
       <label class="tiny muted" style="display:flex;flex-direction:column;gap:2px">De ${selMes('per-ini', _pIni)}</label>
       <label class="tiny muted" style="display:flex;flex-direction:column;gap:2px">até ${selMes('per-fim', _pFim)}</label>
-      <span class="badge" style="background:var(--psm-navy);color:#fff;font-weight:700">${MES[_pIni - 1]}–${MES[_pFim - 1]}/${_ano}</span>
+      <span class="badge" style="background:var(--psm-navy);color:#fff;font-weight:600">${MES[_pIni - 1]}–${MES[_pFim - 1]}/${_ano}</span>
       <span class="tiny muted" style="margin-left:auto">VGV/vendas = CRM real · custo = Meta real (auto) + lançado à mão · sem lançamento = custo fixo orçado (est.)</span>
     </div>
     <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
@@ -1326,10 +1326,10 @@ function renderCustosReais() {
       <div class="flex items-center gap-2" style="flex-wrap:wrap">
         <h3 class="card-title" style="margin:0">🧾 Custos realizados do mês</h3>
         <label class="tiny muted" style="margin-left:8px">mês <select id="cr-mes" class="select" style="max-width:110px">${selMes}</select></label>
-        <span style="margin-left:auto;font-weight:800">Total: ${fmt(total)}</span>
+        <span style="margin-left:auto;font-weight:600">Total: ${fmt(total)}</span>
       </div>
-      <div style="margin-top:8px;background:var(--bg-3);border-radius:8px;padding:8px 10px">
-        <div class="tiny" style="font-weight:700;margin-bottom:4px">🔌 Fontes automáticas <span class="muted" style="font-weight:400">— entram sozinhas, sem digitar</span></div>
+      <div style="margin-top:8px;background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px">
+        <div class="tiny" style="font-weight:600;margin-bottom:4px">🔌 Fontes automáticas <span class="muted" style="font-weight:400">— entram sozinhas, sem digitar</span></div>
         <div class="flex gap-2" style="flex-wrap:wrap">
           <span class="tiny">📣 Meta Ads (verba real): <b>${fmt(a.meta_mkt)}</b> ${a.meta_mkt > 0 ? '<span style="color:var(--ok)">✅ ao vivo</span>' : '<span class="muted">sem dado</span>'}</span>
           <span class="tiny muted" style="margin-left:auto">+ manual abaixo: <b>${fmt(manual)}</b></span>
@@ -1357,7 +1357,7 @@ function wireRealizado() {
       type: 'bar',
       data: { labels: s.lbl, datasets: [
         { type: 'bar', label: 'VGV orçado', data: s.vgvO, backgroundColor: 'rgba(37,99,235,0.30)', borderRadius: 3, order: 3 },
-        { type: 'bar', label: 'VGV realizado', data: s.vgvR, backgroundColor: '#2563eb', borderRadius: 3, order: 2 },
+        { type: 'bar', label: 'VGV realizado', data: s.vgvR, backgroundColor: '#806d50', borderRadius: 3, order: 2 },
         { type: 'line', label: 'Lucro realizado', data: s.lucroR, borderColor: '#16a34a', backgroundColor: '#16a34a', tension: 0.3, borderWidth: 2, pointRadius: 3, yAxisID: 'y1', order: 1 },
       ] },
       options: darkOpts({
@@ -1469,10 +1469,10 @@ function renderSim() {
     const real = realMediaMes(l.id);
     const fld = (f, lbl, hint) => `<label class="tiny muted" style="display:flex;flex-direction:column;gap:1px"${hint ? ` title="${hint}"` : ''}>${lbl}<input class="input sim-in" data-l="${l.id}" data-f="${f}" value="${s[f] ?? ''}" style="width:96px;padding:3px 5px;font-size:11px;text-align:right"></label>`;
     const origem = real.vgvTotal > 0
-      ? `<span class="tiny" style="background:#16a34a18;color:var(--ok);font-weight:700;padding:1px 7px;border-radius:99px" title="média dos ${real.meses} meses de ${_ano}: ${fmt(real.vgvTotal)} em ${real.vendasTotal} venda(s)">📡 real: ${fmt(real.vgv)}/mês</span>`
-      : `<span class="tiny" style="background:var(--bg-3);color:var(--ink-muted);font-weight:700;padding:1px 7px;border-radius:99px" title="sem venda fechada no RD em ${_ano} — os campos vieram do plano orçado">⏸ sem venda no RD · veio do plano</span>`;
+      ? `<span class="tiny" style="background:var(--ok-soft);color:var(--ok);font-weight:600;padding:1px 7px;border-radius:var(--radius-full)" title="média dos ${real.meses} meses de ${_ano}: ${fmt(real.vgvTotal)} em ${real.vendasTotal} venda(s)">📡 real: ${fmt(real.vgv)}/mês</span>`
+      : `<span class="tiny" style="background:var(--bg-3);color:var(--ink-muted);font-weight:600;padding:1px 7px;border-radius:var(--radius-full)" title="sem venda fechada no RD em ${_ano} — os campos vieram do plano orçado">⏸ sem venda no RD · veio do plano</span>`;
     return `<div class="card" style="margin:0 0 10px;border-left:4px solid ${l.cor}">
-      <div class="flex items-center" style="gap:8px;flex-wrap:wrap"><b>${l.icon} ${l.nome}</b>${origem}<span style="margin-left:auto;font-weight:800;color:${dc(lucroTot)}">Resultado/mês: ${fmt(lucroTot)}</span></div>
+      <div class="flex items-center" style="gap:8px;flex-wrap:wrap"><b>${l.icon} ${l.nome}</b>${origem}<span style="margin-left:auto;font-weight:600;color:${dc(lucroTot)}">Resultado/mês: ${fmt(lucroTot)}</span></div>
       <div class="flex gap-2 mt-2" style="flex-wrap:wrap">
         ${fld('vgv', isLoc ? '1º aluguel/mês' : 'VGV/mês', 'semeado com a média mensal realizada no RD')}${fld('vendas', isLoc ? 'Captações' : 'Vendas')}${fld('com_bruta_pct', 'Com. bruta % (s/ VGV)')}${fld('com_corretor_pct', 'Corretor % s/ VGV')}${fld('com_corretor_sobre_com_pct', 'Corretor % s/ comissão')}${fld('com_senior_pct', 'Sênior % s/ VGV')}${fld('com_gerente_pct', 'Gerente % s/ VGV')}${fld('aliquota_pct', 'Imposto % (s/ comissão)')}${fld('custo_fixo', 'Custo/mês (s/ tráfego)', 'custo desta frente no mês de referência')}${fld('verba_mkt', '📣 Tráfego pago/mês', 'semeado com a verba da ala de tráfego desta marca')}${fld('admRec', '🔁 Receita recorrente/mês R$', 'administração de locação, gestão, mensalidade — o que entra todo mês independente de venda')}
       </div>
@@ -1484,14 +1484,14 @@ function renderSim() {
   const custoRef = LINHAS.map(l => `<span class="tiny">${l.icon} <b style="color:${l.cor}">${fmt(detST[l.id][mrS] || 0)}</b></span>`).join(' · ');
   return `
     <div class="alert" style="background:var(--bg-3);border:none;font-size:12px;margin-bottom:10px">🧪 <b>Sandbox</b> — abre com a <b>realidade de hoje</b>: VGV e vendas são a média mensal já fechada no RD CRM em ${_ano}, o custo é o do mês de referência e o tráfego vem da ala por marca. Mexa à vontade — não afeta o orçado nem o realizado. Salve cenários e compare.<br><span class="tiny muted">Modelo completo por frente: <b>comissão bruta</b> (% s/ VGV) → <b>corretor</b> pode ser % s/ VGV <b>e/ou</b> % s/ a comissão (ex.: Terceiros 40%+10% da comissão = 50%) → <b>sênior</b> e <b>gerente</b> (% s/ VGV) → <b>imposto</b> (% s/ a comissão) → <b>custo fixo</b> + <b>tráfego pago</b>.</span></div>
-    <div class="flex gap-2 mb-2" style="flex-wrap:wrap;align-items:center;background:var(--bg-3);border-radius:8px;padding:7px 10px">
-      <span class="tiny" style="font-weight:700">💰 Custo por empresa em ${MESES_N3[mrS - 1]} (fixo+var, <b>sem tráfego</b>):</span> ${custoRef}
+    <div class="flex gap-2 mb-2" style="flex-wrap:wrap;align-items:center;background:var(--bg-3);border-radius:var(--radius-md);padding:7px 10px">
+      <span class="tiny" style="font-weight:600">💰 Custo por empresa em ${MESES_N3[mrS - 1]} (fixo+var, <b>sem tráfego</b>):</span> ${custoRef}
       <span class="tiny muted" style="margin-left:auto">o "Custo/mês" de cada card já vem semeado com esse valor</span>
       <button class="btn btn-primary btn-sm" id="sim-pull" title="Recarrega VGV/vendas com a média realizada no RD, custo do mês de referência e tráfego da ala — descarta o que você mexeu">📡 Puxar números reais de agora</button>
     </div>
     ${blocks}
     <div class="card" style="margin:0 0 10px;background:var(--psm-navy);color:#fff">
-      <div class="flex items-center"><b style="font-size:15px">Lucro simulado/mês (consolidado)</b><span style="margin-left:auto;font-size:22px;font-weight:900;color:${cons >= 0 ? '#4ade80' : '#f87171'}">${fmt(cons)}</span></div>
+      <div class="flex items-center"><b style="font-size:14px">Lucro simulado/mês (consolidado)</b><span style="margin-left:auto;font-size:20px;font-weight:600;color:${cons >= 0 ? 'var(--ok)' : 'var(--err)'}">${fmt(cons)}</span></div>
     </div>
     <div class="flex gap-2" style="flex-wrap:wrap;align-items:center">
       <input id="sim-nome" class="input" placeholder="nome do cenário" style="max-width:200px">
@@ -1591,17 +1591,17 @@ function renderBE() {
   const torre = `<div style="margin-top:14px">
     <div class="tiny" style="opacity:.8;margin-bottom:6px">🧱 Contribuição líquida das alavancas vs custo fixo <span style="opacity:.7">(tracejado = 100% do fixo ${_beSemPL ? 'SEM' : 'COM'} pró-labore · barra = ${fillPct.toFixed(0)}%)</span></div>
     <div style="position:relative;height:22px;margin-top:16px">
-      <div style="height:100%;background:rgba(255,255,255,.10);border-radius:6px;overflow:hidden"><div style="height:100%;width:${fillPct}%;background:${barBg};transition:width .2s"></div></div>
+      <div style="height:100%;background:var(--surface-2);border-radius:var(--radius-sm);overflow:hidden"><div style="height:100%;width:${fillPct}%;background:${barBg};transition:width .2s"></div></div>
       <div style="position:absolute;top:-5px;bottom:-5px;left:${fixoPct}%;width:0;border-left:2px dashed #fff"></div>
       <div class="tiny" style="position:absolute;top:-16px;left:${fixoPct}%;transform:translateX(-50%);opacity:.85;white-space:nowrap">fixo ${fmtC(fixoEf)}</div>
     </div>
-    <div class="flex gap-2" style="flex-wrap:wrap;margin-top:9px">${segs.map(s => `<span class="tiny" style="opacity:.9"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${s.v >= 0 ? '#22c55e' : '#ef4444'};margin-right:3px;vertical-align:middle"></span>${s.lbl} <b style="color:${s.v >= 0 ? '#4ade80' : '#f87171'}">${s.v >= 0 ? '+' : ''}${fmtC(s.v)}</b></span>`).join('') || '<span class="tiny" style="opacity:.7">preencha as alavancas abaixo</span>'}</div>
+    <div class="flex gap-2" style="flex-wrap:wrap;margin-top:9px">${segs.map(s => `<span class="tiny" style="opacity:.9"><span style="display:inline-block;width:9px;height:9px;border-radius:var(--radius-sm);background:${s.v >= 0 ? 'var(--ok-soft)' : 'var(--err-soft)'};margin-right:3px;vertical-align:middle"></span>${s.lbl} <b style="color:${s.v >= 0 ? 'var(--ok)' : 'var(--err)'}">${s.v >= 0 ? '+' : ''}${fmtC(s.v)}</b></span>`).join('') || '<span class="tiny" style="opacity:.7">preencha as alavancas abaixo</span>'}</div>
   </div>`;
   const bi = (grp, f, lbl, w = 82) => `<label class="tiny muted" style="display:flex;flex-direction:column;gap:1px">${lbl}<input class="input be-in" data-g="${grp}" data-f="${f}" value="${(_be[grp][f] ?? '')}" style="width:${w}px;padding:3px 5px;font-size:11px;text-align:right"></label>`;
   const lever = (titulo, cor2, inputsHtml, contrib, hint) => `
     <div class="card" style="margin:0 0 10px;border-left:4px solid ${cor2}">
       <div class="flex items-center" style="gap:8px;flex-wrap:wrap"><b style="font-size:13px">${titulo}</b>
-        <span style="margin-left:auto;font-weight:800;color:${dc(contrib)}">${contrib >= 0 ? '+' : ''}${fmt(contrib)}/mês</span></div>
+        <span style="margin-left:auto;font-weight:600;color:${dc(contrib)}">${contrib >= 0 ? '+' : ''}${fmt(contrib)}/mês</span></div>
       <div class="flex gap-2 mt-2" style="flex-wrap:wrap;align-items:end">${inputsHtml}</div>
       ${hint ? `<div class="tiny muted mt-1">${hint}</div>` : ''}
     </div>`;
@@ -1610,29 +1610,29 @@ function renderBE() {
 
     <div class="card" style="margin:0 0 14px;background:var(--psm-navy);color:#fff">
       <div class="flex" style="align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-        <div style="display:inline-flex;background:rgba(255,255,255,.10);border-radius:8px;padding:3px">
-          <button class="be-pl" data-pl="0" style="cursor:pointer;border:none;padding:6px 13px;font-size:12px;font-weight:700;border-radius:6px;background:${!_beSemPL ? '#22c55e' : 'transparent'};color:#fff">Com pró-labore</button>
-          <button class="be-pl" data-pl="1" style="cursor:pointer;border:none;padding:6px 13px;font-size:12px;font-weight:700;border-radius:6px;background:${_beSemPL ? '#22c55e' : 'transparent'};color:#fff">Sem pró-labore</button>
+        <div style="display:inline-flex;background:var(--surface-2);border-radius:var(--radius-md);padding:3px">
+          <button class="be-pl" data-pl="0" style="cursor:pointer;border:none;padding:6px 13px;font-size:12px;font-weight:600;border-radius:var(--radius-sm);background:${!_beSemPL ? 'var(--ok-soft)' : 'transparent'};color:#fff">Com pró-labore</button>
+          <button class="be-pl" data-pl="1" style="cursor:pointer;border:none;padding:6px 13px;font-size:12px;font-weight:600;border-radius:var(--radius-sm);background:${_beSemPL ? 'var(--ok-soft)' : 'transparent'};color:#fff">Sem pró-labore</button>
         </div>
-        <label class="tiny" style="opacity:.9;display:flex;align-items:center;gap:4px">Pró-labore/mês <span style="font-weight:700">R$</span><input class="input be-in" data-g="_root" data-f="proLabore" value="${_be.proLabore ?? 0}" style="width:110px;padding:3px 6px;font-weight:700;text-align:right"></label>
+        <label class="tiny" style="opacity:.9;display:flex;align-items:center;gap:4px">Pró-labore/mês <span style="font-weight:600">R$</span><input class="input be-in" data-g="_root" data-f="proLabore" value="${_be.proLabore ?? 0}" style="width:110px;padding:3px 6px;font-weight:600;text-align:right"></label>
         <span class="tiny" style="opacity:.7;flex:1;min-width:160px">${_beSemPL ? 'descontando a retirada dos sócios — visão operacional pura' : 'contando a retirada dos sócios — visão caixa completa'}</span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;align-items:start">
-        <div><div class="tiny" style="opacity:.8">Custo fixo total/mês</div><div class="flex" style="align-items:center;gap:4px"><span style="font-weight:700">R$</span><input class="input be-in" data-g="_root" data-f="fixo" value="${_be.fixo}" style="width:110px;padding:4px 6px;font-weight:800;text-align:right"></div><div class="tiny" style="opacity:.7;margin-top:2px">considerado: <b>${fmt(fixoEf)}</b>${_beSemPL ? ` (−${fmtC(proLab)} pró-labore)` : ''}</div></div>
-        <div><div class="tiny" style="opacity:.8">Contribuição total/mês</div><div style="font-size:19px;font-weight:900">${fmt(r.total)}</div></div>
-        <div><div class="tiny" style="opacity:.8">Resultado/mês</div><div style="font-size:22px;font-weight:900;color:${cor}">${resultado >= 0 ? '+' : ''}${fmt(resultado)}</div></div>
-        <div><div class="tiny" style="opacity:.8">Cobertura do fixo</div><div style="font-size:19px;font-weight:900;color:${cor}">${cob.toFixed(0)}%</div>
-          <div style="height:7px;background:rgba(255,255,255,.15);border-radius:99px;overflow:hidden;margin-top:4px"><div style="height:100%;width:${cob}%;background:${cor}"></div></div></div>
+        <div><div class="tiny" style="opacity:.8">Custo fixo total/mês</div><div class="flex" style="align-items:center;gap:4px"><span style="font-weight:600">R$</span><input class="input be-in" data-g="_root" data-f="fixo" value="${_be.fixo}" style="width:110px;padding:4px 6px;font-weight:600;text-align:right"></div><div class="tiny" style="opacity:.7;margin-top:2px">considerado: <b>${fmt(fixoEf)}</b>${_beSemPL ? ` (−${fmtC(proLab)} pró-labore)` : ''}</div></div>
+        <div><div class="tiny" style="opacity:.8">Contribuição total/mês</div><div style="font-size:20px;font-weight:600">${fmt(r.total)}</div></div>
+        <div><div class="tiny" style="opacity:.8">Resultado/mês</div><div style="font-size:20px;font-weight:600;color:${cor}">${resultado >= 0 ? '+' : ''}${fmt(resultado)}</div></div>
+        <div><div class="tiny" style="opacity:.8">Cobertura do fixo</div><div style="font-size:20px;font-weight:600;color:${cor}">${cob.toFixed(0)}%</div>
+          <div style="height:7px;background:rgba(255,255,255,.15);border-radius:var(--radius-full);overflow:hidden;margin-top:4px"><div style="height:100%;width:${cob}%;background:${cor}"></div></div></div>
       </div>
       ${torre}
       <div class="tiny" style="opacity:.85;margin-top:12px">${resultado >= 0 ? `✅ Break-even batido ${_beSemPL ? 'sem contar pró-labore' : 'já contando pró-labore'} — o excedente vira lucro.` : `⚠️ Faltam ${fmt(-resultado)}/mês pra fechar${_beSemPL ? ' (sem pró-labore)' : ' (com pró-labore)'}.`}</div>
     </div>
 
-    ${lever('🏠 Conquista (equipe atual)', '#2563eb', bi('conquista', 'vendas', 'Vendas/mês') + bi('conquista', 'ticket', 'Ticket R$', 100) + bi('conquista', 'margem', 'Margem %'), r.conqC, 'Sua base. Subir de 0,33 → 1 venda/corretor já triplica.')}
+    ${lever('🏠 Conquista (equipe atual)', '#806d50', bi('conquista', 'vendas', 'Vendas/mês') + bi('conquista', 'ticket', 'Ticket R$', 100) + bi('conquista', 'margem', 'Margem %'), r.conqC, 'Sua base. Subir de 0,33 → 1 venda/corretor já triplica.')}
 
     ${lever('👑 Sócio vende (alto ticket · comissão fica na casa)', '#a855f7', bi('socio', 'vendas', 'Vendas/mês') + bi('socio', 'ticket', 'Ticket R$', 100) + bi('socio', 'margem', 'Margem %'), r.socioC, 'Você vendendo Terceiros/MAP: retém ~4–5%. Custo fixo zero (já na folha). A alavanca mais rápida.')}
 
-    ${lever('🤝 Terceiros (parceria · só tráfego)', '#0891b2', bi('terceiros', 'vendas', 'Vendas/mês') + bi('terceiros', 'ticket', 'Ticket R$', 100) + bi('terceiros', 'margem', 'Margem %') + bi('terceiros', 'trafego', 'Tráfego/mês R$', 96), r.tercC, 'Comissão pura (40% vendedor / 10% captador / 50% casa). Sem mínimo garantido. A mais barata de religar.')}
+    ${lever('🤝 Terceiros (parceria · só tráfego)', '#806d50', bi('terceiros', 'vendas', 'Vendas/mês') + bi('terceiros', 'ticket', 'Ticket R$', 100) + bi('terceiros', 'margem', 'Margem %') + bi('terceiros', 'trafego', 'Tráfego/mês R$', 96), r.tercC, 'Comissão pura (40% vendedor / 10% captador / 50% casa). Sem mínimo garantido. A mais barata de religar.')}
 
     ${lever('🔑 Locação (recorrência + mínimo garantido)', '#d97706', bi('locacao', 'corretores', 'Corretores') + bi('locacao', 'minGar', 'Mín. garant. R$', 96) + bi('locacao', 'capt', 'Captações/mês') + bi('locacao', 'aluguel', 'Aluguel médio R$', 100) + bi('locacao', 'adm', '% adm', 60) + bi('locacao', 'carteira', 'Carteira (contratos)', 110) + bi('locacao', 'trafego', 'Tráfego/mês R$', 96), r.locC,
       `1º aluguel <b style="color:${dc(r.loc1)}">${fmtC(r.loc1)}</b> + recorrente <b style="color:${dc(r.locRec)}">${fmtC(r.locRec)}</b> − mín. garantido <b style="color:var(--err)">${fmtC(r.locMin)}</b> − tráfego. O piso permanente: a carteira × adm banca a estrutura sozinha (${_be.locacao.aluguel && _be.locacao.adm ? Math.ceil(_be.fixo / (_be.locacao.aluguel * _be.locacao.adm / 100 * 0.92)) : '—'} contratos cobrem 100% do fixo).`)}
@@ -1689,15 +1689,15 @@ function resumoInsight(d) {
   const top = d.frentes.slice().sort((a, b) => b.contrib - a.contrib)[0];
   return `No ritmo atual você cobre <b>${d.cobertura.toFixed(0)}%</b> do custo fixo — faltam <b style="color:var(--err-claro)">${fmt(d.gap)}/mês</b> pra fechar. ${ativas.length <= 1 ? 'Só a <b>Conquista</b> está rodando' : `<b>${ativas.length} frentes</b> rodando`}. Como a margem de corretagem é fina (~${top ? top.margemPct.toFixed(1) : '1,8'}%), fechar só por volume é duro — as alavancas mais rápidas são <b>sócio vendendo alto ticket</b> (retém ~4–5%) e <b>locação recorrente</b> (piso que entra todo mês). Teste as combinações na aba 🎯 <b>Break-even</b>.`;
 }
-function heroStat(lbl, val, cor) { return `<div><div class="tiny" style="opacity:.8">${lbl}</div><div style="font-size:20px;font-weight:900;color:${cor}">${val}</div></div>`; }
+function heroStat(lbl, val, cor) { return `<div><div class="tiny" style="opacity:.8">${lbl}</div><div style="font-size:20px;font-weight:600;color:${cor}">${val}</div></div>`; }
 function renderResumo() {
   const d = resumoData();
   const ok = d.gap <= 0, cor = ok ? '#4ade80' : '#f87171';
   const cob = Math.min(100, Math.max(0, d.cobertura));
-  const passo = (n, ico, t, sub, tabId) => `<button class="btn btn-ghost res-goto" data-goto="${tabId}" style="flex:1;min-width:148px;text-align:left;border:1px solid var(--border);border-radius:10px;padding:9px 11px;height:auto"><div class="tiny muted">Passo ${n}</div><div style="font-weight:800;font-size:13px">${ico} ${t}</div><div class="tiny muted">${sub}</div></button>`;
-  const margBadge = f => { const m = f.margemPct, c = m < 0.5 ? '#dc2626' : m < 1.5 ? '#d97706' : '#16a34a'; return `<div style="flex:1;min-width:135px;background:var(--bg-3);border-radius:10px;padding:9px 11px;border-left:4px solid ${f.l.cor}"><div class="tiny muted">${f.l.icon} ${f.l.nome}</div><div style="font-size:18px;font-weight:900;color:${c}">${pct(f.margemPct)}</div><div class="tiny muted">${f.vgvMes > 0 ? fmtC(f.vgvMes) + '/mês' : '⏸ pausada'}</div></div>`; };
+  const passo = (n, ico, t, sub, tabId) => `<button class="btn btn-ghost res-goto" data-goto="${tabId}" style="flex:1;min-width:148px;text-align:left;border:1px solid var(--border);border-radius:var(--radius-md);padding:9px 11px;height:auto"><div class="tiny muted">Passo ${n}</div><div style="font-weight:600;font-size:13px">${ico} ${t}</div><div class="tiny muted">${sub}</div></button>`;
+  const margBadge = f => { const m = f.margemPct, c = m < 0.5 ? '#dc2626' : m < 1.5 ? '#d97706' : '#16a34a'; return `<div style="flex:1;min-width:135px;background:var(--bg-3);border-radius:var(--radius-md);padding:9px 11px;border-left:4px solid ${f.l.cor}"><div class="tiny muted">${f.l.icon} ${f.l.nome}</div><div style="font-size:16px;font-weight:600;color:${c}">${pct(f.margemPct)}</div><div class="tiny muted">${f.vgvMes > 0 ? fmtC(f.vgvMes) + '/mês' : '⏸ pausada'}</div></div>`; };
   const maxC = Math.max(1, ...d.frentes.map(f => f.custoMes));
-  const custoBar = f => `<div style="margin-bottom:6px"><div class="flex" style="justify-content:space-between;font-size:12px"><span>${f.l.icon} ${f.l.nome}</span><b>${fmt(f.custoMes)}/mês</b></div><div style="height:8px;background:var(--bg-3);border-radius:99px;overflow:hidden"><div style="height:100%;width:${(f.custoMes / maxC * 100).toFixed(0)}%;background:${f.l.cor}"></div></div></div>`;
+  const custoBar = f => `<div style="margin-bottom:6px"><div class="flex" style="justify-content:space-between;font-size:12px"><span>${f.l.icon} ${f.l.nome}</span><b>${fmt(f.custoMes)}/mês</b></div><div style="height:8px;background:var(--bg-3);border-radius:var(--radius-full);overflow:hidden"><div style="height:100%;width:${(f.custoMes / maxC * 100).toFixed(0)}%;background:${f.l.cor}"></div></div></div>`;
   return `
     <div class="flex gap-2 mb-3" style="flex-wrap:wrap">
       ${passo(1, '📋', 'Orce', 'metas + custos por frente', 'orcado')}
@@ -1714,10 +1714,10 @@ function renderResumo() {
       </div>
       <div style="margin-top:12px">
         <div class="tiny" style="opacity:.8;margin-bottom:4px">Break-even — o quanto a contribuição preenche o custo fixo</div>
-        <div style="position:relative;height:14px;background:rgba(255,255,255,.12);border-radius:99px;overflow:hidden"><div style="height:100%;width:${cob}%;background:${ok ? '#22c55e' : 'linear-gradient(90deg,#f59e0b,#ef4444)'}"></div></div>
+        <div style="position:relative;height:14px;background:var(--surface-2);border-radius:var(--radius-full);overflow:hidden"><div style="height:100%;width:${cob}%;background:${ok ? 'var(--ok-soft)' : 'linear-gradient(90deg,#f59e0b,#ef4444)'}"></div></div>
         <div class="tiny" style="opacity:.65;margin-top:3px">0% ·········· meta: 100% = ${fmtC(d.fixo)} (custo de ${MESES_N3[d.mr - 1]}) · média do ano ${fmtC(d.fixoMedia)}/mês</div>
       </div>
-      <div style="margin-top:12px;background:rgba(255,255,255,.07);border-radius:10px;padding:11px 13px;font-size:13px;line-height:1.55">💡 <b>Leitura automática:</b> ${resumoInsight(d)}</div>
+      <div style="margin-top:12px;background:var(--surface-2);border-radius:var(--radius-md);padding:11px 13px;font-size:13px;line-height:1.55">💡 <b>Leitura automática:</b> ${resumoInsight(d)}</div>
     </div>
     <div class="card" style="margin:0 0 14px"><h3 class="card-title">💹 Margem líquida por frente <span class="tiny muted" style="font-weight:400" title="Quanto a PSM retém do VGV depois de corretor + sênior + gerente + imposto. Verde ≥1,5% · amarelo 0,5–1,5% · vermelho <0,5%">ⓘ</span></h3>
       <div class="flex gap-2" style="flex-wrap:wrap">${d.frentes.map(margBadge).join('')}</div>
@@ -1773,14 +1773,14 @@ function eficienciaCard() {
   const comDados = rows.filter(r => r.trafAno > 0 || r.leads > 0 || r.vendas > 0);
   if (!comDados.length) return `<div class="card" style="margin:0 0 14px"><h3 class="card-title">💸 Eficiência por marca</h3>
     <div class="tiny muted">Sem verba de tráfego lançada nem lead/venda no RD em ${_ano}. Lance a mídia em <b>Orçado → Custos detalhados → 📣 Tráfego pago</b> e o custo por lead e por venda aparece aqui.</div></div>`;
-  const cel = (v, cor) => `<td style="padding:4px 8px;text-align:right;white-space:nowrap;${cor ? 'color:' + cor + ';font-weight:800' : ''}">${v}</td>`;
+  const cel = (v, cor) => `<td style="padding:4px 8px;text-align:right;white-space:nowrap;${cor ? 'color:' + cor + ';font-weight:600' : ''}">${v}</td>`;
   // melhor CAC (menor) recebe destaque verde; pior recebe vermelho
   const cacs = comDados.filter(r => r.cac != null).map(r => r.cac);
   const min = Math.min(...cacs), max = Math.max(...cacs);
   const linhas = comDados.map(r => {
     const corCac = r.cac == null ? null : (cacs.length > 1 && r.cac === min ? '#16a34a' : (cacs.length > 1 && r.cac === max ? '#dc2626' : null));
     return `<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:4px 8px;white-space:nowrap;font-weight:700;border-left:3px solid ${r.l.cor}">${r.l.icon} ${esc(r.l.nome)}
+      <td style="padding:4px 8px;white-space:nowrap;font-weight:600;border-left:3px solid ${r.l.cor}">${r.l.icon} ${esc(r.l.nome)}
         ${r.parcial ? `<div class="tiny" style="color:var(--warn);font-weight:600" title="a verba só cobre ${r.mesesComTraf} dos ${r.mesesComVenda} meses com venda — o custo por venda sai menor do que realmente foi">⚠ verba de ${r.mesesComTraf}/${r.mesesComVenda} meses</div>` : ''}</td>
       ${cel(r.trafAno ? fmt(r.trafAno) : '—')}
       ${cel(r.leads || '—')}
@@ -1810,7 +1810,7 @@ function eficienciaCard() {
       </tr></thead>
       <tbody>${linhas}</tbody>
     </table></div>
-    ${comDados.some(r => r.parcial) ? `<div class="tiny" style="color:var(--warn);background:#d9770612;border-radius:8px;padding:7px 10px;margin-top:8px">
+    ${comDados.some(r => r.parcial) ? `<div class="tiny" style="color:var(--warn);background:var(--warn-soft);border-radius:var(--radius-md);padding:7px 10px;margin-top:8px">
       ⚠️ <b>Leia com cuidado:</b> em algumas marcas a verba de tráfego só está lançada em parte dos meses que tiveram venda. O custo por venda e o ROAS saem <b>melhores do que a realidade</b> — falta denominador, não sobra eficiência. Lance o histórico de mídia mês a mês na ala do Orçado pra estes números ficarem comparáveis.</div>` : ''}
     <div class="tiny muted mt-1">${melhor ? `🏆 <b>${melhor.l.nome}</b> tem o menor custo por venda (${fmt(melhor.cac)}). ` : ''}Total: ${fmt(tot.traf)} de mídia · ${tot.leads} leads · ${tot.vendas} vendas · ${fmt(tot.receita)} de margem líquida. <b>ROAS margem abaixo de 1× significa que a mídia daquela marca não pagou nem a si mesma.</b></div>
   </div>`;
@@ -1843,19 +1843,19 @@ function projecaoAnoCard() {
   return `<div class="card" style="margin:0 0 14px;border:2px solid ${cor}33">
     <h3 class="card-title">🔮 Ritmo linear de ${_ano} × orçamento <span class="tiny muted" style="font-weight:400">· média dos ${p.ateFechado} mês(es) já fechados · não é a <a href="#/gestao-comercial">projeção oficial</a></span></h3>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
-      <div><div class="tiny muted">Fechado até agora</div><div style="font-size:17px;font-weight:900">${fmt(p.realFechado)}</div><div class="tiny muted">${p.vendasFechadas} venda(s) · ${fmt(p.mediaMes)}/mês</div></div>
-      <div><div class="tiny muted">Projeção fim do ano</div><div style="font-size:17px;font-weight:900;color:${cor}">${fmt(p.projetado)}</div><div class="tiny muted">${p.atingProj != null ? pct(p.atingProj) + ' da meta' : 'sem meta lançada'}</div></div>
-      <div><div class="tiny muted">Orçamento do ano (Viabilidade)</div><div style="font-size:17px;font-weight:900">${fmt(p.metaAno)}</div></div>
-      <div><div class="tiny muted">${ok ? '🎉 Sobra projetada' : '⚠️ Falta projetada'}</div><div style="font-size:17px;font-weight:900;color:${cor}">${fmt(Math.abs(p.gap))}</div></div>
+      <div><div class="tiny muted">Fechado até agora</div><div style="font-size:16px;font-weight:600">${fmt(p.realFechado)}</div><div class="tiny muted">${p.vendasFechadas} venda(s) · ${fmt(p.mediaMes)}/mês</div></div>
+      <div><div class="tiny muted">Projeção fim do ano</div><div style="font-size:16px;font-weight:600;color:${cor}">${fmt(p.projetado)}</div><div class="tiny muted">${p.atingProj != null ? pct(p.atingProj) + ' da meta' : 'sem meta lançada'}</div></div>
+      <div><div class="tiny muted">Orçamento do ano (Viabilidade)</div><div style="font-size:16px;font-weight:600">${fmt(p.metaAno)}</div></div>
+      <div><div class="tiny muted">${ok ? '🎉 Sobra projetada' : '⚠️ Falta projetada'}</div><div style="font-size:16px;font-weight:600;color:${cor}">${fmt(Math.abs(p.gap))}</div></div>
     </div>
     ${p.metaAno ? `<div style="margin-top:10px">
-      <div style="height:12px;background:var(--bg-3);border-radius:99px;overflow:hidden;position:relative">
-        <div style="height:100%;width:${Math.min(100, p.realFechado / p.metaAno * 100).toFixed(1)}%;background:#1e2650"></div>
+      <div style="height:12px;background:var(--bg-3);border-radius:var(--radius-full);overflow:hidden;position:relative">
+        <div style="height:100%;width:${Math.min(100, p.realFechado / p.metaAno * 100).toFixed(1)}%;background:var(--accent-soft)"></div>
         <div style="position:absolute;top:0;left:${Math.min(100, p.realFechado / p.metaAno * 100).toFixed(1)}%;height:100%;width:${Math.max(0, Math.min(100 - p.realFechado / p.metaAno * 100, (p.projetado - p.realFechado) / p.metaAno * 100)).toFixed(1)}%;background:${cor}55"></div>
       </div>
       <div class="tiny muted" style="margin-top:3px">■ já fechado · ▨ projetado no ritmo atual · o resto é o que falta</div>
     </div>` : ''}
-    <div class="tiny mt-2" style="background:var(--bg-3);border-radius:8px;padding:9px 11px;line-height:1.5">
+    <div class="tiny mt-2" style="background:var(--bg-3);border-radius:var(--radius-md);padding:9px 11px;line-height:1.5">
       ${p.mesesRestantes === 0 ? `Ano encerrado — o realizado é o que está aí.`
         : ok ? `💡 Mantendo ${fmt(p.mediaMes)}/mês nos ${p.mesesRestantes} meses restantes, ${_ano} fecha <b>acima</b> da meta.`
         : `💡 Pra bater a meta, os ${p.mesesRestantes} meses restantes precisam de <b>${fmt(p.precisaMes)}/mês</b> — ${salto ? `<b>${salto.toFixed(1)}× o ritmo atual</b> de ${fmt(p.mediaMes)}/mês` : 'com o ritmo atual em zero'}.${salto && salto > 2 ? ' Nesse tamanho de salto, o caminho honesto é revisar a meta ou mudar a alavanca — não pedir mais esforço.' : ''}`}
@@ -1876,7 +1876,7 @@ function trafegoResumoCard() {
     const vgvNec = margem > 0 ? v / (margem / 100) : null;
     return `<div style="margin-bottom:7px">
       <div class="flex" style="justify-content:space-between;font-size:12px"><span>${l.icon} ${esc(l.nome)}</span><b>${fmt(v)}/mês</b></div>
-      <div style="height:8px;background:var(--bg-3);border-radius:99px;overflow:hidden"><div style="height:100%;width:${(v / totMes * 100).toFixed(0)}%;background:${l.cor}"></div></div>
+      <div style="height:8px;background:var(--bg-3);border-radius:var(--radius-full);overflow:hidden"><div style="height:100%;width:${(v / totMes * 100).toFixed(0)}%;background:${l.cor}"></div></div>
       <div class="tiny muted">${(v / totMes * 100).toFixed(0)}% da verba · ${vgvNec ? `precisa gerar <b>${fmt(vgvNec)}</b> de VGV só pra pagar a mídia (margem ${pct(margem)})` : 'margem não definida no orçado'}</div>
     </div>`;
   }).join('');
@@ -1890,7 +1890,7 @@ function donutCatCard() {
   const cats = custoPorCategoria();
   if (!cats.length) return '';
   const tot = cats.reduce((s, c) => s + c.mes, 0);
-  const leg = cats.map((c, i) => `<div class="flex" style="align-items:center;gap:6px;font-size:12px;margin-bottom:3px"><span style="width:10px;height:10px;border-radius:3px;background:${CHART_PAL[i % CHART_PAL.length]};flex:none"></span><span style="flex:1">${esc(c.cat)}</span><b>${fmtC(c.mes)}</b><span class="tiny muted" style="width:38px;text-align:right">${(c.mes / tot * 100).toFixed(0)}%</span></div>`).join('');
+  const leg = cats.map((c, i) => `<div class="flex" style="align-items:center;gap:6px;font-size:12px;margin-bottom:3px"><span style="width:10px;height:10px;border-radius:var(--radius-sm);background:${CHART_PAL[i % CHART_PAL.length]};flex:none"></span><span style="flex:1">${esc(c.cat)}</span><b>${fmtC(c.mes)}</b><span class="tiny muted" style="width:38px;text-align:right">${(c.mes / tot * 100).toFixed(0)}%</span></div>`).join('');
   return `<div class="card" style="margin:0"><h3 class="card-title">🍩 Composição do custo fixo por categoria <span class="tiny muted" style="font-weight:400">· ${fmtC(tot)}/mês</span></h3>
     <div class="flex gap-3" style="flex-wrap:wrap;align-items:center">
       <div id="viab-cat-donut-wrap" style="flex:1;min-width:210px;height:220px;position:relative"><canvas id="viab-cat-donut"></canvas></div>

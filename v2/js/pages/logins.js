@@ -47,13 +47,13 @@ function render() {
 
   _root.innerHTML = `
     <style>
-      .vk-card{display:flex;flex-direction:column;gap:6px;border:1px solid var(--bd);border-left:3px solid var(--c);border-radius:10px;padding:11px 13px;margin-bottom:9px}
+      .vk-card{display:flex;flex-direction:column;gap:6px;border:1px solid var(--bd);border-left:3px solid var(--c);border-radius:var(--radius-md);padding:11px 13px;margin-bottom:9px}
       .vk-field{display:flex;align-items:center;gap:8px;font-size:13px}
-      .vk-field .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-muted,#94a3b8);font-weight:800;width:62px;flex:0 0 62px}
-      .vk-val{font-family:ui-monospace,monospace;font-size:13px;background:var(--bg-3);padding:3px 9px;border-radius:6px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-      .vk-ico{cursor:pointer;border:0;background:transparent;font-size:14px;padding:2px 5px;border-radius:6px}
+      .vk-field .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-muted,#94a3b8);font-weight:600;width:62px;flex:0 0 62px}
+      .vk-val{font-family:ui-monospace,monospace;font-size:13px;background:var(--bg-3);padding:3px 9px;border-radius:var(--radius-sm);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .vk-ico{cursor:pointer;border:0;background:transparent;font-size:14px;padding:2px 5px;border-radius:var(--radius-sm)}
       .vk-ico:hover{background:var(--bg-3)}
-      .vk-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--bd);border-left:3px solid var(--c,#888);border-radius:20px;padding:4px 6px 4px 11px;font-size:12.5px;font-weight:600}
+      .vk-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--bd);border-left:3px solid var(--c,#888);border-radius:var(--radius-lg);padding:4px 6px 4px 11px;font-size:13px;font-weight:600}
       .vk-chip-b{cursor:pointer;border:0;background:transparent;font-size:12px;padding:2px 4px;border-radius:50%;line-height:1}
       .vk-chip-b:hover{background:var(--bg-3)}
     </style>
@@ -71,7 +71,7 @@ function render() {
       ${_editing !== null ? formHTML() : ''}
       ${!_items.length ? `
         <div class="card mt-3" style="text-align:center;padding:30px;background:var(--bg-3)">
-          <div style="font-size:30px">🔐</div>
+          <div style="font-size:26px">🔐</div>
           <div class="muted tiny" style="margin-top:6px">${_canManage ? 'Nenhuma credencial cadastrada ainda.' : 'Nenhuma credencial foi liberada pra você.'}</div>
         </div>` : cats.map(c => groupHTML(c, groups[c])).join('')}
       ${_canManage ? '<p class="tiny muted mt-3">🔒 As senhas ficam no banco com acesso restrito (só quem você libera recebe o valor). Evite guardar aqui senhas bancárias/críticas.</p>' : ''}
@@ -83,7 +83,7 @@ function groupHTML(cat, items) {
   const cor = catColor(cat);
   return `<div class="card mt-3">
     <h3 class="card-title" style="font-size:13px;display:flex;align-items:center;gap:7px">
-      <span style="width:9px;height:9px;border-radius:3px;background:${cor};display:inline-block"></span>${esc(cat)}
+      <span style="width:9px;height:9px;border-radius:var(--radius-sm);background:${cor};display:inline-block"></span>${esc(cat)}
       <span class="tiny muted" style="font-weight:400">(${items.length})</span></h3>
     ${items.map(it => cardHTML(it, cor)).join('')}</div>`;
 }
@@ -91,7 +91,7 @@ function groupHTML(cat, items) {
 function catManagerHTML() {
   const count = c => _items.filter(i => ((i.categoria || '').trim() || 'Sem categoria') === c).length;
   return `<details class="card mt-3" id="vk-catmgr" style="background:var(--bg-3);border:1px solid var(--bd)" ${_catOpen ? 'open' : ''}>
-    <summary style="cursor:pointer;font-weight:800;font-size:13px;list-style:none">🗂 Categorias <span class="tiny muted" style="font-weight:400">(${_cats.length}) — clique para gerenciar</span></summary>
+    <summary style="cursor:pointer;font-weight:600;font-size:13px;list-style:none">🗂 Categorias <span class="tiny muted" style="font-weight:400">(${_cats.length}) — clique para gerenciar</span></summary>
     <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:11px">
       ${_cats.length ? _cats.map(c => `<span class="vk-chip" style="--c:${catColor(c)}">
         ${esc(c)}<span class="tiny muted" style="font-weight:400">·${count(c)}</span>
@@ -151,8 +151,8 @@ function formHTML() {
       <div style="flex:1;min-width:180px"><label class="tiny muted">Senha</label><input id="vf-senha" type="text" class="input" value="${esc(v.senha || '')}"></div>
     </div>
     <div class="mt-2"><label class="tiny muted">Observação</label><input id="vf-obs" class="input" value="${esc(v.obs || '')}" placeholder="2FA, e-mail de recuperação, etc."></div>
-    <div class="mt-2"><label class="tiny muted" style="font-weight:700">👁 Quem pode ver esta credencial</label>
-      <div style="display:flex;flex-wrap:wrap;gap:6px 14px;max-height:160px;overflow:auto;border:1px solid var(--bd);border-radius:8px;padding:8px;margin-top:4px">
+    <div class="mt-2"><label class="tiny muted" style="font-weight:600">👁 Quem pode ver esta credencial</label>
+      <div style="display:flex;flex-wrap:wrap;gap:6px 14px;max-height:160px;overflow:auto;border:1px solid var(--bd);border-radius:var(--radius-md);padding:8px;margin-top:4px">
         ${selectableUsers(_users, ...chosen).map(u => `<label class="tiny" style="display:flex;align-items:center;gap:5px;min-width:160px;cursor:pointer"><input type="checkbox" data-viewer="${esc(u.id)}" ${chosen.has(u.id) ? 'checked' : ''}> ${esc(u.name)} <span class="muted">(${esc(u.role || '')})</span></label>`).join('') || '<span class="tiny muted">Sem usuários.</span>'}
       </div>
       <p class="tiny muted" style="margin:4px 0 0">Você (sócio) sempre vê. Marque quem mais pode visualizar.</p>

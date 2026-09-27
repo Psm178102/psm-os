@@ -54,7 +54,7 @@ function pasta(nome, itens) {
   itens.sort((a, b) => String(a.documento).localeCompare(String(b.documento), 'pt-BR'));
   return `
     <div style="margin-top:14px">
-      <div style="font-weight:800;font-size:13px;padding:6px 0;border-bottom:2px solid var(--border)">📁 ${esc(nome)} <span class="tiny muted" style="font-weight:400">· ${itens.length}</span></div>
+      <div style="font-weight:600;font-size:13px;padding:6px 0;border-bottom:2px solid var(--border)">📁 ${esc(nome)} <span class="tiny muted" style="font-weight:400">· ${itens.length}</span></div>
       <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead><tr style="text-align:left" class="tiny muted"><th style="padding:6px 8px">Documento</th><th style="padding:6px 8px">Pasta</th><th style="padding:6px 8px">Link do Google Drive</th>${_pode ? '<th></th>' : ''}</tr></thead>
         <tbody>${itens.map(linha).join('')}</tbody>
@@ -76,8 +76,8 @@ function linha(i) {
 function form(todasPastas) {
   const e = _edit || {};
   return `
-    <div style="margin-top:12px;background:var(--bg-3);border-radius:10px;padding:12px">
-      <div style="font-weight:700;margin-bottom:8px">${e.id ? '✏️ Editar documento' : '＋ Novo documento'}</div>
+    <div style="margin-top:12px;background:var(--bg-3);border-radius:var(--radius-md);padding:12px">
+      <div style="font-weight:600;margin-bottom:8px">${e.id ? '✏️ Editar documento' : '＋ Novo documento'}</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px">
         <label class="tiny">Documento<input class="input" id="dp-doc" value="${esc(e.documento || '')}" placeholder="Ex.: Contrato social PSM Imóveis"></label>
         <label class="tiny">Pasta<input class="input" id="dp-pasta" list="dp-pastas" value="${esc(e.pasta || '')}" placeholder="Ex.: Societário"></label>

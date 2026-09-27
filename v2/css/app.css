@@ -36,7 +36,7 @@
 /* ─── Mobile (≤ 768px) ──────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .app-shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);   /* v88.64: coluna não estica pelo conteúdo (rolagem lateral no celular) */
     grid-template-rows: 56px 1fr;
     grid-template-areas: "header" "main";
   }
@@ -55,6 +55,12 @@
   .h-hamburger { display: inline-flex; }
 
   .app-header { padding: 0 var(--s-3); gap: var(--s-2); }
+  .app-header, .app-main { min-width: 0; }
+  .h-title { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .h-spacer { display: none; }
+  .h-user { flex: none; gap: 2px; }
+  .h-user .btn { padding: 6px !important; }
+  #btn-health, #btn-sons, #btn-push { display: none !important; }
   .h-title { font-size: var(--fs-base); }
   .h-user { gap: var(--s-2); }
   .h-user span { display: none; }                  /* esconde nome */
@@ -163,7 +169,7 @@
 .so-claro { display: none; }
 :root:not(.dark) .so-escuro { display: none; }
 :root:not(.dark) .so-claro  { display: block; }
-:root.dark .sb-logo-conquista { filter: drop-shadow(0 0 6px rgba(255,255,255,.28)); }
+:root.dark .sb-logo-conquista { background: #f3efe4; border-radius: var(--radius-sm); padding: 6px 8px; box-sizing: border-box; }  /* verde do logo some no grafite: placa clara */
 
 /* ─── Header ──────────────────────────────────────────────────────────── */
 .h-title { font-weight: 700; font-size: var(--fs-lg); color: var(--ink); }

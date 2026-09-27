@@ -183,8 +183,8 @@ function renderPerguntar() {
     <div class="card">
       <h2 class="card-title">🧠 Centro de Inteligência</h2>
       ${tabsBar()}
-      <div class="alert" style="background:var(--bg-3);border:none;font-size:12.5px">🤖 Pergunte QUALQUER coisa sobre o negócio. A IA responde com o <b>dossiê completo e real</b> do sistema (custos, break-even, frentes, funil, mídia, reativação, concorrência) — não com achismo.</div>
-      <div class="flex gap-1 mt-2" style="flex-wrap:wrap">${CHIPS.map((c, i) => `<button class="btn btn-ghost btn-sm ic-chip" data-i="${i}" style="font-size:11.5px">${c}</button>`).join('')}</div>
+      <div class="alert" style="background:var(--bg-3);border:none;font-size:13px">🤖 Pergunte QUALQUER coisa sobre o negócio. A IA responde com o <b>dossiê completo e real</b> do sistema (custos, break-even, frentes, funil, mídia, reativação, concorrência) — não com achismo.</div>
+      <div class="flex gap-1 mt-2" style="flex-wrap:wrap">${CHIPS.map((c, i) => `<button class="btn btn-ghost btn-sm ic-chip" data-i="${i}" style="font-size:11px">${c}</button>`).join('')}</div>
       <div class="flex gap-2 mt-2">
         <input id="ic-q" class="input" placeholder="sua pergunta… (Enter envia)" style="flex:1">
         <button class="btn btn-primary" id="ic-ask">Perguntar</button>
@@ -207,8 +207,8 @@ function renderPerguntar() {
   _root.querySelectorAll('.ic-chip').forEach(b => b.addEventListener('click', () => { document.getElementById('ic-q').value = CHIPS[+b.dataset.i]; ask(CHIPS[+b.dataset.i]); }));
 }
 function respostaHTML(r) {
-  return `<div style="background:linear-gradient(180deg,rgba(124,58,237,.06),transparent);border:1px solid rgba(124,58,237,.25);border-radius:var(--r-md);padding:14px 16px">
-    <div style="font-weight:800;font-size:13px;margin-bottom:4px;color:var(--roxo)">❓ ${escapeHtml(r.q)}</div>
+  return `<div style="background:linear-gradient(180deg,rgba(124,58,237,.06),transparent);border:1px solid var(--accent-ink);border-radius:var(--r-md);padding:14px 16px">
+    <div style="font-weight:600;font-size:13px;margin-bottom:4px;color:var(--roxo)">❓ ${escapeHtml(r.q)}</div>
     <div class="tiny muted" style="margin-bottom:8px">respondido por ${escapeHtml(r.model || 'IA')} com dossiê real</div>
     <div style="font-size:13px;line-height:1.6">${mdLite(r.text)}</div></div>`;
 }
@@ -271,11 +271,11 @@ function render() {
 
 function pillar(title, big, sub, color, rows) {
   return `<div style="background:var(--bg-2);border:1px solid var(--border);border-top:3px solid ${color};border-radius:var(--r-md);padding:12px 14px">
-    <div style="font-size:12px;font-weight:700;color:var(--ink-muted)">${title}</div>
-    <div style="font-size:24px;font-weight:900;color:${color};margin:2px 0">${big}</div>
+    <div style="font-size:12px;font-weight:600;color:var(--ink-muted)">${title}</div>
+    <div style="font-size:26px;font-weight:600;color:${color};margin:2px 0">${big}</div>
     <div class="tiny muted">${sub}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">
-      ${rows.map(r => `<div style="background:var(--bg-3);border-radius:6px;padding:5px 8px"><div style="font-weight:800;font-size:13px">${r[1]}</div><div style="font-size:10px;color:var(--ink-muted)">${r[0]}</div></div>`).join('')}
+      ${rows.map(r => `<div style="background:var(--bg-3);border-radius:var(--radius-sm);padding:5px 8px"><div style="font-weight:600;font-size:13px">${r[1]}</div><div style="font-size:11px;color:var(--ink-muted)">${r[0]}</div></div>`).join('')}
     </div></div>`;
 }
 
@@ -284,15 +284,15 @@ function forecastPanel(fc) {
   if (!fc.meta && !fc.vgvMes) return '';
   const col = fc.pct_meta == null ? '#64748b' : fc.pct_meta >= 100 ? '#16a34a' : fc.pct_meta >= 80 ? '#d97706' : '#dc2626';
   return `<div style="margin-top:14px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:14px">
-    <div style="font-weight:800;font-size:13px;margin-bottom:8px">🔮 Projeção oficial do mês <span style="font-weight:400;color:var(--ink-muted)">(ritmo × funil, dias úteis — a mesma da Gestão Comercial)</span></div>
+    <div style="font-weight:600;font-size:13px;margin-bottom:8px">🔮 Projeção oficial do mês <span style="font-weight:400;color:var(--ink-muted)">(ritmo × funil, dias úteis — a mesma da Gestão Comercial)</span></div>
     <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end">
-      <div><div style="font-size:11px;color:var(--ink-muted)">Realizado (dia ${fc.dia}/${fc.diasMes})</div><div style="font-size:20px;font-weight:900">R$ ${moneyShort(fc.vgvMes)}</div></div>
+      <div><div style="font-size:11px;color:var(--ink-muted)">Realizado (dia ${fc.dia}/${fc.diasMes})</div><div style="font-size:20px;font-weight:600">R$ ${moneyShort(fc.vgvMes)}</div></div>
       <div style="font-size:20px;color:var(--ink-muted)">→</div>
-      <div><div style="font-size:11px;color:var(--ink-muted)">Projeção de fechamento</div><div style="font-size:24px;font-weight:900;color:${col}">R$ ${moneyShort(fc.projecao)}</div></div>
-      <div><div style="font-size:11px;color:var(--ink-muted)">Meta do mês</div><div style="font-size:20px;font-weight:900">R$ ${moneyShort(fc.meta)}</div></div>
-      <div style="text-align:center"><div style="font-size:11px;color:var(--ink-muted)">vs meta</div><div style="font-size:24px;font-weight:900;color:${col}">${fc.pct_meta != null ? pct2(fc.pct_meta) : '—'}</div></div>
+      <div><div style="font-size:11px;color:var(--ink-muted)">Projeção de fechamento</div><div style="font-size:26px;font-weight:600;color:${col}">R$ ${moneyShort(fc.projecao)}</div></div>
+      <div><div style="font-size:11px;color:var(--ink-muted)">Meta do mês</div><div style="font-size:20px;font-weight:600">R$ ${moneyShort(fc.meta)}</div></div>
+      <div style="text-align:center"><div style="font-size:11px;color:var(--ink-muted)">vs meta</div><div style="font-size:26px;font-weight:600;color:${col}">${fc.pct_meta != null ? pct2(fc.pct_meta) : '—'}</div></div>
     </div>
-    ${fc.meta > 0 ? `<div style="height:8px;background:var(--bg-3);border-radius:5px;overflow:hidden;margin-top:10px"><div style="height:100%;width:${Math.min(100, fc.pct_meta)}%;background:${col}"></div></div>` : ''}
+    ${fc.meta > 0 ? `<div style="height:8px;background:var(--bg-3);border-radius:var(--radius-sm);overflow:hidden;margin-top:10px"><div style="height:100%;width:${Math.min(100, fc.pct_meta)}%;background:${col}"></div></div>` : ''}
   </div>`;
 }
 
@@ -302,8 +302,8 @@ function insightCard(i) {
   const pill = { ads: ['📢 Ads', '#f59e0b'], mkt: ['🔗 Marketing', '#7c3aed'], vendas: ['🤝 Vendas', '#16a34a'] }[i.pillar] || ['', '#64748b'];
   return `<div data-link="${i.link}" style="cursor:pointer;background:var(--bg-2);border:1px solid var(--border);border-left:4px solid ${sevC};border-radius:var(--r-md);padding:10px 14px" onmouseover="this.style.background='var(--bg-3)'" onmouseout="this.style.background='var(--bg-2)'">
     <div class="flex items-center gap-2" style="flex-wrap:wrap">
-      <span style="font-weight:700;font-size:13px">${sevI} ${escapeHtml(i.title)}</span>
-      <span style="background:${pill[1]}22;color:${pill[1]};font-size:10px;font-weight:700;padding:1px 7px;border-radius:999px">${pill[0]}</span>
+      <span style="font-weight:600;font-size:13px">${sevI} ${escapeHtml(i.title)}</span>
+      <span style="background:${pill[1]}22;color:${pill[1]};font-size:11px;font-weight:600;padding:1px 7px;border-radius:var(--radius-full)">${pill[0]}</span>
       <span style="margin-left:auto;font-size:11px;color:var(--ink-muted)">abrir →</span>
     </div>
     <div class="tiny muted" style="margin-top:3px">${escapeHtml(i.evidence)}</div>
@@ -334,8 +334,8 @@ FATOS/DIAGNÓSTICOS:
 ${fatos || '(nenhum problema crítico detectado)'}`;
     const j = await api.request('/api/v3/ia/analyze', { method: 'POST', body: { prompt, max_tokens: 3000, dossie: true } });   // cérebro novo (Sonnet 5 + dossiê) v84.4
     if (j.ok && j.text) {
-      box.innerHTML = `<div style="background:linear-gradient(180deg,rgba(124,58,237,.06),transparent);border:1px solid rgba(124,58,237,.25);border-radius:var(--r-md);padding:14px 16px">
-        <div style="font-weight:800;font-size:13px;margin-bottom:8px;color:var(--roxo)">🧠 Análise executiva da IA <span class="tiny muted" style="font-weight:400">· ${escapeHtml(j.model_used || 'IA')}</span></div>
+      box.innerHTML = `<div style="background:linear-gradient(180deg,rgba(124,58,237,.06),transparent);border:1px solid var(--accent-ink);border-radius:var(--r-md);padding:14px 16px">
+        <div style="font-weight:600;font-size:13px;margin-bottom:8px;color:var(--roxo)">🧠 Análise executiva da IA <span class="tiny muted" style="font-weight:400">· ${escapeHtml(j.model_used || 'IA')}</span></div>
         <div style="font-size:13px;line-height:1.55">${mdLite(j.text)}</div></div>`;
     } else {
       box.innerHTML = `<div class="alert alert-warn">IA indisponível: ${escapeHtml(j.error || 'erro')}</div>`;
@@ -364,8 +364,8 @@ function cac() {
 }
 function mdLite(t) {
   return escapeHtml(t)
-    .replace(/^### (.*)$/gm, '<div style="font-weight:800;margin:8px 0 2px">$1</div>')
-    .replace(/^## (.*)$/gm, '<div style="font-weight:800;font-size:14px;margin:10px 0 4px">$1</div>')
+    .replace(/^### (.*)$/gm, '<div style="font-weight:600;margin:8px 0 2px">$1</div>')
+    .replace(/^## (.*)$/gm, '<div style="font-weight:600;font-size:14px;margin:10px 0 4px">$1</div>')
     .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
     .replace(/^\s*[-*] (.*)$/gm, '<div style="margin:2px 0 2px 12px">• $1</div>')
     .replace(/\n{2,}/g, '<br><br>').replace(/\n/g, '<br>');

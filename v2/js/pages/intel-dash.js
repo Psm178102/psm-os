@@ -36,15 +36,15 @@ export async function pageIntelDash(ctx, root) {
 
 function render() {
   _root.innerHTML = `
-    <div class="card" style="background:#0f172a;color:#e2e8f0;padding:24px;min-height:80vh">
+    <div class="card" style="background:var(--surface-2);color:#e2e8f0;padding:24px;min-height:80vh">
       <div class="flex" style="align-items:center;gap:14px;margin-bottom:20px">
-        <span style="font-size:34px">🔍</span>
+        <span style="font-size:36px">🔍</span>
         <div>
-          <h2 style="margin:0;color:#fff;font-size:23px">Centro de Inteligência</h2>
-          <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">Concorrência + seu tráfego + tendências calculadas dos seus dados</p>
+          <h2 style="margin:0;color:#fff;font-size:26px">Centro de Inteligência</h2>
+          <p style="margin:4px 0 0;color:var(--ink-muted);font-size:13px">Concorrência + seu tráfego + tendências calculadas dos seus dados</p>
         </div>
       </div>
-      <div id="id-body"><div class="muted tiny" style="color:#94a3b8"><span class="spinner"></span> Consolidando dados reais…</div></div>
+      <div id="id-body"><div class="muted tiny" style="color:var(--ink-muted)"><span class="spinner"></span> Consolidando dados reais…</div></div>
     </div>`;
 }
 
@@ -89,33 +89,33 @@ function renderContent(concorrentes, meses, tendManual) {
 
   body.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:22px">
-      ${card('🎯 Concorrentes', totalConc, '#3b82f6')}
+      ${card('🎯 Concorrentes', totalConc, '#806d50')}
       ${card('🏆 Tier A', tierA, '#f59e0b')}
       ${card('👥 Alcance somado', fNum(somaFollow), '#a855f7')}
       ${card('💰 Seu invest/mês', ult ? f$(ult.spend) : '—', '#22c55e')}
       ${card('📉 Seu CPL', ult ? f$(cpl) : '—', '#10b981')}
-      ${card('🎯 Seus leads/mês', ult ? fNum(ult.leads) : '—', '#3b82f6')}
+      ${card('🎯 Seus leads/mês', ult ? fNum(ult.leads) : '—', '#806d50')}
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
-      <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:18px">
-        <h3 style="color:#fff;margin:0 0 6px;font-size:15px">📊 Tendências dos seus dados (Meta)</h3>
+      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px">
+        <h3 style="color:#fff;margin:0 0 6px;font-size:14px">📊 Tendências dos seus dados (Meta)</h3>
         <div class="tiny" style="color:var(--ink-muted);margin-bottom:10px">Calculadas automaticamente — último mês vs anterior.</div>
-        ${trends.length === 0 ? '<div class="muted tiny" style="color:#94a3b8">Preciso de ≥2 meses de Meta Ads pra calcular tendência. Abra Histórico Meta e atualize.</div>' :
+        ${trends.length === 0 ? '<div class="muted tiny" style="color:var(--ink-muted)">Preciso de ≥2 meses de Meta Ads pra calcular tendência. Abra Histórico Meta e atualize.</div>' :
           trends.map(t => `
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #334155">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border)">
               <span style="color:#fff;font-weight:600;font-size:13px">${icoDir(t)} ${esc(t.titulo)}</span>
-              <span style="color:${corDir(t)};font-weight:800;font-size:13px">${esc(t.txt)}</span>
+              <span style="color:${corDir(t)};font-weight:600;font-size:13px">${esc(t.txt)}</span>
             </div>`).join('')}
       </div>
 
-      <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:18px">
-        <h3 style="color:#fff;margin:0 0 12px;font-size:15px">🥊 Maiores players (seguidores)</h3>
+      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px">
+        <h3 style="color:#fff;margin:0 0 12px;font-size:14px">🥊 Maiores players (seguidores)</h3>
         ${top5.length === 0 ? '<div class="muted tiny">Sem dados.</div>' :
           top5.map((c, i) => `
-            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #334155">
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
               <span style="color:#fff;font-weight:600;font-size:13px">${i + 1}. ${esc(c.nome)}<span style="color:var(--ink-muted);font-size:11px"> · ${esc(c.tier || '—')}</span></span>
-              <span style="color:var(--lilas);font-weight:800;font-size:13px">${c._f ? fNum(c._f) : '—'}</span>
+              <span style="color:var(--lilas);font-weight:600;font-size:13px">${c._f ? fNum(c._f) : '—'}</span>
             </div>`).join('')}
         <div class="mt-3 flex gap-2" style="flex-wrap:wrap">
           <button class="btn btn-ghost btn-sm" onclick="location.hash='/intel-ads'">🎯 Guerra de Tráfego</button>
@@ -125,23 +125,23 @@ function renderContent(concorrentes, meses, tendManual) {
       </div>
     </div>
 
-    <div class="mt-4" style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:18px">
+    <div class="mt-4" style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px">
       <div class="flex" style="justify-content:space-between;align-items:center;margin-bottom:10px">
-        <h3 style="color:#fff;margin:0;font-size:15px">📝 Tendências de mercado (anotadas pela equipe)</h3>
+        <h3 style="color:#fff;margin:0;font-size:14px">📝 Tendências de mercado (anotadas pela equipe)</h3>
         <button class="btn btn-ghost btn-sm" onclick="location.hash='/tendencias'">+ Gerenciar</button>
       </div>
       ${tendManual.length === 0
-        ? '<div class="muted tiny" style="color:#94a3b8">Nenhuma anotada ainda. Use a tela Tendências pra registrar movimentos do mercado (juros, lançamentos, comportamento) que a IA e a diretoria devem acompanhar.</div>'
+        ? '<div class="muted tiny" style="color:var(--ink-muted)">Nenhuma anotada ainda. Use a tela Tendências pra registrar movimentos do mercado (juros, lançamentos, comportamento) que a IA e a diretoria devem acompanhar.</div>'
         : `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px">` + tendManual.slice(0, 8).map(t => `
-            <div style="padding:10px;background:#0f172a;border-left:3px solid ${t.impacto === 'alto' ? '#ef4444' : t.impacto === 'medio' ? '#f59e0b' : '#64748b'};border-radius:6px">
-              <div style="color:#fff;font-weight:700;font-size:12.5px">${t.direcao === 'alta' ? '📈' : t.direcao === 'baixa' ? '📉' : '➡️'} ${esc(t.titulo)}</div>
-              <div style="color:#94a3b8;font-size:11px;margin-top:2px">${esc(t.categoria || '—')}${t.descricao ? ' · ' + esc(String(t.descricao).slice(0, 70)) : ''}</div>
+            <div style="padding:10px;background:var(--surface-2);border-left:3px solid ${t.impacto === 'alto' ? 'var(--err)' : t.impacto === 'medio' ? 'var(--warn)' : 'var(--border-strong)'};border-radius:var(--radius-sm)">
+              <div style="color:#fff;font-weight:600;font-size:13px">${t.direcao === 'alta' ? '📈' : t.direcao === 'baixa' ? '📉' : '➡️'} ${esc(t.titulo)}</div>
+              <div style="color:var(--ink-muted);font-size:11px;margin-top:2px">${esc(t.categoria || '—')}${t.descricao ? ' · ' + esc(String(t.descricao).slice(0, 70)) : ''}</div>
             </div>`).join('') + `</div>`}
     </div>`;
 }
 
 function card(label, value, color) {
-  return `<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:16px;border-left:4px solid ${color}">
-    <div style="color:var(--ink-muted);font-size:10px;text-transform:uppercase;font-weight:700;margin-bottom:6px">${label}</div>
-    <div style="color:${color};font-size:24px;font-weight:800">${value}</div></div>`;
+  return `<div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:16px;border-left:4px solid ${color}">
+    <div style="color:var(--ink-muted);font-size:11px;text-transform:uppercase;font-weight:600;margin-bottom:6px">${label}</div>
+    <div style="color:${color};font-size:26px;font-weight:600">${value}</div></div>`;
 }

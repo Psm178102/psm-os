@@ -9,7 +9,7 @@ const PDFJS = 'https://esm.sh/pdfjs-dist@4.10.38/legacy/build/pdf.mjs';
 const PDFJS_WORKER = 'https://esm.sh/pdfjs-dist@4.10.38/legacy/build/pdf.worker.mjs';
 
 const MARCAS = [
-  { id: 'conquista', nome: 'PSM CONQUISTA', emoji: '🏆', cor: '#1e2650',
+  { id: 'conquista', nome: 'PSM CONQUISTA', emoji: '🏆', cor: '#806d50',
     sub: 'Residencial · MCMV · primeiro imóvel' },
   { id: 'assessoria', nome: 'PSM ASSESSORIA IMOBILIÁRIA', emoji: '🏛', cor: '#343434',
     sub: 'Alto padrão · assessoria completa' },
@@ -50,7 +50,7 @@ function render() {
           const d = (_meta?.marcas || {})[m.id];
           return `
           <div class="card" style="margin:0;border-top:4px solid ${m.cor}">
-            <div style="font-size:34px">${m.emoji}</div>
+            <div style="font-size:36px">${m.emoji}</div>
             <b style="font-family:var(--font-display)">${m.nome}</b>
             <div class="tiny muted">${m.sub}</div>
             <div class="tiny" style="margin:8px 0">${d
@@ -92,13 +92,13 @@ async function abrirViewer(marca) {
         <b style="font-family:var(--font-display)">${info.emoji} ${info.nome}</b>
         <span class="flex items-center" style="gap:14px">
           <span style="font-size:13px;opacity:.8">${i + 1} / ${slides.length}</span>
-          <button id="apv-x" style="background:rgba(255,251,234,.15);color:#fffbea;border:none;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700">✕ Fechar</button>
+          <button id="apv-x" style="background:rgba(255,251,234,.15);color:#fffbea;border:none;border-radius:var(--radius-md);padding:6px 14px;cursor:pointer;font-weight:600">✕ Fechar</button>
         </span>
       </div>
       <img src="${slides[i]}" draggable="false"
-           style="max-width:96vw;max-height:88vh;border-radius:6px;box-shadow:0 8px 40px rgba(0,0,0,.6);user-select:none;-webkit-user-drag:none">
-      ${i > 0 ? '<button id="apv-prev" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:30px;background:rgba(255,251,234,.12);color:#fffbea;border:none;border-radius:10px;padding:14px 16px;cursor:pointer">‹</button>' : ''}
-      ${i < slides.length - 1 ? '<button id="apv-next" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:30px;background:rgba(255,251,234,.12);color:#fffbea;border:none;border-radius:10px;padding:14px 16px;cursor:pointer">›</button>' : ''}`;
+           style="max-width:96vw;max-height:88vh;border-radius:var(--radius-sm);box-shadow:var(--shadow-1);user-select:none;-webkit-user-drag:none">
+      ${i > 0 ? '<button id="apv-prev" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:26px;background:rgba(255,251,234,.12);color:#fffbea;border:none;border-radius:var(--radius-md);padding:14px 16px;cursor:pointer">‹</button>' : ''}
+      ${i < slides.length - 1 ? '<button id="apv-next" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:26px;background:rgba(255,251,234,.12);color:#fffbea;border:none;border-radius:var(--radius-md);padding:14px 16px;cursor:pointer">›</button>' : ''}`;
     ov.oncontextmenu = (e) => e.preventDefault();
     ov.querySelector('#apv-x').onclick = fechar;
     const p = ov.querySelector('#apv-prev'); p && (p.onclick = () => { i--; paint(); });

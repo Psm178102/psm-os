@@ -4,7 +4,7 @@ import { auth } from '../auth.js';
 
 const STATUS = [
   { id: 'disponivel',   lbl: 'Disponível',    color: '#16a34a', ico: '🟢' },
-  { id: 'ocupado',      lbl: 'Ocupado',       color: '#2563eb', ico: '🔵' },
+  { id: 'ocupado',      lbl: 'Ocupado',       color: '#806d50', ico: '🔵' },
   { id: 'em_renovacao', lbl: 'Em renovação',  color: '#d97706', ico: '🟡' },
   { id: 'em_atraso',    lbl: 'Em atraso',     color: '#dc2626', ico: '🔴' },
 ];
@@ -41,15 +41,15 @@ function render() {
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px">
         ${kpi('💼 Receita ADM/mês', 'R$ ' + money(_kpis.receita_adm), 'recorrente da PSM', '#16a34a')}
-        ${kpi('🔵 Contratos ativos', _kpis.ocupadas || 0, _kpis.ocupacao_pct != null ? pct2(_kpis.ocupacao_pct) + ' de ocupação' : '', '#2563eb')}
-        ${kpi('🏦 Aluguel sob gestão', 'R$ ' + money(_kpis.receita_aluguel), 'soma dos ativos', '#0891b2')}
+        ${kpi('🔵 Contratos ativos', _kpis.ocupadas || 0, _kpis.ocupacao_pct != null ? pct2(_kpis.ocupacao_pct) + ' de ocupação' : '', '#806d50')}
+        ${kpi('🏦 Aluguel sob gestão', 'R$ ' + money(_kpis.receita_aluguel), 'soma dos ativos', '#806d50')}
         ${kpi('⏰ A vencer 30/60/90d', (_kpis.vence_30d || 0) + ' / ' + (_kpis.vence_60d || 0) + ' / ' + (_kpis.vence_90d || 0), 'renovar contrato', '#d97706')}
         ${kpi('🔴 Em atraso', _kpis.em_atraso || 0, 'inadimplência', '#dc2626')}
         ${kpi('🟢 Disponíveis', _kpis.disponiveis || 0, 'sem inquilino', '#64748b')}
       </div>
 
       <div class="flex gap-2 mt-3" style="flex-wrap:wrap;align-items:center;padding:10px;background:var(--bg-3);border-radius:var(--r-sm)">
-        <label class="tiny muted" style="font-weight:700">STATUS:</label>
+        <label class="tiny muted" style="font-weight:600">STATUS:</label>
         <select id="f-st" class="select" style="padding:5px 10px;font-size:12px">
           <option value="">Todos</option>
           ${STATUS.map(s => `<option value="${s.id}"${_filterStatus===s.id?' selected':''}>${s.ico} ${s.lbl}</option>`).join('')}
@@ -85,17 +85,17 @@ function itemCard(i, canEdit) {
   return `
     <div ${canEdit ? `data-lo="${i.id}"` : ''} style="background:var(--bg-3);border-left:4px solid ${status.color};border-radius:var(--r-md);padding:12px 16px;${canEdit ? 'cursor:pointer' : ''}">
       <div class="flex items-center gap-2" style="margin-bottom:6px">
-        <span style="font-size:18px">${status.ico}</span>
+        <span style="font-size:16px">${status.ico}</span>
         <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:14px">${escapeHtml(i.endereco)}</div>
+          <div style="font-weight:600;font-size:14px">${escapeHtml(i.endereco)}</div>
           <div class="tiny muted">${escapeHtml(i.bairro || '')}${i.cidade ? ' · ' + escapeHtml(i.cidade) : ''}</div>
         </div>
-        <span class="tiny" style="background:${status.color};color:#fff;padding:3px 10px;border-radius:var(--r-full);font-weight:700">${status.lbl}</span>
+        <span class="tiny" style="background:${status.color};color:#fff;padding:3px 10px;border-radius:var(--r-full);font-weight:600">${status.lbl}</span>
       </div>
       <div class="flex gap-3" style="flex-wrap:wrap;font-size:12px">
         ${i.inquilino_nome ? `<div>👤 <b>${escapeHtml(i.inquilino_nome)}</b></div>` : ''}
         <div>💰 <b>R$ ${money(i.valor_aluguel)}</b>${i.dia_vencimento ? ' (venc dia ' + i.dia_vencimento + ')' : ''}</div>
-        ${venceEm != null ? `<div style="color:${venceEm < 0 ? '#dc2626' : venceEm < 30 ? '#d97706' : 'var(--ink-muted)'}">📅 ${venceEm < 0 ? 'vencido há ' + Math.abs(venceEm) + 'd' : venceEm + 'd até fim'}</div>` : ''}
+        ${venceEm != null ? `<div style="color:${venceEm < 0 ? 'var(--err)' : venceEm < 30 ? 'var(--warn)' : 'var(--ink-muted)'}">📅 ${venceEm < 0 ? 'vencido há ' + Math.abs(venceEm) + 'd' : venceEm + 'd até fim'}</div>` : ''}
         ${resp ? `<div>🛡 ${escapeHtml(resp.name)}</div>` : ''}
       </div>
     </div>
@@ -239,7 +239,7 @@ function openImport() {
     msg().innerHTML = `<div class="muted tiny"><span class="spinner"></span> Importando ${rows.length}…</div>`;
     try {
       const r = await api.request('/api/v3/locacoes/import_csv', { method: 'POST', body: { rows } });
-      msg().innerHTML = `<div class="alert" style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3)">✅ ${r.inserted} contrato(s) importado(s)${r.ignorados ? ' · ' + r.ignorados + ' ignorado(s) (linha sem dados)' : ''}.</div>`;
+      msg().innerHTML = `<div class="alert" style="background:var(--ok-soft);border:1px solid var(--ok)">✅ ${r.inserted} contrato(s) importado(s)${r.ignorados ? ' · ' + r.ignorados + ' ignorado(s) (linha sem dados)' : ''}.</div>`;
       setTimeout(async () => { modal.style.display = 'none'; await reload(); }, 1400);
     } catch (e) { msg().innerHTML = `<div class="alert alert-err">${escapeHtml(e.message)}</div>`; }
   };
@@ -247,8 +247,8 @@ function openImport() {
 
 function kpi(label, big, sub, color) {
   return `<div style="flex:1;min-width:180px;background:var(--bg-3);border-radius:var(--r-md);padding:14px 16px;border-left:4px solid ${color}">
-    <div class="tiny muted" style="letter-spacing:1px;text-transform:uppercase;font-weight:700">${label}</div>
-    <div style="font-size:20px;font-weight:900;color:${color};margin-top:2px">${big}</div>
+    <div class="tiny muted" style="letter-spacing:1px;text-transform:uppercase;font-weight:600">${label}</div>
+    <div style="font-size:20px;font-weight:600;color:${color};margin-top:2px">${big}</div>
     <div class="tiny muted">${sub}</div>
   </div>`;
 }

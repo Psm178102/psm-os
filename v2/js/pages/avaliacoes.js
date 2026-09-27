@@ -80,31 +80,31 @@ function viewOverview(body) {
   enviadas.forEach(a => { const f = Math.min(4, Math.floor((notaEfetiva(a) - 0.001) / (escala() / 5))); buckets[Math.max(0, f)]++; });
   body.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px">
-      ${card('Ciclo ativo', ca ? esc(ca.nome) : '—', ca ? `${esc(ca.inicio || '')} → ${esc(ca.fim || '')}` : 'nenhum aberto', '#2563eb')}
+      ${card('Ciclo ativo', ca ? esc(ca.nome) : '—', ca ? `${esc(ca.inicio || '')} → ${esc(ca.fim || '')}` : 'nenhum aberto', '#806d50')}
       ${card('Minha última nota', ultima && notaEfetiva(ultima) != null ? notaEfetiva(ultima) + '/' + escala() : '—', ultima ? esc(ultima.cargo || '') : 'sem avaliação ainda', '#16a34a')}
       ${card('Avaliações enviadas', String(enviadas.length), 'no total', '#7c3aed')}
       ${card('Feedbacks/kudos', String(fbs.length), `${fbs.filter(f => f.publico).length} públicos`, '#f59e0b')}
     </div>
     ${pendAuto ? `<div class="alert alert-warn" style="margin-bottom:12px">📝 Você ainda não fez sua <b>autoavaliação</b> do ciclo <b>${esc(ca.nome)}</b>. <button class="btn btn-sm btn-primary" id="go-auto" style="margin-left:8px">Fazer agora</button></div>` : ''}
-    ${isGestao() ? `<div class="card"><div style="font-weight:800;margin-bottom:8px">Distribuição de notas (enviadas)</div>
+    ${isGestao() ? `<div class="card"><div style="font-weight:600;margin-bottom:8px">Distribuição de notas (enviadas)</div>
       ${enviadas.length ? barChart(buckets) : '<div class="tiny muted">Sem avaliações enviadas ainda.</div>'}</div>` : ''}
-    <div class="card" style="margin-top:12px"><div style="font-weight:800;margin-bottom:8px">💬 Reconhecimentos recentes (kudos)</div>
+    <div class="card" style="margin-top:12px"><div style="font-weight:600;margin-bottom:8px">💬 Reconhecimentos recentes (kudos)</div>
       ${fbs.filter(f => f.publico).slice(0, 6).map(fbLine).join('') || '<div class="tiny muted">Nenhum kudos público ainda.</div>'}</div>`;
   const ga = document.getElementById('go-auto'); if (ga) ga.onclick = () => { _sub = 'avaliar'; startEval(me().id, 'auto'); };
 }
 function card(t, v, s, c) {
   return `<div class="card" style="padding:12px;border-left:3px solid ${c}"><div class="tiny muted">${esc(t)}</div>
-    <div style="font-size:20px;font-weight:800;color:${c}">${esc(v)}</div><div class="tiny muted">${esc(s)}</div></div>`;
+    <div style="font-size:20px;font-weight:600;color:${c}">${esc(v)}</div><div class="tiny muted">${esc(s)}</div></div>`;
 }
 function barChart(b) {
   const mx = Math.max(1, ...b); const lbl = ['muito baixo', 'baixo', 'médio', 'alto', 'excelente'];
   return `<div style="display:flex;gap:6px;align-items:flex-end;height:90px">${b.map((v, i) =>
-    `<div style="flex:1;text-align:center"><div style="background:#2563eb;border-radius:4px 4px 0 0;height:${Math.round(v / mx * 70)}px;min-height:2px"></div>
-     <div class="tiny" style="font-weight:700">${v}</div><div class="tiny muted">${lbl[i]}</div></div>`).join('')}</div>`;
+    `<div style="flex:1;text-align:center"><div style="background:var(--accent-soft);border-radius:4px 4px 0 0;height:${Math.round(v / mx * 70)}px;min-height:2px"></div>
+     <div class="tiny" style="font-weight:600">${v}</div><div class="tiny muted">${lbl[i]}</div></div>`).join('')}</div>`;
 }
 function fbLine(f) {
   const t = (FB_TIPOS.find(x => x[0] === f.tipo) || [, f.tipo])[1];
-  return `<div style="border-top:1px solid var(--bd,#e2e8f0);padding:7px 0">
+  return `<div style="border-top:1px solid var(--bd,var(--border));padding:7px 0">
     <div style="font-size:13px"><b>${esc(uName(f.de_id))}</b> → <b>${esc(uName(f.para_id))}</b> <span class="tiny muted">${t}</span></div>
     <div class="tiny">${esc(f.texto)}</div></div>`;
 }
@@ -118,13 +118,13 @@ function viewMinhas(body) {
   const ca = cicloAtivo();
   body.innerHTML = `
     <div class="card" style="margin-bottom:12px">
-      <div class="flex items-center" style="justify-content:space-between"><div style="font-weight:800">🪞 Minha autoavaliação</div>
+      <div class="flex items-center" style="justify-content:space-between"><div style="font-weight:600">🪞 Minha autoavaliação</div>
         ${ca ? `<button class="btn btn-sm btn-primary" id="nova-auto">${minhaAuto.some(a => a.ciclo_id === ca.id) ? 'Editar' : 'Fazer'} autoavaliação · ${esc(ca.nome)}</button>` : '<span class="tiny muted">nenhum ciclo aberto</span>'}</div>
       ${minhaAuto.length ? `<div class="mt-2">${minhaAuto.map(a => avLine(a, true)).join('')}</div>` : '<div class="tiny muted mt-2">Você ainda não se autoavaliou.</div>'}
     </div>
-    <div class="card" style="margin-bottom:12px"><div style="font-weight:800;margin-bottom:6px">📥 Avaliações que recebi</div>
+    <div class="card" style="margin-bottom:12px"><div style="font-weight:600;margin-bottom:6px">📥 Avaliações que recebi</div>
       ${recebidas.length ? recebidas.map(a => avLine(a, false)).join('') : '<div class="tiny muted">Nenhuma avaliação recebida ainda.</div>'}</div>
-    <div class="card"><div style="font-weight:800;margin-bottom:6px">💬 Feedbacks que recebi</div>
+    <div class="card"><div style="font-weight:600;margin-bottom:6px">💬 Feedbacks que recebi</div>
       ${fbs.length ? fbs.map(fbLine).join('') : '<div class="tiny muted">Nenhum feedback ainda.</div>'}</div>`;
   const na = document.getElementById('nova-auto');
   if (na) na.onclick = () => { _sub = 'avaliar'; const ex = minhaAuto.find(a => a.ciclo_id === ca.id); startEval(me().id, 'auto', ex); };
@@ -132,10 +132,10 @@ function viewMinhas(body) {
 }
 function avLine(a, own) {
   const ne = notaEfetiva(a);
-  return `<div style="border-top:1px solid var(--bd,#e2e8f0);padding:8px 0">
+  return `<div style="border-top:1px solid var(--bd,var(--border));padding:8px 0">
     <div class="flex items-center" style="gap:8px"><b>${esc(a.cargo || '—')}</b>
       <span class="tiny muted">${esc((ciclos().find(c => c.id === a.ciclo_id) || {}).nome || 'sem ciclo')} · por ${esc(uName(a.avaliador_id))}</span>
-      ${ne != null ? `<span style="margin-left:auto;font-weight:800;color:var(--ok)">${ne}/${escala()}</span>` : `<span style="margin-left:auto" class="tiny muted">${esc(a.status)}</span>`}</div>
+      ${ne != null ? `<span style="margin-left:auto;font-weight:600;color:var(--ok)">${ne}/${escala()}</span>` : `<span style="margin-left:auto" class="tiny muted">${esc(a.status)}</span>`}</div>
     ${a.pontos_fortes ? `<div class="tiny"><b>Fortes:</b> ${esc(a.pontos_fortes)}</div>` : ''}
     ${a.a_desenvolver ? `<div class="tiny"><b>A desenvolver:</b> ${esc(a.a_desenvolver)}</div>` : ''}
     ${a.comentario ? `<div class="tiny">${esc(a.comentario)}</div>` : ''}
@@ -158,7 +158,7 @@ function viewAvaliar(body) {
   const pessoas = _users.filter(u => (u.status || 'ativo') === 'ativo');
   body.innerHTML = `
     <div class="card">
-      <div style="font-weight:800;margin-bottom:8px">Iniciar avaliação</div>
+      <div style="font-weight:600;margin-bottom:8px">Iniciar avaliação</div>
       <div class="flex gap-2" style="flex-wrap:wrap;align-items:end">
         <label class="tiny muted">Pessoa<select id="av-pessoa" class="select" style="min-width:200px">
           <option value="${esc(me().id)}">${esc(me().name || 'Eu')} (eu)</option>
@@ -169,11 +169,11 @@ function viewAvaliar(body) {
       </div>
       ${!podeEquipe ? '<div class="tiny muted mt-2">Você pode fazer sua autoavaliação e avaliações 360° solicitadas. Avaliar a equipe é função da gestão.</div>' : ''}
     </div>
-    <div class="card mt-3"><div style="font-weight:800;margin-bottom:6px">Avaliações que eu registrei</div>
+    <div class="card mt-3"><div style="font-weight:600;margin-bottom:6px">Avaliações que eu registrei</div>
       ${(_data.avaliacoes || []).filter(a => a.avaliador_id === me().id).map(a => `
-        <div style="border-top:1px solid var(--bd,#e2e8f0);padding:7px 0" class="flex items-center" style="gap:8px">
+        <div style="border-top:1px solid var(--bd,var(--border));padding:7px 0" class="flex items-center" style="gap:8px">
           <span><b>${esc(uName(a.avaliado_id))}</b> <span class="tiny muted">${esc((TIPOS.find(t => t[0] === a.tipo) || [, a.tipo])[1])} · ${esc(a.status)}</span></span>
-          ${notaEfetiva(a) != null ? `<span style="margin-left:auto;font-weight:700">${notaEfetiva(a)}/${escala()}</span>` : '<span style="margin-left:auto"></span>'}
+          ${notaEfetiva(a) != null ? `<span style="margin-left:auto;font-weight:600">${notaEfetiva(a)}/${escala()}</span>` : '<span style="margin-left:auto"></span>'}
           <button class="btn btn-ghost btn-sm" data-edit-av="${a.id}">✏️</button>
           <button class="btn btn-ghost btn-sm" data-del-av="${a.id}">🗑</button>
         </div>`).join('') || '<div class="tiny muted">Nenhuma ainda.</div>'}</div>`;
@@ -187,8 +187,8 @@ function renderScorecard(body) {
   const nf = notaFinal(f.notas, f.cargo);
   body.innerHTML = `
     <div class="flex items-center gap-2 mb-2"><button class="btn btn-ghost btn-sm" id="sc-back">← Voltar</button>
-      <div style="font-weight:800">${esc(uName(f.avaliado_id))} · ${esc((TIPOS.find(t => t[0] === f.tipo) || [, f.tipo])[1])}</div>
-      <div id="sc-nf" style="margin-left:auto;font-weight:800;color:var(--ok)">${nf != null ? nf + '/' + E : '—'}</div></div>
+      <div style="font-weight:600">${esc(uName(f.avaliado_id))} · ${esc((TIPOS.find(t => t[0] === f.tipo) || [, f.tipo])[1])}</div>
+      <div id="sc-nf" style="margin-left:auto;font-weight:600;color:var(--ok)">${nf != null ? nf + '/' + E : '—'}</div></div>
     <div class="card">
       <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:10px">
         <label class="tiny muted">Ciclo<select id="sc-ciclo" class="select"><option value="">— avulsa —</option>${ciclos().map(c => `<option value="${esc(c.id)}"${c.id === f.ciclo_id ? ' selected' : ''}>${esc(c.nome)}</option>`).join('')}</select></label>
@@ -219,7 +219,7 @@ function renderScorecard(body) {
   const pdi = document.getElementById('sc-pdi'); if (pdi) pdi.onclick = gerarPDI;
 }
 function scRow(c, val, E) {
-  return `<div class="flex items-center gap-2" style="border-top:1px solid var(--bd,#e2e8f0);padding:6px 0">
+  return `<div class="flex items-center gap-2" style="border-top:1px solid var(--bd,var(--border));padding:6px 0">
     <span style="flex:1;font-size:13px">${esc(c.nome)} <span class="tiny muted">(peso ${esc(c.peso || 1)})</span></span>
     <select class="select" data-comp="${esc(c.id)}" style="max-width:130px"><option value="">—</option>${Array.from({ length: E }, (_, i) => i + 1).map(n => `<option value="${n}"${String(val) === String(n) ? ' selected' : ''}>${n}</option>`).join('')}</select></div>`;
 }
@@ -255,7 +255,7 @@ function viewFeedback(body) {
   const pessoas = _users.filter(u => (u.status || 'ativo') === 'ativo' && u.id !== me().id);
   body.innerHTML = `
     <div class="card" style="margin-bottom:12px">
-      <div style="font-weight:800;margin-bottom:8px">Dar feedback</div>
+      <div style="font-weight:600;margin-bottom:8px">Dar feedback</div>
       <div class="flex gap-2" style="flex-wrap:wrap;align-items:end">
         <label class="tiny muted">Para<select id="fb-para" class="select" style="min-width:180px">${pessoas.map(u => `<option value="${esc(u.id)}">${esc(u.name)}</option>`).join('')}</select></label>
         <label class="tiny muted">Tipo<select id="fb-tipo" class="select">${FB_TIPOS.map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select></label>
@@ -264,7 +264,7 @@ function viewFeedback(body) {
       <textarea id="fb-txt" class="input mt-2" rows="2" placeholder="Escreva o feedback…"></textarea>
       <button class="btn btn-primary btn-sm mt-2" id="fb-send">Enviar feedback</button>
     </div>
-    <div class="card"><div style="font-weight:800;margin-bottom:6px">Mural de reconhecimentos (kudos públicos)</div>
+    <div class="card"><div style="font-weight:600;margin-bottom:6px">Mural de reconhecimentos (kudos públicos)</div>
       ${fbs.filter(f => f.publico).map(f => fbCard(f)).join('') || '<div class="tiny muted">Nenhum kudos público ainda.</div>'}</div>`;
   document.getElementById('fb-send').onclick = async () => {
     const txt = document.getElementById('fb-txt').value.trim();
@@ -278,7 +278,7 @@ function viewFeedback(body) {
 function fbCard(f) {
   const t = (FB_TIPOS.find(x => x[0] === f.tipo) || [, f.tipo])[1];
   const podeDel = f.de_id === me().id || isSenior();
-  return `<div style="border-top:1px solid var(--bd,#e2e8f0);padding:8px 0" class="flex items-start gap-2">
+  return `<div style="border-top:1px solid var(--bd,var(--border));padding:8px 0" class="flex items-start gap-2">
     <div style="flex:1"><div style="font-size:13px"><b>${esc(uName(f.de_id))}</b> → <b>${esc(uName(f.para_id))}</b> <span class="tiny muted">${t}</span></div>
       <div class="tiny">${esc(f.texto)}</div></div>
     ${podeDel ? `<button class="btn btn-ghost btn-sm" data-del-fb="${f.id}">🗑</button>` : ''}</div>`;
@@ -290,13 +290,13 @@ function viewCiclos(body) {
   const cfg = _cfgEdit;
   body.innerHTML = `
     <div class="card" style="margin-bottom:12px">
-      <div class="flex items-center" style="justify-content:space-between"><div style="font-weight:800">🔄 Ciclos de avaliação</div>
+      <div class="flex items-center" style="justify-content:space-between"><div style="font-weight:600">🔄 Ciclos de avaliação</div>
         <div class="flex gap-2"><label class="tiny muted" style="display:flex;align-items:center;gap:4px">Escala 1–<input id="cfg-escala" type="number" min="2" max="10" value="${cfg.escala || 5}" class="input" style="width:54px"></label>
         <button class="btn btn-sm btn-ghost" id="ciclo-add">+ Ciclo</button></div></div>
       <div id="ciclos-list" class="mt-2">${(cfg.ciclos || []).map((c, i) => cicloRow(c, i)).join('') || '<div class="tiny muted">Nenhum ciclo. Crie um pra abrir avaliações.</div>'}</div>
     </div>
     <div class="card">
-      <div class="flex items-center" style="justify-content:space-between"><div style="font-weight:800">🧩 Competências por cargo</div>
+      <div class="flex items-center" style="justify-content:space-between"><div style="font-weight:600">🧩 Competências por cargo</div>
         <select id="comp-cargo" class="select" style="max-width:200px">${CARGOS_MODELO.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}</select></div>
       <div id="comp-list" class="mt-2"></div>
     </div>
@@ -357,21 +357,21 @@ function viewNineBox(body) {
   const cell = (pot, des) => {
     const list = grid[pot + 'x' + des] || [];
     const cor = pot + des >= 5 ? '#16a34a' : pot + des <= 3 ? '#dc2626' : '#f59e0b';
-    return `<div style="border:1px solid var(--bd,#e2e8f0);border-radius:8px;padding:6px;min-height:64px;background:${cor}0e">
+    return `<div style="border:1px solid var(--bd,var(--border));border-radius:var(--radius-md);padding:6px;min-height:64px;background:${cor}0e">
       ${list.map(a => `<div class="tiny" style="font-weight:600">${esc(uName(a.avaliado_id))}</div>`).join('') || '<span class="tiny muted">—</span>'}</div>`;
   };
   body.innerHTML = `
     <div class="card" style="margin-bottom:12px">
-      <div style="font-weight:800;margin-bottom:8px">🎯 9-Box · Potencial (↑) × Desempenho (→)</div>
+      <div style="font-weight:600;margin-bottom:8px">🎯 9-Box · Potencial (↑) × Desempenho (→)</div>
       <div style="display:grid;grid-template-columns:90px 1fr 1fr 1fr;gap:6px;align-items:stretch">
         <div></div><div class="tiny muted" style="text-align:center">Desemp. Baixo</div><div class="tiny muted" style="text-align:center">Médio</div><div class="tiny muted" style="text-align:center">Alto</div>
         ${[3, 2, 1].map(pot => `<div class="tiny muted" style="display:flex;align-items:center">Pot. ${NINE[pot]}</div>${cell(pot, 1)}${cell(pot, 2)}${cell(pot, 3)}`).join('')}
       </div>
       ${Object.keys(porPessoa).length ? '' : '<div class="tiny muted mt-2">Posicione as pessoas preenchendo Desempenho/Potencial nas avaliações enviadas.</div>'}
     </div>
-    <div class="card"><div style="font-weight:800;margin-bottom:6px">⚖️ Calibração de notas (enviadas)</div>
+    <div class="card"><div style="font-weight:600;margin-bottom:6px">⚖️ Calibração de notas (enviadas)</div>
       ${avs.filter(a => notaEfetiva(a) != null).map(a => `
-        <div class="flex items-center gap-2" style="border-top:1px solid var(--bd,#e2e8f0);padding:7px 0">
+        <div class="flex items-center gap-2" style="border-top:1px solid var(--bd,var(--border));padding:7px 0">
           <span style="flex:1"><b>${esc(uName(a.avaliado_id))}</b> <span class="tiny muted">${esc(a.cargo || '')} · por ${esc(uName(a.avaliador_id))}</span></span>
           <span class="tiny muted">orig ${a.nota_final ?? '—'}</span>
           <input class="input cal-nota" data-id="${a.id}" type="number" step="0.1" min="0" max="${escala()}" value="${a.nota_calibrada ?? ''}" placeholder="calibrar" style="width:90px">

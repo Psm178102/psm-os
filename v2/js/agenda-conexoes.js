@@ -212,9 +212,9 @@ export async function montarSalas(host, dia, fmtData) {
   host.innerHTML = titulo + `<div class="at-list">${d.salas.map(s => {
     const [cor, txt] = E(s);
     const lista = (s.reservas || []).map(r => r.dia_todo ? 'dia todo' : `${r.inicio}–${r.fim}`).join(' · ');
-    return `<div style="border:1px solid var(--border);border-left:3px solid ${cor};border-radius:9px;padding:8px 10px">
-      <div style="display:flex;gap:6px;align-items:baseline;flex-wrap:wrap"><b style="font-size:12.5px">${esc(s.nome || 'Sala')}</b>
-        <span style="font-size:11px;font-weight:800;color:${cor}">● ${esc(txt)}</span></div>
+    return `<div style="border:1px solid var(--border);border-left:3px solid ${cor};border-radius:var(--radius-md);padding:8px 10px">
+      <div style="display:flex;gap:6px;align-items:baseline;flex-wrap:wrap"><b style="font-size:13px">${esc(s.nome || 'Sala')}</b>
+        <span style="font-size:11px;font-weight:600;color:${cor}">● ${esc(txt)}</span></div>
       <div class="at-help" style="margin-top:2px">${s.capacidade ? '👥 ' + esc(String(s.capacidade)) + ' lugares · ' : ''}${s.estado === 'desconhecida' ? 'Confirme no Zoho antes de ocupar.' : (lista ? '🕑 ' + esc(lista) : 'sem reservas')}</div>
       <button class="at-mini-b" style="margin-top:6px" data-sala="${esc(s.id)}" data-nome="${esc(s.nome || '')}">📌 Reservar</button>
     </div>`;

@@ -61,15 +61,15 @@ function render() {
       <p class="card-sub">Produtividade do corretor por canal — onde investir sua energia gera mais resultado?</p>
 
       <div class="en-grid" style="display:grid;grid-template-columns:300px minmax(0,1fr);gap:14px;margin-top:12px;align-items:start">
-        <div style="background:var(--bg-3);border-radius:10px;padding:14px">
-          <div class="tiny muted" style="text-transform:uppercase;font-weight:800;margin-bottom:6px">Parâmetros Gerais</div>
+        <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:14px">
+          <div class="tiny muted" style="text-transform:uppercase;font-weight:600;margin-bottom:6px">Parâmetros Gerais</div>
           ${inp('Atendimentos / mês', 'atend')}
           ${inp('Ticket Médio (R$)', 'ticket')}
           ${inp('Meta Vendas / mês', 'metaVendas')}
           ${inp('Fator Mínimo Energia', 'fMin')}
           ${inp('Fator Máximo Energia', 'fMax')}
 
-          <div class="tiny muted" style="text-transform:uppercase;font-weight:800;margin:14px 0 6px">Energia por Canal (0-100%)</div>
+          <div class="tiny muted" style="text-transform:uppercase;font-weight:600;margin:14px 0 6px">Energia por Canal (0-100%)</div>
           ${CANAIS.map(can => inp(can.lbl, 'en_' + can.id, '%')).join('')}
         </div>
 
@@ -78,7 +78,7 @@ function render() {
 
           <div class="card" style="padding:0;overflow:auto" id="en-tabela"></div>
 
-          <div class="alert" style="background:rgba(168, 85, 247, .1);color:var(--lilas);border:1px solid rgba(168, 85, 247, .3);margin-top:14px;padding:12px;border-radius:8px">
+          <div class="alert" style="background:var(--accent-soft);color:var(--lilas);border:1px solid var(--accent-ink);margin-top:14px;padding:12px;border-radius:var(--radius-md)">
             <b>💡 Como usar:</b> ajuste a energia (0-100%) em cada canal pra simular onde investir tempo/atenção. O sistema calcula automaticamente o mix ideal de atendimentos, conversão e VGV previsto.
           </div>
 
@@ -115,16 +115,16 @@ function pintaSaida() {
       <tbody>
         ${c.linhas.sort((a, b) => b.vendas - a.vendas).map(l => `
           <tr style="border-bottom:1px solid var(--bd)">
-            <td style="padding:6px 8px;font-weight:700">${l.c.lbl}</td>
+            <td style="padding:6px 8px;font-weight:600">${l.c.lbl}</td>
             <td style="padding:6px 8px;text-align:right">${dec(l.en, 1)}%</td>
             <td style="padding:6px 8px;text-align:right">${dec(l.mixPct * 100, 1)}%</td>
             <td style="padding:6px 8px;text-align:right">${dec(l.atendCanal, 1)}</td>
             <td style="padding:6px 8px;text-align:right">${dec(l.txAjust * 100, 2)}%</td>
-            <td style="padding:6px 8px;text-align:right;font-weight:800;color:#22c55e">${dec(l.vendas, 2)}</td>
+            <td style="padding:6px 8px;text-align:right;font-weight:600;color:var(--ok)">${dec(l.vendas, 2)}</td>
             <td style="padding:6px 8px;text-align:right;color:var(--psm-gold)">${fmt(l.vgv)}</td>
           </tr>
         `).join('')}
-        <tr style="background:var(--psm-navy);color:#fff;font-weight:800">
+        <tr style="background:var(--psm-navy);color:#fff;font-weight:600">
           <td colspan="5" style="padding:8px">TOTAL</td>
           <td style="padding:8px;text-align:right">${dec(c.totalVendas, 2)}</td>
           <td style="padding:8px;text-align:right">${fmt(c.totalVGV)}</td>
@@ -142,11 +142,11 @@ function bind() {
 }
 
 function inp(label, key, suffix) {
-  return `<div style="margin-bottom:6px"><label class="tiny muted" style="font-weight:600;display:block;margin-bottom:2px">${label}</label><div class="flex gap-1">${/R\$/.test(label) ? '<span class="tiny muted" style="align-self:center;font-weight:700">R$</span>' : ''}<input ${ATTR_NUM} class="input" data-key="${key}" value="${numCampo(_s[key])}" style="flex:1;min-width:0;font-size:12px;padding:6px 8px">${suffix ? `<span class="tiny muted" style="align-self:center">${suffix}</span>` : ''}</div></div>`;
+  return `<div style="margin-bottom:6px"><label class="tiny muted" style="font-weight:600;display:block;margin-bottom:2px">${label}</label><div class="flex gap-1">${/R\$/.test(label) ? '<span class="tiny muted" style="align-self:center;font-weight:600">R$</span>' : ''}<input ${ATTR_NUM} class="input" data-key="${key}" value="${numCampo(_s[key])}" style="flex:1;min-width:0;font-size:12px;padding:6px 8px">${suffix ? `<span class="tiny muted" style="align-self:center">${suffix}</span>` : ''}</div></div>`;
 }
 
 function kpi(label, value, bg, color) {
-  return `<div style="background:${bg};color:${color || '#fff'};padding:14px;border-radius:8px;text-align:center"><div style="font-size:9px;text-transform:uppercase;opacity:.8;font-weight:700">${label}</div><div style="font-size:18px;font-weight:800;margin-top:4px">${value}</div></div>`;
+  return `<div style="background:${bg};color:${color || '#fff'};padding:14px;border-radius:var(--radius-md);text-align:center"><div style="font-size:11px;text-transform:uppercase;opacity:.8;font-weight:600">${label}</div><div style="font-size:16px;font-weight:600;margin-top:4px">${value}</div></div>`;
 }
 
 function fmt(n) { return 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }

@@ -34,7 +34,7 @@ async function reload(pipelineId) {
     _d = await api.request('/api/v3/crm/house' + q);
   } catch (e) {
     const msg = typeof e.message === 'string' ? e.message : JSON.stringify(e.message || e);
-    const tb = e.data && e.data.tb ? `<pre class="tiny" style="overflow-x:auto;background:var(--bg-1,#f8fafc);padding:8px;border-radius:8px;margin-top:8px">${esc(e.data.tb)}</pre>` : '';
+    const tb = e.data && e.data.tb ? `<pre class="tiny" style="overflow-x:auto;background:var(--bg-1,#f8fafc);padding:8px;border-radius:var(--radius-md);margin-top:8px">${esc(e.data.tb)}</pre>` : '';
     _host.innerHTML = `<div class="card"><div class="alert alert-err">${esc(msg)}</div>${tb}</div>`;
     return;
   }
@@ -48,14 +48,14 @@ function cardHtml(c) {
   const quieto = dp !== null && dp >= 7;
   const dono = (c.user_email || '').split('@')[0];
   return `<div class="ch-card" data-id="${esc(c.id)}"
-    style="background:var(--bg-2);border:1px solid var(--bd,#e2e8f0);border-radius:10px;padding:8px 10px;margin-bottom:6px;cursor:grab">
+    style="background:var(--bg-2);border:1px solid var(--bd,var(--border));border-radius:var(--radius-md);padding:8px 10px;margin-bottom:6px;cursor:grab">
     <div class="flex items-center" style="gap:6px">
       <b style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.name || '(sem nome)')}</b>
       ${c.phone ? `<a class="tiny" href="https://wa.me/55${esc(c.phone)}" target="_blank" rel="noopener" title="Abrir WhatsApp" onclick="event.stopPropagation()">💬</a>` : ''}
     </div>
     <div class="flex" style="gap:4px;flex-wrap:wrap;margin-top:3px;align-items:center">
-      ${Number(c.amount) ? `<span class="tiny" style="color:var(--warn);font-weight:800">💼 ${brl(c.amount)}</span>` : '<span class="tiny muted">sem valor</span>'}
-      ${quieto ? `<span class="tiny" style="background:#64748b1a;color:var(--ink-muted);padding:0 7px;border-radius:999px;font-weight:700">😴 ${dp}d</span>` : ''}
+      ${Number(c.amount) ? `<span class="tiny" style="color:var(--warn);font-weight:600">💼 ${brl(c.amount)}</span>` : '<span class="tiny muted">sem valor</span>'}
+      ${quieto ? `<span class="tiny" style="background:#64748b1a;color:var(--ink-muted);padding:0 7px;border-radius:var(--radius-full);font-weight:600">😴 ${dp}d</span>` : ''}
       ${dono ? `<span class="tiny muted" style="margin-left:auto">👔 ${esc(dono)}</span>` : ''}
     </div>
   </div>`;
@@ -74,13 +74,13 @@ function render() {
     const max = _showMax[s.id] || POR_COL;
     const soma = lista.reduce((a, c) => a + Number(c.amount || 0), 0);
     return `<div class="ch-col" data-stage="${esc(s.id)}"
-      style="min-width:250px;width:250px;flex:0 0 auto;background:var(--bg-1,#f8fafc);border:1px solid var(--bd,#e2e8f0);border-radius:12px;padding:8px;display:flex;flex-direction:column;max-height:72vh">
+      style="min-width:250px;width:250px;flex:0 0 auto;background:var(--bg-1,#f8fafc);border:1px solid var(--bd,var(--border));border-radius:var(--radius-md);padding:8px;display:flex;flex-direction:column;max-height:72vh">
       <div style="padding:2px 4px 8px">
         <div class="flex items-center" style="gap:6px">
           <b style="font-size:13px;flex:1">${esc(s.name)}</b>
           <span class="tiny muted">${lista.length}</span>
         </div>
-        ${soma ? `<div class="tiny" style="color:var(--warn);font-weight:700">${brlK(soma)}</div>` : ''}
+        ${soma ? `<div class="tiny" style="color:var(--warn);font-weight:600">${brlK(soma)}</div>` : ''}
       </div>
       <div style="overflow-y:auto;flex:1;min-height:40px">
         ${lista.slice(0, max).map(cardHtml).join('') || '<div class="tiny muted" style="text-align:center;padding:14px 0">vazio</div>'}
@@ -93,13 +93,13 @@ function render() {
     <div class="card" style="padding:10px 12px">
       <div class="flex items-center" style="gap:6px;flex-wrap:wrap">
         <h2 class="card-title" style="margin:0;font-size:16px">🧲 CRM House PSM</h2>
-        <span class="tiny" style="background:#0f5c431a;color:#0f5c43;padding:0 8px;border-radius:999px;font-weight:800">PILOTO F2</span>
+        <span class="tiny" style="background:#0f5c431a;color:#0f5c43;padding:0 8px;border-radius:var(--radius-full);font-weight:600">PILOTO F2</span>
         <span class="tiny muted">mover card grava evento nativo + sincroniza o RD</span>
         <span style="margin-left:auto"></span>
         <input id="ch-busca" class="input input-sm" placeholder="🔎 nome, fone, corretor" value="${esc(_busca)}" style="width:180px">
         <button class="btn btn-sm btn-ghost" id="ch-reload" title="Atualizar">🔄</button>
       </div>
-      <div class="flex" style="gap:4px;flex-wrap:wrap;margin-top:8px;border-bottom:1px solid var(--bd,#e2e8f0);padding-bottom:6px">
+      <div class="flex" style="gap:4px;flex-wrap:wrap;margin-top:8px;border-bottom:1px solid var(--bd,var(--border));padding-bottom:6px">
         ${(_d.pipelines || []).map(p => `<button class="btn btn-sm ${p.id === _d.pipeline_id ? 'btn-primary' : 'btn-ghost'} ch-pipe" data-id="${esc(p.id)}">${esc(p.name)}</button>`).join('')}
       </div>
       <div class="tiny muted" style="margin-top:6px">
@@ -186,7 +186,7 @@ function abrirCard(id) {
   wrap.innerHTML = `
     <div class="card" style="max-width:420px;width:100%;padding:16px" onclick="event.stopPropagation()">
       <div class="flex items-center" style="gap:8px">
-        <h3 style="margin:0;flex:1;font-size:15px">${esc(c.name || '(sem nome)')}</h3>
+        <h3 style="margin:0;flex:1;font-size:14px">${esc(c.name || '(sem nome)')}</h3>
         <button class="btn btn-sm btn-ghost" id="chm-x">✕</button>
       </div>
       <div class="tiny muted" style="margin-top:6px">📍 ${esc(atual)} ${dp !== null ? `· 😴 ${dp}d sem atualização` : ''}</div>

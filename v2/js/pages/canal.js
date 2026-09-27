@@ -45,8 +45,8 @@ function renderEnviar() {
   const body = document.getElementById('canal-body');
   body.innerHTML = `
     <div style="max-width:640px;margin:0 auto">
-      <div style="background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:16px;padding:24px;border:1px solid #334155">
-        <p style="color:#94a3b8;font-size:13px;margin-bottom:16px">
+      <div style="background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:var(--radius-lg);padding:24px;border:1px solid var(--border)">
+        <p style="color:var(--ink-muted);font-size:13px;margin-bottom:16px">
           Sua mensagem será enviada diretamente para os diretores <b style="color:#f8fafc">Paulo</b> e <b style="color:#f8fafc">Isabella</b>.
           Você pode se identificar ou enviar anonimamente.
         </p>
@@ -55,13 +55,13 @@ function renderEnviar() {
           <span>Desejo me identificar</span>
         </label>
         <div id="ca-nome-wrap" style="display:none;margin-bottom:14px">
-          <input type="text" id="ca-nome" placeholder="Seu nome (opcional)" class="input" style="background:#0f172a;color:#fff;border-color:#475569">
+          <input type="text" id="ca-nome" placeholder="Seu nome (opcional)" class="input" style="background:var(--surface-2);color:#fff;border-color:var(--border)">
         </div>
-        <label class="tiny" style="color:#a5b4fc;font-weight:700;display:block;margin-bottom:6px">✍️ Sua mensagem</label>
-        <textarea id="ca-msg" rows="6" class="input" style="background:#0f172a;color:#fff;border-color:#475569" placeholder="Escreva sua mensagem aqui..."></textarea>
-        <label class="tiny" style="color:#a5b4fc;font-weight:700;display:block;margin:14px 0 6px">📎 Anexar arquivo (foto/doc — máx 2MB)</label>
-        <input type="file" id="ca-file" accept="image/*,.pdf,.doc,.docx" style="font-size:12px;color:#94a3b8">
-        <button class="btn btn-primary" id="ca-send" style="width:100%;margin-top:16px;padding:14px;font-size:15px">🚀 Enviar Mensagem</button>
+        <label class="tiny" style="color:var(--accent-ink);font-weight:600;display:block;margin-bottom:6px">✍️ Sua mensagem</label>
+        <textarea id="ca-msg" rows="6" class="input" style="background:var(--surface-2);color:#fff;border-color:var(--border)" placeholder="Escreva sua mensagem aqui..."></textarea>
+        <label class="tiny" style="color:var(--accent-ink);font-weight:600;display:block;margin:14px 0 6px">📎 Anexar arquivo (foto/doc — máx 2MB)</label>
+        <input type="file" id="ca-file" accept="image/*,.pdf,.doc,.docx" style="font-size:12px;color:var(--ink-muted)">
+        <button class="btn btn-primary" id="ca-send" style="width:100%;margin-top:16px;padding:14px;font-size:14px">🚀 Enviar Mensagem</button>
       </div>
       <div id="ca-status" class="mt-2"></div>
     </div>
@@ -123,7 +123,7 @@ async function renderPainel() {
     _messages = r.messages || [];
     const unread = r.unread || 0;
     const badge = document.getElementById('unread-badge');
-    if (badge) badge.innerHTML = unread > 0 ? ` <span style="background:#ef4444;color:#fff;font-size:10px;padding:1px 6px;border-radius:99px;margin-left:4px;font-weight:800">${unread}</span>` : '';
+    if (badge) badge.innerHTML = unread > 0 ? ` <span style="background:var(--err-soft);color:var(--err);font-size:11px;padding:1px 6px;border-radius:var(--radius-full);margin-left:4px;font-weight:600">${unread}</span>` : '';
     renderMessages();
   } catch (e) {
     body.innerHTML = `<div class="alert alert-err">${escapeHtml(e.message)}</div>`;
@@ -138,7 +138,7 @@ function renderMessages() {
   }
   body.innerHTML = `
     <div class="flex gap-2 mb-3" style="flex-wrap:wrap;align-items:center">
-      <div style="flex:1;font-weight:700">📨 ${_messages.length} mensagens (${_messages.filter(m => !m.lido).length} não lidas)</div>
+      <div style="flex:1;font-weight:600">📨 ${_messages.length} mensagens (${_messages.filter(m => !m.lido).length} não lidas)</div>
       <button class="btn btn-ghost btn-sm" id="mark-all">✅ Marcar todas lidas</button>
     </div>
     <div style="display:flex;flex-direction:column;gap:10px">
@@ -168,16 +168,16 @@ function renderMsgCard(m) {
   const border = m.lido ? 'var(--bd)' : '#6366f1';
   const dt = new Date(m.ts).toLocaleString('pt-BR');
   return `
-    <div style="background:${bg};border:1px solid ${border};border-radius:12px;padding:14px">
+    <div style="background:${bg};border:1px solid ${border};border-radius:var(--radius-md);padding:14px">
       <div class="flex gap-2" style="align-items:flex-start;margin-bottom:10px">
-        <div style="width:36px;height:36px;border-radius:8px;background:${isAnon ? '#475569' : '#6366f1'};display:flex;align-items:center;justify-content:center;font-size:16px">${isAnon ? '🔒' : '👤'}</div>
+        <div style="width:36px;height:36px;border-radius:var(--radius-md);background:${isAnon ? '#475569' : 'var(--accent-soft)'};display:flex;align-items:center;justify-content:center;font-size:16px">${isAnon ? '🔒' : '👤'}</div>
         <div style="flex:1">
-          <div style="font-weight:700;color:${isAnon ? 'var(--muted)' : 'var(--psm-gold)'}">${escapeHtml(m.de)}</div>
+          <div style="font-weight:600;color:${isAnon ? 'var(--muted)' : 'var(--psm-gold)'}">${escapeHtml(m.de)}</div>
           <div class="tiny muted">📅 ${dt}</div>
         </div>
         ${!m.lido ? `<button class="btn btn-ghost btn-sm" data-mark="${m.id}">Marcar lida</button>` : '<span class="tiny muted">✅ Lida</span>'}
       </div>
-      <div style="background:var(--bg-2);padding:12px;border-radius:8px;white-space:pre-wrap;line-height:1.5">${escapeHtml(m.msg)}</div>
+      <div style="background:var(--bg-2);padding:12px;border-radius:var(--radius-md);white-space:pre-wrap;line-height:1.5">${escapeHtml(m.msg)}</div>
       ${m.anexo ? renderAnexo(m) : ''}
     </div>
   `;
@@ -185,7 +185,7 @@ function renderMsgCard(m) {
 
 function renderAnexo(m) {
   if (m.anexo_data && m.anexo_type && m.anexo_type.startsWith('image/')) {
-    return `<div class="mt-2"><div class="tiny muted">📎 ${escapeHtml(m.anexo)}</div><img src="${m.anexo_data}" style="max-width:100%;max-height:400px;border-radius:8px;margin-top:6px;cursor:zoom-in" onclick="window.open(this.src,'_blank')"></div>`;
+    return `<div class="mt-2"><div class="tiny muted">📎 ${escapeHtml(m.anexo)}</div><img src="${m.anexo_data}" style="max-width:100%;max-height:400px;border-radius:var(--radius-md);margin-top:6px;cursor:zoom-in" onclick="window.open(this.src,'_blank')"></div>`;
   }
   if (m.anexo_data) {
     return `<div class="mt-2"><a href="${m.anexo_data}" download="${escapeHtml(m.anexo)}" class="btn btn-ghost btn-sm">⬇ Baixar ${escapeHtml(m.anexo)}</a></div>`;

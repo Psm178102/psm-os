@@ -69,7 +69,7 @@ function render() {
 
       ${semEquipe.length ? `
         <div class="card mt-4" style="border:1px dashed var(--bd)">
-          <div style="font-weight:800;margin-bottom:8px">⚠️ Sem equipe (${semEquipe.length})</div>
+          <div style="font-weight:600;margin-bottom:8px">⚠️ Sem equipe (${semEquipe.length})</div>
           <div style="display:grid;gap:4px">${semEquipe.map(u => brokerLine(u, me, isLider)).join('')}</div>
         </div>
       ` : ''}
@@ -85,7 +85,7 @@ function render() {
 function renderEditor() {
   return `
     <div class="card mt-3" style="background:var(--bg-3);padding:16px">
-      <div style="font-weight:800;margin-bottom:10px">✏️ Editar Equipes</div>
+      <div style="font-weight:600;margin-bottom:10px">✏️ Editar Equipes</div>
       <div id="eq-rows" style="display:flex;flex-direction:column;gap:8px">
         ${_teams.map((t, i) => editorRow(t, i)).join('')}
       </div>
@@ -101,7 +101,7 @@ function renderEditor() {
 function editorRow(t, i) {
   return `
     <div class="flex gap-2" style="align-items:center" data-row="${i}">
-      <input class="input" style="width:50px;text-align:center;font-size:18px" data-f="ico" data-i="${i}" value="${esc(t.ico)}" maxlength="4">
+      <input class="input" style="width:50px;text-align:center;font-size:16px" data-f="ico" data-i="${i}" value="${esc(t.ico)}" maxlength="4">
       <input class="input" style="flex:1" data-f="label" data-i="${i}" value="${esc(t.label)}" placeholder="Nome da equipe">
       <input class="input" type="color" style="width:50px;padding:2px" data-f="color" data-i="${i}" value="${esc(t.color)}">
       <button class="btn btn-ghost btn-sm" data-del-team="${i}" style="color:var(--err-suave)">🗑</button>
@@ -120,13 +120,13 @@ function teamCard(t, users, me, isLider) {
   return `
     <div class="card" style="margin:0;border-top:4px solid ${t.color}">
       <div class="flex items-center gap-2" style="margin-bottom:8px">
-        <span style="font-size:24px">${esc(t.ico)}</span>
+        <span style="font-size:26px">${esc(t.ico)}</span>
         <div style="flex:1">
-          <div style="font-weight:800;font-size:16px">${esc(t.label)}</div>
+          <div style="font-weight:600;font-size:16px">${esc(t.label)}</div>
           <div class="tiny muted">${ativos.length} ativo(s)${inativos ? ` · ${inativos} inativo(s)` : ''}</div>
         </div>
-        ${gerente ? `<span class="tiny" style="background:#7c3aed;color:#fff;padding:3px 8px;border-radius:99px;font-weight:700">🎯 ${esc((gerente.name || '').split(' ')[0])}</span>` : ''}
-        ${lider ? `<span class="tiny" style="background:#059669;color:#fff;padding:3px 8px;border-radius:99px;font-weight:700">🛡 ${esc((lider.name || '').split(' ')[0])}</span>` : ''}
+        ${gerente ? `<span class="tiny" style="background:var(--accent-soft);color:var(--accent-ink);padding:3px 8px;border-radius:var(--radius-full);font-weight:600">🎯 ${esc((gerente.name || '').split(' ')[0])}</span>` : ''}
+        ${lider ? `<span class="tiny" style="background:var(--ok-soft);color:var(--ok);padding:3px 8px;border-radius:var(--radius-full);font-weight:600">🛡 ${esc((lider.name || '').split(' ')[0])}</span>` : ''}
       </div>
       <div style="display:grid;gap:4px;max-height:380px;overflow-y:auto">
         ${sorted.map(u => brokerLine(u, me, isLider)).join('') || '<div class="muted tiny" style="padding:10px">Nenhum ativo.</div>'}
@@ -142,9 +142,9 @@ function brokerLine(u, me, isLider) {
   const roleIco = { socio: '👑', gerente: '🎯', lider: '🛡', backoffice: '📋', marketing: '📢', corretor: '🏠' }[u.role] || '·';
   return `
     <div style="display:grid;grid-template-columns:28px 1fr auto;gap:8px;padding:6px 8px;background:var(--bg-3);border-radius:var(--r-sm);align-items:center;font-size:12.5px${hidden ? ';opacity:0.6' : ''}">
-      <div style="width:24px;height:24px;border-radius:var(--r-sm);background:${u.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:10px">${ini}</div>
+      <div style="width:24px;height:24px;border-radius:var(--r-sm);background:${u.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:11px">${ini}</div>
       <div style="min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-        <b>${esc(u.name || 'Sem nome')}</b>${isMe ? ' <span class="tiny" style="background:var(--psm-navy);color:#fff;padding:1px 6px;border-radius:3px">VOCÊ</span>' : ''}
+        <b>${esc(u.name || 'Sem nome')}</b>${isMe ? ' <span class="tiny" style="background:var(--psm-navy);color:#fff;padding:1px 6px;border-radius:var(--radius-sm)">VOCÊ</span>' : ''}
         <span class="tiny muted">${roleIco}</span>
       </div>
       ${_editMode && isLider ? `

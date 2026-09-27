@@ -99,14 +99,14 @@ export function montarAlertasDecisoes(el) {
     const pend = fontes.filter(k => !d[k]).length;
     const its = gerar();
     if (!its.length) {
-      lista.innerHTML = pend ? '<span class="spinner"></span> <span class="tiny muted">cruzando fronts…</span>' : '<div class="tiny" style="color:#16a34a">✅ Nenhum alerta fora da régua agora.</div>';
+      lista.innerHTML = pend ? '<span class="spinner"></span> <span class="tiny muted">cruzando fronts…</span>' : '<div class="tiny" style="color:var(--ok)">✅ Nenhum alerta fora da régua agora.</div>';
       return;
     }
     lista.innerHTML = its.map((a, i) => `
       <div class="flex items-center gap-2" style="border-top:1px solid var(--border);padding:7px 0;font-size:13px;flex-wrap:wrap">
         <span style="color:${COR[a.nivel] || COR.warn};font-size:13px">●</span>
         <span style="flex:1;min-width:200px">${esc(a.texto)} <span class="tiny muted">· ${esc(a.setor)}</span></span>
-        ${criadas.has(a.texto) ? '<a class="tiny" style="color:#16a34a" href="#/checklist-diretoria">✅ tarefa criada no Checklist</a>'
+        ${criadas.has(a.texto) ? '<a class="tiny" style="color:var(--ok)" href="#/checklist-diretoria">✅ tarefa criada no Checklist</a>'
           : `<button class="btn btn-ghost btn-sm" data-ad="${i}" style="font-size:11px;white-space:nowrap">📌 virar tarefa</button>`}
       </div>`).join('') + (pend ? '<div class="tiny muted" style="padding-top:6px"><span class="spinner"></span> ainda cruzando…</div>' : '');
     lista.querySelectorAll('[data-ad]').forEach(b => b.onclick = async () => {

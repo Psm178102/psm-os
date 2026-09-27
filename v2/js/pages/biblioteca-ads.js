@@ -53,12 +53,12 @@ function card(s) {
   const inv = { alto: ['#dc2626', '🔴 Alto'], medio: ['#d97706', '🟡 Médio'], baixo: ['#16a34a', '🟢 Baixo'] }[s.nivel_invest] || ['#64748b', '—'];
   return `<div data-open="${escapeHtml(s.concorrente)}" style="cursor:pointer;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:12px" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,.08)'" onmouseout="this.style.boxShadow='none'">
     <div class="flex items-center gap-2" style="margin-bottom:6px">
-      <div style="font-weight:800;font-size:14px;flex:1">${escapeHtml(s.concorrente)}</div>
-      <div style="text-align:right"><div style="font-size:22px;font-weight:900">${s.ads_count || 0}</div><div class="tiny muted">anúncios ${deltaTxt}</div></div>
+      <div style="font-weight:600;font-size:14px;flex:1">${escapeHtml(s.concorrente)}</div>
+      <div style="text-align:right"><div style="font-size:20px;font-weight:600">${s.ads_count || 0}</div><div class="tiny muted">anúncios ${deltaTxt}</div></div>
     </div>
     ${s.segmento ? `<div class="tiny muted">🏷 ${escapeHtml(s.segmento)}</div>` : ''}
     <div class="flex items-center gap-2" style="margin-top:6px;flex-wrap:wrap">
-      <span style="font-size:11px;font-weight:700;color:${inv[0]}">💸 ${inv[1]}</span>
+      <span style="font-size:11px;font-weight:600;color:${inv[0]}">💸 ${inv[1]}</span>
       <span class="tiny muted" style="margin-left:auto">${fmtD(s.captured_at)}</span>
     </div>
     ${s.ai_analysis ? '<div class="tiny" style="margin-top:6px;color:var(--roxo);font-weight:600">🧠 análise IA disponível</div>' : ''}
@@ -89,21 +89,21 @@ function renderDetail() {
       <p class="card-sub">${history.length} snapshot(s) · último ${fmtD(cur.captured_at)} · ${cur.ads_count || 0} anúncios ativos${cur.segmento ? ' · ' + escapeHtml(cur.segmento) : ''}</p>
 
       ${history.length > 1 ? `<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:12px;margin-top:10px">
-        <div style="font-weight:800;font-size:13px;margin-bottom:8px">📈 Volume de anúncios ao longo do tempo</div>
+        <div style="font-weight:600;font-size:13px;margin-bottom:8px">📈 Volume de anúncios ao longo do tempo</div>
         <div style="display:flex;align-items:flex-end;gap:6px;height:80px">
           ${history.slice().reverse().map(h => `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px" title="${fmtD(h.captured_at)}: ${h.ads_count||0} anúncios">
-            <div style="font-size:9px;font-weight:700">${h.ads_count||0}</div>
-            <div style="width:100%;max-width:34px;height:${Math.max(4,(h.ads_count||0)/maxC*60)}px;background:#7c3aed;border-radius:4px 4px 0 0"></div>
-            <div style="font-size:8px;color:var(--ink-muted)">${fmtD(h.captured_at).slice(0,5)}</div>
+            <div style="font-size:11px;font-weight:600">${h.ads_count||0}</div>
+            <div style="width:100%;max-width:34px;height:${Math.max(4,(h.ads_count||0)/maxC*60)}px;background:var(--accent-soft);border-radius:4px 4px 0 0"></div>
+            <div style="font-size:11px;color:var(--ink-muted)">${fmtD(h.captured_at).slice(0,5)}</div>
           </div>`).join('')}
         </div></div>` : ''}
 
-      ${cur.ai_analysis ? `<div style="margin-top:12px;background:linear-gradient(180deg,rgba(124,58,237,.06),transparent);border:1px solid rgba(124,58,237,.25);border-radius:var(--r-md);padding:14px 16px">
-        <div style="font-weight:800;font-size:13px;color:var(--roxo);margin-bottom:8px">🧠 Análise da IA</div>
+      ${cur.ai_analysis ? `<div style="margin-top:12px;background:linear-gradient(180deg,rgba(124,58,237,.06),transparent);border:1px solid var(--accent-ink);border-radius:var(--r-md);padding:14px 16px">
+        <div style="font-weight:600;font-size:13px;color:var(--roxo);margin-bottom:8px">🧠 Análise da IA</div>
         <div style="font-size:13px;line-height:1.55">${mdLite(cur.ai_analysis)}</div></div>` : '<div class="muted tiny" style="margin-top:12px">Sem análise da IA neste snapshot.</div>'}
 
-      ${cur.conteudo ? `<details style="margin-top:12px"><summary style="cursor:pointer;font-weight:700;font-size:13px">📋 Anúncios capturados (texto)</summary>
-        <pre style="white-space:pre-wrap;font-size:12px;background:var(--bg-3);border-radius:8px;padding:12px;margin-top:8px;max-height:400px;overflow:auto">${escapeHtml(cur.conteudo)}</pre></details>` : ''}
+      ${cur.conteudo ? `<details style="margin-top:12px"><summary style="cursor:pointer;font-weight:600;font-size:13px">📋 Anúncios capturados (texto)</summary>
+        <pre style="white-space:pre-wrap;font-size:12px;background:var(--bg-3);border-radius:var(--radius-md);padding:12px;margin-top:8px;max-height:400px;overflow:auto">${escapeHtml(cur.conteudo)}</pre></details>` : ''}
 
       <div id="bl-modal" style="display:none"></div>
     </div>`;
@@ -200,7 +200,7 @@ Na ÚLTIMA linha escreva só: NIVEL_INVEST: baixo|medio|alto${cont ? '\n\nANÚNC
       if (m) { nivel = m[1].toLowerCase().replace('é', 'e'); txt = txt.replace(/NIVEL_INVEST:.*/i, '').trim(); }
       _aiPreview = { text: txt, nivel };
       status.innerHTML = `<span style="color:var(--ok)">✓ análise pronta${imgs.length ? ' · ' + imgs.length + ' criativo(s) lido(s) pela visão' : ''} · ${escapeHtml(j.model_used || 'IA')} (será salva)</span>`;
-      document.getElementById('bl-ai-prev').innerHTML = `<div style="background:rgba(124,58,237,.06);border:1px solid rgba(124,58,237,.25);border-radius:8px;padding:12px;font-size:12.5px;line-height:1.5;max-height:320px;overflow:auto">${mdLite(txt)}</div>`;
+      document.getElementById('bl-ai-prev').innerHTML = `<div style="background:var(--accent-soft);border:1px solid var(--accent-ink);border-radius:var(--radius-md);padding:12px;font-size:13px;line-height:1.5;max-height:320px;overflow:auto">${mdLite(txt)}</div>`;
     } else {
       status.innerHTML = '<span style="color:var(--err)">IA indisponível: ' + escapeHtml(j.error || 'erro') + '</span>';
     }
@@ -248,7 +248,7 @@ function readImageScaled(file, maxDim = 1024, quality = 0.8) {
 /* ─── helpers ─── */
 function mdLite(t) {
   return escapeHtml(t)
-    .replace(/^#{1,3} (.*)$/gm, '<div style="font-weight:800;margin:8px 0 2px">$1</div>')
+    .replace(/^#{1,3} (.*)$/gm, '<div style="font-weight:600;margin:8px 0 2px">$1</div>')
     .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
     .replace(/^\s*\d+\)\s*(.*)$/gm, '<div style="margin:3px 0"><b>•</b> $1</div>')
     .replace(/^\s*[-*] (.*)$/gm, '<div style="margin:2px 0 2px 12px">• $1</div>')

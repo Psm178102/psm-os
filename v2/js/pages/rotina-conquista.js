@@ -23,7 +23,7 @@ const CAD = [
   { id: 'diario', lbl: 'Todo dia' }, { id: 'semanal', lbl: 'Toda semana' }, { id: 'quinzenal', lbl: 'A cada 15 dias' },
   { id: 'mensal', lbl: 'Todo mês' }, { id: 'trimestral', lbl: 'Todo trimestre' },
 ];
-const COR = { verde: '#16a34a', amarelo: '#d97706', vermelho: '#dc2626', cinza: '#94a3b8', info: '#0891b2' };
+const COR = { verde: '#16a34a', amarelo: '#d97706', vermelho: '#dc2626', cinza: '#94a3b8', info: '#806d50' };
 
 export async function pageRotinaConquista(ctx, root) { return pageRotina(root, 'conquista'); }
 export async function pageRotinaImoveis(ctx, root) { return pageRotina(root, 'imoveis'); }
@@ -90,7 +90,7 @@ function render() {
       ${tarefasHTML(qa)}
       ${tarefasHTML(qb)}
     </div>
-    <div class="card mt-3"><div style="font-weight:800">📊 Acompanhamento — Farol ${esc(r.titulo || 'PSM Conquista')}</div>
+    <div class="card mt-3"><div style="font-weight:600">📊 Acompanhamento — Farol ${esc(r.titulo || 'PSM Conquista')}</div>
       <div id="rc-placar" class="mt-2"><div class="tiny muted"><span class="spinner"></span> Carregando o placar…</div></div></div>
     ${pendenciasHTML(pend)}
     ${funcoesHTML()}`;
@@ -98,9 +98,9 @@ function render() {
 }
 
 function tile(lbl, val, sub, cor) {
-  return `<div style="background:var(--bg-3);border-radius:8px;padding:10px;border-top:3px solid ${cor || COR.cinza}">
+  return `<div style="background:var(--bg-3);border-radius:var(--radius-md);padding:10px;border-top:3px solid ${cor || COR.cinza}">
     <div class="tiny muted" style="text-transform:uppercase;letter-spacing:.5px">${lbl}</div>
-    <div style="font-size:22px;font-weight:800;color:${cor || 'inherit'}">${val}</div><div class="tiny muted">${sub}</div></div>`;
+    <div style="font-size:20px;font-weight:600;color:${cor || 'inherit'}">${val}</div><div class="tiny muted">${sub}</div></div>`;
 }
 const pct = v => v == null ? '—' : v + '%';
 const corPct = v => v == null ? COR.cinza : v >= 80 ? COR.verde : v >= 50 ? COR.amarelo : COR.vermelho;
@@ -112,7 +112,7 @@ function trilhaHTML() {
     <div class="flex gap-1" style="align-items:flex-end;height:46px;margin-top:4px">
       ${s.map(w => `<div title="semana de ${w.semana.split('-').reverse().slice(0, 2).join('/')}: ${pct(w.pct)}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
         <div style="width:100%;max-width:38px;height:${w.pct == null ? 3 : Math.max(3, w.pct * 0.34)}px;background:${w.pct == null ? 'var(--bg-3)' : corPct(w.pct)};border-radius:3px 3px 0 0"></div>
-        <div class="tiny muted" style="font-size:9px">${w.semana.split('-').reverse().slice(0, 2).join('/')}</div></div>`).join('')}
+        <div class="tiny muted" style="font-size:11px">${w.semana.split('-').reverse().slice(0, 2).join('/')}</div></div>`).join('')}
     </div>`;
 }
 
@@ -138,13 +138,13 @@ function semanaHTML() {
   const dias = diasSemana();
   const fs = formatosRotina();
   return `<div class="card mt-3">
-    <div style="font-weight:800">📅 Esta semana — reuniões</div>
+    <div style="font-weight:600">📅 Esta semana — reuniões</div>
     <div class="tiny muted">${_un === 'imoveis' ? 'A Semanal MAP + as reuniões da diretoria/equipe de que a unidade participa' : 'As 5 reuniões Isa × Kaue + as da diretoria/equipe de que ela participa'}. Lembrete automático 30 min antes; sem ata, o rito não aconteceu.</div>
-    <div style="overflow-x:auto;margin-top:8px"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:640px">
+    <div style="overflow-x:auto;margin-top:8px"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:640px">
       <thead><tr class="tiny muted"><th style="text-align:left;padding:4px 6px">Reunião</th>
-        ${dias.map(d => `<th style="padding:4px;text-align:center;${ymd(d) === _r.hoje ? 'color:var(--psm-navy);font-weight:800' : ''}">${DIAS[(d.getDay() + 6) % 7]} ${d.getDate()}/${d.getMonth() + 1}</th>`).join('')}</tr></thead>
+        ${dias.map(d => `<th style="padding:4px;text-align:center;${ymd(d) === _r.hoje ? 'color:var(--psm-navy);font-weight:600' : ''}">${DIAS[(d.getDay() + 6) % 7]} ${d.getDate()}/${d.getMonth() + 1}</th>`).join('')}</tr></thead>
       <tbody>${fs.map(f => `<tr style="border-top:1px solid var(--border)">
-        <td style="padding:6px"><div style="font-weight:700">${esc(f.emoji || '📋')} ${esc(f.nome)}</div>
+        <td style="padding:6px"><div style="font-weight:600">${esc(f.emoji || '📋')} ${esc(f.nome)}</div>
           <div class="tiny muted">${esc(f.hora || '')} · ${f.dur_min || '?'} min · dono ${esc(f.dono || '—')} · <a href="${esc(f.painel || '#/')}">${esc(f.painel_nome || 'painel')}</a></div></td>
         ${dias.map(d => celula(f, d)).join('')}</tr>`).join('')}</tbody>
     </table></div></div>`;
@@ -158,7 +158,7 @@ function celula(f, d) {
   else if (dia === _r.hoje) { ico = '●'; cor = COR.amarelo; tit = 'hoje'; }
   else { ico = '⏳'; cor = COR.cinza; tit = 'por vir'; }
   const pode = _f.pode_ata && !ata && dia <= _r.hoje;
-  return `<td style="padding:3px;text-align:center"><div title="${tit}" style="border-radius:6px;padding:4px 0;background:${cor}1f;color:${cor};font-weight:800">${ico}
+  return `<td style="padding:3px;text-align:center"><div title="${tit}" style="border-radius:var(--radius-sm);padding:4px 0;background:${cor}1f;color:${cor};font-weight:600">${ico}
     ${pode ? `<div><a href="javascript:void 0" class="tiny" data-ata="${esc(f.id)}" data-dia="${dia}">registrar ata</a></div>` : ''}</div></td>`;
 }
 
@@ -167,12 +167,12 @@ function ataForm(fid, dia) {
   const el = document.getElementById('rc-ata');
   _ataAberta = { fid, pend: [{ txt: '', dono: primeiro((_r.quens || [])[1] || 'kaue'), prazo: '' }] };
   el.innerHTML = `<div class="card mt-3" style="border:2px solid var(--psm-navy)">
-    <div class="flex" style="justify-content:space-between"><div style="font-weight:800">📝 Ata — ${esc(f.emoji || '')} ${esc(f.nome || fid)} · ${dia.split('-').reverse().join('/')}</div>
+    <div class="flex" style="justify-content:space-between"><div style="font-weight:600">📝 Ata — ${esc(f.emoji || '')} ${esc(f.nome || fid)} · ${dia.split('-').reverse().join('/')}</div>
       <button class="btn btn-ghost btn-sm" id="rc-ata-x">✕</button></div>
     <div class="tiny muted mb-2">Pauta: ${(f.pauta || []).map(esc).join(' · ')}</div>
     <label class="tiny muted">Decisões (3 linhas bastam)</label>
     <textarea id="rc-ata-dec" class="input" rows="3" placeholder="O que foi decidido"></textarea>
-    <div class="tiny muted mt-2" style="font-weight:700">Pendências — sem dono e prazo, não existe</div>
+    <div class="tiny muted mt-2" style="font-weight:600">Pendências — sem dono e prazo, não existe</div>
     <div id="rc-ata-pend"></div>
     <div class="flex gap-1 mt-2"><button class="btn btn-ghost btn-sm" id="rc-ata-add">➕ pendência</button>
       <button class="btn btn-primary" id="rc-ata-ok" style="margin-left:auto">💾 Salvar ata</button></div>
@@ -202,17 +202,17 @@ function tarefasHTML(quem) {
   const p = _r.papeis[quem];
   const ts = _r.tarefas.filter(t => t.quem === quem);
   const a = _r.aderencia.semana[quem];
-  return `<div class="card" style="border-top:4px solid ${quem === (_r.quens || ['isa'])[0] ? 'var(--psm-gold,#d4a843)' : 'var(--psm-navy,#0b1f3a)'}">
-    <div class="flex" style="justify-content:space-between;align-items:center"><div style="font-weight:800">✅ Tarefas — ${esc(p.nome)}</div>
-      <span class="tiny" style="font-weight:700;color:${corPct(a)}">semana ${pct(a)}</span></div>
+  return `<div class="card" style="border-top:4px solid ${quem === (_r.quens || ['isa'])[0] ? 'var(--psm-gold,var(--accent-ink))' : 'var(--psm-navy,var(--accent-ink))'}">
+    <div class="flex" style="justify-content:space-between;align-items:center"><div style="font-weight:600">✅ Tarefas — ${esc(p.nome)}</div>
+      <span class="tiny" style="font-weight:600;color:${corPct(a)}">semana ${pct(a)}</span></div>
     <div class="tiny muted">${esc(p.cargo)}</div>
     ${CAD.map(c => {
       const g = ts.filter(t => t.cad === c.id);
       if (!g.length) return '';
-      return `<div class="tiny" style="font-weight:800;letter-spacing:1px;text-transform:uppercase;opacity:.55;margin-top:10px">${c.lbl}</div>
+      return `<div class="tiny" style="font-weight:600;letter-spacing:1px;text-transform:uppercase;opacity:.55;margin-top:10px">${c.lbl}</div>
         ${g.map(t => `<label class="flex gap-2" style="align-items:flex-start;padding:5px 0;border-top:1px dashed var(--border);cursor:${t.pode ? 'pointer' : 'default'}">
           <input type="checkbox" data-t="${t.id}" ${t.feito ? 'checked' : ''} ${t.pode ? '' : 'disabled'} style="margin-top:3px">
-          <span style="flex:1;font-size:12.5px;${t.feito ? 'text-decoration:line-through;opacity:.6' : ''}">${esc(t.txt)}
+          <span style="flex:1;font-size:13px;${t.feito ? 'text-decoration:line-through;opacity:.6' : ''}">${esc(t.txt)}
             ${t.porque ? `<span class="tiny muted"> — ${esc(t.porque)}</span>` : ''}
             ${t.feito ? `<span class="tiny muted"> · ✓ ${esc(t.feito.por || '')} ${new Date(t.feito.ts).toLocaleDateString('pt-BR')}</span>` : ''}</span>
           ${t.link ? `<a href="${esc(t.link)}" class="tiny" title="abrir a tela">abrir →</a>` : ''}
@@ -228,8 +228,8 @@ function placarHTML() {
   const fmt = (v, un) => v == null ? '—' : un === 'R$' ? 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : un === '%' ? v.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + '%' : v.toLocaleString('pt-BR');
   return `<div class="tiny muted">Mês em andamento: ${_sc.ritmo}% decorrido · dono do placar: ${esc(sc.dono_nome)} · <a href="#/scorecard">abrir Farol PSM →</a></div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:6px;margin-top:6px">
-    ${sc.indicadores.map(i => `<div style="background:var(--bg-3);border-radius:8px;padding:8px;border-left:3px solid ${COR[i.farol] || COR.cinza}">
-      <div class="tiny muted">${esc(i.label)}</div><div style="font-weight:800">${fmt(i.valor, i.un)}</div>
+    ${sc.indicadores.map(i => `<div style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px;border-left:3px solid ${COR[i.farol] || COR.cinza}">
+      <div class="tiny muted">${esc(i.label)}</div><div style="font-weight:600">${fmt(i.valor, i.un)}</div>
       <div class="tiny" style="color:${COR[i.farol] || COR.cinza}">${i.meta != null ? 'meta ' + fmt(i.meta, i.un) + (i.pct != null ? ' · ' + i.pct + '%' : '') : 'sem meta'}</div></div>`).join('')}
   </div>`;
 }
@@ -240,11 +240,11 @@ function pendencias() {
 }
 function pendenciasHTML(pend) {
   const nome = id => ((_f.formatos || []).find(f => f.id === id) || {}).nome || id;
-  return `<div class="card mt-3"><div style="font-weight:800">📌 Pendências abertas das reuniões (${pend.length})</div>
-    ${pend.length ? pend.sort((a, b) => String(a.prazo).localeCompare(String(b.prazo))).map(p => `<div class="flex gap-2" style="align-items:center;padding:5px 0;border-top:1px dashed var(--border);font-size:12.5px;flex-wrap:wrap">
+  return `<div class="card mt-3"><div style="font-weight:600">📌 Pendências abertas das reuniões (${pend.length})</div>
+    ${pend.length ? pend.sort((a, b) => String(a.prazo).localeCompare(String(b.prazo))).map(p => `<div class="flex gap-2" style="align-items:center;padding:5px 0;border-top:1px dashed var(--border);font-size:13px;flex-wrap:wrap">
       <span style="flex:1;min-width:200px">${esc(p.txt)}<div class="tiny muted">${esc(nome(p.formato_id))}</div></span>
       <span class="tiny">👤 ${esc(p.dono)}</span>
-      <span class="tiny" style="color:${p.prazo < _r.hoje ? COR.vermelho : 'inherit'};font-weight:700">${p.prazo < _r.hoje ? '⚠ ' : ''}${String(p.prazo).split('-').reverse().join('/')}</span>
+      <span class="tiny" style="color:${p.prazo < _r.hoje ? COR.vermelho : 'inherit'};font-weight:600">${p.prazo < _r.hoje ? '⚠ ' : ''}${String(p.prazo).split('-').reverse().join('/')}</span>
       ${_f.pode_ata ? `<button class="btn btn-ghost btn-sm" data-baixa="${esc(p.ata_id)}" data-idx="${p.idx}">✓ feito</button>` : ''}
     </div>`).join('') : '<div class="tiny muted mt-1">Nenhuma — toda pendência sai de uma ata, com dono e prazo.</div>'}
   </div>`;
@@ -254,14 +254,14 @@ function funcoesHTML() {
   const p = _r.papeis;
   const [qa, qb] = _r.quens || ['isa', 'kaue'];
   const COL = { R: ['Executa', COR.info], A: ['Aprova / responde', COR.verde], C: ['Consultado', COR.amarelo], I: ['Informado', COR.cinza] };
-  const tag = v => `<span title="${COL[v][0]}" style="display:inline-block;min-width:26px;text-align:center;font-weight:800;border-radius:6px;padding:2px 6px;background:${COL[v][1]}22;color:${COL[v][1]}">${v}</span>`;
-  const mand = q => `<div><div style="font-weight:800">${esc(p[q].nome)}</div><div class="tiny muted">${esc(p[q].cargo)}</div>
-    <ul style="margin:6px 0 0 18px;font-size:12.5px;line-height:1.6">${p[q].mandato.map(m => `<li>${esc(m)}</li>`).join('')}</ul></div>`;
-  return `<div class="card mt-3"><div style="font-weight:800">🧭 Funções e responsabilidades</div>
+  const tag = v => `<span title="${COL[v][0]}" style="display:inline-block;min-width:26px;text-align:center;font-weight:600;border-radius:var(--radius-sm);padding:2px 6px;background:${COL[v][1]}22;color:${COL[v][1]}">${v}</span>`;
+  const mand = q => `<div><div style="font-weight:600">${esc(p[q].nome)}</div><div class="tiny muted">${esc(p[q].cargo)}</div>
+    <ul style="margin:6px 0 0 18px;font-size:13px;line-height:1.6">${p[q].mandato.map(m => `<li>${esc(m)}</li>`).join('')}</ul></div>`;
+  return `<div class="card mt-3"><div style="font-weight:600">🧭 Funções e responsabilidades</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:8px">${mand(qa)}${mand(qb)}</div>
-    <div style="font-weight:700;margin-top:14px">Quem decide o quê</div>
+    <div style="font-weight:600;margin-top:14px">Quem decide o quê</div>
     <div class="tiny muted">R = executa · A = aprova e responde pelo resultado · C = é consultado antes · I = é informado depois</div>
-    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px;min-width:420px">
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:6px;min-width:420px">
       <thead><tr class="tiny muted"><th style="text-align:left;padding:4px 6px">Assunto</th><th style="padding:4px">${esc(primeiro(qa))}</th><th style="padding:4px">${esc(qb === 'map' ? 'Equipe MAP' : primeiro(qb))}</th></tr></thead>
       <tbody>${_r.raci.map(x => `<tr style="border-top:1px solid var(--border)"><td style="padding:5px 6px">${esc(x.assunto)}</td><td style="text-align:center">${tag(x[qa])}</td><td style="text-align:center">${tag(x[qb])}</td></tr>`).join('')}</tbody>
     </table></div></div>`;

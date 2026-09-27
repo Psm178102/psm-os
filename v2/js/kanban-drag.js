@@ -31,7 +31,7 @@ export function ativarDrag({ host, card, coluna, colDe, aoSoltar, aoClicar }) {
     if (col === colAtual) return;
     if (colAtual) colAtual.style.outline = '';
     colAtual = col;
-    if (colAtual) colAtual.style.outline = '2px dashed #2563eb';
+    if (colAtual) colAtual.style.outline = '2px dashed #806d50';
   };
 
   const limpar = () => {

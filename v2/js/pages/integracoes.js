@@ -48,26 +48,26 @@ async function loadZohoEquipe() {
 
   host.innerHTML = `
     <div class="flex items-center" style="gap:10px;flex-wrap:wrap">
-      <div><div class="tiny muted">Adesão da equipe</div><div style="font-weight:900;font-size:22px">${d.conectados}/${d.total} <span class="tiny muted">(${pctv}%)</span></div></div>
-      ${erro.length ? `<div style="background:#f59e0b18;border-radius:10px;padding:6px 12px;border-left:3px solid #f59e0b"><div class="tiny muted">Conectados com problema</div><div style="font-weight:800">${erro.length}</div></div>` : ''}
-      <span class="tiny muted" style="margin-left:auto">DC <b>${escapeHtml(d.dc)}</b> · redirect <code style="font-size:10px">${escapeHtml(d.redirect_uri)}</code></span>
+      <div><div class="tiny muted">Adesão da equipe</div><div style="font-weight:600;font-size:20px">${d.conectados}/${d.total} <span class="tiny muted">(${pctv}%)</span></div></div>
+      ${erro.length ? `<div style="background:var(--warn-soft);border-radius:var(--radius-md);padding:6px 12px;border-left:3px solid var(--warn)"><div class="tiny muted">Conectados com problema</div><div style="font-weight:600">${erro.length}</div></div>` : ''}
+      <span class="tiny muted" style="margin-left:auto">DC <b>${escapeHtml(d.dc)}</b> · redirect <code style="font-size:11px">${escapeHtml(d.redirect_uri)}</code></span>
     </div>
-    <div style="height:8px;background:var(--bd,#eef2f7);border-radius:20px;overflow:hidden;margin:8px 0">
-      <div style="height:100%;width:${pctv}%;background:${pctv === 100 ? '#16a34a' : '#2563eb'};border-radius:20px"></div>
+    <div style="height:8px;background:var(--bd,#eef2f7);border-radius:var(--radius-lg);overflow:hidden;margin:8px 0">
+      <div style="height:100%;width:${pctv}%;background:${pctv === 100 ? 'var(--ok-soft)' : 'var(--accent-soft)'};border-radius:var(--radius-lg)"></div>
     </div>
-    ${pend.length ? `<div class="tiny" style="background:#2563eb10;padding:8px 10px;border-radius:8px;border-left:3px solid #2563eb">
+    ${pend.length ? `<div class="tiny" style="background:var(--accent-soft);padding:8px 10px;border-radius:var(--radius-md);border-left:3px solid var(--accent-ink)">
       <b>Ainda não conectaram (${pend.length}):</b> ${pend.map(u => escapeHtml(u.nome || u.email)).join(' · ')}
       <div class="muted mt-1">Peça pra abrirem a <b>Agenda</b> e clicarem em “🔗 Conectar meu Zoho”. Cada um autoriza a própria conta — ninguém conecta pelo outro.</div>
     </div>` : '<div class="alert alert-ok tiny">🎉 Todo mundo conectado.</div>'}
     <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:13px">
       <tr class="tiny muted" style="text-align:left"><th style="padding:4px 8px">Pessoa</th><th>Conta Zoho</th><th style="text-align:right">Última sync</th><th style="text-align:right">Status</th></tr>
-      ${(d.equipe || []).map(u => `<tr style="border-top:1px solid var(--bd,#eef2f7)">
+      ${(d.equipe || []).map(u => `<tr style="border-top:1px solid var(--bd,var(--border))">
         <td style="padding:6px 8px">${escapeHtml(u.nome || '—')}<div class="tiny muted">${escapeHtml(u.papel || '')}</div></td>
         <td class="tiny">${escapeHtml(u.zoho_email || '—')}</td>
         <td style="text-align:right" class="tiny">${u.min_desde_sync == null ? '—' : (u.min_desde_sync < 60 ? u.min_desde_sync + ' min' : Math.round(u.min_desde_sync / 60) + ' h')}</td>
         <td style="text-align:right">${u.conectado
-          ? (u.saudavel ? '<span class="tiny" style="color:var(--ok);font-weight:700">✅ ok</span>'
-                        : `<span class="tiny" style="color:#f59e0b;font-weight:700">⚠️ ${u.erros ? u.erros + ' erro(s)' : 'sem sync'}</span>`)
+          ? (u.saudavel ? '<span class="tiny" style="color:var(--ok);font-weight:600">✅ ok</span>'
+                        : `<span class="tiny" style="color:var(--warn);font-weight:600">⚠️ ${u.erros ? u.erros + ' erro(s)' : 'sem sync'}</span>`)
           : '<span class="tiny muted">— não conectou</span>'}</td>
       </tr>`).join('')}
     </table>`;
@@ -101,7 +101,7 @@ function render() {
       </div>
 
       ${isSocio ? `
-        <h3 class="card-title mt-4">🏢 Kenlo Imob (Import imóveis terceiros) <span style="font-size:11px;font-weight:700;background:color-mix(in srgb, var(--warn) 18%, transparent);color:var(--warn-escuro);padding:1px 7px;border-radius:999px;vertical-align:middle">em breve</span></h3>
+        <h3 class="card-title mt-4">🏢 Kenlo Imob (Import imóveis terceiros) <span style="font-size:11px;font-weight:600;background:color-mix(in srgb, var(--warn) 18%, transparent);color:var(--warn-escuro);padding:1px 7px;border-radius:var(--radius-full);vertical-align:middle">em breve</span></h3>
         <p class="tiny muted">Importará imóveis do painel Kenlo → tabela imóveis (origem='terceiros'). Integração ainda não implementada — depende da liberação da API Kenlo (KENLO_API_TOKEN).</p>
         <div class="card" style="background:var(--bg-3);margin:8px 0;padding:14px">
           <button class="btn btn-primary" id="kenlo-sync" disabled title="Em breve — integração Kenlo não implementada" style="opacity:0.5;cursor:not-allowed">⚡ Disparar sync (em breve)</button>
@@ -115,7 +115,7 @@ function render() {
         ${EXPORTS.map(e => `
           <button class="btn btn-ghost" data-export="${e.id}" style="display:flex;align-items:center;gap:8px;justify-content:flex-start;padding:12px 16px;text-align:left">
             <div style="flex:1">
-              <div style="font-weight:700;font-size:13px">${e.lbl}</div>
+              <div style="font-weight:600;font-size:13px">${e.lbl}</div>
               <div class="tiny muted">${e.desc}</div>
             </div>
             <span>⬇</span>

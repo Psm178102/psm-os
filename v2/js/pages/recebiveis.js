@@ -11,7 +11,7 @@ const dBR = s => (s || '').slice(0, 10).split('-').reverse().join('/');
 const MARCOS = ['ganho', 'dossie_correspondente', 'credito_aprovado', 'contrato_assinado', 'nota_solicitada', 'comissao_liberada', 'recebido'];
 const MARCO_LBL = { ganho: '🏁 Ganho', dossie_correspondente: '📂 Dossiê', credito_aprovado: '🏦 Crédito', contrato_assinado: '✍️ Assinado', nota_solicitada: '🧾 Nota', comissao_liberada: '💸 Liberada', recebido: '✅ Recebido' };
 const BLOQ_LBL = { nenhum: '—', nota_fiscal: '🧾 Nota fiscal', assinatura_financiamento: '✍️ Assinatura financ.', liberacao_incorporadora: '🏗 Liberação incorp.', outro: '⚠️ Outro' };
-const ST_COR = { previsto: '#64748b', travado: '#dc2626', confirmado: '#16a34a', recebido: '#0891b2', perdido: '#94a3b8' };
+const ST_COR = { previsto: '#64748b', travado: '#dc2626', confirmado: '#16a34a', recebido: '#806d50', perdido: '#94a3b8' };
 const FRENTES = ['conquista', 'map', 'terceiros', 'locacao'];
 
 let _c = null, _d = null, _users = [], _edit = null;
@@ -51,16 +51,16 @@ function draw() {
   const recebidos = itens.filter(r => r.status === 'recebido');
   const travBreak = Object.entries(k.travado || {}).map(([b, v]) => `${BLOQ_LBL[b] || b} ${brl(v)}`).join(' · ');
 
-  const kpi = (lbl, val, cor, sub) => `<div style="flex:1;min-width:190px;background:${cor}12;border-left:4px solid ${cor};border-radius:10px;padding:12px 14px">
-    <div class="tiny muted" style="font-weight:700">${lbl}</div>
-    <div style="font-size:22px;font-weight:800;color:${cor}">${val}</div>
+  const kpi = (lbl, val, cor, sub) => `<div style="flex:1;min-width:190px;background:${cor}12;border-left:4px solid ${cor};border-radius:var(--radius-md);padding:12px 14px">
+    <div class="tiny muted" style="font-weight:600">${lbl}</div>
+    <div style="font-size:20px;font-weight:600;color:${cor}">${val}</div>
     ${sub ? `<div class="tiny muted">${sub}</div>` : ''}</div>`;
 
   _c.innerHTML = `
     <div class="flex" style="gap:10px;flex-wrap:wrap">
       ${kpi('✅ Confirmado · próximos 7 dias', brl(k.confirmado_7d), '#16a34a')}
       ${kpi('⛔ Travado', brl(k.travado_total), '#dc2626', travBreak || 'nenhum bloqueio')}
-      ${kpi('📅 Previsto no mês', brl(k.previsto_mes), '#2563eb', `recebido: ${brl(k.recebido_mes)}`)}
+      ${kpi('📅 Previsto no mês', brl(k.previsto_mes), '#806d50', `recebido: ${brl(k.recebido_mes)}`)}
     </div>
     <div class="card mt-2">
       <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
@@ -81,16 +81,16 @@ function linha(r) {
   const vencido = dd !== null && dd < 0 && r.status !== 'recebido';
   const cor = vencido ? '#dc2626' : (ST_COR[r.status] || '#64748b');
   const mi = MARCOS.indexOf(r.marco_atual || 'ganho');
-  const esteira = MARCOS.map((m, i) => `<span title="${MARCO_LBL[m]}" style="width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:2px;background:${i <= mi ? '#16a34a' : 'var(--border-2,#dacfa9)'}"></span>`).join('');
+  const esteira = MARCOS.map((m, i) => `<span title="${MARCO_LBL[m]}" style="width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:2px;background:${i <= mi ? 'var(--ok-soft)' : 'var(--border-2,#dacfa9)'}"></span>`).join('');
   const prem = r.premiacao && (r.premiacao.detalhe || r.premiacao.valor)
-    ? `<span class="tiny" style="background:#7c3aed18;color:var(--roxo);border-radius:12px;padding:1px 8px">🎁 ${r.premiacao.tipo === 'percentual' ? (r.premiacao.valor || 0) + '%' : r.premiacao.tipo === 'valor' ? brl(r.premiacao.valor) : esc(r.premiacao.detalhe || 'produto')}</span>` : '';
-  return `<div data-rc="${esc(r.id)}" style="border-left:4px solid ${cor};background:${vencido ? '#dc262608' : 'var(--bg-2,#fff)'};border-radius:10px;padding:10px 12px;margin-top:8px">
+    ? `<span class="tiny" style="background:var(--accent-soft);color:var(--roxo);border-radius:var(--radius-md);padding:1px 8px">🎁 ${r.premiacao.tipo === 'percentual' ? (r.premiacao.valor || 0) + '%' : r.premiacao.tipo === 'valor' ? brl(r.premiacao.valor) : esc(r.premiacao.detalhe || 'produto')}</span>` : '';
+  return `<div data-rc="${esc(r.id)}" style="border-left:4px solid ${cor};background:${vencido ? '#dc262608' : 'var(--bg-2,#fff)'};border-radius:var(--radius-md);padding:10px 12px;margin-top:8px">
     <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
       <b style="font-size:14px">${esc(r.descricao)}</b>
-      <span class="tiny" style="color:${ST_COR[r.status]};font-weight:800">● ${r.status}</span>
-      ${(r.bloqueio || 'nenhum') !== 'nenhum' ? `<span class="tiny" style="background:#dc262615;color:var(--err);border-radius:12px;padding:1px 9px;font-weight:800">⛔ ${BLOQ_LBL[r.bloqueio] || r.bloqueio}${r.bloqueio_obs ? ' · ' + esc(r.bloqueio_obs) : ''}</span>` : ''}
+      <span class="tiny" style="color:${ST_COR[r.status]};font-weight:600">● ${r.status}</span>
+      ${(r.bloqueio || 'nenhum') !== 'nenhum' ? `<span class="tiny" style="background:var(--err-soft);color:var(--err);border-radius:var(--radius-md);padding:1px 9px;font-weight:600">⛔ ${BLOQ_LBL[r.bloqueio] || r.bloqueio}${r.bloqueio_obs ? ' · ' + esc(r.bloqueio_obs) : ''}</span>` : ''}
       ${prem}
-      <span style="margin-left:auto;font-weight:800;color:${cor}">${r.valor_liquido_estimado != null ? brl(r.valor_liquido_estimado) : '💬 valor a definir'}</span>
+      <span style="margin-left:auto;font-weight:600;color:${cor}">${r.valor_liquido_estimado != null ? brl(r.valor_liquido_estimado) : '💬 valor a definir'}</span>
     </div>
     <div class="flex items-center tiny muted" style="gap:10px;flex-wrap:wrap;margin-top:4px">
       <span>${esteira} ${MARCO_LBL[r.marco_atual] || r.marco_atual}</span>
@@ -98,13 +98,13 @@ function linha(r) {
       <span>🏷 ${esc(r.frente)}</span>
       <span>👤 ${esc(nome(r.dono_cobranca))}</span>
       ${r.corretor_id ? `<span>🤝 ${esc(nome(r.corretor_id))}</span>` : ''}
-      <span style="font-weight:700;color:${vencido ? '#dc2626' : 'inherit'}">${r.data_prevista ? '📅 ' + dBR(r.data_prevista) + (dd !== null ? (dd >= 0 ? ` (em ${dd}d)` : ` (⚠️ há ${-dd}d)`) : '') : '📅 sem data'}</span>
+      <span style="font-weight:600;color:${vencido ? 'var(--err)' : 'inherit'}">${r.data_prevista ? '📅 ' + dBR(r.data_prevista) + (dd !== null ? (dd >= 0 ? ` (em ${dd}d)` : ` (⚠️ há ${-dd}d)`) : '') : '📅 sem data'}</span>
     </div>
     ${r.status !== 'recebido' ? `<div class="flex" style="gap:5px;flex-wrap:wrap;margin-top:7px">
       <button class="btn btn-ghost btn-sm rc-a" data-a="marco" data-v="nota_solicitada">🧾 nota solicitada</button>
       <button class="btn btn-ghost btn-sm rc-a" data-a="marco" data-v="contrato_assinado">✍️ assinatura ok</button>
       ${_d.completo ? `<button class="btn btn-ghost btn-sm rc-a" data-a="status" data-v="confirmado" style="color:var(--ok)">✅ confirmado</button>
-      <button class="btn btn-ghost btn-sm rc-a" data-a="status" data-v="recebido" style="color:var(--ciano);font-weight:800">💰 recebido</button>` : ''}   <!-- v88.52: só diretoria/financeiro -->
+      <button class="btn btn-ghost btn-sm rc-a" data-a="status" data-v="recebido" style="color:var(--ciano);font-weight:600">💰 recebido</button>` : ''}   <!-- v88.52: só diretoria/financeiro -->
       <button class="btn btn-ghost btn-sm rc-a" data-a="travar" style="color:var(--err)">⛔ travou…</button>
       ${_d.completo ? `<button class="btn btn-ghost btn-sm rc-a" data-a="editar" style="margin-left:auto">✏️</button>` : ''}
     </div>` : ''}
@@ -141,7 +141,7 @@ function abrirEditor(r) {
   const f = r || {}; const p = f.premiacao || {};
   const userOpts = sel => ['<option value="">—</option>', ..._users.filter(u => (u.status || 'ativo') === 'ativo')
     .map(u => `<option value="${esc(u.id)}"${sel === u.id ? ' selected' : ''}>${esc(u.name)}</option>`)].join('');
-  box.innerHTML = `<div class="card mt-2" style="border-left:4px solid var(--psm-navy,#1e2650)">
+  box.innerHTML = `<div class="card mt-2" style="border-left:4px solid var(--psm-navy,var(--accent-ink))">
     <b>${r ? '✏️ Editar' : '➕ Novo'} recebível</b>
     <div class="flex mt-2" style="gap:6px;flex-wrap:wrap">
       <input class="input" id="rc-desc" placeholder="Descrição *" value="${esc(f.descricao || '')}" style="flex:2;min-width:220px">
@@ -155,7 +155,7 @@ function abrirEditor(r) {
       <label class="tiny muted">Dono da cobrança<select class="input" id="rc-dono" style="min-width:150px">${userOpts(f.dono_cobranca)}</select></label>
       <label class="tiny muted">Corretor<select class="input" id="rc-corr" style="min-width:150px">${userOpts(f.corretor_id)}</select></label>
     </div>
-    <div class="mt-2" style="background:#7c3aed0d;border-radius:8px;padding:8px 10px">
+    <div class="mt-2" style="background:var(--accent-soft);border-radius:var(--radius-md);padding:8px 10px">
       <b class="tiny">🎁 Premiação (personalizável)</b>
       <div class="flex mt-1" style="gap:6px;flex-wrap:wrap">
         <select class="input" id="rc-prem-tipo" style="width:130px">

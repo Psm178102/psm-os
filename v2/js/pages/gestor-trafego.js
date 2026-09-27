@@ -108,11 +108,11 @@ function render() {
   _root.innerHTML = `
     <style>${GT_CSS}</style>
     <div class="card">
-      <div style="background:linear-gradient(135deg,#7c2d12 0%,#1c1917 100%);color:#fff;padding:20px;border-radius:14px 14px 0 0;margin:-16px -16px 16px">
+      <div style="background:var(--surface-2);color:var(--ink);padding:20px;border-radius:14px 14px 0 0;margin:-16px -16px 16px">
         <div class="flex" style="align-items:center;gap:14px;flex-wrap:wrap">
-          <div style="width:56px;height:56px;border-radius:14px;background:#f9731633;display:flex;align-items:center;justify-content:center;font-size:28px">🚦</div>
+          <div style="width:56px;height:56px;border-radius:var(--radius-lg);background:var(--warn-soft);display:flex;align-items:center;justify-content:center;font-size:26px">🚦</div>
           <div style="flex:1;min-width:220px">
-            <div style="font-size:22px;font-weight:900;color:#fb923c">Sr. Gestor de Tráfego</div>
+            <div style="font-size:20px;font-weight:600;color:var(--warn)">Sr. Gestor de Tráfego</div>
             <div style="opacity:.85;font-size:13px">Mídia paga sênior · Meta Ads, públicos, RD Station e estratégia · PSM Conquista + PSM Imóveis · relatórios 19h aos sócios</div>
           </div>
           <button class="btn btn-ghost" data-nav-mkt style="color:#fff;border-color:#ffffff44">📢 Dashboard Meta completo</button>
@@ -146,12 +146,12 @@ function delta(cur, prev, invertido = false) {
   const pct = (cur - prev) / Math.abs(prev) * 100;
   if (Math.abs(pct) < 0.5) return '<span class="tiny muted">= estável</span>';
   const bom = invertido ? pct < 0 : pct > 0;
-  return `<span class="tiny" style="font-weight:800;color:${bom ? 'var(--ok, #22c55e)' : 'var(--err, #ef4444)'}">${pct > 0 ? '▲' : '▼'} ${Math.abs(pct).toFixed(0)}%</span>`;
+  return `<span class="tiny" style="font-weight:600;color:${bom ? 'var(--ok, #22c55e)' : 'var(--err, #ef4444)'}">${pct > 0 ? '▲' : '▼'} ${Math.abs(pct).toFixed(0)}%</span>`;
 }
 function kpiCard(lbl, val, sub, deltaHtml = '') {
-  return `<div style="background:var(--bg-3);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;min-width:140px;flex:1">
-    <div class="tiny" style="font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)">${lbl}</div>
-    <div style="display:flex;align-items:baseline;gap:8px"><span style="font-size:22px;font-weight:900">${val}</span>${deltaHtml}</div>
+  return `<div style="background:var(--bg-3);border:1px solid var(--bd);border-radius:var(--radius-md);padding:14px 16px;min-width:140px;flex:1">
+    <div class="tiny" style="font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)">${lbl}</div>
+    <div style="display:flex;align-items:baseline;gap:8px"><span style="font-size:20px;font-weight:600">${val}</span>${deltaHtml}</div>
     ${sub ? `<div class="tiny muted">${sub}</div>` : ''}
   </div>`;
 }
@@ -159,8 +159,8 @@ function barraFunil(lbl, n, base, cor) {
   const pct = base ? Math.max(1.5, n / base * 100) : 0;
   const conv = base ? (n / base * 100).toFixed(1) + '%' : '—';
   return `<div style="display:grid;grid-template-columns:110px 1fr 88px;gap:10px;align-items:center;font-size:13px;padding:3px 0">
-    <div style="text-align:right;font-weight:700">${lbl}</div>
-    <div style="background:var(--bg-2);border-radius:6px;height:18px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${cor}"></div></div>
+    <div style="text-align:right;font-weight:600">${lbl}</div>
+    <div style="background:var(--bg-2);border-radius:var(--radius-sm);height:18px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${cor}"></div></div>
     <div style="font-variant-numeric:tabular-nums"><b>${n}</b> <span class="tiny muted">${conv}</span></div>
   </div>`;
 }
@@ -188,22 +188,22 @@ function renderPainel(body) {
   const vg = _painel.vigia_ultimo;
 
   body.innerHTML = `
-    ${contaPausada ? `<div style="background:var(--crit-bg, #7f1d1d22);border:1px solid #ef444455;border-left:5px solid #ef4444;border-radius:10px;padding:12px 16px;margin-bottom:14px">
+    ${contaPausada ? `<div style="background:var(--crit-bg, #7f1d1d22);border:1px solid var(--err);border-left:5px solid var(--err);border-radius:var(--radius-md);padding:12px 16px;margin-bottom:14px">
       <b>🔴 CONTA SEM ENTREGA</b> <span class="tiny">— gasto de 7 dias em R$ 0. Campanhas pausadas: cada dia parado encarece a meta do mês. Plano de religada no último relatório abaixo.</span>
     </div>` : ''}
 
     <div class="gt-hero" style="display:grid;grid-template-columns:1.1fr 1fr 1.2fr;gap:14px;margin-bottom:14px">
-      <div class="gt-card" style="border-left:5px solid #f97316;display:flex;flex-direction:column;justify-content:space-between">
+      <div class="gt-card" style="border-left:5px solid var(--warn);display:flex;flex-direction:column;justify-content:space-between">
         <div>
-          <div class="tiny" style="font-weight:800;letter-spacing:.06em;color:var(--muted)">🗂 PASTAS DO MÊS ${esc(mes.mes || '')} <span style="font-weight:400">— a métrica que manda</span></div>
+          <div class="tiny" style="font-weight:600;letter-spacing:.06em;color:var(--muted)">🗂 PASTAS DO MÊS ${esc(mes.mes || '')} <span style="font-weight:400">— a métrica que manda</span></div>
           <div style="display:flex;align-items:baseline;gap:10px;margin:4px 0">
-            <span style="font-size:44px;font-weight:900;line-height:1;color:#fb923c">${fun.pastas ?? '—'}</span>
-            <span style="font-size:18px;color:var(--muted)">/ ${metaPastas}</span>
-            <span class="tiny" style="font-weight:800;color:${ritmoOk ? 'var(--ok, #22c55e)' : 'var(--err, #ef4444)'}">${ritmoOk ? '✓ no ritmo' : '⚠ atrás do ritmo'}</span>
+            <span style="font-size:44px;font-weight:600;line-height:1;color:var(--warn)">${fun.pastas ?? '—'}</span>
+            <span style="font-size:16px;color:var(--muted)">/ ${metaPastas}</span>
+            <span class="tiny" style="font-weight:600;color:${ritmoOk ? 'var(--ok, #22c55e)' : 'var(--err, #ef4444)'}">${ritmoOk ? '✓ no ritmo' : '⚠ atrás do ritmo'}</span>
           </div>
-          <div style="background:var(--bg-2);border-radius:8px;height:16px;overflow:hidden;position:relative">
+          <div style="background:var(--bg-2);border-radius:var(--radius-md);height:16px;overflow:hidden;position:relative">
             <div style="height:100%;width:${pctPastas}%;background:linear-gradient(90deg,#f97316,#fb923c)"></div>
-            <div title="onde o mês está (${mes.dias_corridos || '?'}/${diasMes} dias)" style="position:absolute;top:-2px;bottom:-2px;left:${pctMes}%;width:2px;background:#38bdf8"></div>
+            <div title="onde o mês está (${mes.dias_corridos || '?'}/${diasMes} dias)" style="position:absolute;top:-2px;bottom:-2px;left:${pctMes}%;width:2px;background:var(--accent-soft)"></div>
           </div>
           <div class="tiny muted" style="margin-top:3px">barra laranja = pastas · risco azul = onde o mês está (${mes.dias_corridos || '?'}/${diasMes} dias)</div>
         </div>
@@ -215,13 +215,13 @@ function renderPainel(body) {
       </div>
       <div class="gt-card">
         <h4>🪜 Funil do mês (Conquista) <span class="tiny muted">lead → pasta é o jogo</span></h4>
-        ${barraFunil('Leads', fun.leads || 0, fun.leads || 0, '#3b82f6')}
+        ${barraFunil('Leads', fun.leads || 0, fun.leads || 0, '#806d50')}
         ${barraFunil('Em contato', fun.contato || 0, fun.leads || 0, '#6366f1')}
         ${barraFunil('Visitas', fun.visitas || 0, fun.leads || 0, '#a855f7')}
         ${barraFunil('Pastas', fun.pastas || 0, fun.leads || 0, '#f97316')}
         ${barraFunil('Vendas', fun.vendas || 0, fun.leads || 0, '#22c55e')}
       </div>
-      <div class="gt-card" style="border-left:5px solid #38bdf8">
+      <div class="gt-card" style="border-left:5px solid var(--accent-ink)">
         <h4>🕵️ Vigia de Concorrência — último achado</h4>
         ${vg ? `
           <div class="tiny muted">${esc(String(vg.ts || '').slice(0, 16).replace('T', ' '))} UTC</div>
@@ -232,7 +232,7 @@ function renderPainel(body) {
       </div>
     </div>
 
-    <div class="tiny muted" style="font-weight:800;letter-spacing:.06em;margin-bottom:6px">ÚLTIMOS 7 DIAS ${(() => { const pd = m7?.period; if (!pd) return ''; if (typeof pd === 'string') return '· ' + esc(pd); const f = d => String(d || '').slice(5).split('-').reverse().join('/'); return pd.since ? `· ${f(pd.since)} a ${f(pd.until)}` : ''; })()} <span style="font-weight:400">· vs 7 dias anteriores · cor = contra o limiar</span></div>
+    <div class="tiny muted" style="font-weight:600;letter-spacing:.06em;margin-bottom:6px">ÚLTIMOS 7 DIAS ${(() => { const pd = m7?.period; if (!pd) return ''; if (typeof pd === 'string') return '· ' + esc(pd); const f = d => String(d || '').slice(5).split('-').reverse().join('/'); return pd.since ? `· ${f(pd.since)} a ${f(pd.until)}` : ''; })()} <span style="font-weight:400">· vs 7 dias anteriores · cor = contra o limiar</span></div>
     <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
       ${kpiCard('Investimento', m7 ? brl(m7.spend) : '—', 'ritmo de verba', delta(m7?.spend, d7.spend))}
       ${kpiCard('Leads', m7 ? m7.leads : '—', 'volume que alimenta o funil', delta(m7?.leads, d7.leads))}
@@ -244,27 +244,27 @@ function renderPainel(body) {
 
     <div style="display:grid;grid-template-columns:1fr;gap:14px;margin-bottom:14px">
       <div class="gt-card">
-        <div style="font-weight:800;margin-bottom:6px">📈 Ritmo diário (30 dias) <span class="tiny muted">barras = gasto · linha = leads</span></div>
+        <div style="font-weight:600;margin-bottom:6px">📈 Ritmo diário (30 dias) <span class="tiny muted">barras = gasto · linha = leads</span></div>
         <canvas id="gt-spark" height="110" style="width:100%;display:block"></canvas>
         <div class="tiny muted" style="margin-top:4px">30d: ${m30 ? brl(m30.spend) + ' · ' + m30.leads + ' leads · CPL ' + (m30.cpl ? brl(m30.cpl) : '—') : 'sem cache ainda'}</div>
       </div>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px" class="gt-grid3">
-      <div style="background:var(--bg-3);border:1px solid var(--bd);border-radius:12px;padding:14px 16px">
-        <div style="font-weight:800;margin-bottom:6px">🥊 Praça agora <span class="tiny muted">${cc.anunciando ?? '—'}/${cc.monitorados ?? '—'} anunciando · ${cc.ativos_praca ?? '—'} anúncios</span></div>
+      <div style="background:var(--bg-3);border:1px solid var(--bd);border-radius:var(--radius-md);padding:14px 16px">
+        <div style="font-weight:600;margin-bottom:6px">🥊 Praça agora <span class="tiny muted">${cc.anunciando ?? '—'}/${cc.monitorados ?? '—'} anunciando · ${cc.ativos_praca ?? '—'} anúncios</span></div>
         ${(cc.top || []).map((c, i) => `<div class="flex tiny" style="justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--bd)"><span>${i + 1}. ${esc(String(c.nome).slice(0, 26))} <span class="muted">[${esc(c.segmento || '')}]</span></span><b>${c.anuncios_count}</b></div>`).join('') || '<div class="tiny muted">sem coleta ainda</div>'}
-        <div class="flex tiny" style="justify-content:space-between;padding:4px 0;font-weight:800;color:${contaPausada ? 'var(--err, #ef4444)' : 'inherit'}"><span>NÓS (Conquista)</span><span>${contaPausada ? '0 🔴' : 'ativa'}</span></div>
+        <div class="flex tiny" style="justify-content:space-between;padding:4px 0;font-weight:600;color:${contaPausada ? 'var(--err, #ef4444)' : 'inherit'}"><span>NÓS (Conquista)</span><span>${contaPausada ? '0 🔴' : 'ativa'}</span></div>
         <button class="btn btn-ghost tiny" data-ir-concorrencia style="margin-top:4px">abrir Concorrência →</button>
       </div>
-      <div style="background:var(--bg-3);border:1px solid var(--bd);border-radius:12px;padding:14px 16px">
-        <div style="font-weight:800;margin-bottom:6px">🚨 Alertas & diagnóstico</div>
+      <div style="background:var(--bg-3);border:1px solid var(--bd);border-radius:var(--radius-md);padding:14px 16px">
+        <div style="font-weight:600;margin-bottom:6px">🚨 Alertas & diagnóstico</div>
         ${disparados.length ? disparados.map(a => `<div class="tiny" style="padding:4px 0;border-bottom:1px solid var(--bd)">${sev(a.severidade)} <b>${esc(a.nome || a.metrica)}</b> — atual <b>${a.valor_atual}</b> (${esc(a.op)} ${a.valor})</div>`).join('') : '<div class="tiny muted">Nenhuma regra disparada.</div>'}
         ${(_painel.diagnosticos || []).slice(0, 4).map(d => `<div class="tiny" style="padding:4px 0;border-bottom:1px solid var(--bd)">${d.sev === 'critico' ? '🔴' : d.sev === 'atencao' ? '🟡' : '🟢'} <b>${esc(String(d.campanha).slice(0, 30))}</b><br>${esc(d.acao)}</div>`).join('')}
         <button class="btn btn-ghost tiny" data-ir-alertas style="margin-top:4px">todas as regras →</button>
       </div>
-      <div style="background:var(--bg-3);border:1px solid var(--bd);border-radius:12px;padding:14px 16px">
-        <div style="font-weight:800;margin-bottom:6px">⚡ Últimas ações & bases</div>
+      <div style="background:var(--bg-3);border:1px solid var(--bd);border-radius:var(--radius-md);padding:14px 16px">
+        <div style="font-weight:600;margin-bottom:6px">⚡ Últimas ações & bases</div>
         ${(_painel.log || []).slice(0, 4).map(l => `<div class="tiny" style="padding:3px 0;border-bottom:1px solid var(--bd)">${l.ok ? '✅' : '❌'} <b>${esc(l.op)}</b> ${esc(String(l.alvo?.nome || l.alvo?.id || '').slice(0, 30))} <span class="muted">${esc(String(l.ts || '').slice(5, 16).replace('T', ' '))}</span></div>`).join('') || '<div class="tiny muted">Nenhuma ação executada.</div>'}
         <div class="tiny" style="margin-top:6px">📡 ${(_painel.contas || []).length} contas Meta · 👥 ${(_painel.publicos || []).length} públicos · 📋 ${(_painel.listas || []).length} listas</div>
         <div class="tiny">🧠 Estratégia: ${_painel.config?.estrategia?.conquista ? 'definida ✓' : '<b>pendente</b>'} · 🕵️ Vigia: ${cc.ultima_coleta ? 'coleta ' + esc(String(cc.ultima_coleta).slice(5, 16).replace('T', ' ')) : 'sem coleta'}</div>
@@ -294,7 +294,7 @@ function desenharSpark(serie) {
     ctx.fillStyle = spends[i] > 0 ? '#fb923c' : '#33415555';
     ctx.fillRect(i * bw + bw * 0.15, H - h - 14, bw * 0.7, Math.max(h, spends[i] > 0 ? 2 : 1));
   });
-  ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2 * (window.devicePixelRatio || 1); ctx.beginPath();
+  ctx.strokeStyle = '#806d50'; ctx.lineWidth = 2 * (window.devicePixelRatio || 1); ctx.beginPath();
   serie.forEach((d, i) => {
     const x = i * bw + bw / 2, y = H - 14 - (leads[i] / maxL) * (H - 26);
     i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
@@ -312,13 +312,13 @@ async function pintarRelatorioPainel() {
     if (!ult) { el.innerHTML = ''; return; }
     const resumo = resumoDe(ult.texto);
     el.innerHTML = `
-      <div style="background:var(--bg-3);border-left:4px solid #fb923c;border-radius:10px;padding:14px 16px">
+      <div style="background:var(--bg-3);border-left:4px solid var(--warn);border-radius:var(--radius-md);padding:14px 16px">
         <div class="flex" style="align-items:center;gap:8px;flex-wrap:wrap">
           <b>📜 ${TIPO_LBL[ult.tipo] || esc(ult.tipo)} — último relatório</b>
           <span class="tiny muted">${esc(String(ult.ts || '').slice(0, 16).replace('T', ' '))} UTC</span>
           <button class="btn btn-ghost tiny" style="margin-left:auto" data-rel-ir>ver todos →</button>
         </div>
-        ${resumo ? `<div style="font-size:13px;line-height:1.6;margin-top:8px;padding:8px 12px;background:#f9731611;border-radius:8px"><b>Resumo:</b> ${esc(resumo)}…</div>` : ''}
+        ${resumo ? `<div style="font-size:13px;line-height:1.6;margin-top:8px;padding:8px 12px;background:var(--warn-soft);border-radius:var(--radius-md)"><b>Resumo:</b> ${esc(resumo)}…</div>` : ''}
         <div data-rel-full hidden style="margin-top:8px">${md(ult.texto)}</div>
         <button class="btn btn-ghost tiny" data-rel-exp style="margin-top:6px">📖 ler completo</button>
       </div>`;
@@ -345,16 +345,16 @@ function saveChat() {
 }
 function bubble(m) {
   const mine = m.role === 'user';
-  return `<div style="align-self:${mine ? 'flex-end' : 'flex-start'};max-width:85%;background:${mine ? 'var(--acc)' : 'var(--bg-2)'};color:${mine ? '#fff' : 'var(--tx)'};border-radius:12px;padding:9px 12px;white-space:pre-wrap;font-size:13px;line-height:1.5">${esc(m.content)}</div>`;
+  return `<div style="align-self:${mine ? 'flex-end' : 'flex-start'};max-width:85%;background:${mine ? 'var(--acc)' : 'var(--bg-2)'};color:${mine ? '#fff' : 'var(--tx)'};border-radius:var(--radius-md);padding:9px 12px;white-space:pre-wrap;font-size:13px;line-height:1.5">${esc(m.content)}</div>`;
 }
 
 function renderGuerra(body) {
   body.innerHTML = `
     <div style="display:flex;flex-direction:column;height:540px">
-      <div id="gt-msgs" style="flex:1;overflow-y:auto;padding:8px;background:var(--bg-3);border-radius:10px;margin-bottom:10px;display:flex;flex-direction:column;gap:8px">
+      <div id="gt-msgs" style="flex:1;overflow-y:auto;padding:8px;background:var(--bg-3);border-radius:var(--radius-md);margin-bottom:10px;display:flex;flex-direction:column;gap:8px">
         ${_messages.length === 0 ? `
           <div style="text-align:center;padding:26px;color:var(--muted)">
-            <div style="font-size:42px;margin-bottom:8px">🚦</div>
+            <div style="font-size:36px;margin-bottom:8px">🚦</div>
             <div>Converse com o Sr. Gestor de Tráfego — dúvidas, estratégia, diagnóstico. Ele responde com os números REAIS do Meta, da base RD e dos concorrentes mapeados, e o histórico fica salvo.</div>
             <div class="tiny mt-2 muted">Exemplos:</div>
             <div class="tiny" style="font-style:italic;margin:4px 0">"Diagnóstico da semana: onde estou queimando verba?"</div>
@@ -403,8 +403,8 @@ function renderPublicos(body) {
   const listas = _painel.listas || [];
   const stBadge = s => ({ ideia: '💡 ideia', criado_no_meta: '🏗 criado no Meta', ativo: '🟢 ativo', pausado: '⏸ pausado' }[s] || s);
   body.innerHTML = `
-    <div style="background:var(--bg-3);border-radius:10px;padding:14px;margin-bottom:14px">
-      <div style="font-weight:800;margin-bottom:4px">🔎 Segmentador da base RD</div>
+    <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:14px;margin-bottom:14px">
+      <div style="font-weight:600;margin-bottom:4px">🔎 Segmentador da base RD</div>
       <div class="tiny muted" style="margin-bottom:10px">Recorta a base do CRM (deals sincronizados do RD Station) pra virar público personalizado no Meta — exporta CSV pronto pro Ads Manager (fn, phone, email).</div>
       <div class="flex gap-2" style="flex-wrap:wrap;align-items:flex-end">
         <label class="tiny">Frente<br><select id="seg-frente" class="input">
@@ -417,7 +417,7 @@ function renderPublicos(body) {
         <label class="tiny" style="display:flex;align-items:center;gap:6px;padding-bottom:8px"><input id="seg-fone" type="checkbox" checked> só com telefone</label>
         <button class="btn btn-primary" id="seg-contar" ${_segBusy ? 'disabled' : ''}>${_segBusy ? '…' : 'Contar'}</button>
         <button class="btn" id="seg-export" ${!_seg ? 'disabled' : ''}>⬇️ Exportar CSV</button>
-        ${socio() ? `<button class="btn" id="seg-meta" ${!_seg ? 'disabled' : ''} style="border-color:#fb923c;color:#fb923c">🚀 Criar público no Meta</button>` : ''}
+        ${socio() ? `<button class="btn" id="seg-meta" ${!_seg ? 'disabled' : ''} style="border-color:var(--warn);color:var(--warn)">🚀 Criar público no Meta</button>` : ''}
       </div>
       <div id="seg-out" style="margin-top:10px">
         ${_seg ? `<div class="tiny"><b>${_seg.total}</b> contatos no recorte · <b>${_seg.com_fone}</b> com fone · <b>${_seg.com_email}</b> com e-mail</div>
@@ -425,16 +425,16 @@ function renderPublicos(body) {
           ${(_seg.preview || []).map(r => `<tr><td>${esc(r.nome)}</td><td>${esc(r.fone)}</td><td>${esc(r.funil)}</td><td>${esc(r.etapa)}</td><td>${esc(r.status)}</td></tr>`).join('')}</table></div>` : ''}
       </div>
       ${socio() ? `<div style="margin-top:10px;padding-top:8px;border-top:1px dashed var(--bd)" class="flex gap-2" >
-        <span class="tiny" style="font-weight:800;align-self:center">🌡 Públicos por temperatura (1 clique · usa a Frente selecionada):</span>
-        <button class="btn btn-ghost tiny" data-temp="quente" style="color:#ef4444">🔥 Quente</button>
-        <button class="btn btn-ghost tiny" data-temp="morno" style="color:#f59e0b">🌤 Morno</button>
-        <button class="btn btn-ghost tiny" data-temp="frio" style="color:#38bdf8">❄️ Frio</button>
+        <span class="tiny" style="font-weight:600;align-self:center">🌡 Públicos por temperatura (1 clique · usa a Frente selecionada):</span>
+        <button class="btn btn-ghost tiny" data-temp="quente" style="color:var(--err)">🔥 Quente</button>
+        <button class="btn btn-ghost tiny" data-temp="morno" style="color:var(--warn)">🌤 Morno</button>
+        <button class="btn btn-ghost tiny" data-temp="frio" style="color:var(--accent-ink)">❄️ Frio</button>
       </div>` : ''}
       <div class="tiny muted" style="margin-top:8px">💡 Seeds clássicos: <b>ganhos</b> = semente de público semelhante (LAL 1-3%); <b>perdidos 90d+</b> = remarketing de reativação; <b>abertos</b> = exclusão pra não pagar duas vezes pelo mesmo lead.</div>
     </div>
 
-    <div style="background:var(--bg-3);border-radius:10px;padding:14px;margin-bottom:14px">
-      <div style="font-weight:800;margin-bottom:4px">📋 Listas & mailings</div>
+    <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:14px;margin-bottom:14px">
+      <div style="font-weight:600;margin-bottom:4px">📋 Listas & mailings</div>
       <div class="tiny muted" style="margin-bottom:8px">Suba planilhas/listas (CSV) que você já tem — viram fonte de público personalizado e entram no cérebro do gestor.</div>
       <div class="flex gap-2" style="flex-wrap:wrap;align-items:center;margin-bottom:8px">
         <input type="file" id="lst-file" accept=".csv,.txt" class="input" style="max-width:260px">
@@ -448,24 +448,24 @@ function renderPublicos(body) {
         ${listas.map(l => `<tr><td><b>${esc(l.nome)}</b></td><td>${l.n}</td><td>${esc(l.marca)}</td><td>${esc(l.origem)}</td>
           <td>${esc(String(l.criado_em || '').slice(0, 10))}</td>
           <td><button class="btn btn-ghost tiny" data-lst-dl="${esc(l.id)}">⬇️</button>
-              ${socio() ? `<button class="btn btn-ghost tiny" data-lst-meta="${esc(l.id)}" title="Criar público no Meta com esta lista" style="color:#fb923c">🚀</button>
+              ${socio() ? `<button class="btn btn-ghost tiny" data-lst-meta="${esc(l.id)}" title="Criar público no Meta com esta lista" style="color:var(--warn)">🚀</button>
               <button class="btn btn-ghost tiny" data-lst-del="${esc(l.id)}">🗑</button>` : ''}</td></tr>`).join('')}</table></div>`
       : '<div class="tiny muted">Nenhuma lista ainda.</div>'}
     </div>
 
-    <div style="background:var(--bg-3);border-radius:10px;padding:14px;margin-bottom:14px">
+    <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:14px;margin-bottom:14px">
       <div class="flex" style="align-items:center;gap:10px;flex-wrap:wrap">
-        <div style="font-weight:800">🌐 Públicos no Meta (via API)</div>
+        <div style="font-weight:600">🌐 Públicos no Meta (via API)</div>
         <select id="pm-conta" class="input tiny" style="max-width:220px">${(_painel?.contas || []).map(c => `<option value="${esc(c.id)}">${esc(c.label)}</option>`).join('')}</select>
         <button class="btn btn-ghost tiny" id="pm-reload">↻ atualizar</button>
       </div>
       <div class="tiny muted" style="margin:4px 0 8px">Os botões 🚀 (do segmentador e das listas) criam o público personalizado DIRETO na conta selecionada — contatos com hash SHA-256, sem CSV. Aqui você acompanha e cria os semelhantes (LAL).</div>
-      <div id="pm-status" class="tiny" style="font-weight:800;margin:4px 0"></div>
+      <div id="pm-status" class="tiny" style="font-weight:600;margin:4px 0"></div>
       <div id="pm-lista"><span class="tiny muted"><span class="spinner"></span> consultando o Meta…</span></div>
     </div>
 
-    <div style="background:var(--bg-3);border-radius:10px;padding:14px">
-      <div style="font-weight:800;margin-bottom:8px">🗺 Planos de público (mapeamento)</div>
+    <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:14px">
+      <div style="font-weight:600;margin-bottom:8px">🗺 Planos de público (mapeamento)</div>
       <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:10px">
         <input id="pub-nome" class="input" placeholder="Nome (ex.: LAL 1% ganhos Conquista)" style="max-width:240px">
         <select id="pub-marca" class="input" style="max-width:130px"><option value="conquista">conquista</option><option value="imoveis">imóveis</option><option value="ambas">ambas</option></select>
@@ -698,8 +698,8 @@ function renderAlertas(body) {
   body.innerHTML = `
     <div class="tiny muted" style="margin-bottom:10px">Métricas de alerta avaliadas contra o cache Meta (7d/30d) + base RD (DDD). Regra disparada aparece no Painel. ${podeEditar ? '' : 'Só o sócio edita.'}</div>
 
-    <div style="background:var(--bg-3);border-radius:10px;padding:14px;margin-bottom:14px">
-      <div style="font-weight:800;margin-bottom:4px">📏 Limiares de viabilidade</div>
+    <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:14px;margin-bottom:14px">
+      <div style="font-weight:600;margin-bottom:4px">📏 Limiares de viabilidade</div>
       <div class="tiny muted" style="margin-bottom:8px">Alimentam o diagnóstico automático por campanha (saturação, CTR, público, escala) e a régua de DDD.</div>
       <div class="flex gap-2" style="flex-wrap:wrap">
         ${Object.entries(LIM_LBL).map(([k, lbl]) => `
@@ -707,8 +707,8 @@ function renderAlertas(body) {
       </div>
     </div>
 
-    <div style="background:var(--bg-3);border-radius:10px;padding:14px;margin-bottom:14px">
-      <div style="font-weight:800;margin-bottom:8px">🔬 Diagnóstico automático por campanha (7 dias)</div>
+    <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:14px;margin-bottom:14px">
+      <div style="font-weight:600;margin-bottom:8px">🔬 Diagnóstico automático por campanha (7 dias)</div>
       ${diags.length ? diags.map(d => `
         <div style="padding:7px 0;border-bottom:1px solid var(--bd)" class="tiny">
           ${d.sev === 'critico' ? '🔴' : d.sev === 'atencao' ? '🟡' : '🟢'} <b>${esc(d.campanha)}</b>
@@ -718,7 +718,7 @@ function renderAlertas(body) {
       : '<div class="tiny muted">Nenhum diagnóstico no momento (sem campanhas com gasto na janela, ou tudo dentro dos limiares).</div>'}
     </div>
 
-    <div style="font-weight:800;margin-bottom:8px">🚨 Regras de alerta</div>
+    <div style="font-weight:600;margin-bottom:8px">🚨 Regras de alerta</div>
     <div style="overflow-x:auto"><table class="table tiny" style="min-width:760px">
       <tr><th>Nome</th><th>Métrica</th><th>Condição</th><th>Valor</th><th>Janela</th><th>Severidade</th><th>Ativo</th><th>Estado agora</th>${podeEditar ? '<th></th>' : ''}</tr>
       ${_regras.map((r, i) => {
@@ -767,11 +767,11 @@ function renderAcoes(body) {
   const g = _painel.guardrails || {};
   body.innerHTML = `
     <div class="tiny muted" style="margin-bottom:10px">Ações imediatas autorizadas — executam DE VERDADE no Meta, com guardrails e trilha de auditoria. ${socio() ? '' : '<b>Somente o sócio executa.</b>'}</div>
-    <div style="background:var(--bg-3);border-radius:10px;padding:10px 14px;margin-bottom:12px" class="tiny">
+    <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:10px 14px;margin-bottom:12px" class="tiny">
       🛡 <b>Guardrails ativos:</b> ops ${((g.ops_permitidas || [])).join(', ') || 'nenhuma'} · orçamento máx ${brl(g.orcamento_max_brl_dia)}/dia · variação máx ${g.variacao_max_pct}% · máx ${g.max_acoes_dia} ações/dia <span class="muted">(edite na aba 🧠 Cérebro)</span>
     </div>
     <div id="gt-campanhas"><div class="muted tiny"><span class="spinner"></span> Buscando campanhas (7 dias)…</div></div>
-    <div style="font-weight:800;margin:16px 0 8px">📜 Histórico de ações</div>
+    <div style="font-weight:600;margin:16px 0 8px">📜 Histórico de ações</div>
     ${(_painel.log || []).length ? `<div style="overflow-x:auto"><table class="table tiny"><tr><th>Quando</th><th>Quem</th><th>Ação</th><th>Alvo</th><th>OK</th><th>Resposta</th></tr>
       ${(_painel.log || []).map(l => `<tr><td>${esc(String(l.ts || '').slice(0, 16).replace('T', ' '))}</td><td>${esc(l.user)}</td><td>${esc(l.op)}</td><td>${esc(l.alvo?.nome || l.alvo?.id || '')}</td><td>${l.ok ? '✅' : '❌'}</td><td class="muted">${esc(String(l.resp || '').slice(0, 80))}</td></tr>`).join('')}</table></div>`
     : '<div class="tiny muted">Nenhuma ação registrada.</div>'}`;
@@ -823,7 +823,7 @@ let _relatorios = null;
 const TIPO_LBL = { diario: '📅 Diário (19h)', semanal: '🗓 Semanal (seg 18h)', quinzenal: '📆 Quinzenal (dia 15)', mensal: '📊 Fechamento de mês', vigia: '🕵️ Vigia de Concorrência' };
 
 let _relFiltro = 'todos';
-const TIPO_COR = { diario: '#fb923c', semanal: '#38bdf8', quinzenal: '#a855f7', mensal: '#22c55e', vigia: '#f43f5e' };
+const TIPO_COR = { diario: '#fb923c', semanal: '#806d50', quinzenal: '#a855f7', mensal: '#22c55e', vigia: '#f43f5e' };
 
 async function renderRelatorios(body) {
   body.innerHTML = '<div class="muted tiny"><span class="spinner"></span> Buscando relatórios…</div>';
@@ -846,7 +846,7 @@ async function renderRelatorios(body) {
       const resumo = resumoDe(r.texto);
       const cor = TIPO_COR[r.tipo] || '#fb923c';
       return `
-      <div style="background:var(--bg-3);border-left:4px solid ${cor};border-radius:10px;padding:12px 16px;margin-bottom:10px">
+      <div style="background:var(--bg-3);border-left:4px solid ${cor};border-radius:var(--radius-md);padding:12px 16px;margin-bottom:10px">
         <div class="flex" style="align-items:center;gap:8px;cursor:pointer;flex-wrap:wrap" data-rel-tg="${i}">
           <b>${TIPO_LBL[r.tipo] || esc(r.tipo)}</b>
           <span class="tiny muted">· ${esc(String(r.ts || '').slice(0, 16).replace('T', ' '))} UTC ${r.gerado_por && r.gerado_por !== 'cron' && r.gerado_por !== 'vigia' ? '· manual (' + esc(r.gerado_por) + ')' : ''}</span>
@@ -892,52 +892,52 @@ function renderCerebro(body) {
     <div class="tiny muted" style="margin-bottom:12px">Aqui o gestor EVOLUI: persona, estratégia por marca, conhecimento e limites de ação. Tudo entra no cérebro do Sr. Tráfego na próxima conversa. ${podeEditar ? '' : '<b>Só o sócio edita.</b>'}</div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px" class="gt-grid">
-      <div style="background:var(--bg-3);border-radius:10px;padding:14px">
-        <div style="font-weight:800">🏆 Estratégia PSM Conquista</div>
+      <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:14px">
+        <div style="font-weight:600">🏆 Estratégia PSM Conquista</div>
         <div class="tiny muted" style="margin-bottom:6px">Verba do mês, CPL alvo, empreendimentos prioritários, funil, campanhas âncora…</div>
         <textarea id="cb-est-conq" class="input" rows="7" ${dis}>${esc(cfg.estrategia?.conquista || '')}</textarea>
       </div>
-      <div style="background:var(--bg-3);border-radius:10px;padding:14px">
-        <div style="font-weight:800">💎 Estratégia PSM Imóveis</div>
+      <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:14px">
+        <div style="font-weight:600">💎 Estratégia PSM Imóveis</div>
         <div class="tiny muted" style="margin-bottom:6px">Posicionamento quiet luxury, LUX JK, ticket, abordagem NEPQ…</div>
         <textarea id="cb-est-imov" class="input" rows="7" ${dis}>${esc(cfg.estrategia?.imoveis || '')}</textarea>
       </div>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px" class="gt-grid">
-      <div style="background:var(--bg-3);border-radius:10px;padding:14px">
-        <div style="font-weight:800">🎯 Metas do mês</div>
+      <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:14px">
+        <div style="font-weight:600">🎯 Metas do mês</div>
         <div class="tiny muted" style="margin-bottom:8px">A régua do Painel e dos relatórios. Pasta é a métrica-mãe.</div>
         <label class="tiny">Meta de pastas/mês<br><input id="cb-meta-pastas" class="input" type="number" min="1" value="${cfg.metas?.meta_pastas || 18}" ${dis} style="width:120px"></label><br>
         <label class="tiny">Custo máximo por pasta (R$)<br><input id="cb-meta-cp" class="input" type="number" min="1" value="${cfg.metas?.meta_custo_pasta || 420}" ${dis} style="width:120px"></label>
       </div>
-      <div style="background:var(--bg-3);border-radius:10px;padding:14px">
-        <div style="font-weight:800">🥊 Doutrina de análise competitiva</div>
+      <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:14px">
+        <div style="font-weight:600">🥊 Doutrina de análise competitiva</div>
         <div class="tiny muted" style="margin-bottom:6px">Como o gestor e o Vigia DEVEM analisar concorrentes (6 dimensões + regra de ouro). Vai pro chat, relatórios e Vigia.</div>
         <textarea id="cb-doutrina" class="input" rows="6" ${dis}>${esc(cfg.doutrina_competitiva || '')}</textarea>
       </div>
     </div>
 
-    <div style="background:var(--bg-3);border-radius:10px;padding:14px;margin-top:14px">
-      <div style="font-weight:800">🎭 Ajuste de persona</div>
+    <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:14px;margin-top:14px">
+      <div style="font-weight:600">🎭 Ajuste de persona</div>
       <div class="tiny muted" style="margin-bottom:6px">Instruções extras de comportamento (ex.: "sempre proponha teste A/B", "responda com plano semanal").</div>
       <textarea id="cb-persona" class="input" rows="4" ${dis}>${esc(cfg.persona_extra || '')}</textarea>
     </div>
 
-    <div style="background:var(--bg-3);border-radius:10px;padding:14px;margin-top:14px">
-      <div style="font-weight:800">📚 Conhecimento extra</div>
+    <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:14px;margin-top:14px">
+      <div style="font-weight:600">📚 Conhecimento extra</div>
       <div class="tiny muted" style="margin-bottom:6px">Cole aqui o que o gestor precisa saber: tabelas de empreendimento, benchmarks, aprendizados de campanha, regras MCMV…</div>
       <textarea id="cb-conhec" class="input" rows="7" ${dis}>${esc(cfg.conhecimento_extra || '')}</textarea>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px" class="gt-grid">
-      <div style="background:var(--bg-3);border-radius:10px;padding:14px">
-        <div style="font-weight:800">📐 Métricas personalizadas</div>
+      <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:14px">
+        <div style="font-weight:600">📐 Métricas personalizadas</div>
         <div class="tiny muted" style="margin-bottom:6px">Uma por linha: <code>Nome: como calcular/interpretar</code></div>
         <textarea id="cb-metricas" class="input" rows="6" ${dis}>${esc(mc)}</textarea>
       </div>
-      <div style="background:var(--bg-3);border-radius:10px;padding:14px">
-        <div style="font-weight:800">🛡 Guardrails de ação</div>
+      <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:14px">
+        <div style="font-weight:600">🛡 Guardrails de ação</div>
         <div class="tiny muted" style="margin-bottom:8px">Limites das ações imediatas no Meta.</div>
         <label class="tiny">Orçamento máx por objeto (R$/dia)<br><input id="cb-g-orc" class="input" type="number" value="${g.orcamento_max_brl_dia || 500}" ${dis}></label><br>
         <label class="tiny">Variação máx de orçamento (%)<br><input id="cb-g-var" class="input" type="number" value="${g.variacao_max_pct || 30}" ${dis}></label><br>

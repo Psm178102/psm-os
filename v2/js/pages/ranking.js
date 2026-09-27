@@ -61,7 +61,7 @@ function render() {
 
       <h3 class="card-title mt-4">⚡ Atividade dos Corretores — por equipe (30 dias)</h3>
       ${teamNames.length === 0 ? '<div class="muted tiny">Sem corretores com atividade no período.</div>' : teamNames.map(t => `
-        <div style="font-weight:800;font-size:13px;margin:14px 0 6px;display:flex;align-items:center;gap:8px">🛡 ${escapeHtml(t)} <span class="tiny muted" style="font-weight:400">· ${teams[t].length} pessoa(s)</span></div>
+        <div style="font-weight:600;font-size:13px;margin:14px 0 6px;display:flex;align-items:center;gap:8px">🛡 ${escapeHtml(t)} <span class="tiny muted" style="font-weight:400">· ${teams[t].length} pessoa(s)</span></div>
         <div style="display:grid;gap:6px">${teams[t].map((u, i) => rankRow(u, i, 'activity')).join('')}</div>
       `).join('')}
 
@@ -90,15 +90,15 @@ async function loadAudit() {
   const soHub = rows.filter(x => x.rd_zero && (x.psmhub_vgv || 0) > 0);
   const diverg = rows.filter(x => !x.ok && !x.rd_zero);
   const statusCell = x => {
-    if (x.rd_zero && (x.psmhub_vgv || 0) > 0) return '<span style="color:var(--info);font-weight:700">🟦 só no HUB</span>';
-    if (x.ok) return '<span style="color:var(--ok);font-weight:700">✅ confere</span>';
-    return `<span style="color:var(--err);font-weight:700">⚠️ diverge ${x.diff_pct != null ? pct2(x.diff_pct) : ''}</span>`;
+    if (x.rd_zero && (x.psmhub_vgv || 0) > 0) return '<span style="color:var(--info);font-weight:600">🟦 só no HUB</span>';
+    if (x.ok) return '<span style="color:var(--ok);font-weight:600">✅ confere</span>';
+    return `<span style="color:var(--err);font-weight:600">⚠️ diverge ${x.diff_pct != null ? pct2(x.diff_pct) : ''}</span>`;
   };
   el.innerHTML = `
     <div class="card mt-3">
       <h3 class="card-title">🔎 Auditoria RD × PSM HUB (Conquista)</h3>
       <p class="card-sub">Confere se o VGV/vendas do ranking (RD) batem com o PSM HUB. ${conf}/${rows.length} conferem${diverg.length ? ' · <b style="color:var(--err)">' + diverg.length + ' divergência(s)</b>' : ''}${soHub.length ? ' · <b style="color:var(--info)">' + soHub.length + ' só no HUB</b>' : ''}.</p>
-      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:560px">
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:560px">
         <thead><tr style="color:var(--ink-muted);font-size:11px;text-align:left;border-bottom:1px solid var(--border)">
           <th style="padding:5px 6px">Corretor</th><th style="text-align:right">RD VGV</th><th style="text-align:right">HUB VGV</th><th style="text-align:right">RD vendas</th><th style="text-align:right">HUB vendas</th><th style="text-align:center">Status</th></tr></thead>
         <tbody>${rows.map(x => `<tr style="border-bottom:1px solid var(--border)">
@@ -121,20 +121,20 @@ function rankRow(u, i, mode) {
   const bg = i < 3 ? ['#fef3c7','#e5e7eb','#fed7aa'][i] : 'var(--bg-3)';
   return `
     <div style="display:grid;grid-template-columns:40px 36px 1fr auto;gap:10px;padding:10px 14px;background:${bg};border-radius:var(--r-sm);align-items:center">
-      <div style="font-size:${i < 3 ? '20px' : '14px'};font-weight:800;text-align:center">${medal}</div>
-      <div style="width:32px;height:32px;border-radius:var(--r-sm);background:${u.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px">${ini}</div>
+      <div style="font-size:${i < 3 ? '20px' : '14px'};font-weight:600;text-align:center">${medal}</div>
+      <div style="width:32px;height:32px;border-radius:var(--r-sm);background:${u.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px">${ini}</div>
       <div style="min-width:0">
-        <div style="font-weight:700;font-size:13px">${escapeHtml(u.name)}</div>
+        <div style="font-weight:600;font-size:13px">${escapeHtml(u.name)}</div>
         <div class="tiny muted">${escapeHtml(u.role || '')} · ${escapeHtml(u.team || 'geral')}</div>
       </div>
       ${mode === 'vgv' ? `
         <div style="text-align:right">
-          <div style="font-size:16px;font-weight:900;color:var(--roxo)">R$ ${money(u.vgv)}</div>
+          <div style="font-size:16px;font-weight:600;color:var(--roxo)">R$ ${money(u.vgv)}</div>
           <div class="tiny muted">${u.vendas} vendas</div>
         </div>
       ` : `
         <div style="text-align:right">
-          <div style="font-size:16px;font-weight:900;color:var(--ok)">${u.score} pts</div>
+          <div style="font-size:16px;font-weight:600;color:var(--ok)">${u.score} pts</div>
           <div class="tiny muted">${u.events_as_actor || 0} ator · ${u.events_as_target || 0} alvo</div>
         </div>
       `}

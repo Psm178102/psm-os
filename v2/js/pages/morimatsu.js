@@ -52,7 +52,7 @@ export const COR = { verde: '#1F4A3D', dourado: '#9C7A3C', tinta: '#1B201D', mar
 /* ── Dicionários da ficha v2 ── */
 export const COLUNAS = [
   { id: 'pre',         nome: 'Pré-cadastro',     emoji: '📥', cor: '#64748b', hint: 'ficha recebida · SLA 48h úteis' },
-  { id: 'diagnostico', nome: 'Diagnóstico',      emoji: '🩺', cor: '#0ea5e9', hint: '20 min: objetivos + esteira' },
+  { id: 'diagnostico', nome: 'Diagnóstico',      emoji: '🩺', cor: '#806d50', hint: '20 min: objetivos + esteira' },
   { id: 'curadoria',   nome: 'Curadoria',        emoji: '🔎', cor: '#8b5cf6', hint: 'oportunidades por perfil' },
   { id: 'analise',     nome: 'Análise',          emoji: '📑', cor: '#f59e0b', hint: 'R$ 500/imóvel · viabilidade' },
   { id: 'certame',     nome: 'Certame',          emoji: '🔨', cor: '#ef4444', hint: 'R$ 500 · representação' },
@@ -277,7 +277,7 @@ function visao() {
       ${mini('🔨 Certames nos próximos 15 dias', certames.length, certames.slice(0, 2).map(i => `${dtBR(i.data_certame)} · ${esc(i.titulo)}`).join(' · ') || 'nenhum agendado', '#ef4444')}
       ${mini('🔁 Operações em andamento', ops.filter(o => o.status !== 'concluida').length, `${ops.filter(o => o.status === 'concluida').length} concluídas`, COR.dourado)}
       ${mini('💰 Fee recebido no mês', brl(feeMes), `${brl(feePend)} a receber`, '#16a34a')}
-      ${mini('📅 Nutrição', `${atrasadas.length} atrasadas · ${deHoje.length} hoje`, `${semContato.length} investidor(es) sem próximo passo`, atrasadas.length ? '#ef4444' : '#0ea5e9')}
+      ${mini('📅 Nutrição', `${atrasadas.length} atrasadas · ${deHoje.length} hoje`, `${semContato.length} investidor(es) sem próximo passo`, atrasadas.length ? '#ef4444' : '#806d50')}
       ${mini('🗓 Roteiro 90 dias', `${feito}/${total}`, 'itens concluídos')}
       ${mini('🚫 Linha vermelha', 'R$ 0 fixo', 'nenhum custo fixo novo até dez/2026', '#64748b')}
     </div>
@@ -289,8 +289,8 @@ function visao() {
       </div>
       <div class="card" style="margin:0">
         <h2 class="card-title">Próximos passos</h2>
-        ${(atrasadas.concat(deHoje)).slice(0, 8).map(a => `<div class="ma-linha"><span class="ma-tag" style="background:${a.quando.slice(0, 10) < hoje ? '#ef4444' : '#0ea5e9'}">${dtBR(a.quando)}</span> <span>${esc(a.texto)}</span> <span class="tiny muted">${esc(invPorId(a.investidor_id)?.nome || imvPorId(a.imovel_id)?.titulo || '')}</span></div>`).join('') || '<div class="tiny muted">Nada atrasado nem pra hoje. Veja a Agenda pra semana.</div>'}
-        ${semContato.length ? `<div class="alert alert-warn mt-2" style="font-size:12.5px">⚠️ Sem próximo passo agendado: ${semContato.slice(0, 4).map(c => esc(c.nome)).join(', ')}${semContato.length > 4 ? '…' : ''}</div>` : ''}
+        ${(atrasadas.concat(deHoje)).slice(0, 8).map(a => `<div class="ma-linha"><span class="ma-tag" style="background:${a.quando.slice(0, 10) < hoje ? 'var(--err-soft)' : 'var(--accent-soft)'}">${dtBR(a.quando)}</span> <span>${esc(a.texto)}</span> <span class="tiny muted">${esc(invPorId(a.investidor_id)?.nome || imvPorId(a.imovel_id)?.titulo || '')}</span></div>`).join('') || '<div class="tiny muted">Nada atrasado nem pra hoje. Veja a Agenda pra semana.</div>'}
+        ${semContato.length ? `<div class="alert alert-warn mt-2" style="font-size:13px">⚠️ Sem próximo passo agendado: ${semContato.slice(0, 4).map(c => esc(c.nome)).join(', ')}${semContato.length > 4 ? '…' : ''}</div>` : ''}
         <div class="flex gap-2 mt-2"><button class="btn btn-ghost" data-rota="/morimatsu-agenda">📅 Abrir agenda</button><button class="btn btn-ghost" data-rota="/morimatsu-imoveis">🏠 Garimpo</button><button class="btn btn-ghost" data-rota="/morimatsu-simulador">🧮 Simulador</button><button class="btn btn-ghost" data-rota="/morimatsu-investidores">💼 Investidores</button></div>
       </div>
     </div>
@@ -383,7 +383,7 @@ function calcGiro() {
     mini('🏘 Comissão PSM na saída', brl(com), `${comP}% de ${brl(rev)}`),
     mini('💼 Receita do grupo por giro', brl(fee + com), '', COR.verde),
     mini('📈 Lucro bruto do investidor', brl(lucro), `${lance ? Math.round(lucro / (lance + custos + fee) * 100) : 0}% sobre o capital · desconto ${desc}% vs avaliação`, lucro > 0 ? '#16a34a' : '#ef4444'),
-    mini(`🔑 Se virar renda: adm ${adm}%/mês`, brl(alug * adm / 100) + '/mês', `${brl(alug * adm / 100 * 12)}/ano perpétuos + 1º aluguel`, '#0ea5e9'),
+    mini(`🔑 Se virar renda: adm ${adm}%/mês`, brl(alug * adm / 100) + '/mês', `${brl(alug * adm / 100 * 12)}/ano perpétuos + 1º aluguel`, '#806d50'),
   ].join('');
 }
 function editarHonorario(h) {
@@ -492,7 +492,7 @@ function documentos() {
     </div>
     <div class="card">
       <h2 class="card-title">Arquivos-modelo (.docx em branco · set/2026)</h2>
-      <p class="card-sub">Cópias estáticas servidas pelo House; originais em <code>Desktop/MORIMATSU/MORIMATSU & ASSOCIADOS</code>. Para o texto <b>editável</b> e o documento <b>preenchido em Word</b>, use a aba <button class="btn btn-ghost" data-rota="/morimatsu-minutas" style="font-size:11.5px;padding:2px 8px">📜 Minutas</button>.</p>
+      <p class="card-sub">Cópias estáticas servidas pelo House; originais em <code>Desktop/MORIMATSU/MORIMATSU & ASSOCIADOS</code>. Para o texto <b>editável</b> e o documento <b>preenchido em Word</b>, use a aba <button class="btn btn-ghost" data-rota="/morimatsu-minutas" style="font-size:11px;padding:2px 8px">📜 Minutas</button>.</p>
       <div class="ma-docs">${DOCS.map(d => `<div class="ma-doc"><div class="ma-doc-ico">${d.ico}</div><div style="flex:1"><b>${esc(d.t)}</b><div class="tiny muted">${esc(d.d)}</div></div><a class="btn btn-ghost" href="${ASSETS}${d.arq}" download>⬇ .docx</a></div>`).join('')}</div>
     </div>
     <div class="card">

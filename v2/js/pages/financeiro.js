@@ -123,8 +123,8 @@ async function renderHubComissoes() {
   const sum = k => vs.reduce((a, v) => a + v[k], 0);
   const casa = sum('_liq') - sum('_cCor') - sum('_cGes');
   const money = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-  const kpi = (lbl, val, cor) => `<div style="flex:1;min-width:150px;background:var(--bg-3);border-radius:10px;padding:10px 12px">
-    <div class="tiny muted">${lbl}</div><div style="font-weight:800;font-size:16px;color:${cor || 'inherit'}">${val}</div></div>`;
+  const kpi = (lbl, val, cor) => `<div style="flex:1;min-width:150px;background:var(--bg-3);border-radius:var(--radius-md);padding:10px 12px">
+    <div class="tiny muted">${lbl}</div><div style="font-weight:600;font-size:16px;color:${cor || 'inherit'}">${val}</div></div>`;
 
   const porCorretor = {};
   vs.forEach(v => { const n = v.vendorName || '?'; porCorretor[n] = porCorretor[n] || { n: 0, vgv: 0, liq: 0, com: 0 };
@@ -147,15 +147,15 @@ async function renderHubComissoes() {
       ${kpi('Receita bruta', money(sum('_bruto')))}
       ${kpi('Impostos', money(sum('_imp')), '#d97706')}
       ${kpi('Receita líquida', money(sum('_liq')))}
-      ${kpi('Comissões corretor', money(sum('_cCor')), '#2563eb')}
-      ${kpi('Comissões gestor', money(sum('_cGes')), '#2563eb')}
+      ${kpi('Comissões corretor', money(sum('_cCor')), '#806d50')}
+      ${kpi('Comissões gestor', money(sum('_cGes')), '#806d50')}
       ${kpi('Sobra da casa', money(casa), casa >= 0 ? '#16a34a' : '#dc2626')}
     </div>
     <div class="card" style="margin:0 0 12px"><b class="tiny">Por corretor</b>
       <div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse">
         <thead><tr class="muted" style="text-align:left"><th style="padding:4px">Corretor</th><th>Vendas</th><th>VGV</th><th>Receita líq.</th><th>Comissão dele</th></tr></thead>
         <tbody>${Object.entries(porCorretor).sort((a, b) => b[1].vgv - a[1].vgv).map(([n, x]) =>
-          `<tr style="border-top:1px solid var(--border)"><td style="padding:4px;font-weight:700">${escapeHtml(n)}</td><td style="text-align:center">${x.n}</td><td>${money(x.vgv)}</td><td>${money(x.liq)}</td><td>${money(x.com)}</td></tr>`).join('')}</tbody>
+          `<tr style="border-top:1px solid var(--border)"><td style="padding:4px;font-weight:600">${escapeHtml(n)}</td><td style="text-align:center">${x.n}</td><td>${money(x.vgv)}</td><td>${money(x.liq)}</td><td>${money(x.com)}</td></tr>`).join('')}</tbody>
       </table></div>
     </div>
     <div class="card" style="margin:0"><b class="tiny">Venda a venda</b>
@@ -164,7 +164,7 @@ async function renderHubComissoes() {
         <tbody>${vs.slice().sort((a, b) => String(b.dataVenda).localeCompare(String(a.dataVenda))).map(v =>
           `<tr style="border-top:1px solid var(--border)">
             <td style="padding:4px;white-space:nowrap">${String(v.dataVenda || '').split('-').reverse().join('/')}</td>
-            <td style="font-weight:700">${escapeHtml(v.vendorName || '—')}</td>
+            <td style="font-weight:600">${escapeHtml(v.vendorName || '—')}</td>
             <td>${escapeHtml(v.cliente || '—')}</td>
             <td>${escapeHtml(v.produto || '—')}</td>
             <td class="tiny muted">${escapeHtml(v.tipoVenda || '—')}</td>
@@ -208,8 +208,8 @@ function hubKvCards(obj) {
   const ent = Object.entries(obj).filter(([, v]) => typeof v !== 'object' || v == null);
   if (!ent.length) return '';
   return `<div class="flex gap-2" style="flex-wrap:wrap">${ent.map(([k, v]) =>
-    `<div style="min-width:130px;background:var(--bg-3);border-radius:10px;padding:8px 12px">
-      <div class="tiny muted">${escapeHtml(k)}</div><div style="font-weight:800">${hubFmtCell(k, v)}</div></div>`).join('')}</div>`;
+    `<div style="min-width:130px;background:var(--bg-3);border-radius:var(--radius-md);padding:8px 12px">
+      <div class="tiny muted">${escapeHtml(k)}</div><div style="font-weight:600">${hubFmtCell(k, v)}</div></div>`).join('')}</div>`;
 }
 
 function hubBloco(nome, dado) {
@@ -240,7 +240,7 @@ async function renderHubSecao(sec) {
     const ok = ep.status === 'ok';
     const cor = ok ? '#16a34a' : (ep.status === 'sem_permissao' ? '#d97706' : '#dc2626');
     const lbl = ok ? 'ok' : (ep.status === 'sem_permissao' ? 'sem permissão no Hub' : ep.status);
-    return `<span class="tiny" style="background:var(--bg-3);border-radius:99px;padding:2px 10px;white-space:nowrap">
+    return `<span class="tiny" style="background:var(--bg-3);border-radius:var(--radius-full);padding:2px 10px;white-space:nowrap">
       <span style="color:${cor}">●</span> ${escapeHtml(nome.replace(/_/g, ' '))} · ${escapeHtml(lbl)}</span>`;
   };
   const anos = []; for (let a = new Date().getFullYear(); a >= 2025; a--) anos.push(String(a));

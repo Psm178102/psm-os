@@ -27,7 +27,7 @@ const LINES = [
 // 3 colunas de conversão (como na planilha do Paulo)
 const COLS = [
   { key: 'convOtim', nome: 'Otimista', cor: '#16a34a' },
-  { key: 'convReal', nome: 'Realista', cor: '#2563eb' },
+  { key: 'convReal', nome: 'Realista', cor: '#806d50' },
   { key: 'convMin', nome: 'Mínima', cor: '#d97706' },
 ];
 
@@ -132,7 +132,7 @@ function projData(L) {
 function render() {
   if (!_root) return;
   const isConsol = _s.active === 'consol';
-  const tabs = LINES.map(l => tabBtn(l.id, l.icon + ' ' + l.nome, l.cor)).join('') + tabBtn('consol', '📊 Consolidado', '#0ea5e9');
+  const tabs = LINES.map(l => tabBtn(l.id, l.icon + ' ' + l.nome, l.cor)).join('') + tabBtn('consol', '📊 Consolidado', '#806d50');
   let body;
   if (isConsol) body = `<div id="st-out"></div>`;
   else body = `
@@ -168,18 +168,18 @@ function render() {
   </div>
   <style>
     .st-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 8px}
-    .st-tab{padding:8px 14px;border-radius:10px;border:1px solid var(--border);background:var(--bg-2);cursor:pointer;font-weight:700;font-size:13px}
+    .st-tab{padding:8px 14px;border-radius:var(--radius-md);border:1px solid var(--border);background:var(--bg-2);cursor:pointer;font-weight:600;font-size:13px}
     .st-tab.on{color:#fff}
-    .st-sec{font-size:11px;text-transform:uppercase;font-weight:800;color:var(--text-2,#94a3b8);letter-spacing:.5px;margin:20px 0 8px}
-    .st-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;background:var(--bg-3);border-radius:12px;padding:14px}
+    .st-sec{font-size:11px;text-transform:uppercase;font-weight:600;color:var(--text-2,#94a3b8);letter-spacing:.5px;margin:20px 0 8px}
+    .st-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;background:var(--bg-3);border-radius:var(--radius-md);padding:14px}
     .stt{width:100%;border-collapse:collapse;font-size:13px}
     .stt th,.stt td{padding:7px 12px;border-bottom:1px solid var(--border)}
     .stt thead th{background:var(--bg-3);font-size:11px;text-transform:uppercase;letter-spacing:.3px}
     .stt td.lbl{text-align:left;font-weight:600}
     .stt td.val{text-align:right;font-variant-numeric:tabular-nums}
-    .stt tr.grp td{background:var(--bg-3);font-weight:800;font-size:10.5px;text-transform:uppercase;color:var(--text-2,#94a3b8);letter-spacing:.4px;border-bottom:none;padding-top:11px}
-    .stt tr.hi td{background:rgba(99,102,241,.08);font-weight:800}
-    .stt td.real{background:rgba(37,99,235,.06)}
+    .stt tr.grp td{background:var(--bg-3);font-weight:600;font-size:11px;text-transform:uppercase;color:var(--text-2,#94a3b8);letter-spacing:.4px;border-bottom:none;padding-top:11px}
+    .stt tr.hi td{background:var(--accent-soft);font-weight:600}
+    .stt td.real{background:var(--accent-soft)}
     @media(max-width:880px){.st-grid{grid-template-columns:repeat(2,1fr)}}
   </style>`;
   _root.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { _s.active = b.dataset.tab; save(); render(); }));
@@ -193,7 +193,7 @@ function field(label, key, o = {}) {
   return `<div>
     <label class="tiny muted" style="font-weight:600;display:block;margin-bottom:3px">${label}</label>
     <div class="flex gap-1" style="align-items:center">
-      ${o.money ? '<span class="tiny muted" style="font-weight:700">R$</span>' : ''}
+      ${o.money ? '<span class="tiny muted" style="font-weight:600">R$</span>' : ''}
       <input ${ATTR_NUM} class="input" data-key="${key}" value="${numCampo(v)}" style="flex:1;font-size:12px;padding:6px 8px;min-width:0">
       ${o.pct ? '<span class="tiny muted">%</span>' : ''}
     </div></div>`;
@@ -227,7 +227,7 @@ function renderOut() {
   const pd = projData(L);
   out.innerHTML = `
     <div class="st-sec">📋 Funil — ${esc(lineMeta(_s.active).nome)}</div>
-    <div style="overflow-x:auto;border:1px solid var(--border);border-radius:12px">
+    <div style="overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-md)">
     <table class="stt">
       <thead><tr><th style="text-align:left">Etapa</th>${COLS.map(c => `<th style="text-align:right;color:${c.cor}">${c.nome}</th>`).join('')}</tr></thead>
       <tbody>
@@ -259,7 +259,7 @@ function renderOut() {
     ${orcView(L)}
 
     <div class="st-sec">🗂️ Carteira de leads + LTV <span class="tiny muted" style="font-weight:400">(cenário Realista)</span></div>
-    <div style="overflow-x:auto;border:1px solid var(--border);border-radius:12px"><table class="stt"><tbody>
+    <div style="overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-md)"><table class="stt"><tbody>
       ${row2('Leads não convertidos/mês', f1(cartR.naoConv))}
       ${row2('Convertem depois (' + pct2(L.taxaCarteira) + ')', f1(cartR.vendasFut) + ' vendas')}
       ${row2('VGV futuro da carteira', fK(cartR.vgvFut))}
@@ -276,7 +276,7 @@ function grp(t) { return `<tr class="grp"><td colspan="4">${t}</td></tr>`; }
 function row(label, vals, o = {}) {
   return `<tr class="${o.hi ? 'hi' : ''}"><td class="lbl">${label}</td>${vals.map((v, i) => `<td class="val ${i === 1 ? 'real' : ''}">${v}</td>`).join('')}</tr>`;
 }
-function row2(label, val, hi) { return `<tr class="${hi ? 'hi' : ''}"><td class="lbl">${label}</td><td class="val" style="color:${hi ? '#d97706' : ''};font-weight:${hi ? 800 : 600}">${val}</td></tr>`; }
+function row2(label, val, hi) { return `<tr class="${hi ? 'hi' : ''}"><td class="lbl">${label}</td><td class="val" style="color:${hi ? 'var(--warn)' : ''};font-weight:${hi ? 800 : 600}">${val}</td></tr>`; }
 
 function consolView() {
   // soma as 2 linhas por cenário (cada linha com sua própria taxa)
@@ -287,10 +287,10 @@ function consolView() {
   const real = pdM.real.map((v, i) => v + pdC.real[i]); const invArr = pdM.invArr.map((v, i) => v + pdC.invArr[i]);
   let ac = 0; const acum = real.map(r => (ac += r));
   const perLinha = LINES.map(ln => { const f = funil(_s[ln.id], _s[ln.id].convReal); const m = lineMeta(ln.id);
-    return `<tr><td class="lbl" style="color:${m.cor}">${m.icon} ${m.nome}</td><td class="val">${f$(f.invest)}</td><td class="val">${f1(f.leads)}</td><td class="val">${f1(f.vendas)}</td><td class="val">${fK(f.vgv)}</td><td class="val" style="color:${f.caixa >= 0 ? '#16a34a' : '#dc2626'};font-weight:700">${f$(f.caixa)}</td></tr>`; }).join('');
+    return `<tr><td class="lbl" style="color:${m.cor}">${m.icon} ${m.nome}</td><td class="val">${f$(f.invest)}</td><td class="val">${f1(f.leads)}</td><td class="val">${f1(f.vendas)}</td><td class="val">${fK(f.vgv)}</td><td class="val" style="color:${f.caixa >= 0 ? 'var(--ok)' : 'var(--err)'};font-weight:600">${f$(f.caixa)}</td></tr>`; }).join('');
   return `
     <div class="st-sec">📊 Consolidado (M.A.P + Conquista) — por cenário</div>
-    <div style="overflow-x:auto;border:1px solid var(--border);border-radius:12px"><table class="stt">
+    <div style="overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-md)"><table class="stt">
       <thead><tr><th style="text-align:left">Etapa</th>${COLS.map(c => `<th style="text-align:right;color:${c.cor}">${c.nome}</th>`).join('')}</tr></thead>
       <tbody>
         ${row('💸 Investimento/mês', sums.map(s => f$(s.invest)))}
@@ -304,7 +304,7 @@ function consolView() {
         ${row('🔁 ROAS', sums.map(s => f1(s.roas) + 'x'))}
       </tbody></table></div>
     <div class="st-sec">Por linha (Realista)</div>
-    <div style="overflow-x:auto;border:1px solid var(--border);border-radius:12px"><table class="stt">
+    <div style="overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-md)"><table class="stt">
       <thead><tr><th style="text-align:left">Linha</th><th style="text-align:right">Invest.</th><th style="text-align:right">Leads</th><th style="text-align:right">Vendas</th><th style="text-align:right">VGV</th><th style="text-align:right">Caixa</th></tr></thead>
       <tbody>${perLinha}</tbody></table></div>
     ${otimView()}
@@ -348,35 +348,35 @@ function otimView() {
     return `<tr><td class="lbl" style="color:${m.cor}">${m.icon} ${m.nome}</td>
       <td class="val">${f$(_s[id].cpl)}</td>
       <td class="val">${f1(f.roas)}x</td>
-      <td class="val" style="font-weight:700;color:${(f.caixa / REF) >= 0 ? '#16a34a' : '#dc2626'}">${(f.caixa / REF).toFixed(2)}</td>
+      <td class="val" style="font-weight:600;color:${(f.caixa / REF) >= 0 ? 'var(--ok)' : 'var(--err)'}">${(f.caixa / REF).toFixed(2)}</td>
       <td class="val">${(f.vgv / REF).toFixed(0)}</td>
       <td class="val">${paga ? '✅ paga' : '🔴 queima'}</td></tr>`; };
   const dCaixa = otimo.caixa - atual.caixa;
   const pctM = budget > 0 ? (am / budget * 100) : 0, pctC = budget > 0 ? (ac / budget * 100) : 0;
   const objBtn = (v, l) => `<button class="btn ${obj === v ? 'btn-primary' : 'btn-ghost'} btn-sm" data-obj="${v}">${l}</button>`;
-  const cmpRow = (lbl, a, b, money, fmt2) => { const f = fmt2 || f$; return `<tr><td class="lbl">${lbl}</td><td class="val">${f(a)}</td><td class="val" style="font-weight:800;color:var(--ok)">${f(b)}</td></tr>`; };
+  const cmpRow = (lbl, a, b, money, fmt2) => { const f = fmt2 || f$; return `<tr><td class="lbl">${lbl}</td><td class="val">${f(a)}</td><td class="val" style="font-weight:600;color:var(--ok)">${f(b)}</td></tr>`; };
   return `
     <div class="st-sec">⚡ Otimizador de verba <span class="tiny muted" style="font-weight:400">— onde investir cada R$ pra render mais (cenário Realista)</span></div>
-    <div style="background:var(--bg-3);border-radius:12px;padding:13px">
+    <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:13px">
       <div class="st-grid" style="grid-template-columns:repeat(4,1fr);background:transparent;padding:0;margin-bottom:10px">
-        <div><label class="tiny muted" style="font-weight:600;display:block;margin-bottom:3px">Verba total/mês</label><div class="flex gap-1" style="align-items:center"><span class="tiny muted" style="font-weight:700">R$</span><input type="number" class="input" id="opt-budget" value="${_opt.budget}" placeholder="${cur.map + cur.conq}" style="flex:1;font-size:12px;padding:6px 8px;min-width:0"></div></div>
+        <div><label class="tiny muted" style="font-weight:600;display:block;margin-bottom:3px">Verba total/mês</label><div class="flex gap-1" style="align-items:center"><span class="tiny muted" style="font-weight:600">R$</span><input type="number" class="input" id="opt-budget" value="${_opt.budget}" placeholder="${cur.map + cur.conq}" style="flex:1;font-size:12px;padding:6px 8px;min-width:0"></div></div>
         <div><label class="tiny muted" style="font-weight:600;display:block;margin-bottom:3px">Teto leads/mês M.A.P</label><input type="number" class="input" id="opt-capmap" value="${_opt.capMap}" placeholder="sem teto" style="width:100%;font-size:12px;padding:6px 8px"></div>
         <div><label class="tiny muted" style="font-weight:600;display:block;margin-bottom:3px">Teto leads/mês Conquista</label><input type="number" class="input" id="opt-capconq" value="${_opt.capConq}" placeholder="sem teto" style="width:100%;font-size:12px;padding:6px 8px"></div>
         <div><label class="tiny muted" style="font-weight:600;display:block;margin-bottom:3px">Maximizar</label><div class="flex gap-1">${objBtn('caixa', '💰 Caixa')}${objBtn('vgv', '🏆 VGV')}${objBtn('vendas', '🤝 Vendas')}</div></div>
       </div>
 
-      <div class="tiny muted" style="font-weight:700;margin-bottom:4px">📊 Eficiência por linha (R$1 investido)</div>
-      <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;margin-bottom:12px"><table class="stt">
+      <div class="tiny muted" style="font-weight:600;margin-bottom:4px">📊 Eficiência por linha (R$1 investido)</div>
+      <div style="overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-md);margin-bottom:12px"><table class="stt">
         <thead><tr><th style="text-align:left">Linha</th><th style="text-align:right">CPL</th><th style="text-align:right">ROAS</th><th style="text-align:right">Caixa/R$1</th><th style="text-align:right">VGV/R$1</th><th style="text-align:right">Tráfego</th></tr></thead>
         <tbody>${effRow('map')}${effRow('conquista')}</tbody></table></div>
 
-      <div class="tiny muted" style="font-weight:700;margin-bottom:4px">🎯 Alocação recomendada de ${f$(budget)} (max. ${objNome})</div>
+      <div class="tiny muted" style="font-weight:600;margin-bottom:4px">🎯 Alocação recomendada de ${f$(budget)} (max. ${objNome})</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-        <div style="background:var(--bg-2);border-radius:8px;padding:10px;text-align:center"><div class="tiny muted">🏢 M.A.P</div><div style="font-weight:800;font-size:15px">${f$(am)}</div><div class="tiny muted">${pctM.toFixed(0)}% · ${f1(fOtM.vendas)} vendas</div></div>
-        <div style="background:var(--bg-2);border-radius:8px;padding:10px;text-align:center"><div class="tiny muted">🏠 Conquista</div><div style="font-weight:800;font-size:15px">${f$(ac)}</div><div class="tiny muted">${pctC.toFixed(0)}% · ${f1(fOtC.vendas)} vendas</div></div>
+        <div style="background:var(--bg-2);border-radius:var(--radius-md);padding:10px;text-align:center"><div class="tiny muted">🏢 M.A.P</div><div style="font-weight:600;font-size:14px">${f$(am)}</div><div class="tiny muted">${pctM.toFixed(0)}% · ${f1(fOtM.vendas)} vendas</div></div>
+        <div style="background:var(--bg-2);border-radius:var(--radius-md);padding:10px;text-align:center"><div class="tiny muted">🏠 Conquista</div><div style="font-weight:600;font-size:14px">${f$(ac)}</div><div class="tiny muted">${pctC.toFixed(0)}% · ${f1(fOtC.vendas)} vendas</div></div>
       </div>
 
-      <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px"><table class="stt">
+      <div style="overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-md)"><table class="stt">
         <thead><tr><th style="text-align:left">Resultado/mês</th><th style="text-align:right">Hoje (sua divisão)</th><th style="text-align:right;color:var(--ok)">⚡ Ótimo</th></tr></thead>
         <tbody>
           ${cmpRow('💸 Investimento', atual.invest, otimo.invest)}
@@ -385,7 +385,7 @@ function otimView() {
           ${cmpRow('💰 Caixa', atual.caixa, otimo.caixa)}
         </tbody></table></div>
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:8px">
-        <div class="tiny" style="font-weight:700;color:${dCaixa >= 0 ? '#16a34a' : '#dc2626'}">${dCaixa >= 0 ? '▲' : '▼'} ${f$(Math.abs(dCaixa))}/mês de caixa ${dCaixa >= 0 ? 'a mais' : 'a menos'} com a alocação ótima ${dCaixa >= 0 ? '(' + f$(dCaixa * 12) + '/ano)' : ''}</div>
+        <div class="tiny" style="font-weight:600;color:${dCaixa >= 0 ? 'var(--ok)' : 'var(--err)'}">${dCaixa >= 0 ? '▲' : '▼'} ${f$(Math.abs(dCaixa))}/mês de caixa ${dCaixa >= 0 ? 'a mais' : 'a menos'} com a alocação ótima ${dCaixa >= 0 ? '(' + f$(dCaixa * 12) + '/ano)' : ''}</div>
         <button class="btn btn-primary btn-sm" id="opt-aplicar">▶ aplicar alocação ótima nas linhas</button>
       </div>
       <div class="tiny muted" style="margin-top:6px">O otimizador concentra a verba na linha com mais ${objNome.toLowerCase()} por R$ investido, até o teto de leads/mês (capacidade da equipe). Sem teto, vai 100% na mais eficiente. Os tetos modelam quantos leads cada equipe consegue atender de verdade.</div>
@@ -421,47 +421,47 @@ function orcView(L) {
   const o = orcamentoPara(L, alvoVal);
   const fa = funil({ ...L, investMes: o.invest }, L.convReal);
   const dInv = o.invest - cur.invest;
-  const ok = (l, v, cor) => `<div style="background:var(--bg-2);border-radius:8px;padding:8px 10px;text-align:center"><div class="tiny muted">${l}</div><div style="font-weight:800;font-size:14px${cor ? ';color:' + cor : ''}">${v}</div></div>`;
+  const ok = (l, v, cor) => `<div style="background:var(--bg-2);border-radius:var(--radius-md);padding:8px 10px;text-align:center"><div class="tiny muted">${l}</div><div style="font-weight:600;font-size:14px${cor ? ';color:' + cor : ''}">${v}</div></div>`;
   return `
     <div class="st-sec">🎯 Orçamento pra meta <span class="tiny muted" style="font-weight:400">— engenharia reversa: do VGV alvo → quanto investir (ciclo Viab → Orçamento)</span></div>
-    <div style="background:var(--bg-3);border-radius:12px;padding:13px">
+    <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:13px">
       <div class="flex gap-1" style="align-items:center;flex-wrap:wrap;margin-bottom:10px">
         <label class="tiny muted" style="font-weight:600">VGV alvo/mês</label>
-        <span class="tiny muted" style="font-weight:700">R$</span>
+        <span class="tiny muted" style="font-weight:600">R$</span>
         <input type="number" class="input" id="st-alvo" value="${_alvo[_s.active]}" placeholder="${Math.round(cur.vgv)}" style="max-width:170px;font-size:12px;padding:6px 8px">
         <span class="tiny muted">— pegue o VGV de equilíbrio/meta no <a href="#/metricas-viab" style="color:var(--psm-gold)">Ponto de Equilíbrio</a></span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px">
         ${ok('🏆 VGV alvo', fK(alvoVal))}${ok('🤝 Vendas', f1(o.vendas))}${ok('👥 Leads', f1(o.leads))}${ok('💸 Investir/mês', f$(o.invest), '#7c3aed')}${ok('💰 Caixa', f$(fa.caixa), fa.caixa >= 0 ? '#16a34a' : '#dc2626')}${ok('📊 CPA', f$(fa.cpa))}
       </div>
-      <div class="tiny muted" style="margin-top:7px">Pra fazer <b>${fK(alvoVal)}</b> de VGV na <b>${esc(lineMeta(_s.active).nome)}</b>, invista <b style="color:var(--roxo)">${f$(o.invest)}</b>/mês em tráfego (CPL ${f$(L.cpl)}, conversão ${pct2(L.convReal)}, descarte ${pct2(L.descartePct)}). Hoje você investe ${f$(cur.invest)} → <b style="color:${dInv >= 0 ? '#d97706' : '#16a34a'}">${dInv >= 0 ? '+' : ''}${f$(dInv)}</b>.</div>
+      <div class="tiny muted" style="margin-top:7px">Pra fazer <b>${fK(alvoVal)}</b> de VGV na <b>${esc(lineMeta(_s.active).nome)}</b>, invista <b style="color:var(--roxo)">${f$(o.invest)}</b>/mês em tráfego (CPL ${f$(L.cpl)}, conversão ${pct2(L.convReal)}, descarte ${pct2(L.descartePct)}). Hoje você investe ${f$(cur.invest)} → <b style="color:${dInv >= 0 ? 'var(--warn)' : 'var(--ok)'}">${dInv >= 0 ? '+' : ''}${f$(dInv)}</b>.</div>
     </div>`;
 }
 function projTable(pd) {
   const th = pd.labels.map(l => `<th style="text-align:right">${l}</th>`).join('');
   const tdInv = pd.invArr.map(v => `<td class="val">${fK(v)}</td>`).join('');
-  const tdCx = pd.real.map(v => `<td class="val" style="color:${v >= 0 ? '#16a34a' : '#dc2626'}">${fK(v)}</td>`).join('');
-  const tdAc = pd.acum.map(v => `<td class="val" style="font-weight:800;color:${v >= 0 ? '#16a34a' : '#dc2626'}">${fK(v)}</td>`).join('');
-  return `<div style="overflow-x:auto;border:1px solid var(--border);border-radius:12px"><table class="stt">
+  const tdCx = pd.real.map(v => `<td class="val" style="color:${v >= 0 ? 'var(--ok)' : 'var(--err)'}">${fK(v)}</td>`).join('');
+  const tdAc = pd.acum.map(v => `<td class="val" style="font-weight:600;color:${v >= 0 ? 'var(--ok)' : 'var(--err)'}">${fK(v)}</td>`).join('');
+  return `<div style="overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-md)"><table class="stt">
     <thead><tr><th style="text-align:left">—</th>${th}</tr></thead>
     <tbody>
       <tr><td class="lbl">Investimento/tri</td>${tdInv}</tr>
       <tr><td class="lbl">Caixa/tri (já com atraso)</td>${tdCx}</tr>
       <tr class="hi"><td class="lbl">Caixa acumulado</td>${tdAc}</tr>
     </tbody></table></div>
-    <div class="tiny muted" style="margin-top:6px">O começo é menor porque a venda só entra depois do tempo de conversão. Acumulado final: <b style="color:${pd.acum[7] >= 0 ? '#16a34a' : '#dc2626'}">${f$(pd.acum[7])}</b> em 24 meses.</div>`;
+    <div class="tiny muted" style="margin-top:6px">O começo é menor porque a venda só entra depois do tempo de conversão. Acumulado final: <b style="color:${pd.acum[7] >= 0 ? 'var(--ok)' : 'var(--err)'}">${f$(pd.acum[7])}</b> em 24 meses.</div>`;
 }
 
 /* ── 📡 Cenário ATUAL (real): Meta histórico (investimento/CPL/leads) + CRM (vendas/VGV) ── */
 function realPanel() {
-  if (_real && _real.loading) return `<div style="margin:6px 0;padding:12px;background:var(--bg-3);border-radius:12px" class="tiny muted"><span class="spinner"></span> 📡 carregando cenário atual (Meta + CRM)…</div>`;
-  if (!_real || _real.erro) return `<div style="margin:6px 0;padding:12px;background:var(--bg-3);border-radius:12px;font-size:12.5px">📡 <b>Cenário ATUAL (real)</b> — ${(_real && _real.erro) ? esc(_real.erro) : 'sem dados ainda'} <button class="btn btn-ghost btn-sm" id="st-real-reload" style="margin-left:6px">↻ tentar</button></div>`;
+  if (_real && _real.loading) return `<div style="margin:6px 0;padding:12px;background:var(--bg-3);border-radius:var(--radius-md)" class="tiny muted"><span class="spinner"></span> 📡 carregando cenário atual (Meta + CRM)…</div>`;
+  if (!_real || _real.erro) return `<div style="margin:6px 0;padding:12px;background:var(--bg-3);border-radius:var(--radius-md);font-size:13px">📡 <b>Cenário ATUAL (real)</b> — ${(_real && _real.erro) ? esc(_real.erro) : 'sem dados ainda'} <button class="btn btn-ghost btn-sm" id="st-real-reload" style="margin-left:6px">↻ tentar</button></div>`;
   const r = _real;
-  const c = (l, v) => `<div style="background:var(--bg-2);border-radius:8px;padding:8px 10px;text-align:center"><div class="tiny muted">${l}</div><div style="font-weight:800;font-size:14px;margin-top:2px">${v}</div></div>`;
+  const c = (l, v) => `<div style="background:var(--bg-2);border-radius:var(--radius-md);padding:8px 10px;text-align:center"><div class="tiny muted">${l}</div><div style="font-weight:600;font-size:14px;margin-top:2px">${v}</div></div>`;
   const usarBtn = _s.active === 'consol' ? '' : `<button class="btn btn-primary btn-sm" id="st-real-usar">▶ usar no simulado (${esc(lineMeta(_s.active).nome.replace('PSM ', ''))})</button>`;
-  return `<div style="margin:6px 0;background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.35);border-radius:12px;padding:13px">
+  return `<div style="margin:6px 0;background:var(--ok-soft);border:1px solid var(--ok);border-radius:var(--radius-md);padding:13px">
     <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-      <div style="font-weight:800;color:var(--ok)">📡 Cenário ATUAL — real ${r.ano} <span class="tiny muted" style="font-weight:400;color:var(--text-2,#94a3b8)">Meta + CRM · média mensal</span></div>
+      <div style="font-weight:600;color:var(--ok)">📡 Cenário ATUAL — real ${r.ano} <span class="tiny muted" style="font-weight:400;color:var(--text-2,#94a3b8)">Meta + CRM · média mensal</span></div>
       <div class="flex gap-2"><button class="btn btn-ghost btn-sm" id="st-real-reload">↻</button>${usarBtn}</div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(108px,1fr));gap:8px;margin-top:9px">

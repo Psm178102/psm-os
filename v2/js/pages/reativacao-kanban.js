@@ -80,19 +80,19 @@ function cardHtml(c) {
   const borda = fs ? `border:2px solid ${pc};background:${pc}0d` : 'border:1px solid var(--bd,#e2e8f0)';
   const dp = diasParado(c);
   return `<div class="rk-card" data-id="${esc(c.id)}"
-    style="background:var(--bg-2);${borda};border-radius:10px;padding:8px 10px;margin-bottom:6px;cursor:grab">
-    ${fs ? `<div class="tiny" style="font-weight:900;color:${pc};margin-bottom:2px">${pl}${c.tarefa?.titulo ? ' · ' + esc(c.tarefa.titulo.replace(/^[^ ]+ /, '')) : ''}</div>` : ''}
+    style="background:var(--bg-2);${borda};border-radius:var(--radius-md);padding:8px 10px;margin-bottom:6px;cursor:grab">
+    ${fs ? `<div class="tiny" style="font-weight:600;color:${pc};margin-bottom:2px">${pl}${c.tarefa?.titulo ? ' · ' + esc(c.tarefa.titulo.replace(/^[^ ]+ /, '')) : ''}</div>` : ''}
     <div class="flex items-center" style="gap:6px">
       <b style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.nome)}</b>
       ${fone ? `<a class="tiny" href="https://wa.me/55${esc(fone)}" target="_blank" rel="noopener" title="Abrir WhatsApp" onclick="event.stopPropagation()">💬</a>` : ''}
     </div>
     <div class="flex" style="gap:4px;flex-wrap:wrap;margin-top:3px">
-      ${c.valor ? `<span class="tiny" style="color:var(--warn);font-weight:800">💼 ${brl(c.valor)}</span>` : '<span class="tiny muted">sem valor</span>'}
-      ${dp !== null ? `<span class="tiny" style="background:#64748b1a;color:var(--ink-muted);padding:0 7px;border-radius:999px;font-weight:700">😴 ${dp}d parado</span>` : ''}
-      ${(c.etiquetas || []).map(t => { const i = tagInfo(t); return `<span class="tiny" style="background:${i.cor}1a;color:${i.cor};padding:0 7px;border-radius:999px;font-weight:700">${esc(i.nome)}</span>`; }).join('')}
+      ${c.valor ? `<span class="tiny" style="color:var(--warn);font-weight:600">💼 ${brl(c.valor)}</span>` : '<span class="tiny muted">sem valor</span>'}
+      ${dp !== null ? `<span class="tiny" style="background:#64748b1a;color:var(--ink-muted);padding:0 7px;border-radius:var(--radius-full);font-weight:600">😴 ${dp}d parado</span>` : ''}
+      ${(c.etiquetas || []).map(t => { const i = tagInfo(t); return `<span class="tiny" style="background:${i.cor}1a;color:${i.cor};padding:0 7px;border-radius:var(--radius-full);font-weight:600">${esc(i.nome)}</span>`; }).join('')}
     </div>
     ${c.estagio ? `<div class="tiny muted" style="margin-top:2px">📍 ${esc(c.estagio)}</div>` : ''}
-    ${corretorNome(c) ? `<div class="tiny" style="margin-top:2px;font-weight:700">👔 ${esc(corretorNome(c))} <span class="muted" style="font-weight:400">(corretor no RD)</span></div>` : ''}
+    ${corretorNome(c) ? `<div class="tiny" style="margin-top:2px;font-weight:600">👔 ${esc(corretorNome(c))} <span class="muted" style="font-weight:400">(corretor no RD)</span></div>` : ''}
     ${c.descarte_motivo ? `<div class="tiny muted" style="margin-top:2px">🗑 ${esc(c.descarte_motivo)}</div>` : ''}
     ${c.obs ? `<div class="tiny muted" style="margin-top:2px;max-height:30px;overflow:hidden">${esc(c.obs)}</div>` : ''}
   </div>`;
@@ -123,7 +123,7 @@ function render() {
         <button class="btn btn-ghost btn-sm" id="rk-reload">↻</button>
       </div>
       ${(fluxosAba || _aba === 'comissao') ? '' : `<div class="flex items-center mt-2" style="gap:6px;flex-wrap:wrap">
-        <button class="btn btn-sm ${_fHoje ? 'btn-primary' : 'btn-ghost'}" id="rk-hoje" style="font-weight:800">📅 Fila de hoje (${nFila})</button>
+        <button class="btn btn-sm ${_fHoje ? 'btn-primary' : 'btn-ghost'}" id="rk-hoje" style="font-weight:600">📅 Fila de hoje (${nFila})</button>
         <button class="btn btn-ghost btn-sm" id="rk-gerar" title="Monta a fila do dia agora (o cron faz sozinho às 9h)">▶️ Gerar fila</button>
         <button class="btn btn-ghost btn-sm" id="rk-sync" title="Puxa do RD: funil MAP aberto, parado e com telefone">🔄 Sincronizar base</button>
         <button class="btn btn-ghost btn-sm" id="rk-novo">➕ Card manual</button>
@@ -139,10 +139,10 @@ function render() {
       const resp = cs.filter(c => c.coluna === 'respondeu').length;
       const reat = cs.filter(c => c.reativado_em || c.coluna === 'reativado').length;
       const taxa = abord ? Math.round(reat / abord * 100) : 0;
-      const mini = (l, v, cor) => `<div style="flex:1;min-width:110px;background:var(--bg-2);border-radius:10px;padding:6px 10px;border-left:3px solid ${cor}"><div class="tiny muted">${l}</div><div style="font-weight:900;font-size:16px">${v}</div></div>`;
+      const mini = (l, v, cor) => `<div style="flex:1;min-width:110px;background:var(--bg-2);border-radius:var(--radius-md);padding:6px 10px;border-left:3px solid ${cor}"><div class="tiny muted">${l}</div><div style="font-weight:600;font-size:16px">${v}</div></div>`;
       return `<div class="flex mt-2" style="gap:8px;flex-wrap:wrap">
         ${mini('📥 Estoque a reativar', cs.filter(c => c.coluna === 'a_reativar').length, '#64748b')}
-        ${mini('💬 Já abordados', abord, '#2563eb')}
+        ${mini('💬 Já abordados', abord, '#806d50')}
         ${mini('🔥 Responderam', resp, '#d97706')}
         ${mini('✅ Reativados', reat, '#16a34a')}
         ${mini('📈 Conversão abordado→reativado', taxa + '%', taxa >= 10 ? '#16a34a' : '#d97706')}
@@ -153,10 +153,10 @@ function render() {
         const lista = porCol[col.id] || [];
         const max = _showMax[col.id] || 40;
         return `<div class="rk-col" data-col="${esc(col.id)}"
-          style="flex:0 0 268px;background:var(--bg-3);border-radius:12px;padding:8px;border-top:3px solid ${esc(col.cor)}">
+          style="flex:0 0 268px;background:var(--bg-3);border-radius:var(--radius-md);padding:8px;border-top:3px solid ${esc(col.cor)}">
           <div class="flex items-center" style="gap:6px;padding:0 2px 6px">
             <b class="tiny">${esc(col.emoji)} ${esc(col.nome)}</b>
-            <span class="tiny muted" style="margin-left:auto;font-weight:800">${lista.length}</span>
+            <span class="tiny muted" style="margin-left:auto;font-weight:600">${lista.length}</span>
           </div>
           <div style="max-height:62vh;overflow-y:auto">
             ${lista.slice(0, max).map(cardHtml).join('') || '<div class="tiny muted" style="text-align:center;padding:14px 0">vazio</div>'}
@@ -264,8 +264,8 @@ function renderComissao() {
   box.innerHTML = `
     <div class="card">
       <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
-        <h3 class="card-title" style="margin:0;font-size:15px">💰 Como a reativação é paga</h3>
-        ${ed ? '<span class="tiny" style="background:#16a34a20;color:var(--ok);border-radius:20px;padding:1px 9px;font-weight:800">você pode editar</span>'
+        <h3 class="card-title" style="margin:0;font-size:14px">💰 Como a reativação é paga</h3>
+        ${ed ? '<span class="tiny" style="background:var(--ok-soft);color:var(--ok);border-radius:var(--radius-lg);padding:1px 9px;font-weight:600">você pode editar</span>'
              : '<span class="tiny muted">só a direção edita</span>'}
       </div>
       <div class="tiny muted mt-1">Cada reativação que <b>fecha negócio</b> vale pela faixa de VGV e pelo tipo. A soma do mês é multiplicada pelo <b>bônus de volume</b> e travada no teto. Lançamento paga menos porque reativar lista de lançamento é mais fácil que ressuscitar lead de estoque.</div>
@@ -275,7 +275,7 @@ function renderComissao() {
           <b class="tiny">Valor por reativação</b>
           <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:4px">
             <tr class="tiny muted" style="text-align:left"><th style="padding:3px 6px">VGV do negócio</th><th style="text-align:right">🎯 Estoque</th><th style="text-align:right">🚀 Lançamento</th></tr>
-            ${est.map((fx, i) => `<tr style="border-top:1px solid var(--bd,#eef2f7)" data-rg-b>
+            ${est.map((fx, i) => `<tr style="border-top:1px solid var(--bd,var(--border))" data-rg-b>
               <td style="padding:4px 6px">${ed ? `<span class="tiny muted">até R$</span> <input class="input rg-teto" type="number" value="${fx[0] >= 999999999 ? '' : fx[0]}" placeholder="∞" style="width:98px;padding:1px 5px">` : faixaVgvLbl(fx, i, est)}</td>
               <td style="text-align:right">${ed ? `<input class="input rg-est" type="number" value="${fx[1]}" style="width:74px;padding:1px 5px;text-align:right">` : `<b>${brlC(fx[1])}</b>`}</td>
               <td style="text-align:right">${ed ? `<input class="input rg-lanc" type="number" value="${(lanc[i] || [])[1] || 0}" style="width:74px;padding:1px 5px;text-align:right">` : brlC((lanc[i] || [])[1] || 0)}</td>
@@ -288,7 +288,7 @@ function renderComissao() {
             <tr class="tiny muted" style="text-align:left"><th style="padding:3px 6px">Fechamentos</th><th style="text-align:right">Bônus</th></tr>
             ${vol.map((fx, i) => { const de = i === 0 ? 1 : Number(vol[i - 1][0]) + 1;
               const lbl = fx[0] >= 999999 ? de + '+' : (de === fx[0] ? de : de + ' a ' + fx[0]);
-              return `<tr style="border-top:1px solid var(--bd,#eef2f7)" data-rg-v>
+              return `<tr style="border-top:1px solid var(--bd,var(--border))" data-rg-v>
                 <td style="padding:4px 6px">${ed ? `<span class="tiny muted">até</span> <input class="input rg-vt" type="number" value="${fx[0] >= 999999 ? '' : fx[0]}" placeholder="∞" style="width:56px;padding:1px 5px">` : lbl}</td>
                 <td style="text-align:right">${ed ? `<input class="input rg-vm" type="number" step="0.05" value="${fx[1]}" style="width:64px;padding:1px 5px;text-align:right">` : `<b style="color:var(--ok)">${multC(fx[1])}</b>`}</td>
               </tr>`; }).join('')}
@@ -301,7 +301,7 @@ function renderComissao() {
         ${ed ? '<button class="btn btn-primary btn-sm" id="rg-save" style="margin-left:auto">💾 Salvar tabela</button>' : ''}
       </div>
 
-      <div class="tiny muted mt-2" style="background:var(--bg-3);border-radius:8px;padding:8px 10px">
+      <div class="tiny muted mt-2" style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px">
         <b>Exemplo:</b> 5 reativações no mês — 3 de estoque a ${brlC((est[0] || [])[1])} + 2 de estoque em VGV maior a ${brlC((est[1] || [])[1])} = base ${brlC(3 * ((est[0] || [])[1] || 0) + 2 * ((est[1] || [])[1] || 0))}. Com 5 fechamentos o bônus é ${multC((vol.find(v => 5 <= v[0]) || [0, 1])[1])} → <b>${brlC((3 * ((est[0] || [])[1] || 0) + 2 * ((est[1] || [])[1] || 0)) * ((vol.find(v => 5 <= v[0]) || [0, 1])[1] || 1))}</b>. O bônus vale pra <b>todas</b> as reativações do mês, não só a última.
       </div>
     </div>`;
@@ -376,12 +376,12 @@ function abrirCard(id) {
       ${c.valor ? `<b style="color:var(--warn)">${brl(c.valor)}</b>` : ''}
       <button class="btn btn-ghost btn-sm" id="rk-x">✕</button>
     </div>
-    <div class="tiny mt-1" style="background:#2563eb12;border-radius:8px;padding:6px 10px">
+    <div class="tiny mt-1" style="background:var(--accent-soft);border-radius:var(--radius-md);padding:6px 10px">
       ${corretorNome(c) ? `<b>👔 Corretor (RD): ${esc(corretorNome(c))}</b>` : '👔 Sem corretor vinculado (card manual)'}
       ${c.estagio ? ` · 📍 ${esc(c.estagio)}` : ''}${dp !== null ? ` · 😴 parado há ${dp} dias` : ''}
     </div>
-    <div class="mt-2" style="background:var(--bg-3);border-radius:10px;padding:8px 10px">
-      <label class="tiny muted" style="font-weight:800">➡️ Mover este lead para</label>
+    <div class="mt-2" style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px">
+      <label class="tiny muted" style="font-weight:600">➡️ Mover este lead para</label>
       <div class="flex" style="gap:5px;flex-wrap:wrap;margin-top:4px">
         ${(_d.cfg.colunas || []).filter(col => col.id !== c.coluna).map(col => `<button class="btn btn-ghost btn-sm rk-mv" data-col="${esc(col.id)}" style="padding:3px 11px;border:1px solid ${esc(col.cor)}55">${esc(col.emoji)} ${esc(col.nome)}</button>`).join('')}
       </div>
@@ -391,9 +391,9 @@ function abrirCard(id) {
       <input class="input" id="rk-fone" value="${esc(c.contato || '')}" style="flex:1;min-width:130px" placeholder="Telefone">
       ${(c.contato || '').replace(/\D/g, '') ? `<a class="btn btn-ghost btn-sm" href="https://wa.me/55${esc((c.contato || '').replace(/\D/g, ''))}" target="_blank" rel="noopener">💬 WhatsApp</a>` : ''}
     </div>
-    <div class="mt-2" style="background:#7c3aed12;border-radius:10px;padding:8px 10px">
+    <div class="mt-2" style="background:var(--accent-soft);border-radius:var(--radius-md);padding:8px 10px">
       <div class="flex items-center" style="gap:6px">
-        <label class="tiny muted" style="font-weight:800">🧠 Mensagem personalizada por IA <span style="font-weight:400">(usa o que ele buscava, valor e tempo parado)</span></label>
+        <label class="tiny muted" style="font-weight:600">🧠 Mensagem personalizada por IA <span style="font-weight:400">(usa o que ele buscava, valor e tempo parado)</span></label>
         <button class="btn btn-ghost btn-sm" id="rk-ia" style="margin-left:auto;padding:2px 10px;font-size:11px">✨ Gerar</button>
       </div>
       <div id="rk-ia-out" style="display:none;margin-top:5px">
@@ -403,11 +403,11 @@ function abrirCard(id) {
     </div>
     <div class="mt-2"><label class="tiny muted">🏷 Etiquetas</label>
       <div class="flex" style="gap:5px;flex-wrap:wrap;margin-top:3px">
-        ${(_d.cfg.etiquetas || []).map(t => { const on = (c.etiquetas || []).includes(t.id); return `<button class="btn btn-sm rk-tag" data-t="${esc(t.id)}" style="padding:2px 10px;font-size:11px;border-radius:999px;${on ? `background:${t.cor};color:#fff;font-weight:800` : `background:${t.cor}1a;color:${t.cor}`}">${esc(t.nome)}</button>`; }).join('')}
+        ${(_d.cfg.etiquetas || []).map(t => { const on = (c.etiquetas || []).includes(t.id); return `<button class="btn btn-sm rk-tag" data-t="${esc(t.id)}" style="padding:2px 10px;font-size:11px;border-radius:var(--radius-full);${on ? `background:${t.cor};color:#fff;font-weight:600` : `background:${t.cor}1a;color:${t.cor}`}">${esc(t.nome)}</button>`; }).join('')}
       </div></div>
     <div class="mt-2"><label class="tiny muted">📝 Observações</label>
       <textarea class="input" id="rk-obs" rows="3" style="resize:vertical">${esc(c.obs || '')}</textarea></div>
-    <div class="mt-2" style="background:var(--bg-3);border-radius:10px;padding:8px 10px">
+    <div class="mt-2" style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px">
       <label class="tiny muted">📅 Tarefa (vai pra Agenda)${c.tarefa?.data ? ` — atual: ${esc(String(c.tarefa.data).split('-').reverse().join('/'))}` : ''}</label>
       <div class="flex" style="gap:6px;flex-wrap:wrap;margin-top:3px">
         <input class="input" id="rk-tdata" type="date" value="${esc(c.tarefa?.data || '')}" style="flex:1;min-width:130px">
@@ -472,13 +472,13 @@ function abrirCard(id) {
 function fluxoCard(f) {
   if (_editFluxo === f.id) return fluxoEditor(f);
   const passo = (p, i) => `
-    <div style="border-top:1px solid var(--bd,#eef2f7);padding:8px 0 6px">
+    <div style="border-top:1px solid var(--bd,var(--border));padding:8px 0 6px">
       <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
         <b class="tiny">${i + 1}. ${esc(p.titulo || 'Mensagem')}</b>
-        ${p.envio ? `<span class="tiny" style="background:#2563eb1a;color:var(--info);padding:1px 8px;border-radius:999px">⏱ ${esc(p.envio)}</span>` : ''}
+        ${p.envio ? `<span class="tiny" style="background:var(--accent-soft);color:var(--info);padding:1px 8px;border-radius:var(--radius-full)">⏱ ${esc(p.envio)}</span>` : ''}
         <button class="btn btn-ghost btn-sm rkf-copy" data-fluxo="${esc(f.id)}" data-passo="${i}" style="margin-left:auto;padding:2px 9px;font-size:11px">📋 Copiar</button>
       </div>
-      <div class="tiny" style="white-space:pre-wrap;background:var(--bg-3);border-radius:8px;padding:7px 9px;margin-top:4px">${esc(p.texto)}</div>
+      <div class="tiny" style="white-space:pre-wrap;background:var(--bg-3);border-radius:var(--radius-md);padding:7px 9px;margin-top:4px">${esc(p.texto)}</div>
     </div>`;
   return `<div class="card" style="margin:0 0 10px;padding:12px 14px">
     <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
@@ -493,7 +493,7 @@ function fluxoCard(f) {
 function fluxoEditor(f) {
   const novo = f.id === '__novo__';
   const passoEd = p => `
-    <div style="border-top:1px dashed var(--bd,#e2e8f0);padding:8px 0" data-passo-ed>
+    <div style="border-top:1px dashed var(--bd,var(--border));padding:8px 0" data-passo-ed>
       <div class="flex" style="gap:6px;flex-wrap:wrap">
         <input class="input pe-titulo" value="${esc(p.titulo || '')}" placeholder="Título do passo" style="flex:2;min-width:160px;padding:4px 8px">
         <input class="input pe-envio" value="${esc(p.envio || '')}" placeholder="Quando enviar" style="flex:1;min-width:150px;padding:4px 8px">
@@ -501,7 +501,7 @@ function fluxoEditor(f) {
       </div>
       <textarea class="input pe-texto" rows="2" style="margin-top:4px;resize:vertical" placeholder="Mensagem (use {nome})">${esc(p.texto || '')}</textarea>
     </div>`;
-  return `<div class="card" style="margin:0 0 10px;padding:12px 14px;border:1px solid #2563eb55" id="rkf-editor">
+  return `<div class="card" style="margin:0 0 10px;padding:12px 14px;border:1px solid var(--accent-ink)" id="rkf-editor">
     <b class="tiny">${novo ? '➕ Novo fluxo' : '✏️ Editando fluxo'}</b>
     <div class="flex mt-1" style="gap:6px;flex-wrap:wrap">
       <input class="input fe-emoji" value="${esc(f.emoji || '💬')}" style="width:58px;padding:4px 8px">
@@ -521,7 +521,7 @@ function fluxoEditor(f) {
 function htmlFluxos() {
   const fluxos = _d.fluxos || [];
   return `<div class="mt-2">
-    <div class="tiny" style="background:#d977061a;color:var(--ambar-escuro);border-radius:10px;padding:8px 10px;font-weight:700">
+    <div class="tiny" style="background:var(--warn-soft);color:var(--ambar-escuro);border-radius:var(--radius-md);padding:8px 10px;font-weight:600">
       💡 Regra de ouro da reativação: UMA mensagem curta com contexto, espera a resposta. Bloco de texto mata a conversão.
     </div>
     ${_d.can_cfg ? '<div class="flex mt-2" style="justify-content:flex-end"><button class="btn btn-primary btn-sm" id="rkf-novo">➕ Novo fluxo</button></div>' : ''}
@@ -548,7 +548,7 @@ function wireFluxos() {
   if (!ed) return;
   ed.querySelector('#fe-add').onclick = () => {
     const d = document.createElement('div');
-    d.innerHTML = `<div style="border-top:1px dashed var(--bd,#e2e8f0);padding:8px 0" data-passo-ed>
+    d.innerHTML = `<div style="border-top:1px dashed var(--bd,var(--border));padding:8px 0" data-passo-ed>
       <div class="flex" style="gap:6px;flex-wrap:wrap">
         <input class="input pe-titulo" placeholder="Título do passo" style="flex:2;min-width:160px;padding:4px 8px">
         <input class="input pe-envio" placeholder="Quando enviar" style="flex:1;min-width:150px;padding:4px 8px">
@@ -596,8 +596,8 @@ function abrirCfg() {
   const FIXAS = ['a_reativar', 'descartado'];
   const colRow = c => `<div class="flex" style="gap:5px;margin-top:4px;align-items:center" data-cfgcol="${esc(c.id)}">
     <span style="display:flex;flex-direction:column">
-      <button class="btn btn-ghost cg-up" type="button" title="Mover pra cima" style="padding:0 5px;font-size:9px;line-height:1.3">▲</button>
-      <button class="btn btn-ghost cg-dn" type="button" title="Mover pra baixo" style="padding:0 5px;font-size:9px;line-height:1.3">▼</button>
+      <button class="btn btn-ghost cg-up" type="button" title="Mover pra cima" style="padding:0 5px;font-size:11px;line-height:1.3">▲</button>
+      <button class="btn btn-ghost cg-dn" type="button" title="Mover pra baixo" style="padding:0 5px;font-size:11px;line-height:1.3">▼</button>
     </span>
     <input class="input cg-emoji" value="${esc(c.emoji)}" style="width:52px;padding:3px 7px">
     <input class="input cg-nome" value="${esc(c.nome)}" style="flex:1;padding:3px 8px">
@@ -613,15 +613,15 @@ function abrirCfg() {
   const cad = cfg.cadencia || {};
   const ov = overlay(`
     <div class="flex items-center"><h3 class="card-title" style="margin:0;flex:1">⚙️ Personalizar quadro</h3><button class="btn btn-ghost btn-sm" id="cg-x">✕</button></div>
-    <div class="tiny mt-2" style="font-weight:800">Colunas <span class="muted" style="font-weight:400">(🔒 A reativar e Descartado ficam sempre)</span></div>
+    <div class="tiny mt-2" style="font-weight:600">Colunas <span class="muted" style="font-weight:400">(🔒 A reativar e Descartado ficam sempre)</span></div>
     <div id="cg-cols">${(cfg.colunas || []).map(colRow).join('')}</div>
     <button class="btn btn-ghost btn-sm mt-1" id="cg-addcol" type="button">+ coluna</button>
-    <div class="tiny mt-2" style="font-weight:800">Etiquetas</div>
+    <div class="tiny mt-2" style="font-weight:600">Etiquetas</div>
     <div id="cg-tags">${(cfg.etiquetas || []).map(tagRow).join('')}</div>
     <button class="btn btn-ghost btn-sm mt-1" id="cg-addtag" type="button">+ etiqueta</button>
-    <div class="tiny mt-2" style="font-weight:800">📅 Cadência diária <span class="muted" style="font-weight:400">(cron 9h seg–sex: monta a fila e notifica a responsável)</span></div>
-    <div class="flex mt-1" style="gap:8px;flex-wrap:wrap;align-items:center;background:var(--bg-3);border-radius:10px;padding:8px 10px">
-      <label class="tiny flex gap-1" style="align-items:center;font-weight:700"><input type="checkbox" id="cd-ativa" ${cad.ativa !== false ? 'checked' : ''}> Ativa</label>
+    <div class="tiny mt-2" style="font-weight:600">📅 Cadência diária <span class="muted" style="font-weight:400">(cron 9h seg–sex: monta a fila e notifica a responsável)</span></div>
+    <div class="flex mt-1" style="gap:8px;flex-wrap:wrap;align-items:center;background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px">
+      <label class="tiny flex gap-1" style="align-items:center;font-weight:600"><input type="checkbox" id="cd-ativa" ${cad.ativa !== false ? 'checked' : ''}> Ativa</label>
       <label class="tiny">Lote/dia <input class="input" id="cd-lote" type="number" min="1" max="500" value="${cad.lote_dia ?? 40}" style="width:70px;padding:2px 6px"></label>
       <label class="tiny">Follow-up após <input class="input" id="cd-fu" type="number" min="1" max="30" value="${cad.followup_dias ?? 3}" style="width:56px;padding:2px 6px"> dias</label>
       <label class="tiny">Lead conta como parado após <input class="input" id="cd-parado" type="number" min="7" max="365" value="${cad.parado_dias ?? 30}" style="width:64px;padding:2px 6px"> dias sem atividade</label>

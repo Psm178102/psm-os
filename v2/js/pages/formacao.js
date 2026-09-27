@@ -106,26 +106,26 @@ function render() {
       <h2 class="card-title">📚 Formação PSM</h2>
       <p class="card-sub">${MODULOS.length} módulos · ${totalA} aulas — assista aqui mesmo, sem sair do House</p>
       <div style="margin:14px 0 4px;display:flex;justify-content:space-between" class="tiny muted"><span>Seu progresso</span><b>${feitas}/${totalA} · ${pct}%</b></div>
-      <div style="height:8px;background:var(--bg-3);border-radius:8px;overflow:hidden"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#d4a843,#e8c263)"></div></div>
+      <div style="height:8px;background:var(--bg-3);border-radius:var(--radius-md);overflow:hidden"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#d4a843,#e8c263)"></div></div>
 
       <div style="display:grid;gap:10px;margin-top:18px">
         ${MODULOS.map((m, mi) => {
           const ok = m.aulas.filter((_, ai) => done.has(key(mi, ai))).length;
           return `
-          <details style="background:var(--bg-3);border-left:4px solid var(--psm-gold);border-radius:10px;padding:12px 14px" ${mi === 0 ? 'open' : ''}>
+          <details style="background:var(--bg-3);border-left:4px solid var(--psm-gold);border-radius:var(--radius-md);padding:12px 14px" ${mi === 0 ? 'open' : ''}>
             <summary style="cursor:pointer;display:flex;align-items:center;gap:12px;list-style:none">
               <div style="flex:1">
-                <div style="font-weight:800">${mi + 1}. ${esc(m.nome)}</div>
+                <div style="font-weight:600">${mi + 1}. ${esc(m.nome)}</div>
                 <div class="tiny muted mt-1">${esc(m.desc)}</div>
               </div>
-              <span style="background:var(--psm-navy);color:var(--psm-cream);font-weight:800;padding:4px 12px;border-radius:20px;font-size:12px;white-space:nowrap">${ok}/${m.aulas.length} aulas</span>
+              <span style="background:var(--psm-navy);color:var(--psm-cream);font-weight:600;padding:4px 12px;border-radius:var(--radius-lg);font-size:12px;white-space:nowrap">${ok}/${m.aulas.length} aulas</span>
             </summary>
             <div style="display:grid;gap:6px;margin-top:10px">
               ${m.aulas.map((a, ai) => {
                 const feito = done.has(key(mi, ai));
                 const tem = !!embedInfo(a.url);
                 return `
-                <div data-open="${mi}.${ai}" style="display:flex;gap:10px;align-items:center;background:var(--bg-2, #fff1);border-radius:8px;padding:9px 12px;cursor:pointer">
+                <div data-open="${mi}.${ai}" style="display:flex;gap:10px;align-items:center;background:var(--bg-2, #fff1);border-radius:var(--radius-md);padding:9px 12px;cursor:pointer">
                   <span style="width:20px;text-align:center">${feito ? '✅' : (tem ? '▶️' : '⏳')}</span>
                   <span style="flex:1;min-width:0;font-size:13px;font-weight:600;${feito ? 'opacity:.55' : ''}">${esc(a.titulo)}</span>
                   <span class="tiny muted">${tem ? (feito ? 'rever' : 'assistir') + ' →' : 'em breve'}</span>
@@ -158,8 +158,8 @@ function renderAula() {
     <div class="card" style="max-width:900px">
       <button class="btn btn-ghost btn-sm" id="fm-volta">← Formação PSM</button>
       <div style="margin-top:14px">
-        <span class="tiny" style="font-weight:800;color:var(--psm-gold);text-transform:uppercase;letter-spacing:1px">${esc(mod.nome)}</span>
-        <h2 style="margin:6px 0 2px;font-size:22px;line-height:1.25">${esc(aula.titulo)}</h2>
+        <span class="tiny" style="font-weight:600;color:var(--psm-gold);text-transform:uppercase;letter-spacing:1px">${esc(mod.nome)}</span>
+        <h2 style="margin:6px 0 2px;font-size:20px;line-height:1.25">${esc(aula.titulo)}</h2>
         <div class="tiny muted">aula ${a + 1} de ${mod.aulas.length}</div>
       </div>
       ${info

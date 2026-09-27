@@ -6,7 +6,7 @@ import { getLinks, saveLinks, canEditLinks, promptLink } from '../links.js';
 const CAD_TEAMS = [
   { key: 'map',       lbl: 'MAP',       cor: '#d4a843' },
   { key: 'conquista', lbl: 'Conquista', cor: '#dc2626' },
-  { key: 'terceiros', lbl: 'Terceiros', cor: '#3b82f6' },
+  { key: 'terceiros', lbl: 'Terceiros', cor: '#806d50' },
   { key: 'locacao',   lbl: 'Locação',   cor: '#10b981' },
 ];
 
@@ -42,8 +42,8 @@ async function loadAnexos() {
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:10px">
         ${CAD_TEAMS.map(t => {
           const u = cad[t.key] || '';
-          return `<div style="border:1px solid var(--bd,#e5e7eb);border-top:3px solid ${t.cor};border-radius:10px;padding:12px">
-            <div style="font-weight:800;color:${t.cor};margin-bottom:8px">${t.lbl}</div>
+          return `<div style="border:1px solid var(--bd,var(--border));border-top:3px solid ${t.cor};border-radius:var(--radius-md);padding:12px">
+            <div style="font-weight:600;color:${t.cor};margin-bottom:8px">${t.lbl}</div>
             ${u ? `<a class="btn btn-primary btn-sm btn-block" href="${esc(u)}" target="_blank" rel="noopener">📂 Abrir materiais</a>`
                 : `<div class="tiny muted">Sem material ainda.</div>`}
             ${canEditLinks() ? `<button class="btn btn-ghost btn-sm btn-block mt-1" data-cadlink="${t.key}">⚙️ ${u ? 'Trocar' : 'Definir'} link</button>` : ''}
@@ -122,10 +122,10 @@ function renderList() {
 
 function cadCard(c) {
   return `
-    <div class="card" style="border-left:4px solid ${c.ativa ? '#22c55e' : '#64748b'}">
+    <div class="card" style="border-left:4px solid ${c.ativa ? 'var(--ok)' : 'var(--border-strong)'}">
       <div class="flex" style="justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">
         <div style="flex:1">
-          <div style="font-weight:800">${esc(c.nome)}</div>
+          <div style="font-weight:600">${esc(c.nome)}</div>
           <div class="tiny muted">${esc(c.publico || '—')} · ${c.ativa ? '🟢 Ativa' : '⚫ Pausada'}</div>
         </div>
         <div class="flex gap-1">
@@ -135,8 +135,8 @@ function cadCard(c) {
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;margin-top:8px">
         ${(c.passos || []).map((p, i) => `
-          <div class="flex" style="gap:6px;align-items:center;font-size:12px;padding:4px 8px;background:var(--bg-3);border-radius:6px">
-            <span style="background:var(--psm-navy);color:var(--psm-cream);font-weight:800;border-radius:4px;padding:2px 6px;font-size:10px">D+${p.dia || 0}</span>
+          <div class="flex" style="gap:6px;align-items:center;font-size:12px;padding:4px 8px;background:var(--bg-3);border-radius:var(--radius-sm)">
+            <span style="background:var(--psm-navy);color:var(--psm-cream);font-weight:600;border-radius:var(--radius-sm);padding:2px 6px;font-size:11px">D+${p.dia || 0}</span>
             <span>${CANAL_ICO[p.canal] || '📨'} ${esc(p.canal)}</span>
             <span class="tiny muted" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.mensagem || '—')}</span>
           </div>
@@ -153,7 +153,7 @@ function showForm() {
   body.innerHTML = `
     <div class="card" style="background:var(--bg-3);padding:18px;margin-bottom:14px">
       <div class="flex" style="justify-content:space-between;margin-bottom:10px">
-        <div style="font-weight:800">${c.id ? '✏️ Editar' : '➕ Nova'} Cadência</div>
+        <div style="font-weight:600">${c.id ? '✏️ Editar' : '➕ Nova'} Cadência</div>
         <button class="btn btn-ghost btn-sm" id="cad-cancel">✕ Cancelar</button>
       </div>
       <div style="display:grid;gap:10px">
@@ -170,7 +170,7 @@ function showForm() {
         </div>
         <div>
           <div class="flex" style="justify-content:space-between;align-items:center;margin-bottom:6px">
-            <label class="tiny muted" style="font-weight:700">Passos</label>
+            <label class="tiny muted" style="font-weight:600">Passos</label>
             <button class="btn btn-ghost btn-sm" id="cd-add">➕ Adicionar passo</button>
           </div>
           <div id="cd-passos"></div>
@@ -191,7 +191,7 @@ function showForm() {
 function renderPassos() {
   const wrap = document.getElementById('cd-passos');
   wrap.innerHTML = _editing.passos.map((p, i) => `
-    <div style="background:var(--bg-2);border-radius:8px;padding:10px;margin-bottom:6px">
+    <div style="background:var(--bg-2);border-radius:var(--radius-md);padding:10px;margin-bottom:6px">
       <div class="flex" style="justify-content:space-between;margin-bottom:6px">
         <div class="tiny muted">Passo ${i + 1}</div>
         <button class="btn btn-ghost btn-sm" data-rem-p="${i}" style="color:var(--err-suave)">🗑</button>
@@ -246,10 +246,10 @@ function fileToB64(file) { return new Promise((res, rej) => { const fr = new Fil
 
 function renderEmbed(a) {
   const k = fileKind(a.nome), url = esc(a.url);
-  if (k === 'pdf') return `<iframe src="${url}" style="width:100%;height:74vh;border:1px solid var(--bd,#e5e7eb);border-radius:8px;background:var(--bg-2)"></iframe>`;
-  if (k === 'image') return `<div style="text-align:center;background:var(--bg-3);border-radius:8px;padding:10px"><img src="${url}" alt="${esc(a.nome)}" style="max-width:100%;max-height:74vh;border-radius:6px"></div>`;
-  if (k === 'office') return `<iframe src="https://docs.google.com/viewer?url=${encodeURIComponent(a.url)}&embedded=true" style="width:100%;height:74vh;border:1px solid var(--bd,#e5e7eb);border-radius:8px;background:var(--bg-2)"></iframe>`;
-  return `<div class="card" style="text-align:center;padding:30px"><div style="font-size:34px">📄</div><div class="muted tiny" style="margin:8px 0">Este tipo não tem visualização embutida.</div><a class="btn btn-primary btn-sm" href="${url}" target="_blank" rel="noopener">⬇️ Abrir / baixar ${esc(a.nome)}</a></div>`;
+  if (k === 'pdf') return `<iframe src="${url}" style="width:100%;height:74vh;border:1px solid var(--bd,var(--border));border-radius:var(--radius-md);background:var(--bg-2)"></iframe>`;
+  if (k === 'image') return `<div style="text-align:center;background:var(--bg-3);border-radius:var(--radius-md);padding:10px"><img src="${url}" alt="${esc(a.nome)}" style="max-width:100%;max-height:74vh;border-radius:var(--radius-sm)"></div>`;
+  if (k === 'office') return `<iframe src="https://docs.google.com/viewer?url=${encodeURIComponent(a.url)}&embedded=true" style="width:100%;height:74vh;border:1px solid var(--bd,var(--border));border-radius:var(--radius-md);background:var(--bg-2)"></iframe>`;
+  return `<div class="card" style="text-align:center;padding:30px"><div style="font-size:36px">📄</div><div class="muted tiny" style="margin:8px 0">Este tipo não tem visualização embutida.</div><a class="btn btn-primary btn-sm" href="${url}" target="_blank" rel="noopener">⬇️ Abrir / baixar ${esc(a.nome)}</a></div>`;
 }
 
 function renderDetail() {
@@ -264,8 +264,8 @@ function renderDetail() {
       <button class="btn btn-ghost btn-sm" id="cad-back">← Voltar</button>
       <button class="btn btn-ghost btn-sm" id="cad-editthis">✏️ Editar passos</button>
     </div>
-    <div class="card" style="border-left:4px solid ${c.ativa ? '#22c55e' : '#64748b'};margin-bottom:12px">
-      <div style="font-weight:800;font-size:17px">${esc(c.nome)}</div>
+    <div class="card" style="border-left:4px solid ${c.ativa ? 'var(--ok)' : 'var(--border-strong)'};margin-bottom:12px">
+      <div style="font-weight:600;font-size:16px">${esc(c.nome)}</div>
       <div class="tiny muted">${esc(c.publico || '—')} · ${c.ativa ? '🟢 Ativa' : '⚫ Pausada'} · ${(c.passos || []).length} passo(s)</div>
     </div>
 
@@ -282,8 +282,8 @@ function renderDetail() {
       ${arqs.length ? `
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 12px">
           ${arqs.map((a, i) => `
-            <div class="flex" style="gap:4px;align-items:center;background:${i === _openFileIdx ? 'var(--psm-gold,#d4a843)' : 'var(--bg-3)'};color:${i === _openFileIdx ? '#000' : 'inherit'};border-radius:8px;padding:5px 8px;font-size:12px">
-              <button data-selfile="${i}" style="background:none;border:0;cursor:pointer;font-weight:700;color:inherit;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${KIND_ICO[fileKind(a.nome)]} ${i + 1}. ${esc(a.nome)}</button>
+            <div class="flex" style="gap:4px;align-items:center;background:${i === _openFileIdx ? 'var(--psm-gold,#d4a843)' : 'var(--bg-3)'};color:${i === _openFileIdx ? 'var(--ink)' : 'inherit'};border-radius:var(--radius-md);padding:5px 8px;font-size:12px">
+              <button data-selfile="${i}" style="background:none;border:0;cursor:pointer;font-weight:600;color:inherit;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${KIND_ICO[fileKind(a.nome)]} ${i + 1}. ${esc(a.nome)}</button>
               ${canEdit() ? `<button data-mvup="${i}" title="subir" ${i === 0 ? 'disabled' : ''} style="background:none;border:0;cursor:pointer;color:inherit">↑</button>
               <button data-mvdn="${i}" title="descer" ${i === arqs.length - 1 ? 'disabled' : ''} style="background:none;border:0;cursor:pointer;color:inherit">↓</button>
               <button data-delfile="${i}" title="remover" style="background:none;border:0;cursor:pointer;color:var(--err)">✕</button>` : ''}

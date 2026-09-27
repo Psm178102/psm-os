@@ -132,24 +132,24 @@ function render() {
         ${kpi('🔴 Tier A', tierCount('A'), 'ameaça direta / alto padrão', TIER_COR.A)}
         ${kpi('🟠 Tier B', tierCount('B'), 'relevância média', TIER_COR.B)}
         ${kpi('⚪ Tier C', tierCount('C'), 'baixa relevância', TIER_COR.C)}
-        ${kpi('📊 Com anúncios', comAds, 'rastreáveis na Biblioteca Meta', '#2563eb')}
+        ${kpi('📊 Com anúncios', comAds, 'rastreáveis na Biblioteca Meta', '#806d50')}
       </div>
 
       <div class="mt-4" style="margin-top:16px">
-        <div class="tiny muted" style="font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Mapeamento estratégico por segmento</div>
+        <div class="tiny muted" style="font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Mapeamento estratégico por segmento</div>
         <div class="flex gap-2" style="flex-wrap:wrap">
           ${Object.keys(SEGMENTOS).map(s => segChip(s, segCount(s))).join('')}
         </div>
       </div>
 
       <div class="flex gap-2 mt-4" style="flex-wrap:wrap;align-items:center;padding:10px;background:var(--bg-3);border-radius:var(--r-sm);margin-top:16px">
-        <label class="tiny muted" style="font-weight:700">TIER:</label>
+        <label class="tiny muted" style="font-weight:600">TIER:</label>
         <select id="rf-tier" class="select" style="padding:5px 10px;font-size:12px">${opt(['todos','A','B','C'], _f.tier)}</select>
-        <label class="tiny muted" style="font-weight:700;margin-left:10px">SEGMENTO:</label>
+        <label class="tiny muted" style="font-weight:600;margin-left:10px">SEGMENTO:</label>
         <select id="rf-seg" class="select" style="padding:5px 10px;font-size:12px">${opt(['todos', ...Object.keys(SEGMENTOS)], _f.seg)}</select>
-        <label class="tiny muted" style="font-weight:700;margin-left:10px">TIPO:</label>
+        <label class="tiny muted" style="font-weight:600;margin-left:10px">TIPO:</label>
         <select id="rf-tipo" class="select" style="padding:5px 10px;font-size:12px">${opt(['todos','imobiliaria','corretor'], _f.tipo)}</select>
-        <label class="tiny muted" style="font-weight:700;margin-left:10px">ORDENAR:</label>
+        <label class="tiny muted" style="font-weight:600;margin-left:10px">ORDENAR:</label>
         <select id="rf-sort" class="select" style="padding:5px 10px;font-size:12px">
           <option value="seguidores"${_sort==='seguidores'?' selected':''}>Seguidores ↓</option>
           <option value="posts"${_sort==='posts'?' selected':''}>Posts ↓</option>
@@ -204,7 +204,7 @@ function row(c) {
   const seg = SEGMENTOS[c.seg] || { label: c.seg, cor: '#64748b' };
   const ig = c.handle ? `<a href="${instagramUrl(c.handle)}" target="_blank" rel="noopener" data-stop="1" style="color:var(--rosa);text-decoration:none" title="Abrir Instagram">📷 IG</a>` : '';
   const ads = c.fb
-    ? `<a href="${adsLibraryUrl(c.fb)}" target="_blank" rel="noopener" data-stop="1" style="color:var(--info);text-decoration:none;font-weight:700" title="Biblioteca de Anúncios Meta">📊 Anúncios</a>`
+    ? `<a href="${adsLibraryUrl(c.fb)}" target="_blank" rel="noopener" data-stop="1" style="color:var(--info);text-decoration:none;font-weight:600" title="Biblioteca de Anúncios Meta">📊 Anúncios</a>`
     : '<span class="tiny muted">—</span>';
   const acoes = (canEdit() && !_fromSeed && c._id != null)
     ? `<span data-edit="${escapeHtml(String(c._id))}" style="cursor:pointer;padding:2px 5px" title="Editar">✏️</span><span data-del="${escapeHtml(String(c._id))}" style="cursor:pointer;padding:2px 5px" title="Excluir">🗑</span>`
@@ -212,17 +212,17 @@ function row(c) {
   return `
     <tr style="border-bottom:1px solid var(--border)">
       <td style="padding:8px 10px">
-        <div style="font-weight:700">${escapeHtml(c.nome)}</div>
+        <div style="font-weight:600">${escapeHtml(c.nome)}</div>
         <div class="tiny muted">${escapeHtml(c.handle || '')}${c.tipo ? ' · ' + (c.tipo === 'corretor' ? '👤 Corretor' : '🏢 Imobiliária') : ''}</div>
         ${c.bio ? `<div class="tiny muted" style="margin-top:2px;max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(c.bio)}">${escapeHtml(c.bio)}</div>` : ''}
       </td>
       <td style="text-align:center;padding:8px 6px">
-        ${c.tier ? `<span style="background:${TIER_COR[c.tier] || '#64748b'};color:#fff;padding:2px 9px;border-radius:var(--r-full);font-size:11px;font-weight:800">${escapeHtml(c.tier)}</span>` : '<span class="tiny muted">—</span>'}
+        ${c.tier ? `<span style="background:${TIER_COR[c.tier] || '#64748b'};color:#fff;padding:2px 9px;border-radius:var(--r-full);font-size:11px;font-weight:600">${escapeHtml(c.tier)}</span>` : '<span class="tiny muted">—</span>'}
       </td>
       <td style="padding:8px 6px">
-        <span style="background:${seg.cor}22;color:${seg.cor};padding:2px 8px;border-radius:var(--r-full);font-size:11px;font-weight:700">${escapeHtml(c.seg)}</span>
+        <span style="background:${seg.cor}22;color:${seg.cor};padding:2px 8px;border-radius:var(--r-full);font-size:11px;font-weight:600">${escapeHtml(c.seg)}</span>
       </td>
-      <td style="text-align:right;padding:8px 6px;font-weight:700">${dispFollow(c)}</td>
+      <td style="text-align:right;padding:8px 6px;font-weight:600">${dispFollow(c)}</td>
       <td style="text-align:right;padding:8px 6px">${escapeHtml(c.posts != null ? c.posts : '—')}</td>
       <td style="padding:8px 6px;font-size:11px" class="muted">${escapeHtml(c.creci || '—')}</td>
       <td style="text-align:center;padding:8px 10px;white-space:nowrap">${ig} ${ig && ads ? '&nbsp;' : ''} ${ads} ${acoes ? '&nbsp; ' + acoes : ''}</td>
@@ -252,7 +252,7 @@ function openForm() {
   const c = _editing || {};
   const modal = document.getElementById('rc-modal');
   const sel = (id, opts, cur) => `<select id="${id}" class="input" style="width:100%">${opts.map(o => { const [v, l] = Array.isArray(o) ? o : [o, o]; return `<option value="${escapeHtml(v)}"${String(v) === String(cur || '') ? ' selected' : ''}>${escapeHtml(l)}</option>`; }).join('')}</select>`;
-  const f = (id, label, val, ph = '', type = '') => `<div><label class="tiny muted" style="font-weight:700">${label}</label><input id="${id}" class="input" ${type ? `type="${type}"` : ''} value="${escapeHtml(val ?? '')}" placeholder="${escapeHtml(ph)}" style="width:100%"></div>`;
+  const f = (id, label, val, ph = '', type = '') => `<div><label class="tiny muted" style="font-weight:600">${label}</label><input id="${id}" class="input" ${type ? `type="${type}"` : ''} value="${escapeHtml(val ?? '')}" placeholder="${escapeHtml(ph)}" style="width:100%"></div>`;
   modal.innerHTML = `
     <div class="modal-backdrop" style="position:fixed;inset:0;background:rgba(15,23,42,.55);display:flex;align-items:flex-start;justify-content:center;z-index:1000;padding:24px;overflow:auto">
       <div class="card" style="max-width:600px;width:100%;background:var(--bg-2);margin:auto">
@@ -263,16 +263,16 @@ function openForm() {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
           <div style="grid-column:1/-1">${f('cc-nome', 'Nome', c.nome, 'Imobiliária / corretor')}</div>
           ${f('cc-handle', 'Instagram (@)', c.handle, '@perfil')}
-          <div><label class="tiny muted" style="font-weight:700">Tipo</label>${sel('cc-tipo', [['imobiliaria', '🏢 Imobiliária'], ['corretor', '👤 Corretor']], c.tipo || 'imobiliaria')}</div>
-          <div><label class="tiny muted" style="font-weight:700">Tier</label>${sel('cc-tier', [['A', '🔴 A — ameaça direta'], ['B', '🟠 B — média'], ['C', '⚪ C — baixa']], c.tier || 'B')}</div>
-          <div><label class="tiny muted" style="font-weight:700">Segmento</label>${sel('cc-seg', Object.keys(SEGMENTOS).map(k => [k, SEGMENTOS[k].label]), c.seg)}</div>
+          <div><label class="tiny muted" style="font-weight:600">Tipo</label>${sel('cc-tipo', [['imobiliaria', '🏢 Imobiliária'], ['corretor', '👤 Corretor']], c.tipo || 'imobiliaria')}</div>
+          <div><label class="tiny muted" style="font-weight:600">Tier</label>${sel('cc-tier', [['A', '🔴 A — ameaça direta'], ['B', '🟠 B — média'], ['C', '⚪ C — baixa']], c.tier || 'B')}</div>
+          <div><label class="tiny muted" style="font-weight:600">Segmento</label>${sel('cc-seg', Object.keys(SEGMENTOS).map(k => [k, SEGMENTOS[k].label]), c.seg)}</div>
           ${f('cc-seguidores', 'Seguidores', typeof c.seguidores === 'number' ? c.seguidores : parseSeguidores(c.seguidores) || '', 'nº', 'number')}
           ${f('cc-posts', 'Posts', c.posts, 'nº', 'number')}
           ${f('cc-creci', 'CRECI', c.creci, '')}
           ${f('cc-fb', 'Page ID Meta (anúncios)', c.fb, 'id da página p/ Biblioteca de Anúncios')}
           ${f('cc-engaj', 'Engajamento (%)', c.engajamento, '', 'number')}
           ${f('cc-imoveis', 'Imóveis ativos', c.imoveis_ativos, '', 'number')}
-          <div style="grid-column:1/-1"><label class="tiny muted" style="font-weight:700">Bio / observações</label><textarea id="cc-bio" class="input" rows="2" style="width:100%">${escapeHtml(c.bio || c.observacoes || '')}</textarea></div>
+          <div style="grid-column:1/-1"><label class="tiny muted" style="font-weight:600">Bio / observações</label><textarea id="cc-bio" class="input" rows="2" style="width:100%">${escapeHtml(c.bio || c.observacoes || '')}</textarea></div>
         </div>
         <div id="cc-err" class="tiny" style="color:var(--err);margin-top:8px"></div>
         <div class="flex gap-2 mt-3" style="justify-content:space-between">
@@ -325,15 +325,15 @@ function segChip(s, n) {
   const seg = SEGMENTOS[s];
   if (!seg) return '';
   return `<div style="flex:1;min-width:180px;background:${seg.cor}14;border-left:4px solid ${seg.cor};border-radius:var(--r-md);padding:10px 12px">
-    <div style="font-weight:800;color:${seg.cor}">${escapeHtml(seg.label)} <span class="tiny muted" style="font-weight:700">· ${n}</span></div>
+    <div style="font-weight:600;color:${seg.cor}">${escapeHtml(seg.label)} <span class="tiny muted" style="font-weight:600">· ${n}</span></div>
     <div class="tiny muted" style="margin-top:2px">${escapeHtml(seg.desc)}</div>
   </div>`;
 }
 
 function kpi(label, big, sub, color) {
   return `<div style="flex:1;min-width:150px;background:var(--bg-3);border-radius:var(--r-md);padding:14px 16px;border-left:4px solid ${color}">
-    <div class="tiny muted" style="letter-spacing:1px;text-transform:uppercase;font-weight:700">${label}</div>
-    <div style="font-size:24px;font-weight:900;color:${color};margin-top:2px">${big ?? '—'}</div>
+    <div class="tiny muted" style="letter-spacing:1px;text-transform:uppercase;font-weight:600">${label}</div>
+    <div style="font-size:26px;font-weight:600;color:${color};margin-top:2px">${big ?? '—'}</div>
     <div class="tiny muted">${sub || ''}</div>
   </div>`;
 }

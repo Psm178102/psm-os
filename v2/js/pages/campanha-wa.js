@@ -21,7 +21,7 @@ const SEGMENTOS = {
     tpl: 'Olá {primeiro_nome}, tudo bem? Aqui é a Leire, da PSM Imóveis 😊\nVocê falou com a gente sobre imóveis um tempo atrás e estou revisando os atendimentos.\nAinda tem interesse em comprar? Responde *SIM* que eu te atualizo — ou *SAIR* pra não receber mais.',
   },
   parados: {
-    lbl: '🛌 Parados +30d (reativação)', dias: 30, cor: '#2563eb',
+    lbl: '🛌 Parados +30d (reativação)', dias: 30, cor: '#806d50',
     sub: 'Chama leads <b>parados +30 dias</b> do RD com uma oferta.',
     tpl: 'Oi {primeiro_nome}! Aqui é da PSM Imóveis 🏠\nApareceu uma oportunidade que combina com o que você procurava:\n\n{OFERTA}\n\nQuer que eu te mande os detalhes e fotos? Responde *SIM* que eu já te envio 👍',
   },
@@ -83,7 +83,7 @@ function render(loading) {
     <p class="card-sub">${SEG.sub} Quem responder <b>SIM</b> vira 🔥 quente pra você atender. Você revisa e dispara — envio com throttle, respeita opt-out.</p>
 
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 4px">
-      ${Object.entries(SEGMENTOS).map(([id, s]) => `<button class="btn ${id === _segment ? 'btn-primary' : 'btn-ghost'}" data-seg="${id}" style="font-size:12.5px;padding:7px 14px">${s.lbl}</button>`).join('')}
+      ${Object.entries(SEGMENTOS).map(([id, s]) => `<button class="btn ${id === _segment ? 'btn-primary' : 'btn-ghost'}" data-seg="${id}" style="font-size:13px;padding:7px 14px">${s.lbl}</button>`).join('')}
     </div>
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0">
@@ -93,17 +93,17 @@ function render(loading) {
     </div>
     ${_audErro ? `<div class="alert alert-warn">⚠️ ${esc(_audErro)} ${/wa_|relation|exist/i.test(_audErro) ? '— rode <b>supabase/sprint_wa_campanha.sql</b>.' : ''}</div>` : ''}
     ${_cfg.pausada ? `
-    <div style="background:rgba(217,119,6,.10);border:1px solid rgba(217,119,6,.4);border-radius:12px;padding:14px;margin:8px 0">
-      <div style="font-weight:800;color:var(--warn);font-size:15px">⏸ CAMPANHA PAUSADA — aguardando a conta 360dialog (coexistência no nº da recepção)</div>
+    <div style="background:var(--warn-soft);border:1px solid var(--warn);border-radius:var(--radius-md);padding:14px;margin:8px 0">
+      <div style="font-weight:600;color:var(--warn);font-size:14px">⏸ CAMPANHA PAUSADA — aguardando a conta 360dialog (coexistência no nº da recepção)</div>
       <div class="tiny muted" style="margin:6px 0 10px">Tudo pronto. O disparo só liga quando você criar a conta oficial e setar <code>D360_API_KEY</code> + <code>D360_TEMPLATE</code> no Vercel. Nada é enviado até lá.</div>
-      <div class="tiny" style="font-weight:700;margin-bottom:4px">📋 Checklist (você faz, eu já deixei o código plugado):</div>
+      <div class="tiny" style="font-weight:600;margin-bottom:4px">📋 Checklist (você faz, eu já deixei o código plugado):</div>
       <div class="tiny muted" style="white-space:pre-line;line-height:1.7">${esc((_cfg.checklist || []).join('\n'))}</div>
-      <div class="tiny" style="font-weight:700;margin:10px 0 4px">📝 Template pra submeter na 360dialog (já com botão de resposta):</div>
-      <div style="background:#0b141a;color:#e9edef;border-radius:10px;padding:12px;white-space:pre-wrap;font-size:13px;max-width:460px">${esc(_cfg.template_texto || '')}</div>
-    </div>` : `<div class="alert" style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);padding:8px 12px;border-radius:8px;font-size:12.5px">✅ Pronto pra disparar via <b>${esc(_cfg.oficial ? '360dialog (oficial)' : (_cfg.provider || '—'))}</b>.</div>`}
+      <div class="tiny" style="font-weight:600;margin:10px 0 4px">📝 Template pra submeter na 360dialog (já com botão de resposta):</div>
+      <div style="background:#0b141a;color:#e9edef;border-radius:var(--radius-md);padding:12px;white-space:pre-wrap;font-size:13px;max-width:460px">${esc(_cfg.template_texto || '')}</div>
+    </div>` : `<div class="alert" style="background:var(--ok-soft);border:1px solid var(--ok);padding:8px 12px;border-radius:var(--radius-md);font-size:13px">✅ Pronto pra disparar via <b>${esc(_cfg.oficial ? '360dialog (oficial)' : (_cfg.provider || '—'))}</b>.</div>`}
 
-    <div class="st-sec" style="font-size:11px;text-transform:uppercase;font-weight:800;color:#94a3b8;margin:16px 0 8px">1️⃣ A oferta (vai igual pra todos)</div>
-    <div style="background:var(--bg-3);border-radius:12px;padding:13px">
+    <div class="st-sec" style="font-size:11px;text-transform:uppercase;font-weight:600;color:var(--ink-muted);margin:16px 0 8px">1️⃣ A oferta (vai igual pra todos)</div>
+    <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:13px">
       <div class="flex gap-2" style="flex-wrap:wrap;align-items:center;margin-bottom:8px">
         <label class="tiny muted" style="font-weight:600">Puxar de um imóvel:</label>
         <select id="cw-imovel" class="select" style="max-width:340px;font-size:12px">${imovelOpts}</select>
@@ -111,11 +111,11 @@ function render(loading) {
       </div>
       <textarea id="cw-msg" class="input" rows="7" style="width:100%;font-family:inherit;font-size:13px;line-height:1.5">${esc(SEG.tpl)}</textarea>
       <div class="tiny muted" style="margin-top:6px">Use <code>{primeiro_nome}</code> (personaliza por cliente) e <code>{OFERTA}</code> (preenchido pelo imóvel). <b>Prévia:</b></div>
-      <div id="cw-preview" style="background:#0b141a;color:#e9edef;border-radius:10px;padding:12px;margin-top:6px;white-space:pre-wrap;font-size:13px;max-width:420px"></div>
+      <div id="cw-preview" style="background:#0b141a;color:#e9edef;border-radius:var(--radius-md);padding:12px;margin-top:6px;white-space:pre-wrap;font-size:13px;max-width:420px"></div>
     </div>
 
-    <div class="st-sec" style="font-size:11px;text-transform:uppercase;font-weight:800;color:#94a3b8;margin:16px 0 8px">2️⃣ Disparo (segurança)</div>
-    <div style="background:var(--bg-3);border-radius:12px;padding:13px">
+    <div class="st-sec" style="font-size:11px;text-transform:uppercase;font-weight:600;color:var(--ink-muted);margin:16px 0 8px">2️⃣ Disparo (segurança)</div>
+    <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:13px">
       <div class="flex gap-3" style="flex-wrap:wrap;align-items:center">
         <div><label class="tiny muted" style="font-weight:600;display:block">Intervalo entre msgs (seg)</label><input id="cw-int" type="number" class="input" value="8" style="width:110px"></div>
         <div><label class="tiny muted" style="font-weight:600;display:block">Teto por dia</label><input id="cw-cap" type="number" class="input" value="30" style="width:110px"></div>
@@ -126,7 +126,7 @@ function render(loading) {
       <div class="tiny muted" style="margin-top:6px">🛡 Via <b>360dialog (API oficial)</b> não há ban por volume — mas a Meta tem <b>teto de aquecimento</b>: comece com 50/dia e suba (250 → 1.000) conforme a nota de qualidade. "sair/parar" entra no opt-out automático e marca a fila.</div>
     </div>
 
-    <div class="st-sec" style="font-size:11px;text-transform:uppercase;font-weight:800;color:#94a3b8;margin:16px 0 8px">🔥 Quentes — responderam SIM (atender)</div>
+    <div class="st-sec" style="font-size:11px;text-transform:uppercase;font-weight:600;color:var(--ink-muted);margin:16px 0 8px">🔥 Quentes — responderam SIM (atender)</div>
     <div id="cw-quentes"></div>
 
     <div class="tiny muted" style="margin-top:14px"><a href="#/reativacao" style="color:var(--psm-gold)">🔁 Fila de Reativação (Mariane)</a> · <a href="#/imoveis" style="color:var(--psm-gold)">Imóveis</a> · <a href="#/captacoes" style="color:var(--psm-gold)">Captações</a></div>
@@ -137,12 +137,12 @@ function render(loading) {
   updatePreview();
 }
 
-function kpi(l, v, c) { return `<div style="background:var(--bg-3);border-left:4px solid ${c};border-radius:10px;padding:12px"><div class="tiny muted">${l}</div><div style="font-size:22px;font-weight:800;color:${c}">${v}</div></div>`; }
+function kpi(l, v, c) { return `<div style="background:var(--bg-3);border-left:4px solid ${c};border-radius:var(--radius-md);padding:12px"><div class="tiny muted">${l}</div><div style="font-size:20px;font-weight:600;color:${c}">${v}</div></div>`; }
 
 function renderQuentes(q) {
   const el = document.getElementById('cw-quentes'); if (!el) return;
   if (!q.length) { el.innerHTML = '<div class="tiny muted">Ninguém respondeu SIM ainda. Assim que responderem, aparecem aqui com o link pra abrir a conversa.</div>'; return; }
-  el.innerHTML = `<div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px"><table style="width:100%;border-collapse:collapse;font-size:12.5px">
+  el.innerHTML = `<div style="overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-md)"><table style="width:100%;border-collapse:collapse;font-size:13px">
     <thead><tr style="background:var(--bg-3)"><th style="text-align:left;padding:8px 10px">Cliente</th><th style="text-align:left;padding:8px 10px">Telefone</th><th style="text-align:left;padding:8px 10px">Respondeu</th><th style="padding:8px 10px"></th></tr></thead>
     <tbody>${q.map(r => `<tr style="border-bottom:1px solid var(--border)">
       <td style="text-align:left;padding:8px 10px;font-weight:600">${esc(r.nome || '—')}</td>

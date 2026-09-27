@@ -13,8 +13,8 @@ let _host = null, _d = null, _busy = false, _aba = 'kanban', _fOrigem = '', _bus
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const ORIGENS = {
-  map: ['🏘 MAP', '#2563eb'], conquista: ['🚀 Conquista', '#d97706'],
-  terceiros: ['🤝 Terceiros', '#7c3aed'], locacoes: ['🔑 Locação', '#0891b2'],
+  map: ['🏘 MAP', '#806d50'], conquista: ['🚀 Conquista', '#d97706'],
+  terceiros: ['🤝 Terceiros', '#7c3aed'], locacoes: ['🔑 Locação', '#806d50'],
   manual: ['✍️ Manual', '#64748b'],
 };
 const MOTIVOS = ['duplicado', 'não quis avaliar', 'não responde'];
@@ -85,22 +85,22 @@ function cardHtml(c) {
   const [pc, pl] = PRAZO_UI[fs] || [];
   const borda = fs ? `border:2px solid ${pc};background:${pc}0d` : 'border:1px solid var(--bd,#e2e8f0)';
   return `<div class="av-card" data-id="${esc(c.id)}"
-    style="background:var(--bg-2);${borda};border-radius:10px;padding:8px 10px;margin-bottom:6px;cursor:grab">
-    ${fs ? `<div class="tiny" style="font-weight:900;color:${pc};margin-bottom:2px">${pl}${c.tarefa?.titulo ? ' · ' + esc(c.tarefa.titulo.replace(/^[^ ]+ /, '')) : ''}</div>` : ''}
+    style="background:var(--bg-2);${borda};border-radius:var(--radius-md);padding:8px 10px;margin-bottom:6px;cursor:grab">
+    ${fs ? `<div class="tiny" style="font-weight:600;color:${pc};margin-bottom:2px">${pl}${c.tarefa?.titulo ? ' · ' + esc(c.tarefa.titulo.replace(/^[^ ]+ /, '')) : ''}</div>` : ''}
     <div class="flex items-center" style="gap:6px">
-      ${c.nota != null ? `<span style="background:${notaCor(c.nota)};color:#fff;font-weight:900;border-radius:8px;padding:0 7px;font-size:13px">${Number(c.nota) % 1 ? c.nota : Math.round(c.nota)}</span>` : ''}
+      ${c.nota != null ? `<span style="background:${notaCor(c.nota)};color:#fff;font-weight:600;border-radius:var(--radius-md);padding:0 7px;font-size:13px">${Number(c.nota) % 1 ? c.nota : Math.round(c.nota)}</span>` : ''}
       <b style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.nome)}</b>
       ${fone ? `<a class="tiny" href="https://wa.me/55${esc(fone)}" target="_blank" rel="noopener" title="Abrir WhatsApp" onclick="event.stopPropagation()">💬</a>` : ''}
     </div>
     <div class="flex" style="gap:4px;flex-wrap:wrap;margin-top:3px">
-      <span class="tiny" style="background:${oCor}1a;color:${oCor};padding:0 7px;border-radius:999px;font-weight:700">${oLbl}</span>
-      ${(c.etiquetas || []).map(t => { const i = tagInfo(t); return `<span class="tiny" style="background:${i.cor}1a;color:${i.cor};padding:0 7px;border-radius:999px;font-weight:700">${esc(i.nome)}</span>`; }).join('')}
+      <span class="tiny" style="background:${oCor}1a;color:${oCor};padding:0 7px;border-radius:var(--radius-full);font-weight:600">${oLbl}</span>
+      ${(c.etiquetas || []).map(t => { const i = tagInfo(t); return `<span class="tiny" style="background:${i.cor}1a;color:${i.cor};padding:0 7px;border-radius:var(--radius-full);font-weight:600">${esc(i.nome)}</span>`; }).join('')}
       ${c.indicacao_criada ? '<span class="tiny" title="Promotor — card criado na Indicação Premiada">🎁</span>' : ''}
       ${(c.mencoes || []).length ? `<span class="tiny" title="Menções feitas">👀 ${(c.mencoes || []).length}</span>` : ''}
     </div>
-    ${corretorNome(c) ? `<div class="tiny" style="margin-top:2px;font-weight:700">👔 ${esc(corretorNome(c))} <span class="muted" style="font-weight:400">(corretor no RD)</span></div>` : ''}
+    ${corretorNome(c) ? `<div class="tiny" style="margin-top:2px;font-weight:600">👔 ${esc(corretorNome(c))} <span class="muted" style="font-weight:400">(corretor no RD)</span></div>` : ''}
     ${c.feedback ? `<div class="tiny" style="margin-top:2px;max-height:30px;overflow:hidden;font-style:italic">"${esc(c.feedback)}"</div>` : ''}
-    ${c.tarefa?.data ? `<div class="tiny" style="margin-top:2px;color:var(--info);font-weight:700">📅 ${esc(String(c.tarefa.data).split('-').reverse().join('/'))}${c.tarefa.hora_ini ? ' ' + esc(c.tarefa.hora_ini) : ''}</div>` : ''}
+    ${c.tarefa?.data ? `<div class="tiny" style="margin-top:2px;color:var(--info);font-weight:600">📅 ${esc(String(c.tarefa.data).split('-').reverse().join('/'))}${c.tarefa.hora_ini ? ' ' + esc(c.tarefa.hora_ini) : ''}</div>` : ''}
     ${c.descarte_motivo ? `<div class="tiny muted" style="margin-top:2px">🗑 ${esc(c.descarte_motivo)}</div>` : ''}
     ${c.visita_em ? `<div class="tiny muted" style="margin-top:2px">👣 visita ${esc(String(c.visita_em).substring(0, 10).split('-').reverse().join('/'))}</div>` : ''}
   </div>`;
@@ -146,10 +146,10 @@ function render() {
       const nps = comNota.length ? Math.round((prom - detr) / comNota.length * 100) : null;
       const media = comNota.length ? (comNota.reduce((s, c) => s + Number(c.nota), 0) / comNota.length).toFixed(1) : '—';
       const cob = cs.length ? Math.round(comNota.length / cs.length * 100) : 0;
-      const mini = (l, v, cor) => `<div style="flex:1;min-width:105px;background:var(--bg-2);border-radius:10px;padding:6px 10px;border-left:3px solid ${cor}"><div class="tiny muted">${l}</div><div style="font-weight:900;font-size:16px">${v}</div></div>`;
+      const mini = (l, v, cor) => `<div style="flex:1;min-width:105px;background:var(--bg-2);border-radius:var(--radius-md);padding:6px 10px;border-left:3px solid ${cor}"><div class="tiny muted">${l}</div><div style="font-weight:600;font-size:16px">${v}</div></div>`;
       return `<div class="flex mt-2" style="gap:8px;flex-wrap:wrap">
         ${mini('📊 NPS', nps === null ? '—' : nps, nps === null ? '#64748b' : nps >= 50 ? '#16a34a' : nps >= 0 ? '#d97706' : '#dc2626')}
-        ${mini('⭐ Nota média', media, '#2563eb')}
+        ${mini('⭐ Nota média', media, '#806d50')}
         ${mini('🌟 Promotores (9–10)', prom, '#16a34a')}
         ${mini('😐 Neutros (7–8)', neut, '#d97706')}
         ${mini('🔴 Detratores (0–6)', detr, '#dc2626')}
@@ -161,10 +161,10 @@ function render() {
         const lista = porCol[col.id] || [];
         const max = _showMax[col.id] || 40;
         return `<div class="av-col" data-col="${esc(col.id)}"
-          style="flex:0 0 268px;background:var(--bg-3);border-radius:12px;padding:8px;border-top:3px solid ${esc(col.cor)}">
+          style="flex:0 0 268px;background:var(--bg-3);border-radius:var(--radius-md);padding:8px;border-top:3px solid ${esc(col.cor)}">
           <div class="flex items-center" style="gap:6px;padding:0 2px 6px">
             <b class="tiny">${esc(col.emoji)} ${esc(col.nome)}</b>
-            <span class="tiny muted" style="margin-left:auto;font-weight:800">${lista.length}</span>
+            <span class="tiny muted" style="margin-left:auto;font-weight:600">${lista.length}</span>
           </div>
           <div style="max-height:62vh;overflow-y:auto">
             ${lista.slice(0, max).map(cardHtml).join('') || '<div class="tiny muted" style="text-align:center;padding:14px 0">vazio</div>'}
@@ -269,28 +269,28 @@ function abrirCard(id) {
   };
   const ov = overlay(`
     <div class="flex items-center" style="gap:8px">
-      ${c.nota != null ? `<span style="background:${notaCor(c.nota)};color:#fff;font-weight:900;border-radius:8px;padding:2px 10px;font-size:16px">${Number(c.nota) % 1 ? c.nota : Math.round(c.nota)}</span>` : ''}
+      ${c.nota != null ? `<span style="background:${notaCor(c.nota)};color:#fff;font-weight:600;border-radius:var(--radius-md);padding:2px 10px;font-size:16px">${Number(c.nota) % 1 ? c.nota : Math.round(c.nota)}</span>` : ''}
       <h3 class="card-title" style="margin:0;flex:1">${esc(c.nome)}</h3>
       <span class="tiny muted">${oLbl}</span>
       <button class="btn btn-ghost btn-sm" id="av-x">✕</button>
     </div>
-    ${corretorNome(c) ? `<div class="tiny mt-1" style="background:#2563eb12;border-radius:8px;padding:6px 10px;font-weight:700">👔 Corretor responsável (RD CRM): ${esc(corretorNome(c))}${c.corretor_email ? ` <span class="muted" style="font-weight:400">· ${esc(c.corretor_email)}</span>` : ''}</div>` : '<div class="tiny muted mt-1">👔 Sem corretor vinculado no RD (card manual)</div>'}
-    <div class="mt-2" style="background:var(--bg-3);border-radius:10px;padding:8px 10px">
-      <label class="tiny muted" style="font-weight:800">➡️ Mover este card para</label>
+    ${corretorNome(c) ? `<div class="tiny mt-1" style="background:var(--accent-soft);border-radius:var(--radius-md);padding:6px 10px;font-weight:600">👔 Corretor responsável (RD CRM): ${esc(corretorNome(c))}${c.corretor_email ? ` <span class="muted" style="font-weight:400">· ${esc(c.corretor_email)}</span>` : ''}</div>` : '<div class="tiny muted mt-1">👔 Sem corretor vinculado no RD (card manual)</div>'}
+    <div class="mt-2" style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px">
+      <label class="tiny muted" style="font-weight:600">➡️ Mover este card para</label>
       <div class="flex" style="gap:5px;flex-wrap:wrap;margin-top:4px">
         ${(_d.cfg.colunas || []).filter(col => col.id !== c.coluna).map(col => `<button class="btn btn-ghost btn-sm av-mv" data-col="${esc(col.id)}" style="padding:3px 11px;border:1px solid ${esc(col.cor)}55">${esc(col.emoji)} ${esc(col.nome)}</button>`).join('')}
       </div>
     </div>
-    <div style="background:${c.nota != null ? notaCor(c.nota) : '#64748b'}12;border-radius:10px;padding:10px;margin-top:8px">
-      <label class="tiny muted" style="font-weight:800">⭐ Nota (0–10) + feedback ${c.nota != null ? '— já coletada, pode corrigir' : ''}</label>
+    <div style="background:${c.nota != null ? notaCor(c.nota) : '#64748b'}12;border-radius:var(--radius-md);padding:10px;margin-top:8px">
+      <label class="tiny muted" style="font-weight:600">⭐ Nota (0–10) + feedback ${c.nota != null ? '— já coletada, pode corrigir' : ''}</label>
       <div class="flex" style="gap:6px;flex-wrap:wrap;margin-top:4px;align-items:flex-start">
-        <input class="input" id="av-nota" type="number" min="0" max="10" step="1" value="${c.nota ?? ''}" placeholder="0–10" style="width:80px;font-weight:900;font-size:16px">
+        <input class="input" id="av-nota" type="number" min="0" max="10" step="1" value="${c.nota ?? ''}" placeholder="0–10" style="width:80px;font-weight:600;font-size:16px">
         <textarea class="input" id="av-fb" rows="2" placeholder="O que o cliente disse (feedback)" style="flex:1;min-width:220px;resize:vertical">${esc(c.feedback || '')}</textarea>
         <button class="btn btn-primary btn-sm" id="av-notaok" title="≥9 → Ciclo realizado + Indicação Premiada · ≤6 → Nota baixa + gestão avisada">⭐ Registrar nota</button>
       </div>
     </div>
-    <div class="mt-2" style="background:var(--bg-3);border-radius:10px;padding:10px">
-      <label class="tiny muted" style="font-weight:800">👀 Mencionar (gerente, corretor, sócios) — eles recebem sino + push</label>
+    <div class="mt-2" style="background:var(--bg-3);border-radius:var(--radius-md);padding:10px">
+      <label class="tiny muted" style="font-weight:600">👀 Mencionar (gerente, corretor, sócios) — eles recebem sino + push</label>
       <div style="max-height:110px;overflow:auto;display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-top:4px">
         ${users.map(chipU).join('') || '<span class="tiny muted">sem usuários</span>'}
       </div>
@@ -304,11 +304,11 @@ function abrirCard(id) {
     </div>
     <div class="mt-2"><label class="tiny muted">🏷 Etiquetas</label>
       <div class="flex" style="gap:5px;flex-wrap:wrap;margin-top:3px">
-        ${(_d.cfg.etiquetas || []).map(t => { const on = (c.etiquetas || []).includes(t.id); return `<button class="btn btn-sm av-tag" data-t="${esc(t.id)}" style="padding:2px 10px;font-size:11px;border-radius:999px;${on ? `background:${t.cor};color:#fff;font-weight:800` : `background:${t.cor}1a;color:${t.cor}`}">${esc(t.nome)}</button>`; }).join('')}
+        ${(_d.cfg.etiquetas || []).map(t => { const on = (c.etiquetas || []).includes(t.id); return `<button class="btn btn-sm av-tag" data-t="${esc(t.id)}" style="padding:2px 10px;font-size:11px;border-radius:var(--radius-full);${on ? `background:${t.cor};color:#fff;font-weight:600` : `background:${t.cor}1a;color:${t.cor}`}">${esc(t.nome)}</button>`; }).join('')}
       </div></div>
-    <div class="mt-2" style="background:#7c3aed12;border-radius:10px;padding:8px 10px">
+    <div class="mt-2" style="background:var(--accent-soft);border-radius:var(--radius-md);padding:8px 10px">
       <div class="flex items-center" style="gap:6px">
-        <label class="tiny muted" style="font-weight:800">🧠 Mensagem personalizada por IA <span style="font-weight:400">(usa origem, nota e feedback do card)</span></label>
+        <label class="tiny muted" style="font-weight:600">🧠 Mensagem personalizada por IA <span style="font-weight:400">(usa origem, nota e feedback do card)</span></label>
         <button class="btn btn-ghost btn-sm" id="av-ia" style="margin-left:auto;padding:2px 10px;font-size:11px">✨ Gerar</button>
       </div>
       <div id="av-ia-out" style="display:none;margin-top:5px">
@@ -318,7 +318,7 @@ function abrirCard(id) {
     </div>
     <div class="mt-2"><label class="tiny muted">📝 Observações</label>
       <textarea class="input" id="av-obs" rows="2" style="resize:vertical">${esc(c.obs || '')}</textarea></div>
-    <div class="mt-2" style="background:var(--bg-3);border-radius:10px;padding:8px 10px">
+    <div class="mt-2" style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px">
       <label class="tiny muted">📅 Tarefa (vai pra Agenda)${c.tarefa?.data ? ` — atual: ${esc(String(c.tarefa.data).split('-').reverse().join('/'))}` : ''}</label>
       <div class="flex" style="gap:6px;flex-wrap:wrap;margin-top:3px">
         <input class="input" id="av-tdata" type="date" value="${esc(c.tarefa?.data || '')}" style="flex:1;min-width:130px">
@@ -400,13 +400,13 @@ function abrirCard(id) {
 function fluxoCard(f) {
   if (_editFluxo === f.id) return fluxoEditor(f);
   const passo = (p, i) => `
-    <div style="border-top:1px solid var(--bd,#eef2f7);padding:8px 0 6px">
+    <div style="border-top:1px solid var(--bd,var(--border));padding:8px 0 6px">
       <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
         <b class="tiny">${i + 1}. ${esc(p.titulo || 'Mensagem')}</b>
-        ${p.envio ? `<span class="tiny" style="background:#2563eb1a;color:var(--info);padding:1px 8px;border-radius:999px">⏱ ${esc(p.envio)}</span>` : ''}
+        ${p.envio ? `<span class="tiny" style="background:var(--accent-soft);color:var(--info);padding:1px 8px;border-radius:var(--radius-full)">⏱ ${esc(p.envio)}</span>` : ''}
         <button class="btn btn-ghost btn-sm avf-copy" data-fluxo="${esc(f.id)}" data-passo="${i}" style="margin-left:auto;padding:2px 9px;font-size:11px">📋 Copiar</button>
       </div>
-      <div class="tiny" style="white-space:pre-wrap;background:var(--bg-3);border-radius:8px;padding:7px 9px;margin-top:4px">${esc(p.texto)}</div>
+      <div class="tiny" style="white-space:pre-wrap;background:var(--bg-3);border-radius:var(--radius-md);padding:7px 9px;margin-top:4px">${esc(p.texto)}</div>
     </div>`;
   return `<div class="card" style="margin:0 0 10px;padding:12px 14px">
     <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
@@ -421,7 +421,7 @@ function fluxoCard(f) {
 function fluxoEditor(f) {
   const novo = f.id === '__novo__';
   const passoEd = p => `
-    <div style="border-top:1px dashed var(--bd,#e2e8f0);padding:8px 0" data-passo-ed>
+    <div style="border-top:1px dashed var(--bd,var(--border));padding:8px 0" data-passo-ed>
       <div class="flex" style="gap:6px;flex-wrap:wrap">
         <input class="input pe-titulo" value="${esc(p.titulo || '')}" placeholder="Título do passo" style="flex:2;min-width:160px;padding:4px 8px">
         <input class="input pe-envio" value="${esc(p.envio || '')}" placeholder="Quando enviar" style="flex:1;min-width:150px;padding:4px 8px">
@@ -429,7 +429,7 @@ function fluxoEditor(f) {
       </div>
       <textarea class="input pe-texto" rows="2" style="margin-top:4px;resize:vertical" placeholder="Mensagem (use {nome})">${esc(p.texto || '')}</textarea>
     </div>`;
-  return `<div class="card" style="margin:0 0 10px;padding:12px 14px;border:1px solid #2563eb55" id="avf-editor">
+  return `<div class="card" style="margin:0 0 10px;padding:12px 14px;border:1px solid var(--accent-ink)" id="avf-editor">
     <b class="tiny">${novo ? '➕ Novo fluxo' : '✏️ Editando fluxo'}</b>
     <div class="flex mt-1" style="gap:6px;flex-wrap:wrap">
       <input class="input fe-emoji" value="${esc(f.emoji || '💬')}" style="width:58px;padding:4px 8px">
@@ -449,7 +449,7 @@ function fluxoEditor(f) {
 function htmlFluxos() {
   const fluxos = _d.fluxos || [];
   return `<div class="mt-2">
-    <div class="tiny" style="background:#d977061a;color:var(--ambar-escuro);border-radius:10px;padding:8px 10px;font-weight:700">
+    <div class="tiny" style="background:var(--warn-soft);color:var(--ambar-escuro);border-radius:var(--radius-md);padding:8px 10px;font-weight:600">
       💡 Colete a nota em até 48h da visita. UMA mensagem por vez — e nota baixa se responde NA HORA, não amanhã.
     </div>
     ${_d.can_cfg ? '<div class="flex mt-2" style="justify-content:flex-end"><button class="btn btn-primary btn-sm" id="avf-novo">➕ Novo fluxo</button></div>' : ''}
@@ -476,7 +476,7 @@ function wireFluxos() {
   if (!ed) return;
   ed.querySelector('#fe-add').onclick = () => {
     const d = document.createElement('div');
-    d.innerHTML = `<div style="border-top:1px dashed var(--bd,#e2e8f0);padding:8px 0" data-passo-ed>
+    d.innerHTML = `<div style="border-top:1px dashed var(--bd,var(--border));padding:8px 0" data-passo-ed>
       <div class="flex" style="gap:6px;flex-wrap:wrap">
         <input class="input pe-titulo" placeholder="Título do passo" style="flex:2;min-width:160px;padding:4px 8px">
         <input class="input pe-envio" placeholder="Quando enviar" style="flex:1;min-width:150px;padding:4px 8px">
@@ -524,8 +524,8 @@ function abrirCfg() {
   const FIXAS = ['origens', 'descarte', 'nota_baixa', 'ciclo_realizado'];
   const colRow = c => `<div class="flex" style="gap:5px;margin-top:4px;align-items:center" data-cfgcol="${esc(c.id)}">
     <span style="display:flex;flex-direction:column">
-      <button class="btn btn-ghost cg-up" type="button" title="Mover pra cima" style="padding:0 5px;font-size:9px;line-height:1.3">▲</button>
-      <button class="btn btn-ghost cg-dn" type="button" title="Mover pra baixo" style="padding:0 5px;font-size:9px;line-height:1.3">▼</button>
+      <button class="btn btn-ghost cg-up" type="button" title="Mover pra cima" style="padding:0 5px;font-size:11px;line-height:1.3">▲</button>
+      <button class="btn btn-ghost cg-dn" type="button" title="Mover pra baixo" style="padding:0 5px;font-size:11px;line-height:1.3">▼</button>
     </span>
     <input class="input cg-emoji" value="${esc(c.emoji)}" style="width:52px;padding:3px 7px">
     <input class="input cg-nome" value="${esc(c.nome)}" style="flex:1;padding:3px 8px">
@@ -540,13 +540,13 @@ function abrirCfg() {
   </div>`;
   const ov = overlay(`
     <div class="flex items-center"><h3 class="card-title" style="margin:0;flex:1">⚙️ Editar quadro</h3><button class="btn btn-ghost btn-sm" id="cg-x">✕</button></div>
-    <div class="tiny mt-2" style="font-weight:800">Colunas <span class="muted" style="font-weight:400">(🔒 estruturais ficam — as automações da nota usam)</span></div>
+    <div class="tiny mt-2" style="font-weight:600">Colunas <span class="muted" style="font-weight:400">(🔒 estruturais ficam — as automações da nota usam)</span></div>
     <div id="cg-cols">${(cfg.colunas || []).map(colRow).join('')}</div>
     <button class="btn btn-ghost btn-sm mt-1" id="cg-addcol" type="button">+ coluna</button>
-    <div class="tiny mt-2" style="font-weight:800">Etiquetas</div>
+    <div class="tiny mt-2" style="font-weight:600">Etiquetas</div>
     <div id="cg-tags">${(cfg.etiquetas || []).map(tagRow).join('')}</div>
     <button class="btn btn-ghost btn-sm mt-1" id="cg-addtag" type="button">+ etiqueta</button>
-    <div class="tiny mt-2" style="font-weight:800">🔄 Sincronização</div>
+    <div class="tiny mt-2" style="font-weight:600">🔄 Sincronização</div>
     <label class="tiny" style="display:block;margin-top:4px">Janela de visitas: últimos <input class="input" id="cg-janela" type="number" min="7" max="365" value="${cfg.janela_dias ?? 60}" style="width:70px;padding:2px 6px"> dias</label>
     <div class="flex mt-3" style="gap:6px;justify-content:flex-end">
       <button class="btn btn-ghost btn-sm" id="cg-cancel">Cancelar</button>

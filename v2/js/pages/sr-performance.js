@@ -45,11 +45,11 @@ function save() {
 function render() {
   _root.innerHTML = `
     <div class="card">
-      <div style="background:linear-gradient(135deg,#0b1f3a 0%,#1e3a5f 100%);color:#fff;padding:20px;border-radius:14px 14px 0 0;margin:-16px -16px 16px">
+      <div style="background:var(--surface-2);color:var(--ink);padding:20px;border-radius:14px 14px 0 0;margin:-16px -16px 16px">
         <div class="flex" style="align-items:center;gap:14px">
-          <div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,var(--psm-navy),var(--psm-navy-2));display:flex;align-items:center;justify-content:center;font-size:28px">🎖️</div>
+          <div style="width:56px;height:56px;border-radius:var(--radius-lg);background:linear-gradient(135deg,var(--psm-navy),var(--psm-navy-2));display:flex;align-items:center;justify-content:center;font-size:26px">🎖️</div>
           <div>
-            <div style="font-size:22px;font-weight:900;color:var(--psm-gold)">Sr. Performance</div>
+            <div style="font-size:20px;font-weight:600;color:var(--psm-gold)">Sr. Performance</div>
             <div style="opacity:.85;font-size:13px">Mentor de Corretores · Treina do zero ao expert com dados reais do seu CRM</div>
           </div>
         </div>
@@ -61,11 +61,11 @@ function render() {
         </div>
 
         <div>
-          <div style="background:var(--bg-3);border-radius:10px;padding:14px;margin-bottom:10px;display:flex;flex-direction:column;height:520px">
+          <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:14px;margin-bottom:10px;display:flex;flex-direction:column;height:520px">
             <div id="srp-msgs" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:4px">
               ${_messages.length === 0 ? `
                 <div style="text-align:center;padding:30px;color:var(--muted)">
-                  <div style="font-size:42px;margin-bottom:10px">🎖️</div>
+                  <div style="font-size:36px;margin-bottom:10px">🎖️</div>
                   <div>Pergunte sobre vendas, técnica, motivação, abordagem…</div>
                   <div class="tiny mt-2 muted">Exemplos:</div>
                   <div class="tiny" style="font-style:italic;margin:4px 0">"Como abordar um lead que sumiu há 2 semanas?"</div>
@@ -118,7 +118,7 @@ function renderInsights() {
 
   wrap.innerHTML = `
     <div class="card" style="background:linear-gradient(135deg,${statusColor}22,transparent);border:1px solid ${statusColor}40;padding:14px;margin-bottom:10px">
-      <div style="font-weight:800;font-size:13px;margin-bottom:8px;color:var(--psm-gold)">🎯 Seu Desempenho</div>
+      <div style="font-weight:600;font-size:13px;margin-bottom:8px;color:var(--psm-gold)">🎯 Seu Desempenho</div>
       <div style="display:flex;flex-direction:column;gap:6px;font-size:12px">
         <div class="flex" style="justify-content:space-between"><span class="muted">VGV Mês:</span><b>R$ ${(+meu.vgv_atingido || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></div>
         <div class="flex" style="justify-content:space-between"><span class="muted">Meta Mês:</span><b>R$ ${(+meu.meta_vgv || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></div>
@@ -130,7 +130,7 @@ function renderInsights() {
     </div>
 
     <div class="card" style="background:var(--bg-3);padding:14px">
-      <div style="font-weight:800;font-size:13px;margin-bottom:8px;color:var(--psm-gold)">💡 Sugestões rápidas</div>
+      <div style="font-weight:600;font-size:13px;margin-bottom:8px;color:var(--psm-gold)">💡 Sugestões rápidas</div>
       <div style="display:flex;flex-direction:column;gap:6px">
         ${[
           'Como melhorar minha conversão?',
@@ -151,9 +151,9 @@ function bubble(m) {
   const isUser = m.role === 'user';
   return `
     <div style="display:flex;${isUser ? 'justify-content:flex-end' : ''};gap:8px">
-      ${!isUser ? '<div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--psm-navy),var(--psm-navy-2));color:var(--psm-cream);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:800">🎖️</div>' : ''}
-      <div style="max-width:75%;background:${isUser ? 'var(--psm-navy)' : 'var(--bg-2)'};color:${isUser ? '#fff' : 'var(--tx)'};padding:10px 14px;border-radius:10px;font-size:13px;line-height:1.5;white-space:pre-wrap;word-wrap:break-word">${esc(m.content)}</div>
-      ${isUser ? `<div style="width:32px;height:32px;border-radius:50%;background:var(--psm-navy);color:var(--psm-cream);display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">${esc((auth.user()?.ini || '?').toUpperCase())}</div>` : ''}
+      ${!isUser ? '<div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--psm-navy),var(--psm-navy-2));color:var(--psm-cream);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:600">🎖️</div>' : ''}
+      <div style="max-width:75%;background:${isUser ? 'var(--psm-navy)' : 'var(--bg-2)'};color:${isUser ? '#fff' : 'var(--tx)'};padding:10px 14px;border-radius:var(--radius-md);font-size:13px;line-height:1.5;white-space:pre-wrap;word-wrap:break-word">${esc(m.content)}</div>
+      ${isUser ? `<div style="width:32px;height:32px;border-radius:50%;background:var(--psm-navy);color:var(--psm-cream);display:flex;align-items:center;justify-content:center;font-weight:600;flex-shrink:0">${esc((auth.user()?.ini || '?').toUpperCase())}</div>` : ''}
     </div>
   `;
 }

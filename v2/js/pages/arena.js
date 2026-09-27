@@ -49,9 +49,9 @@ function eventRow(e) {
   const ts = e.ts ? new Date(e.ts).toLocaleString('pt-BR') : '';
   return `
     <div style="display:grid;grid-template-columns:36px 1fr auto;gap:10px;padding:12px 14px;background:var(--bg-3);border-left:4px solid ${e.color};border-radius:var(--r-sm);align-items:center">
-      <div style="font-size:22px;text-align:center">${e.ico}</div>
+      <div style="font-size:20px;text-align:center">${e.ico}</div>
       <div style="min-width:0">
-        <div style="font-weight:700;font-size:13.5px">${escapeHtml(e.title)}</div>
+        <div style="font-weight:600;font-size:13px">${escapeHtml(e.title)}</div>
         ${e.subtitle ? `<div class="tiny muted" style="margin-top:2px">${escapeHtml(e.subtitle)}</div>` : ''}
         ${actor ? `<div class="tiny" style="color:${actor.color || 'var(--ink-muted)'};margin-top:3px;font-weight:600">👤 ${escapeHtml(actor.name)}</div>` : ''}
       </div>

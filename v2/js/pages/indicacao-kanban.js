@@ -32,7 +32,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const brl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const BASES = {
   nps_promotor: ['🌟 Promotor NPS', '#7c3aed'], fechou_12m: ['🏆 Fechou 12m', '#16a34a'],
-  visita_60d: ['👣 Visita 60d', '#d97706'], funil_map: ['🗂 Funil MAP', '#2563eb'],
+  visita_60d: ['👣 Visita 60d', '#d97706'], funil_map: ['🗂 Funil MAP', '#806d50'],
   manual: ['✍️ Manual', '#64748b'],
 };
 const OBJ = { venda: '🏠 Venda', captacao: '📷 Captação', locacao: '🔑 Locação' };
@@ -83,20 +83,20 @@ function cardHtml(c) {
   const [pc, pl] = PRAZO_UI[fs] || [];
   const borda = fs ? `border:2px solid ${pc};background:${pc}0d` : 'border:1px solid var(--bd,#e2e8f0)';
   return `<div class="ik-card" data-id="${esc(c.id)}"
-    style="background:var(--bg-2);${borda};border-radius:10px;padding:8px 10px;margin-bottom:6px;cursor:grab">
-    ${fs ? `<div class="tiny" style="font-weight:900;color:${pc};margin-bottom:2px">${pl}${c.tarefa?.titulo ? ' · ' + esc(c.tarefa.titulo.replace(/^[^ ]+ /, '')) : ''}</div>` : ''}
+    style="background:var(--bg-2);${borda};border-radius:var(--radius-md);padding:8px 10px;margin-bottom:6px;cursor:grab">
+    ${fs ? `<div class="tiny" style="font-weight:600;color:${pc};margin-bottom:2px">${pl}${c.tarefa?.titulo ? ' · ' + esc(c.tarefa.titulo.replace(/^[^ ]+ /, '')) : ''}</div>` : ''}
     <div class="flex items-center" style="gap:6px">
       <b style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.nome)}</b>
       ${fone ? `<a class="tiny" href="https://wa.me/55${esc(fone)}" target="_blank" rel="noopener" title="Abrir WhatsApp" onclick="event.stopPropagation()">💬</a>` : ''}
     </div>
     <div class="flex" style="gap:4px;flex-wrap:wrap;margin-top:3px">
-      <span class="tiny" style="background:${bCor}1a;color:${bCor};padding:0 7px;border-radius:999px;font-weight:700">${bLbl}</span>
-      ${(c.etiquetas || []).map(t => { const i = tagInfo(t); return `<span class="tiny" style="background:${i.cor}1a;color:${i.cor};padding:0 7px;border-radius:999px;font-weight:700">${esc(i.nome)}</span>`; }).join('')}
+      <span class="tiny" style="background:${bCor}1a;color:${bCor};padding:0 7px;border-radius:var(--radius-full);font-weight:600">${bLbl}</span>
+      ${(c.etiquetas || []).map(t => { const i = tagInfo(t); return `<span class="tiny" style="background:${i.cor}1a;color:${i.cor};padding:0 7px;border-radius:var(--radius-full);font-weight:600">${esc(i.nome)}</span>`; }).join('')}
       ${c.objetivo ? `<span class="tiny" style="padding:0 4px">${OBJ[c.objetivo] || esc(c.objetivo)}</span>` : ''}
     </div>
-    ${corretorNome(c) ? `<div class="tiny" style="margin-top:2px;font-weight:700">👔 ${esc(corretorNome(c))} <span class="muted" style="font-weight:400">(corretor no RD)</span></div>` : ''}
-    ${c.valor_indicacao || c.premio ? `<div class="tiny" style="margin-top:2px;color:var(--warn);font-weight:700">${c.valor_indicacao ? '💼 ' + brl(c.valor_indicacao) : ''}${c.valor_indicacao && c.premio ? ' · ' : ''}${c.premio ? '🎁 ' + brl(c.premio) : ''}</div>` : ''}
-    ${c.tarefa?.data ? `<div class="tiny" style="margin-top:2px;color:var(--info);font-weight:700">📅 ${esc(String(c.tarefa.data).split('-').reverse().join('/'))}${c.tarefa.hora_ini ? ' ' + esc(c.tarefa.hora_ini) : ''}${c.tarefa.hora_fim ? '–' + esc(c.tarefa.hora_fim) : ''}</div>` : ''}
+    ${corretorNome(c) ? `<div class="tiny" style="margin-top:2px;font-weight:600">👔 ${esc(corretorNome(c))} <span class="muted" style="font-weight:400">(corretor no RD)</span></div>` : ''}
+    ${c.valor_indicacao || c.premio ? `<div class="tiny" style="margin-top:2px;color:var(--warn);font-weight:600">${c.valor_indicacao ? '💼 ' + brl(c.valor_indicacao) : ''}${c.valor_indicacao && c.premio ? ' · ' : ''}${c.premio ? '🎁 ' + brl(c.premio) : ''}</div>` : ''}
+    ${c.tarefa?.data ? `<div class="tiny" style="margin-top:2px;color:var(--info);font-weight:600">📅 ${esc(String(c.tarefa.data).split('-').reverse().join('/'))}${c.tarefa.hora_ini ? ' ' + esc(c.tarefa.hora_ini) : ''}${c.tarefa.hora_fim ? '–' + esc(c.tarefa.hora_fim) : ''}</div>` : ''}
     ${c.descarte_motivo ? `<div class="tiny muted" style="margin-top:2px">🗑 ${esc(c.descarte_motivo)}</div>` : ''}
     ${c.obs ? `<div class="tiny muted" style="margin-top:2px;max-height:30px;overflow:hidden">${esc(c.obs)}</div>` : ''}
     <div class="tiny muted" style="margin-top:2px">➕ ${esc(String(c.criado_em || '').substring(0, 10).split('-').reverse().join('/'))}</div>
@@ -119,7 +119,7 @@ function render() {
   _host.innerHTML = `
     <div class="card" style="padding:10px 12px">
       <div class="flex items-center" style="gap:6px;flex-wrap:wrap">
-        <button class="btn btn-sm ${_fHoje ? 'btn-primary' : 'btn-ghost'}" id="ik-hoje" style="font-weight:800" title="Só os cards da fila do dia (cadência automática)">📅 Fila de hoje (${nFila})</button>
+        <button class="btn btn-sm ${_fHoje ? 'btn-primary' : 'btn-ghost'}" id="ik-hoje" style="font-weight:600" title="Só os cards da fila do dia (cadência automática)">📅 Fila de hoje (${nFila})</button>
         <button class="btn btn-ghost btn-sm" id="ik-gerar" title="Monta a fila do dia agora (o cron faz isso sozinho às 9h)">▶️ Gerar fila</button>
         <button class="btn btn-ghost btn-sm" id="ik-sync" title="Puxa do RD: Carteira MAP + visitas 60d + fechados 12m">🔄 Sincronizar bases</button>
         <button class="btn btn-ghost btn-sm" id="ik-novo">➕ Card manual</button>
@@ -136,10 +136,10 @@ function render() {
       const topou = cs.filter(c => c.coluna === 'topou').length;
       const indicou = cs.filter(c => c.indicacao_id).length;
       const taxa = abordados ? Math.round(indicou / abordados * 100) : 0;
-      const mini = (l, v, cor) => `<div style="flex:1;min-width:110px;background:var(--bg-2);border-radius:10px;padding:6px 10px;border-left:3px solid ${cor}"><div class="tiny muted">${l}</div><div style="font-weight:900;font-size:16px">${v}</div></div>`;
+      const mini = (l, v, cor) => `<div style="flex:1;min-width:110px;background:var(--bg-2);border-radius:var(--radius-md);padding:6px 10px;border-left:3px solid ${cor}"><div class="tiny muted">${l}</div><div style="font-weight:600;font-size:16px">${v}</div></div>`;
       return `<div class="flex mt-2" style="gap:8px;flex-wrap:wrap">
         ${mini('📥 Estoque a abordar', cs.filter(c => c.coluna === 'a_abordar').length, '#64748b')}
-        ${mini('💬 Já abordados', abordados, '#2563eb')}
+        ${mini('💬 Já abordados', abordados, '#806d50')}
         ${mini('🤝 Toparam indicar', topou, '#d97706')}
         ${mini('🎁 Indicaram', indicou, '#16a34a')}
         ${mini('📈 Conversão abordado→indicou', taxa + '%', taxa >= 10 ? '#16a34a' : '#d97706')}
@@ -150,10 +150,10 @@ function render() {
         const lista = porCol[col.id] || [];
         const max = _showMax[col.id] || 40;
         return `<div class="ik-col" data-col="${esc(col.id)}"
-          style="flex:0 0 268px;background:var(--bg-3);border-radius:12px;padding:8px;border-top:3px solid ${esc(col.cor)}">
+          style="flex:0 0 268px;background:var(--bg-3);border-radius:var(--radius-md);padding:8px;border-top:3px solid ${esc(col.cor)}">
           <div class="flex items-center" style="gap:6px;padding:0 2px 6px">
             <b class="tiny">${esc(col.emoji)} ${esc(col.nome)}</b>
-            <span class="tiny muted" style="margin-left:auto;font-weight:800">${lista.length}</span>
+            <span class="tiny muted" style="margin-left:auto;font-weight:600">${lista.length}</span>
           </div>
           <div style="max-height:62vh;overflow-y:auto">
             ${lista.slice(0, max).map(cardHtml).join('') || '<div class="tiny muted" style="text-align:center;padding:14px 0">vazio</div>'}
@@ -275,9 +275,9 @@ function abrirCard(id) {
       <span class="tiny muted">${bLbl}</span>
       <button class="btn btn-ghost btn-sm" id="ck-x">✕</button>
     </div>
-    ${corretorNome(c) ? `<div class="tiny mt-1" style="background:#2563eb12;border-radius:8px;padding:6px 10px;font-weight:700">👔 Corretor responsável (RD CRM): ${esc(corretorNome(c))}${c.corretor_email ? ` <span class="muted" style="font-weight:400">· ${esc(c.corretor_email)}</span>` : ''}</div>` : '<div class="tiny muted mt-1">👔 Sem corretor vinculado no RD (card manual)</div>'}
-    <div class="mt-2" style="background:var(--bg-3);border-radius:10px;padding:8px 10px">
-      <label class="tiny muted" style="font-weight:800">➡️ Mover este card para</label>
+    ${corretorNome(c) ? `<div class="tiny mt-1" style="background:var(--accent-soft);border-radius:var(--radius-md);padding:6px 10px;font-weight:600">👔 Corretor responsável (RD CRM): ${esc(corretorNome(c))}${c.corretor_email ? ` <span class="muted" style="font-weight:400">· ${esc(c.corretor_email)}</span>` : ''}</div>` : '<div class="tiny muted mt-1">👔 Sem corretor vinculado no RD (card manual)</div>'}
+    <div class="mt-2" style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px">
+      <label class="tiny muted" style="font-weight:600">➡️ Mover este card para</label>
       <div class="flex" style="gap:5px;flex-wrap:wrap;margin-top:4px">
         ${(_d.cfg.colunas || []).filter(col => col.id !== c.coluna).map(col => `<button class="btn btn-ghost btn-sm ck-mv" data-col="${esc(col.id)}" style="padding:3px 11px;border:1px solid ${esc(col.cor)}55">${esc(col.emoji)} ${esc(col.nome)}</button>`).join('')}
       </div>
@@ -289,7 +289,7 @@ function abrirCard(id) {
     </div>
     <div class="mt-2"><label class="tiny muted">🏷 Etiquetas (clique pra ligar/desligar)</label>
       <div class="flex" style="gap:5px;flex-wrap:wrap;margin-top:3px">
-        ${(_d.cfg.etiquetas || []).map(t => { const on = (c.etiquetas || []).includes(t.id); return `<button class="btn btn-sm ck-tag" data-t="${esc(t.id)}" style="padding:2px 10px;font-size:11px;border-radius:999px;${on ? `background:${t.cor};color:#fff;font-weight:800` : `background:${t.cor}1a;color:${t.cor}`}">${esc(t.nome)}</button>`; }).join('')}
+        ${(_d.cfg.etiquetas || []).map(t => { const on = (c.etiquetas || []).includes(t.id); return `<button class="btn btn-sm ck-tag" data-t="${esc(t.id)}" style="padding:2px 10px;font-size:11px;border-radius:var(--radius-full);${on ? `background:${t.cor};color:#fff;font-weight:600` : `background:${t.cor}1a;color:${t.cor}`}">${esc(t.nome)}</button>`; }).join('')}
       </div></div>
     <div class="flex mt-2" style="gap:6px;flex-wrap:wrap">
       <select class="input" id="ck-obj" style="flex:1;min-width:130px">
@@ -299,9 +299,9 @@ function abrirCard(id) {
       <input class="input" id="ck-valor" type="number" value="${c.valor_indicacao ?? ''}" placeholder="Valor da indicação (R$)" style="flex:1;min-width:150px" title="VGV / aluguel esperado do negócio indicado">
       <input class="input" id="ck-premio" type="number" value="${c.premio ?? ''}" placeholder="Prêmio (R$)" style="flex:1;min-width:110px">
     </div>
-    <div class="mt-2" style="background:#7c3aed12;border-radius:10px;padding:8px 10px">
+    <div class="mt-2" style="background:var(--accent-soft);border-radius:var(--radius-md);padding:8px 10px">
       <div class="flex items-center" style="gap:6px">
-        <label class="tiny muted" style="font-weight:800">🧠 Mensagem personalizada por IA <span style="font-weight:400">(usa base, situação e anotações do card)</span></label>
+        <label class="tiny muted" style="font-weight:600">🧠 Mensagem personalizada por IA <span style="font-weight:400">(usa base, situação e anotações do card)</span></label>
         <button class="btn btn-ghost btn-sm" id="ck-ia" style="margin-left:auto;padding:2px 10px;font-size:11px">✨ Gerar</button>
       </div>
       <div id="ck-ia-out" style="display:none;margin-top:5px">
@@ -311,7 +311,7 @@ function abrirCard(id) {
     </div>
     <div class="mt-2"><label class="tiny muted">📝 Observações</label>
       <textarea class="input" id="ck-obs" rows="3" style="resize:vertical">${esc(c.obs || '')}</textarea></div>
-    <div class="mt-2" style="background:var(--bg-3);border-radius:10px;padding:8px 10px">
+    <div class="mt-2" style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px">
       <label class="tiny muted">📅 Tarefa (vai pra Agenda)${c.tarefa?.data ? ` — atual: ${esc(String(c.tarefa.data).split('-').reverse().join('/'))} ${esc(c.tarefa.hora_ini || '')}${c.tarefa.hora_fim ? '–' + esc(c.tarefa.hora_fim) : ''}` : ''}</label>
       <div class="flex" style="gap:6px;flex-wrap:wrap;margin-top:3px">
         <input class="input" id="ck-tdata" type="date" value="${esc(c.tarefa?.data || '')}" style="flex:1;min-width:130px">
@@ -322,7 +322,7 @@ function abrirCard(id) {
     </div>
     <div class="flex mt-3" style="gap:6px;flex-wrap:wrap;justify-content:flex-end">
       ${lvl >= 7 ? '<button class="btn btn-ghost btn-sm" id="ck-del" style="color:var(--err);margin-right:auto">🗑 Excluir card</button>' : ''}
-      <button class="btn btn-ghost btn-sm" id="ck-indicou" style="color:var(--ok);font-weight:800">🎁 Registrou indicação</button>
+      <button class="btn btn-ghost btn-sm" id="ck-indicou" style="color:var(--ok);font-weight:600">🎁 Registrou indicação</button>
       <button class="btn btn-primary btn-sm" id="ck-save">💾 Salvar</button>
     </div>`);
   const tags = new Set(c.etiquetas || []);
@@ -382,8 +382,8 @@ function abrirCfg() {
   const cfg = _d.cfg;
   const colRow = c => `<div class="flex" style="gap:5px;margin-top:4px;align-items:center" data-cfgcol="${esc(c.id)}">
     <span style="display:flex;flex-direction:column">
-      <button class="btn btn-ghost cg-up" type="button" title="Mover pra cima" style="padding:0 5px;font-size:9px;line-height:1.3">▲</button>
-      <button class="btn btn-ghost cg-dn" type="button" title="Mover pra baixo" style="padding:0 5px;font-size:9px;line-height:1.3">▼</button>
+      <button class="btn btn-ghost cg-up" type="button" title="Mover pra cima" style="padding:0 5px;font-size:11px;line-height:1.3">▲</button>
+      <button class="btn btn-ghost cg-dn" type="button" title="Mover pra baixo" style="padding:0 5px;font-size:11px;line-height:1.3">▼</button>
     </span>
     <input class="input cg-emoji" value="${esc(c.emoji)}" style="width:52px;padding:3px 7px">
     <input class="input cg-nome" value="${esc(c.nome)}" style="flex:1;padding:3px 8px">
@@ -399,15 +399,15 @@ function abrirCfg() {
   const cad = cfg.cadencia || {};
   const ov = overlay(`
     <div class="flex items-center"><h3 class="card-title" style="margin:0;flex:1">⚙️ Editar quadro</h3><button class="btn btn-ghost btn-sm" id="cg-x">✕</button></div>
-    <div class="tiny mt-2" style="font-weight:800">Colunas <span class="muted" style="font-weight:400">(🔒 A abordar e Descartado ficam sempre)</span></div>
+    <div class="tiny mt-2" style="font-weight:600">Colunas <span class="muted" style="font-weight:400">(🔒 A abordar e Descartado ficam sempre)</span></div>
     <div id="cg-cols">${(cfg.colunas || []).map(colRow).join('')}</div>
     <button class="btn btn-ghost btn-sm mt-1" id="cg-addcol" type="button">+ coluna</button>
-    <div class="tiny mt-2" style="font-weight:800">Etiquetas</div>
+    <div class="tiny mt-2" style="font-weight:600">Etiquetas</div>
     <div id="cg-tags">${(cfg.etiquetas || []).map(tagRow).join('')}</div>
     <button class="btn btn-ghost btn-sm mt-1" id="cg-addtag" type="button">+ etiqueta</button>
-    <div class="tiny mt-2" style="font-weight:800">📅 Cadência diária <span class="muted" style="font-weight:400">(cron 9h seg–sex: monta a fila e notifica a responsável)</span></div>
-    <div class="flex mt-1" style="gap:8px;flex-wrap:wrap;align-items:center;background:var(--bg-3);border-radius:10px;padding:8px 10px">
-      <label class="tiny flex gap-1" style="align-items:center;font-weight:700"><input type="checkbox" id="cd-ativa" ${cad.ativa !== false ? 'checked' : ''}> Ativa</label>
+    <div class="tiny mt-2" style="font-weight:600">📅 Cadência diária <span class="muted" style="font-weight:400">(cron 9h seg–sex: monta a fila e notifica a responsável)</span></div>
+    <div class="flex mt-1" style="gap:8px;flex-wrap:wrap;align-items:center;background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px">
+      <label class="tiny flex gap-1" style="align-items:center;font-weight:600"><input type="checkbox" id="cd-ativa" ${cad.ativa !== false ? 'checked' : ''}> Ativa</label>
       <label class="tiny">Lote/dia <input class="input" id="cd-lote" type="number" min="1" max="500" value="${cad.lote_dia ?? 45}" style="width:70px;padding:2px 6px"></label>
       <label class="tiny">Follow-up após <input class="input" id="cd-fu" type="number" min="1" max="30" value="${cad.followup_dias ?? 3}" style="width:56px;padding:2px 6px"> dias</label>
       <label class="tiny">Cobrar "topou" após <input class="input" id="cd-tp" type="number" min="1" max="30" value="${cad.topou_dias ?? 2}" style="width:56px;padding:2px 6px"> dias</label>

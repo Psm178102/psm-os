@@ -28,17 +28,17 @@ function render(d, loading) {
   else if (d && d.pending) body = `<div class="alert alert-warn">⏳ Tabela ainda não criada. Rode <b>supabase/sprint_meta_monthly.sql</b> e dispare o cron <b>/api/v3/marketing/meta_monthly_cron</b> (backfill do ano).</div>`;
   else {
     const meses = (d && d.meses) || [];
-    if (!meses.length) body = `<div class="alert" style="background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.3);padding:12px;border-radius:8px">Sem dados de ${_ano} ainda. O cron preenche diariamente (e faz backfill do ano). Pra forçar agora, dispare <b>/api/v3/marketing/meta_monthly_cron?ano=${_ano}</b> com a chave do cron.</div>`;
+    if (!meses.length) body = `<div class="alert" style="background:var(--accent-soft);border:1px solid var(--accent-ink);padding:12px;border-radius:var(--radius-md)">Sem dados de ${_ano} ainda. O cron preenche diariamente (e faz backfill do ano). Pra forçar agora, dispare <b>/api/v3/marketing/meta_monthly_cron?ano=${_ano}</b> com a chave do cron.</div>`;
     else {
       const t = d.totais || {};
       body = `
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
         ${kpi('💸 Investimento (ano)', f$(t.spend), '#1e293b')}
-        ${kpi('👥 Leads (ano)', f1(t.results), '#0ea5e9')}
+        ${kpi('👥 Leads (ano)', f1(t.results), '#806d50')}
         ${kpi('🎯 CPL médio (ano)', f$(t.cpl), '#d97706')}
         ${kpi('💬 Mensagens (ano)', f1(t.messages), '#7c3aed')}
       </div>
-      <div style="overflow-x:auto;border:1px solid var(--border);border-radius:12px"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:680px">
+      <div style="overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-md)"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:680px">
         <thead><tr style="background:var(--bg-3);border-bottom:2px solid var(--border)">
           <th style="text-align:left;padding:9px 10px">Mês</th>
           <th style="text-align:right;padding:9px 10px">💸 Investimento</th>
@@ -48,7 +48,7 @@ function render(d, loading) {
           <th style="text-align:left;padding:9px 10px">🏆 Campanha campeã</th>
         </tr></thead>
         <tbody>${meses.map(m => `<tr style="border-bottom:1px solid var(--border)">
-          <td style="text-align:left;padding:8px 10px;font-weight:700">${MES[m.mes] || m.mes}</td>
+          <td style="text-align:left;padding:8px 10px;font-weight:600">${MES[m.mes] || m.mes}</td>
           <td style="text-align:right;padding:8px 10px">${f$(m.spend)}</td>
           <td style="text-align:right;padding:8px 10px">${f1(m.results)}</td>
           <td style="text-align:right;padding:8px 10px">${f$(m.cpl)}</td>
@@ -85,4 +85,4 @@ function render(d, loading) {
     }
   });
 }
-function kpi(l, v, bg) { return `<div style="background:${bg};color:#fff;border-radius:10px;padding:12px;text-align:center"><div style="font-size:10px;text-transform:uppercase;opacity:.85;font-weight:700">${l}</div><div style="font-size:18px;font-weight:800;margin-top:4px">${v}</div></div>`; }
+function kpi(l, v, bg) { return `<div style="background:${bg};color:#fff;border-radius:var(--radius-md);padding:12px;text-align:center"><div style="font-size:11px;text-transform:uppercase;opacity:.85;font-weight:600">${l}</div><div style="font-size:16px;font-weight:600;margin-top:4px">${v}</div></div>`; }

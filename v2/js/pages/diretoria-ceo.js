@@ -35,10 +35,10 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 
 const TIPO = {
   'estado-da-uniao':   { lbl: 'Estado da União',   ico: '🏛️', color: '#7c3aed', bg: '#7c3aed22' },
-  'plano-estrategico': { lbl: 'Plano Estratégico', ico: '♟️', color: '#2563eb', bg: '#2563eb22' },
+  'plano-estrategico': { lbl: 'Plano Estratégico', ico: '♟️', color: '#806d50', bg: '#2563eb22' },
   'parecer':           { lbl: 'Parecer',           ico: '⚖️', color: '#d97706', bg: '#d9770622' },
   'insight':           { lbl: 'Insight',           ico: '💡', color: '#16a34a', bg: '#16a34a22' },
-  'fechamento-mensal': { lbl: 'Fechamento do mês', ico: '🗓️', color: '#0e7490', bg: '#0e749022' },
+  'fechamento-mensal': { lbl: 'Fechamento do mês', ico: '🗓️', color: '#806d50', bg: '#0e749022' },
 };
 // fallback genérico: outros agentes publicam no mesmo kv com tipos próprios
 // (ex.: Sr. CFO usa tipo 'relatorio', v87.32) — mostra o tipo cru, sem mentir.
@@ -241,7 +241,7 @@ const CSS = `
   .dc-comps tr.done td{opacity:.5;text-decoration:line-through}
   .dc-comp-st{display:inline-block;border-radius:999px;padding:2px 8px;font-size:10.5px;font-weight:800}
   .dc-comp-feito{background:#16a34a22;color:#16a34a}
-  .dc-comp-aberto{background:#2563eb22;color:#2563eb}
+  .dc-comp-aberto{background:#2563eb22;color:#806d50}
   .dc-comp-atrasado{background:#ef4444;color:#fff}
   .dc-comp-cancelado{background:#64748b22;color:#64748b}
   .dc-btn-feito{background:none;border:1px solid #16a34a;color:#16a34a;border-radius:8px;padding:3px 10px;font-size:11.5px;font-weight:800;cursor:pointer;white-space:nowrap}
@@ -255,8 +255,8 @@ const CSS = `
   .dc-dir.done{opacity:.65}
   .dc-dir-st{display:inline-block;border-radius:999px;padding:2px 9px;font-size:10.5px;font-weight:800;letter-spacing:.3px}
   .dc-st-proposta{background:#d9770622;color:#d97706}
-  .dc-st-aprovada{background:#2563eb22;color:#2563eb}
-  .dc-st-em_andamento{background:#0e749022;color:#0e7490}
+  .dc-st-aprovada{background:#2563eb22;color:#806d50}
+  .dc-st-em_andamento{background:#0e749022;color:#806d50}
   .dc-st-atrasada{background:#ef4444;color:#fff}
   .dc-st-concluida{background:#16a34a22;color:#16a34a}
   .dc-st-rejeitada{background:#64748b22;color:#64748b}
@@ -269,7 +269,7 @@ const CSS = `
   .dc-dbtn:disabled{opacity:.4;cursor:wait}
   .dc-dbtn.ok{border-color:#16a34a;color:#16a34a}   .dc-dbtn.ok:hover{background:#16a34a22}
   .dc-dbtn.no{border-color:#ef4444;color:#ef4444}   .dc-dbtn.no:hover{background:#ef444422}
-  .dc-dbtn.mid{border-color:#2563eb;color:#2563eb}  .dc-dbtn.mid:hover{background:#2563eb22}
+  .dc-dbtn.mid{border-color:#806d50;color:#806d50}  .dc-dbtn.mid:hover{background:#2563eb22}
   .dc-dir-tabs{display:flex;gap:6px;margin-bottom:8px}
   .dc-dir-tab{background:var(--bg-3);border:1px solid var(--bd);border-radius:999px;padding:3px 12px;font-size:11.5px;font-weight:800;cursor:pointer;color:var(--muted)}
   .dc-dir-tab.on{background:var(--psm-blue);border-color:var(--psm-blue);color:#fff}
@@ -328,7 +328,7 @@ function dirsHtml() {
 
   return `
     <div class="dc-dirs">
-      <div style="font-weight:900;font-size:14px;margin-bottom:6px">🎯 Diretrizes
+      <div style="font-weight:600;font-size:14px;margin-bottom:6px">🎯 Diretrizes
         <span class="tiny muted" style="font-weight:600">— recomendação do CEO vira diretriz quando VOCÊ aprova; o cron cobra as atrasadas</span>
         ${nProp ? `<span class="dc-dir-st dc-st-proposta" style="margin-left:6px">${nProp} aguardando você</span>` : ''}
       </div>
@@ -336,7 +336,7 @@ function dirsHtml() {
         <button class="dc-dir-tab ${_dirFiltro === 'abertas' ? 'on' : ''}" data-dir-filtro="abertas">Abertas (${abertas.length})</button>
         <button class="dc-dir-tab ${_dirFiltro === 'historico' ? 'on' : ''}" data-dir-filtro="historico">Histórico (${hist.length})</button>
       </div>
-      ${cards || `<div class="muted" style="font-size:12.5px;padding:6px 2px">${_dirFiltro === 'abertas' ? 'Nenhuma diretriz aberta — as próximas propostas chegam com o Estado da União de segunda.' : 'Nada no histórico ainda.'}</div>`}
+      ${cards || `<div class="muted" style="font-size:13px;padding:6px 2px">${_dirFiltro === 'abertas' ? 'Nenhuma diretriz aberta — as próximas propostas chegam com o Estado da União de segunda.' : 'Nada no histórico ainda.'}</div>`}
     </div>`;
 }
 
@@ -412,7 +412,7 @@ function compsHtml() {
   }).join('');
   return `
     <div class="dc-comps">
-      <div style="font-weight:900;font-size:14px;margin-bottom:6px">📋 Compromissos <span class="tiny muted" style="font-weight:600">— o CEO cobra estes na leitura diária</span></div>
+      <div style="font-weight:600;font-size:14px;margin-bottom:6px">📋 Compromissos <span class="tiny muted" style="font-weight:600">— o CEO cobra estes na leitura diária</span></div>
       <div style="overflow-x:auto"><table>
         <thead><tr><th>O quê</th><th>Dono</th><th>Prazo</th><th class="dc-col-origem">Origem</th><th>Status</th><th></th></tr></thead>
         <tbody>${rows}</tbody>
@@ -452,10 +452,10 @@ function render() {
   const hero = `
     <div style="background:linear-gradient(135deg,var(--psm-navy) 0%,var(--psm-navy-2) 100%);color:var(--psm-cream);padding:20px;border-radius:14px 14px 0 0;margin:-16px -16px 16px">
       <div class="flex" style="align-items:center;gap:14px">
-        <div style="width:56px;height:56px;border-radius:14px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:28px">🏛️</div>
+        <div style="width:56px;height:56px;border-radius:var(--radius-lg);background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:26px">🏛️</div>
         <div>
-          <div style="font-size:22px;font-weight:900">Diretoria</div>
-          <div style="font-size:12.5px;opacity:.85">A sala do CEO IA — dossiês, pareceres e o Estado da União. Só sócios.</div>
+          <div style="font-size:20px;font-weight:600">Diretoria</div>
+          <div style="font-size:13px;opacity:.85">A sala do CEO IA — dossiês, pareceres e o Estado da União. Só sócios.</div>
         </div>
       </div>
     </div>`;
@@ -471,7 +471,7 @@ function render() {
     _root.innerHTML = `<style>${CSS}</style><div class="card">${hero}${extras}
       <div style="text-align:center;padding:44px 20px">
         <div style="font-size:44px;margin-bottom:10px">🗞️</div>
-        <div style="font-weight:900;font-size:16px;margin-bottom:6px">O CEO publica o Estado da União toda segunda às 7h</div>
+        <div style="font-weight:600;font-size:16px;margin-bottom:6px">O CEO publica o Estado da União toda segunda às 7h</div>
         <p class="muted" style="font-size:13px;max-width:480px;margin:0 auto;line-height:1.6">A Diretoria é a sala fechada dos sócios: aqui chegam os dossiês do Agente CEO —<br>leitura executiva do negócio, pareceres sobre decisões e o Plano Estratégico.</p>
         ${_err ? `<p class="tiny" style="color:var(--err);margin-top:12px">⚠️ ${esc(_err)}</p>` : ''}
       </div>
@@ -502,7 +502,7 @@ function render() {
     reader = `
       <button class="dc-back" data-back>← Voltar pra lista</button>
       <span class="dc-badge" style="background:${t.bg};color:${t.color}">${t.ico} ${t.lbl}</span>
-      <h2 style="margin:10px 0 2px;font-size:20px;font-weight:900">${esc(aberto.titulo)}</h2>
+      <h2 style="margin:10px 0 2px;font-size:20px;font-weight:600">${esc(aberto.titulo)}</h2>
       <div class="tiny muted" style="margin-bottom:6px">por <b>${esc(aberto.autor || 'CEO')}</b> · ${rel(aberto.criado_em)}${aberto.criado_em ? ` (${new Date(aberto.criado_em).toLocaleDateString('pt-BR')})` : ''}</div>
       ${aberto.manchete ? `<p style="font-size:14px;font-weight:600;color:var(--muted);margin:4px 0 10px;line-height:1.5">${esc(aberto.manchete)}</p>` : ''}
       <div>${md(aberto.corpo_md)}</div>
@@ -511,7 +511,7 @@ function render() {
 
   _root.innerHTML = `<style>${CSS}</style>
     <div class="card">${hero}${extras}
-      <div style="font-weight:900;font-size:14px;margin-bottom:8px">🗞️ Dossiês</div>
+      <div style="font-weight:600;font-size:14px;margin-bottom:8px">🗞️ Dossiês</div>
       <div class="dc-wrap${_openId != null && aberto ? ' reading' : ''}">
         <div class="dc-list">${lista}</div>
         <div class="dc-reader">${reader}</div>

@@ -526,7 +526,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '88.63';
+const APP_VERSION = '88.64';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -1234,7 +1234,7 @@ function shellHTML(user) {
         <div class="sb-sec">👤 Conta</div>
         <button class="sb-link" data-nav="/conta"><span class="sb-ico">⚙️</span> Minha conta</button>
 
-        <div id="app-ver" title="Clique para checar atualizações" style="margin-top:auto;padding:12px 0;font-size:10px;opacity:0.55;cursor:pointer">House PSM · v${APP_VERSION}</div>
+        <div id="app-ver" title="Clique para checar atualizações" style="margin-top:auto;padding:12px 0;font-size:11px;opacity:0.55;cursor:pointer">House PSM · v${APP_VERSION}</div>
       </aside>
       <header class="app-header">
         <button class="h-hamburger" id="btn-hamburger" title="Menu">☰</button>
@@ -1249,7 +1249,7 @@ function shellHTML(user) {
           <button class="btn btn-ghost" id="btn-theme" style="padding:6px 10px" title="Tema claro/escuro">${document.documentElement.classList.contains('dark') ? '☀️' : '🌙'}</button>
           <button class="btn btn-ghost" id="btn-notif" style="position:relative;padding:6px 10px" title="Notificações">
             🔔
-            <span id="notif-badge" style="display:none;position:absolute;top:-2px;right:-2px;background:#dc2626;color:#fff;font-size:10px;font-weight:800;border-radius:9px;padding:0 5px;min-width:16px;height:16px;line-height:16px;text-align:center"></span>
+            <span id="notif-badge" style="display:none;position:absolute;top:-2px;right:-2px;background:var(--err-soft);color:var(--err);font-size:11px;font-weight:600;border-radius:var(--radius-md);padding:0 5px;min-width:16px;height:16px;line-height:16px;text-align:center"></span>
           </button>
           <button class="btn btn-ghost" id="btn-push" style="display:none;padding:6px 10px" title="Ativar notificações no celular e navegador">📲</button>
           <span>${escapeHtml(user.name || 'Usuário')}</span>
@@ -1276,17 +1276,17 @@ async function pageDashboard(ctx, root) {
       <div class="flex gap-3 mt-4">
         <div class="card" style="flex:1">
           <div class="muted tiny">USUÁRIO</div>
-          <div style="font-size:var(--fs-xl);font-weight:800">${escapeHtml(user.name || '—')}</div>
+          <div style="font-size:var(--fs-xl);font-weight:600">${escapeHtml(user.name || '—')}</div>
           <div class="tiny muted">${escapeHtml(user.role || '')} · L${user.lvl || '?'}</div>
         </div>
         <div class="card" style="flex:1">
           <div class="muted tiny">EQUIPE</div>
-          <div style="font-size:var(--fs-xl);font-weight:800">${escapeHtml(user.team || user.frente || 'Geral')}</div>
+          <div style="font-size:var(--fs-xl);font-weight:600">${escapeHtml(user.team || user.frente || 'Geral')}</div>
           <div class="tiny muted">${user.is_lider ? '🛡 Líder' : ''} ${user.is_diretor ? '👑 Diretor' : ''}</div>
         </div>
         <div class="card" style="flex:1">
           <div class="muted tiny">BACKEND</div>
-          <div style="font-size:var(--fs-xl);font-weight:800;color:${health.ok ? 'var(--ok)' : 'var(--err)'}">
+          <div style="font-size:var(--fs-xl);font-weight:600;color:${health.ok ? 'var(--ok)' : 'var(--err)'}">
             ${health.ok ? '✓ Operacional' : '✗ Erro'}
           </div>
           <div class="tiny muted">${escapeHtml(health.version || health.error || '')}</div>
@@ -1335,9 +1335,9 @@ function userCard(u) {
   const color = u.color || '#64748b';
   return `
     <div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--bg-3);border-radius:var(--r-md)">
-      <div style="width:36px;height:36px;border-radius:var(--r-sm);background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px">${ini}</div>
+      <div style="width:36px;height:36px;border-radius:var(--r-sm);background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px">${ini}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-weight:700">${escapeHtml(u.name || '—')}</div>
+        <div style="font-weight:600">${escapeHtml(u.name || '—')}</div>
         <div class="tiny muted">${escapeHtml(u.email || 'sem email')} · ${escapeHtml(u.role || '—')} · ${escapeHtml(u.team || u.frente || 'geral')}</div>
       </div>
       <div class="tiny muted">L${u.lvl || '?'}</div>
@@ -1425,13 +1425,13 @@ function showUpdateBanner(newVer) {
   o.id = 'upd-modal';
   o.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(15,23,42,.74);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:20px;animation:updfade .2s ease';
   o.innerHTML = `
-    <div role="alertdialog" aria-modal="true" style="background:var(--bg-2);color:var(--ink);max-width:430px;width:100%;border-radius:20px;padding:32px 26px;text-align:center;box-shadow:0 26px 70px rgba(0,0,0,.45);animation:updpop .26s ease">
+    <div role="alertdialog" aria-modal="true" style="background:var(--bg-2);color:var(--ink);max-width:430px;width:100%;border-radius:var(--radius-lg);padding:32px 26px;text-align:center;box-shadow:var(--shadow-1);animation:updpop .26s ease">
       <div style="font-size:50px;line-height:1">🔄</div>
-      <h2 style="margin:12px 0 8px;font-size:21px;font-weight:800">Nova versão disponível!</h2>
-      <p style="margin:0 0 6px;font-size:14.5px;color:var(--ink-muted);line-height:1.5">Você está em uma versão <b>desatualizada</b> do sistema${newVer ? ` (a nova é a <b>v${newVer}</b>)` : ''}.</p>
-      <p style="margin:0 0 22px;font-size:14.5px;color:var(--ink-muted);line-height:1.5">Recarregue a página pra ver as novidades — ou saia e entre de novo.</p>
-      <button id="upd-go" style="width:100%;background:var(--psm-navy);color:var(--psm-cream);border:0;border-radius:13px;padding:15px;font-size:16px;font-weight:800;cursor:pointer">🔄 Atualizar agora</button>
-      <button id="upd-x" style="margin-top:12px;background:transparent;border:0;color:#94a3b8;font-size:13px;cursor:pointer">Agora não</button>
+      <h2 style="margin:12px 0 8px;font-size:20px;font-weight:600">Nova versão disponível!</h2>
+      <p style="margin:0 0 6px;font-size:14px;color:var(--ink-muted);line-height:1.5">Você está em uma versão <b>desatualizada</b> do sistema${newVer ? ` (a nova é a <b>v${newVer}</b>)` : ''}.</p>
+      <p style="margin:0 0 22px;font-size:14px;color:var(--ink-muted);line-height:1.5">Recarregue a página pra ver as novidades — ou saia e entre de novo.</p>
+      <button id="upd-go" style="width:100%;background:var(--psm-navy);color:var(--psm-cream);border:0;border-radius:var(--radius-lg);padding:15px;font-size:16px;font-weight:600;cursor:pointer">🔄 Atualizar agora</button>
+      <button id="upd-x" style="margin-top:12px;background:transparent;border:0;color:var(--ink-muted);font-size:13px;cursor:pointer">Agora não</button>
     </div>`;
   document.body.appendChild(o);
   document.getElementById('upd-go').onclick = doUpdate;
@@ -1604,10 +1604,10 @@ function renderHealthPanel() {
       : d.issues.map(i => {
           const c = i.severity === 'error' ? '#dc2626' : '#d97706';
           const ico = i.severity === 'error' ? '🔴' : '⚠️';
-          return `<div style="display:flex;gap:8px;padding:8px;border-left:3px solid ${c};background:${c}14;border-radius:6px;margin-bottom:6px;font-size:12.5px">
-            <span>${ico}</span><div><strong style="text-transform:uppercase;font-size:10px;color:${c}">${escapeHtml(i.area)}</strong><br>${escapeHtml(i.message)}</div></div>`;
+          return `<div style="display:flex;gap:8px;padding:8px;border-left:3px solid ${c};background:${c}14;border-radius:var(--radius-sm);margin-bottom:6px;font-size:13px">
+            <span>${ico}</span><div><strong style="text-transform:uppercase;font-size:11px;color:${c}">${escapeHtml(i.area)}</strong><br>${escapeHtml(i.message)}</div></div>`;
         }).join('')}
-    <div style="margin-top:8px;font-size:10px;opacity:0.5">Atualiza a cada 90s · clique no ponto pra abrir/fechar</div>
+    <div style="margin-top:8px;font-size:11px;opacity:0.5">Atualiza a cada 90s · clique no ponto pra abrir/fechar</div>
   `;
   panel.style.display = 'block';
   document.getElementById('health-close')?.addEventListener('click', () => { panel.style.display = 'none'; });

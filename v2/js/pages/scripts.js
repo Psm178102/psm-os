@@ -25,7 +25,7 @@ export async function pageScripts(ctx, root) {
   render();
 }
 
-const SWATCHES = ['#5b7fb4', '#dc2626', '#16a34a', '#d4a843', '#0891b2', '#7c3aed', '#db2777', '#ea580c', '#475569'];
+const SWATCHES = ['#5b7fb4', '#dc2626', '#16a34a', '#d4a843', '#806d50', '#7c3aed', '#db2777', '#ea580c', '#475569'];
 
 function render() {
   if (_selL >= _linhas.length) _selL = 0;
@@ -46,7 +46,7 @@ function render() {
             : `<button class="btn btn-ghost btn-sm" id="sc-edit">✏️ Editar</button>`}
         </div>` : ''}
       </div>
-      <div id="sc-msg" class="tiny" style="margin:4px 0;min-height:14px;color:${_msg[0] === '⚠' ? '#dc2626' : '#16a34a'}">${esc(_msg)}</div>
+      <div id="sc-msg" class="tiny" style="margin:4px 0;min-height:14px;color:${_msg[0] === '⚠' ? 'var(--err)' : 'var(--ok)'}">${esc(_msg)}</div>
 
       <!-- LINHAS -->
       <div class="flex gap-2" style="flex-wrap:wrap;border-bottom:2px solid var(--border);padding-bottom:8px;margin-top:6px">
@@ -60,7 +60,7 @@ function render() {
       <div style="display:grid;grid-template-columns:260px 1fr;gap:14px;margin-top:12px" class="sc-grid">
         <!-- ETAPAS -->
         <div style="border-right:1px solid var(--border);padding-right:10px">
-          <div class="tiny muted" style="font-weight:800;text-transform:uppercase;margin-bottom:6px">Etapas</div>
+          <div class="tiny muted" style="font-weight:600;text-transform:uppercase;margin-bottom:6px">Etapas</div>
           <div style="display:grid;gap:4px">
             ${etapas.map((e, i) => `<div class="flex gap-1" style="align-items:center">
               <button class="btn btn-sm ${i === _selE ? '' : 'btn-ghost'}" data-e="${i}" style="flex:1;text-align:left;${i === _selE ? `background:${cor};color:#fff;border-color:${cor}` : ''}">${esc(e.nome)}</button>
@@ -72,14 +72,14 @@ function render() {
         <!-- CONTEÚDO -->
         <div style="min-width:0">
           ${E ? (_edit ? `
-            <input class="input" id="sc-ename" value="${esc(E.nome)}" placeholder="Nome da etapa" style="font-weight:700;margin-bottom:8px">
-            <textarea class="input" id="sc-cont" rows="22" style="width:100%;font-family:ui-monospace,monospace;font-size:12.5px;line-height:1.5" placeholder="Regras, scripts, cadência, gatilhos…">${esc(E.conteudo || '')}</textarea>
+            <input class="input" id="sc-ename" value="${esc(E.nome)}" placeholder="Nome da etapa" style="font-weight:600;margin-bottom:8px">
+            <textarea class="input" id="sc-cont" rows="22" style="width:100%;font-family:ui-monospace,monospace;font-size:13px;line-height:1.5" placeholder="Regras, scripts, cadência, gatilhos…">${esc(E.conteudo || '')}</textarea>
             <div class="tiny muted" style="margin-top:4px">Dica: LINHAS EM MAIÚSCULAS viram títulos · **negrito** · - listas.</div>`
             : `<div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
-                 <h3 style="margin:0;font-size:17px;border-left:4px solid ${cor};padding-left:8px">${esc(E.nome)}</h3>
+                 <h3 style="margin:0;font-size:16px;border-left:4px solid ${cor};padding-left:8px">${esc(E.nome)}</h3>
                  <button class="btn btn-ghost btn-sm" data-copy="1">📋 Copiar</button>
                </div>
-               <div id="sc-view" style="max-height:70vh;overflow:auto;font-size:13.5px;padding:4px 2px">${mdHTML(E.conteudo || '')}</div>`)
+               <div id="sc-view" style="max-height:70vh;overflow:auto;font-size:13px;padding:4px 2px">${mdHTML(E.conteudo || '')}</div>`)
           : '<div class="muted tiny" style="padding:20px">Sem etapa selecionada.</div>'}
         </div>
       </div>`}
@@ -89,11 +89,11 @@ function render() {
 }
 
 function linhaEditBar(L, cor) {
-  return `<div class="flex gap-2 mt-2" style="align-items:center;flex-wrap:wrap;background:var(--bg-3);border-radius:8px;padding:8px 10px">
-    <span class="tiny muted" style="font-weight:800">Linha:</span>
+  return `<div class="flex gap-2 mt-2" style="align-items:center;flex-wrap:wrap;background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px">
+    <span class="tiny muted" style="font-weight:600">Linha:</span>
     <input class="input" id="sc-lname" value="${esc(L.nome)}" style="height:30px;width:200px;font-size:13px">
-    <span class="tiny muted" style="font-weight:800">🎨</span>
-    ${SWATCHES.map(s => `<button data-lcor="${s}" title="${s}" style="width:20px;height:20px;border-radius:5px;background:${s};border:2px solid ${(L.cor || '') === s ? '#111' : 'transparent'};cursor:pointer"></button>`).join('')}
+    <span class="tiny muted" style="font-weight:600">🎨</span>
+    ${SWATCHES.map(s => `<button data-lcor="${s}" title="${s}" style="width:20px;height:20px;border-radius:var(--radius-sm);background:${s};border:2px solid ${(L.cor || '') === s ? '#111' : 'transparent'};cursor:pointer"></button>`).join('')}
     <input type="color" id="sc-lcor" value="${esc(L.cor || cor)}" style="width:30px;height:26px;padding:0;border:0;background:none;cursor:pointer">
     <button class="btn btn-ghost btn-sm" data-lup="1" ${_selL === 0 ? 'disabled' : ''}>↑</button>
     <button class="btn btn-ghost btn-sm" data-ldn="1" ${_selL === _linhas.length - 1 ? 'disabled' : ''}>↓</button>
@@ -157,10 +157,10 @@ function mdHTML(s) {
   for (const raw of t.split('\n')) {
     const l = raw.trim();
     if (!l) { flush(); out.push('<div style="height:7px"></div>'); continue; }
-    if (/^#{1,3}\s/.test(l)) { flush(); out.push(`<div style="font-weight:800;font-size:15px;margin:10px 0 4px;color:var(--psm-gold,#b8860b)">${l.replace(/^#{1,3}\s/, '')}</div>`); continue; }
+    if (/^#{1,3}\s/.test(l)) { flush(); out.push(`<div style="font-weight:600;font-size:14px;margin:10px 0 4px;color:var(--psm-gold,#b8860b)">${l.replace(/^#{1,3}\s/, '')}</div>`); continue; }
     const plain = l.replace(/<\/?b>/g, '');
     if (plain.length <= 70 && plain === plain.toUpperCase() && /[A-ZÀ-Ý]/.test(plain) && !/[.:;,?]$/.test(plain)) {
-      flush(); out.push(`<div style="font-weight:800;font-size:13.5px;letter-spacing:.4px;margin:13px 0 5px;color:var(--psm-gold,#b8860b)">${l}</div>`); continue;
+      flush(); out.push(`<div style="font-weight:600;font-size:13px;letter-spacing:.4px;margin:13px 0 5px;color:var(--psm-gold,#b8860b)">${l}</div>`); continue;
     }
     if (/^[-•▸*]\s+/.test(l)) { if (!inList) { out.push('<ul style="margin:2px 0 4px 18px;padding:0">'); inList = true; } out.push(`<li style="margin:2px 0;line-height:1.45">${l.replace(/^[-•▸*]\s+/, '')}</li>`); continue; }
     flush(); out.push(`<div style="margin:3px 0;line-height:1.5">${l}</div>`);

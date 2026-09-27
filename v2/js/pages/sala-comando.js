@@ -147,9 +147,9 @@ function farois() {
   if (!el) return;
   const cards = [];
   const card = (titulo, valor, sub, cor) => cards.push(`
-    <div style="background:var(--bg-3);border-radius:12px;padding:12px 14px">
+    <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:12px 14px">
       <div class="tiny muted" style="display:flex;justify-content:space-between;align-items:center">${titulo}${cor ? farolDot(cor) : ''}</div>
-      <div style="font-weight:800;font-size:19px;margin:2px 0">${valor}</div>
+      <div style="font-weight:600;font-size:20px;margin:2px 0">${valor}</div>
       <div class="tiny muted">${sub || ''}</div>
     </div>`);
   const spin = t => card(t, '<span class="spinner"></span>', 'carregando…');
@@ -266,7 +266,7 @@ function areas() {
     ['📣 Marketing', '#/marketing', 'campanhas e criativos'],
   ];
   el.innerHTML = A.map(([t, href, sub]) => `
-    <a href="${href}" style="text-decoration:none;color:inherit;background:var(--bg-3);border-radius:12px;padding:12px 14px;display:block">
-      <div style="font-weight:800">${t}</div><div class="tiny muted" style="margin-top:2px">${sub}</div>
+    <a href="${href}" style="text-decoration:none;color:inherit;background:var(--bg-3);border-radius:var(--radius-md);padding:12px 14px;display:block">
+      <div style="font-weight:600">${t}</div><div class="tiny muted" style="margin-top:2px">${sub}</div>
     </a>`).join('');
 }

@@ -33,12 +33,12 @@ function ehComercial() {
 }
 
 const CSS = `<style>
-.gz{flex:1;min-width:230px;background:var(--bg-1,#fff);border:1px solid var(--bd);border-radius:14px;padding:15px 17px}
+.gz{flex:1;min-width:230px;background:var(--bg-1,#fff);border:1px solid var(--bd);border-radius:var(--radius-lg);padding:15px 17px}
 .gz-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
-.gz-lbl{font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:800;color:var(--ink-muted,#94a3b8)}
-.gz-pct{font-size:28px;font-weight:900;line-height:1}
-.gz-track{height:10px;border-radius:6px;background:rgba(148,163,184,.18);overflow:hidden;margin-top:10px}
-.gz-fill{height:100%;border-radius:6px;transition:width .4s}
+.gz-lbl{font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:600;color:var(--ink-muted,#94a3b8)}
+.gz-pct{font-size:26px;font-weight:600;line-height:1}
+.gz-track{height:10px;border-radius:var(--radius-sm);background:rgba(148,163,184,.18);overflow:hidden;margin-top:10px}
+.gz-fill{height:100%;border-radius:var(--radius-sm);transition:width .4s}
 .gz-sub{font-size:11px;color:var(--ink-muted,#94a3b8);margin-top:7px}
 </style>`;
 
@@ -76,7 +76,7 @@ function render(d, board, prod) {
     ${comercial ? `<div class="flex gap-3" style="flex-wrap:wrap">
       ${heroKpi('💰 VGV no Mês',  'R$ ' + fmtKM(d.sales?.vgv_mes), `${d.sales?.vendas_mes || 0} venda(s) fechada(s)`,          '#16a34a')}
       ${heroKpi('🎯 Meta do Mês', 'R$ ' + fmtKM(d.metas?.meta_vgv), pctMeta(d.sales?.vgv_mes, d.metas?.meta_vgv),               '#d4a843')}
-      ${heroKpi('📈 Pipeline em andamento', 'R$ ' + fmtKM(d.sales?.pipeline_vgv), `${d.sales?.pipeline_count || 0} em atendimento (ativ. ≤${d.sales?.pipeline_dias || 30}d)`, '#3b82f6')}
+      ${heroKpi('📈 Pipeline em andamento', 'R$ ' + fmtKM(d.sales?.pipeline_vgv), `${d.sales?.pipeline_count || 0} em atendimento (ativ. ≤${d.sales?.pipeline_dias || 30}d)`, '#806d50')}
       ${heroKpi('🏆 Ticket Médio','R$ ' + fmtKM(d.sales?.ticket_medio_mes), 'média da venda no mês',                             '#8b5cf6')}
     </div>
     ${(d.sales?.pipeline_frentes || []).length ? `<div class="tiny muted" style="margin-top:6px">
@@ -89,14 +89,14 @@ function render(d, board, prod) {
     <div class="flex gap-3 mt-3" style="flex-wrap:wrap">
       ${comercial ? `
       ${kpiCard('💰 VGV 30 dias',  'R$ ' + fmtKM(d.sales?.vgv_30d),    `${d.sales?.vendas_30d || 0} vendas`,                  '#16a34a')}
-      ${kpiCard('💎 VGV no Ano',   'R$ ' + fmtKM(d.sales?.vgv_ano),    `${d.sales?.vendas_ano || 0} vendas no ano`,           '#0891b2')}
+      ${kpiCard('💎 VGV no Ano',   'R$ ' + fmtKM(d.sales?.vgv_ano),    `${d.sales?.vendas_ano || 0} vendas no ano`,           '#806d50')}
       ${kpiCard('❌ Perdidos mês', 'R$ ' + fmtKM(d.sales?.vgv_perdido_mes), `${d.sales?.perdidos_mes || 0} oportunidades`,    '#dc2626')}` : ''}
       ${kpiCard('📋 Tarefas',      fmtNum(d.tasks?.pending),          `${d.tasks?.done || 0} feitas / ${d.tasks?.total || 0} total`, '#f59e0b')}
     </div>
 
     <!-- KPIs DE APOIO (limpos, sem ruído de sistema) -->
     <div class="flex gap-3 mt-3" style="flex-wrap:wrap">
-      ${kpiCard('👥 Equipe',    fmtNum(d.users?.total),         `${d.users?.ativos || 0} ativos`,         '#2563eb')}
+      ${kpiCard('👥 Equipe',    fmtNum(d.users?.total),         `${d.users?.ativos || 0} ativos`,         '#806d50')}
       ${kpiCard('💎 Comissões', 'R$ ' + fmtKM(d.commissions?.valor_pendente), `${d.commissions?.pendentes || 0} a pagar`, '#7c3aed')}
       ${hasFunis ? kpiCard('🔗 Funis RD', fmtNum(d.pipelines?.count_active), `de ${d.pipelines?.count_total} ativos`, '#0d9488') : ''}
     </div>
@@ -149,9 +149,9 @@ function gauge(label, pct, sub, cor) {
     <div class="gz-sub">${sub || ''}</div></div>`;
 }
 function miniMetric(label, big, sub, cor) {
-  return `<div style="flex:1;min-width:160px;background:var(--bg-3);border-radius:14px;padding:14px 16px;border-left:4px solid ${cor}">
-    <div class="tiny muted" style="text-transform:uppercase;letter-spacing:1px;font-weight:800">${label}</div>
-    <div style="font-size:22px;font-weight:900;color:${cor};margin-top:2px">${big}</div><div class="tiny muted">${sub || ''}</div></div>`;
+  return `<div style="flex:1;min-width:160px;background:var(--bg-3);border-radius:var(--radius-lg);padding:14px 16px;border-left:4px solid ${cor}">
+    <div class="tiny muted" style="text-transform:uppercase;letter-spacing:1px;font-weight:600">${label}</div>
+    <div style="font-size:20px;font-weight:600;color:${cor};margin-top:2px">${big}</div><div class="tiny muted">${sub || ''}</div></div>`;
 }
 
 function metricsRow(d, prod) {
@@ -162,7 +162,7 @@ function metricsRow(d, prod) {
   if (metaPct !== null) cards.push(gauge('🎯 Meta do mês', metaPct, `R$ ${fmtKM(vgvMes)} de R$ ${fmtKM(metaVgv)}`, metaPct >= 100 ? '#16a34a' : metaPct >= 70 ? '#d4a843' : '#dc2626'));
   if (isCorretor) {
     cards.push(miniMetric('💰 VGV no mês', 'R$ ' + fmtKM(vgvMes), `${d.sales?.vendas_mes || 0} venda(s)`, '#16a34a'));
-    cards.push(miniMetric('📈 Pipeline', 'R$ ' + fmtKM(d.sales?.pipeline_vgv), `${d.sales?.pipeline_count || 0} aberto(s)`, '#3b82f6'));
+    cards.push(miniMetric('📈 Pipeline', 'R$ ' + fmtKM(d.sales?.pipeline_vgv), `${d.sales?.pipeline_count || 0} aberto(s)`, '#806d50'));
   } else {
     const pct = prod.pct;
     const sub = prod.solicitadas != null && prod.solicitadas > 0
@@ -205,10 +205,10 @@ function salesRow(c, i) {
   return `
     <div style="display:grid;grid-template-columns:34px 30px 1fr auto auto;gap:10px;padding:8px 10px;background:var(--bg-3);border-radius:var(--r-sm);align-items:center;font-size:13px">
       <div style="font-size:16px;text-align:center">${medal}</div>
-      <div style="width:28px;height:28px;border-radius:50%;background:${c.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px">${ini}</div>
-      <div style="min-width:0"><div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(c.name || '—')}</div><div class="tiny muted">${escapeHtml(c.team || 'geral')}</div></div>
-      <div style="text-align:right"><div class="tiny muted">vendas</div><div style="font-weight:800;color:var(--info)">${c.vendas || 0}</div></div>
-      <div style="text-align:right"><div class="tiny muted">VGV</div><div style="font-weight:900;color:var(--ok)">R$ ${fmtKM(c.vgv)}</div></div>
+      <div style="width:28px;height:28px;border-radius:50%;background:${c.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:11px">${ini}</div>
+      <div style="min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(c.name || '—')}</div><div class="tiny muted">${escapeHtml(c.team || 'geral')}</div></div>
+      <div style="text-align:right"><div class="tiny muted">vendas</div><div style="font-weight:600;color:var(--info)">${c.vendas || 0}</div></div>
+      <div style="text-align:right"><div class="tiny muted">VGV</div><div style="font-weight:600;color:var(--ok)">R$ ${fmtKM(c.vgv)}</div></div>
     </div>`;
 }
 
@@ -220,8 +220,8 @@ function shortcut(label, href) {
 function kpiCard(label, big, sub, color) {
   return `
     <div style="flex:1;min-width:180px;background:var(--bg-3);border-radius:var(--r-md);padding:14px 16px;border-left:4px solid ${color}">
-      <div class="tiny muted" style="letter-spacing:1px;text-transform:uppercase;font-weight:700">${label}</div>
-      <div style="font-size:28px;font-weight:900;color:${color};margin-top:2px">${big ?? '—'}</div>
+      <div class="tiny muted" style="letter-spacing:1px;text-transform:uppercase;font-weight:600">${label}</div>
+      <div style="font-size:26px;font-weight:600;color:${color};margin-top:2px">${big ?? '—'}</div>
       <div class="tiny muted">${sub || ''}</div>
     </div>
   `;
@@ -230,8 +230,8 @@ function kpiCard(label, big, sub, color) {
 function heroKpi(label, big, sub, color) {
   return `
     <div style="flex:1;min-width:200px;background:linear-gradient(135deg, ${color}22, ${color}05);border:1px solid ${color}44;border-radius:var(--r-md);padding:16px 18px">
-      <div class="tiny muted" style="letter-spacing:1px;text-transform:uppercase;font-weight:700">${label}</div>
-      <div style="font-size:30px;font-weight:900;color:${color};margin-top:4px;line-height:1.1">${big ?? '—'}</div>
+      <div class="tiny muted" style="letter-spacing:1px;text-transform:uppercase;font-weight:600">${label}</div>
+      <div style="font-size:26px;font-weight:600;color:${color};margin-top:4px;line-height:1.1">${big ?? '—'}</div>
       <div class="tiny muted" style="margin-top:2px">${sub || ''}</div>
     </div>
   `;
@@ -253,7 +253,7 @@ function kpiMini(label, value, color) {
   return `
     <div style="background:var(--bg-3);border-radius:var(--r-sm);padding:10px 14px;min-width:140px">
       <div class="tiny muted" style="letter-spacing:1px;text-transform:uppercase">${label}</div>
-      <div style="font-size:18px;font-weight:800;color:${color || 'var(--ink)'}">${value}</div>
+      <div style="font-size:16px;font-weight:600;color:${color || 'var(--ink)'}">${value}</div>
     </div>
   `;
 }
@@ -306,7 +306,7 @@ export async function injectMeuAcompanhamento(root) {
       <span style="width:13px;height:13px;border-radius:50%;background:${cor};flex-shrink:0"></span>
       <b>📈 Meu Acompanhamento</b>
       <span class="tiny">${miolo}</span>
-      ${(card.alertas || []).map(a => `<span class="badge" style="background:#dc262622;color:var(--err);font-weight:700">${escapeHtml(a)}</span>`).join(' ')}
+      ${(card.alertas || []).map(a => `<span class="badge" style="background:var(--err-soft);color:var(--err);font-weight:600">${escapeHtml(a)}</span>`).join(' ')}
       <button class="btn btn-primary btn-sm" style="margin-left:auto" id="dash-fisc-abrir">registrar produção →</button>
     </div>`;
   const topo = root.querySelector('.at-top') || root.querySelector('.card');

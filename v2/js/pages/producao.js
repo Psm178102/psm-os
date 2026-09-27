@@ -97,11 +97,11 @@ function pedirLog(colab, tipo) {
 }
 
 /* ── pedaços de UI ──────────────────────────────────────────────────────── */
-function barra(lbl, feito, meta, cor = '#2563eb') {
+function barra(lbl, feito, meta, cor = '#806d50') {
   const pct = meta ? Math.min(100, Math.round(100 * feito / meta)) : 0;
   return `<div class="tiny" style="margin:4px 0">
     <div class="flex" style="justify-content:space-between"><span>${lbl}</span><b>${feito}${meta ? ' / ' + meta : ''}</b></div>
-    <div style="background:var(--bg-3);border-radius:6px;height:9px"><div style="width:${pct}%;background:${cor};height:9px;border-radius:6px"></div></div>
+    <div style="background:var(--bg-3);border-radius:var(--radius-sm);height:9px"><div style="width:${pct}%;background:${cor};height:9px;border-radius:var(--radius-sm)"></div></div>
   </div>`;
 }
 
@@ -119,7 +119,7 @@ function botoes(card, podeLogar) {
       ['conteudo:art:conquista', '🎨 Art Conquista'], ['conteudo:art:map', '🎨 Art MAP']],
   }[k] || [];
   const lembrete = (k === 'leire' && (_d.lembrete_reativacao || []).length)
-    ? `<div class="tiny" style="background:#7c3aed11;border:1px dashed #7c3aed55;border-radius:8px;padding:6px 8px;margin:6px 0">
+    ? `<div class="tiny" style="background:var(--accent-soft);border:1px dashed var(--accent-ink);border-radius:var(--radius-md);padding:6px 8px;margin:6px 0">
         <b>Antes de tocar o lead:</b><br>${_d.lembrete_reativacao.map(esc).join('<br>')}</div>` : '';
   return `${lembrete}
     <div class="flex" style="gap:6px;flex-wrap:wrap;margin-top:6px">
@@ -136,7 +136,7 @@ function cardHtml(card, unico, podeLogar) {
     const p = card.placar_mes;
     corpo = `<div class="tiny muted">Placar do mês · rampa <b>${esc((card.rampa || '').toUpperCase())}</b></div>
       ${Object.entries(p.metas).map(([f, m]) => barra(NOME_TIPO[f] || f, p.feito[f] || 0, m,
-        f.startsWith('captacao') ? '#16a34a' : f.startsWith('contrato') ? '#0891b2' : '#7c3aed')).join('')}`;
+        f.startsWith('captacao') ? '#16a34a' : f.startsWith('contrato') ? '#806d50' : '#7c3aed')).join('')}`;
   } else {
     const m = card.motor_meta || {}, f = card.motor_feito || {};
     corpo = `<div class="tiny muted">${NOME_TIPO[card.motor] || card.motor} · esperado até agora: <b>${card.esperado_agora}</b></div>
@@ -149,14 +149,14 @@ function cardHtml(card, unico, podeLogar) {
   if (card.key === 'leire') {
     const docs = card.docs || [], tks = card.tickets || [];
     extras = `<div class="tiny mt-1"><b>📄 Docs pendentes:</b> ${docs.length ? docs.map(d =>
-      `<span class="badge" style="background:${d.estourado ? '#dc2626' : '#d97706'}22;color:${d.estourado ? '#dc2626' : '#d97706'}">${esc(d.rotulo)} · ${d.horas}h</span>`).join(' ') : 'nenhum ✅'}</div>
+      `<span class="badge" style="background:${d.estourado ? 'var(--err-soft)' : 'var(--warn-soft)'}22;color:${d.estourado ? 'var(--err)' : 'var(--warn)'}">${esc(d.rotulo)} · ${d.horas}h</span>`).join(' ') : 'nenhum ✅'}</div>
       <div class="tiny"><b>🎫 Tickets locação:</b> ${tks.length ? tks.map(t =>
-      `<span class="badge" style="background:${t.estourado ? '#dc2626' : '#d97706'}22;color:${t.estourado ? '#dc2626' : '#d97706'}">${esc(t.rotulo)} · ${t.horas}h</span>`).join(' ') : 'nenhum ✅'}</div>`;
+      `<span class="badge" style="background:${t.estourado ? 'var(--err-soft)' : 'var(--warn-soft)'}22;color:${t.estourado ? 'var(--err)' : 'var(--warn)'}">${esc(t.rotulo)} · ${t.horas}h</span>`).join(' ') : 'nenhum ✅'}</div>`;
   }
   if (card.key === 'mariane' && card.nps) {
     const n = card.nps;
     extras = `<div class="flex tiny mt-1" style="gap:10px;flex-wrap:wrap">
-      <span>📊 NPS: <b style="color:${(n.score ?? 100) >= n.meta_min ? '#16a34a' : '#dc2626'}">${n.score ?? '—'}</b> (meta ≥${n.meta_min}, ${n.n} respostas)</span>
+      <span>📊 NPS: <b style="color:${(n.score ?? 100) >= n.meta_min ? 'var(--ok)' : 'var(--err)'}">${n.score ?? '—'}</b> (meta ≥${n.meta_min}, ${n.n} respostas)</span>
       <span>🌟 Fila de promotores: <b>${n.fila_promotores}</b></span>
       <span>👀 Visitas sem NPS: <b>${n.visitas_sem_nps.total}</b>${n.visitas_sem_nps.atrasadas ? ` <b style="color:var(--err)">(${n.visitas_sem_nps.atrasadas} >48h)</b>` : ''}</span>
     </div>`;
@@ -170,7 +170,7 @@ function cardHtml(card, unico, podeLogar) {
       <b style="font-size:16px">${esc(card.nome)}</b>
       <span class="tiny muted">${card.pct != null ? card.pct + '% do esperado' : ''}</span>
       <span style="margin-left:auto"></span>
-      ${(card.alertas || []).map(a => `<span class="badge" style="background:#dc262622;color:var(--err);font-weight:700">${esc(a)}</span>`).join(' ')}
+      ${(card.alertas || []).map(a => `<span class="badge" style="background:var(--err-soft);color:var(--err);font-weight:600">${esc(a)}</span>`).join(' ')}
       ${(auth.user()?.lvl || 0) >= 10 && _modo !== 'me' ? `<button class="btn btn-ghost btn-sm fz-del" data-fz-del="${esc(card.key)}" title="tirar este colaborador do painel (histórico de eventos fica intacto)">🗑</button>` : ''}
     </div>
     <div class="mt-1">${corpo}</div>

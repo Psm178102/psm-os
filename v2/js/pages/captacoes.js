@@ -18,12 +18,12 @@ const FASES = [
   { fase: 'A fazer', cor: '#ef4444', status: [
     { id: 'a_fazer',       lbl: 'À Fazer Captação', cor: '#dc2626' },
     { id: 'agendar_prop',  lbl: 'Agendar c/ Prop',  cor: '#ea580c' },
-    { id: 'agendado',      lbl: 'Agendado',         cor: '#3b82f6' },
+    { id: 'agendado',      lbl: 'Agendado',         cor: '#806d50' },
     { id: 'pausado',       lbl: 'Pausado',          cor: '#64748b' },
   ]},
   { fase: 'Em andamento', cor: '#f59e0b', status: [
     { id: 'captacao_realizada',     lbl: 'Captação Realizada',     cor: '#ca8a04' },
-    { id: 'edicao_fotos',           lbl: 'Edição Fotos',           cor: '#3b82f6' },
+    { id: 'edicao_fotos',           lbl: 'Edição Fotos',           cor: '#806d50' },
     { id: 'edicao_videos',          lbl: 'Edição Vídeos',          cor: '#8b5cf6' },
     { id: 'aprovacao',              lbl: 'Pendente Aprovação',     cor: '#ca8a04' },
   ]},
@@ -79,7 +79,7 @@ const TIPOS = [
   { v: 'Sala comercial', ic: '🏢', cat: 'com' },
   { v: 'Andar laje inteira', ic: '🏙️', cat: 'com' },
 ];
-const TIPO_CAT_COR = { res: '#16a34a', com: '#2563eb', terreno: '#d97706', rural: '#65a30d', industrial: '#475569' };
+const TIPO_CAT_COR = { res: '#16a34a', com: '#806d50', terreno: '#d97706', rural: '#65a30d', industrial: '#475569' };
 const TIPO_MAP = Object.fromEntries(TIPOS.map(t => [t.v, t]));
 
 // Flag (ícone + tipo) colorida por categoria — vai no topo do card
@@ -88,7 +88,7 @@ function tipoFlag(tipo) {
   const t = TIPO_MAP[tipo];
   const ic = t ? t.ic : '🏠';
   const cor = t ? (TIPO_CAT_COR[t.cat] || '#64748b') : '#64748b';
-  return `<span class="cap-chip" title="${esc(tipo)}" style="background:${cor}1f;color:${cor};font-weight:700;border:1px solid ${cor}55">${ic} ${esc(tipo)}</span>`;
+  return `<span class="cap-chip" title="${esc(tipo)}" style="background:${cor}1f;color:${cor};font-weight:600;border:1px solid ${cor}55">${ic} ${esc(tipo)}</span>`;
 }
 
 // Título do card = endereço completo + quadra/lote OU bloco/unidade (fallback: nome)
@@ -114,7 +114,7 @@ const SITUACOES = [
   { id: 'reformando', lbl: 'Reformando', cor: '#a16207' },
 ];
 const PENDENCIAS = [
-  { id: 'falta_fotos', lbl: 'Falta Fotos', cor: '#3b82f6' },
+  { id: 'falta_fotos', lbl: 'Falta Fotos', cor: '#806d50' },
   { id: 'falta_fotos_videos', lbl: 'Falta Fotos e Vídeos', cor: '#a16207' },
   { id: 'falta_video_drone', lbl: 'Falta Vídeo Drone', cor: '#8b5cf6' },
   { id: 'falta_atualizar_fotos', lbl: 'Falta Atualizar Fotos', cor: '#16a34a' },
@@ -125,13 +125,13 @@ const PENDENCIAS = [
   { id: 'atualizado', lbl: 'Atualizado', cor: '#16a34a' },
 ];
 const TERMOS = [
-  { id: 'solicitar', lbl: 'Solicitar Autorização', cor: '#3b82f6' },
+  { id: 'solicitar', lbl: 'Solicitar Autorização', cor: '#806d50' },
   { id: 'pendente', lbl: 'Autorização Pendente', cor: '#a16207' },
   { id: 'aprovado', lbl: 'Aprovado', cor: '#16a34a' },
   { id: 'recusado', lbl: 'Recusado', cor: '#dc2626' },
 ];
 
-const AVATAR_COLORS = ['#6366f1', '#0891b2', '#16a34a', '#d97706', '#db2777', '#7c3aed', '#dc2626', '#0d9488'];
+const AVATAR_COLORS = ['#6366f1', '#806d50', '#16a34a', '#d97706', '#db2777', '#7c3aed', '#dc2626', '#0d9488'];
 const colorFor = s => AVATAR_COLORS[[...String(s || '?')].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_COLORS.length];
 const initials = s => (String(s || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('') || '?').toUpperCase();
 const fmtBRL = v => (v || v === 0) ? Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
@@ -161,19 +161,19 @@ function render() {
   _root.innerHTML = `
     <style>
       .cap-board::-webkit-scrollbar{height:8px}
-      .cap-board::-webkit-scrollbar-thumb{background:rgba(148,163,184,.4);border-radius:8px}
-      .cap-col{min-width:268px;max-width:300px;flex:0 0 auto;background:var(--bg-3,#f1f5f9);border-radius:12px;padding:8px;display:flex;flex-direction:column;transition:background .15s,box-shadow .15s}
-      .cap-col.drop{background:rgba(99,102,241,.12);box-shadow:inset 0 0 0 2px #6366f1}
-      .cap-card{background:var(--bg-1,#fff);border-radius:10px;padding:11px 12px;margin-bottom:8px;cursor:grab;box-shadow:0 1px 2px rgba(15,23,42,.06),0 1px 3px rgba(15,23,42,.04);border:1px solid rgba(148,163,184,.16);transition:transform .12s,box-shadow .12s;user-select:none;-webkit-user-select:none}
+      .cap-board::-webkit-scrollbar-thumb{background:rgba(148,163,184,.4);border-radius:var(--radius-md)}
+      .cap-col{min-width:268px;max-width:300px;flex:0 0 auto;background:var(--bg-3,#f1f5f9);border-radius:var(--radius-md);padding:8px;display:flex;flex-direction:column;transition:background .15s,box-shadow .15s}
+      .cap-col.drop{background:var(--accent-soft);box-shadow:inset 0 0 0 2px #6366f1}
+      .cap-card{background:var(--bg-1,#fff);border-radius:var(--radius-md);padding:11px 12px;margin-bottom:8px;cursor:grab;box-shadow:var(--shadow-1);border:1px solid var(--border);transition:transform .12s,box-shadow .12s;user-select:none;-webkit-user-select:none}
       .cap-card:active{cursor:grabbing}
-      .cap-card:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(15,23,42,.12)}
+      .cap-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-1)}
       .cap-card.dragging{opacity:.45;transform:rotate(1.5deg)}
-      .cap-card.stale{background:linear-gradient(180deg,#fffbeb,#fef9c3);border-color:#f59e0b;box-shadow:0 0 0 1px #f59e0b,0 1px 3px rgba(180,120,0,.18)}
+      .cap-card.stale{background:var(--surface-2);border-color:var(--warn);box-shadow:0 0 0 1px #f59e0b,0 1px 3px rgba(180,120,0,.18)}
       .cap-card.stale:hover{box-shadow:0 0 0 1px #f59e0b,0 6px 16px rgba(180,120,0,.22)}
-      .cap-stale{display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:800;background:#f59e0b;color:#fff}
-      .cap-parad0{display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:700;background:rgba(148,163,184,.18);color:var(--ink,#475569)}
-      .cap-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;line-height:1.6}
-      .cap-kpi{background:var(--bg-1,#fff);border:1px solid rgba(148,163,184,.18);border-radius:12px;padding:12px 14px;flex:1;min-width:120px}
+      .cap-stale{display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:var(--radius-full);font-size:11px;font-weight:600;background:var(--warn-soft);color:var(--warn)}
+      .cap-parad0{display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:var(--radius-full);font-size:11px;font-weight:600;background:rgba(148,163,184,.18);color:var(--ink,#475569)}
+      .cap-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:var(--radius-full);font-size:11px;font-weight:600;line-height:1.6}
+      .cap-kpi{background:var(--bg-1,#fff);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;flex:1;min-width:120px}
     </style>
     <div class="card" style="margin-bottom:14px">
       <div class="flex" style="justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
@@ -249,7 +249,7 @@ function renderBoard() {
   const midia = items.filter(i => i.precisa_fotos || i.precisa_videos).length;
   document.getElementById('cap-stats').innerHTML = `
     <div class="flex gap-2" style="flex-wrap:wrap">
-      ${kpi('Total', items.length, '#3b82f6')}
+      ${kpi('Total', items.length, '#806d50')}
       ${kpi('Pipeline (VGV)', fmtBRL(pipeline) || 'R$ 0', '#16a34a')}
       ${porFase.map(f => kpi(f.fase, f.n, f.cor)).join('')}
       ${kpi('⚠ Pendências', pend, '#f59e0b')}
@@ -259,7 +259,7 @@ function renderBoard() {
   const board = document.getElementById('cap-board');
   if (!items.length) {
     board.innerHTML = `<div class="card" style="text-align:center;padding:48px 20px">
-      <div style="font-size:40px">📭</div>
+      <div style="font-size:36px">📭</div>
       <h3 style="margin:10px 0 4px">Nenhuma captação ${_search || _fObj || _fResp ? 'com esse filtro' : 'ainda'}</h3>
       <p class="muted">${_search || _fObj || _fResp ? 'Ajuste a busca/filtros acima.' : 'Cadastre a primeira captação para começar o pipeline.'}</p>
       <button class="btn btn-primary mt-2" id="cap-empty-novo">➕ Nova Captação</button>
@@ -271,9 +271,9 @@ function renderBoard() {
 
   board.innerHTML = `
     <div class="flex gap-3 tiny muted" style="margin:0 2px 8px;flex-wrap:wrap;align-items:center">
-      <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#ef4444;vertical-align:middle"></span> A fazer</span>
-      <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#f59e0b;vertical-align:middle"></span> Em andamento</span>
-      <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#16a34a;vertical-align:middle"></span> Concluídos</span>
+      <span><span style="display:inline-block;width:9px;height:9px;border-radius:var(--radius-sm);background:var(--err-soft);vertical-align:middle"></span> A fazer</span>
+      <span><span style="display:inline-block;width:9px;height:9px;border-radius:var(--radius-sm);background:var(--warn-soft);vertical-align:middle"></span> Em andamento</span>
+      <span><span style="display:inline-block;width:9px;height:9px;border-radius:var(--radius-sm);background:var(--ok-soft);vertical-align:middle"></span> Concluídos</span>
       <span style="margin-left:auto">← arraste os cards entre as etapas →</span>
     </div>
     <div class="cap-board flex gap-3" style="overflow-x:auto;padding-bottom:12px;align-items:flex-start">
@@ -289,8 +289,8 @@ function statusColumn(st, items) {
     <div class="cap-col" data-status="${st.id}" style="border-top:3px solid ${fcor}">
       <div class="flex" style="align-items:center;gap:6px;padding:6px 6px 8px">
         <span style="width:8px;height:8px;border-radius:50%;background:${st.cor}"></span>
-        <span style="font-weight:700;font-size:12px;color:var(--ink,#0f172a);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${st.lbl}</span>
-        <span class="tiny muted" style="margin-left:auto;background:rgba(148,163,184,.2);padding:0 7px;border-radius:999px;font-weight:700">${cards.length}</span>
+        <span style="font-weight:600;font-size:12px;color:var(--ink,#0f172a);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${st.lbl}</span>
+        <span class="tiny muted" style="margin-left:auto;background:rgba(148,163,184,.2);padding:0 7px;border-radius:var(--radius-full);font-weight:600">${cards.length}</span>
       </div>
       <div class="cap-drop" data-status="${st.id}" style="min-height:40px;flex:1;overflow-y:auto;max-height:68vh">
         ${cards.map(c => card(c)).join('') || '<div class="tiny muted" style="text-align:center;padding:14px 0;opacity:.45">—</div>'}
@@ -326,8 +326,8 @@ function card(c) {
   return `
     <div class="cap-card${stale ? ' stale' : ''}" draggable="true" data-card="${esc(c.id)}">
       <div class="flex" style="justify-content:space-between;align-items:flex-start;gap:6px">
-        <div style="font-weight:800;font-size:13.5px;line-height:1.25">${esc(titulo)} <span class="tiny" style="font-weight:700;color:${obj ? '#a16207' : '#16a34a'}">· ${obj ? 'Locação' : 'Venda'}</span></div>
-        <span class="tiny" style="white-space:nowrap;font-weight:700;color:${c.codigo_kenlo ? '#8b5cf6' : '#cbd5e1'}" title="Código Kenlo">🏷 ${c.codigo_kenlo ? esc(c.codigo_kenlo) : '—'}</span>
+        <div style="font-weight:600;font-size:13px;line-height:1.25">${esc(titulo)} <span class="tiny" style="font-weight:600;color:${obj ? 'var(--warn)' : 'var(--ok)'}">· ${obj ? 'Locação' : 'Venda'}</span></div>
+        <span class="tiny" style="white-space:nowrap;font-weight:600;color:${c.codigo_kenlo ? 'var(--accent-ink)' : '#cbd5e1'}" title="Código Kenlo">🏷 ${c.codigo_kenlo ? esc(c.codigo_kenlo) : '—'}</span>
       </div>
       ${paradoBadge ? `<div style="margin-top:6px">${paradoBadge}</div>` : ''}
       ${(c.tipo_imovel || subnome) ? `<div class="flex gap-1" style="flex-wrap:wrap;align-items:center;margin-top:5px">
@@ -349,12 +349,12 @@ function card(c) {
         ${c.data_post ? `<span title="Post" style="color:var(--indigo)">📣 ${esc(String(c.data_post).substring(0,10).split('-').reverse().join('/'))}</span>` : ''}
       </div>` : ''}
       ${c.local_chaves ? `<div class="tiny muted" style="margin-top:4px">🔑 ${esc(c.local_chaves)}</div>` : ''}
-      ${links.length ? `<div class="flex gap-2" style="margin-top:6px;font-size:15px">${links.join('')}</div>` : ''}
+      ${links.length ? `<div class="flex gap-2" style="margin-top:6px;font-size:14px">${links.join('')}</div>` : ''}
       ${c.responsavel ? `<div class="flex" style="align-items:center;gap:6px;margin-top:8px">
-        <span style="width:20px;height:20px;border-radius:50%;background:${colorFor(c.responsavel)};color:#fff;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center">${esc(initials(c.responsavel))}</span>
+        <span style="width:20px;height:20px;border-radius:50%;background:${colorFor(c.responsavel)};color:#fff;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center">${esc(initials(c.responsavel))}</span>
         <span class="tiny muted">${esc(c.responsavel)}</span>
       </div>` : ''}
-      <select class="cap-move" data-stop="1" data-card="${esc(c.id)}" title="Mover para outra etapa" style="margin-top:8px;width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg-2,#fff);color:var(--ink,#0f172a);cursor:pointer">
+      <select class="cap-move" data-stop="1" data-card="${esc(c.id)}" title="Mover para outra etapa" style="margin-top:8px;width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-2,#fff);color:var(--ink,#0f172a);cursor:pointer">
         ${ALL_STATUS.map(s => `<option value="${esc(s.id)}"${s.id === c.status ? ' selected' : ''}>↪ ${esc(s.lbl)}</option>`).join('')}
       </select>
     </div>`;
@@ -622,7 +622,7 @@ function linkInp(id, label, val, ph) {
     <div style="display:flex;gap:6px;align-items:center">
       <input id="${id}" class="input" type="url" value="${esc(val ?? '')}" placeholder="${esc(ph || '')}" style="flex:1;min-width:0">
       <a id="${id}-go" href="${ok ? esc(v) : '#'}" target="_blank" rel="noopener" data-stop="1" title="Abrir link"
-         style="text-decoration:none;font-size:17px;padding:6px 8px;border-radius:8px;background:rgba(59,130,246,.12);${ok ? '' : 'display:none'}">🔗</a>
+         style="text-decoration:none;font-size:16px;padding:6px 8px;border-radius:var(--radius-md);background:var(--accent-soft);${ok ? '' : 'display:none'}">🔗</a>
     </div></div>`;
 }
 function sel(id, label, opts, cur) {
@@ -645,6 +645,6 @@ function respSelect(c) {
   return `<div><label class="tiny muted">Responsável</label><select id="cf-resp" class="select">${opts.join('')}</select></div>`;
 }
 function kpi(label, value, color) {
-  return `<div class="cap-kpi" style="border-top:3px solid ${color}"><div class="tiny muted">${label}</div><div style="font-size:19px;font-weight:800;color:${color};line-height:1.3">${value}</div></div>`;
+  return `<div class="cap-kpi" style="border-top:3px solid ${color}"><div class="tiny muted">${label}</div><div style="font-size:20px;font-weight:600;color:${color};line-height:1.3">${value}</div></div>`;
 }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

@@ -17,7 +17,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': 
 // teto de valor de imóvel por faixa MCMV (referência — varia por região)
 const FAIXA_TETO = [
   { nome: 'Faixa 1', teto: 200000, cor: '#16a34a' },
-  { nome: 'Faixa 2', teto: 264000, cor: '#0ea5e9' },
+  { nome: 'Faixa 2', teto: 264000, cor: '#806d50' },
   { nome: 'Faixa 3', teto: 350000, cor: '#f59e0b' },
   { nome: 'Faixa 4', teto: 500000, cor: '#8b5cf6' },
   { nome: 'Acima MCMV', teto: Infinity, cor: '#64748b' },
@@ -88,12 +88,12 @@ function renderShell(c) {
     kpis = `
       <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
         ${pj
-          ? `<div class="card" style="padding:13px 15px;flex:1;min-width:160px;border-left:4px solid ${pjCor}" title="Provável = vendido + o maior entre seu ritmo dos últimos 180 dias e suas propostas abertas × taxa real proposta→venda. Pipeline ponderado (prioridade da fila): ${BRL(pond)}"><div class="tiny muted">📈 Provável do mês</div><div style="font-size:20px;font-weight:800;color:${pjCor}">${BRL(pj.provavel.vgv)}</div><div class="tiny muted">${fN1(pj.provavel.vendas)} vendas${pj.provavel.pct_meta != null ? ' · ' + fN1(pj.provavel.pct_meta) + '% da meta' : ''}${pjLbl ? ' · ' + pjLbl : ''}</div></div>`
-          : `<div class="card" style="padding:13px 15px;flex:1;min-width:140px;border-left:4px solid #16a34a"><div class="tiny muted">💰 Pipeline ponderado</div><div style="font-size:20px;font-weight:800;color:var(--ok)">${BRL(pond)}</div><div class="tiny muted">prioridade da fila · projeção indisponível</div></div>`}
-        <div class="card" style="padding:13px 15px;flex:1;min-width:120px;border-left:4px solid #ef4444"><div class="tiny muted">🔥 Quentes</div><div style="font-size:20px;font-weight:800;color:var(--err-suave)">${c.quentes || 0}</div></div>
-        <div class="card" style="padding:13px 15px;flex:1;min-width:120px;border-left:4px solid #f59e0b"><div class="tiny muted">⚠️ Atenção</div><div style="font-size:20px;font-weight:800;color:#f59e0b">${atencao}</div><div class="tiny muted">sem contato + parados</div></div>
-        <div class="card" style="padding:13px 15px;flex:1;min-width:140px"><div class="tiny muted">🎯 Meta VGV (mês)</div><div style="font-size:20px;font-weight:800">${meta ? BRL(meta) : '—'}</div>${pj && pj.falta_vgv ? `<div class="tiny muted">falta ${BRL(pj.falta_vgv)}${pj.por_dia_util_vgv ? ' · ' + BRL(pj.por_dia_util_vgv) + '/dia útil' : ''}</div>` : ''}</div>
-        <div class="card" style="padding:13px 15px;flex:1;min-width:140px;border-left:4px solid #2563eb"><div class="tiny muted">✅ Vendido no mês</div><div style="font-size:20px;font-weight:800">${c.vendas_mes || 0} · ${BRL(c.vgv_mes || 0)}</div><div class="tiny muted">${c.atingimento_vgv_pct != null ? c.atingimento_vgv_pct + '% da meta' : 'sem meta'} · ${c.leads_mes || 0} leads · ${c.em_atendimento || 0} em atendimento</div></div>
+          ? `<div class="card" style="padding:13px 15px;flex:1;min-width:160px;border-left:4px solid ${pjCor}" title="Provável = vendido + o maior entre seu ritmo dos últimos 180 dias e suas propostas abertas × taxa real proposta→venda. Pipeline ponderado (prioridade da fila): ${BRL(pond)}"><div class="tiny muted">📈 Provável do mês</div><div style="font-size:20px;font-weight:600;color:${pjCor}">${BRL(pj.provavel.vgv)}</div><div class="tiny muted">${fN1(pj.provavel.vendas)} vendas${pj.provavel.pct_meta != null ? ' · ' + fN1(pj.provavel.pct_meta) + '% da meta' : ''}${pjLbl ? ' · ' + pjLbl : ''}</div></div>`
+          : `<div class="card" style="padding:13px 15px;flex:1;min-width:140px;border-left:4px solid var(--ok)"><div class="tiny muted">💰 Pipeline ponderado</div><div style="font-size:20px;font-weight:600;color:var(--ok)">${BRL(pond)}</div><div class="tiny muted">prioridade da fila · projeção indisponível</div></div>`}
+        <div class="card" style="padding:13px 15px;flex:1;min-width:120px;border-left:4px solid var(--err)"><div class="tiny muted">🔥 Quentes</div><div style="font-size:20px;font-weight:600;color:var(--err-suave)">${c.quentes || 0}</div></div>
+        <div class="card" style="padding:13px 15px;flex:1;min-width:120px;border-left:4px solid var(--warn)"><div class="tiny muted">⚠️ Atenção</div><div style="font-size:20px;font-weight:600;color:var(--warn)">${atencao}</div><div class="tiny muted">sem contato + parados</div></div>
+        <div class="card" style="padding:13px 15px;flex:1;min-width:140px"><div class="tiny muted">🎯 Meta VGV (mês)</div><div style="font-size:20px;font-weight:600">${meta ? BRL(meta) : '—'}</div>${pj && pj.falta_vgv ? `<div class="tiny muted">falta ${BRL(pj.falta_vgv)}${pj.por_dia_util_vgv ? ' · ' + BRL(pj.por_dia_util_vgv) + '/dia útil' : ''}</div>` : ''}</div>
+        <div class="card" style="padding:13px 15px;flex:1;min-width:140px;border-left:4px solid var(--accent-ink)"><div class="tiny muted">✅ Vendido no mês</div><div style="font-size:20px;font-weight:600">${c.vendas_mes || 0} · ${BRL(c.vgv_mes || 0)}</div><div class="tiny muted">${c.atingimento_vgv_pct != null ? c.atingimento_vgv_pct + '% da meta' : 'sem meta'} · ${c.leads_mes || 0} leads · ${c.em_atendimento || 0} em atendimento</div></div>
       </div>
       ${_avisos.length ? `<div class="alert alert-warn tiny" style="margin:-6px 0 12px">${_avisos.map(esc).join('<br>')}</div>` : ''}`;
 
@@ -103,19 +103,19 @@ function renderShell(c) {
     const bk = Object.entries(buckets);
     faixa = bk.length ? `
       <div class="card" style="padding:14px;margin-bottom:14px">
-        <div style="font-weight:800;margin-bottom:8px">🏠 Leads em foco por faixa <span class="tiny muted">(referência por valor do negócio)</span></div>
-        <div class="flex gap-2" style="flex-wrap:wrap">${bk.map(([nome, v]) => `<div style="flex:1;min-width:110px;background:${v.cor}14;border-radius:10px;padding:10px"><div style="font-weight:800;color:${v.cor};font-size:13px">${esc(nome)}</div><div style="font-size:18px;font-weight:800">${v.n}</div><div class="tiny muted">${BRL(v.vgv)}</div></div>`).join('')}</div>
+        <div style="font-weight:600;margin-bottom:8px">🏠 Leads em foco por faixa <span class="tiny muted">(referência por valor do negócio)</span></div>
+        <div class="flex gap-2" style="flex-wrap:wrap">${bk.map(([nome, v]) => `<div style="flex:1;min-width:110px;background:${v.cor}14;border-radius:var(--radius-md);padding:10px"><div style="font-weight:600;color:${v.cor};font-size:13px">${esc(nome)}</div><div style="font-size:16px;font-weight:600">${v.n}</div><div class="tiny muted">${BRL(v.vgv)}</div></div>`).join('')}</div>
       </div>` : '';
 
     const tl = (c.top_leads || []).slice(0, 5);
     leads = `
       <div class="card" style="padding:14px;margin-bottom:14px">
-        <div class="flex items-center" style="justify-content:space-between;margin-bottom:8px"><div style="font-weight:800">🏹 Atacar primeiro</div><button class="btn btn-ghost btn-sm" onclick="location.hash='/meu-cerebro'">ver tudo →</button></div>
+        <div class="flex items-center" style="justify-content:space-between;margin-bottom:8px"><div style="font-weight:600">🏹 Atacar primeiro</div><button class="btn btn-ghost btn-sm" onclick="location.hash='/meu-cerebro'">ver tudo →</button></div>
         ${!tl.length ? '<div class="tiny muted" style="padding:14px;text-align:center">Sem leads abertos.</div>' : tl.map(l => {
-          const tc = l.temp === 'quente' ? '#ef4444' : l.temp === 'morno' ? '#f59e0b' : '#0ea5e9';
-          return `<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--bd,#eef2f7)">
-            <div style="min-width:0"><div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.title || 'Negócio')}</div><div class="tiny muted">${esc(l.stage_name || l.ms_label || '—')}${l.acao ? ' · ▶ ' + esc(l.acao) : ''}</div></div>
-            <div style="text-align:right;white-space:nowrap"><div style="font-weight:800;color:${tc};font-size:13px">${Math.round((l.prob || 0) * 100)}%</div><div class="tiny muted">${BRL(l.amount || 0)}</div></div>
+          const tc = l.temp === 'quente' ? '#ef4444' : l.temp === 'morno' ? '#f59e0b' : '#806d50';
+          return `<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--bd,var(--border))">
+            <div style="min-width:0"><div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.title || 'Negócio')}</div><div class="tiny muted">${esc(l.stage_name || l.ms_label || '—')}${l.acao ? ' · ▶ ' + esc(l.acao) : ''}</div></div>
+            <div style="text-align:right;white-space:nowrap"><div style="font-weight:600;color:${tc};font-size:13px">${Math.round((l.prob || 0) * 100)}%</div><div class="tiny muted">${BRL(l.amount || 0)}</div></div>
           </div>`;
         }).join('')}
       </div>`;
@@ -126,7 +126,7 @@ function renderShell(c) {
   _root.innerHTML = `
     <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
       <div>
-        <div style="font-size:22px;font-weight:800">🚀 ${saud}${nome ? ', ' + esc(nome) : ''}!</div>
+        <div style="font-size:20px;font-weight:600">🚀 ${saud}${nome ? ', ' + esc(nome) : ''}!</div>
         <div class="tiny muted">Seu cockpit Conquista — pipeline, meta e a fila de ataque do dia.${_stamp ? ` · dados de <b title="último sync do RD — o mesmo retrato em todas as telas">${esc(_stamp)}</b>` : ''}</div>
       </div>
       <div class="flex items-center gap-2">
@@ -136,10 +136,10 @@ function renderShell(c) {
     </div>
     <div id="ck-dec"></div>
     ${kpis}${faixa}${leads}
-    <div style="font-weight:800;margin-bottom:8px">⚡ Atalhos do dia</div>
+    <div style="font-weight:600;margin-bottom:8px">⚡ Atalhos do dia</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">
-      ${ATALHOS.map(a => `<button class="card" style="padding:14px;text-align:left;cursor:pointer;border:1px solid rgba(148,163,184,.18)" onclick="location.hash='${a.nav}'">
-        <div style="font-size:24px">${a.ic}</div><div style="font-weight:800;margin-top:4px">${a.lbl}</div><div class="tiny muted">${a.sub}</div></button>`).join('')}
+      ${ATALHOS.map(a => `<button class="card" style="padding:14px;text-align:left;cursor:pointer;border:1px solid var(--border)" onclick="location.hash='${a.nav}'">
+        <div style="font-size:26px">${a.ic}</div><div style="font-weight:600;margin-top:4px">${a.lbl}</div><div class="tiny muted">${a.sub}</div></button>`).join('')}
     </div>`;
 
   const sel = _root.querySelector('#ck-sel');

@@ -61,7 +61,7 @@ export async function pageMapaCiclos(ctx, root) {
 
 function node(href, icon, title, cor, sub, kpis) {
   return `<a href="${href}" class="mc-node" style="--c:${cor}">
-    <div class="mc-h"><span style="font-size:18px">${icon}</span><b>${esc(title)}</b></div>
+    <div class="mc-h"><span style="font-size:16px">${icon}</span><b>${esc(title)}</b></div>
     ${sub ? `<div class="tiny muted" style="margin:-2px 0 6px">${esc(sub)}</div>` : ''}
     <div class="mc-kpis">${kpis.map(k => `<div class="mc-kpi"><div class="mc-v" style="${k.cor ? 'color:' + k.cor : ''}">${k.v}</div><div class="tiny muted">${k.l}</div></div>`).join('')}</div>
     <div class="mc-open">abrir →</div></a>`;
@@ -80,7 +80,7 @@ function render(d, loading) {
     return `<div class="mc-ciclo">
       <div class="mc-cn" style="color:${st.c}">${n}</div>
       <div style="flex:1"><b>${esc(nome)}</b><div class="tiny muted">${desc}</div></div>
-      <div class="tiny" style="font-weight:800;color:${st.c};white-space:nowrap">${st.t}</div></div>`;
+      <div class="tiny" style="font-weight:600;color:${st.c};white-space:nowrap">${st.t}</div></div>`;
   };
 
   _root.innerHTML = `
@@ -94,11 +94,11 @@ function render(d, loading) {
         { v: f$(m.investMes), l: 'invest/mês' }, { v: f1(m.leadsMes), l: 'leads/mês' }, { v: f$(m.cpl), l: 'CPL' },
       ])}
       ${arrow('leads viram oportunidades')}
-      ${node('#/crm', '🤝', 'Vendas (CRM/RD)', '#2563eb', 'leads → vendas → VGV', [
+      ${node('#/crm', '🤝', 'Vendas (CRM/RD)', '#806d50', 'leads → vendas → VGV', [
         { v: fK(c.vgvMes), l: 'VGV/mês' }, { v: f1(c.vendasMes), l: 'vendas/mês' }, { v: pct2(c.conv), l: 'vendas (todas) ÷ leads Meta' },
       ])}
       ${arrow('comissão vira caixa')}
-      ${node('#/financeiro', '💰', 'Financeiro', '#0891b2', 'PSM HUB · caixa & contas', [
+      ${node('#/financeiro', '💰', 'Financeiro', '#806d50', 'PSM HUB · caixa & contas', [
         { v: fK(c.vgvAno), l: 'VGV ano' },
       ])}
     </div>
@@ -116,7 +116,7 @@ function render(d, loading) {
       ${node('#/gestao-comercial', '🎯', 'Projeção / Metas', '#d97706', 'projeção oficial (ritmo × funil) → meta', [
         { v: fc.projAno == null ? '—' : fK(fc.projAno), l: 'fechamento provável do ano' }, { v: fc.ating == null ? '—' : pct2(fc.ating), l: 'da meta', cor: atingCor },
       ])}
-      ${node('#/sim-trafego', '⚡', 'Otimizador de Verba', '#0ea5e9', 'aloca orçamento ótimo', [
+      ${node('#/sim-trafego', '⚡', 'Otimizador de Verba', '#806d50', 'aloca orçamento ótimo', [
         { v: f$(m.investMes), l: 'verba atual/mês' }, { v: fK(c.vgvMes), l: 'VGV gerado' },
       ])}
     </div>
@@ -133,21 +133,21 @@ function render(d, loading) {
     <div class="tiny muted" style="margin-top:10px">💡 Clique em qualquer bloco pra abrir a tela. Os números são a média mensal do ano (Meta ${m.meses} mês(es) arquivado(s); CRM ÷ ${f1(MESES)} meses decorridos).</div>
   </div>
   <style>
-    .mc-band{font-size:11px;text-transform:uppercase;font-weight:800;color:var(--text-2,#94a3b8);letter-spacing:.5px;margin:18px 0 8px}
+    .mc-band{font-size:11px;text-transform:uppercase;font-weight:600;color:var(--text-2,#94a3b8);letter-spacing:.5px;margin:18px 0 8px}
     .mc-row{display:flex;align-items:stretch;gap:8px;flex-wrap:wrap}
     .mc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-    .mc-node{display:flex;flex-direction:column;gap:4px;flex:1;min-width:180px;background:var(--bg-2);border:1px solid var(--border);border-left:4px solid var(--c);border-radius:12px;padding:12px;text-decoration:none;color:inherit;transition:transform .12s,box-shadow .12s}
-    .mc-node:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.18)}
+    .mc-node{display:flex;flex-direction:column;gap:4px;flex:1;min-width:180px;background:var(--bg-2);border:1px solid var(--border);border-left:4px solid var(--c);border-radius:var(--radius-md);padding:12px;text-decoration:none;color:inherit;transition:transform .12s,box-shadow .12s}
+    .mc-node:hover{transform:translateY(-2px);box-shadow:var(--shadow-1)}
     .mc-h{display:flex;align-items:center;gap:7px;font-size:14px}
     .mc-kpis{display:flex;gap:12px;flex-wrap:wrap;margin-top:4px}
-    .mc-kpi .mc-v{font-weight:800;font-size:14px}
-    .mc-open{margin-top:auto;font-size:11px;font-weight:700;color:var(--c);padding-top:6px}
+    .mc-kpi .mc-v{font-weight:600;font-size:14px}
+    .mc-open{margin-top:auto;font-size:11px;font-weight:600;color:var(--c);padding-top:6px}
     .mc-arrow{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:90px;text-align:center}
-    .mc-ar{color:var(--psm-gold,#d4af37);font-size:18px}
-    .mc-conn{text-align:center;font-weight:800;color:var(--psm-gold,#d4af37);margin:12px 0;font-size:15px}
+    .mc-ar{color:var(--psm-gold,#d4af37);font-size:16px}
+    .mc-conn{text-align:center;font-weight:600;color:var(--psm-gold,#d4af37);margin:12px 0;font-size:14px}
     .mc-ciclos{display:flex;flex-direction:column;gap:8px}
-    .mc-ciclo{display:flex;align-items:center;gap:12px;background:var(--bg-3);border-radius:10px;padding:10px 12px}
-    .mc-cn{font-weight:800;white-space:nowrap}
+    .mc-ciclo{display:flex;align-items:center;gap:12px;background:var(--bg-3);border-radius:var(--radius-md);padding:10px 12px}
+    .mc-cn{font-weight:600;white-space:nowrap}
     @media(max-width:880px){.mc-grid{grid-template-columns:repeat(2,1fr)}.mc-arrow{min-width:0;flex-direction:row;width:100%}.mc-ar{transform:rotate(90deg)}}
   </style>`;
 }

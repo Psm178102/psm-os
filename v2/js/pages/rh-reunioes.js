@@ -50,14 +50,14 @@ function render() {
     <div class="card">
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <b style="font-size:16px">📋 Formatos de Reunião</b>
-        <span class="tiny" style="background:var(--psm-navy);color:#fffbea;border-radius:999px;padding:3px 12px;font-weight:700">carga total ≈ ${cargaSemanal(fs)} min/semana (todas as cadeiras)</span>
+        <span class="tiny" style="background:var(--psm-navy);color:#fffbea;border-radius:var(--radius-full);padding:3px 12px;font-weight:600">carga total ≈ ${cargaSemanal(fs)} min/semana (todas as cadeiras)</span>
       </div>
       <div class="alert" style="background:var(--bg-3);border:none;font-size:12px;margin-top:8px;line-height:1.6">
         <b>Regras universais:</b> toda reunião tem <b>DONO, PAUTA FIXA e PAINEL ABERTO NA TELA</b> (dado, não opinião) ·
         começa e termina no horário · ata de 3 linhas no ato · <b>pendência sem dono+prazo não existe</b> ·
         reunião sem painel/pauta = cancelada. <span class="muted">Anti-inflação: formato novo só entra se outro sair ou justificar contra a carga acima.</span>
       </div>
-      ${pend.length ? `<div class="card" style="margin:10px 0 0;background:#dc26260d;border:1px solid #dc262633">
+      ${pend.length ? `<div class="card" style="margin:10px 0 0;background:var(--err-soft);border:1px solid var(--err)">
         <b class="tiny" style="color:var(--err)">⏳ ${pend.length} pendência(s) aberta(s) de reuniões</b>
         ${pend.slice(0, 8).map(p => `<div class="tiny" style="margin-top:4px;display:flex;gap:6px;align-items:center">
           <button class="btn btn-ghost btn-sm rp-baixa" data-ata="${esc(p.ata_id)}" data-idx="${p.idx}" style="padding:0 6px" title="marcar como feita">☑️</button>
@@ -68,7 +68,7 @@ function render() {
           <div class="card" style="margin:0;border-left:4px solid var(--psm-navy)">
             <div class="flex" style="justify-content:space-between;align-items:flex-start">
               <b>${f.emoji || '📋'} ${esc(f.nome)}</b>
-              <span class="tiny" style="background:var(--bg-3);border-radius:999px;padding:2px 9px;font-weight:700;white-space:nowrap">${cadenciaTxt(f)} · ${esc(f.hora)} · ${f.dur_min}min</span>
+              <span class="tiny" style="background:var(--bg-3);border-radius:var(--radius-full);padding:2px 9px;font-weight:600;white-space:nowrap">${cadenciaTxt(f)} · ${esc(f.hora)} · ${f.dur_min}min</span>
             </div>
             <div class="tiny muted" style="margin-top:4px">👑 ${esc(f.dono)} · 👥 ${(f.participantes || []).map(esc).join(', ')}${(f.papeis || []).length ? ' + ' + f.papeis.map(p => p === '*' ? 'empresa inteira' : esc(p)).join(', ') : ''}${f.obs ? ` · <i>${esc(f.obs)}</i>` : ''}</div>
             <div class="tiny" style="margin-top:4px">🖥 Painel: <a href="${esc(f.painel)}" style="color:var(--info)">${esc(f.painel_nome)}</a></div>
@@ -111,9 +111,9 @@ function abrirAta(fid) {
           <b>📝 Ata — ${f.emoji || ''} ${esc(f.nome || '')}</b>
           <button class="btn btn-ghost btn-sm" id="rp-x">✕</button>
         </div>
-        <label class="tiny muted" style="font-weight:700;margin-top:8px;display:block">Decisões (3 linhas, no ato)</label>
+        <label class="tiny muted" style="font-weight:600;margin-top:8px;display:block">Decisões (3 linhas, no ato)</label>
         <textarea id="rp-dec" class="input" rows="3" style="width:100%" placeholder="O que foi DECIDIDO — dado, não opinião…"></textarea>
-        <label class="tiny muted" style="font-weight:700;margin-top:8px;display:block">Pendências <span style="color:var(--err)">(sem dono+prazo não existe)</span></label>
+        <label class="tiny muted" style="font-weight:600;margin-top:8px;display:block">Pendências <span style="color:var(--err)">(sem dono+prazo não existe)</span></label>
         <div id="rp-pends">${[0, 1, 2].map(i => `
           <div class="flex gap-1 mb-1">
             <input class="input rp-p-txt" placeholder="pendência ${i + 1}" style="flex:2;font-size:12px">

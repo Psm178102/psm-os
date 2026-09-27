@@ -68,9 +68,9 @@ function render() {
         <b class="tiny" style="min-width:74px;text-align:center">${esc(_d.mes)}</b>
         <button class="btn btn-ghost btn-sm" id="mc-next">›</button>
       </div>
-      ${_d.tem_algo ? `<div class="mt-2" style="background:#16a34a15;border-radius:10px;padding:10px 14px;border-left:3px solid #16a34a">
+      ${_d.tem_algo ? `<div class="mt-2" style="background:var(--ok-soft);border-radius:var(--radius-md);padding:10px 14px;border-left:3px solid var(--ok)">
         <div class="tiny muted">Sua comissão neste mês</div>
-        <div style="font-weight:900;font-size:26px">${brl(total)}</div>
+        <div style="font-weight:600;font-size:26px">${brl(total)}</div>
       </div>` : ''}
     </div>
     ${_d.leire ? blocoLeire(_d.leire) : ''}
@@ -78,7 +78,7 @@ function render() {
     ${_d.map ? blocoMap(_d.map, _d.map_regua) : ''}
     ${_d.conquista ? blocoConquista(_d.conquista) : ''}
     ${!_d.tem_algo ? `<div class="card mt-2"><div class="muted" style="text-align:center;padding:22px">
-      <div style="font-size:30px">🌱</div>
+      <div style="font-size:26px">🌱</div>
       <b>Nada fechou pra você em ${esc(_d.mes)} ainda.</b>
       <div class="tiny mt-1">Quando um negócio seu for ganho no RD, ele aparece aqui com o cálculo completo.</div>
     </div></div>` : ''}`;
@@ -92,20 +92,20 @@ function blocoLeire(m) {
   return `<div class="card mt-2">
     <b>🔁 Minhas reativações</b>
     <div class="flex items-center mt-2" style="gap:10px;flex-wrap:wrap">
-      <div><div class="tiny muted">Fechadas no mês</div><div style="font-weight:900;font-size:22px">${m.qtd || 0}</div></div>
-      <div><div class="tiny muted">Base</div><div style="font-weight:800">${brl(m.base)}</div></div>
-      <div><div class="tiny muted">Bônus de volume</div><div style="font-weight:800;color:var(--ok)">${mult(m.mult)}</div></div>
-      <div style="margin-left:auto;text-align:right"><div class="tiny muted">Sua comissão</div><div style="font-weight:900;font-size:20px;color:var(--ok)">${brl(m.total)}</div></div>
+      <div><div class="tiny muted">Fechadas no mês</div><div style="font-weight:600;font-size:20px">${m.qtd || 0}</div></div>
+      <div><div class="tiny muted">Base</div><div style="font-weight:600">${brl(m.base)}</div></div>
+      <div><div class="tiny muted">Bônus de volume</div><div style="font-weight:600;color:var(--ok)">${mult(m.mult)}</div></div>
+      <div style="margin-left:auto;text-align:right"><div class="tiny muted">Sua comissão</div><div style="font-weight:600;font-size:20px;color:var(--ok)">${brl(m.total)}</div></div>
     </div>
-    ${m.no_teto ? `<div class="tiny mt-2" style="background:#f59e0b15;padding:6px 10px;border-radius:8px;border-left:3px solid #f59e0b">🏆 Você bateu o teto de ${brl(m.teto)} neste mês.</div>`
-      : p ? `<div class="tiny mt-2" style="background:#2563eb12;padding:6px 10px;border-radius:8px;border-left:3px solid #2563eb">🎯 Faltam <b>${p.faltam} fechamento(s)</b> pro seu bônus subir pra <b>${mult(p.valor)}</b> — e o bônus vale pra <b>todas</b> as reativações do mês, não só a próxima.</div>` : ''}
+    ${m.no_teto ? `<div class="tiny mt-2" style="background:var(--warn-soft);padding:6px 10px;border-radius:var(--radius-md);border-left:3px solid var(--warn)">🏆 Você bateu o teto de ${brl(m.teto)} neste mês.</div>`
+      : p ? `<div class="tiny mt-2" style="background:var(--accent-soft);padding:6px 10px;border-radius:var(--radius-md);border-left:3px solid var(--accent-ink)">🎯 Faltam <b>${p.faltam} fechamento(s)</b> pro seu bônus subir pra <b>${mult(p.valor)}</b> — e o bônus vale pra <b>todas</b> as reativações do mês, não só a próxima.</div>` : ''}
     ${(m.fechadas || []).length ? `<div style="overflow-x:auto"><table style="width:100%;min-width:520px;border-collapse:collapse;margin-top:8px;font-size:13px">
       <tr class="tiny muted" style="text-align:left"><th style="padding:4px 6px">Cliente</th><th style="text-align:right">VGV</th><th>Tipo</th><th style="text-align:right">Vale</th></tr>
-      ${m.fechadas.map(f => `<tr style="border-top:1px solid var(--bd,#eef2f7)">
+      ${m.fechadas.map(f => `<tr style="border-top:1px solid var(--bd,var(--border))">
         <td style="padding:6px">${esc(f.nome || '—')}</td>
         <td style="text-align:right">${brl(f.vgv)}</td>
         <td class="tiny">${f.tipo === 'lancamento' ? '🚀 Lançamento' : '🎯 Estoque'}</td>
-        <td style="text-align:right;font-weight:700">${brl(f.valor)}</td>
+        <td style="text-align:right;font-weight:600">${brl(f.valor)}</td>
       </tr>`).join('')}
     </table></div>` : ''}
   </div>`;
@@ -117,15 +117,15 @@ function blocoMariane(m) {
   return `<div class="card mt-2">
     <b>🎁 Minhas indicações</b>
     <div class="flex items-center mt-2" style="gap:10px;flex-wrap:wrap">
-      <div><div class="tiny muted">Fecharam no mês</div><div style="font-weight:900;font-size:22px">${m.qtd || 0}</div></div>
-      <div><div class="tiny muted">Valor por indicação</div><div style="font-weight:800">${brl(m.rate)}</div></div>
-      <div style="margin-left:auto;text-align:right"><div class="tiny muted">Sua comissão</div><div style="font-weight:900;font-size:20px;color:var(--ok)">${brl(m.total)}</div></div>
+      <div><div class="tiny muted">Fecharam no mês</div><div style="font-weight:600;font-size:20px">${m.qtd || 0}</div></div>
+      <div><div class="tiny muted">Valor por indicação</div><div style="font-weight:600">${brl(m.rate)}</div></div>
+      <div style="margin-left:auto;text-align:right"><div class="tiny muted">Sua comissão</div><div style="font-weight:600;font-size:20px;color:var(--ok)">${brl(m.total)}</div></div>
     </div>
-    ${m.no_teto ? `<div class="tiny mt-2" style="background:#f59e0b15;padding:6px 10px;border-radius:8px;border-left:3px solid #f59e0b">🏆 Você bateu o teto de ${brl(m.teto)} neste mês.</div>`
-      : p ? `<div class="tiny mt-2" style="background:#2563eb12;padding:6px 10px;border-radius:8px;border-left:3px solid #2563eb">🎯 Faltam <b>${p.faltam} indicação(ões)</b> pra cada uma passar a valer <b>${brl(p.valor)}</b> — retroativo pra todas do mês.</div>` : ''}
+    ${m.no_teto ? `<div class="tiny mt-2" style="background:var(--warn-soft);padding:6px 10px;border-radius:var(--radius-md);border-left:3px solid var(--warn)">🏆 Você bateu o teto de ${brl(m.teto)} neste mês.</div>`
+      : p ? `<div class="tiny mt-2" style="background:var(--accent-soft);padding:6px 10px;border-radius:var(--radius-md);border-left:3px solid var(--accent-ink)">🎯 Faltam <b>${p.faltam} indicação(ões)</b> pra cada uma passar a valer <b>${brl(p.valor)}</b> — retroativo pra todas do mês.</div>` : ''}
     ${(m.fechadas || []).length ? `<div style="overflow-x:auto"><table style="width:100%;min-width:520px;border-collapse:collapse;margin-top:8px;font-size:13px">
       <tr class="tiny muted" style="text-align:left"><th style="padding:4px 6px">Indicou</th><th>Indicado</th><th style="text-align:right">Negócio</th></tr>
-      ${m.fechadas.map(f => `<tr style="border-top:1px solid var(--bd,#eef2f7)">
+      ${m.fechadas.map(f => `<tr style="border-top:1px solid var(--bd,var(--border))">
         <td style="padding:6px">${esc(f.indicador || '—')}</td><td>${esc(f.indicado || '—')}</td>
         <td style="text-align:right">${brl(f.valor_negocio)}</td>
       </tr>`).join('')}
@@ -141,27 +141,27 @@ function blocoMap(c, regua) {
   return `<div class="card mt-2">
     <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
       <b>🏢 Minhas vendas · Empreendimentos</b>
-      <span class="tiny" style="background:${ehSenior ? '#16a34a' : '#2563eb'}20;color:${ehSenior ? '#16a34a' : '#2563eb'};border-radius:20px;padding:2px 9px;font-weight:800">${esc(c.senioridade_lbl)}</span>
-      <span style="margin-left:auto;font-weight:900;font-size:20px;color:var(--ok)">${brl(c.comissao_total)}</span>
+      <span class="tiny" style="background:${ehSenior ? 'var(--ok-soft)' : 'var(--accent-soft)'}20;color:${ehSenior ? 'var(--ok)' : 'var(--accent-ink)'};border-radius:var(--radius-lg);padding:2px 9px;font-weight:600">${esc(c.senioridade_lbl)}</span>
+      <span style="margin-left:auto;font-weight:600;font-size:20px;color:var(--ok)">${brl(c.comissao_total)}</span>
     </div>
     <div class="mt-2">
       <div class="flex tiny muted" style="justify-content:space-between;gap:8px;flex-wrap:wrap">
         <span>VGV no ano: <b>${brl(c.vgv_ano)}</b></span>
         <span>${ehSenior ? '🏆 Corretor Sênior' : `faltam <b>${brl(c.falta_senior)}</b> pra Sênior`} · meta ${brl(min)}</span>
       </div>
-      <div style="height:8px;background:var(--bd,#eef2f7);border-radius:20px;overflow:hidden;margin-top:4px">
-        <div style="height:100%;width:${prog}%;background:${ehSenior ? '#16a34a' : '#2563eb'};border-radius:20px"></div>
+      <div style="height:8px;background:var(--bd,#eef2f7);border-radius:var(--radius-lg);overflow:hidden;margin-top:4px">
+        <div style="height:100%;width:${prog}%;background:${ehSenior ? 'var(--ok-soft)' : 'var(--accent-soft)'};border-radius:var(--radius-lg)"></div>
       </div>
       ${!ehSenior ? '<div class="tiny muted mt-1">Ao cruzar a meta, você vira Sênior <b>automaticamente</b> e suas taxas sobem.</div>' : ''}
     </div>
     <div style="overflow-x:auto"><table style="width:100%;min-width:520px;border-collapse:collapse;margin-top:8px;font-size:13px">
       <tr class="tiny muted" style="text-align:left"><th style="padding:4px 6px">Cliente</th><th>Origem</th><th style="text-align:right">VGV</th><th style="text-align:right">Taxa</th><th style="text-align:right">Comissão</th></tr>
-      ${(c.vendas || []).map(v => `<tr style="border-top:1px solid var(--bd,#eef2f7)">
+      ${(c.vendas || []).map(v => `<tr style="border-top:1px solid var(--bd,var(--border))">
         <td style="padding:6px">${esc(v.cliente || '—')}</td>
         <td class="tiny ${v.definida ? '' : 'muted'}">${esc(v.origem_lbl)}</td>
         <td style="text-align:right">${brl(v.vgv)}</td>
-        <td style="text-align:right;font-weight:700">${pct(v.taxa)}</td>
-        <td style="text-align:right;font-weight:700">${brl(v.comissao)}</td>
+        <td style="text-align:right;font-weight:600">${pct(v.taxa)}</td>
+        <td style="text-align:right;font-weight:600">${brl(v.comissao)}</td>
       </tr>`).join('')}
     </table></div>
   </div>`;
@@ -172,18 +172,18 @@ function blocoConquista(c) {
   return `<div class="card mt-2">
     <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
       <b>👥 Minhas vendas · Conquista</b>
-      ${c.acelerador ? '<span class="tiny" style="background:#16a34a20;color:var(--ok);border-radius:20px;padding:2px 9px;font-weight:800">🚀 Acelerador ativo · 1,9%</span>' : ''}
-      <span style="margin-left:auto;font-weight:900;font-size:20px;color:var(--ok)">${brl(c.comissao_total)}</span>
+      ${c.acelerador ? '<span class="tiny" style="background:var(--ok-soft);color:var(--ok);border-radius:var(--radius-lg);padding:2px 9px;font-weight:600">🚀 Acelerador ativo · 1,9%</span>' : ''}
+      <span style="margin-left:auto;font-weight:600;font-size:20px;color:var(--ok)">${brl(c.comissao_total)}</span>
     </div>
     <div class="tiny muted mt-1">VGV no mês ${brl(c.vgv_total)} · em origens N2/N3 ${brl(c.vgv_n2n3)}</div>
     <div style="overflow-x:auto"><table style="width:100%;min-width:520px;border-collapse:collapse;margin-top:8px;font-size:13px">
       <tr class="tiny muted" style="text-align:left"><th style="padding:4px 6px">Cliente</th><th>Origem</th><th style="text-align:right">VGV</th><th style="text-align:right">Taxa</th><th style="text-align:right">Comissão</th></tr>
-      ${(c.vendas || []).map(v => `<tr style="border-top:1px solid var(--bd,#eef2f7)">
+      ${(c.vendas || []).map(v => `<tr style="border-top:1px solid var(--bd,var(--border))">
         <td style="padding:6px">${esc(v.cliente || '—')}</td>
         <td class="tiny ${v.definida ? '' : 'muted'}">${esc(v.origem_lbl)}${v.acelerada ? ' 🚀' : ''}</td>
         <td style="text-align:right">${brl(v.vgv)}</td>
-        <td style="text-align:right;font-weight:700">${pct(v.taxa_aplicada)}</td>
-        <td style="text-align:right;font-weight:700">${brl(v.comissao_liquida)}${v.desconto_indicacao ? `<div class="tiny muted">− ${brl(v.desconto_indicacao)} indic.</div>` : ''}</td>
+        <td style="text-align:right;font-weight:600">${pct(v.taxa_aplicada)}</td>
+        <td style="text-align:right;font-weight:600">${brl(v.comissao_liquida)}${v.desconto_indicacao ? `<div class="tiny muted">− ${brl(v.desconto_indicacao)} indic.</div>` : ''}</td>
       </tr>`).join('')}
     </table></div>
   </div>`;

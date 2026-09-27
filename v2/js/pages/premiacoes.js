@@ -54,40 +54,40 @@ function render() {
 function renderForm() {
   const ed = _editing || {};
   return `
-    <div class="card mt-3" style="background:linear-gradient(135deg,#1e293b,#0f172a);border:1px solid #6366f140;padding:18px">
-      <div style="font-weight:800;color:#f8fafc;margin-bottom:14px">${ed.id ? '✏️ Editar' : '➕ Nova'} Premiação</div>
+    <div class="card mt-3" style="background:linear-gradient(135deg,#1e293b,#0f172a);border:1px solid var(--accent-ink);padding:18px">
+      <div style="font-weight:600;color:#f8fafc;margin-bottom:14px">${ed.id ? '✏️ Editar' : '➕ Nova'} Premiação</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div style="grid-column:1/-1">
-          <label class="tiny" style="color:#94a3b8">Título *</label>
+          <label class="tiny" style="color:var(--ink-muted)">Título *</label>
           <input id="pf-titulo" class="input" placeholder="Ex: Campanha Top Vendedor" value="${esc(ed.titulo || '')}">
         </div>
         <div>
-          <label class="tiny" style="color:#94a3b8">Incorporadora *</label>
+          <label class="tiny" style="color:var(--ink-muted)">Incorporadora *</label>
           <input id="pf-incorp" class="input" placeholder="PSM, Yuny, EBM..." value="${esc(ed.incorporadora || '')}">
         </div>
         <div>
-          <label class="tiny" style="color:#94a3b8">Produto *</label>
+          <label class="tiny" style="color:var(--ink-muted)">Produto *</label>
           <input id="pf-produto" class="input" placeholder="Empreendimento ou TODOS" value="${esc(ed.produto || '')}">
         </div>
         <div>
-          <label class="tiny" style="color:#94a3b8">Início *</label>
+          <label class="tiny" style="color:var(--ink-muted)">Início *</label>
           <input id="pf-inicio" class="input" type="date" value="${esc(ed.inicio || '')}">
         </div>
         <div>
-          <label class="tiny" style="color:#94a3b8">Término *</label>
+          <label class="tiny" style="color:var(--ink-muted)">Término *</label>
           <input id="pf-fim" class="input" type="date" value="${esc(ed.fim || '')}">
         </div>
         <div style="grid-column:1/-1">
-          <label class="tiny" style="color:#94a3b8">Descrição / Regras *</label>
+          <label class="tiny" style="color:var(--ink-muted)">Descrição / Regras *</label>
           <textarea id="pf-desc" class="input" rows="3" placeholder="Regras, prêmios, condições...">${esc(ed.descricao || ed.desc || '')}</textarea>
         </div>
         <div>
-          <label class="tiny" style="color:#94a3b8">Prêmio</label>
+          <label class="tiny" style="color:var(--ink-muted)">Prêmio</label>
           <input id="pf-premio" class="input" placeholder="R$ 2.000, viagem, day-off..." value="${esc(ed.premio || '')}">
         </div>
         <div>
-          <label class="tiny" style="color:#94a3b8">Emoji</label>
-          <input id="pf-icon" class="input" maxlength="4" style="font-size:18px;text-align:center" value="${esc(ed.icon || '🏆')}">
+          <label class="tiny" style="color:var(--ink-muted)">Emoji</label>
+          <input id="pf-icon" class="input" maxlength="4" style="font-size:16px;text-align:center" value="${esc(ed.icon || '🏆')}">
         </div>
       </div>
       <div class="flex gap-2 mt-3">
@@ -137,21 +137,21 @@ function renderList() {
 
   body.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(120px, 1fr));gap:10px;margin-bottom:16px">
-      <div class="kpi" style="text-align:center"><div style="font-size:22px;font-weight:800;color:#22c55e">${ativas.length}</div><div class="tiny muted">Ativas</div></div>
-      <div class="kpi" style="text-align:center"><div style="font-size:22px;font-weight:800;color:var(--azul-claro)">${futuras.length}</div><div class="tiny muted">Futuras</div></div>
-      <div class="kpi" style="text-align:center"><div style="font-size:22px;font-weight:800;color:var(--muted)">${encerradas.length}</div><div class="tiny muted">Encerradas</div></div>
-      <div class="kpi" style="text-align:center"><div style="font-size:22px;font-weight:800;color:#fbbf24">${_items.length}</div><div class="tiny muted">Total</div></div>
+      <div class="kpi" style="text-align:center"><div style="font-size:20px;font-weight:600;color:var(--ok)">${ativas.length}</div><div class="tiny muted">Ativas</div></div>
+      <div class="kpi" style="text-align:center"><div style="font-size:20px;font-weight:600;color:var(--azul-claro)">${futuras.length}</div><div class="tiny muted">Futuras</div></div>
+      <div class="kpi" style="text-align:center"><div style="font-size:20px;font-weight:600;color:var(--muted)">${encerradas.length}</div><div class="tiny muted">Encerradas</div></div>
+      <div class="kpi" style="text-align:center"><div style="font-size:20px;font-weight:600;color:var(--warn)">${_items.length}</div><div class="tiny muted">Total</div></div>
     </div>
 
     ${ativas.length ? `
-      <h3 style="color:#22c55e;font-size:14px;margin-bottom:10px;display:flex;align-items:center;gap:8px">
-        <span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block"></span> Ativas
+      <h3 style="color:var(--ok);font-size:14px;margin-bottom:10px;display:flex;align-items:center;gap:8px">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--ok-soft);display:inline-block"></span> Ativas
       </h3>
       ${ativas.sort((a,b)=>a.fim.localeCompare(b.fim)).map(p => premCard(p, 'ATIVA', '#22c55e', isSocio, hoje)).join('')}
     ` : ''}
     ${futuras.length ? `
       <h3 style="color:var(--azul-claro);font-size:14px;margin:18px 0 10px">📅 Próximas</h3>
-      ${futuras.sort((a,b)=>a.inicio.localeCompare(b.inicio)).map(p => premCard(p, 'FUTURA', '#3b82f6', isSocio, hoje)).join('')}
+      ${futuras.sort((a,b)=>a.inicio.localeCompare(b.inicio)).map(p => premCard(p, 'FUTURA', '#806d50', isSocio, hoje)).join('')}
     ` : ''}
     ${encerradas.length ? `
       <h3 style="color:var(--muted);font-size:14px;margin:18px 0 10px">📋 Encerradas</h3>
@@ -181,18 +181,18 @@ function premCard(p, label, color, canEdit, hoje) {
   let extra = '';
   if (p.fim >= hoje && p.inicio <= hoje) {
     const dias = Math.ceil((new Date(p.fim + 'T23:59:59') - new Date()) / 86400000);
-    extra = `<div style="margin-top:10px;padding:8px 12px;background:${color}20;border-radius:6px;font-size:12px;color:${color};font-weight:700">⏳ ${dias} dia${dias !== 1 ? 's' : ''} restante${dias !== 1 ? 's' : ''}</div>`;
+    extra = `<div style="margin-top:10px;padding:8px 12px;background:${color}20;border-radius:var(--radius-sm);font-size:12px;color:${color};font-weight:600">⏳ ${dias} dia${dias !== 1 ? 's' : ''} restante${dias !== 1 ? 's' : ''}</div>`;
   } else if (p.inicio > hoje) {
     const dias = Math.ceil((new Date(p.inicio + 'T00:00:00') - new Date()) / 86400000);
-    extra = `<div style="margin-top:10px;padding:8px 12px;background:${color}20;border-radius:6px;font-size:12px;color:${color};font-weight:700">📅 Começa em ${dias} dia${dias !== 1 ? 's' : ''}</div>`;
+    extra = `<div style="margin-top:10px;padding:8px 12px;background:${color}20;border-radius:var(--radius-sm);font-size:12px;color:${color};font-weight:600">📅 Começa em ${dias} dia${dias !== 1 ? 's' : ''}</div>`;
   }
   return `
-    <div style="background:linear-gradient(135deg,#1e293b,#0f172a);color:#fff;border:1px solid ${color}40;border-radius:12px;padding:16px;margin-bottom:12px">
+    <div style="background:var(--surface-2);color:var(--ink);border:1px solid ${color}40;border-radius:var(--radius-md);padding:16px;margin-bottom:12px">
       <div class="flex" style="align-items:flex-start;gap:12px">
-        <span style="font-size:32px">${esc(p.icon || '🏆')}</span>
+        <span style="font-size:36px">${esc(p.icon || '🏆')}</span>
         <div style="flex:1">
-          <div style="font-size:16px;font-weight:800">${esc(p.titulo)}</div>
-          <span style="display:inline-block;font-size:10px;padding:2px 10px;border-radius:10px;background:${color}30;color:${color};font-weight:800;letter-spacing:.5px;margin-top:4px">${label}</span>
+          <div style="font-size:16px;font-weight:600">${esc(p.titulo)}</div>
+          <span style="display:inline-block;font-size:11px;padding:2px 10px;border-radius:var(--radius-md);background:${color}30;color:${color};font-weight:600;letter-spacing:.5px;margin-top:4px">${label}</span>
         </div>
         ${canEdit ? `
           <div class="flex gap-1">
@@ -206,9 +206,9 @@ function premCard(p, label, color, canEdit, hoje) {
         <div><span style="color:var(--ink-muted)">Produto:</span> <b>${esc(p.produto || '—')}</b></div>
         <div><span style="color:var(--ink-muted)">Início:</span> ${fmtDate(p.inicio)}</div>
         <div><span style="color:var(--ink-muted)">Término:</span> ${fmtDate(p.fim)}</div>
-        ${p.premio ? `<div style="grid-column:1/-1"><span style="color:var(--ink-muted)">Prêmio:</span> <b style="color:#fbbf24">${esc(p.premio)}</b></div>` : ''}
+        ${p.premio ? `<div style="grid-column:1/-1"><span style="color:var(--ink-muted)">Prêmio:</span> <b style="color:var(--warn)">${esc(p.premio)}</b></div>` : ''}
       </div>
-      ${p.descricao ? `<div style="margin-top:10px;font-size:13px;line-height:1.5;color:#94a3b8">${esc(p.descricao)}</div>` : ''}
+      ${p.descricao ? `<div style="margin-top:10px;font-size:13px;line-height:1.5;color:var(--ink-muted)">${esc(p.descricao)}</div>` : ''}
       ${extra}
     </div>
   `;

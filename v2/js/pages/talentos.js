@@ -44,7 +44,7 @@ const catArr = v => String(v || '').split(/[,;/]+/).map(s => s.trim()).filter(Bo
 
 // ── ATS / Pipeline R&S (v81.87) ──
 const ETAPAS = ['Triagem', 'Entrevista RH', 'Entrevista Gestor', 'Avaliação interna', 'Due Diligence', 'Proposta', 'Contratado', 'Banco de Talentos'];
-const ETAPA_COR = { 'Triagem': '#64748b', 'Entrevista RH': '#2563eb', 'Entrevista Gestor': '#7c3aed', 'Avaliação interna': '#b45309', 'Due Diligence': '#dc2626', 'Proposta': '#0891b2', 'Contratado': '#16a34a', 'Banco de Talentos': '#94a3b8' };
+const ETAPA_COR = { 'Triagem': '#64748b', 'Entrevista RH': '#806d50', 'Entrevista Gestor': '#7c3aed', 'Avaliação interna': '#b45309', 'Due Diligence': '#dc2626', 'Proposta': '#806d50', 'Contratado': '#16a34a', 'Banco de Talentos': '#94a3b8' };
 const CANAIS = ['Indicação', 'Indicação interna', 'Prospecção ativa', 'Campanha / Anúncio', 'LinkedIn', 'Instagram', 'Site / Trabalhe conosco', 'RD Station', 'Banco de Talentos', 'Headhunter', 'Evento / Feira', 'Outro'];
 const DECISOES = ['Em andamento', 'Aprovado', 'Reprovado', 'Standby'];
 const VOTOS = ['Aprovo', 'Reprovo', 'Standby'];
@@ -59,7 +59,7 @@ function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;
 function waLink(phone) { const d = String(phone || '').replace(/\D/g, ''); return d ? `https://wa.me/${d}` : null; }
 function igLink(ig) { ig = String(ig || '').trim(); if (!ig) return null; if (/^https?:\/\//i.test(ig)) return ig; return 'https://instagram.com/' + ig.replace(/^@/, '').replace(/\s+/g, ''); }
 function stars(n) { n = Math.max(0, Math.min(5, parseInt(n) || 0)); return '★'.repeat(n) + '☆'.repeat(5 - n); }
-function chip(txt, cor) { return txt ? `<span style="display:inline-block;background:${cor}1a;color:${cor};font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;white-space:nowrap">${esc(txt)}</span>` : ''; }
+function chip(txt, cor) { return txt ? `<span style="display:inline-block;background:${cor}1a;color:${cor};font-size:11px;font-weight:600;padding:2px 7px;border-radius:var(--radius-full);white-space:nowrap">${esc(txt)}</span>` : ''; }
 const optTag = (v, sel) => `<option value="${esc(v)}"${v === (sel || '') ? ' selected' : ''}>${esc(v)}</option>`;
 
 export async function pageTalentos(ctx, root) {
@@ -142,7 +142,7 @@ function renderRd(r) {
   const list = r.talentos || [];
   body.innerHTML = `
     <div class="flex items-center gap-2 mb-3" style="flex-wrap:wrap">
-      <span class="badge" style="background:#16a34a22;color:var(--ok);font-weight:700">🟢 ${list.length} talento(s)</span>
+      <span class="badge" style="background:var(--ok-soft);color:var(--ok);font-weight:600">🟢 ${list.length} talento(s)</span>
       <span class="tiny muted">${esc(r.pipeline?.name || 'FUNIL DE PARCERIA – PAULO')} · ${esc(r.stage?.name || 'BANCO DE TALENTOS')}</span>
       <span class="tiny muted" style="margin-left:auto">Atualizado ${ts} · auto a cada 60s</span>
       <button class="btn btn-ghost btn-sm" id="rd-refresh">🔄 Atualizar</button>
@@ -165,7 +165,7 @@ function renderRd(r) {
             return `
             <tr style="border-bottom:1px solid var(--bd)">
               <td style="padding:8px">
-                <div style="font-weight:700">${esc(t.name || t.contato || '—')}</div>
+                <div style="font-weight:600">${esc(t.name || t.contato || '—')}</div>
                 ${t.contato && t.contato !== t.name ? `<div class="tiny muted">${esc(t.contato)}</div>` : ''}
                 ${camposTxt ? `<div class="tiny muted">${camposTxt}</div>` : ''}
               </td>
@@ -280,7 +280,7 @@ function funnelHTML() {
   ETAPAS.forEach(e => counts[e] = 0);
   _talentos.forEach(t => { const e = t.etapa || 'Triagem'; if (e in counts) counts[e]++; });
   return `<div id="tal-funnel" class="flex gap-1" style="flex-wrap:wrap;font-size:11px">
-    ${ETAPAS.map(e => `<span style="background:${ETAPA_COR[e]}1a;color:${ETAPA_COR[e]};font-weight:700;padding:2px 8px;border-radius:6px">${esc(e)}: ${counts[e]}</span>`).join('')}
+    ${ETAPAS.map(e => `<span style="background:${ETAPA_COR[e]}1a;color:${ETAPA_COR[e]};font-weight:600;padding:2px 8px;border-radius:var(--radius-sm)">${esc(e)}: ${counts[e]}</span>`).join('')}
   </div>`;
 }
 
@@ -310,8 +310,8 @@ function renderKanban(items) {
   return `<div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;align-items:flex-start">
     ${ETAPAS.map(et => {
       const col = items.filter(t => (t.etapa || 'Triagem') === et);
-      return `<div style="min-width:228px;max-width:240px;flex:0 0 auto;background:var(--bg-3);border-radius:10px;padding:8px">
-        <div style="font-weight:800;font-size:11.5px;color:${ETAPA_COR[et]};display:flex;justify-content:space-between;align-items:center"><span>${esc(et)}</span><span style="background:${ETAPA_COR[et]}22;border-radius:999px;padding:1px 7px">${col.length}</span></div>
+      return `<div style="min-width:228px;max-width:240px;flex:0 0 auto;background:var(--bg-3);border-radius:var(--radius-md);padding:8px">
+        <div style="font-weight:600;font-size:11px;color:${ETAPA_COR[et]};display:flex;justify-content:space-between;align-items:center"><span>${esc(et)}</span><span style="background:${ETAPA_COR[et]}22;border-radius:var(--radius-full);padding:1px 7px">${col.length}</span></div>
         <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
           ${col.map(cardHTML).join('') || '<div class="tiny muted" style="text-align:center;padding:10px">—</div>'}
         </div>
@@ -327,14 +327,14 @@ function cardHTML(t) {
   const nav = avResumo(t);
   const cats = corr ? catArr(t.categoria) : [];
   const atv = [t.atividade_atual, t.local_atividade].filter(Boolean).join(' · ');   // ex.: "Imobiliária · São José" (v81.98)
-  return `<div class="tal-card" style="background:var(--bg-2);border:1px solid var(--bd);border-radius:8px;padding:8px;cursor:pointer" data-open="${t.id}">
-    <div style="font-weight:700;font-size:12.5px">${esc(t.nome)}${dec}</div>
+  return `<div class="tal-card" style="background:var(--bg-2);border:1px solid var(--bd);border-radius:var(--radius-md);padding:8px;cursor:pointer" data-open="${t.id}">
+    <div style="font-weight:600;font-size:13px">${esc(t.nome)}${dec}</div>
     <div class="tiny muted">${esc(t.cargo || t.funcao || '—')}${t.setor ? ' · ' + esc(t.setor) : ''}</div>
     ${atv ? `<div class="tiny muted" style="margin-top:2px">💼 ${esc(atv)}</div>` : ''}
     <div style="margin-top:5px;display:flex;gap:4px;flex-wrap:wrap;align-items:center">
       ${chip(t.canal, '#7c3aed')}
       ${cats.map(c => chip(c, '#d6249f')).join('')}
-      ${t.score ? `<span class="tiny" style="color:#f59e0b" title="Score">${stars(t.score)}</span>` : ''}
+      ${t.score ? `<span class="tiny" style="color:var(--warn)" title="Score">${stars(t.score)}</span>` : ''}
       ${nav ? `<span class="tiny muted" title="Pareceres">🗳 ${nav}</span>` : ''}
       ${cndBadge(t)}
     </div>
@@ -344,7 +344,7 @@ function cardHTML(t) {
       ${wa ? `<a class="btn btn-ghost btn-sm" href="${wa}" target="_blank" rel="noopener" title="WhatsApp" onclick="event.stopPropagation()">💬</a>` : ''}
       ${ln ? `<a class="btn btn-ghost btn-sm" href="${esc(ln)}" target="_blank" rel="noopener" title="LinkedIn" onclick="event.stopPropagation()">in</a>` : ''}
       ${cv ? `<a class="btn btn-ghost btn-sm" href="${esc(cv)}" target="_blank" rel="noopener" title="Currículo" onclick="event.stopPropagation()">📄</a>` : ''}
-      <select class="select tal-move" data-id="${t.id}" title="Mover de etapa" style="margin-left:auto;font-size:10px;padding:2px;max-width:118px" onclick="event.stopPropagation()">
+      <select class="select tal-move" data-id="${t.id}" title="Mover de etapa" style="margin-left:auto;font-size:11px;padding:2px;max-width:118px" onclick="event.stopPropagation()">
         ${ETAPAS.map(e => `<option value="${esc(e)}"${(t.etapa || 'Triagem') === e ? ' selected' : ''}>${esc(e)}</option>`).join('')}
       </select>
     </div>
@@ -359,7 +359,7 @@ function cndBadge(t) {
   if (!c) return '';
   const cor = c.positivas ? '#dc2626' : c.emitidas >= c.total ? '#16a34a' : '#b45309';
   const extra = c.positivas ? ` · ${c.positivas} POSITIVA` : '';
-  return `<span class="tiny" title="Dossiê de CND (interno)" style="background:${cor}1a;color:${cor};font-weight:700;padding:1px 6px;border-radius:6px">⚖️ ${c.emitidas}/${c.total}${extra}</span>`;
+  return `<span class="tiny" title="Dossiê de CND (interno)" style="background:${cor}1a;color:${cor};font-weight:600;padding:1px 6px;border-radius:var(--radius-sm)">⚖️ ${c.emitidas}/${c.total}${extra}</span>`;
 }
 
 function avResumo(t) {
@@ -392,7 +392,7 @@ function renderLista(items) {
           const et = t.etapa || 'Triagem';
           return `
           <tr style="border-bottom:1px solid var(--bd)">
-            <td style="padding:8px"><div style="font-weight:700">${esc(t.nome)}${t.origem === 'rd' ? ' <span class="tiny" style="color:var(--ok)">🟢RD</span>' : ''}</div>${sub ? `<div class="tiny muted">${esc(sub)}</div>` : ''}</td>
+            <td style="padding:8px"><div style="font-weight:600">${esc(t.nome)}${t.origem === 'rd' ? ' <span class="tiny" style="color:var(--ok)">🟢RD</span>' : ''}</div>${sub ? `<div class="tiny muted">${esc(sub)}</div>` : ''}</td>
             <td style="padding:8px">${chip(et, ETAPA_COR[et] || '#64748b')}</td>
             <td style="padding:8px">${esc(cargo) || '—'}${t.setor ? `<div class="tiny muted">${esc(t.setor)}</div>` : ''}</td>
             <td style="padding:8px">${chip(t.canal, '#7c3aed') || '—'}</td>
@@ -440,7 +440,7 @@ async function moverEtapa(id, etapa) {
 const fInput = (id, lbl, val, ph = '', type = 'text') => `<label class="tiny muted">${lbl}<input id="${id}" class="input" type="${type}" placeholder="${esc(ph)}" value="${esc(val ?? '')}"></label>`;
 const fArea = (id, lbl, val, ph = '', rows = 2) => `<label class="tiny muted" style="display:block">${lbl}<textarea id="${id}" class="input" rows="${rows}" placeholder="${esc(ph)}">${esc(val ?? '')}</textarea></label>`;
 const fSel = (id, lbl, val, opts, blank = '—') => `<label class="tiny muted">${lbl}<select id="${id}" class="select"><option value="">${blank}</option>${opts.map(o => optTag(o, val)).join('')}</select></label>`;
-const sec = (titulo, html) => `<div style="margin-top:12px;padding:10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg-2)"><div style="font-weight:800;font-size:12.5px;margin-bottom:8px">${titulo}</div>${html}</div>`;
+const sec = (titulo, html) => `<div style="margin-top:12px;padding:10px;border:1px solid var(--bd);border-radius:var(--radius-md);background:var(--bg-2)"><div style="font-weight:600;font-size:13px;margin-bottom:8px">${titulo}</div>${html}</div>`;
 const grid = html => `<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(185px, 1fr));gap:8px">${html}</div>`;
 
 function renderDetail(e) {
@@ -455,7 +455,7 @@ function renderDetail(e) {
   return `
     <div class="flex items-center gap-2 mb-2" style="flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" id="det-back">← Voltar ao pipeline</button>
-      <div style="font-weight:800;font-size:15px">${e.id ? '👤 ' + esc(e.nome || 'Candidato') : '➕ Novo candidato'}</div>
+      <div style="font-weight:600;font-size:14px">${e.id ? '👤 ' + esc(e.nome || 'Candidato') : '➕ Novo candidato'}</div>
       <div style="margin-left:auto;display:flex;gap:4px">
         ${ig ? `<a class="btn btn-ghost btn-sm" href="${ig}" target="_blank" rel="noopener" title="Instagram">📷 IG</a>` : ''}
         ${wa ? `<a class="btn btn-ghost btn-sm" href="${wa}" target="_blank" rel="noopener" title="WhatsApp">💬 Zap</a>` : ''}
@@ -484,8 +484,8 @@ function renderDetail(e) {
       ${fSel('tal-etapa', 'Etapa do pipeline', e.etapa || 'Triagem', ETAPAS, 'Triagem')}
       ${fSel('tal-decisao', 'Decisão', e.decisao || 'Em andamento', DECISOES, 'Em andamento')}
     `) + `
-      <div id="tal-corretor" style="display:${showCorr ? 'grid' : 'none'};grid-template-columns:repeat(auto-fit, minmax(185px, 1fr));gap:8px;margin-top:8px;padding:8px;border:1px dashed var(--bd);border-radius:8px;background:rgba(214,36,159,.05)">
-        <label class="tiny muted" style="grid-column:1/-1;font-weight:700;color:#d6249f">🏠 Corretor — classificação</label>
+      <div id="tal-corretor" style="display:${showCorr ? 'grid' : 'none'};grid-template-columns:repeat(auto-fit, minmax(185px, 1fr));gap:8px;margin-top:8px;padding:8px;border:1px dashed var(--bd);border-radius:var(--radius-md);background:rgba(214,36,159,.05)">
+        <label class="tiny muted" style="grid-column:1/-1;font-weight:600;color:#d6249f">🏠 Corretor — classificação</label>
         <label class="tiny muted" style="grid-column:1/-1">Categoria(s) — pode marcar mais de uma
           <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:5px">
             ${CATEGORIAS.map(c => `<label style="display:inline-flex;gap:5px;align-items:center;font-weight:600;cursor:pointer"><input type="checkbox" class="tal-cat" value="${esc(c)}"${catArr(e.categoria).includes(c) ? ' checked' : ''}>${esc(c)}</label>`).join('')}
@@ -522,10 +522,10 @@ function renderDetail(e) {
 
     ${e.id ? sec(`🗳 Avaliação interna (RH · sócios · departamento) — ${ap}✓ ${rp}✕ ${sb}⏸`, `
       ${av.length ? `<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">${av.map(a => `
-        <div style="border:1px solid var(--bd);border-radius:8px;padding:7px;background:var(--bg-3)">
+        <div style="border:1px solid var(--bd);border-radius:var(--radius-md);padding:7px;background:var(--bg-3)">
           <div style="display:flex;gap:6px;align-items:center;font-size:12px"><b>${esc(a.by_nome || '—')}</b>${a.papel ? `<span class="tiny muted">${esc(a.papel)}</span>` : ''}
             <span style="margin-left:auto">${chip(a.voto || '—', /aprov/i.test(a.voto || '') ? '#16a34a' : /reprov/i.test(a.voto || '') ? '#dc2626' : '#64748b')}</span>
-            ${a.nota ? `<span class="tiny" style="color:#f59e0b">${stars(a.nota)}</span>` : ''}</div>
+            ${a.nota ? `<span class="tiny" style="color:var(--warn)">${stars(a.nota)}</span>` : ''}</div>
           ${a.texto ? `<div class="tiny" style="margin-top:4px">${esc(a.texto)}</div>` : ''}
           <div class="tiny muted" style="margin-top:3px">${a.at ? new Date(a.at).toLocaleString('pt-BR') : ''}</div>
         </div>`).join('')}</div>` : '<div class="tiny muted" style="margin-bottom:8px">Sem pareceres ainda — registre o seu abaixo.</div>'}
@@ -558,11 +558,11 @@ function cndPainelHTML(e) {
   const podeCnd = (auth.user()?.lvl || 0) >= 5 || ['backoffice'].includes(auth.user()?.role);
   if (c) {
     const cor = c.positivas ? '#dc2626' : (c.total && c.emitidas >= c.total ? '#16a34a' : '#b45309');
-    return `<div style="border:1px solid ${cor}44;background:${cor}0d;border-radius:8px;padding:9px;margin-bottom:8px">
+    return `<div style="border:1px solid ${cor}44;background:${cor}0d;border-radius:var(--radius-md);padding:9px;margin-bottom:8px">
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <b style="font-size:12.5px;color:${cor}">⚖️ Dossiê de CND (interno) — ${c.emitidas}/${c.total} emitida(s)</b>
-        ${c.positivas ? `<span class="tiny" style="color:var(--err);font-weight:800">🔴 ${c.positivas} POSITIVA(S) — tem débito</span>` : ''}
-        ${c.pendencias ? `<span class="tiny" style="color:var(--ambar-escuro);font-weight:700">⚠️ ${c.pendencias} não emitida/bloqueada</span>` : ''}
+        <b style="font-size:13px;color:${cor}">⚖️ Dossiê de CND (interno) — ${c.emitidas}/${c.total} emitida(s)</b>
+        ${c.positivas ? `<span class="tiny" style="color:var(--err);font-weight:600">🔴 ${c.positivas} POSITIVA(S) — tem débito</span>` : ''}
+        ${c.pendencias ? `<span class="tiny" style="color:var(--ambar-escuro);font-weight:600">⚠️ ${c.pendencias} não emitida/bloqueada</span>` : ''}
         <a class="btn btn-ghost btn-sm" style="margin-left:auto" href="#/cnds?dossie=${encodeURIComponent(c.id)}">📁 Abrir dossiê</a>
       </div>
       <label class="tiny muted" style="display:block;margin-top:6px">Situação das CNDs — atualiza sozinho pelo dossiê
@@ -570,7 +570,7 @@ function cndPainelHTML(e) {
       </label>
     </div>`;
   }
-  return `<div style="border:1px dashed var(--bd);border-radius:8px;padding:9px;margin-bottom:8px">
+  return `<div style="border:1px dashed var(--bd);border-radius:var(--radius-md);padding:9px;margin-bottom:8px">
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <b class="tiny">⚖️ CNDs do candidato</b>
       <span class="tiny muted">abre o dossiê no módulo CND’s (categoria Interno) com o nome, o CPF e o cargo desta ficha</span>
@@ -689,8 +689,8 @@ function cargoRefHTML(cargo, field) {
   const c = (_cargosCfg.recrutamento || {})[cargo]; const v = c && c[field];
   if (!v) return '';
   const lbl = field === 'requisitos' ? '📋 Requisitos padrão do cargo' : '⛔ Impeditivos padrão do cargo';
-  const cor = field === 'requisitos' ? '#2563eb' : '#dc2626';
-  return `<div style="background:${cor}0e;border:1px solid ${cor}33;border-radius:8px;padding:7px 9px;margin-bottom:6px;font-size:12px"><b style="color:${cor}">${lbl} «${esc(cargo)}»</b><br>${esc(v).replace(/\n/g, '<br>')}</div>`;
+  const cor = field === 'requisitos' ? '#806d50' : '#dc2626';
+  return `<div style="background:${cor}0e;border:1px solid ${cor}33;border-radius:var(--radius-md);padding:7px 9px;margin-bottom:6px;font-size:12px"><b style="color:${cor}">${lbl} «${esc(cargo)}»</b><br>${esc(v).replace(/\n/g, '<br>')}</div>`;
 }
 
 function openCargosReqModal() {

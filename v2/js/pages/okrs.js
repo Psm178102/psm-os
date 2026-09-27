@@ -24,7 +24,7 @@ const STATUS = {
   on_track:     { lbl: 'No ritmo',      color: '#16a34a' },
   at_risk:      { lbl: 'Em risco',      color: '#d97706' },
   off_track:    { lbl: 'Fora do ritmo', color: '#dc2626' },
-  completed:    { lbl: 'Concluído',     color: '#2563eb' },
+  completed:    { lbl: 'Concluído',     color: '#806d50' },
   nao_iniciado: { lbl: 'Não iniciado',  color: '#64748b' },
 };
 const AREAS = ['Presidência', 'Comercial', 'Marketing', 'Financeiro', 'Operações', 'Pessoas', 'Jurídico & Compliance', 'Tecnologia & Dados'];
@@ -97,13 +97,13 @@ function renderAll() {
     <div id="okr-form"></div>
     ${d.objetivos.length ? d.objetivos.map(objetivoHTML).join('') : `
       <div class="card mb-3" style="text-align:center;padding:28px;border:2px dashed var(--border)">
-        <div style="font-weight:800">Nenhum objetivo estratégico para ${d.ano}</div>
+        <div style="font-weight:600">Nenhum objetivo estratégico para ${d.ano}</div>
         <div class="tiny muted" style="margin:6px 0 12px">Comece pelos 3 a 5 grandes objetivos do ano. Cada OKR do trimestre se pendura em um deles.</div>
         ${podeObjetivo() ? '<button class="btn btn-primary" data-act="novo-objetivo">➕ Criar o primeiro objetivo</button>' : ''}
       </div>`}
     ${d.okrs_sem_objetivo.length ? `
-      <div id="soltos" class="card mb-3" style="border-left:4px solid #94a3b8">
-        <div style="font-weight:800">🧩 OKRs sem objetivo estratégico (${d.okrs_sem_objetivo.length})</div>
+      <div id="soltos" class="card mb-3" style="border-left:4px solid var(--border-strong)">
+        <div style="font-weight:600">🧩 OKRs sem objetivo estratégico (${d.okrs_sem_objetivo.length})</div>
         <div class="tiny muted" style="margin-bottom:8px">Edite e escolha o objetivo que cada um move — senão o esforço não aparece na estratégia.</div>
         ${d.okrs_sem_objetivo.map(okrHTML).join('')}
       </div>` : ''}
@@ -114,56 +114,56 @@ function renderAll() {
 /* ─── blocos ────────────────────────────────────────────────────────── */
 function norteHTML(n) {
   const v = (n.visao || [])[0], m = (n.missao || [])[0];
-  const cel = (lbl, it) => `<div style="flex:1;min-width:220px;padding:10px 12px;border-radius:8px;background:var(--bg-3)">
-    <div class="tiny" style="font-weight:800;letter-spacing:1px;text-transform:uppercase;opacity:.6">${lbl}</div>
-    ${it ? `<div style="font-weight:700;margin-top:3px">${esc(it.titulo)}</div>${it.descricao ? `<div class="tiny muted">${esc(it.descricao)}</div>` : ''}`
-         : `<div class="tiny" style="margin-top:3px;color:#d97706">não definida — <a href="#/norte-estrategico">definir no Norte Estratégico</a></div>`}
+  const cel = (lbl, it) => `<div style="flex:1;min-width:220px;padding:10px 12px;border-radius:var(--radius-md);background:var(--bg-3)">
+    <div class="tiny" style="font-weight:600;letter-spacing:1px;text-transform:uppercase;opacity:.6">${lbl}</div>
+    ${it ? `<div style="font-weight:600;margin-top:3px">${esc(it.titulo)}</div>${it.descricao ? `<div class="tiny muted">${esc(it.descricao)}</div>` : ''}`
+         : `<div class="tiny" style="margin-top:3px;color:var(--warn)">não definida — <a href="#/norte-estrategico">definir no Norte Estratégico</a></div>`}
   </div>`;
   return `<div class="flex gap-2 mb-3" style="flex-wrap:wrap;align-items:stretch">
-    <div style="display:flex;align-items:center;font-size:22px" title="Norte">⭐</div>
+    <div style="display:flex;align-items:center;font-size:20px" title="Norte">⭐</div>
     ${cel('Visão', v)}${cel('Missão', m)}
   </div>`;
 }
 
 function saudeHTML(s) {
-  const tile = (lbl, val, cor) => `<div style="background:var(--bg-3);border-radius:8px;padding:10px;text-align:center;border-top:3px solid ${cor}">
+  const tile = (lbl, val, cor) => `<div style="background:var(--bg-3);border-radius:var(--radius-md);padding:10px;text-align:center;border-top:3px solid ${cor}">
     <div class="tiny muted" style="text-transform:uppercase;letter-spacing:.5px">${lbl}</div>
-    <div style="font-size:22px;font-weight:800;color:${cor}">${val}</div></div>`;
+    <div style="font-size:20px;font-weight:600;color:${cor}">${val}</div></div>`;
   const NIV = { alto: ['🔴', '#dc2626'], medio: ['🟡', '#d97706'], baixo: ['⚪', '#64748b'] };
   const al = s.alertas || [];
   return `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px" class="mb-3">
       ${tile('Progresso geral', s.pct_geral + '%', 'var(--psm-navy)')}
-      ${tile('Objetivos', s.objetivos, '#0891b2')}
-      ${tile('OKRs', s.okrs, '#0891b2')}
+      ${tile('Objetivos', s.objetivos, '#806d50')}
+      ${tile('OKRs', s.okrs, '#806d50')}
       ${tile('No ritmo', s.on_track, STATUS.on_track.color)}
       ${tile('Em risco', s.at_risk, STATUS.at_risk.color)}
       ${tile('Fora do ritmo', s.off_track, STATUS.off_track.color)}
     </div>
-    ${al.length ? `<details class="mb-3" ${al.some(a => a.nivel === 'alto') ? 'open' : ''} style="background:var(--bg-3);border-radius:8px;padding:8px 12px">
-      <summary style="cursor:pointer;font-weight:800">🩺 Saúde do desdobramento — ${al.length} ponto(s) a resolver</summary>
-      <div style="margin-top:6px">${al.map(a => `<div class="flex gap-2" style="align-items:center;font-size:12.5px;padding:4px 0;border-top:1px dashed var(--border)">
+    ${al.length ? `<details class="mb-3" ${al.some(a => a.nivel === 'alto') ? 'open' : ''} style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px 12px">
+      <summary style="cursor:pointer;font-weight:600">🩺 Saúde do desdobramento — ${al.length} ponto(s) a resolver</summary>
+      <div style="margin-top:6px">${al.map(a => `<div class="flex gap-2" style="align-items:center;font-size:13px;padding:4px 0;border-top:1px dashed var(--border)">
         <span>${NIV[a.nivel]?.[0] || '•'}</span><span style="flex:1">${esc(a.txt)}</span>
         ${a.acao ? `<button class="btn btn-ghost btn-sm" data-act="${esc(a.acao)}">resolver →</button>` : ''}
       </div>`).join('')}</div>
-    </details>` : `<div class="tiny mb-3" style="color:#16a34a;font-weight:700">✅ Desdobramento íntegro: todo objetivo tem OKR, todo OKR tem dono e todo projeto move um OKR.</div>`}`;
+    </details>` : `<div class="tiny mb-3" style="color:var(--ok);font-weight:600">✅ Desdobramento íntegro: todo objetivo tem OKR, todo OKR tem dono e todo projeto move um OKR.</div>`}`;
 }
 
 function barra(pct, cor, ritmo) {
-  return `<div style="position:relative;background:var(--bg-2);height:8px;border-radius:4px;overflow:visible">
-    <div style="background:${cor};height:100%;border-radius:4px;width:${Math.min(100, Math.max(0, pct))}%;transition:width .4s"></div>
-    ${ritmo > 0 && ritmo < 100 ? `<div title="ritmo esperado hoje: ${ritmo}%" style="position:absolute;top:-3px;left:${ritmo}%;width:2px;height:14px;background:var(--ink,#0b1f3a);opacity:.55"></div>` : ''}
+  return `<div style="position:relative;background:var(--bg-2);height:8px;border-radius:var(--radius-sm);overflow:visible">
+    <div style="background:${cor};height:100%;border-radius:var(--radius-sm);width:${Math.min(100, Math.max(0, pct))}%;transition:width .4s"></div>
+    ${ritmo > 0 && ritmo < 100 ? `<div title="ritmo esperado hoje: ${ritmo}%" style="position:absolute;top:-3px;left:${ritmo}%;width:2px;height:14px;background:var(--ink,#806d50);opacity:.55"></div>` : ''}
   </div>`;
 }
 const corPct = p => p >= 70 ? '#16a34a' : p >= 40 ? '#d97706' : '#dc2626';
 
 function objetivoHTML(ob) {
   return `
-    <div class="card mb-3" style="border-left:5px solid var(--psm-gold,#d4a843)">
+    <div class="card mb-3" style="border-left:5px solid var(--psm-gold,var(--accent-ink))">
       <div class="flex gap-2" style="align-items:flex-start;flex-wrap:wrap">
         <div style="flex:1;min-width:220px">
-          <div class="tiny" style="font-weight:800;letter-spacing:1px;text-transform:uppercase;opacity:.55">Objetivo estratégico ${_d.ano}</div>
-          <div style="font-weight:800;font-size:16px">${esc(ob.titulo)}</div>
+          <div class="tiny" style="font-weight:600;letter-spacing:1px;text-transform:uppercase;opacity:.55">Objetivo estratégico ${_d.ano}</div>
+          <div style="font-weight:600;font-size:16px">${esc(ob.titulo)}</div>
           ${ob.descricao ? `<div class="tiny muted">${esc(ob.descricao)}</div>` : ''}
         </div>
         <div style="width:170px">
@@ -185,13 +185,13 @@ function objetivoHTML(ob) {
 function okrHTML(o) {
   const st = STATUS[o.status] || STATUS.on_track;
   return `
-    <div id="okr-${esc(o.id)}" style="background:var(--bg-3);border-radius:8px;padding:10px 12px;margin:8px 0;border-left:4px solid ${st.color}">
+    <div id="okr-${esc(o.id)}" style="background:var(--bg-3);border-radius:var(--radius-md);padding:10px 12px;margin:8px 0;border-left:4px solid ${st.color}">
       <div class="flex gap-2" style="align-items:flex-start;flex-wrap:wrap">
         <div style="flex:1;min-width:200px">
-          <div style="font-weight:800">${esc(o.objetivo)}</div>
-          <div class="tiny muted">${esc(o.ciclo || '')}${o.area ? ' · ' + esc(o.area) : ''} · ${o.responsavel ? '👤 ' + esc(o.responsavel_nome || o.responsavel) : '<span style="color:#d97706">sem dono</span>'}</div>
+          <div style="font-weight:600">${esc(o.objetivo)}</div>
+          <div class="tiny muted">${esc(o.ciclo || '')}${o.area ? ' · ' + esc(o.area) : ''} · ${o.responsavel ? '👤 ' + esc(o.responsavel_nome || o.responsavel) : '<span style="color:var(--warn)">sem dono</span>'}</div>
         </div>
-        <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;background:${st.color}22;color:${st.color};white-space:nowrap">${st.lbl}</span>
+        <span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:var(--radius-full);background:${st.color}22;color:${st.color};white-space:nowrap">${st.lbl}</span>
         <div style="width:150px">
           <div class="flex" style="justify-content:space-between"><span class="tiny muted">ritmo ${o.ritmo}%</span><b style="color:${st.color}">${o.pct}%</b></div>
           ${barra(o.pct, st.color, o.ritmo)}
@@ -201,7 +201,7 @@ function okrHTML(o) {
           <button class="btn btn-ghost btn-sm" data-del="${esc(o.id)}" title="Remover OKR">🗑</button>
         </div>` : ''}
       </div>
-      <div style="display:grid;gap:6px;margin-top:8px">${(o.krs || []).map(krHTML).join('') || '<div class="tiny" style="color:#d97706">Sem resultado-chave — um OKR precisa de 2 a 4 KRs mensuráveis.</div>'}</div>
+      <div style="display:grid;gap:6px;margin-top:8px">${(o.krs || []).map(krHTML).join('') || '<div class="tiny" style="color:var(--warn)">Sem resultado-chave — um OKR precisa de 2 a 4 KRs mensuráveis.</div>'}</div>
       ${projetosHTML(o)}
     </div>`;
 }
@@ -209,16 +209,16 @@ function okrHTML(o) {
 function krHTML(k) {
   const auto = k.fonte === 'vgv' || k.fonte === 'vendas';
   const fmt = v => k.unit === 'R$' ? brl(v) : `${num(v)} ${esc(k.unit || '')}`;
-  return `<div style="background:var(--bg-2);border-radius:6px;padding:7px 10px">
+  return `<div style="background:var(--bg-2);border-radius:var(--radius-sm);padding:7px 10px">
     <div class="flex gap-2" style="align-items:center;justify-content:space-between">
-      <span style="font-size:12.5px;font-weight:600">${esc(k.label || '—')}
-        ${auto ? `<span class="tiny" title="Número puxado da aba Metas — atualiza sozinho" style="margin-left:4px;padding:1px 6px;border-radius:99px;background:rgba(8,145,178,.14);color:#0891b2;font-weight:700">🔗 Metas</span>` : ''}
-        ${k.parado_dias ? `<span class="tiny" style="margin-left:4px;color:#d97706">⏳ ${k.parado_dias}d sem atualizar</span>` : ''}
+      <span style="font-size:13px;font-weight:600">${esc(k.label || '—')}
+        ${auto ? `<span class="tiny" title="Número puxado da aba Metas — atualiza sozinho" style="margin-left:4px;padding:1px 6px;border-radius:var(--radius-full);background:rgba(8,145,178,.14);color:var(--accent-ink);font-weight:600">🔗 Metas</span>` : ''}
+        ${k.parado_dias ? `<span class="tiny" style="margin-left:4px;color:var(--warn)">⏳ ${k.parado_dias}d sem atualizar</span>` : ''}
       </span>
       <b style="font-size:12px;color:${corPct(k.pct)}">${k.pct}%</b>
     </div>
     <div style="margin:4px 0 2px">${barra(k.pct, corPct(k.pct))}</div>
-    <div class="flex tiny muted" style="justify-content:space-between"><span>${fmt(k.curr || 0)}</span><span>${k.sem_meta ? '<span style="color:#d97706">sem meta</span>' : 'meta ' + fmt(k.target || 0)}</span></div>
+    <div class="flex tiny muted" style="justify-content:space-between"><span>${fmt(k.curr || 0)}</span><span>${k.sem_meta ? '<span style="color:var(--warn)">sem meta</span>' : 'meta ' + fmt(k.target || 0)}</span></div>
   </div>`;
 }
 
@@ -227,12 +227,12 @@ function projetosHTML(o) {
   if (!ps.length) return `<div class="tiny muted" style="margin-top:8px">📁 Nenhum projeto ligado — <a href="#/projetos">ligar em Projetos</a> ou pela lista de projetos sem OKR abaixo.</div>`;
   const ETAPA = { ideia: '💡', planejamento: '📋', andamento: '🚧', revisao: '👁', concluido: '✅', pausado: '⏸' };
   return `<div style="margin-top:8px">
-    <div class="tiny" style="font-weight:800">📁 Projetos que movem este OKR (${ps.length}) · <span style="color:${corPct(o.projetos_pct)}">${o.projetos_pct}% de execução</span></div>
+    <div class="tiny" style="font-weight:600">📁 Projetos que movem este OKR (${ps.length}) · <span style="color:${corPct(o.projetos_pct)}">${o.projetos_pct}% de execução</span></div>
     ${ps.map(c => `<div class="flex gap-2" style="align-items:center;font-size:12px;padding:3px 0;border-top:1px dashed var(--border)">
       <span>${ETAPA[c.status] || '📁'}</span>
-      <a href="#/projetos" style="flex:1;min-width:0;font-weight:700;color:inherit;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.titulo || 'Sem nome')}</a>
+      <a href="#/projetos" style="flex:1;min-width:0;font-weight:600;color:inherit;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.titulo || 'Sem nome')}</a>
       ${c.responsavel ? `<span class="tiny muted">👤 ${esc(c.responsavel)}</span>` : ''}
-      ${c.atrasado ? '<span class="tiny" style="color:#dc2626;font-weight:700">⚠ atrasado</span>' : ''}
+      ${c.atrasado ? '<span class="tiny" style="color:var(--err);font-weight:600">⚠ atrasado</span>' : ''}
       <span class="tiny muted" style="width:34px;text-align:right">${c.pct}%</span>
     </div>`).join('')}
   </div>`;
@@ -241,15 +241,15 @@ function projetosHTML(o) {
 function orfaosHTML(ps) {
   if (!ps.length) return '';
   const opts = `<option value="">— ligar a um OKR —</option>` + _allOkrs.map(o => `<option value="${esc(o.id)}">${esc(o.objetivo)} (${esc(o.ciclo || '')})</option>`).join('');
-  return `<div id="orfaos" class="card mb-3" style="border-left:4px solid #d97706">
-    <div style="font-weight:800">📁 Projetos ativos sem OKR (${ps.length})</div>
+  return `<div id="orfaos" class="card mb-3" style="border-left:4px solid var(--warn)">
+    <div style="font-weight:600">📁 Projetos ativos sem OKR (${ps.length})</div>
     <div class="tiny muted" style="margin-bottom:8px">Numa diretoria madura, todo projeto existe pra mover um resultado. Ligue cada um ao OKR que ele move — ou questione se ele deveria existir.</div>
-    ${ps.map(c => `<div class="flex gap-2" style="align-items:center;font-size:12.5px;padding:5px 0;border-top:1px dashed var(--border);flex-wrap:wrap">
-      <span style="flex:1;min-width:180px;font-weight:700">${esc(c.titulo || 'Sem nome')}</span>
+    ${ps.map(c => `<div class="flex gap-2" style="align-items:center;font-size:13px;padding:5px 0;border-top:1px dashed var(--border);flex-wrap:wrap">
+      <span style="flex:1;min-width:180px;font-weight:600">${esc(c.titulo || 'Sem nome')}</span>
       <span class="tiny muted">${esc(c.status || '')}${c.responsavel ? ' · 👤 ' + esc(c.responsavel) : ''}</span>
       ${podeOkr() && _allOkrs.length ? `<select class="select" data-ligar="${esc(c.id)}" style="width:auto;max-width:280px;font-size:12px">${opts}</select>` : ''}
     </div>`).join('')}
-    ${!_allOkrs.length ? '<div class="tiny" style="color:#d97706;margin-top:6px">Crie os OKRs primeiro — depois é só escolher aqui.</div>' : ''}
+    ${!_allOkrs.length ? '<div class="tiny" style="color:var(--warn);margin-top:6px">Crie os OKRs primeiro — depois é só escolher aqui.</div>' : ''}
   </div>`;
 }
 
@@ -316,7 +316,7 @@ async function okrForm() {
   wrap.innerHTML = `
     <div class="card mb-3" style="background:var(--bg-3);padding:16px;border:2px solid var(--psm-navy)">
       <div class="flex" style="justify-content:space-between;margin-bottom:10px">
-        <div style="font-weight:800">${o.id ? '✏️ Editar OKR' : '➕ Novo OKR'}</div>
+        <div style="font-weight:600">${o.id ? '✏️ Editar OKR' : '➕ Novo OKR'}</div>
         <button class="btn btn-ghost btn-sm" id="o-cancel">✕ Cancelar</button>
       </div>
       <div style="display:grid;gap:10px">
@@ -335,7 +335,7 @@ async function okrForm() {
         <label class="tiny" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="o-done" ${o.concluido ? 'checked' : ''}> Marcar como concluído (senão o status é calculado pelo ritmo)</label>
         <div>
           <div class="flex" style="justify-content:space-between;align-items:center;margin-bottom:6px">
-            <label class="tiny muted" style="font-weight:700">Resultados-chave (2 a 4)</label>
+            <label class="tiny muted" style="font-weight:600">Resultados-chave (2 a 4)</label>
             <button class="btn btn-ghost btn-sm" id="o-add-kr">➕ KR</button>
           </div>
           <div id="o-krs"></div>
@@ -354,7 +354,7 @@ function renderKRs() {
   const wrap = document.getElementById('o-krs');
   wrap.innerHTML = _editing.krs.map((k, i) => {
     const auto = k.fonte === 'vgv' || k.fonte === 'vendas';
-    return `<div style="background:var(--bg-2);border-radius:8px;padding:10px;margin-bottom:6px">
+    return `<div style="background:var(--bg-2);border-radius:var(--radius-md);padding:10px;margin-bottom:6px">
       <div class="flex" style="justify-content:space-between;margin-bottom:6px"><div class="tiny muted">KR ${i + 1}</div>
         <button class="btn btn-ghost btn-sm" data-rem-kr="${i}">🗑</button></div>
       <input class="input" placeholder="Resultado mensurável (ex.: VGV do trimestre)" data-k="label" data-i="${i}" value="${esc(k.label)}" style="margin-bottom:6px">
@@ -423,9 +423,9 @@ function objetivoForm(ob) {
   const wrap = document.getElementById('okr-form');
   if (!wrap) return;
   wrap.innerHTML = `
-    <div class="card mb-3" style="background:var(--bg-3);padding:16px;border:2px solid var(--psm-gold,#d4a843)">
+    <div class="card mb-3" style="background:var(--bg-3);padding:16px;border:2px solid var(--psm-gold,var(--accent-ink))">
       <div class="flex" style="justify-content:space-between;margin-bottom:10px">
-        <div style="font-weight:800">${ob ? '✏️ Editar objetivo estratégico' : `➕ Novo objetivo estratégico de ${_ano}`}</div>
+        <div style="font-weight:600">${ob ? '✏️ Editar objetivo estratégico' : `➕ Novo objetivo estratégico de ${_ano}`}</div>
         <button class="btn btn-ghost btn-sm" id="ob-cancel">✕ Cancelar</button>
       </div>
       <div class="tiny muted" style="margin-bottom:8px">Os 3 a 5 grandes resultados do ano. Pense nas 4 perspectivas: financeira, clientes, processos e pessoas.</div>

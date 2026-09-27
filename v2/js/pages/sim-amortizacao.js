@@ -89,8 +89,8 @@ function render() {
       <h2 class="card-title">🏦 Simulador de Amortização</h2>
       <p class="card-sub">Financiamento <b>SAC</b> ou <b>PRICE</b> + simulação de <b>amortização extra</b> — veja a economia de juros e a redução de prazo. Lógica da planilha PSM.</p>
       <div style="display:grid;grid-template-columns:340px minmax(0,1fr);gap:16px;margin-top:12px;align-items:start" class="amort-grid">
-        <div style="background:var(--bg-3);border-radius:12px;padding:16px">
-          <div class="tiny muted" style="text-transform:uppercase;font-weight:800;margin-bottom:8px">Sistema de amortização</div>
+        <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:16px">
+          <div class="tiny muted" style="text-transform:uppercase;font-weight:600;margin-bottom:8px">Sistema de amortização</div>
           <div class="flex gap-2" style="margin-bottom:12px">
             ${sisBtn('SAC', 'SAC — parcela decrescente')}
             ${sisBtn('PRICE', 'PRICE — parcela fixa')}
@@ -100,9 +100,9 @@ function render() {
           ${inp('Juros efetivos', 'jurosAA', '% ao ano')}
           <div class="tiny muted" style="margin:2px 0 8px" id="amort-taxam">${taxaTxt()}</div>
 
-          <div class="tiny muted" style="text-transform:uppercase;font-weight:800;margin:12px 0 6px">💰 Amortização extra</div>
+          <div class="tiny muted" style="text-transform:uppercase;font-weight:600;margin:12px 0 6px">💰 Amortização extra</div>
           ${inp('Extra todo mês', 'extraMensal', 'R$')}
-          <div class="tiny muted" style="font-weight:700;margin:8px 0 4px">Aportes pontuais (mês específico)</div>
+          <div class="tiny muted" style="font-weight:600;margin:8px 0 4px">Aportes pontuais (mês específico)</div>
           <div id="amort-aportes">${aportesHTML()}</div>
           <button class="btn btn-ghost btn-sm btn-block mt-1" id="amort-addap">➕ adicionar aporte</button>
 
@@ -123,7 +123,7 @@ function sisBtn(id, label) {
 function inp(label, key, suffix) {
   const isMoney = suffix === 'R$';
   return `<div style="margin-bottom:8px"><label class="tiny muted" style="font-weight:600;display:block;margin-bottom:2px">${label}</label>
-    <div class="flex gap-1">${isMoney ? '<span class="tiny muted" style="align-self:center;font-weight:700">R$</span>' : ''}
+    <div class="flex gap-1">${isMoney ? '<span class="tiny muted" style="align-self:center;font-weight:600">R$</span>' : ''}
       <input ${ATTR_NUM} class="input" data-key="${key}" value="${numCampo(_s[key])}" style="flex:1;min-width:0;font-size:13px;padding:7px 9px">
       ${!isMoney && suffix ? `<span class="tiny muted" style="align-self:center;white-space:nowrap">${suffix}</span>` : ''}</div></div>`;
 }
@@ -180,7 +180,7 @@ function renderOut() {
   out.innerHTML = `
     <!-- resumo -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
-      ${kpi('Parcela inicial', fmt(r.parcelaInicial), r.sac ? 'decresce a cada mês' : 'fixa (PRICE)', '#2563eb')}
+      ${kpi('Parcela inicial', fmt(r.parcelaInicial), r.sac ? 'decresce a cada mês' : 'fixa (PRICE)', '#806d50')}
       ${kpi('Total do contrato', fmt(r.cPago), `${r.cPrazo} meses · ${fmt(r.cJuros)} de juros`, '#64748b')}
       ${r.temExtra ? kpi('Com amortização', fmt(r.sPago), `${r.sPrazo} meses · ${fmt(r.sJuros)} de juros`, '#16a34a') : ''}
       ${r.temExtra ? kpi('💚 Economia de juros', fmt(r.economiaJuros), pctEco(r) + ' menos juros', '#16a34a') : ''}
@@ -190,7 +190,7 @@ function renderOut() {
 
     <!-- gráfico saldo devedor -->
     <div class="card mt-3" style="background:var(--bg-3)">
-      <div class="tiny muted" style="font-weight:800;text-transform:uppercase;margin-bottom:6px">📉 Saldo devedor ao longo do tempo</div>
+      <div class="tiny muted" style="font-weight:600;text-transform:uppercase;margin-bottom:6px">📉 Saldo devedor ao longo do tempo</div>
       ${chart(r)}
     </div>
 
@@ -203,17 +203,17 @@ function renderOut() {
           <button class="btn btn-sm ${_view === 'contrato' ? 'btn-primary' : 'btn-ghost'}" data-view="contrato">Contrato</button>
         </div>` : ''}
       </div>
-      <div style="max-height:56vh;overflow:auto;border:1px solid var(--border);border-radius:8px">
+      <div style="max-height:56vh;overflow:auto;border:1px solid var(--border);border-radius:var(--radius-md)">
         <table style="border-collapse:collapse;width:100%;min-width:max-content;font-size:12px">
           <thead><tr>${['Mês', 'Saldo inicial', 'Juros', 'Amortização', showExtra ? 'Extra' : null, 'Parcela', 'Saldo final'].filter(Boolean)
             .map(h => `<th style="position:sticky;top:0;background:var(--psm-navy);color:var(--psm-cream);padding:6px 9px;text-align:right;white-space:nowrap">${h}</th>`).join('')}</tr></thead>
           <tbody>${dados.map(p => `<tr style="border-bottom:1px solid var(--border)">
-            <td style="padding:5px 9px;text-align:right;font-weight:700">${p.m}</td>
+            <td style="padding:5px 9px;text-align:right;font-weight:600">${p.m}</td>
             <td style="padding:5px 9px;text-align:right">${fmt(p.saldoIni)}</td>
             <td style="padding:5px 9px;text-align:right;color:var(--err)">${fmt(p.juros)}</td>
             <td style="padding:5px 9px;text-align:right;color:var(--ok)">${fmt(p.amort)}</td>
             ${showExtra ? `<td style="padding:5px 9px;text-align:right;color:var(--roxo)">${p.extra ? fmt(p.extra) : '—'}</td>` : ''}
-            <td style="padding:5px 9px;text-align:right;font-weight:700">${fmt(p.parcela)}</td>
+            <td style="padding:5px 9px;text-align:right;font-weight:600">${fmt(p.parcela)}</td>
             <td style="padding:5px 9px;text-align:right">${fmt(p.saldoFim)}</td></tr>`).join('')}</tbody>
         </table>
       </div>
@@ -243,9 +243,9 @@ function chart(r) {
 
 /* ───────── helpers ───────── */
 function kpi(lbl, val, sub, cor) {
-  return `<div style="background:var(--bg-1,#fff);border:1px solid var(--border);border-left:4px solid ${cor};border-radius:10px;padding:11px 13px">
-    <div class="tiny muted" style="text-transform:uppercase;font-weight:700">${lbl}</div>
-    <div style="font-size:19px;font-weight:900;color:${cor};margin-top:2px;line-height:1.1">${val}</div>
+  return `<div style="background:var(--bg-1,#fff);border:1px solid var(--border);border-left:4px solid ${cor};border-radius:var(--radius-md);padding:11px 13px">
+    <div class="tiny muted" style="text-transform:uppercase;font-weight:600">${lbl}</div>
+    <div style="font-size:20px;font-weight:600;color:${cor};margin-top:2px;line-height:1.1">${val}</div>
     <div class="tiny muted" style="margin-top:2px">${sub}</div></div>`;
 }
 function mesesLabel(m) { if (m <= 0) return '—'; const a = Math.floor(m / 12), me = m % 12; return (a ? a + 'a ' : '') + (me ? me + 'm' : (a ? '' : '0m')) || m + 'm'; }

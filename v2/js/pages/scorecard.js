@@ -18,7 +18,7 @@ const FAROL = {
   amarelo:  { cor: '#d97706', ico: '🟡', lbl: 'Atenção' },
   vermelho: { cor: '#dc2626', ico: '🔴', lbl: 'Fora' },
   cinza:    { cor: '#94a3b8', ico: '⚪', lbl: 'Sem dado' },
-  info:     { cor: '#0891b2', ico: '📈', lbl: 'Acompanhamento' },
+  info:     { cor: '#806d50', ico: '📈', lbl: 'Acompanhamento' },
 };
 const GRUPOS = [
   { id: 'presidencia', nome: 'Presidência', sub: 'a empresa inteira' },
@@ -65,8 +65,8 @@ function renderShell() {
           <button class="btn btn-ghost" id="sc-fresh" title="Recalcular agora, ignorando o cache">↻ Recalcular</button>
         </div>
       </div>
-      <details class="mt-2" style="background:var(--bg-3);border-radius:8px;padding:8px 12px">
-        <summary style="cursor:pointer;font-weight:700;font-size:13px">📐 Como ler o farol (régua única)</summary>
+      <details class="mt-2" style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px 12px">
+        <summary style="cursor:pointer;font-weight:600;font-size:13px">📐 Como ler o farol (régua única)</summary>
         <div class="tiny" style="margin-top:6px;line-height:1.7">
           <b>Maior é melhor, acumula no mês</b> (VGV, vendas, visitas…): compara com o <b>ritmo</b>, ou seja, com quanto do mês já passou.
           🟢 ≥ 90% do esperado · 🟡 ≥ 70% · 🔴 abaixo. No dia 15 de um mês de 30, esperado = 50% da meta.<br>
@@ -99,7 +99,7 @@ function render() {
     ${GRUPOS.map(g => {
       const scs = d.scorecards.filter(s => s.grupo === g.id);
       if (!scs.length) return '';
-      return `<div class="mt-3"><div style="font-weight:800;font-size:15px">${g.nome} <span class="tiny muted" style="font-weight:400">· ${g.sub}</span></div>
+      return `<div class="mt-3"><div style="font-weight:600;font-size:14px">${g.nome} <span class="tiny muted" style="font-weight:400">· ${g.sub}</span></div>
         ${scs.map(scCard).join('')}</div>`;
     }).join('')}`;
   bind(body);
@@ -109,9 +109,9 @@ function placarGeral(scs) {
   return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px">
     ${scs.map(s => {
       const f = FAROL[s.farol] || FAROL.cinza;
-      return `<a href="javascript:void 0" data-goto="${s.id}" style="text-decoration:none;color:inherit;background:var(--bg-3);border-radius:8px;padding:10px;border-left:4px solid ${f.cor};display:block">
+      return `<a href="javascript:void 0" data-goto="${s.id}" style="text-decoration:none;color:inherit;background:var(--bg-3);border-radius:var(--radius-md);padding:10px;border-left:4px solid ${f.cor};display:block">
         <div class="flex" style="justify-content:space-between;align-items:center;gap:6px">
-          <span style="font-weight:800;font-size:13px">${s.ico} ${esc(s.nome)}</span>
+          <span style="font-weight:600;font-size:13px">${s.ico} ${esc(s.nome)}</span>
           <b style="color:${f.cor};font-size:16px">${s.saude == null ? '—' : s.saude}</b>
         </div>
         <div class="tiny muted" style="margin-top:2px">👤 ${esc(s.dono_nome || '—')} · ${s.avaliados}/${s.total} com farol</div>
@@ -126,17 +126,17 @@ function scCard(s) {
   return `<div id="sc-${s.id}" class="card mt-2" style="border-left:5px solid ${f.cor};padding:12px">
     <div class="flex" style="justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
       <div style="flex:1;min-width:220px">
-        <div style="font-weight:800;font-size:15px">${s.ico} ${esc(s.nome)}</div>
+        <div style="font-weight:600;font-size:14px">${s.ico} ${esc(s.nome)}</div>
         <div class="tiny muted">${esc(s.nota_sc || '')}</div>
       </div>
       <div class="flex gap-2" style="align-items:center">
         ${socio() ? `<select class="select" data-dono="${s.id}" style="width:auto;font-size:12px" title="Dono do placar"><option value="${esc(s.dono)}">👤 ${esc(s.dono_nome || s.dono)}</option></select>`
                   : `<span class="tiny">👤 <b>${esc(s.dono_nome || '—')}</b></span>`}
-        <span title="${s.avaliados} de ${s.total} indicadores com farol" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;background:${f.cor}22;color:${f.cor}">saúde ${s.saude == null ? '— (defina metas)' : s.saude}</span>
+        <span title="${s.avaliados} de ${s.total} indicadores com farol" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:var(--radius-full);background:${f.cor}22;color:${f.cor}">saúde ${s.saude == null ? '— (defina metas)' : s.saude}</span>
       </div>
     </div>
     <div style="overflow-x:auto;margin-top:8px">
-      <table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:680px">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:680px">
         <thead><tr class="tiny muted" style="text-align:left">
           <th style="padding:4px 6px;width:22px"></th><th style="padding:4px 6px">Indicador</th>
           <th style="padding:4px 6px;text-align:right">Realizado</th><th style="padding:4px 6px;text-align:right">Meta</th>
@@ -159,9 +159,9 @@ function linha(i) {
   if (i.pct != null) {
     const w = Math.max(0, Math.min(100, i.dir === 'menor' ? (i.valor <= i.meta ? 100 : Math.round(i.meta / i.valor * 100)) : i.pct));
     const marca = i.esperado != null && i.esperado > 0 && i.esperado < 100 && i.dir !== 'menor'
-      ? `<div title="esperado hoje: ${i.esperado}%" style="position:absolute;top:-3px;left:${i.esperado}%;width:2px;height:13px;background:var(--ink,#0b1f3a);opacity:.5"></div>` : '';
-    ating = `<div class="flex gap-1" style="align-items:center"><div style="position:relative;flex:1;height:7px;background:var(--bg-2);border-radius:4px">
-      <div style="height:100%;width:${w}%;background:${f.cor};border-radius:4px"></div>${marca}</div>
+      ? `<div title="esperado hoje: ${i.esperado}%" style="position:absolute;top:-3px;left:${i.esperado}%;width:2px;height:13px;background:var(--ink,#806d50);opacity:.5"></div>` : '';
+    ating = `<div class="flex gap-1" style="align-items:center"><div style="position:relative;flex:1;height:7px;background:var(--bg-2);border-radius:var(--radius-sm)">
+      <div style="height:100%;width:${w}%;background:${f.cor};border-radius:var(--radius-sm)"></div>${marca}</div>
       <b class="tiny" style="color:${f.cor};width:40px;text-align:right">${i.pct}%</b></div>`;
   } else {
     ating = `<span class="tiny" style="color:${f.cor}">${i.motivo ? esc(i.motivo) : f.ico + ' ' + f.lbl}</span>`;
@@ -169,7 +169,7 @@ function linha(i) {
   return `<tr style="border-top:1px solid var(--border)">
     <td style="padding:6px" title="${f.lbl}">${f.ico}</td>
     <td style="padding:6px"><div style="font-weight:600">${esc(i.label)}${i.manual ? ' <span class="tiny muted">✍️ manual</span>' : ''}</div>
-      ${i.nota ? `<div class="tiny muted">${esc(i.nota)}</div>` : ''}${i.amostra ? `<div class="tiny" style="color:#b45309">${esc(i.amostra)}</div>` : ''}</td>
+      ${i.nota ? `<div class="tiny muted">${esc(i.nota)}</div>` : ''}${i.amostra ? `<div class="tiny" style="color:var(--warn)">${esc(i.amostra)}</div>` : ''}</td>
     <td style="padding:6px;text-align:right;white-space:nowrap">${valor}</td>
     <td style="padding:6px;text-align:right;white-space:nowrap">${meta}</td>
     <td style="padding:6px">${ating}</td>
@@ -189,7 +189,7 @@ function evolucaoHTML() {
   const falt = (h.faltando || []).length;
   return `<div class="card mt-3" style="padding:12px">
     <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-      <div><div style="font-weight:800">📈 Evolução — saúde de cada placar mês a mês</div>
+      <div><div style="font-weight:600">📈 Evolução — saúde de cada placar mês a mês</div>
         <div class="tiny muted">✓ fechado no dia 1º · ◐ mês em andamento · ↺ reconstruído depois (indicadores de foto — carteira, pipeline, corretores — só existem a partir do registro)</div></div>
       ${falt && socio() ? `<button class="btn btn-ghost" id="sc-completar">↺ Completar histórico (${falt} ${falt === 1 ? 'mês' : 'meses'})</button>` : ''}
     </div>
@@ -201,7 +201,7 @@ function evolucaoHTML() {
         </tr></thead>
         <tbody>${scs.map(s => `<tr style="border-top:1px solid var(--border)">
           <td style="padding:4px 6px;white-space:nowrap;font-weight:600">${s.ico} ${esc(s.nome)}</td>
-          ${(h.saude[s.id] || []).map(v => `<td style="padding:3px;text-align:center"><div style="border-radius:6px;padding:4px 0;font-weight:800;background:${v == null ? 'var(--bg-3)' : corSaude(v) + '26'};color:${corSaude(v)}">${v == null ? '·' : v}</div></td>`).join('')}
+          ${(h.saude[s.id] || []).map(v => `<td style="padding:3px;text-align:center"><div style="border-radius:var(--radius-sm);padding:4px 0;font-weight:600;background:${v == null ? 'var(--bg-3)' : corSaude(v) + '26'};color:${corSaude(v)}">${v == null ? '·' : v}</div></td>`).join('')}
         </tr>`).join('')}</tbody>
       </table>
     </div>
@@ -229,7 +229,7 @@ function spark(i) {
   const [lx, ly] = xy(ult);
   return `<div class="flex gap-1" style="align-items:center" title="${pts.length} meses registrados${regraMudou ? ' · regra do cálculo mudou em set/2026 (só venda de tráfego pago) — sem comparação com os meses anteriores' : ''}">
     <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><polyline fill="none" stroke="${cor}" stroke-width="1.6" stroke-linejoin="round" points="${pts.map(p => xy(p).join(',')).join(' ')}"/><circle cx="${lx}" cy="${ly}" r="2.4" fill="${cor}"/></svg>
-    ${dlt != null && ult.v !== pen.v ? `<span class="tiny" style="color:${bom ? FAROL.verde.cor : FAROL.vermelho.cor};font-weight:700">${ult.v > pen.v ? '▲' : '▼'}${Math.abs(dlt)}%</span>` : ''}
+    ${dlt != null && ult.v !== pen.v ? `<span class="tiny" style="color:${bom ? FAROL.verde.cor : FAROL.vermelho.cor};font-weight:600">${ult.v > pen.v ? '▲' : '▼'}${Math.abs(dlt)}%</span>` : ''}
   </div>`;
 }
 

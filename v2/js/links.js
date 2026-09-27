@@ -134,14 +134,14 @@ export async function openResourcePermsModal(key, titulo, onSave) {
   const ov = document.createElement('div');
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
   ov.innerHTML = `
-    <div style="background:var(--bg-1,#fff);border-radius:14px;max-width:460px;width:100%;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,.3)">
-      <h3 style="margin:0 0 4px;font-size:17px;font-weight:800">👁 Quem vê: ${esc(titulo)}</h3>
+    <div style="background:var(--bg-1,#fff);border-radius:var(--radius-lg);max-width:460px;width:100%;padding:20px;box-shadow:var(--shadow-1)">
+      <h3 style="margin:0 0 4px;font-size:16px;font-weight:600">👁 Quem vê: ${esc(titulo)}</h3>
       <p class="tiny muted" style="margin:0 0 14px">O sócio sempre vê. Marque os papéis que podem ver. <b>Nenhum marcado = todos veem.</b></p>
-      <label style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px;background:var(--bg-3);font-weight:700;margin-bottom:8px;cursor:pointer">
+      <label style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:var(--radius-md);background:var(--bg-3);font-weight:600;margin-bottom:8px;cursor:pointer">
         <input type="checkbox" id="rp-todos" ${todos ? 'checked' : ''}> 🌐 Todos os papéis
       </label>
       <div id="rp-roles" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:46vh;overflow:auto">
-        ${ROLE_OPTIONS.map(([v, l]) => `<label style="display:flex;align-items:center;gap:7px;padding:7px;border-radius:7px;background:var(--bg-2);font-size:13px;cursor:pointer"><input type="checkbox" class="rp-r" value="${v}" ${(!todos && cur.includes(v)) ? 'checked' : ''}> ${esc(l)}</label>`).join('')}
+        ${ROLE_OPTIONS.map(([v, l]) => `<label style="display:flex;align-items:center;gap:7px;padding:7px;border-radius:var(--radius-sm);background:var(--bg-2);font-size:13px;cursor:pointer"><input type="checkbox" class="rp-r" value="${v}" ${(!todos && cur.includes(v)) ? 'checked' : ''}> ${esc(l)}</label>`).join('')}
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
         <button class="btn btn-ghost" id="rp-cancel">Cancelar</button>

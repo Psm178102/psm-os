@@ -74,7 +74,7 @@ function ordensCard() {
   const itens = o.itens || [];
   if (!itens.length) return '';
   const feitos = itens.filter(x => x.feito).length;
-  return `<div class="card" style="margin-top:14px;border-left:4px solid #dc2626">
+  return `<div class="card" style="margin-top:14px;border-left:4px solid var(--err)">
     <h3 class="card-title">🔥 Ordens da semana <span class="tiny muted" style="font-weight:400">· ${o.semana || ''} · ${feitos}/${itens.length} executadas</span></h3>
     <div class="tiny muted" style="margin-bottom:8px">Marque o que foi feito — o briefing da próxima semana VÊ este status e cobra o que ficou pra trás.</div>
     ${itens.map((it, i) => `<label style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer;font-size:13px">
@@ -86,15 +86,15 @@ function ordensCard() {
 
 function factCard(t, big, sub, color) {
   return `<div style="background:var(--bg-2);border:1px solid var(--border);border-top:3px solid ${color};border-radius:var(--r-md);padding:10px 12px">
-    <div style="font-size:11px;font-weight:700;color:var(--ink-muted)">${t}</div>
-    <div style="font-size:20px;font-weight:900;color:${color};margin:2px 0">${big}</div>
+    <div style="font-size:11px;font-weight:600;color:var(--ink-muted)">${t}</div>
+    <div style="font-size:20px;font-weight:600;color:${color};margin:2px 0">${big}</div>
     <div class="tiny muted">${sub}</div></div>`;
 }
 
 function briefCard(b) {
   return `<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px;margin-bottom:10px">
     <div class="flex items-center gap-2" style="margin-bottom:6px">
-      <span style="font-weight:800;font-size:12px;color:var(--roxo)">⚔️ ${fmtDT(b.created_at)}</span>
+      <span style="font-weight:600;font-size:12px;color:var(--roxo)">⚔️ ${fmtDT(b.created_at)}</span>
       <span class="tiny muted" style="margin-left:auto">${escapeHtml(b.model || '')}${b.criado_por ? '' : ' · automático'}</span>
     </div>
     <div style="font-size:13px;line-height:1.55">${mdLite(b.briefing || '')}</div>
@@ -109,9 +109,9 @@ async function generate() {
   try {
     const r = await api.request('/api/v3/intel/war_briefing', { method: 'POST', body: {} });
     if (r && r.ok && r.briefing) {
-      out.innerHTML = `<div style="background:linear-gradient(180deg,rgba(124,58,237,.07),transparent);border:1px solid rgba(124,58,237,.3);border-radius:var(--r-md);padding:16px 18px">
-        <div style="font-weight:800;font-size:13px;color:var(--roxo);margin-bottom:8px">⚔️ Briefing da semana <span class="tiny muted" style="font-weight:400">· ${escapeHtml(r.model || 'IA')}${r.saved ? ' · salvo' : ''}</span></div>
-        <div style="font-size:13.5px;line-height:1.6">${mdLite(r.briefing)}</div></div>`;
+      out.innerHTML = `<div style="background:linear-gradient(180deg,rgba(124,58,237,.07),transparent);border:1px solid var(--accent-ink);border-radius:var(--r-md);padding:16px 18px">
+        <div style="font-weight:600;font-size:13px;color:var(--roxo);margin-bottom:8px">⚔️ Briefing da semana <span class="tiny muted" style="font-weight:400">· ${escapeHtml(r.model || 'IA')}${r.saved ? ' · salvo' : ''}</span></div>
+        <div style="font-size:13px;line-height:1.6">${mdLite(r.briefing)}</div></div>`;
       if (r.saved) setTimeout(reload, 1200);
     } else {
       out.innerHTML = `<div class="alert alert-warn">Não consegui gerar: ${escapeHtml((r && r.error) || 'erro')}</div>`;
@@ -124,8 +124,8 @@ async function generate() {
 /* ─── helpers ─── */
 function mdLite(t) {
   return escapeHtml(t)
-    .replace(/^### (.*)$/gm, '<div style="font-weight:800;margin:8px 0 2px">$1</div>')
-    .replace(/^## (.*)$/gm, '<div style="font-weight:800;font-size:14px;margin:12px 0 4px">$1</div>')
+    .replace(/^### (.*)$/gm, '<div style="font-weight:600;margin:8px 0 2px">$1</div>')
+    .replace(/^## (.*)$/gm, '<div style="font-weight:600;font-size:14px;margin:12px 0 4px">$1</div>')
     .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
     .replace(/^\s*\d+\.\s+(.*)$/gm, '<div style="margin:3px 0 3px 6px">▸ $1</div>')
     .replace(/^\s*[-*] (.*)$/gm, '<div style="margin:2px 0 2px 12px">• $1</div>')

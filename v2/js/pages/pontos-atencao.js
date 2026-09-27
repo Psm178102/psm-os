@@ -20,7 +20,7 @@ let _notes = [];
 let _notesPending = false;
 
 const TERMINAIS = new Set(['aprovado', 'concluido']); // captação encerrada
-const PRIO = { alta: { lbl: 'Alta', cor: '#dc2626' }, media: { lbl: 'Média', cor: '#d97706' }, baixa: { lbl: 'Baixa', cor: '#2563eb' } };
+const PRIO = { alta: { lbl: 'Alta', cor: '#dc2626' }, media: { lbl: 'Média', cor: '#d97706' }, baixa: { lbl: 'Baixa', cor: '#806d50' } };
 
 export async function pagePontosAtencao(ctx, root) {
   _root = root;
@@ -231,11 +231,11 @@ function render(signals) {
       <div class="flex gap-3 mt-3" style="flex-wrap:wrap">
         ${sumCard('🔴 Críticos', crit.length, '#dc2626')}
         ${sumCard('🟡 Atenção', warn.length, '#d97706')}
-        ${sumCard('📋 Total', total, '#2563eb')}
+        ${sumCard('📋 Total', total, '#806d50')}
       </div>
 
       ${total === 0 ? `
-        <div style="text-align:center;padding:42px 20px;margin-top:16px;background:linear-gradient(135deg,rgba(22,163,74,.10),transparent);border:1px solid rgba(22,163,74,.3);border-radius:14px">
+        <div style="text-align:center;padding:42px 20px;margin-top:16px;background:linear-gradient(135deg,rgba(22,163,74,.10),transparent);border:1px solid var(--ok);border-radius:var(--radius-lg)">
           <div style="font-size:46px">✅</div>
           <h3 style="margin:8px 0 4px">Tudo sob controle</h3>
           <p class="muted" style="margin:0">Nenhum ponto de atenção detectado agora. As metas, captações, integrações e a equipe estão dentro do esperado.</p>
@@ -285,10 +285,10 @@ function noteRow(n) {
   const p = PRIO[n.prioridade] || PRIO.media;
   const done = n.status === 'resolvido';
   return `
-    <div style="display:flex;gap:11px;align-items:flex-start;background:var(--bg-3);border-left:4px solid ${done ? '#16a34a' : p.cor};border-radius:10px;padding:11px 13px">
+    <div style="display:flex;gap:11px;align-items:flex-start;background:var(--bg-3);border-left:4px solid ${done ? 'var(--ok)' : p.cor};border-radius:var(--radius-md);padding:11px 13px">
       <div style="flex:1;min-width:0">
-        <div style="font-weight:800;font-size:13.5px;${done ? 'text-decoration:line-through;opacity:.7' : ''}">
-          <span class="cap-chip" style="background:${p.cor}1f;color:${p.cor};font-size:10px;font-weight:700;padding:1px 7px;border-radius:999px">${p.lbl}</span>
+        <div style="font-weight:600;font-size:13px;${done ? 'text-decoration:line-through;opacity:.7' : ''}">
+          <span class="cap-chip" style="background:${p.cor}1f;color:${p.cor};font-size:11px;font-weight:600;padding:1px 7px;border-radius:var(--radius-full)">${p.lbl}</span>
           ${esc(n.titulo)}
         </div>
         ${n.texto ? `<div class="tiny muted" style="margin-top:3px;line-height:1.45;white-space:pre-wrap">${esc(n.texto)}</div>` : ''}
@@ -321,13 +321,13 @@ function openNoteForm(n) {
           <button class="btn btn-ghost btn-sm" id="pa-x">✕</button>
         </div>
         <div style="display:grid;gap:10px;margin-top:12px">
-          <div><label class="tiny muted" style="font-weight:700">Título</label>
+          <div><label class="tiny muted" style="font-weight:600">Título</label>
             <input id="pa-f-titulo" class="input" value="${esc(n.titulo || '')}" placeholder="Ex.: Renegociar contrato do proprietário X" style="width:100%" /></div>
-          <div><label class="tiny muted" style="font-weight:700">Prioridade</label>
+          <div><label class="tiny muted" style="font-weight:600">Prioridade</label>
             <select id="pa-f-prio" class="input" style="width:100%">
               ${Object.entries(PRIO).map(([v, o]) => `<option value="${v}"${(n.prioridade || 'media') === v ? ' selected' : ''}>${o.lbl}</option>`).join('')}
             </select></div>
-          <div><label class="tiny muted" style="font-weight:700">Detalhe</label>
+          <div><label class="tiny muted" style="font-weight:600">Detalhe</label>
             <textarea id="pa-f-texto" class="input" rows="4" style="width:100%" placeholder="Contexto, o que precisa ser feito, prazo…">${esc(n.texto || '')}</textarea></div>
         </div>
         <div id="pa-f-err" class="tiny" style="color:var(--err);margin-top:8px"></div>
@@ -384,10 +384,10 @@ function sigRow(s) {
   const cor = s.sev === 'crit' ? '#dc2626' : '#d97706';
   const dot = s.sev === 'crit' ? '🔴' : '🟡';
   return `
-    <div style="display:flex;gap:11px;align-items:flex-start;background:var(--bg-3);border-left:4px solid ${cor};border-radius:10px;padding:11px 13px">
+    <div style="display:flex;gap:11px;align-items:flex-start;background:var(--bg-3);border-left:4px solid ${cor};border-radius:var(--radius-md);padding:11px 13px">
       <div style="font-size:16px;line-height:1.2">${dot}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-weight:800;font-size:13.5px">${s.icon} ${esc(s.title)}</div>
+        <div style="font-weight:600;font-size:13px">${s.icon} ${esc(s.title)}</div>
         <div class="tiny muted" style="margin-top:2px;line-height:1.45">${esc(s.detail)}</div>
       </div>
       ${s.href ? `<a href="${s.href}" class="btn btn-ghost btn-sm" style="white-space:nowrap;align-self:center">${esc(s.hrefLabel || 'Abrir')} →</a>` : ''}
@@ -397,8 +397,8 @@ function sigRow(s) {
 function sumCard(label, n, color) {
   return `
     <div style="flex:1;min-width:120px;background:var(--bg-3);border-radius:var(--r-md);padding:12px 16px;border-left:4px solid ${color}">
-      <div class="tiny muted" style="text-transform:uppercase;letter-spacing:1px;font-weight:700">${label}</div>
-      <div style="font-size:30px;font-weight:900;color:${color}">${n}</div>
+      <div class="tiny muted" style="text-transform:uppercase;letter-spacing:1px;font-weight:600">${label}</div>
+      <div style="font-size:26px;font-weight:600;color:${color}">${n}</div>
     </div>`;
 }
 

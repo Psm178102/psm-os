@@ -36,7 +36,7 @@
   --psm-gold:       var(--accent-ink);
   --psm-gold-2:     var(--accent-ink);
   --psm-red:        #dc2626;
-  --psm-blue:       #3b82f6;
+  --psm-blue:       #806d50;
   --psm-green:      #10b981;
   --psm-purple:     #a855f7;
 
@@ -73,30 +73,30 @@
   /* v86.83: tons que estavam fixos no código das páginas. No CLARO valem
      exatamente o hex antigo (nada muda); no ESCURO ganham versão legível. */
   --roxo:           #7c3aed;
-  --indigo:         #4f46e5;
+  --indigo:         #6d3fd1;
   --err-forte:      #b91c1c;
   --warn-escuro:    #b45309;
   --ambar-escuro:   #a16207;
   --err-suave:      #ef4444;
   --err-claro:      #f87171;
-  --ciano:          #0891b2;
+  --ciano:          #806d50;
   --ok-escuro:      #166534;
-  --azul-claro:     #3b82f6;
-  --azul-ceu:       #0ea5e9;
+  --azul-claro:     #806d50;
+  --azul-ceu:       #806d50;
   --marrom:         #78350f;
   --ok-medio:       #15803d;
-  --violeta:        #6366f1;
-  --navy-txt:       #0b1f3a;
-  --azul-forte:     #1e40af;
+  --violeta:        #6d3fd1;
+  --navy-txt:       #3d3a33;
+  --azul-forte:     #6b5a40;
   --rosa:           #e1306c;
   --verde-esmeralda:#047857;
   --rosa-forte:     #be185d;
   --lilas:          #a855f7;
   --verde-musgo:    #22392e;
   --rosa-suave:     #fb7185;
-  --azul-medio:     #1d4ed8;
+  --azul-medio:     #6b5a40;
   --violeta-claro:  #8b5cf6;
-  --azul-escuro:    #0369a1;
+  --azul-escuro:    #6b5a40;
   --amarelo-ouro:   #ca8a04;
   --laranja:        #ea580c;
 
@@ -173,30 +173,30 @@
   --err:            #f06464;
   --info:           #bdb8ac;
   --roxo:           #a78bfa;
-  --indigo:         #818cf8;
+  --indigo:         #b69cf7;
   --err-forte:      #f87171;
   --warn-escuro:    #fbbf24;
   --ambar-escuro:   #fcd34d;
   --err-suave:      #f87171;
   --err-claro:      #fca5a5;
-  --ciano:          #22d3ee;
+  --ciano:          #c9b48f;
   --ok-escuro:      #4ade80;
-  --azul-claro:     #60a5fa;
-  --azul-ceu:       #38bdf8;
+  --azul-claro:     #c9b48f;
+  --azul-ceu:       #c9b48f;
   --marrom:         #fcd34d;
   --ok-medio:       #4ade80;
-  --violeta:        #a5b4fc;
-  --navy-txt:       #cbd5e1;
-  --azul-forte:     #93c5fd;
+  --violeta:        #b69cf7;
+  --navy-txt:       #e6dfcf;
+  --azul-forte:     #d6c4a3;
   --rosa:           #f472b6;
   --verde-esmeralda:#34d399;
   --rosa-forte:     #f472b6;
   --lilas:          #c4b5fd;
   --verde-musgo:    #86efac;
   --rosa-suave:     #fda4af;
-  --azul-medio:     #93c5fd;
+  --azul-medio:     #d6c4a3;
   --violeta-claro:  #c4b5fd;
-  --azul-escuro:    #7dd3fc;
+  --azul-escuro:    #d6c4a3;
   --amarelo-ouro:   #fbbf24;
   --laranja:        #fb923c;
 

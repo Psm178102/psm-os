@@ -13,7 +13,7 @@ const DISMISS_KEY = 'psm.tl.dismissed';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const dismissed = () => { try { return new Set(JSON.parse(localStorage.getItem(DISMISS_KEY) || '[]')); } catch (_) { return new Set(); } };
 const setDismissed = s => { try { localStorage.setItem(DISMISS_KEY, JSON.stringify([...s].slice(-200))); } catch (_) {} };
-const CORES = ['#0f172a', '#2563eb', '#16a34a', '#d97706', '#dc2626', '#7c3aed'];
+const CORES = ['#0f172a', '#806d50', '#16a34a', '#d97706', '#dc2626', '#7c3aed'];
 
 function rel(iso) {
   if (!iso) return '';
@@ -60,14 +60,14 @@ function render() {
   if (!vis.length && !_canManage) { _bar.innerHTML = ''; _bar.style.display = 'none'; return; }
   _bar.style.display = '';
   if (!vis.length) {           // sócio sem recados ativos → só o botão de criar
-    _bar.innerHTML = `<div class="tl-strip" style="border-left-color:#94a3b8">
+    _bar.innerHTML = `<div class="tl-strip" style="border-left-color:var(--border-strong)">
       <span class="tl-ico">📣</span><span class="tl-txt muted">Sem recados ativos.</span>
       <button class="tl-new" id="tl-new">＋ Novo recado</button></div>`;
     wire(); return;
   }
   // letreiro estilo rodapé de jornal: todos os recados emendados, rolando sem parar
   const seg = vis.map(it => `<span class="tl-item"><span class="tl-dot" style="background:${esc(it.cor || '#0f172a')}"></span><b>${esc(it.texto)}</b><span class="tl-meta">— ${esc(it.autor || 'Diretoria')} · ${rel(it.criado_em)}${it.expira_em ? ' · ' + relAte(it.expira_em) : ''}</span></span>`).join('');
-  _bar.innerHTML = `<div class="tl-strip" style="border-left-color:${esc(vis[0].cor || '#0f172a')}">
+  _bar.innerHTML = `<div class="tl-strip" style="border-left-color:${esc(vis[0].cor || 'var(--border)')}">
     <span class="tl-ico">📣</span>
     <div class="tl-marquee" id="tl-mq"><div class="tl-track"><span class="tl-half">${seg}</span></div></div>
     <button class="tl-more" id="tl-more" title="Ver lista de recados">${vis.length}</button>
@@ -94,7 +94,7 @@ function startMarquee() {
 }
 
 function rowHTML(it) {
-  return `<div class="tl-row" style="border-left-color:${esc(it.cor || '#0f172a')}">
+  return `<div class="tl-row" style="border-left-color:${esc(it.cor || 'var(--border)')}">
     <div style="flex:1;min-width:0"><b>${esc(it.texto)}</b><div class="tl-meta">${esc(it.autor || 'Diretoria')} · ${rel(it.criado_em)}${it.expira_em ? ' · ' + relAte(it.expira_em) : ' · fixo'}</div></div>
     ${_canManage ? `<button class="tl-del" data-del="${esc(it.id)}" title="Excluir">🗑</button>` : ''}
     <button class="tl-xrow" data-x="${esc(it.id)}" title="Dispensar">✕</button>
@@ -122,14 +122,14 @@ function compose() {
   const ov = document.createElement('div');
   ov.id = 'tl-ov';
   ov.style.cssText = 'position:fixed;inset:0;z-index:100001;background:rgba(15,23,42,.6);backdrop-filter:blur(2px);display:flex;align-items:flex-start;justify-content:center;padding:60px 16px';
-  ov.innerHTML = `<div style="width:520px;max-width:96vw;background:var(--bg-2,#fff);color:var(--ink,#0f172a);border:1px solid var(--bd);border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.4);padding:16px 18px">
-    <div class="flex items-center" style="justify-content:space-between;margin-bottom:8px"><b style="font-size:15px">📣 Novo recado na timeline</b><button class="btn btn-ghost btn-sm" id="tl-cx">✕</button></div>
+  ov.innerHTML = `<div style="width:520px;max-width:96vw;background:var(--bg-2,#fff);color:var(--ink,#0f172a);border:1px solid var(--bd);border-radius:var(--radius-lg);box-shadow:var(--shadow-1);padding:16px 18px">
+    <div class="flex items-center" style="justify-content:space-between;margin-bottom:8px"><b style="font-size:14px">📣 Novo recado na timeline</b><button class="btn btn-ghost btn-sm" id="tl-cx">✕</button></div>
     <label class="tiny muted">Recado</label>
     <textarea id="tl-txt" class="input" rows="3" maxlength="500" placeholder="Ex.: Reunião geral hoje às 18h na Arena. Presença obrigatória!"></textarea>
     <div class="flex gap-2 mt-2" style="flex-wrap:wrap;align-items:flex-end">
-      <div style="margin-bottom:8px"><label class="tiny" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700">
+      <div style="margin-bottom:8px"><label class="tiny" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600">
         <input type="checkbox" id="tl-tv"> 📺 Exibir em TELA CHEIA na TV da Arena (enquanto o recado valer)</label></div>
-      <div><label class="tiny muted">Cor</label><div id="tl-cores" style="display:flex;gap:6px;margin-top:4px">${CORES.map((c, i) => `<span data-cor="${c}" style="width:22px;height:22px;border-radius:6px;background:${c};cursor:pointer;border:2px solid ${i === 0 ? '#fff' : 'transparent'};box-shadow:0 0 0 1px var(--bd)"></span>`).join('')}</div></div>
+      <div><label class="tiny muted">Cor</label><div id="tl-cores" style="display:flex;gap:6px;margin-top:4px">${CORES.map((c, i) => `<span data-cor="${c}" style="width:22px;height:22px;border-radius:var(--radius-sm);background:${c};cursor:pointer;border:2px solid ${i === 0 ? '#fff' : 'transparent'};box-shadow:0 0 0 1px var(--bd)"></span>`).join('')}</div></div>
       <div style="flex:1;min-width:160px"><label class="tiny muted">Ficar visível por</label>
         <select id="tl-dur" class="input">
           <option value="6">6 horas</option><option value="24" selected>24 horas</option>

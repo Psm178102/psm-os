@@ -116,7 +116,7 @@ function render() {
 function tile(lbl, val, sub, cor, filtro) {
   return `<div ${filtro ? `data-filtro="${filtro}" style="cursor:pointer;` : 'style="'}background:var(--bg-3);border-radius:8px;padding:10px;border-top:3px solid ${cor}">
     <div class="tiny muted" style="text-transform:uppercase;letter-spacing:.5px">${lbl}</div>
-    <div style="font-size:22px;font-weight:800;color:${cor}">${val}</div>${sub ? `<div class="tiny muted">${sub}</div>` : ''}</div>`;
+    <div style="font-size:20px;font-weight:600;color:${cor}">${val}</div>${sub ? `<div class="tiny muted">${sub}</div>` : ''}</div>`;
 }
 
 function listaHTML() {
@@ -134,8 +134,8 @@ function listaHTML() {
     const fechado = _fechados.has(s);
     return `<div class="card mt-2" style="padding:10px 12px">
       <div class="flex" data-setor="${esc(s)}" style="justify-content:space-between;align-items:center;cursor:pointer">
-        <div style="font-weight:800">${fechado ? '▸' : '▾'} ${icoSetor(s)} ${esc(s)} <span class="tiny muted" style="font-weight:400">· ${itens.length} tarefa(s)</span></div>
-        <div class="flex gap-1" style="align-items:center">${atras ? `<span class="tiny" style="color:#dc2626;font-weight:700">⚠ ${atras} atrasada(s)</span>` : ''}
+        <div style="font-weight:600">${fechado ? '▸' : '▾'} ${icoSetor(s)} ${esc(s)} <span class="tiny muted" style="font-weight:400">· ${itens.length} tarefa(s)</span></div>
+        <div class="flex gap-1" style="align-items:center">${atras ? `<span class="tiny" style="color:var(--err);font-weight:600">⚠ ${atras} atrasada(s)</span>` : ''}
           <button class="btn btn-ghost btn-sm" data-add-setor="${esc(s)}" title="Nova tarefa neste setor">➕</button></div>
       </div>
       ${fechado ? '' : itens.map(itemHTML).join('')}
@@ -145,23 +145,23 @@ function listaHTML() {
 
 function itemHTML(t) {
   const h = hoje(), feita = t.status === 'concluida', canc = t.status === 'cancelada';
-  let prazo = '<span class="tiny" style="color:#d97706">sem prazo</span>';
+  let prazo = '<span class="tiny" style="color:var(--warn)">sem prazo</span>';
   if (t.prazo) {
     const atras = !feita && !canc && t.prazo < h, eh = t.prazo === h;
-    prazo = `<span class="tiny" style="font-weight:700;color:${atras ? '#dc2626' : eh ? '#d97706' : 'inherit'}">${atras ? '⚠ ' : eh ? '● hoje · ' : '📅 '}${t.prazo.split('-').reverse().join('/')}</span>`;
+    prazo = `<span class="tiny" style="font-weight:600;color:${atras ? 'var(--err)' : eh ? 'var(--warn)' : 'inherit'}">${atras ? '⚠ ' : eh ? '● hoje · ' : '📅 '}${t.prazo.split('-').reverse().join('/')}</span>`;
   }
   const p = PRIOR[t.prioridade] || PRIOR.media;
   return `<div class="flex gap-2" style="align-items:flex-start;padding:7px 0;border-top:1px dashed var(--border);${feita || canc ? 'opacity:.55' : ''}">
     <input type="checkbox" data-ok="${esc(t.id)}" ${feita ? 'checked' : ''} ${canc ? 'disabled' : ''} style="margin-top:3px" title="${feita ? 'reabrir' : 'marcar como feita'}">
     <div style="flex:1;min-width:0">
       <div style="font-size:13px;font-weight:600;${feita ? 'text-decoration:line-through' : ''}">${esc(t.titulo)}
-        <span style="font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:99px;background:${p[1]}1f;color:${p[1]};margin-left:4px">${p[0]}</span>
+        <span style="font-size:11px;font-weight:600;padding:1px 7px;border-radius:var(--radius-full);background:${p[1]}1f;color:${p[1]};margin-left:4px">${p[0]}</span>
         ${canc ? '<span class="tiny muted"> · cancelada</span>' : ''}</div>
       ${t.descricao ? `<div class="tiny muted">${esc(t.descricao)}</div>` : ''}
       <div class="flex gap-2 tiny" style="flex-wrap:wrap;margin-top:2px">
-        <span>${!t.responsavel ? '<span style="color:#d97706">👤 sem responsável</span>'
-          : inativo(t.responsavel) && aberta(t) ? `<span style="color:#dc2626">👤 ${esc(nome(t.responsavel))} — saiu da empresa, reatribuir</span>`
-          : '👤 ' + esc(nome(t.responsavel))}${coDe(t).map(id => `, ${inativo(id) && aberta(t) ? `<span style="color:#dc2626">${esc(nome(id))} (saiu)</span>` : esc(nome(id))}`).join('')}</span>${prazo}
+        <span>${!t.responsavel ? '<span style="color:var(--warn)">👤 sem responsável</span>'
+          : inativo(t.responsavel) && aberta(t) ? `<span style="color:var(--err)">👤 ${esc(nome(t.responsavel))} — saiu da empresa, reatribuir</span>`
+          : '👤 ' + esc(nome(t.responsavel))}${coDe(t).map(id => `, ${inativo(id) && aberta(t) ? `<span style="color:var(--err)">${esc(nome(id))} (saiu)</span>` : esc(nome(id))}`).join('')}</span>${prazo}
       </div>
     </div>
     <button class="btn btn-ghost btn-sm" data-ed="${esc(t.id)}" title="Editar">✏️</button>
@@ -176,7 +176,7 @@ function form(t, setorPadrao) {
   const setores = [...new Set([...listaSetores(), ...(x.categoria ? [setorDe(x)] : [])])];
   _co = t ? coDe(t) : [];
   el.innerHTML = `<div class="card mt-3" style="border:2px solid var(--psm-navy)">
-    <div class="flex" style="justify-content:space-between"><div style="font-weight:800">${t ? '✏️ Editar tarefa' : '➕ Nova tarefa'}</div>
+    <div class="flex" style="justify-content:space-between"><div style="font-weight:600">${t ? '✏️ Editar tarefa' : '➕ Nova tarefa'}</div>
       <button class="btn btn-ghost btn-sm" id="ck-x">✕</button></div>
     <div style="display:grid;gap:8px;margin-top:8px">
       <input id="ck-tit" class="input" placeholder="O que precisa ser feito" value="${esc(x.titulo)}">
@@ -193,7 +193,7 @@ function form(t, setorPadrao) {
           ${Object.entries(PRIOR).map(([k, v]) => `<option value="${k}" ${(x.prioridade || 'media') === k ? 'selected' : ''}>${v[0]}</option>`).join('')}</select></div>
       </div>
       <div class="flex gap-1">
-        ${t && socio() ? '<button class="btn btn-ghost btn-sm" id="ck-del" style="color:#dc2626">🗑 Excluir</button>' : ''}
+        ${t && socio() ? '<button class="btn btn-ghost btn-sm" id="ck-del" style="color:var(--err)">🗑 Excluir</button>' : ''}
         ${t && t.status !== 'cancelada' ? '<button class="btn btn-ghost btn-sm" id="ck-canc">Cancelar tarefa</button>' : ''}
         <button class="btn btn-primary" id="ck-ok" style="margin-left:auto">💾 Salvar</button>
       </div>
@@ -216,7 +216,7 @@ function form(t, setorPadrao) {
 
 function desenharCo() {
   const principal = document.getElementById('ck-rsp').value;
-  document.getElementById('ck-cos').innerHTML = _co.map(id => `<span class="tiny" style="display:inline-flex;align-items:center;gap:4px;background:var(--bg-3);border:1px solid var(--border);border-radius:99px;padding:2px 4px 2px 9px;font-weight:600">${esc(nome(id))}<button type="button" class="btn btn-ghost btn-sm" data-rmco="${esc(id)}" style="padding:0 5px;min-height:0" aria-label="Remover ${esc(nome(id))}">✕</button></span>`).join('')
+  document.getElementById('ck-cos').innerHTML = _co.map(id => `<span class="tiny" style="display:inline-flex;align-items:center;gap:4px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-full);padding:2px 4px 2px 9px;font-weight:600">${esc(nome(id))}<button type="button" class="btn btn-ghost btn-sm" data-rmco="${esc(id)}" style="padding:0 5px;min-height:0" aria-label="Remover ${esc(nome(id))}">✕</button></span>`).join('')
     || '<span class="tiny muted">ninguém além do responsável</span>';
   document.getElementById('ck-co-add').innerHTML = '<option value="">+ adicionar pessoa…</option>'
     + _users.filter(u => u.id !== principal && !_co.includes(u.id)).map(u => `<option value="${esc(u.id)}">${esc(u.name)}</option>`).join('');
@@ -229,7 +229,7 @@ function formSetores() {
   const el = document.getElementById('ck-form');
   const lista = listaSetores();
   el.innerHTML = `<div class="card mt-3" style="border:2px solid var(--psm-navy)">
-    <div class="flex" style="justify-content:space-between"><div style="font-weight:800">⚙️ Setores do Checklist</div>
+    <div class="flex" style="justify-content:space-between"><div style="font-weight:600">⚙️ Setores do Checklist</div>
       <button class="btn btn-ghost btn-sm" id="ck-x">✕</button></div>
     <p class="tiny muted" style="margin:4px 0 8px">Renomear troca o setor em todas as tarefas que já usam esse nome. Remover tira só da lista — as tarefas antigas continuam com o nome.</p>
     <div id="ck-set-rows" style="display:grid;gap:6px">

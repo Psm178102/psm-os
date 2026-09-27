@@ -110,7 +110,7 @@ function renderDrawer() {
   if (!_drawerEl) return;
   _drawerEl.innerHTML = `
     <div style="padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
-      <h3 style="margin:0;font-size:14px;flex:1">🔔 Notificações ${_unread ? `<span class="tiny" style="background:#dc2626;color:#fff;padding:2px 8px;border-radius:var(--r-full);font-weight:700">${_unread} novas</span>` : ''}</h3>
+      <h3 style="margin:0;font-size:14px;flex:1">🔔 Notificações ${_unread ? `<span class="tiny" style="background:var(--err-soft);color:var(--err);padding:2px 8px;border-radius:var(--r-full);font-weight:600">${_unread} novas</span>` : ''}</h3>
       ${_unread > 0 ? '<button class="btn btn-ghost tiny" id="notif-mark-all" style="padding:4px 10px">✓ Marcar todas</button>' : ''}
     </div>
     <div style="flex:1;overflow-y:auto;padding:8px">
@@ -129,7 +129,7 @@ function notifRow(n) {
   const ts = relTime(n.created_at);
   const unreadStyle = !n.lida ? 'background:rgba(37,99,235,.14);border-left:3px solid var(--info)' : 'background:var(--bg-3);border-left:3px solid transparent';
   return `
-    <div data-notif="${n.id}" style="${unreadStyle};margin-bottom:6px;padding:10px 12px;border-radius:var(--r-sm);cursor:pointer;font-size:12.5px">
+    <div data-notif="${n.id}" style="${unreadStyle};margin-bottom:6px;padding:10px 12px;border-radius:var(--r-sm);cursor:pointer;font-size:13px">
       <div style="display:flex;gap:8px;align-items:flex-start">
         <span style="font-size:16px">${ico}</span>
         <div style="flex:1;min-width:0">
@@ -137,7 +137,7 @@ function notifRow(n) {
           ${n.body ? `<div class="tiny muted" style="margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(n.body)}</div>` : ''}
           <div class="tiny muted" style="margin-top:4px">${ts}</div>
         </div>
-        ${!n.lida ? '<span style="width:8px;height:8px;border-radius:50%;background:#2563eb;margin-top:6px"></span>' : ''}
+        ${!n.lida ? '<span style="width:8px;height:8px;border-radius:50%;background:var(--accent-soft);margin-top:6px"></span>' : ''}
       </div>
     </div>
   `;

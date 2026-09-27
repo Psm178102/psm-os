@@ -55,11 +55,11 @@ function save() {
 function render() {
   _root.innerHTML = `
     <div class="card">
-      <div style="background:linear-gradient(135deg,#0891b2 0%,#0e7490 100%);color:#fff;padding:20px;border-radius:14px 14px 0 0;margin:-16px -16px 16px">
+      <div style="background:var(--surface-2);color:var(--ink);padding:20px;border-radius:14px 14px 0 0;margin:-16px -16px 16px">
         <div class="flex" style="align-items:center;gap:14px">
-          <div style="width:56px;height:56px;border-radius:14px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:28px">👔</div>
+          <div style="width:56px;height:56px;border-radius:var(--radius-lg);background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:26px">👔</div>
           <div>
-            <div style="font-size:22px;font-weight:900">Sr. Gerência</div>
+            <div style="font-size:20px;font-weight:600">Sr. Gerência</div>
             <div style="opacity:.85;font-size:13px">Conselheiro de Gestão Operacional · Treina líderes e organiza operação</div>
           </div>
         </div>
@@ -73,11 +73,11 @@ function render() {
         </div>
 
         <div>
-          <div style="background:var(--bg-3);border-radius:10px;padding:14px;margin-bottom:10px;display:flex;flex-direction:column;height:520px">
+          <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:14px;margin-bottom:10px;display:flex;flex-direction:column;height:520px">
             <div id="srg-msgs" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:4px">
               ${_messages.length === 0 ? `
                 <div style="text-align:center;padding:30px;color:var(--muted)">
-                  <div style="font-size:42px;margin-bottom:10px">👔</div>
+                  <div style="font-size:36px;margin-bottom:10px">👔</div>
                   <div>Pergunte sobre gestão, processos, equipe, conflitos…</div>
                   <div class="tiny mt-2 muted">Exemplos:</div>
                   <div class="tiny" style="font-style:italic;margin:4px 0">"Como melhorar o ritmo da equipe MAP?"</div>
@@ -122,17 +122,17 @@ function renderInsights() {
 
   wrap.innerHTML = `
     <div class="card" style="background:var(--bg-3);padding:12px;margin-bottom:10px">
-      <div style="font-weight:800;font-size:13px;margin-bottom:8px;color:var(--ciano)">📊 Status Operacional</div>
+      <div style="font-weight:600;font-size:13px;margin-bottom:8px;color:var(--ciano)">📊 Status Operacional</div>
       <div style="display:flex;flex-direction:column;gap:6px;font-size:12px">
         <div class="flex" style="justify-content:space-between"><span class="muted">Corretores ativos:</span><b>${corretores.length}</b></div>
-        <div class="flex" style="justify-content:space-between"><span class="muted">Vendas no mês:</span><b style="color:#22c55e">${vendasMes || 0}</b></div>
+        <div class="flex" style="justify-content:space-between"><span class="muted">Vendas no mês:</span><b style="color:var(--ok)">${vendasMes || 0}</b></div>
         <div class="flex" style="justify-content:space-between"><span class="muted" title="corretores com meta no mês e menos de 50% dela atingida até agora">Abaixo de 50% da meta (até agora):</span><b style="color:var(--err-suave)">${baixos.length}</b></div>
       </div>
     </div>
 
     ${baixos.length > 0 ? `
-      <div class="card" style="background:rgba(239,68,68,.1);border:1px solid #ef444440;padding:12px;margin-bottom:10px">
-        <div style="font-weight:800;font-size:12px;margin-bottom:6px;color:var(--err-suave)">⚠️ Alertas</div>
+      <div class="card" style="background:var(--err-soft);border:1px solid var(--err);padding:12px;margin-bottom:10px">
+        <div style="font-weight:600;font-size:12px;margin-bottom:6px;color:var(--err-suave)">⚠️ Alertas</div>
         <div style="font-size:11px;line-height:1.6">
           ${baixos.slice(0, 3).map(c => `<div>• ${esc(c.name)}: ${(c.vgv_atingido / Math.max(c.meta_vgv, 1) * 100).toFixed(0)}%</div>`).join('')}
           ${baixos.length > 3 ? `<div class="muted">+ ${baixos.length - 3} corretores…</div>` : ''}
@@ -141,11 +141,11 @@ function renderInsights() {
     ` : ''}
 
     <div class="card" style="background:var(--bg-3);padding:12px">
-      <div style="font-weight:800;font-size:13px;margin-bottom:8px;color:var(--ciano)">🕒 Última Atividade</div>
+      <div style="font-weight:600;font-size:13px;margin-bottom:8px;color:var(--ciano)">🕒 Última Atividade</div>
       ${auditos.length === 0 ? '<div class="muted tiny">—</div>' : auditos.map(a => `
         <div class="tiny" style="padding:4px 0;border-bottom:1px solid var(--bd)">
           <b>${esc(a.actor_name || '?')}</b> · ${esc(a.action)}
-          <div class="muted" style="font-size:10px">${new Date(a.ts).toLocaleString('pt-BR')}</div>
+          <div class="muted" style="font-size:11px">${new Date(a.ts).toLocaleString('pt-BR')}</div>
         </div>
       `).join('')}
     </div>
@@ -156,9 +156,9 @@ function bubble(m) {
   const isUser = m.role === 'user';
   return `
     <div style="display:flex;${isUser ? 'justify-content:flex-end' : ''};gap:8px">
-      ${!isUser ? '<div style="width:32px;height:32px;border-radius:50%;background:#0891b2;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0">👔</div>' : ''}
-      <div style="max-width:75%;background:${isUser ? 'var(--psm-navy)' : 'var(--bg-2)'};color:${isUser ? '#fff' : 'var(--tx)'};padding:10px 14px;border-radius:10px;font-size:13px;line-height:1.5;white-space:pre-wrap;word-wrap:break-word">${esc(m.content)}</div>
-      ${isUser ? `<div style="width:32px;height:32px;border-radius:50%;background:var(--psm-navy);color:var(--psm-cream);display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">${esc((auth.user()?.ini || '?').toUpperCase())}</div>` : ''}
+      ${!isUser ? '<div style="width:32px;height:32px;border-radius:50%;background:var(--accent-soft);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;flex-shrink:0">👔</div>' : ''}
+      <div style="max-width:75%;background:${isUser ? 'var(--psm-navy)' : 'var(--bg-2)'};color:${isUser ? '#fff' : 'var(--tx)'};padding:10px 14px;border-radius:var(--radius-md);font-size:13px;line-height:1.5;white-space:pre-wrap;word-wrap:break-word">${esc(m.content)}</div>
+      ${isUser ? `<div style="width:32px;height:32px;border-radius:50%;background:var(--psm-navy);color:var(--psm-cream);display:flex;align-items:center;justify-content:center;font-weight:600;flex-shrink:0">${esc((auth.user()?.ini || '?').toUpperCase())}</div>` : ''}
     </div>
   `;
 }
@@ -210,7 +210,7 @@ async function loadMeuGerente() {
   if (!r || r.fora_do_escopo) return;   // sócio/financeiro: sem card (regra do Paulo)
   const d = r.dossie;
   box.innerHTML = `
-    <div class="card" style="margin:0 0 12px;border:1px solid var(--psm-navy,#1e2650)">
+    <div class="card" style="margin:0 0 12px;border:1px solid var(--psm-navy,var(--accent-ink))">
       <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:6px">
         <b>🤖 Meu Gerente — análise individual da semana</b>
         <span class="flex items-center gap-2">
@@ -218,7 +218,7 @@ async function loadMeuGerente() {
           <button class="btn btn-ghost btn-sm" id="srg-mg-gerar">${d ? '🔄 Atualizar' : '▶️ Gerar minha análise'}</button>
         </span>
       </div>
-      ${d ? `<div style="margin-top:10px;line-height:1.55;font-size:13.5px">${mdLite(d.texto)}</div>`
+      ${d ? `<div style="margin-top:10px;line-height:1.55;font-size:13px">${mdLite(d.texto)}</div>`
           : '<div class="tiny muted" style="margin-top:8px">Sua primeira análise chega automaticamente (ciclo semanal) — ou clique em Gerar.</div>'}
     </div>`;
   const b = box.querySelector('#srg-mg-gerar');

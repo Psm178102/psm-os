@@ -15,9 +15,9 @@ let _aba = 'funil', _editFaixas = false, _editFluxo = null; // id do fluxo em ed
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const brl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const ST = {
-  nova: ['🆕 Nova', '#64748b'], qualificada: ['⭐ Qualificada', '#2563eb'],
+  nova: ['🆕 Nova', '#64748b'], qualificada: ['⭐ Qualificada', '#806d50'],
   no_crm: ['🔗 No CRM', '#7c3aed'], vendida: ['💰 Vendida — prêmio a pagar', '#d97706'],
-  premio_aprovado: ['✔ Prêmio aprovado', '#0891b2'], premio_pago: ['✅ Prêmio pago', '#16a34a'],
+  premio_aprovado: ['✔ Prêmio aprovado', '#806d50'], premio_pago: ['✅ Prêmio pago', '#16a34a'],
   perdida: ['❌ Perdida', '#dc2626'],
 };
 
@@ -58,7 +58,7 @@ async function post(body, okMsg) {
 function faixasBox() {
   const fv = _d.faixas_venda || [], fl = _d.faixas_locacao || [];
   const fmt = ([teto, p], i) => `${i === 0 ? 'até' : ''} ${teto >= 999999999 ? 'acima' : 'R$ ' + Number(teto).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} → <b>${brl(p)}</b>`;
-  return `<div class="tiny muted" style="background:var(--bg-3);border-radius:10px;padding:8px 10px">
+  return `<div class="tiny muted" style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px">
     <div class="flex items-center" style="gap:8px">
       <b>💰 Faixas de prêmio:</b>
       <button class="btn btn-ghost btn-sm" id="ip-verfaixas" style="padding:1px 8px;font-size:11px;margin-left:auto">💰 Tabela completa</button>
@@ -73,17 +73,17 @@ function htmlFaixasAba() {
   if (_editFaixas) return `<div class="mt-2">${faixasEditor(fv, fl)}</div></div>`;
   const linhaV = ([teto, p], i) => {
     const de = i === 0 ? 0 : Number(fv[i - 1][0]) + 0.01;
-    return `<tr style="border-top:1px solid var(--bd,#eef2f7)">
+    return `<tr style="border-top:1px solid var(--bd,var(--border))">
       <td style="padding:8px 10px">${i === 0 ? 'até ' + brl(teto) : brl(de) + ' — ' + brl(teto)}</td>
-      <td style="padding:8px 10px;text-align:right;font-weight:900;color:var(--warn);font-size:15px">${brl(p)}</td>
+      <td style="padding:8px 10px;text-align:right;font-weight:600;color:var(--warn);font-size:14px">${brl(p)}</td>
     </tr>`;
   };
   const linhaL = ([teto, p], i) => {
     const de = i === 0 ? 0 : Number(fl[i - 1][0]) + 0.01;
     const faixa = teto >= 999999999 ? 'acima de ' + brl(fl[i - 1] ? fl[i - 1][0] : 0) : (i === 0 ? 'até ' + brl(teto) : brl(de) + ' — ' + brl(teto));
-    return `<tr style="border-top:1px solid var(--bd,#eef2f7)">
+    return `<tr style="border-top:1px solid var(--bd,var(--border))">
       <td style="padding:8px 10px">${faixa}</td>
-      <td style="padding:8px 10px;text-align:right;font-weight:900;color:var(--ciano);font-size:15px">${brl(p)}</td>
+      <td style="padding:8px 10px;text-align:right;font-weight:600;color:var(--ciano);font-size:14px">${brl(p)}</td>
     </tr>`;
   };
   const tabela = (titulo, sub, linhas, extra) => `
@@ -102,7 +102,7 @@ function htmlFaixasAba() {
     </div>
     <div class="flex mt-2" style="gap:10px;flex-wrap:wrap">
       ${tabela('🏠 VENDA', 'prêmio pelo VGV do imóvel vendido', fv.map(linhaV).join(''),
-        `<tr style="border-top:1px solid var(--bd,#eef2f7)"><td style="padding:8px 10px">acima de ${brl(fv.length ? fv[fv.length - 1][0] : 0)}</td><td style="padding:8px 10px;text-align:right;font-weight:800;color:var(--roxo)">personalizável (sócios)</td></tr>`)}
+        `<tr style="border-top:1px solid var(--bd,var(--border))"><td style="padding:8px 10px">acima de ${brl(fv.length ? fv[fv.length - 1][0] : 0)}</td><td style="padding:8px 10px;text-align:right;font-weight:600;color:var(--roxo)">personalizável (sócios)</td></tr>`)}
       ${tabela('🔑 LOCAÇÃO', 'prêmio pelo aluguel mensal do contrato fechado', fl.map(linhaL).join(''), '')}
     </div></div>`;
 }
@@ -116,13 +116,13 @@ function faixasEditor(fv, fl) {
       <input class="input fx-premio" type="number" min="0" value="${p}" style="width:100px;padding:3px 8px" title="Prêmio (R$)">
       <button class="btn btn-ghost btn-sm fx-del" type="button" style="color:var(--err);padding:1px 7px">×</button>
     </div>`;
-  return `<div style="background:var(--bg-3);border-radius:10px;padding:10px 12px">
+  return `<div style="background:var(--bg-3);border-radius:var(--radius-md);padding:10px 12px">
     <b class="tiny">✏️ Editar faixas de prêmio</b>
     <div class="tiny muted">Cada linha = "negócio até R$ X → prêmio R$ Y". Tetos em ordem crescente. Na VENDA, valor acima da última faixa fica como prêmio personalizável.</div>
-    <div class="tiny mt-2" style="font-weight:800">🏠 VENDA (por VGV)</div>
+    <div class="tiny mt-2" style="font-weight:600">🏠 VENDA (por VGV)</div>
     <div id="fx-venda">${fv.map((f, i) => linha('venda', f, i)).join('')}</div>
     <button class="btn btn-ghost btn-sm mt-1" id="fx-add-venda" type="button">+ faixa de venda</button>
-    <div class="tiny mt-2" style="font-weight:800">🔑 LOCAÇÃO (por aluguel mensal) <span class="muted" style="font-weight:400">— use teto 999999999 na última pra valer "acima de"</span></div>
+    <div class="tiny mt-2" style="font-weight:600">🔑 LOCAÇÃO (por aluguel mensal) <span class="muted" style="font-weight:400">— use teto 999999999 na última pra valer "acima de"</span></div>
     <div id="fx-locacao">${fl.map((f, i) => linha('locacao', f, i)).join('')}</div>
     <button class="btn btn-ghost btn-sm mt-1" id="fx-add-locacao" type="button">+ faixa de locação</button>
     <div class="flex gap-2 mt-2" style="justify-content:flex-end">
@@ -170,13 +170,13 @@ function wireFaixas() {
 function fluxoCard(f) {
   if (_editFluxo === f.id) return fluxoEditor(f);
   const passo = (p, i) => `
-    <div style="border-top:1px solid var(--bd,#eef2f7);padding:8px 0 6px">
+    <div style="border-top:1px solid var(--bd,var(--border));padding:8px 0 6px">
       <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
         <b class="tiny">${i + 1}. ${esc(p.titulo || 'Mensagem')}</b>
-        ${p.envio ? `<span class="tiny" style="background:#2563eb1a;color:var(--info);padding:1px 8px;border-radius:999px">⏱ ${esc(p.envio)}</span>` : ''}
+        ${p.envio ? `<span class="tiny" style="background:var(--accent-soft);color:var(--info);padding:1px 8px;border-radius:var(--radius-full)">⏱ ${esc(p.envio)}</span>` : ''}
         <button class="btn btn-ghost btn-sm ipf-copy" data-fluxo="${esc(f.id)}" data-passo="${i}" style="margin-left:auto;padding:2px 9px;font-size:11px">📋 Copiar</button>
       </div>
-      <div class="tiny" style="white-space:pre-wrap;background:var(--bg-3);border-radius:8px;padding:7px 9px;margin-top:4px">${esc(p.texto)}</div>
+      <div class="tiny" style="white-space:pre-wrap;background:var(--bg-3);border-radius:var(--radius-md);padding:7px 9px;margin-top:4px">${esc(p.texto)}</div>
     </div>`;
   return `<div class="card" style="margin:0 0 10px;padding:12px 14px">
     <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
@@ -191,7 +191,7 @@ function fluxoCard(f) {
 function fluxoEditor(f) {
   const novo = f.id === '__novo__';
   const passoEd = (p, i) => `
-    <div style="border-top:1px dashed var(--bd,#e2e8f0);padding:8px 0" data-passo-ed="${i}">
+    <div style="border-top:1px dashed var(--bd,var(--border));padding:8px 0" data-passo-ed="${i}">
       <div class="flex" style="gap:6px;flex-wrap:wrap">
         <input class="input pe-titulo" value="${esc(p.titulo || '')}" placeholder="Título do passo (ex.: Quebra-gelo)" style="flex:2;min-width:160px;padding:4px 8px">
         <input class="input pe-envio" value="${esc(p.envio || '')}" placeholder="Quando enviar (ex.: manhã / após resposta)" style="flex:1;min-width:150px;padding:4px 8px">
@@ -199,7 +199,7 @@ function fluxoEditor(f) {
       </div>
       <textarea class="input pe-texto" rows="2" style="margin-top:4px;resize:vertical" placeholder="Mensagem (use {nome} pro nome do cliente)">${esc(p.texto || '')}</textarea>
     </div>`;
-  return `<div class="card" style="margin:0 0 10px;padding:12px 14px;border:1px solid #2563eb55" id="ipf-editor">
+  return `<div class="card" style="margin:0 0 10px;padding:12px 14px;border:1px solid var(--accent-ink)" id="ipf-editor">
     <b class="tiny">${novo ? '➕ Novo fluxo' : '✏️ Editando fluxo'}</b>
     <div class="flex mt-1" style="gap:6px;flex-wrap:wrap">
       <input class="input fe-emoji" value="${esc(f.emoji || '💬')}" style="width:58px;padding:4px 8px" title="Emoji">
@@ -219,7 +219,7 @@ function fluxoEditor(f) {
 function htmlFluxos() {
   const fluxos = _d.fluxos || [];
   return `
-    <div class="tiny" style="background:#d977061a;color:var(--ambar-escuro);border-radius:10px;padding:8px 10px;font-weight:700">
+    <div class="tiny" style="background:var(--warn-soft);color:var(--ambar-escuro);border-radius:var(--radius-md);padding:8px 10px;font-weight:600">
       💡 Regra de ouro: UMA mensagem por vez, curta e pessoal. Espere a resposta antes do próximo passo — textão mata a conversa.
     </div>
     ${_d.can_edit ? '<div class="flex mt-2" style="justify-content:flex-end"><button class="btn btn-primary btn-sm" id="ipf-novo">➕ Novo fluxo</button></div>' : ''}
@@ -246,7 +246,7 @@ function wireFluxos() {
   const addPasso = () => {
     const box = ed.querySelector('#fe-passos');
     const div = document.createElement('div');
-    div.innerHTML = `<div style="border-top:1px dashed var(--bd,#e2e8f0);padding:8px 0" data-passo-ed="x">
+    div.innerHTML = `<div style="border-top:1px dashed var(--bd,var(--border));padding:8px 0" data-passo-ed="x">
       <div class="flex" style="gap:6px;flex-wrap:wrap">
         <input class="input pe-titulo" placeholder="Título do passo" style="flex:2;min-width:160px;padding:4px 8px">
         <input class="input pe-envio" placeholder="Quando enviar" style="flex:1;min-width:150px;padding:4px 8px">
@@ -314,10 +314,10 @@ function cardIndicacao(it) {
       <b>${esc(it.indicador_nome)}</b>
       <span class="tiny muted">indicou</span>
       <b>${esc(it.indicado_nome || '?')}</b>
-      <span class="badge" style="background:${cor}22;color:${cor};font-weight:700">${lbl}</span>
+      <span class="badge" style="background:${cor}22;color:${cor};font-weight:600">${lbl}</span>
       <span class="badge">${it.tipo === 'locacao' ? '🔑 Locação' : '🏠 Venda'}</span>
-      ${it.origem === 'nps_promotor' ? '<span class="badge" style="background:#7c3aed22;color:var(--roxo)">🌟 promotor NPS</span>' : ''}
-      ${it.premio != null ? `<b style="color:var(--warn)">🎁 ${brl(it.premio)}</b>` : (it.status === 'vendida' ? '<span class="badge" style="background:#d9770622;color:var(--warn)">prêmio personalizável</span>' : '')}
+      ${it.origem === 'nps_promotor' ? '<span class="badge" style="background:var(--accent-soft);color:var(--roxo)">🌟 promotor NPS</span>' : ''}
+      ${it.premio != null ? `<b style="color:var(--warn)">🎁 ${brl(it.premio)}</b>` : (it.status === 'vendida' ? '<span class="badge" style="background:var(--warn-soft);color:var(--warn)">prêmio personalizável</span>' : '')}
       <span style="margin-left:auto"></span>
       ${botoes(it)}
     </div>
@@ -335,11 +335,11 @@ function htmlFunil() {
   const vis = _filtro ? itens.filter(i => i.status === _filtro) : itens;
   return `
       <div class="flex mt-2" style="gap:8px;flex-wrap:wrap">
-        <div style="flex:1;min-width:120px;background:var(--bg-3);border-radius:10px;padding:8px 10px"><div class="tiny muted">🆕 Novas</div><div style="font-weight:900;font-size:18px">${k.nova || 0}</div></div>
-        <div style="flex:1;min-width:120px;background:var(--bg-3);border-radius:10px;padding:8px 10px"><div class="tiny muted">⭐ Qualificadas</div><div style="font-weight:900;font-size:18px">${k.qualificada || 0}</div></div>
-        <div style="flex:1;min-width:120px;background:var(--bg-3);border-radius:10px;padding:8px 10px"><div class="tiny muted">🔗 No CRM</div><div style="font-weight:900;font-size:18px">${k.no_crm || 0}</div></div>
-        <div style="flex:1;min-width:120px;background:var(--bg-3);border-radius:10px;padding:8px 10px;border-left:3px solid #d97706"><div class="tiny muted">💰 Prêmios a pagar</div><div style="font-weight:900;font-size:16px">${brl(k.premio_a_pagar)}</div></div>
-        <div style="flex:1;min-width:120px;background:var(--bg-3);border-radius:10px;padding:8px 10px;border-left:3px solid #16a34a"><div class="tiny muted">✅ Prêmios pagos</div><div style="font-weight:900;font-size:16px">${brl(k.premio_pago)}</div></div>
+        <div style="flex:1;min-width:120px;background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px"><div class="tiny muted">🆕 Novas</div><div style="font-weight:600;font-size:16px">${k.nova || 0}</div></div>
+        <div style="flex:1;min-width:120px;background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px"><div class="tiny muted">⭐ Qualificadas</div><div style="font-weight:600;font-size:16px">${k.qualificada || 0}</div></div>
+        <div style="flex:1;min-width:120px;background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px"><div class="tiny muted">🔗 No CRM</div><div style="font-weight:600;font-size:16px">${k.no_crm || 0}</div></div>
+        <div style="flex:1;min-width:120px;background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px;border-left:3px solid var(--warn)"><div class="tiny muted">💰 Prêmios a pagar</div><div style="font-weight:600;font-size:16px">${brl(k.premio_a_pagar)}</div></div>
+        <div style="flex:1;min-width:120px;background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px;border-left:3px solid var(--ok)"><div class="tiny muted">✅ Prêmios pagos</div><div style="font-weight:600;font-size:16px">${brl(k.premio_pago)}</div></div>
       </div>
       <div class="flex mt-2" style="gap:5px;flex-wrap:wrap">
         <button class="btn btn-sm ${_filtro === '' ? 'btn-primary' : 'btn-ghost'} ip-f" data-f="">Todas (${itens.length})</button>
@@ -394,7 +394,7 @@ function render() {
 function desenhaForm() {
   const host = _root.querySelector('#ip-form');
   if (!_formAberto) { host.innerHTML = ''; return; }
-  host.innerHTML = `<div style="background:var(--bg-3);border-radius:10px;padding:10px">
+  host.innerHTML = `<div style="background:var(--bg-3);border-radius:var(--radius-md);padding:10px">
     <div class="flex" style="gap:8px;flex-wrap:wrap">
       <input class="input" id="ipf-indicador" placeholder="Quem indicou *" style="flex:1;min-width:160px">
       <input class="input" id="ipf-icontato" placeholder="Contato do indicador (fone)" style="flex:1;min-width:150px">

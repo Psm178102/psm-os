@@ -28,7 +28,7 @@ const COMO_MAP = new Set(['imoveis', 'spcapital']);
 // cabeçalho padrão de toda tabela nova do SP Capital (pedido do Paulo, 08/set)
 const SP_COLUNAS = ['EMPREENDIMENTO', 'INCORPORADORA', 'BAIRRO', 'TIPOLOGIA', 'TAMANHO DE PLANTA (M²)', 'VALOR A PARTIR DE', 'Nº DORMS', 'ENTREGA', 'CONDIÇÃO COMERCIAL', 'ATO', 'LINK DRIVE'];
 // paleta de cores prontas pra colorir cada tabela (cor personalizada via seletor também)
-const SWATCHES = ['#dc2626', '#ea580c', '#d4a843', '#16a34a', '#0891b2', '#5b7fb4', '#2563eb', '#7c3aed', '#db2777', '#475569'];
+const SWATCHES = ['#dc2626', '#ea580c', '#d4a843', '#16a34a', '#806d50', '#5b7fb4', '#806d50', '#7c3aed', '#db2777', '#475569'];
 
 export async function pageTabelaImoveis(ctx, root, marcaFilter = null) {
   _root = root; _edit = null; _draft = null; _msg = ''; _renaming = null;
@@ -86,7 +86,7 @@ function marcaSection(m) {
   const tabs = _tabelas.filter(t => t.marca === m.id).sort((a, b) => (ord(a) - ord(b)) || (a.categoria || '').localeCompare(b.categoria || '', 'pt-BR'));
   const editingNew = _edit === ('new:' + m.id);
   return `
-    <div class="mt-4" style="border-top:3px solid ${m.cor};border-radius:10px;padding-top:10px">
+    <div class="mt-4" style="border-top:3px solid ${m.cor};border-radius:var(--radius-md);padding-top:10px">
       <div class="flex" style="justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:8px">
         <h3 style="margin:0;color:${m.cor}">${m.label} <span class="tiny muted" style="font-weight:600">· ${tabs.length} tabela(s)</span></h3>
         ${_canEdit && !_edit ? `<div class="flex gap-2" style="flex-wrap:wrap">
@@ -107,7 +107,7 @@ function marcaSection(m) {
 function isUrl(v) { return /^https?:\/\//i.test(String(v || '').trim()); }
 function cellHTML(v) {
   const s = v != null ? String(v) : '';
-  if (isUrl(s)) return `<a href="${esc(s)}" target="_blank" rel="noopener" style="color:var(--azul-medio);font-weight:700;text-decoration:underline">🔗 abrir</a>`;
+  if (isUrl(s)) return `<a href="${esc(s)}" target="_blank" rel="noopener" style="color:var(--azul-medio);font-weight:600;text-decoration:underline">🔗 abrir</a>`;
   return esc(s);
 }
 
@@ -290,21 +290,21 @@ function filtroBarHTML(tabs, m) {
   dados.forEach(tb => { const fr = filtroResultado(tb); totAll += (tb.linhas || []).length; totV += fr.linhas.length; if (fr.linhas.length) totT++; });
   const chip = (def, o) => {
     const sel = _filtros[def.cat].has(o.id);
-    return `<button type="button" data-fcat="${def.cat}" data-fchip="${o.id}" style="border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:700;margin:2px 3px 2px 0;cursor:pointer;${sel ? `background:${corF};color:#fff;border:1px solid ${corF}` : 'background:transparent;color:var(--text,inherit);border:1px solid var(--border)'}">${esc(o.lbl)}</button>`;
+    return `<button type="button" data-fcat="${def.cat}" data-fchip="${o.id}" style="border-radius:var(--radius-lg);padding:3px 10px;font-size:11px;font-weight:600;margin:2px 3px 2px 0;cursor:pointer;${sel ? `background:${corF};color:#fff;border:1px solid ${corF}` : 'background:transparent;color:var(--text,inherit);border:1px solid var(--border)'}">${esc(o.lbl)}</button>`;
   };
   return `
-    <div style="background:var(--bg-2);border:1px solid ${corF}55;border-radius:10px;padding:10px 12px;margin-bottom:12px">
+    <div style="background:var(--bg-2);border:1px solid ${corF}55;border-radius:var(--radius-md);padding:10px 12px;margin-bottom:12px">
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <b style="font-size:13px;color:${corF}">🔎 Filtros do ${nomeF}</b>
         <span class="flex" style="align-items:center;gap:8px;flex-wrap:wrap">
-          ${ativo ? `<span class="tiny" style="font-weight:800">${totV} de ${totAll} imóveis · ${totT} tabela(s) com resultado</span>
+          ${ativo ? `<span class="tiny" style="font-weight:600">${totV} de ${totAll} imóveis · ${totT} tabela(s) com resultado</span>
                      <button class="btn btn-ghost btn-sm" data-flimpar="1" style="padding:2px 10px">✕ Limpar filtros</button>`
                   : `<span class="tiny muted">marque quantas opções quiser · nada marcado = indiferente · abre sempre limpo</span>`}
         </span>
       </div>
       ${FILTROS_DEF.map(def => `
         <div style="margin-top:7px;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px">
-          <span class="tiny muted" style="font-weight:800;min-width:150px">${def.lbl}</span>
+          <span class="tiny muted" style="font-weight:600;min-width:150px">${def.lbl}</span>
           <span style="flex:1">${def.opts.map(o => chip(def, o)).join('')}</span>
         </div>`).join('')}
     </div>`;
@@ -335,9 +335,9 @@ function viewCard(t, m, idx, total) {
     : (t.linhas || []);
   const canDragRow = _canEdit && !_edit && !isPdf && !mapOrdenado && (t.linhas || []).length > 1;
   const headHandle = canDragRow ? `<th style="position:sticky;top:0;background:${cor};z-index:1;width:26px"></th>` : '';
-  const head = `<thead><tr>${headHandle}${cols.map(c => `<th style="position:sticky;top:0;background:${cor};color:#fff;padding:7px 9px;font-size:11.5px;text-align:left;white-space:nowrap;z-index:1">${esc(c)}</th>`).join('')}</tr></thead>`;
+  const head = `<thead><tr>${headHandle}${cols.map(c => `<th style="position:sticky;top:0;background:${cor};color:#fff;padding:7px 9px;font-size:11px;text-align:left;white-space:nowrap;z-index:1">${esc(c)}</th>`).join('')}</tr></thead>`;
   const rowBg = (i) => zebra ? `background:${i % 2 ? '#ffffff' : cor + '1a'}` : '';
-  const handleTd = canDragRow ? `<td data-rowgrip style="padding:0 2px;text-align:center;cursor:grab;touch-action:none;user-select:none;color:${zebra ? cor : 'var(--muted,#94a3b8)'};font-weight:900">⠿</td>` : '';
+  const handleTd = canDragRow ? `<td data-rowgrip style="padding:0 2px;text-align:center;cursor:grab;touch-action:none;user-select:none;color:${zebra ? cor : 'var(--muted,#94a3b8)'};font-weight:600">⠿</td>` : '';
   const body = `<tbody data-rowdrag="${canDragRow ? t.id : ''}">${linhas.map((r, ri) => `<tr data-ri="${ri}" style="border-bottom:1px solid ${zebra ? cor + '40' : 'var(--border)'};${rowBg(ri)}">${handleTd}${cols.map((_, i) => `<td style="padding:6px 9px;font-size:12px;white-space:nowrap;${cellTxt}">${cellHTML(r[i])}</td>`).join('')}</tr>`).join('')}</tbody>`;
   const meta = isPdf ? '📄 PDF'
     : (fr && fr.ativo ? `${linhas.length} de ${(t.linhas || []).length} linha(s)` : `${(t.linhas || []).length} linha(s)`);
@@ -351,9 +351,9 @@ function viewCard(t, m, idx, total) {
          <button class="btn btn-primary btn-sm" data-rnsave="${t.id}">💾</button>
          <button class="btn btn-ghost btn-sm" data-rncancel="1">✕</button>
        </span>`
-    : `<b style="font-size:13px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${cor};margin-right:5px;vertical-align:middle"></span>${isPdf ? '📕' : '📋'} ${esc(t.categoria || 'Sem categoria')}${dupBadge(t)}${_canEdit && !_edit ? ` <button class="btn btn-ghost btn-sm" data-rename="${t.id}" title="Renomear" style="padding:1px 6px">✏️</button>` : ''}${t.vigencia ? ` <span style="background:${cor}22;color:${cor};font-weight:800;font-size:11px;padding:2px 8px;border-radius:20px;white-space:nowrap">📅 ${esc(t.vigencia)}</span>` : ''} <span class="tiny muted" style="font-weight:600">· ${meta} · ${fmtData(t.atualizado_em)}</span></b>`;
+    : `<b style="font-size:13px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${cor};margin-right:5px;vertical-align:middle"></span>${isPdf ? '📕' : '📋'} ${esc(t.categoria || 'Sem categoria')}${dupBadge(t)}${_canEdit && !_edit ? ` <button class="btn btn-ghost btn-sm" data-rename="${t.id}" title="Renomear" style="padding:1px 6px">✏️</button>` : ''}${t.vigencia ? ` <span style="background:${cor}22;color:${cor};font-weight:600;font-size:11px;padding:2px 8px;border-radius:var(--radius-lg);white-space:nowrap">📅 ${esc(t.vigencia)}</span>` : ''} <span class="tiny muted" style="font-weight:600">· ${meta} · ${fmtData(t.atualizado_em)}</span></b>`;
   return `
-    <div style="background:var(--bg-2);border:1px solid var(--border);border-left:4px solid ${cor};border-radius:10px;padding:10px;margin-bottom:12px">
+    <div style="background:var(--bg-2);border:1px solid var(--border);border-left:4px solid ${cor};border-radius:var(--radius-md);padding:10px;margin-bottom:12px">
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">
         <span class="flex gap-1" style="align-items:center">${reorder}${titulo}</span>
         <div class="flex gap-2" style="flex-wrap:wrap">
@@ -364,12 +364,12 @@ function viewCard(t, m, idx, total) {
         </div>
       </div>
       ${isPdf
-        ? `<iframe src="${esc(t.pdf_url)}" style="width:100%;height:72vh;border:1px solid var(--border);border-radius:8px;background:var(--bg-2)"></iframe>`
+        ? `<iframe src="${esc(t.pdf_url)}" style="width:100%;height:72vh;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--bg-2)"></iframe>`
         : (fr && fr.ativo && !linhas.length && (t.linhas || []).length
           ? `<div class="tiny muted" style="padding:8px">🔎 Nenhum imóvel desta tabela casa com os filtros ativos.${fr.semDado ? ` ⚠ ${fr.semDado} linha(s) sem dado legível no(s) quesito(s) filtrado(s).` : ''}</div>`
           : ((t.linhas || []).length
             ? `<div data-tablewrap="${t.id}" style="max-height:64vh;overflow:auto;border:1px solid ${zebra ? cor + '40' : 'var(--border)'};border-radius:8px${zebra ? ';background:#ffffff' : ''}"><table style="border-collapse:collapse;width:100%;min-width:max-content">${head}${body}</table></div>`
-              + (fr && fr.ativo && fr.semDado ? `<div class="tiny" style="margin-top:4px;color:var(--warn,#d97706);font-weight:700">⚠ ${fr.semDado} linha(s) ocultada(s) por não ter dado legível no(s) quesito(s) filtrado(s) — complete a tabela pra elas voltarem a aparecer.</div>` : '')
+              + (fr && fr.ativo && fr.semDado ? `<div class="tiny" style="margin-top:4px;color:var(--warn,#d97706);font-weight:600">⚠ ${fr.semDado} linha(s) ocultada(s) por não ter dado legível no(s) quesito(s) filtrado(s) — complete a tabela pra elas voltarem a aparecer.</div>` : '')
             : `<div class="tiny muted" style="padding:8px">Tabela vazia${_canEdit ? ' — clique em ✏️ Editar pra adicionar linhas.' : '.'}</div>`))}
     </div>`;
 }
@@ -384,22 +384,22 @@ function editorCard(cor) {
         <button class="btn btn-ghost btn-sm" data-delcol="${i}" title="remover coluna" style="color:#fff;padding:2px 6px">✕</button>
       </div></th>`).join('');
   const rows = d.linhas.map((r, ri) => `<tr style="border-bottom:1px solid var(--border)">
-      ${cols.map((_, ci) => `<td style="padding:2px"><input class="input" data-r="${ri}" data-c="${ci}" value="${esc(r[ci] != null ? r[ci] : '')}" style="height:26px;font-size:11.5px;padding:2px 6px;width:100%;min-width:110px"></td>`).join('')}
+      ${cols.map((_, ci) => `<td style="padding:2px"><input class="input" data-r="${ri}" data-c="${ci}" value="${esc(r[ci] != null ? r[ci] : '')}" style="height:26px;font-size:11px;padding:2px 6px;width:100%;min-width:110px"></td>`).join('')}
       <td style="padding:2px;white-space:nowrap">
         <button class="btn btn-ghost btn-sm" data-uprow="${ri}" ${ri === 0 ? 'disabled' : ''} style="padding:2px 5px">↑</button>
         <button class="btn btn-ghost btn-sm" data-downrow="${ri}" ${ri === d.linhas.length - 1 ? 'disabled' : ''} style="padding:2px 5px">↓</button>
         <button class="btn btn-ghost btn-sm" data-delrow="${ri}" style="padding:2px 5px;color:var(--err)">✕</button>
       </td></tr>`).join('');
   return `
-    <div style="background:var(--bg-3);border:2px solid ${cor};border-radius:10px;padding:12px;margin-bottom:12px">
+    <div style="background:var(--bg-3);border:2px solid ${cor};border-radius:var(--radius-md);padding:12px;margin-bottom:12px">
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
         <div class="flex gap-2" style="align-items:center;flex-wrap:wrap">
-          <span class="tiny muted" style="font-weight:800">Categoria:</span>
+          <span class="tiny muted" style="font-weight:600">Categoria:</span>
           <input class="input" id="tl-cat" value="${esc(d.categoria)}" placeholder="ex.: MAP, Alto Padrão" style="height:30px;font-size:13px;width:200px">
-          <span class="tiny muted" style="font-weight:800">📅 Vigência:</span>
+          <span class="tiny muted" style="font-weight:600">📅 Vigência:</span>
           <input class="input" id="tl-vig" value="${esc(d.vigencia || '')}" placeholder="ex.: 05/2026, Maio/26" style="height:30px;font-size:13px;width:140px">
-          <span class="tiny muted" style="font-weight:800">🎨 Cor:</span>
-          ${SWATCHES.map(s => `<button type="button" data-cor="${s}" title="${s}" style="width:22px;height:22px;border-radius:6px;background:${s};border:2px solid ${(d.cor || '') === s ? '#111' : 'transparent'};cursor:pointer"></button>`).join('')}
+          <span class="tiny muted" style="font-weight:600">🎨 Cor:</span>
+          ${SWATCHES.map(s => `<button type="button" data-cor="${s}" title="${s}" style="width:22px;height:22px;border-radius:var(--radius-sm);background:${s};border:2px solid ${(d.cor || '') === s ? '#111' : 'transparent'};cursor:pointer"></button>`).join('')}
           <input type="color" id="tl-cor" value="${esc(d.cor || cor)}" title="cor personalizada" style="width:32px;height:26px;padding:0;border:0;background:none;cursor:pointer">
           <button type="button" class="btn btn-ghost btn-sm" data-cor="" title="usar a cor da marca" style="padding:2px 8px">cor da marca</button>
         </div>
@@ -409,7 +409,7 @@ function editorCard(cor) {
           <button class="btn btn-primary btn-sm" id="tl-save">💾 Salvar</button>
         </div>
       </div>
-      <div style="max-height:60vh;overflow:auto;border:1px solid var(--border);border-radius:8px;background:var(--bg-2)">
+      <div style="max-height:60vh;overflow:auto;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--bg-2)">
         <table style="border-collapse:collapse;width:100%;min-width:max-content">
           <thead><tr>${headInputs}<th style="background:${cor};padding:4px;color:#fff;font-size:11px">ações</th></tr></thead>
           <tbody>${rows || ''}</tbody>
@@ -534,7 +534,7 @@ function ativarDragLinha(tbody, tabelaId) {
     marca = (tr && tr !== alvo && tr.parentElement === tbody) ? tr : null;
     if (marca) {
       const acima = +marca.dataset.ri < +alvo.dataset.ri;
-      marca.style.boxShadow = acima ? 'inset 0 3px 0 0 #2563eb' : 'inset 0 -3px 0 0 #2563eb';
+      marca.style.boxShadow = acima ? 'inset 0 3px 0 0 #806d50' : 'inset 0 -3px 0 0 #806d50';
     }
   };
 
@@ -763,7 +763,7 @@ function normCat(s) {
 function dupBadge(t) {
   const n = _tabelas.filter(x => x.id !== t.id && x.marca === t.marca &&
     (x.tipo || 'grade') === (t.tipo || 'grade') && normCat(x.categoria) === normCat(t.categoria)).length;
-  return n ? ` <span class="badge" title="Existem ${n + 1} tabelas com este nome nesta marca. Confira a data de atualização — a próxima gravação nesta categoria consolida tudo na versão nova." style="background:#d9770622;color:var(--warn);font-weight:700;font-size:10px">⚠️ nome duplicado</span>` : '';
+  return n ? ` <span class="badge" title="Existem ${n + 1} tabelas com este nome nesta marca. Confira a data de atualização — a próxima gravação nesta categoria consolida tudo na versão nova." style="background:var(--warn-soft);color:var(--warn);font-weight:600;font-size:11px">⚠️ nome duplicado</span>` : '';
 }
 
 function fmtData(iso) {

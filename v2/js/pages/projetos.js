@@ -19,7 +19,7 @@ const RESP_SUGEST = ['Paulo', 'Guilherme', 'Isabella'];
 
 const STAGES = [
   { id: 'ideia',        lbl: '💡 Ideia',        cor: '#64748b' },
-  { id: 'planejamento', lbl: '📋 Planejamento', cor: '#0ea5e9' },
+  { id: 'planejamento', lbl: '📋 Planejamento', cor: '#806d50' },
   { id: 'andamento',    lbl: '🚧 Em andamento', cor: '#f59e0b' },
   { id: 'revisao',      lbl: '👁 Em revisão',   cor: '#8b5cf6' },
   { id: 'concluido',    lbl: '✅ Concluído',    cor: '#16a34a' },
@@ -38,7 +38,7 @@ const CHECK = [
 ];
 const checkDone = c => CHECK.filter(x => (c.checklist || {})[x.k]).length;
 
-const COR = ['#0ea5e9', '#16a34a', '#d6249f', '#8b5cf6', '#f59e0b', '#ef4444', '#0891b2'];
+const COR = ['#806d50', '#16a34a', '#d6249f', '#8b5cf6', '#f59e0b', '#ef4444', '#806d50'];
 const areaCor = a => COR[(AREAS.indexOf(a) + 7) % COR.length] || '#64748b';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
@@ -67,18 +67,18 @@ function filtered() {
 
 const STYLE = `
   <style>
-    .pj-tab{display:inline-flex;align-items:center;gap:6px;padding:7px 15px;border-radius:999px;font-weight:700;font-size:13px;cursor:pointer;border:1px solid rgba(148,163,184,.25);background:var(--bg-1,#fff);color:var(--ink,#334155)}
-    .pj-tab.on{background:#0891b2;border-color:#0891b2;color:#fff}
+    .pj-tab{display:inline-flex;align-items:center;gap:6px;padding:7px 15px;border-radius:var(--radius-full);font-weight:600;font-size:13px;cursor:pointer;border:1px solid var(--border);background:var(--bg-1,#fff);color:var(--ink,#334155)}
+    .pj-tab.on{background:var(--accent-soft);border-color:var(--accent-ink);color:var(--accent-ink)}
     .pj-board{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 14px}
-    .pj-col{min-width:248px;max-width:280px;flex:0 0 auto;background:var(--bg-3,#f1f5f9);border-radius:12px;padding:8px;display:flex;flex-direction:column}
-    .pj-col.drop{background:rgba(8,145,178,.12);box-shadow:inset 0 0 0 2px #0891b2}
-    .pj-card{background:var(--bg-1,#fff);border-radius:10px;padding:10px 11px;margin-bottom:8px;cursor:grab;box-shadow:0 1px 2px rgba(15,23,42,.06);border:1px solid rgba(148,163,184,.16);transition:transform .12s,box-shadow .12s}
-    .pj-card:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(15,23,42,.12)}
+    .pj-col{min-width:248px;max-width:280px;flex:0 0 auto;background:var(--bg-3,#f1f5f9);border-radius:var(--radius-md);padding:8px;display:flex;flex-direction:column}
+    .pj-col.drop{background:rgba(8,145,178,.12);box-shadow:inset 0 0 0 2px #806d50}
+    .pj-card{background:var(--bg-1,#fff);border-radius:var(--radius-md);padding:10px 11px;margin-bottom:8px;cursor:grab;box-shadow:var(--shadow-1);border:1px solid var(--border);transition:transform .12s,box-shadow .12s}
+    .pj-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-1)}
     .pj-card.dragging{opacity:.45}
-    .pj-chip{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700}
-    .pj-kpi{background:var(--bg-1,#fff);border:1px solid rgba(148,163,184,.18);border-radius:12px;padding:10px 14px;flex:1;min-width:120px}
-    .pj-day{background:var(--bg-1,#fff);border:1px solid rgba(148,163,184,.18);border-radius:12px;padding:12px 14px;margin-bottom:12px}
-    .pj-row{display:flex;align-items:center;gap:10px;padding:7px 4px;border-top:1px solid rgba(148,163,184,.12);cursor:pointer}
+    .pj-chip{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:var(--radius-full);font-size:11px;font-weight:600}
+    .pj-kpi{background:var(--bg-1,#fff);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 14px;flex:1;min-width:120px}
+    .pj-day{background:var(--bg-1,#fff);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;margin-bottom:12px}
+    .pj-row{display:flex;align-items:center;gap:10px;padding:7px 4px;border-top:1px solid var(--border);cursor:pointer}
     .pj-row:hover{background:rgba(8,145,178,.06)}
   </style>`;
 
@@ -86,7 +86,7 @@ function header() {
   return `
     <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
       <div>
-        <div style="font-size:20px;font-weight:800">📌 Projetos da Diretoria</div>
+        <div style="font-size:20px;font-weight:600">📌 Projetos da Diretoria</div>
         <div class="tiny muted">Controle dos projetos da empresa — área, prioridade, responsável, prazo, escopo e entregas.</div>
       </div>
       <button class="btn btn-primary" id="pj-new">+ Novo projeto</button>
@@ -115,10 +115,10 @@ function kpis() {
   const atrasados = f.filter(c => c.data_ref && c.status !== 'concluido' && c.status !== 'pausado' && c.data_ref < hoje()).length;
   return `
     <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
-      <div class="pj-kpi"><div class="tiny muted">Projetos</div><div style="font-size:18px;font-weight:800">${f.length}</div></div>
-      <div class="pj-kpi"><div class="tiny muted">🚧 Em andamento</div><div style="font-size:18px;font-weight:800;color:#f59e0b">${por('andamento')}</div></div>
-      <div class="pj-kpi"><div class="tiny muted">⏰ Atrasados</div><div style="font-size:18px;font-weight:800;color:var(--err-suave)">${atrasados}</div></div>
-      <div class="pj-kpi"><div class="tiny muted">✅ Concluídos</div><div style="font-size:18px;font-weight:800;color:var(--ok)">${por('concluido')}</div></div>
+      <div class="pj-kpi"><div class="tiny muted">Projetos</div><div style="font-size:16px;font-weight:600">${f.length}</div></div>
+      <div class="pj-kpi"><div class="tiny muted">🚧 Em andamento</div><div style="font-size:16px;font-weight:600;color:var(--warn)">${por('andamento')}</div></div>
+      <div class="pj-kpi"><div class="tiny muted">⏰ Atrasados</div><div style="font-size:16px;font-weight:600;color:var(--err-suave)">${atrasados}</div></div>
+      <div class="pj-kpi"><div class="tiny muted">✅ Concluídos</div><div style="font-size:16px;font-weight:600;color:var(--ok)">${por('concluido')}</div></div>
     </div>`;
 }
 
@@ -137,11 +137,11 @@ function col(st) {
   return `
     <div class="pj-col" data-col="${st.id}">
       <div class="flex items-center" style="justify-content:space-between;padding:2px 4px 8px">
-        <span style="font-weight:800;font-size:12px;color:${st.cor}">${st.lbl}</span>
-        <span class="tiny muted" style="font-weight:700">${cards.length}</span>
+        <span style="font-weight:600;font-size:12px;color:${st.cor}">${st.lbl}</span>
+        <span class="tiny muted" style="font-weight:600">${cards.length}</span>
       </div>
       ${cards.map(card).join('') || '<div class="tiny muted" style="padding:8px;text-align:center;opacity:.6">—</div>'}
-      <button class="btn btn-ghost tiny pj-add" data-st="${st.id}" style="margin-top:auto;border:1px dashed rgba(148,163,184,.4)">+ adicionar</button>
+      <button class="btn btn-ghost tiny pj-add" data-st="${st.id}" style="margin-top:auto;border:1px dashed var(--border)">+ adicionar</button>
     </div>`;
 }
 
@@ -149,16 +149,16 @@ function card(c) {
   const atras = c.data_ref && c.status !== 'concluido' && c.status !== 'pausado' && c.data_ref < hoje();
   return `
     <div class="pj-card" draggable="true" data-card="${esc(c.id)}">
-      <div style="font-weight:800;font-size:13px;line-height:1.3">${esc(c.titulo || 'Sem nome')}</div>
+      <div style="font-weight:600;font-size:13px;line-height:1.3">${esc(c.titulo || 'Sem nome')}</div>
       <div class="flex gap-1" style="flex-wrap:wrap;margin-top:6px">
         ${c.plataforma ? `<span class="pj-chip" style="background:${areaCor(c.plataforma)}1f;color:${areaCor(c.plataforma)}">${esc(c.plataforma)}</span>` : ''}
-        ${c.formato ? `<span class="pj-chip" style="background:${(PRIOR_COR[c.formato] || '#64748b')}1f;color:${PRIOR_COR[c.formato] || '#64748b'}">⚑ ${esc(c.formato)}</span>` : ''}
-        ${c.data_ref ? `<span class="pj-chip" style="background:${atras ? 'rgba(239,68,68,.16)' : 'rgba(148,163,184,.16)'};color:${atras ? '#dc2626' : 'var(--ink,#475569)'}">📅 ${esc(fmtData(c.data_ref))}${atras ? ' ⚠' : ''}</span>` : ''}
-        ${(() => { if (!c.okr_id) return ''; const o = _okrs.find(x => x.id === c.okr_id); if (!o) return ''; const t = o.objetivo.length > 24 ? o.objetivo.slice(0, 23) + '…' : o.objetivo; return `<span class="pj-chip" style="background:rgba(212,168,67,.18);color:#a16207" title="OKR: ${esc(o.objetivo)}">🎯 ${esc(t)}</span>`; })()}
+        ${c.formato ? `<span class="pj-chip" style="background:${(PRIOR_COR[c.formato] || '#64748b')}1f;color:${PRIOR_COR[c.formato] || 'var(--ink-muted)'}">⚑ ${esc(c.formato)}</span>` : ''}
+        ${c.data_ref ? `<span class="pj-chip" style="background:${atras ? 'rgba(239,68,68,.16)' : 'rgba(148,163,184,.16)'};color:${atras ? 'var(--err)' : 'var(--ink,#475569)'}">📅 ${esc(fmtData(c.data_ref))}${atras ? ' ⚠' : ''}</span>` : ''}
+        ${(() => { if (!c.okr_id) return ''; const o = _okrs.find(x => x.id === c.okr_id); if (!o) return ''; const t = o.objetivo.length > 24 ? o.objetivo.slice(0, 23) + '…' : o.objetivo; return `<span class="pj-chip" style="background:var(--accent-soft);color:var(--warn)" title="OKR: ${esc(o.objetivo)}">🎯 ${esc(t)}</span>`; })()}
       </div>
-      ${(() => { const d = checkDone(c); return d ? `<div style="margin-top:7px"><div style="height:5px;border-radius:3px;background:rgba(148,163,184,.25);overflow:hidden"><div style="height:100%;width:${Math.round(d / CHECK.length * 100)}%;background:${d === CHECK.length ? '#16a34a' : '#0891b2'}"></div></div><div class="tiny muted" style="margin-top:2px">✔ ${d}/${CHECK.length}</div></div>` : ''; })()}
+      ${(() => { const d = checkDone(c); return d ? `<div style="margin-top:7px"><div style="height:5px;border-radius:var(--radius-sm);background:rgba(148,163,184,.25);overflow:hidden"><div style="height:100%;width:${Math.round(d / CHECK.length * 100)}%;background:${d === CHECK.length ? 'var(--ok-soft)' : 'var(--accent-soft)'}"></div></div><div class="tiny muted" style="margin-top:2px">✔ ${d}/${CHECK.length}</div></div>` : ''; })()}
       <div class="flex gap-2" style="margin-top:8px;align-items:center">
-        ${c.responsavel ? `<span class="tiny" style="font-weight:700">👤 ${esc(c.responsavel)}</span>` : ''}
+        ${c.responsavel ? `<span class="tiny" style="font-weight:600">👤 ${esc(c.responsavel)}</span>` : ''}
         ${c.obs ? '<span class="tiny" title="Tem escopo" style="color:var(--ok)">📄</span>' : ''}
         ${c.link ? `<a href="${esc(c.link)}" target="_blank" rel="noopener" data-stop="1" class="tiny" style="text-decoration:none">🔗</a>` : ''}
         <button class="btn btn-ghost tiny pj-edit" data-card="${esc(c.id)}" style="margin-left:auto">editar</button>
@@ -174,9 +174,9 @@ function renderPrazos() {
   const datas = Object.keys(groups).sort();
   if (!datas.length && !semData.length) return '<div class="muted tiny">Nenhum projeto ainda — crie o primeiro em "+ Novo projeto".</div>';
   const row = c => `<div class="pj-row" data-card="${esc(c.id)}">
-      <span style="font-size:15px">${stageInfo(c.status).lbl.split(' ')[0]}</span>
+      <span style="font-size:14px">${stageInfo(c.status).lbl.split(' ')[0]}</span>
       <div style="flex:1;min-width:0">
-        <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.titulo || 'Sem nome')}</div>
+        <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.titulo || 'Sem nome')}</div>
         <div class="tiny muted">${esc(c.plataforma || '—')}${c.formato ? ' · ⚑ ' + esc(c.formato) : ''}${c.responsavel ? ' · 👤 ' + esc(c.responsavel) : ''}</div>
       </div>
       <span class="pj-chip" style="background:${stageInfo(c.status).cor}1f;color:${stageInfo(c.status).cor};white-space:nowrap">${stageInfo(c.status).lbl}</span>
@@ -186,13 +186,13 @@ function renderPrazos() {
       const isHoje = d === hoje(), isPast = d < hoje();
       return `<div class="pj-day">
         <div class="flex items-center" style="justify-content:space-between">
-          <div style="font-weight:800;font-size:14px;color:${isHoje ? '#16a34a' : isPast ? '#ef4444' : '#0891b2'}">📅 ${fmtData(d)}${isHoje ? ' · HOJE' : isPast ? ' · ATRASADO' : ''}</div>
-          <span class="tiny muted" style="font-weight:700">${groups[d].length} projeto(s)</span>
+          <div style="font-weight:600;font-size:14px;color:${isHoje ? 'var(--ok)' : isPast ? 'var(--err)' : 'var(--accent-ink)'}">📅 ${fmtData(d)}${isHoje ? ' · HOJE' : isPast ? ' · ATRASADO' : ''}</div>
+          <span class="tiny muted" style="font-weight:600">${groups[d].length} projeto(s)</span>
         </div>
         ${groups[d].map(row).join('')}
       </div>`;
     }).join('')}
-    ${semData.length ? `<div class="pj-day"><div style="font-weight:800;font-size:14px;color:var(--ink-muted)">📌 Sem prazo (${semData.length})</div>${semData.map(row).join('')}</div>` : ''}`;
+    ${semData.length ? `<div class="pj-day"><div style="font-weight:600;font-size:14px;color:var(--ink-muted)">📌 Sem prazo (${semData.length})</div>${semData.map(row).join('')}</div>` : ''}`;
 }
 
 /* ── MÉTRICAS ── */
@@ -202,7 +202,7 @@ function renderMetricas() {
   const n = f.length;
   const concl = f.filter(c => c.status === 'concluido').length;
   const atras = f.filter(c => c.data_ref && c.status !== 'concluido' && c.status !== 'pausado' && c.data_ref < hoje()).length;
-  const bar = (v, max, cor) => `<div style="height:8px;border-radius:4px;background:rgba(148,163,184,.2);overflow:hidden"><div style="height:100%;width:${max ? Math.round(v / max * 100) : 0}%;background:${cor}"></div></div>`;
+  const bar = (v, max, cor) => `<div style="height:8px;border-radius:var(--radius-sm);background:rgba(148,163,184,.2);overflow:hidden"><div style="height:100%;width:${max ? Math.round(v / max * 100) : 0}%;background:${cor}"></div></div>`;
   const stg = STAGES.map(s => ({ s, n: f.filter(c => (c.status || 'ideia') === s.id).length })); const stgMax = Math.max(1, ...stg.map(x => x.n));
   const area = {}; f.forEach(c => { const a = c.plataforma || '(sem área)'; (area[a] = area[a] || { tot: 0, ok: 0 }); area[a].tot++; if (c.status === 'concluido') area[a].ok++; });
   const areaArr = Object.entries(area).sort((a, b) => b[1].tot - a[1].tot);
@@ -210,18 +210,18 @@ function renderMetricas() {
   const respArr = Object.entries(resp).sort((a, b) => b[1] - a[1]); const respMax = Math.max(1, ...respArr.map(x => x[1]));
   return `
     <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
-      <div class="pj-kpi"><div class="tiny muted">Total</div><div style="font-size:20px;font-weight:800">${n}</div></div>
-      <div class="pj-kpi"><div class="tiny muted">Concluídos</div><div style="font-size:20px;font-weight:800;color:var(--ok)">${concl} <span class="tiny muted">(${Math.round(concl / n * 100)}%)</span></div></div>
-      <div class="pj-kpi"><div class="tiny muted">⏰ Atrasados</div><div style="font-size:20px;font-weight:800;color:var(--err-suave)">${atras}</div></div>
+      <div class="pj-kpi"><div class="tiny muted">Total</div><div style="font-size:20px;font-weight:600">${n}</div></div>
+      <div class="pj-kpi"><div class="tiny muted">Concluídos</div><div style="font-size:20px;font-weight:600;color:var(--ok)">${concl} <span class="tiny muted">(${Math.round(concl / n * 100)}%)</span></div></div>
+      <div class="pj-kpi"><div class="tiny muted">⏰ Atrasados</div><div style="font-size:20px;font-weight:600;color:var(--err-suave)">${atras}</div></div>
     </div>
-    <div class="pj-day"><div style="font-weight:800;font-size:14px;margin-bottom:8px">Por etapa</div>
-      ${stg.map(x => `<div style="margin-bottom:8px"><div class="flex" style="justify-content:space-between"><span class="tiny" style="font-weight:700;color:${x.s.cor}">${x.s.lbl}</span><span class="tiny muted">${x.n}</span></div>${bar(x.n, stgMax, x.s.cor)}</div>`).join('')}
+    <div class="pj-day"><div style="font-weight:600;font-size:14px;margin-bottom:8px">Por etapa</div>
+      ${stg.map(x => `<div style="margin-bottom:8px"><div class="flex" style="justify-content:space-between"><span class="tiny" style="font-weight:600;color:${x.s.cor}">${x.s.lbl}</span><span class="tiny muted">${x.n}</span></div>${bar(x.n, stgMax, x.s.cor)}</div>`).join('')}
     </div>
-    <div class="pj-day"><div style="font-weight:800;font-size:14px;margin-bottom:8px">Por área (concluídos/total)</div>
-      ${areaArr.map(([a, v]) => `<div style="margin-bottom:8px"><div class="flex" style="justify-content:space-between"><span class="tiny" style="font-weight:700">${esc(a)}</span><span class="tiny muted">${v.ok}/${v.tot}</span></div>${bar(v.ok, v.tot, areaCor(a))}</div>`).join('')}
+    <div class="pj-day"><div style="font-weight:600;font-size:14px;margin-bottom:8px">Por área (concluídos/total)</div>
+      ${areaArr.map(([a, v]) => `<div style="margin-bottom:8px"><div class="flex" style="justify-content:space-between"><span class="tiny" style="font-weight:600">${esc(a)}</span><span class="tiny muted">${v.ok}/${v.tot}</span></div>${bar(v.ok, v.tot, areaCor(a))}</div>`).join('')}
     </div>
-    <div class="pj-day"><div style="font-weight:800;font-size:14px;margin-bottom:8px">Carga por responsável</div>
-      ${respArr.map(([r, v]) => `<div style="margin-bottom:8px"><div class="flex" style="justify-content:space-between"><span class="tiny" style="font-weight:700">👤 ${esc(r)}</span><span class="tiny muted">${v}</span></div>${bar(v, respMax, '#0891b2')}</div>`).join('')}
+    <div class="pj-day"><div style="font-weight:600;font-size:14px;margin-bottom:8px">Carga por responsável</div>
+      ${respArr.map(([r, v]) => `<div style="margin-bottom:8px"><div class="flex" style="justify-content:space-between"><span class="tiny" style="font-weight:600">👤 ${esc(r)}</span><span class="tiny muted">${v}</span></div>${bar(v, respMax, '#806d50')}</div>`).join('')}
     </div>`;
 }
 
@@ -259,24 +259,24 @@ function renderInsights() {
   const ins = computeInsights(f);
   const SEV = { red: '#ef4444', amber: '#f59e0b', green: '#16a34a' };
   const linha = c => `<div class="pj-row" data-card="${esc(c.id)}">
-      <span style="font-size:15px">${stageInfo(c.status).lbl.split(' ')[0]}</span>
+      <span style="font-size:14px">${stageInfo(c.status).lbl.split(' ')[0]}</span>
       <div style="flex:1;min-width:0">
-        <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.titulo || 'Sem nome')}</div>
+        <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.titulo || 'Sem nome')}</div>
         <div class="tiny muted">${esc(c.plataforma || '—')}${c.responsavel ? ' · 👤 ' + esc(c.responsavel) : ''}${c.data_ref ? ' · 📅 ' + esc(fmtData(c.data_ref)) + (_ativo(c) && c.data_ref < hoje() ? ` (${_diasAtraso(c.data_ref)}d atraso)` : '') : ''}</div>
       </div>
     </div>`;
   const block = i => `<div class="pj-day" style="border-left:4px solid ${SEV[i.sev]}">
       <div class="flex items-center" style="justify-content:space-between">
-        <div style="font-weight:800;font-size:14px;color:${SEV[i.sev]}">${i.icon} ${esc(i.title)}</div>
-        ${i.items.length ? `<span class="tiny muted" style="font-weight:700">${i.items.length}</span>` : ''}
+        <div style="font-weight:600;font-size:14px;color:${SEV[i.sev]}">${i.icon} ${esc(i.title)}</div>
+        ${i.items.length ? `<span class="tiny muted" style="font-weight:600">${i.items.length}</span>` : ''}
       </div>
       ${i.sub ? `<div class="tiny muted" style="margin:2px 0 4px">${esc(i.sub)}</div>` : ''}
       ${i.items.map(linha).join('')}
     </div>`;
   return `
-    <div class="pj-day" style="border-left:4px solid #0891b2">
+    <div class="pj-day" style="border-left:4px solid var(--accent-ink)">
       <div class="flex items-center" style="justify-content:space-between">
-        <div style="font-weight:800;font-size:14px">🧠 Leitura executiva (IA)</div>
+        <div style="font-weight:600;font-size:14px">🧠 Leitura executiva (IA)</div>
         <button class="btn btn-primary tiny" id="pj-ia-insights">Gerar análise</button>
       </div>
       <div class="tiny muted" style="margin-top:2px">Resumo dos riscos, foco da semana e próximas ações — gerado a partir dos projetos reais.</div>
@@ -345,8 +345,8 @@ function openEditor(seed) {
   const ov = document.createElement('div');
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto';
   ov.innerHTML = `
-    <div style="background:var(--bg-1,#fff);border-radius:14px;max-width:560px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
-      <div style="font-size:17px;font-weight:800;margin-bottom:12px">${c.id ? 'Editar projeto' : 'Novo projeto'}</div>
+    <div style="background:var(--bg-1,#fff);border-radius:var(--radius-lg);max-width:560px;width:100%;padding:20px;box-shadow:var(--shadow-1)">
+      <div style="font-size:16px;font-weight:600;margin-bottom:12px">${c.id ? 'Editar projeto' : 'Novo projeto'}</div>
       <label class="tiny muted">Nome do projeto</label>
       <input id="pj-f-titulo" class="input" value="${esc(c.titulo || '')}" placeholder="Ex: Implantar pós-venda / Reformar showroom" style="margin-bottom:10px">
       <div class="flex gap-2" style="margin-bottom:10px">

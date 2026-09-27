@@ -82,8 +82,8 @@ const REGUAS_DEFAULT = {
 
 /* ═══ CSS do módulo (paleta semântica, mesmo esquema da GC) — injetado 1× ═══ */
 const SOL_CSS = `
-.sol{--sol-ok:#22c55e;--sol-warn:#f59e0b;--sol-err:#ef4444;--sol-acc:#60a5fa;font-variant-numeric:tabular-nums}
-:root:not(.dark) .sol{--sol-ok:#16a34a;--sol-warn:#d97706;--sol-err:#dc2626;--sol-acc:#2563eb}
+.sol{--sol-ok:#22c55e;--sol-warn:#f59e0b;--sol-err:#ef4444;--sol-acc:#806d50;font-variant-numeric:tabular-nums}
+:root:not(.dark) .sol{--sol-ok:#16a34a;--sol-warn:#d97706;--sol-err:#dc2626;--sol-acc:#806d50}
 .sol .sol-pan{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md,12px);padding:14px 16px;margin-top:12px}
 .sol .sol-pan-t{font-weight:800;font-size:13px;margin-bottom:10px;letter-spacing:.01em}
 .sol .sol-tabs{display:flex;gap:4px;margin-top:10px;border-bottom:1px solid var(--border);flex-wrap:wrap}
@@ -270,7 +270,7 @@ function rVisao(body) {
     ${semDados ? `
     <div class="sol-pan sol-vazio">
       <div class="big">☀️</div>
-      <div style="font-weight:800;font-size:15px;margin-top:6px">A Sol ainda não está conectada ao WhatsApp</div>
+      <div style="font-weight:600;font-size:14px;margin-top:6px">A Sol ainda não está conectada ao WhatsApp</div>
       <div class="tiny muted" style="margin-top:6px;max-width:440px;margin-left:auto;margin-right:auto">
         ${conectada
           ? 'Conexão ok — nenhuma conversa registrada ainda. Assim que o primeiro lead chamar, tudo aparece aqui.'
@@ -291,7 +291,7 @@ function rVisao(body) {
       <div class="sol-pan-t">📜 Últimos eventos</div>
       <div class="sol-feed">
         ${evs.map(ev => `<div class="sol-ev">
-          <span>${evIco(ev.tipo)}</span><span style="font-weight:700">${esc(ev.tipo || '?')}</span>
+          <span>${evIco(ev.tipo)}</span><span style="font-weight:600">${esc(ev.tipo || '?')}</span>
           ${ev.conversa_id ? `<span class="tiny muted">conversa #${esc(ev.conversa_id)}</span>` : ''}
           <span class="tiny muted" style="margin-left:auto">${fmtDT(ev.criado_em)}</span>
         </div>`).join('') || '<div class="tiny muted" style="text-align:center;padding:12px">nenhum evento ainda</div>'}
@@ -303,7 +303,7 @@ function rVisao(body) {
       <div class="flex" style="gap:18px;flex-wrap:wrap;align-items:center">
         <div>
           <div class="tiny muted">Número WhatsApp</div>
-          <div style="font-weight:800">${esc(wa.numero_mascarado || '—')}
+          <div style="font-weight:600">${esc(wa.numero_mascarado || '—')}
             ${pill(_d.config?.token_env_ok ? 'var(--sol-ok)' : 'var(--sol-warn)', _d.config?.token_env_ok ? 'token ok' : 'sem token no Vercel')}
           </div>
         </div>
@@ -317,7 +317,7 @@ function rVisao(body) {
         </div>
         <div>
           <div class="tiny muted">Versão da persona</div>
-          <div style="font-weight:800">${esc(persona)}</div>
+          <div style="font-weight:600">${esc(persona)}</div>
         </div>
         <div>
           <div class="tiny muted">Custos fixos mensais <span title="rateados pro-rata/dia no bloco Gastos (aba Análises)">ℹ️</span></div>
@@ -361,7 +361,7 @@ function tabelaConversas(convs, clicavel) {
         <td>${esc(c.etapa_funil || '—')}</td>
         <td>${esc(c.regua || '—')}${c.passo != null ? ` <span class="tiny muted">#${esc(c.passo)}</span>` : ''}</td>
         <td>${fmtDT(c.proximo_toque_em)}</td>
-        <td style="text-align:right;font-weight:800">${n0(c.prioridade).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
+        <td style="text-align:right;font-weight:600">${n0(c.prioridade).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
         <td>${statusPill(c.status)}</td>
       </tr>`).join('') || '<tr><td colspan="7" class="tiny muted" style="text-align:center;padding:14px">nenhuma conversa ativa agora</td></tr>'}
     </tbody>
@@ -466,7 +466,7 @@ async function abrirTranscricao(conversaId) {
   wrap.innerHTML = `
     <div class="card sol" style="max-width:560px;width:100%;max-height:84vh;display:flex;flex-direction:column;padding:16px" onclick="event.stopPropagation()">
       <div class="flex items-center" style="gap:8px">
-        <h3 style="margin:0;flex:1;font-size:15px">💬 ${esc(c.nome || '(sem nome)')} <span class="tiny muted">${esc(c.telefone || '')}</span></h3>
+        <h3 style="margin:0;flex:1;font-size:14px">💬 ${esc(c.nome || '(sem nome)')} <span class="tiny muted">${esc(c.telefone || '')}</span></h3>
         <button class="btn btn-sm btn-ghost" id="solm-x">✕</button>
       </div>
       <div class="tiny muted" style="margin-top:4px">${esc(c.origem || '—')} · etapa ${esc(c.etapa_funil || '—')} · régua ${esc(c.regua || '—')} · ${statusPill(c.status)}</div>
@@ -595,7 +595,7 @@ function rTemplates(body) {
       </table></div>` : `
       <div class="sol-vazio">
         <div class="big">📄</div>
-        <div style="font-weight:800;margin-top:6px">Nenhum template cadastrado ainda</div>
+        <div style="font-weight:600;margin-top:6px">Nenhum template cadastrado ainda</div>
         <div class="tiny muted" style="margin-top:4px;max-width:440px;margin-left:auto;margin-right:auto">
           Os templates (toques de utilidade e marketing das réguas) entram na chave
           <code>templates</code> de sol_config e aparecem aqui pra submeter à Meta quando a WABA sair.</div>
@@ -751,7 +751,7 @@ async function rAnalises(body) {
         ${kpi('Por agendamento', custos.por_agendamento != null ? brl(custos.por_agendamento) : '—', `${n0(custos.agendamentos)} agendamento(s)`)}
       </div>
       <div id="sol-custo-graf" style="position:relative;height:170px;margin-top:10px"><canvas id="sol-custo-canvas"></canvas></div>
-      <div class="tiny muted" style="margin-top:6px">pilha: <span style="color:#f59e0b">Meta (templates)</span> · <span style="color:#a78bfa">IA</span> · <span style="color:#64748b">fixos rateados</span> — linha = acumulado no período${Number(custos.fixo_mensal_brl) ? ` · fixos declarados: ${brl(custos.fixo_mensal_brl)}/mês` : ''}</div>`
+      <div class="tiny muted" style="margin-top:6px">pilha: <span style="color:var(--warn)">Meta (templates)</span> · <span style="color:#a78bfa">IA</span> · <span style="color:var(--ink-muted)">fixos rateados</span> — linha = acumulado no período${Number(custos.fixo_mensal_brl) ? ` · fixos declarados: ${brl(custos.fixo_mensal_brl)}/mês` : ''}</div>`
       : `<div class="sol-vazio"><div class="big">💰</div>
         <div class="tiny muted" style="margin-top:6px">os gastos aparecem junto com as primeiras conversas — cada evento da Sol declara seu custo</div></div>`}
     </div>
@@ -798,7 +798,7 @@ async function desenhaGraficoVisao(body) {
       type: 'bar',
       data: { labels, datasets: [
         { label: 'Agendamentos', data: ag, backgroundColor: '#22c55e', borderRadius: 3 },
-        { label: 'Qualificados', data: qa, backgroundColor: '#60a5fa', borderRadius: 3 },
+        { label: 'Qualificados', data: qa, backgroundColor: '#806d50', borderRadius: 3 },
       ] },
       options: {
         responsive: true, maintainAspectRatio: false,
@@ -815,8 +815,8 @@ async function desenhaGraficoVisao(body) {
   wrap.style.height = 'auto';
   wrap.innerHTML = `<div class="sol-bars">
     ${dias.map((d, i) => `<div class="sol-bcol" title="${labels[i]} · 📅 ${ag[i]} · ✅ ${qa[i]}">
-      <div class="sol-b" style="height:${Math.round(ag[i] / max * 120)}px;background:#22c55e"></div>
-      <div class="sol-b" style="height:${Math.round(qa[i] / max * 120)}px;background:#60a5fa"></div>
+      <div class="sol-b" style="height:${Math.round(ag[i] / max * 120)}px;background:var(--ok-soft)"></div>
+      <div class="sol-b" style="height:${Math.round(qa[i] / max * 120)}px;background:var(--accent-soft)"></div>
       <div class="sol-blbl">${labels[i]}</div>
     </div>`).join('')}
   </div>`;
@@ -864,7 +864,7 @@ async function desenhaGraficoGastos(body, serie) {
     ${serie.map((r, i) => `<div class="sol-bcol" title="${labels[i]} · total ${brl(r.total)} · acumulado ${brl(r.acumulado)}">
       <div class="sol-b" style="height:${Math.round(fx[i] / max * 84)}px;background:#64748b;border-radius:0"></div>
       <div class="sol-b" style="height:${Math.round(ia[i] / max * 84)}px;background:#a78bfa;border-radius:0"></div>
-      <div class="sol-b" style="height:${Math.round(tpl[i] / max * 84)}px;background:#f59e0b"></div>
+      <div class="sol-b" style="height:${Math.round(tpl[i] / max * 84)}px;background:var(--warn-soft)"></div>
       <div class="sol-blbl">${labels[i]}</div>
     </div>`).join('')}
   </div>`;

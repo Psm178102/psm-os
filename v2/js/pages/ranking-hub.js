@@ -289,10 +289,10 @@ function gongo(nome, vgvDelta) {
   ov.innerHTML = `
     <div style="text-align:center;animation:rhPop .3s ease">
       <div style="font-size:110px;line-height:1">🔔🎉</div>
-      <div style="font-size:26px;font-weight:900;letter-spacing:.2em;color:#facc15;margin-top:10px">VENDA CONFIRMADA</div>
-      <div style="font-size:64px;font-weight:900;color:#f8fafc;margin-top:8px">${escapeHtml(nome)}</div>
-      ${vgvDelta > 1 ? `<div style="font-size:34px;font-weight:800;color:#4ade80;margin-top:8px">+ ${fmtBRL(vgvDelta)}</div>` : ''}
-      <div style="font-size:18px;color:#94a3b8;margin-top:16px">👏 Arena, aplausos!</div>
+      <div style="font-size:26px;font-weight:600;letter-spacing:.2em;color:var(--warn);margin-top:10px">VENDA CONFIRMADA</div>
+      <div style="font-size:64px;font-weight:600;color:#f8fafc;margin-top:8px">${escapeHtml(nome)}</div>
+      ${vgvDelta > 1 ? `<div style="font-size:36px;font-weight:600;color:var(--ok);margin-top:8px">+ ${fmtBRL(vgvDelta)}</div>` : ''}
+      <div style="font-size:16px;color:var(--ink-muted);margin-top:16px">👏 Arena, aplausos!</div>
     </div>`;
   document.body.appendChild(ov);
   if (_celebTimer) clearTimeout(_celebTimer);
@@ -315,19 +315,19 @@ function aberturaDoDia() {
   ov.innerHTML = `
     <div style="text-align:center;animation:rhPop .4s ease">
       <div style="font-size:90px">☀️</div>
-      <div style="font-size:52px;font-weight:900;color:#facc15;margin-top:6px">BOM DIA, ARENA!</div>
-      <div style="font-size:24px;color:#cbd5e1;margin-top:16px">${h.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+      <div style="font-size:52px;font-weight:600;color:var(--warn);margin-top:6px">BOM DIA, ARENA!</div>
+      <div style="font-size:26px;color:#cbd5e1;margin-top:16px">${h.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
       <div style="display:flex;gap:20px;justify-content:center;margin-top:26px">
-        <div style="background:#0d1120;border:1px solid rgba(71,85,105,.4);border-radius:14px;padding:18px 26px">
-          <div style="font-size:13px;color:#64748b;text-transform:uppercase;letter-spacing:.1em">VGV do mês</div>
-          <div style="font-size:34px;font-weight:900;color:#4ade80">${fmtBRL(sv.vgv_mes || 0)}</div>
+        <div style="background:#0d1120;border:1px solid rgba(71,85,105,.4);border-radius:var(--radius-lg);padding:18px 26px">
+          <div style="font-size:13px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.1em">VGV do mês</div>
+          <div style="font-size:36px;font-weight:600;color:var(--ok)">${fmtBRL(sv.vgv_mes || 0)}</div>
         </div>
-        ${lider ? `<div style="background:#0d1120;border:1px solid rgba(234,179,8,.5);border-radius:14px;padding:18px 26px">
-          <div style="font-size:13px;color:#64748b;text-transform:uppercase;letter-spacing:.1em">Líder do ranking</div>
-          <div style="font-size:34px;font-weight:900;color:#facc15">👑 ${escapeHtml(lider.agentName || '')}</div>
+        ${lider ? `<div style="background:#0d1120;border:1px solid var(--warn);border-radius:var(--radius-lg);padding:18px 26px">
+          <div style="font-size:13px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.1em">Líder do ranking</div>
+          <div style="font-size:36px;font-weight:600;color:var(--warn)">👑 ${escapeHtml(lider.agentName || '')}</div>
         </div>` : ''}
       </div>
-      <div style="font-size:20px;color:#94a3b8;margin-top:24px">Bora fazer desse dia o melhor do mês. 💪</div>
+      <div style="font-size:20px;color:var(--ink-muted);margin-top:24px">Bora fazer desse dia o melhor do mês. 💪</div>
     </div>`;
   document.body.appendChild(ov);
   fala('Bom dia, Arena! Bora fazer desse dia o melhor do mês!');
@@ -343,11 +343,11 @@ function telaRecado() {
   const cor = r.cor && r.cor !== '#0f172a' ? r.cor : '#eab308';
   return `
     <div style="display:flex;align-items:center;justify-content:center;height:100%;padding:5vh 7vw">
-      <div style="max-width:1100px;width:100%;text-align:center;border-radius:26px;padding:56px 54px;background:linear-gradient(180deg,${cor}26,#0d1120 65%);border:3px solid ${cor};box-shadow:0 0 90px ${cor}33">
+      <div style="max-width:1100px;width:100%;text-align:center;border-radius:var(--radius-full);padding:56px 54px;background:linear-gradient(180deg,${cor}26,#0d1120 65%);border:3px solid ${cor};box-shadow:0 0 90px ${cor}33">
         <div style="font-size:64px">📣</div>
-        <div style="font-size:14px;font-weight:900;letter-spacing:.2em;color:${cor};margin-top:6px">RECADO DA GESTÃO</div>
-        <div style="font-size:44px;font-weight:900;color:#f8fafc;line-height:1.35;margin-top:18px;white-space:pre-wrap">${escapeHtml(r.texto || '')}</div>
-        <div style="font-size:19px;color:#94a3b8;margin-top:26px">— ${escapeHtml(r.autor || 'Diretoria')}${r.expira_em ? ` · vale até ${new Date(r.expira_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : ''}</div>
+        <div style="font-size:14px;font-weight:600;letter-spacing:.2em;color:${cor};margin-top:6px">RECADO DA GESTÃO</div>
+        <div style="font-size:44px;font-weight:600;color:#f8fafc;line-height:1.35;margin-top:18px;white-space:pre-wrap">${escapeHtml(r.texto || '')}</div>
+        <div style="font-size:20px;color:var(--ink-muted);margin-top:26px">— ${escapeHtml(r.autor || 'Diretoria')}${r.expira_em ? ` · vale até ${new Date(r.expira_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : ''}</div>
       </div>
     </div>`;
 }
@@ -359,29 +359,29 @@ function telaDuelo() {
   if (!a || !b) return vazio('⚔️', 'O duelo começa quando 2 corretores pontuarem no mês.');
   const diff = (a.totalPoints || 0) - (b.totalPoints || 0);
   const lado = (x, cor, coroa) => `
-    <div style="flex:1;text-align:center;border-radius:20px;padding:34px 20px;background:${coroa ? 'radial-gradient(120% 120% at 50% 0%,rgba(234,179,8,.16),#0d1120)' : 'rgba(30,41,59,.4)'};border:2px solid ${cor}">
+    <div style="flex:1;text-align:center;border-radius:var(--radius-lg);padding:34px 20px;background:${coroa ? 'radial-gradient(120% 120% at 50% 0%,rgba(234,179,8,.16),#0d1120)' : 'rgba(30,41,59,.4)'};border:2px solid ${cor}">
       ${coroa ? '<div style="font-size:44px">👑</div>' : '<div style="font-size:44px">🥈</div>'}
-      <div style="font-size:38px;font-weight:900;color:#f8fafc;margin-top:6px">${escapeHtml(x.agentName || '')}</div>
-      <div style="font-size:76px;font-weight:900;color:${cor};line-height:1.1">${fmtPts(x.totalPoints)}</div>
-      <div style="font-size:14px;letter-spacing:.12em;color:#64748b">PONTOS</div>
-      ${x.vgvReal ? `<div style="font-size:22px;font-weight:800;color:#4ade80;margin-top:8px">${fmtBRL(x.vgvReal)}</div>` : ''}
+      <div style="font-size:36px;font-weight:600;color:#f8fafc;margin-top:6px">${escapeHtml(x.agentName || '')}</div>
+      <div style="font-size:76px;font-weight:600;color:${cor};line-height:1.1">${fmtPts(x.totalPoints)}</div>
+      <div style="font-size:14px;letter-spacing:.12em;color:var(--ink-muted)">PONTOS</div>
+      ${x.vgvReal ? `<div style="font-size:20px;font-weight:600;color:var(--ok);margin-top:8px">${fmtBRL(x.vgvReal)}</div>` : ''}
     </div>`;
   return `
     <div style="text-align:center;padding:18px 0 0">
-      <span style="font-size:30px;font-weight:900;color:#facc15">⚔️ Duelo pela liderança</span>
+      <span style="font-size:26px;font-weight:600;color:var(--warn)">⚔️ Duelo pela liderança</span>
     </div>
     <div style="display:flex;gap:24px;align-items:stretch;padding:24px 50px">
       ${lado(a, '#facc15', true)}
       <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px">
-        <div style="font-size:40px;font-weight:900;color:#94a3b8">VS</div>
-        <div style="background:#7c2d12;border:1px solid #fb923c;border-radius:12px;padding:10px 16px;text-align:center">
-          <div style="font-size:26px;font-weight:900;color:#fb923c">${fmtPts(diff)} pts</div>
+        <div style="font-size:36px;font-weight:600;color:var(--ink-muted)">VS</div>
+        <div style="background:#7c2d12;border:1px solid var(--warn);border-radius:var(--radius-md);padding:10px 16px;text-align:center">
+          <div style="font-size:26px;font-weight:600;color:var(--warn)">${fmtPts(diff)} pts</div>
           <div style="font-size:12px;color:#fdba74">separam os dois</div>
         </div>
       </div>
       ${lado(b, '#94a3b8', false)}
     </div>
-    <div style="text-align:center;font-size:22px;font-weight:800;color:#e2e8f0">${escapeHtml(b.agentName || '')} precisa de <span style="color:#fb923c">${fmtPts(diff + 1)} pontos</span> pra tomar a ponta 🔥</div>`;
+    <div style="text-align:center;font-size:20px;font-weight:600;color:#e2e8f0">${escapeHtml(b.agentName || '')} precisa de <span style="color:var(--warn)">${fmtPts(diff + 1)} pontos</span> pra tomar a ponta 🔥</div>`;
 }
 
 /* v88.11: meta do MÊS = soma das metas cadastradas pro mês na aba Metas (não meta anual ÷ 12 —
@@ -405,18 +405,18 @@ function telaCorrida() {
   const paceAno = Math.round(((Date.now() - new Date(new Date().getFullYear(), 0, 1)) / 864e5) / 365 * 100);
   return `
     <div style="text-align:center;padding:18px 0 0">
-      <span style="font-size:30px;font-weight:900;color:#facc15">🏁 Corrida da Meta ${new Date().getFullYear()}</span>
-      <div style="font-size:14px;color:#64748b;margin-top:2px">% da meta individual de VGV · a linha tracejada é onde o ano está (${paceAno}%)</div>
+      <span style="font-size:26px;font-weight:600;color:var(--warn)">🏁 Corrida da Meta ${new Date().getFullYear()}</span>
+      <div style="font-size:14px;color:var(--ink-muted);margin-top:2px">% da meta individual de VGV · a linha tracejada é onde o ano está (${paceAno}%)</div>
     </div>
     <div style="padding:20px 50px;display:grid;gap:14px">
       ${lanes.map((c, i) => `
         <div>
-          <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;color:#e2e8f0">
+          <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:600;color:#e2e8f0">
             <span>${i === 0 ? '🥇 ' : ''}${escapeHtml(c.name || '')}</span>
-            <span style="color:${c.pct >= paceAno ? '#4ade80' : '#fb923c'}">${c.pct}% · ${fmtBRL(c.vgv_atingido || 0)} <span style="color:#64748b;font-weight:400">/ ${fmtBRL(c.meta_vgv)}</span></span>
+            <span style="color:${c.pct >= paceAno ? 'var(--ok)' : 'var(--warn)'}">${c.pct}% · ${fmtBRL(c.vgv_atingido || 0)} <span style="color:var(--ink-muted);font-weight:400">/ ${fmtBRL(c.meta_vgv)}</span></span>
           </div>
-          <div style="position:relative;height:22px;background:#1e293b;border-radius:99px;margin-top:4px;overflow:visible">
-            <div style="height:100%;width:${Math.min(100, c.pct)}%;border-radius:99px;background:linear-gradient(90deg,${c.pct >= paceAno ? '#22c55e,#4ade80' : '#f59e0b,#fb923c'})"></div>
+          <div style="position:relative;height:22px;background:var(--surface-2);border-radius:var(--radius-full);margin-top:4px;overflow:visible">
+            <div style="height:100%;width:${Math.min(100, c.pct)}%;border-radius:var(--radius-full);background:linear-gradient(90deg,${c.pct >= paceAno ? '#22c55e,#4ade80' : '#f59e0b,#fb923c'})"></div>
             <div style="position:absolute;top:-4px;bottom:-4px;left:${Math.min(100, paceAno)}%;width:0;border-left:2px dashed rgba(226,232,240,.5)"></div>
             <div style="position:absolute;top:-6px;left:calc(${Math.min(100, c.pct)}% - 14px);font-size:20px">🏎️</div>
           </div>
@@ -430,7 +430,7 @@ const driveThumb = id => id ? `https://drive.google.com/thumbnail?id=${id}&sz=w8
 /* ── classificação de regra → badge (mesma legenda do Modo TV do HUB) ── */
 const BADGES = {
   prosp: { ab: 'Prosp.', lbl: 'Prospecção',      bg: '#3b3b8f', fg: '#c7c9ff' },
-  agend: { ab: 'Agend.', lbl: 'Visita Agendada', bg: '#1e3a8a', fg: '#bfdbfe' },
+  agend: { ab: 'Agend.', lbl: 'Visita Agendada', bg: '#806d50', fg: '#bfdbfe' },
   aten:  { ab: 'Aten.',  lbl: 'Visita Realizada',bg: '#134e4a', fg: '#99f6e4' },
   doc:   { ab: 'Doc.',   lbl: 'Proposta',        bg: '#4c1d95', fg: '#ddd6fe' },
   venda: { ab: 'Venda',  lbl: 'Venda',           bg: '#14532d', fg: '#bbf7d0' },
@@ -460,7 +460,7 @@ function badgesOf(agent) {
   const acc = catAgg(agent);
   return ['prosp', 'agend', 'aten', 'doc', 'venda', 'perdas'].filter(k => acc[k] && (acc[k].pts || acc[k].n)).map(k => {
     const b = BADGES[k];
-    return `<span style="display:inline-block;padding:3px 10px;border-radius:99px;font-size:13px;font-weight:600;background:${b.bg};color:${b.fg}">${b.ab} <b>${acc[k].n}</b> · ${fmtPts(acc[k].pts)}pts</span>`;
+    return `<span style="display:inline-block;padding:3px 10px;border-radius:var(--radius-full);font-size:13px;font-weight:600;background:${b.bg};color:${b.fg}">${b.ab} <b>${acc[k].n}</b> · ${fmtPts(acc[k].pts)}pts</span>`;
   }).join(' ');
 }
 
@@ -524,7 +524,7 @@ function semEsteira() {
 }
 function vazio(ico, msg) {
   return `<div style="text-align:center;padding:140px 40px;opacity:.7">
-    <div style="font-size:54px">${ico}</div><div style="font-size:24px;margin-top:10px">${escapeHtml(msg)}</div></div>`;
+    <div style="font-size:54px">${ico}</div><div style="font-size:26px;margin-top:10px">${escapeHtml(msg)}</div></div>`;
 }
 
 /* ── render ── */
@@ -559,8 +559,8 @@ function telaRanking(cat) {
   const meta = cat ? TELAS_SEC.find(t => t.id === cat) : null;
   return `
     ${meta ? `<div style="text-align:center;padding:18px 0 0">
-      <span style="font-size:30px;font-weight:900;color:#facc15">${meta.lbl}</span>
-      <div style="font-size:14px;color:#64748b;margin-top:2px">${meta.sub || ''}</div></div>` : ''}
+      <span style="font-size:26px;font-weight:600;color:var(--warn)">${meta.lbl}</span>
+      <div style="font-size:14px;color:var(--ink-muted);margin-top:2px">${meta.sub || ''}</div></div>` : ''}
     <div style="display:grid;grid-template-columns:repeat(${Math.max(ord.length, 1)},1fr);gap:18px;padding:22px 26px 6px">
       ${ord.map(a => podiumCard(a, cat)).join('') || '<div style="opacity:.6;text-align:center;padding:60px">Ninguém pontuou ainda.</div>'}
     </div>
@@ -574,17 +574,17 @@ function telaCriativos() {
   const cs = _criativos.slice(0, 8);
   return `
     <div style="text-align:center;padding:18px 0 0">
-      <span style="font-size:30px;font-weight:900;color:#facc15">🎨 Criativos do mês</span>
-      <div style="font-size:14px;color:#64748b;margin-top:2px">prontos pra usar — baixe na Biblioteca de Criativos do House</div>
+      <span style="font-size:26px;font-weight:600;color:var(--warn)">🎨 Criativos do mês</span>
+      <div style="font-size:14px;color:var(--ink-muted);margin-top:2px">prontos pra usar — baixe na Biblioteca de Criativos do House</div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:20px 26px">
       ${cs.map(c => `
-        <div style="border-radius:14px;overflow:hidden;border:1px solid rgba(71,85,105,.4);background:#0d1120">
-          <div style="aspect-ratio:4/5;background:#111827">
+        <div style="border-radius:var(--radius-lg);overflow:hidden;border:1px solid rgba(71,85,105,.4);background:#0d1120">
+          <div style="aspect-ratio:4/5;background:var(--surface-2)">
             <img src="${escapeHtml(driveThumb(driveFileId(c.link)))}" referrerpolicy="no-referrer" loading="lazy"
                  style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">
           </div>
-          <div style="padding:10px 12px;font-size:14px;font-weight:700;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(c.titulo || '')}</div>
+          <div style="padding:10px 12px;font-size:14px;font-weight:600;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(c.titulo || '')}</div>
         </div>`).join('')}
     </div>`;
 }
@@ -595,17 +595,17 @@ function telaPremiacoes() {
   const dias = o => { if (!o.expira_em && !o.validade) return null; const d = Math.ceil((new Date(o.expira_em || o.validade) - Date.now()) / 864e5); return isFinite(d) ? d : null; };
   return `
     <div style="text-align:center;padding:18px 0 0">
-      <span style="font-size:30px;font-weight:900;color:#facc15">🏆 Premiações & Oportunidades ativas</span>
+      <span style="font-size:26px;font-weight:600;color:var(--warn)">🏆 Premiações & Oportunidades ativas</span>
     </div>
     <div style="display:grid;grid-template-columns:repeat(${Math.min(ops.length, 2) || 1},1fr);gap:18px;padding:22px 30px">
       ${ops.map(o => { const d = dias(o); return `
-        <div style="border-radius:18px;padding:28px 30px;background:linear-gradient(180deg,rgba(34,197,94,.14),#0d1120 70%);border:2px solid rgba(34,197,94,.5)">
-          <div style="font-size:40px">${OP_ICO[o.tipo] || '💡'}</div>
-          <div style="font-size:26px;font-weight:800;color:#f8fafc;line-height:1.3;margin-top:10px">${escapeHtml(o.titulo || '')}</div>
-          ${o.descricao ? `<div style="font-size:17px;color:#cbd5e1;margin-top:8px;line-height:1.5">${escapeHtml(String(o.descricao).slice(0, 180))}</div>` : ''}
+        <div style="border-radius:var(--radius-lg);padding:28px 30px;background:linear-gradient(180deg,rgba(34,197,94,.14),#0d1120 70%);border:2px solid var(--ok)">
+          <div style="font-size:36px">${OP_ICO[o.tipo] || '💡'}</div>
+          <div style="font-size:26px;font-weight:600;color:#f8fafc;line-height:1.3;margin-top:10px">${escapeHtml(o.titulo || '')}</div>
+          ${o.descricao ? `<div style="font-size:16px;color:#cbd5e1;margin-top:8px;line-height:1.5">${escapeHtml(String(o.descricao).slice(0, 180))}</div>` : ''}
           <div style="display:flex;gap:14px;margin-top:14px;align-items:center">
-            ${o.valor_est ? `<span style="font-size:22px;font-weight:900;color:#4ade80">${fmtBRL(o.valor_est)}</span>` : ''}
-            ${d != null ? `<span style="font-size:15px;font-weight:800;color:${d <= 2 ? '#f87171' : '#facc15'}">⏳ ${d <= 0 ? 'último dia!' : `expira em ${d}d`}</span>` : ''}
+            ${o.valor_est ? `<span style="font-size:20px;font-weight:600;color:var(--ok)">${fmtBRL(o.valor_est)}</span>` : ''}
+            ${d != null ? `<span style="font-size:14px;font-weight:600;color:${d <= 2 ? 'var(--err)' : 'var(--warn)'}">⏳ ${d <= 0 ? 'último dia!' : `expira em ${d}d`}</span>` : ''}
           </div>
         </div>`; }).join('') || '<div style="opacity:.6;text-align:center;padding:60px">Nenhuma premiação ativa.</div>'}
     </div>`;
@@ -616,7 +616,7 @@ function telaPremiacoes() {
    anotado à caneta: ONE ON ONE de segunda e os TREINOs de quarta e sexta).
    Hoje fica em destaque e o horário em curso ganha o selo AGORA. ── */
 const CRONO_DIAS = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-const CRONO_COR = { reuniao: '#facc15', oneonone: '#a78bfa', ligacao: '#38bdf8', indicacao: '#4ade80',
+const CRONO_COR = { reuniao: '#facc15', oneonone: '#a78bfa', ligacao: '#806d50', indicacao: '#4ade80',
   treino: '#f472b6', decorado: '#fb923c', market: '#2dd4bf', corujao: '#818cf8', atend: '#22c55e' };
 const LIG_AGENDOU = 'Clientes atuais e os que agendaram mas não vieram (foco em encher o sábado → eventos)';
 const DECORADO = 'Escala de gravação: 3 corretores no decorado gravam os criativos';
@@ -639,33 +639,33 @@ function telaCronograma() {
   const agora = new Date();
   const hojeIdx = agora.getDay() - 1;                 // seg=0 … sáb=5 (domingo: nenhum)
   const hm = `${String(agora.getHours()).padStart(2, '0')}:${String(agora.getMinutes()).padStart(2, '0')}`;
-  const th = (dia, i) => `<div style="padding:8px 8px;text-align:center;font-size:17px;font-weight:900;letter-spacing:.06em;border-radius:10px;${i === hojeIdx ? 'background:#eab308;color:#1c1917' : 'background:#141a2c;color:#cbd5e1'}">${dia.toUpperCase()}${i === hojeIdx ? ' · HOJE' : ''}</div>`;
+  const th = (dia, i) => `<div style="padding:8px 8px;text-align:center;font-size:16px;font-weight:600;letter-spacing:.06em;border-radius:var(--radius-md);${i === hojeIdx ? 'background:var(--warn-soft);color:#1c1917' : 'background:#141a2c;color:#cbd5e1'}">${dia.toUpperCase()}${i === hojeIdx ? ' · HOJE' : ''}</div>`;
   const cel = (c, i, emCurso) => {
     const hoje = i === hojeIdx;
-    if (!c) return `<div style="border-radius:10px;background:${hoje ? 'rgba(234,179,8,.06)' : 'rgba(30,41,59,.25)'};border:1px dashed rgba(71,85,105,.35)"></div>`;
+    if (!c) return `<div style="border-radius:var(--radius-md);background:${hoje ? 'rgba(234,179,8,.06)' : 'rgba(30,41,59,.25)'};border:1px dashed rgba(71,85,105,.35)"></div>`;
     const cor = CRONO_COR[c.k] || '#94a3b8';
     const agoraAqui = hoje && emCurso;
-    return `<div style="border-radius:10px;padding:8px 12px;background:linear-gradient(180deg,${cor}${hoje ? '33' : '1f'},#0d1120);border:${agoraAqui ? `3px solid ${cor}` : `1px solid ${cor}77`};border-left:6px solid ${cor};${agoraAqui ? `box-shadow:0 0 28px ${cor}66;` : ''}${hoje ? '' : 'opacity:.82;'}">
-      ${agoraAqui ? `<div style="display:inline-block;font-size:11px;font-weight:900;letter-spacing:.14em;color:#1c1917;background:${cor};padding:2px 8px;border-radius:99px;margin-bottom:4px">● AGORA</div>` : ''}
-      <div style="font-size:16px;font-weight:900;color:#f8fafc;line-height:1.2">${escapeHtml(c.t)}</div>
+    return `<div style="border-radius:var(--radius-md);padding:8px 12px;background:linear-gradient(180deg,${cor}${hoje ? '33' : '1f'},#0d1120);border:${agoraAqui ? `3px solid ${cor}` : `1px solid ${cor}77`};border-left:6px solid ${cor};${agoraAqui ? `box-shadow:0 0 28px ${cor}66;` : ''}${hoje ? '' : 'opacity:.82;'}">
+      ${agoraAqui ? `<div style="display:inline-block;font-size:11px;font-weight:600;letter-spacing:.14em;color:#1c1917;background:${cor};padding:2px 8px;border-radius:var(--radius-full);margin-bottom:4px">● AGORA</div>` : ''}
+      <div style="font-size:16px;font-weight:600;color:#f8fafc;line-height:1.2">${escapeHtml(c.t)}</div>
       ${c.d ? `<div style="font-size:13px;color:#cbd5e1;line-height:1.35;margin-top:4px">${escapeHtml(c.d)}</div>` : ''}
     </div>`;
   };
   return `
     <div style="text-align:center;padding:10px 0 0">
-      <span style="font-size:30px;font-weight:900;color:#facc15">🗓️ Rotina de Ações Direcionadas</span>
-      <div style="font-size:14px;color:#64748b;margin-top:2px">cronograma da semana · hoje em destaque</div>
+      <span style="font-size:26px;font-weight:600;color:var(--warn)">🗓️ Rotina de Ações Direcionadas</span>
+      <div style="font-size:14px;color:var(--ink-muted);margin-top:2px">cronograma da semana · hoje em destaque</div>
     </div>
     <div style="display:grid;grid-template-columns:150px repeat(6,1fr);gap:7px;padding:10px 30px 6px">
-      <div style="padding:10px 8px;font-size:13px;font-weight:800;letter-spacing:.1em;color:#64748b;align-self:end">HORÁRIO</div>
+      <div style="padding:10px 8px;font-size:13px;font-weight:600;letter-spacing:.1em;color:var(--ink-muted);align-self:end">HORÁRIO</div>
       ${CRONO_DIAS.map(th).join('')}
       ${CRONOGRAMA.map(l => {
         const emCurso = hm >= l.ini && hm < l.fim;
-        return `<div style="display:flex;align-items:center;padding:8px 12px;border-radius:10px;font-size:15px;font-weight:900;${emCurso ? 'background:rgba(234,179,8,.15);color:#facc15' : 'background:#0d1120;color:#e2e8f0'}">${escapeHtml(l.h)}</div>
+        return `<div style="display:flex;align-items:center;padding:8px 12px;border-radius:var(--radius-md);font-size:14px;font-weight:600;${emCurso ? 'background:var(--warn-soft);color:var(--warn)' : 'background:#0d1120;color:#e2e8f0'}">${escapeHtml(l.h)}</div>
           ${l.dias.map((c, i) => cel(c, i, emCurso)).join('')}`;
       }).join('')}
     </div>
-    <div style="margin:4px 30px 10px;padding:9px 18px;border-radius:12px;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.35);font-size:16px;font-weight:700;color:#fde68a;text-align:center">
+    <div style="margin:4px 30px 10px;padding:9px 18px;border-radius:var(--radius-md);background:var(--warn-soft);border:1px solid var(--warn);font-size:16px;font-weight:600;color:var(--warn);text-align:center">
       ⚠️ “Sem rotina, não existe organização &amp; sem organização, não existe nada além do curto prazo.”
     </div>`;
 }
@@ -759,12 +759,12 @@ function telaPlacar() {
     });
   }
   const kpi = (lbl, v, sub, cor) => `
-    <div style="background:#0d1120;border:1px solid rgba(71,85,105,.45);border-radius:12px;padding:8px 16px">
-      <div style="font-size:11px;font-weight:800;letter-spacing:.1em;color:#64748b">${lbl}</div>
-      <div style="font-size:28px;font-weight:900;color:${cor};line-height:1.15">${v}</div>
-      <div style="font-size:12px;color:#94a3b8">${sub}</div>
+    <div style="background:#0d1120;border:1px solid rgba(71,85,105,.45);border-radius:var(--radius-md);padding:8px 16px">
+      <div style="font-size:11px;font-weight:600;letter-spacing:.1em;color:var(--ink-muted)">${lbl}</div>
+      <div style="font-size:26px;font-weight:600;color:${cor};line-height:1.15">${v}</div>
+      <div style="font-size:12px;color:var(--ink-muted)">${sub}</div>
     </div>`;
-  const chip = (ico, lbl, n) => `<span style="display:inline-flex;align-items:baseline;gap:6px;background:#0d1120;border:1px solid rgba(71,85,105,.4);border-radius:10px;padding:5px 12px"><span style="font-size:15px">${ico}</span><b style="font-size:19px;color:#f8fafc">${n}</b><span style="font-size:11px;letter-spacing:.06em;color:#64748b;text-transform:uppercase">${lbl}</span></span>`;
+  const chip = (ico, lbl, n) => `<span style="display:inline-flex;align-items:baseline;gap:6px;background:#0d1120;border:1px solid rgba(71,85,105,.4);border-radius:var(--radius-md);padding:5px 12px"><span style="font-size:14px">${ico}</span><b style="font-size:20px;color:#f8fafc">${n}</b><span style="font-size:11px;letter-spacing:.06em;color:var(--ink-muted);text-transform:uppercase">${lbl}</span></span>`;
   const baseTxt = tx.historico
     ? `conversão real do time em ${tx.meses.join(', ')} (${tx.vendas} venda${tx.vendas === 1 ? '' : 's'})`
     : 'proporções padrão do funil do HUB (sem histórico da esteira)';
@@ -773,30 +773,30 @@ function telaPlacar() {
       const pP = x.meta && !x.p.semTicket ? Math.round(100 * x.p.vgv / x.meta) : null;   // sem ticket não há R$ pra comparar
       const cor = pP != null ? farol(pP) : '#94a3b8';
       const pm = paraMeta(x.r, x.meta, tx, fator);
-      const sug = !pm ? '' : pm.batida ? '<span style="color:#4ade80">✅ meta batida</span>'
-        : pm.itens.every(i => !i.faltam) ? '<span style="color:#4ade80">✅ produção já cobre a meta</span>'
-        : `faltam ${pm.itens.filter(i => i.faltam).map(i => `<b style="color:${i.noRitmo ? '#4ade80' : '#fde047'}">${i.faltam}</b> ${i.lbl}`).join(' · ')}`;
+      const sug = !pm ? '' : pm.batida ? '<span style="color:var(--ok)">✅ meta batida</span>'
+        : pm.itens.every(i => !i.faltam) ? '<span style="color:var(--ok)">✅ produção já cobre a meta</span>'
+        : `faltam ${pm.itens.filter(i => i.faltam).map(i => `<b style="color:${i.noRitmo ? 'var(--ok)' : '#fde047'}">${i.faltam}</b> ${i.lbl}`).join(' · ')}`;
       const wReal = x.meta ? Math.min(100, 100 * x.real / x.meta) : 0;
       const wProj = x.meta ? Math.min(100, 100 * x.p.vgv / x.meta) : 0;
-      return `<div style="display:flex;align-items:center;gap:12px;background:rgba(30,41,59,.35);border:1px solid rgba(71,85,105,.35);border-radius:10px;padding:6px 14px">
-        <span style="flex:1;min-width:0;font-size:17px;font-weight:800;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(x.nome || '')}</span>
-        <span style="width:150px;font-size:13px;color:#94a3b8" title="agendamentos · visitas · pastas no mês">📅 ${Number(x.r.agendamento) || 0} · 🚶 ${Number(x.r.atendimento) || 0} · 🗂 ${Number(x.r.pasta) || 0}</span>
-        <span style="width:115px;font-size:13px;color:#cbd5e1">${fmtMi(x.real)} <span style="color:#64748b">· ${x.vendas} vd</span></span>
+      return `<div style="display:flex;align-items:center;gap:12px;background:rgba(30,41,59,.35);border:1px solid rgba(71,85,105,.35);border-radius:var(--radius-md);padding:6px 14px">
+        <span style="flex:1;min-width:0;font-size:16px;font-weight:600;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(x.nome || '')}</span>
+        <span style="width:150px;font-size:13px;color:var(--ink-muted)" title="agendamentos · visitas · pastas no mês">📅 ${Number(x.r.agendamento) || 0} · 🚶 ${Number(x.r.atendimento) || 0} · 🗂 ${Number(x.r.pasta) || 0}</span>
+        <span style="width:115px;font-size:13px;color:#cbd5e1">${fmtMi(x.real)} <span style="color:var(--ink-muted)">· ${x.vendas} vd</span></span>
         <div style="width:210px">
-          <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:700"><span style="color:${cor}">→ ${x.p.semTicket ? `${x.p.vendas.toFixed(1).replace('.', ',')} venda(s)` : fmtMi(x.p.vgv)}</span><span style="color:#64748b">${x.meta ? `meta ${fmtMi(x.meta)}` : 'sem meta'}</span></div>
-          <div style="position:relative;height:9px;background:#1e293b;border-radius:99px;overflow:hidden">
+          <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:600"><span style="color:${cor}">→ ${x.p.semTicket ? `${x.p.vendas.toFixed(1).replace('.', ',')} venda(s)` : fmtMi(x.p.vgv)}</span><span style="color:var(--ink-muted)">${x.meta ? `meta ${fmtMi(x.meta)}` : 'sem meta'}</span></div>
+          <div style="position:relative;height:9px;background:var(--surface-2);border-radius:var(--radius-full);overflow:hidden">
             <div style="position:absolute;top:0;bottom:0;left:0;width:${wProj}%;background:${cor};opacity:.35"></div>
             <div style="position:absolute;top:0;bottom:0;left:0;width:${wReal}%;background:${cor}"></div>
           </div>
         </div>
-        <span style="width:56px;text-align:right;font-size:18px;font-weight:900;color:${cor}">${pP != null ? pP + '%' : '—'}</span>
+        <span style="width:56px;text-align:right;font-size:16px;font-weight:600;color:${cor}">${pP != null ? pP + '%' : '—'}</span>
         <span style="width:250px;font-size:13px;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sug}</span>
       </div>`;
     }).join('');
   return `
     <div style="display:flex;align-items:baseline;justify-content:center;gap:12px;padding:10px 0 0">
-      <span style="font-size:26px;font-weight:900;color:#facc15">🎯 Placar de ${hj.toLocaleDateString('pt-BR', { month: 'long' })}</span>
-      <span style="font-size:13px;color:#64748b">dia ${dia}/${diasMes} · ${uteis} dia(s) útil(eis) restando · ${EST_HUB}</span>
+      <span style="font-size:26px;font-weight:600;color:var(--warn)">🎯 Placar de ${hj.toLocaleDateString('pt-BR', { month: 'long' })}</span>
+      <span style="font-size:13px;color:var(--ink-muted)">dia ${dia}/${diasMes} · ${uteis} dia(s) útil(eis) restando · ${EST_HUB}</span>
     </div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:8px 36px 0">
       ${kpi('VENDIDO', fmtMi(vendido), `${nVend} venda(s) · ${pct}% da meta`, '#f8fafc')}
@@ -806,20 +806,20 @@ function telaPlacar() {
       ${kpi('FALTA VENDER', falta > 0 ? fmtMi(falta) : '✅', falta > 0 ? `${tx.ticket ? `≈ ${Math.ceil(falta / tx.ticket)} venda(s) · ` : ''}${uteis ? `${fmtMi(falta / uteis)}/dia útil` : ''}` : 'meta batida — agora é recorde', '#fb923c')}
     </div>
     <div style="padding:8px 36px 0">
-      <div style="position:relative;height:12px;background:#1e293b;border-radius:99px;overflow:hidden">
+      <div style="position:relative;height:12px;background:var(--surface-2);border-radius:var(--radius-full);overflow:hidden">
         <div style="position:absolute;top:0;bottom:0;left:0;width:${Math.min(100, pctProj)}%;background:${farol(pctProj)};opacity:.3"></div>
         <div style="position:absolute;top:0;bottom:0;left:0;width:${Math.min(100, pct)}%;background:linear-gradient(90deg,#facc15,#4ade80)"></div>
         <div style="position:absolute;top:0;bottom:0;left:${Math.min(100, Math.round(dia / diasMes * 100))}%;width:0;border-left:2px dashed rgba(226,232,240,.6)"></div>
       </div>
-      <div style="font-size:11.5px;color:#64748b;margin-top:3px">cheio = vendido · claro = projeção · tracejado = pace do mês (${Math.round(dia / diasMes * 100)}%) — <b style="color:#94a3b8">projeção</b> = agendamentos, visitas e pastas do mês no ritmo atual até o dia ${diasMes} × ${baseTxt}${tx.ticket ? ` × ticket médio ${fmtMi(tx.ticket)}` : ''}; nunca abaixo do já vendido</div>
+      <div style="font-size:11px;color:var(--ink-muted);margin-top:3px">cheio = vendido · claro = projeção · tracejado = pace do mês (${Math.round(dia / diasMes * 100)}%) — <b style="color:var(--ink-muted)">projeção</b> = agendamentos, visitas e pastas do mês no ritmo atual até o dia ${diasMes} × ${baseTxt}${tx.ticket ? ` × ticket médio ${fmtMi(tx.ticket)}` : ''}; nunca abaixo do já vendido</div>
     </div>
     <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 36px 0">
       ${chip('📞', 'prospecções', prod.prospeccao)}${chip('✅', 'qualificações', prod.qualificacao)}${chip('📅', 'agendamentos', prod.agendamento)}${chip('🚶', 'visitas', prod.atendimento)}${chip('🗂', 'pastas', prod.pasta)}${chip('💰', 'vendas', prod.vendaCount)}
-      ${gargalo ? `<span style="margin-left:auto;font-size:13px;color:#fed7aa">🎯 <b style="color:#fb923c">Gargalo do time: ${gargalo.lbl}</b> — no ritmo atual o mês fecha com ${gargalo.ritmo} de ${gargalo.precisa} · foco: ${FOCO_ETAPA[gargalo.k]}</span>` : ''}
+      ${gargalo ? `<span style="margin-left:auto;font-size:13px;color:#fed7aa">🎯 <b style="color:var(--warn)">Gargalo do time: ${gargalo.lbl}</b> — no ritmo atual o mês fecha com ${gargalo.ritmo} de ${gargalo.precisa} · foco: ${FOCO_ETAPA[gargalo.k]}</span>` : ''}
     </div>
     <div style="padding:8px 36px 10px;display:grid;gap:5px">
-      <div style="font-size:12px;font-weight:800;color:#94a3b8;letter-spacing:.08em">INDIVIDUAIS — 📅 agendamentos · 🚶 visitas · 🗂 pastas do mês · vendido · → projeção × meta (HUB) · o que falta pra meta (verde = já no ritmo)</div>
-      ${linhas || '<div style="color:#64748b;font-size:14px">nenhum corretor com produção, venda ou meta no mês</div>'}
+      <div style="font-size:12px;font-weight:600;color:var(--ink-muted);letter-spacing:.08em">INDIVIDUAIS — 📅 agendamentos · 🚶 visitas · 🗂 pastas do mês · vendido · → projeção × meta (HUB) · o que falta pra meta (verde = já no ritmo)</div>
+      ${linhas || '<div style="color:var(--ink-muted);font-size:14px">nenhum corretor com produção, venda ou meta no mês</div>'}
     </div>`;
 }
 
@@ -832,12 +832,12 @@ function podiumCard(a, cat) {
       : 'border:1px solid #b45309;background:rgba(69,26,3,.35)';
   const posColor = a.pos === 1 ? '#facc15' : a.pos === 3 ? '#fb923c' : '#e2e8f0';
   return `
-    <div style="border-radius:16px;padding:${first ? '26px' : '22px'} 18px;text-align:center;${style}">
-      <div style="font-size:${first ? '30px' : '24px'};font-weight:800;color:${posColor}">${a.pos}°</div>
-      <div style="font-size:${first ? '28px' : '22px'};font-weight:700;color:#f1f5f9;margin-top:2px">${escapeHtml(a.agentName || '—')}</div>
-      <div style="font-size:${first ? '84px' : '58px'};font-weight:900;line-height:1.1;color:${posColor}">${cat ? a._n : fmtPts(a.totalPoints)}</div>
+    <div style="border-radius:var(--radius-lg);padding:${first ? '26px' : '22px'} 18px;text-align:center;${style}">
+      <div style="font-size:${first ? '30px' : '24px'};font-weight:600;color:${posColor}">${a.pos}°</div>
+      <div style="font-size:${first ? '28px' : '22px'};font-weight:600;color:#f1f5f9;margin-top:2px">${escapeHtml(a.agentName || '—')}</div>
+      <div style="font-size:${first ? '84px' : '58px'};font-weight:600;line-height:1.1;color:${posColor}">${cat ? a._n : fmtPts(a.totalPoints)}</div>
       <div style="font-size:${cat ? '15px' : '12px'};letter-spacing:.08em;color:${posColor};opacity:.85">${cat ? (TELAS_SEC.find(t => t.id === cat) || {}).un || '' : 'pontos'}</div>
-      ${a.vgvReal ? `<div style="margin-top:6px;color:#86efac;font-weight:700">VGV ${fmtBRL(a.vgvReal)}</div>` : ''}
+      ${a.vgvReal ? `<div style="margin-top:6px;color:var(--ok);font-weight:600">VGV ${fmtBRL(a.vgvReal)}</div>` : ''}
       <div style="height:1px;background:rgba(148,163,184,.25);margin:14px 40px"></div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;min-height:26px">${cat ? '' : badgesOf(a) + ' ' + streakChip(a)}</div>
     </div>`;
@@ -846,20 +846,20 @@ function podiumCard(a, cat) {
 function streakChip(a) {
   const d = _ritmo[String(a.agentName || '').split(' ')[0].toLowerCase()];
   if (d == null) return '';
-  if (d <= 7) return `<span style="padding:3px 10px;border-radius:99px;font-size:12px;font-weight:800;background:rgba(34,197,94,.16);color:#4ade80">🔥 vendeu há ${d}d</span>`;
-  if (d >= 21) return `<span style="padding:3px 10px;border-radius:99px;font-size:12px;font-weight:800;background:rgba(239,68,68,.14);color:#f87171">⏰ ${d}d sem venda</span>`;
+  if (d <= 7) return `<span style="padding:3px 10px;border-radius:var(--radius-full);font-size:12px;font-weight:600;background:var(--ok-soft);color:var(--ok)">🔥 vendeu há ${d}d</span>`;
+  if (d >= 21) return `<span style="padding:3px 10px;border-radius:var(--radius-full);font-size:12px;font-weight:600;background:var(--err-soft);color:var(--err)">⏰ ${d}d sem venda</span>`;
   return '';
 }
 
 function rowCard(a, cat) {
   return `
-    <div style="display:flex;align-items:center;gap:16px;background:rgba(30,41,59,.35);border:1px solid rgba(71,85,105,.4);border-radius:12px;padding:14px 20px">
-      <div style="font-size:20px;font-weight:800;color:#94a3b8;width:44px">${a.pos}°</div>
-      <div style="font-size:20px;font-weight:700;color:#f1f5f9">${escapeHtml(a.agentName || '—')}</div>
+    <div style="display:flex;align-items:center;gap:16px;background:rgba(30,41,59,.35);border:1px solid rgba(71,85,105,.4);border-radius:var(--radius-md);padding:14px 20px">
+      <div style="font-size:20px;font-weight:600;color:var(--ink-muted);width:44px">${a.pos}°</div>
+      <div style="font-size:20px;font-weight:600;color:#f1f5f9">${escapeHtml(a.agentName || '—')}</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px">${cat ? '' : badgesOf(a) + ' ' + streakChip(a)}</div>
       <div style="margin-left:auto;text-align:right">
-        <div style="font-size:26px;font-weight:900;color:#f1f5f9;line-height:1">${cat ? a._n : fmtPts(a.totalPoints)}</div>
-        <div style="font-size:11px;color:#64748b">${cat ? (TELAS_SEC.find(t => t.id === cat) || {}).un || '' : `pts${a.vgvReal ? ` · VGV ${fmtBRL(a.vgvReal)}` : ''}`}</div>
+        <div style="font-size:26px;font-weight:600;color:#f1f5f9;line-height:1">${cat ? a._n : fmtPts(a.totalPoints)}</div>
+        <div style="font-size:11px;color:var(--ink-muted)">${cat ? (TELAS_SEC.find(t => t.id === cat) || {}).un || '' : `pts${a.vgvReal ? ` · VGV ${fmtBRL(a.vgvReal)}` : ''}`}</div>
       </div>
     </div>`;
 }
@@ -878,7 +878,7 @@ let _tkItems = [], _tkSig = '';
 function tickerItems() {
   const rec = _recados.map(r => ({ kind: 'recado', tag: 'RECADO', ico: '📣', cor: r.cor || '#eab308', texto: r.texto || '', extra: r.autor || '' }));
   const outros = [
-    ..._atividade.slice(0, 6).map(a => ({ kind: 'atividade', tag: 'ATIVIDADE', ico: '⚡', cor: '#38bdf8', texto: `${a.nome} · ${a.lbl}`, extra: a.hora })),
+    ..._atividade.slice(0, 6).map(a => ({ kind: 'atividade', tag: 'ATIVIDADE', ico: '⚡', cor: '#806d50', texto: `${a.nome} · ${a.lbl}`, extra: a.hora })),
     ..._oport.slice(0, TK_OPORT_MAX).map(o => ({ kind: 'oportunidade', tag: 'OPORTUNIDADE', ico: OP_ICO[o.tipo] || '💡', cor: '#22c55e',
       texto: o.titulo || '', extra: o.valor_est ? fmtBRL(o.valor_est) : '', desc: o.descricao || '' })),
   ];
@@ -888,11 +888,11 @@ function tickerItems() {
 }
 function tkChip(i, idx) {
   return `
-    <button class="rh-item" data-tk="${idx}" style="flex:none;display:inline-flex;align-items:center;gap:10px;margin-right:22px;padding:7px 16px;border-radius:99px;white-space:nowrap;cursor:pointer;border:1px solid ${i.cor}66;background:linear-gradient(180deg,${i.cor}2e,${i.cor}14);color:#f1f5f9;font-family:inherit">
+    <button class="rh-item" data-tk="${idx}" style="flex:none;display:inline-flex;align-items:center;gap:10px;margin-right:22px;padding:7px 16px;border-radius:var(--radius-full);white-space:nowrap;cursor:pointer;border:1px solid ${i.cor}66;background:linear-gradient(180deg,${i.cor}2e,${i.cor}14);color:#f1f5f9;font-family:inherit">
       <span style="font-size:20px;line-height:1">${i.ico}</span>
-      <span style="font-size:10px;font-weight:900;letter-spacing:.12em;color:${i.cor};background:${i.cor}22;padding:2px 8px;border-radius:99px">${i.tag}</span>
-      <span style="font-size:19px;font-weight:700">${escapeHtml(i.texto)}</span>
-      ${i.extra ? `<span style="font-size:16px;font-weight:800;color:${i.kind === 'oportunidade' ? '#4ade80' : '#94a3b8'}">${escapeHtml(i.extra)}</span>` : ''}
+      <span style="font-size:11px;font-weight:600;letter-spacing:.12em;color:${i.cor};background:${i.cor}22;padding:2px 8px;border-radius:var(--radius-full)">${i.tag}</span>
+      <span style="font-size:20px;font-weight:600">${escapeHtml(i.texto)}</span>
+      ${i.extra ? `<span style="font-size:16px;font-weight:600;color:${i.kind === 'oportunidade' ? 'var(--ok)' : 'var(--ink-muted)'}">${escapeHtml(i.extra)}</span>` : ''}
     </button>`;
 }
 function tkEstilo() {
@@ -922,9 +922,9 @@ function syncTicker() {
   }
   const chunk = its.map(tkChip).join('');
   el.innerHTML = `
-    <div style="flex:none;display:flex;align-items:center;gap:8px;padding:0 18px;background:linear-gradient(90deg,#1c1917,#0d1120);border-right:1px solid rgba(234,179,8,.35)">
-      <span style="width:10px;height:10px;border-radius:99px;background:#ef4444;animation:rhTkLive 1.4s ease infinite"></span>
-      <span style="font-size:13px;font-weight:900;letter-spacing:.14em;color:#facc15">AGORA</span>
+    <div style="flex:none;display:flex;align-items:center;gap:8px;padding:0 18px;background:linear-gradient(90deg,#1c1917,#0d1120);border-right:1px solid var(--warn)">
+      <span style="width:10px;height:10px;border-radius:var(--radius-full);background:var(--err-soft);animation:rhTkLive 1.4s ease infinite"></span>
+      <span style="font-size:13px;font-weight:600;letter-spacing:.14em;color:var(--warn)">AGORA</span>
     </div>
     <div style="flex:1;min-width:0;display:flex;align-items:center;overflow:hidden">
       <div class="rh-track" style="display:flex;align-items:center;width:max-content;will-change:transform;animation:rhTkMove 60s linear infinite">
@@ -945,15 +945,15 @@ function showTickerItem(i) {
   ov.id = 'rh-overlay';
   ov.style.cssText = 'position:fixed;inset:0;z-index:70;background:rgba(5,8,15,.88);display:flex;align-items:center;justify-content:center;padding:6vh 6vw';
   ov.innerHTML = `
-    <div style="max-width:900px;width:100%;border-radius:22px;padding:44px 48px;background:linear-gradient(180deg,${i.cor}24,#0d1120 60%);border:2px solid ${i.cor}88;box-shadow:0 0 80px ${i.cor}33;text-align:center;animation:rhPop .25s ease">
+    <div style="max-width:900px;width:100%;border-radius:var(--radius-lg);padding:44px 48px;background:linear-gradient(180deg,${i.cor}24,#0d1120 60%);border:2px solid ${i.cor}88;box-shadow:0 0 80px ${i.cor}33;text-align:center;animation:rhPop .25s ease">
       <div style="font-size:56px">${i.ico}</div>
-      <div style="font-size:13px;font-weight:900;letter-spacing:.16em;color:${i.cor};margin-top:6px">${i.tag}</div>
-      <div style="font-size:34px;font-weight:800;color:#f8fafc;line-height:1.3;margin-top:14px">${escapeHtml(i.texto)}</div>
-      ${i.desc ? `<div style="font-size:19px;color:#cbd5e1;line-height:1.5;margin-top:12px">${escapeHtml(i.desc)}</div>` : ''}
-      ${i.extra ? `<div style="font-size:26px;font-weight:900;color:${i.kind === 'oportunidade' ? '#4ade80' : '#94a3b8'};margin-top:12px">${escapeHtml(i.extra)}</div>` : ''}
+      <div style="font-size:13px;font-weight:600;letter-spacing:.16em;color:${i.cor};margin-top:6px">${i.tag}</div>
+      <div style="font-size:36px;font-weight:600;color:#f8fafc;line-height:1.3;margin-top:14px">${escapeHtml(i.texto)}</div>
+      ${i.desc ? `<div style="font-size:20px;color:#cbd5e1;line-height:1.5;margin-top:12px">${escapeHtml(i.desc)}</div>` : ''}
+      ${i.extra ? `<div style="font-size:26px;font-weight:600;color:${i.kind === 'oportunidade' ? 'var(--ok)' : 'var(--ink-muted)'};margin-top:12px">${escapeHtml(i.extra)}</div>` : ''}
       <div style="display:flex;gap:12px;justify-content:center;margin-top:26px">
-        ${i.kind === 'oportunidade' ? `<button id="rh-ov-go" style="cursor:pointer;border:0;border-radius:12px;padding:12px 22px;font-size:16px;font-weight:800;background:#22c55e;color:#052e16">💡 Abrir Oportunidades</button>` : ''}
-        <button id="rh-ov-x" style="cursor:pointer;border:1px solid rgba(148,163,184,.4);border-radius:12px;padding:12px 22px;font-size:16px;font-weight:700;background:transparent;color:#e2e8f0">Fechar ✕</button>
+        ${i.kind === 'oportunidade' ? `<button id="rh-ov-go" style="cursor:pointer;border:0;border-radius:var(--radius-md);padding:12px 22px;font-size:16px;font-weight:600;background:var(--ok-soft);color:#052e16">💡 Abrir Oportunidades</button>` : ''}
+        <button id="rh-ov-x" style="cursor:pointer;border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 22px;font-size:16px;font-weight:600;background:transparent;color:#e2e8f0">Fechar ✕</button>
       </div>
     </div>`;
   ov.addEventListener('click', e => { if (e.target === ov) closeTickerOverlay(); });
@@ -982,10 +982,10 @@ function modoFechamento() {
   const porDia = uteis > 0 ? falta / uteis : falta;
   return `
     <div style="display:flex;align-items:center;justify-content:center;gap:16px;padding:9px 20px;background:linear-gradient(90deg,#7f1d1d,#9a3412);border-bottom:1px solid rgba(251,146,60,.5)">
-      <span style="font-size:15px;font-weight:900;letter-spacing:.14em;color:#fecaca">🔥 MODO FECHAMENTO</span>
-      <span style="font-size:15px;font-weight:700;color:#fed7aa">faltam <b>${uteis}</b> dia(s) útil(eis) no mês</span>
-      ${metaMes && falta > 0 ? `<span style="font-size:15px;font-weight:800;color:#fff">precisamos de <b style="color:#fde047">${fmtBRL(porDia)}/dia</b> pra bater a meta</span>`
-        : metaMes ? '<span style="font-size:15px;font-weight:800;color:#86efac">✅ meta do mês batida — agora é recorde!</span>' : ''}
+      <span style="font-size:14px;font-weight:600;letter-spacing:.14em;color:var(--err)">🔥 MODO FECHAMENTO</span>
+      <span style="font-size:14px;font-weight:600;color:#fed7aa">faltam <b>${uteis}</b> dia(s) útil(eis) no mês</span>
+      ${metaMes && falta > 0 ? `<span style="font-size:14px;font-weight:600;color:#fff">precisamos de <b style="color:#fde047">${fmtBRL(porDia)}/dia</b> pra bater a meta</span>`
+        : metaMes ? '<span style="font-size:14px;font-weight:600;color:var(--ok)">✅ meta do mês batida — agora é recorde!</span>' : ''}
     </div>`;
 }
 
@@ -996,7 +996,7 @@ function shell(body) {
     : (_data ? `Ranking — ${meses[_data.month] || ''} ${_data.year}` : 'Ranking — PSM HUB');
   const CICLO = CICLO_ATUAL();
   const dots = `<span style="display:inline-flex;gap:5px;margin-left:10px;align-items:center">
-    ${CICLO.map((id, i) => `<span style="width:8px;height:8px;border-radius:99px;background:${i === ((_secIdx % CICLO.length) + CICLO.length) % CICLO.length ? '#facc15' : '#334155'}"></span>`).join('')}</span>`;
+    ${CICLO.map((id, i) => `<span style="width:8px;height:8px;border-radius:var(--radius-full);background:${i === ((_secIdx % CICLO.length) + CICLO.length) % CICLO.length ? 'var(--warn-soft)' : '#334155'}"></span>`).join('')}</span>`;
   const tabs = ['GERAL', ...teams()];
   return `
   <style>
@@ -1011,37 +1011,37 @@ function shell(body) {
     .rh-bar { transform-origin:left; animation:rhBar ${SLIDE_MS()}ms linear; }
     .rh-live { animation:rhLive 1.4s ease infinite; }
     .rh-item { transition:transform .15s ease, box-shadow .15s ease; }
-    .rh-item:hover { transform:scale(1.06); box-shadow:0 0 22px rgba(250,204,21,.25); }
+    .rh-item:hover { transform:scale(1.06); box-shadow:var(--shadow-1); }
     @media (prefers-reduced-motion: reduce) { .rh-live { animation:none !important } }
   </style>
   <div style="position:fixed;inset:0 0 ${_tkOn ? TK_ALTURA : '0'} 0;z-index:50;background:#0a0d16;color:#e2e8f0;display:flex;flex-direction:column;overflow:hidden;font-family:inherit">
     <div style="display:flex;align-items:center;gap:18px;padding:14px 26px;background:#0d1120;border-bottom:1px solid rgba(71,85,105,.3);position:sticky;top:0;z-index:2">
-      <div style="font-weight:800;font-size:18px;color:#f8fafc">🏆 PSM HUB</div>
-      <div style="color:#475569">|</div>
+      <div style="font-weight:600;font-size:16px;color:#f8fafc">🏆 PSM HUB</div>
+      <div style="color:var(--ink-2)">|</div>
       <div style="font-weight:600;font-size:16px;color:#cbd5e1">${titulo}</div>${dots}
-      <div style="display:flex;gap:4px;background:rgba(30,41,59,.6);border-radius:10px;padding:4px;margin-left:14px">
+      <div style="display:flex;gap:4px;background:rgba(30,41,59,.6);border-radius:var(--radius-md);padding:4px;margin-left:14px">
         ${tabs.map(t => {
           const key = t === 'GERAL' ? 'GERAL' : t;
           const on = _team === key;
-          return `<button data-team="${escapeHtml(key)}" style="border:0;cursor:pointer;padding:6px 14px;border-radius:8px;font-weight:700;font-size:12px;letter-spacing:.05em;background:${on ? '#eab308' : 'transparent'};color:${on ? '#1c1917' : '#94a3b8'}">${escapeHtml(t === 'GERAL' ? 'GERAL' : shortTeam(t))}</button>`;
+          return `<button data-team="${escapeHtml(key)}" style="border:0;cursor:pointer;padding:6px 14px;border-radius:var(--radius-md);font-weight:600;font-size:12px;letter-spacing:.05em;background:${on ? 'var(--warn-soft)' : 'transparent'};color:${on ? '#1c1917' : 'var(--ink-muted)'}">${escapeHtml(t === 'GERAL' ? 'GERAL' : shortTeam(t))}</button>`;
         }).join('')}
       </div>
       <div style="margin-left:auto;text-align:right">
-        <div id="rh-clock" style="font-size:30px;font-weight:800;color:#facc15;font-variant-numeric:tabular-nums">${nowStr()}</div>
-        <div id="rh-upd" style="font-size:11px;color:${_err ? '#f87171' : '#64748b'}">${_err && _fetchedAt ? `⚠️ HUB fora do ar — dados de ${_fetchedAt.toLocaleTimeString('pt-BR')}` : _fetchedAt ? `Atualizado às ${_fetchedAt.toLocaleTimeString('pt-BR')}` : '&nbsp;'}</div>
+        <div id="rh-clock" style="font-size:26px;font-weight:600;color:var(--warn);font-variant-numeric:tabular-nums">${nowStr()}</div>
+        <div id="rh-upd" style="font-size:11px;color:${_err ? 'var(--err)' : 'var(--ink-muted)'}">${_err && _fetchedAt ? `⚠️ HUB fora do ar — dados de ${_fetchedAt.toLocaleTimeString('pt-BR')}` : _fetchedAt ? `Atualizado às ${_fetchedAt.toLocaleTimeString('pt-BR')}` : '&nbsp;'}</div>
       </div>
-      ${_cfgCanEdit ? '<button id="rh-cfg" title="Configurar a TV (gestão)" style="border:1px solid rgba(148,163,184,.35);background:transparent;color:#cbd5e1;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:16px">⚙️</button>' : ''}
-      <button id="rh-prev" title="Tela anterior (←)" style="border:1px solid rgba(148,163,184,.35);background:transparent;color:#cbd5e1;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:18px;font-weight:900">‹</button>
-      <button id="rh-next" title="Próxima tela (→)" style="border:1px solid rgba(234,179,8,.5);background:rgba(234,179,8,.12);color:#facc15;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:18px;font-weight:900">›</button>
-      <button id="rh-fs" title="Tela cheia" style="border:1px solid rgba(148,163,184,.35);background:transparent;color:#cbd5e1;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:16px">⛶</button>
+      ${_cfgCanEdit ? '<button id="rh-cfg" title="Configurar a TV (gestão)" style="border:1px solid var(--border);background:transparent;color:#cbd5e1;border-radius:var(--radius-md);padding:8px 12px;cursor:pointer;font-size:16px">⚙️</button>' : ''}
+      <button id="rh-prev" title="Tela anterior (←)" style="border:1px solid var(--border);background:transparent;color:#cbd5e1;border-radius:var(--radius-md);padding:8px 14px;cursor:pointer;font-size:16px;font-weight:600">‹</button>
+      <button id="rh-next" title="Próxima tela (→)" style="border:1px solid var(--warn);background:var(--warn-soft);color:var(--warn);border-radius:var(--radius-md);padding:8px 14px;cursor:pointer;font-size:16px;font-weight:600">›</button>
+      <button id="rh-fs" title="Tela cheia" style="border:1px solid var(--border);background:transparent;color:#cbd5e1;border-radius:var(--radius-md);padding:8px 12px;cursor:pointer;font-size:16px">⛶</button>
     </div>
     ${modoFechamento()}
     <div class="rh-bar" style="height:3px;background:linear-gradient(90deg,#facc15,#fb923c);flex:none"></div>
     <div class="rh-body" style="flex:1;min-height:0;overflow:auto">${body}</div>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 26px;background:#0d1120;border-top:1px solid rgba(71,85,105,.3)">
-      ${Object.values(BADGES).map(b => `<span style="padding:3px 10px;border-radius:99px;font-size:11px;background:${b.bg};color:${b.fg}">${b.ab} <b>${b.lbl}</b></span>`).join('')}
-      <span style="font-size:11px;color:#475569">💲 VGV Real</span>
-      <span style="margin-left:auto;font-size:11px;color:#475569">Fonte desta tela: ${FONTE_TELA[_screen] || 'House PSM'} · atualização automática a cada 30 segundos</span>
+      ${Object.values(BADGES).map(b => `<span style="padding:3px 10px;border-radius:var(--radius-full);font-size:11px;background:${b.bg};color:${b.fg}">${b.ab} <b>${b.lbl}</b></span>`).join('')}
+      <span style="font-size:11px;color:var(--ink-2)">💲 VGV Real</span>
+      <span style="margin-left:auto;font-size:11px;color:var(--ink-2)">Fonte desta tela: ${FONTE_TELA[_screen] || 'House PSM'} · atualização automática a cada 30 segundos</span>
     </div>
   </div>`;
 }
@@ -1079,31 +1079,31 @@ function abrirConfig() {
   ov.id = 'rh-cfgov';
   ov.style.cssText = 'position:fixed;inset:0;z-index:95;background:rgba(5,8,15,.9);display:flex;align-items:center;justify-content:center;padding:4vh';
   const linha = (t) => `
-    <div class="rhc-row" data-tela="${t}" style="display:flex;align-items:center;gap:12px;background:#141a2c;border:1px solid rgba(71,85,105,.4);border-radius:10px;padding:10px 14px">
+    <div class="rhc-row" data-tela="${t}" style="display:flex;align-items:center;gap:12px;background:#141a2c;border:1px solid rgba(71,85,105,.4);border-radius:var(--radius-md);padding:10px 14px">
       <input type="checkbox" class="rhc-on" ${ligadas.has(t) ? 'checked' : ''} style="width:18px;height:18px;cursor:pointer">
-      <span style="flex:1;font-size:16px;font-weight:700;color:#e2e8f0">${CFG_LBL[t] || t}</span>
-      <button class="rhc-up" style="border:1px solid rgba(148,163,184,.3);background:transparent;color:#cbd5e1;border-radius:6px;padding:4px 10px;cursor:pointer">▲</button>
-      <button class="rhc-dn" style="border:1px solid rgba(148,163,184,.3);background:transparent;color:#cbd5e1;border-radius:6px;padding:4px 10px;cursor:pointer">▼</button>
+      <span style="flex:1;font-size:16px;font-weight:600;color:#e2e8f0">${CFG_LBL[t] || t}</span>
+      <button class="rhc-up" style="border:1px solid var(--border);background:transparent;color:#cbd5e1;border-radius:var(--radius-sm);padding:4px 10px;cursor:pointer">▲</button>
+      <button class="rhc-dn" style="border:1px solid var(--border);background:transparent;color:#cbd5e1;border-radius:var(--radius-sm);padding:4px 10px;cursor:pointer">▼</button>
     </div>`;
   ov.innerHTML = `
-    <div style="max-width:620px;width:100%;max-height:92vh;overflow:auto;border-radius:18px;background:#0d1120;border:1px solid rgba(71,85,105,.5);padding:26px 28px">
+    <div style="max-width:620px;width:100%;max-height:92vh;overflow:auto;border-radius:var(--radius-lg);background:#0d1120;border:1px solid rgba(71,85,105,.5);padding:26px 28px">
       <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:22px;font-weight:900;color:#facc15">⚙️ Configurar a Arena TV</span>
-        <button id="rhc-x" style="margin-left:auto;border:0;background:transparent;color:#94a3b8;font-size:20px;cursor:pointer">✕</button>
+        <span style="font-size:20px;font-weight:600;color:var(--warn)">⚙️ Configurar a Arena TV</span>
+        <button id="rhc-x" style="margin-left:auto;border:0;background:transparent;color:var(--ink-muted);font-size:20px;cursor:pointer">✕</button>
       </div>
       <div style="display:flex;gap:18px;margin:18px 0">
-        <label style="flex:1;font-size:13px;color:#94a3b8">Segundos por tela
-          <input id="rhc-slide" type="number" min="8" max="120" value="${_cfg.slide_s}" style="width:100%;margin-top:4px;background:#141a2c;border:1px solid rgba(71,85,105,.5);border-radius:8px;color:#f8fafc;padding:8px 10px;font-size:16px"></label>
+        <label style="flex:1;font-size:13px;color:var(--ink-muted)">Segundos por tela
+          <input id="rhc-slide" type="number" min="8" max="120" value="${_cfg.slide_s}" style="width:100%;margin-top:4px;background:#141a2c;border:1px solid rgba(71,85,105,.5);border-radius:var(--radius-md);color:#f8fafc;padding:8px 10px;font-size:16px"></label>
       </div>
-      <label style="display:block;font-size:13px;color:#94a3b8;margin-bottom:12px">🙈 Ocultar da TV (nomes COMPLETOS separados por vírgula · sócios, diretores e contas de serviço já saem sozinhos · corretor ativo nunca some por ter o mesmo 1º nome)
-        <input id="rhc-ocultar" value="${escapeHtml((_cfg.ocultar_nomes || []).join(', '))}" style="width:100%;margin-top:4px;background:#141a2c;border:1px solid rgba(71,85,105,.5);border-radius:8px;color:#f8fafc;padding:8px 10px;font-size:15px"></label>
-      <div style="font-size:13px;color:#94a3b8;margin-bottom:8px">Telas extras — ligue/desligue e arraste a ordem (▲▼). O ranking geral é fixo e abre cada volta (1× por volta); tela sem conteúdo é pulada.</div>
+      <label style="display:block;font-size:13px;color:var(--ink-muted);margin-bottom:12px">🙈 Ocultar da TV (nomes COMPLETOS separados por vírgula · sócios, diretores e contas de serviço já saem sozinhos · corretor ativo nunca some por ter o mesmo 1º nome)
+        <input id="rhc-ocultar" value="${escapeHtml((_cfg.ocultar_nomes || []).join(', '))}" style="width:100%;margin-top:4px;background:#141a2c;border:1px solid rgba(71,85,105,.5);border-radius:var(--radius-md);color:#f8fafc;padding:8px 10px;font-size:14px"></label>
+      <div style="font-size:13px;color:var(--ink-muted);margin-bottom:8px">Telas extras — ligue/desligue e arraste a ordem (▲▼). O ranking geral é fixo e abre cada volta (1× por volta); tela sem conteúdo é pulada.</div>
       <div id="rhc-list" style="display:grid;gap:8px">${todas.map(linha).join('')}</div>
       <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:20px">
-        <button id="rhc-cancel" style="border:1px solid rgba(148,163,184,.4);background:transparent;color:#e2e8f0;border-radius:10px;padding:10px 20px;font-size:15px;font-weight:700;cursor:pointer">Cancelar</button>
-        <button id="rhc-save" style="border:0;background:#eab308;color:#1c1917;border-radius:10px;padding:10px 22px;font-size:15px;font-weight:900;cursor:pointer">Salvar pra todas as TVs</button>
+        <button id="rhc-cancel" style="border:1px solid var(--border);background:transparent;color:#e2e8f0;border-radius:var(--radius-md);padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer">Cancelar</button>
+        <button id="rhc-save" style="border:0;background:var(--warn-soft);color:#1c1917;border-radius:var(--radius-md);padding:10px 22px;font-size:14px;font-weight:600;cursor:pointer">Salvar pra todas as TVs</button>
       </div>
-      <div id="rhc-msg" style="font-size:13px;color:#f87171;margin-top:8px;min-height:16px"></div>
+      <div id="rhc-msg" style="font-size:13px;color:var(--err);margin-top:8px;min-height:16px"></div>
     </div>`;
   document.body.appendChild(ov);
   const fecha = () => { ov.remove(); _rotPauseAte = Date.now() + 5000; };

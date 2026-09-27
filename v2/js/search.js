@@ -74,8 +74,8 @@ function runQuery(q) {
 }
 
 function resultsHTML() {
-  if (_idx === null) return '<div style="padding:18px;text-align:center;color:#94a3b8;font-size:13px"><span class="spinner"></span> Carregando índice…</div>';
-  if (!_results.length) return '<div style="padding:18px;text-align:center;color:#94a3b8;font-size:13px">Nada encontrado. Tente outro termo.</div>';
+  if (_idx === null) return '<div style="padding:18px;text-align:center;color:var(--ink-muted);font-size:13px"><span class="spinner"></span> Carregando índice…</div>';
+  if (!_results.length) return '<div style="padding:18px;text-align:center;color:var(--ink-muted);font-size:13px">Nada encontrado. Tente outro termo.</div>';
   return _results.map((r, n) => `
     <div class="gs-row ${n === _sel ? 'on' : ''}" data-i="${n}">
       <span class="gs-ico">${r.ico}</span>

@@ -16,7 +16,7 @@ import { api } from '../api.js';
 //    rendaMax = teto de renda mensal da faixa | jurosRef = juros a.a. típicos | subsidioRef = subsídio máx estimado
 let FAIXAS = [
   { nome: 'Faixa 1', rendaMax: 2640,  jurosRef: 4.75,  subsidioRef: 55000, cor: '#16a34a', nota: 'Maior subsídio + menores juros' },
-  { nome: 'Faixa 2', rendaMax: 4400,  jurosRef: 6.50,  subsidioRef: 29000, cor: '#0ea5e9', nota: 'Subsídio decresce conforme a renda' },
+  { nome: 'Faixa 2', rendaMax: 4400,  jurosRef: 6.50,  subsidioRef: 29000, cor: '#806d50', nota: 'Subsídio decresce conforme a renda' },
   { nome: 'Faixa 3', rendaMax: 8000,  jurosRef: 8.16,  subsidioRef: 0,     cor: '#f59e0b', nota: 'Sem subsídio direto; juros reduzidos' },
   { nome: 'Faixa 4 · Classe Média', rendaMax: 12000, jurosRef: 10.0, subsidioRef: 0, cor: '#8b5cf6', nota: 'Imóvel até ~R$500k (piloto MCMV classe média)' },
 ];
@@ -48,10 +48,10 @@ function avisoFaixas() {
   const anoAtual = new Date().getFullYear();
   if (FONTE_FAIXAS.origem === 'config') {
     const velha = FONTE_FAIXAS.ano && FONTE_FAIXAS.ano < anoAtual;
-    return `<div class="tiny" style="margin-top:6px;padding:7px 11px;border-radius:8px;background:${velha ? 'rgba(245,158,11,.12)' : 'rgba(34,197,94,.12)'};border:1px solid ${velha ? 'rgba(245,158,11,.45)' : 'rgba(34,197,94,.35)'}">
+    return `<div class="tiny" style="margin-top:6px;padding:7px 11px;border-radius:var(--radius-md);background:${velha ? 'rgba(245,158,11,.12)' : 'rgba(34,197,94,.12)'};border:1px solid ${velha ? 'var(--warn)' : 'var(--ok)'}">
       ${velha ? '⚠️' : '✅'} Faixas configuradas${FONTE_FAIXAS.ano ? ` — referência <b>${FONTE_FAIXAS.ano}</b>` : ''}${velha ? ' (anterior a ' + anoAtual + ' — vale revisar)' : ''}.</div>`;
   }
-  return `<div class="tiny" style="margin-top:6px;padding:7px 11px;border-radius:8px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.45)">
+  return `<div class="tiny" style="margin-top:6px;padding:7px 11px;border-radius:var(--radius-md);background:var(--warn-soft);border:1px solid var(--warn)">
     ⚠️ <b>Usando a referência MCMV de 2024</b> (padrão do sistema) — confirme os valores vigentes de ${anoAtual} antes de cotar.
     O sócio atualiza em <b>Configurações → configs avançadas</b> (chave <code>sim_conquista_faixas</code>).</div>`;
 }
@@ -83,12 +83,12 @@ export async function pageSimConquista(ctx, root) {
   root.innerHTML = `
     <style>
       .sc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
-      .sc-out{background:var(--bg-1,#fff);border:1px solid rgba(148,163,184,.18);border-radius:12px;padding:14px}
-      .sc-out .v{font-size:22px;font-weight:800;line-height:1.1}
-      .sc-out .l{font-size:11px;color:var(--ink-muted,#64748b);font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+      .sc-out{background:var(--bg-1,#fff);border:1px solid var(--border);border-radius:var(--radius-md);padding:14px}
+      .sc-out .v{font-size:20px;font-weight:600;line-height:1.1}
+      .sc-out .l{font-size:11px;color:var(--ink-muted,#64748b);font-weight:600;text-transform:uppercase;letter-spacing:.3px}
     </style>
     <div style="margin-bottom:14px">
-      <div style="font-size:21px;font-weight:800">🏠 Simulador Conquista — Faixa de Renda</div>
+      <div style="font-size:20px;font-weight:600">🏠 Simulador Conquista — Faixa de Renda</div>
       <div class="tiny muted">Renda do cliente → faixa MCMV, valor máximo de imóvel, parcela, financiamento e subsídio. Conduz a captação por faixa na hora.</div>
       ${avisoFaixas()}
     </div>
@@ -107,12 +107,12 @@ export async function pageSimConquista(ctx, root) {
     <div id="sc-result"></div>
 
     <div class="card" style="padding:14px;margin-top:14px">
-      <div style="font-weight:800;margin-bottom:8px">📊 Faixas MCMV (referência 2024)</div>
+      <div style="font-weight:600;margin-bottom:8px">📊 Faixas MCMV (referência 2024)</div>
       <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead><tr style="text-align:left;color:var(--ink-muted,#64748b)">
           <th style="padding:6px">Faixa</th><th style="padding:6px">Renda até</th><th style="padding:6px">Juros ref. a.a.</th><th style="padding:6px">Subsídio est.</th><th style="padding:6px">Observação</th></tr></thead>
-        <tbody>${FAIXAS.map(f => `<tr style="border-top:1px solid var(--bd,#e2e8f0)">
-          <td style="padding:6px"><span style="font-weight:800;color:${f.cor}">${f.nome}</span></td>
+        <tbody>${FAIXAS.map(f => `<tr style="border-top:1px solid var(--bd,var(--border))">
+          <td style="padding:6px"><span style="font-weight:600;color:${f.cor}">${f.nome}</span></td>
           <td style="padding:6px">${BRL(f.rendaMax)}</td>
           <td style="padding:6px">${f.jurosRef.toFixed(2).replace('.', ',')}%</td>
           <td style="padding:6px">${f.subsidioRef ? 'até ~' + BRL(f.subsidioRef) : '—'}</td>
@@ -138,7 +138,7 @@ function render() {
   const temSubsidio = f.subsidioRef > 0;
   out.innerHTML = `
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-      <span style="background:${f.cor};color:#fff;font-weight:800;padding:8px 16px;border-radius:99px;font-size:15px">${esc(f.nome)}</span>
+      <span style="background:${f.cor};color:#fff;font-weight:600;padding:8px 16px;border-radius:var(--radius-full);font-size:14px">${esc(f.nome)}</span>
       <span class="tiny muted">${esc(f.nota)} · juros usados: <b>${juros.toFixed(2).replace('.', ',')}% a.a.</b>${jurosManual > 0 ? ' (manual)' : ' (ref. faixa)'}</span>
     </div>
     <div class="sc-grid">
@@ -146,7 +146,7 @@ function render() {
       <div class="sc-out"><div class="l">💳 Parcela estimada</div><div class="v">${BRL(r.parcelaMax)}</div><div class="tiny muted">${comprom}% da renda · ${r.n}x</div></div>
       <div class="sc-out"><div class="l">🏦 Financiável</div><div class="v">${BRL(r.financiavel)}</div><div class="tiny muted">capacidade (Price)</div></div>
       <div class="sc-out"><div class="l">💵 Entrada</div><div class="v">${BRL(entrada)}</div><div class="tiny muted">FGTS + recursos</div></div>
-      <div class="sc-out"><div class="l">🎁 Subsídio</div><div class="v" style="color:${temSubsidio ? '#16a34a' : 'var(--ink-muted,#94a3b8)'}">${temSubsidio ? 'até ~' + BRL(f.subsidioRef) : '—'}</div><div class="tiny muted">${temSubsidio ? 'estimado (renda/região)' : 'faixa sem subsídio direto'}</div></div>
+      <div class="sc-out"><div class="l">🎁 Subsídio</div><div class="v" style="color:${temSubsidio ? 'var(--ok)' : 'var(--ink-muted,#94a3b8)'}">${temSubsidio ? 'até ~' + BRL(f.subsidioRef) : '—'}</div><div class="tiny muted">${temSubsidio ? 'estimado (renda/região)' : 'faixa sem subsídio direto'}</div></div>
     </div>
     ${renda > 0 ? `<div class="card" style="padding:12px;margin-top:12px;background:var(--bg-3,#f8fafc)">
       <div class="tiny"><b>Leitura rápida pro cliente:</b> com renda de ${BRL(renda)} e entrada de ${BRL(entrada)}, ele se enquadra na <b style="color:${f.cor}">${esc(f.nome)}</b> e consegue um imóvel de até <b>${BRL(r.imovelMax)}</b>, pagando cerca de <b>${BRL(r.parcelaMax)}/mês</b> em ${prazo} anos.${temSubsidio ? ' Tem direito a subsídio (some à entrada e o poder de compra sobe).' : ''}</div>

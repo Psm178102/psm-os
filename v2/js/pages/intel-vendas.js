@@ -112,8 +112,8 @@ function render() {
 
 function pill(title, big, sub, color) {
   return `<div style="background:var(--bg-2);border:1px solid var(--border);border-top:3px solid ${color};border-radius:var(--r-md);padding:10px 12px">
-    <div style="font-size:11px;font-weight:700;color:var(--ink-muted)">${title}</div>
-    <div style="font-size:22px;font-weight:900;color:${color};margin:2px 0">${big}</div>
+    <div style="font-size:11px;font-weight:600;color:var(--ink-muted)">${title}</div>
+    <div style="font-size:20px;font-weight:600;color:${color};margin:2px 0">${big}</div>
     <div class="tiny muted">${sub}</div></div>`;
 }
 
@@ -132,12 +132,12 @@ function forecastPanel(fc) {
   const [stLbl, stCor] = PSTATUS[p.status] || ['—', '#64748b'];
   const hz = fc.horizonte || {}, du = hz.dias_uteis || {};
   return `<div style="margin-top:12px;background:linear-gradient(180deg,rgba(124,58,237,.07),transparent);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px">
-    <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:10px"><div style="font-weight:800;font-size:13px">🎯 Meta · Realizado · Projeção do mês</div><span class="tiny" style="font-weight:800;color:${stCor}">● ${stLbl}</span><span class="tiny muted" style="margin-left:auto">mesma projeção da Gestão Comercial e do 1:1${du.total ? ` · dia útil ${du.decorridos}/${du.total}` : ''}</span></div>
+    <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:10px"><div style="font-weight:600;font-size:13px">🎯 Meta · Realizado · Projeção do mês</div><span class="tiny" style="font-weight:600;color:${stCor}">● ${stLbl}</span><span class="tiny muted" style="margin-left:auto">mesma projeção da Gestão Comercial e do 1:1${du.total ? ` · dia útil ${du.decorridos}/${du.total}` : ''}</span></div>
     <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end">
-      <div><div class="tiny muted">✅ Realizado</div><div style="font-size:20px;font-weight:900">R$ ${moneyShort(p.realizado.vgv)}</div><div class="tiny muted">${fmtNum(p.realizado.vendas)} venda(s)${p.realizado.pct_meta != null ? ' · ' + pct2(p.realizado.pct_meta) + ' da meta' : ''}</div></div>
-      <div style="border-left:1px solid var(--border);padding-left:20px"><div class="tiny muted">📈 Provável <span title="Realizado + o maior entre o ritmo dos últimos 180 dias e as propostas abertas × taxa real proposta→venda que cabe no prazo">ⓘ</span></div><div style="font-size:26px;font-weight:900;color:var(--roxo)">R$ ${moneyShort(p.provavel.vgv)}</div><div class="tiny muted">${fmtN1(p.provavel.vendas)} vendas${p.provavel.pct_meta != null ? ' · ' + pct2(p.provavel.pct_meta) + ' da meta' : ''} · faixa R$ ${moneyShort(p.conservador.vgv)}–${moneyShort(p.otimista.vgv)}</div></div>
-      <div style="border-left:1px solid var(--border);padding-left:20px"><div class="tiny muted">🎯 Meta do mês</div><div style="font-size:20px;font-weight:900">${p.meta.vgv ? 'R$ ' + moneyShort(p.meta.vgv) : '—'}</div><div class="tiny muted">${p.meta.vendas ? '≈ ' + fmtN1(p.meta.vendas) + ' vendas' : 'sem meta cadastrada'}</div></div>
-      ${p.falta_vgv ? `<div style="border-left:1px solid var(--border);padding-left:20px"><div class="tiny muted">Falta</div><div style="font-size:20px;font-weight:900">R$ ${moneyShort(p.falta_vgv)}</div><div class="tiny muted">${p.falta_vendas ? '≈ ' + fmtN1(p.falta_vendas) + ' vendas' : ''}${p.por_dia_util_vgv ? ' · R$ ' + moneyShort(p.por_dia_util_vgv) + '/dia útil' : ''}</div></div>` : ''}
+      <div><div class="tiny muted">✅ Realizado</div><div style="font-size:20px;font-weight:600">R$ ${moneyShort(p.realizado.vgv)}</div><div class="tiny muted">${fmtNum(p.realizado.vendas)} venda(s)${p.realizado.pct_meta != null ? ' · ' + pct2(p.realizado.pct_meta) + ' da meta' : ''}</div></div>
+      <div style="border-left:1px solid var(--border);padding-left:20px"><div class="tiny muted">📈 Provável <span title="Realizado + o maior entre o ritmo dos últimos 180 dias e as propostas abertas × taxa real proposta→venda que cabe no prazo">ⓘ</span></div><div style="font-size:26px;font-weight:600;color:var(--roxo)">R$ ${moneyShort(p.provavel.vgv)}</div><div class="tiny muted">${fmtN1(p.provavel.vendas)} vendas${p.provavel.pct_meta != null ? ' · ' + pct2(p.provavel.pct_meta) + ' da meta' : ''} · faixa R$ ${moneyShort(p.conservador.vgv)}–${moneyShort(p.otimista.vgv)}</div></div>
+      <div style="border-left:1px solid var(--border);padding-left:20px"><div class="tiny muted">🎯 Meta do mês</div><div style="font-size:20px;font-weight:600">${p.meta.vgv ? 'R$ ' + moneyShort(p.meta.vgv) : '—'}</div><div class="tiny muted">${p.meta.vendas ? '≈ ' + fmtN1(p.meta.vendas) + ' vendas' : 'sem meta cadastrada'}</div></div>
+      ${p.falta_vgv ? `<div style="border-left:1px solid var(--border);padding-left:20px"><div class="tiny muted">Falta</div><div style="font-size:20px;font-weight:600">R$ ${moneyShort(p.falta_vgv)}</div><div class="tiny muted">${p.falta_vendas ? '≈ ' + fmtN1(p.falta_vendas) + ' vendas' : ''}${p.por_dia_util_vgv ? ' · R$ ' + moneyShort(p.por_dia_util_vgv) + '/dia útil' : ''}</div></div>` : ''}
     </div>
     <div class="tiny muted" style="margin-top:10px">💎 Pipeline ponderado dos abertos: R$ ${moneyShort(fc.pipeline_ponderado_vgv || 0)} (${fc.pipeline_ponderado_vendas || 0} negócios-equivalentes) — serve pra <b>ordenar a fila de ataque</b>, não é previsão do mês.</div>
   </div>`;
@@ -150,13 +150,13 @@ function tabBtn(id, lbl) {
 
 function scoreBadge(sc, temp) {
   const c = (TEMP[temp] || TEMP.frio).c;
-  return `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:24px;border-radius:6px;background:${c}1a;color:${c};font-weight:900;font-size:13px;border:1px solid ${c}55">${sc}</span>`;
+  return `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:24px;border-radius:var(--radius-sm);background:${c}1a;color:${c};font-weight:600;font-size:13px;border:1px solid ${c}55">${sc}</span>`;
 }
 
 function priorityTable(rows, mode) {
   if (!rows.length) return '<div class="tiny muted" style="padding:10px">Nenhum lead nesta lista. 🎉</div>';
   return `<div style="overflow-x:auto;margin-top:8px">
-    <table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:680px">
+    <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:680px">
       <thead><tr style="text-align:left;color:var(--ink-muted);font-size:11px">
         <th style="padding:6px 8px">Score</th><th>Negócio</th><th>Etapa</th><th style="text-align:right">Valor</th><th>Canal</th><th style="text-align:center">Parado</th><th>Próxima ação</th><th>Corretor</th>
       </tr></thead>
@@ -167,9 +167,9 @@ function priorityTable(rows, mode) {
           <td style="padding:7px 8px">${scoreBadge(r.score, r.temp)}</td>
           <td style="max-width:200px"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.title)}</div></td>
           <td><span class="tiny" style="color:var(--ink-muted)">${escapeHtml(r.ms_label || '—')}</span></td>
-          <td style="text-align:right;font-weight:700;white-space:nowrap">R$ ${moneyShort(r.amount)}</td>
+          <td style="text-align:right;font-weight:600;white-space:nowrap">R$ ${moneyShort(r.amount)}</td>
           <td><span class="tiny">${escapeHtml(r.canal || '—')}</span></td>
-          <td style="text-align:center;color:${staleC};font-weight:700">${stale}</td>
+          <td style="text-align:center;color:${staleC};font-weight:600">${stale}</td>
           <td style="font-size:12px">${escapeHtml(r.acao || '')}</td>
           <td><span class="tiny" style="color:var(--ink-muted)">${escapeHtml(r.owner_name || '—')}</span></td>
         </tr>`;
@@ -181,23 +181,23 @@ function etapaPanel(etapas) {
   if (!etapas.length) return '';
   const max = Math.max(...etapas.map(e => e.expected_vgv || 0), 1);
   return `<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px">
-    <div style="font-weight:800;font-size:13px;margin-bottom:8px">📊 Pipeline por etapa <span class="tiny muted" style="font-weight:400">(valor esperado)</span></div>
+    <div style="font-weight:600;font-size:13px;margin-bottom:8px">📊 Pipeline por etapa <span class="tiny muted" style="font-weight:400">(valor esperado)</span></div>
     ${etapas.map(e => `<div style="margin:6px 0">
-      <div class="flex items-center gap-2" style="font-size:12px"><span style="flex:1">${escapeHtml(e.etapa)}</span><span class="tiny muted">${e.n}</span><span style="font-weight:700">R$ ${moneyShort(e.expected_vgv)}</span></div>
-      <div style="height:6px;background:var(--bg-3);border-radius:4px;overflow:hidden;margin-top:2px"><div style="height:100%;width:${Math.round((e.expected_vgv || 0) / max * 100)}%;background:#7c3aed"></div></div>
+      <div class="flex items-center gap-2" style="font-size:12px"><span style="flex:1">${escapeHtml(e.etapa)}</span><span class="tiny muted">${e.n}</span><span style="font-weight:600">R$ ${moneyShort(e.expected_vgv)}</span></div>
+      <div style="height:6px;background:var(--bg-3);border-radius:var(--radius-sm);overflow:hidden;margin-top:2px"><div style="height:100%;width:${Math.round((e.expected_vgv || 0) / max * 100)}%;background:var(--accent-soft)"></div></div>
     </div>`).join('')}
   </div>`;
 }
 
 function canalPanel(wr) {
   const rows = wr.por_canal || [];
-  if (!rows.length) return `<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px"><div style="font-weight:800;font-size:13px">🎯 Conversão por canal</div><div class="tiny muted" style="margin-top:6px">Sem base suficiente de fechamentos para calcular.</div></div>`;
+  if (!rows.length) return `<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px"><div style="font-weight:600;font-size:13px">🎯 Conversão por canal</div><div class="tiny muted" style="margin-top:6px">Sem base suficiente de fechamentos para calcular.</div></div>`;
   const max = Math.max(...rows.map(r => r.wr_pct || 0), 1);
   return `<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px">
-    <div style="font-weight:800;font-size:13px;margin-bottom:8px">🎯 Conversão real por canal <span class="tiny muted" style="font-weight:400">(base do scoring)</span></div>
+    <div style="font-weight:600;font-size:13px;margin-bottom:8px">🎯 Conversão real por canal <span class="tiny muted" style="font-weight:400">(base do scoring)</span></div>
     ${rows.map(r => `<div style="margin:6px 0">
-      <div class="flex items-center gap-2" style="font-size:12px"><span style="flex:1">${escapeHtml(r.canal)}</span><span class="tiny muted">${r.n} fech.</span><span style="font-weight:700">${pct2(r.wr_pct)}</span></div>
-      <div style="height:6px;background:var(--bg-3);border-radius:4px;overflow:hidden;margin-top:2px"><div style="height:100%;width:${Math.round((r.wr_pct || 0) / max * 100)}%;background:#16a34a"></div></div>
+      <div class="flex items-center gap-2" style="font-size:12px"><span style="flex:1">${escapeHtml(r.canal)}</span><span class="tiny muted">${r.n} fech.</span><span style="font-weight:600">${pct2(r.wr_pct)}</span></div>
+      <div style="height:6px;background:var(--bg-3);border-radius:var(--radius-sm);overflow:hidden;margin-top:2px"><div style="height:100%;width:${Math.round((r.wr_pct || 0) / max * 100)}%;background:var(--ok-soft)"></div></div>
     </div>`).join('')}
   </div>`;
 }
@@ -208,13 +208,13 @@ function lossPanel(loss) {
   const max = Math.max(...cats.map(c => c.n || 0), 1);
   return `<div style="margin-top:16px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px">
     <div class="flex items-center gap-2" style="margin-bottom:4px">
-      <div style="font-weight:800;font-size:13px">📉 Por que estamos perdendo</div>
+      <div style="font-weight:600;font-size:13px">📉 Por que estamos perdendo</div>
       <span class="tiny muted" style="margin-left:auto">${loss.total || 0} perdas · ${pct2(loss.trash_pct || 0)} lixo/desqualificado</span>
     </div>
     <div style="display:grid;gap:6px;margin-top:8px">
       ${cats.map(c => `<div>
-        <div class="flex items-center gap-2" style="font-size:12.5px"><span style="font-weight:600">${escapeHtml(c.label)}</span><span class="tiny muted">${c.exemplos && c.exemplos.length ? '· ' + escapeHtml(c.exemplos.slice(0, 2).join(' · ')) : ''}</span><span style="margin-left:auto;font-weight:800">${c.n} <span class="tiny muted">(${pct2(c.pct)})</span></span></div>
-        <div style="height:6px;background:var(--bg-3);border-radius:4px;overflow:hidden;margin-top:2px"><div style="height:100%;width:${Math.round((c.n || 0) / max * 100)}%;background:#dc2626"></div></div>
+        <div class="flex items-center gap-2" style="font-size:13px"><span style="font-weight:600">${escapeHtml(c.label)}</span><span class="tiny muted">${c.exemplos && c.exemplos.length ? '· ' + escapeHtml(c.exemplos.slice(0, 2).join(' · ')) : ''}</span><span style="margin-left:auto;font-weight:600">${c.n} <span class="tiny muted">(${pct2(c.pct)})</span></span></div>
+        <div style="height:6px;background:var(--bg-3);border-radius:var(--radius-sm);overflow:hidden;margin-top:2px"><div style="height:100%;width:${Math.round((c.n || 0) / max * 100)}%;background:var(--err-soft)"></div></div>
       </div>`).join('')}
     </div>
   </div>`;
@@ -224,19 +224,19 @@ function corretorCard(c) {
   const alvo = c.sem_contato_48h > 0 || c.parados_14d > 0;
   return `<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px">
     <div class="flex items-center gap-2" style="margin-bottom:8px">
-      <div style="width:28px;height:28px;border-radius:50%;background:${c.color || '#7c3aed'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px">${escapeHtml(c.ini || (c.name || '?').slice(0, 2).toUpperCase())}</div>
-      <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(c.name || '—')}</div><div class="tiny muted">${escapeHtml(c.team || '')} · ${c.open_count} abertos</div></div>
+      <div style="width:28px;height:28px;border-radius:50%;background:${c.color || 'var(--accent-soft)'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:11px">${escapeHtml(c.ini || (c.name || '?').slice(0, 2).toUpperCase())}</div>
+      <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(c.name || '—')}</div><div class="tiny muted">${escapeHtml(c.team || '')} · ${c.open_count} abertos</div></div>
       ${c.projecao_mes
-        ? `<div style="text-align:right" title="projeção oficial do mês · pipeline ponderado R$ ${moneyShort(c.pipeline_ponderado_vgv)} (prioridade)"><div style="font-weight:900;font-size:15px;color:${(PSTATUS[c.projecao_mes.status] || [0, 'var(--roxo)'])[1]}">R$ ${moneyShort(c.projecao_mes.provavel.vgv)}</div><div class="tiny muted">📈 provável · ${fmtN1(c.projecao_mes.provavel.vendas)} vendas</div></div>`
-        : `<div style="text-align:right"><div style="font-weight:900;font-size:15px;color:var(--roxo)">R$ ${moneyShort(c.pipeline_ponderado_vgv)}</div><div class="tiny muted">pipeline pond.</div></div>`}
+        ? `<div style="text-align:right" title="projeção oficial do mês · pipeline ponderado R$ ${moneyShort(c.pipeline_ponderado_vgv)} (prioridade)"><div style="font-weight:600;font-size:14px;color:${(PSTATUS[c.projecao_mes.status] || [0, 'var(--roxo)'])[1]}">R$ ${moneyShort(c.projecao_mes.provavel.vgv)}</div><div class="tiny muted">📈 provável · ${fmtN1(c.projecao_mes.provavel.vendas)} vendas</div></div>`
+        : `<div style="text-align:right"><div style="font-weight:600;font-size:14px;color:var(--roxo)">R$ ${moneyShort(c.pipeline_ponderado_vgv)}</div><div class="tiny muted">pipeline pond.</div></div>`}
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
-      <span style="background:${TEMP.quente.c}1a;color:${TEMP.quente.c};font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px">${c.quentes} 🟢</span>
-      <span style="background:${TEMP.morno.c}1a;color:${TEMP.morno.c};font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px">${c.mornos} 🟡</span>
-      ${c.sem_contato_48h > 0 ? `<span style="background:#dc26261a;color:var(--err);font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px">${c.sem_contato_48h} sem 1º contato</span>` : ''}
-      ${c.parados_14d > 0 ? `<span style="background:#d977061a;color:var(--warn);font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px">${c.parados_14d} parados +14d</span>` : ''}
+      <span style="background:${TEMP.quente.c}1a;color:${TEMP.quente.c};font-size:11px;font-weight:600;padding:1px 7px;border-radius:var(--radius-full)">${c.quentes} 🟢</span>
+      <span style="background:${TEMP.morno.c}1a;color:${TEMP.morno.c};font-size:11px;font-weight:600;padding:1px 7px;border-radius:var(--radius-full)">${c.mornos} 🟡</span>
+      ${c.sem_contato_48h > 0 ? `<span style="background:var(--err-soft);color:var(--err);font-size:11px;font-weight:600;padding:1px 7px;border-radius:var(--radius-full)">${c.sem_contato_48h} sem 1º contato</span>` : ''}
+      ${c.parados_14d > 0 ? `<span style="background:var(--warn-soft);color:var(--warn);font-size:11px;font-weight:600;padding:1px 7px;border-radius:var(--radius-full)">${c.parados_14d} parados +14d</span>` : ''}
     </div>
-    ${(c.top_leads || []).slice(0, 3).map(l => `<div class="flex items-center gap-2" style="font-size:11.5px;padding:3px 0;border-top:1px solid var(--border)">
+    ${(c.top_leads || []).slice(0, 3).map(l => `<div class="flex items-center gap-2" style="font-size:11px;padding:3px 0;border-top:1px solid var(--border)">
       ${scoreBadge(l.score, l.temp)}<span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(l.acao)}</span><span class="tiny muted">R$ ${moneyShort(l.amount)}</span></div>`).join('')}
   </div>`;
 }
@@ -281,8 +281,8 @@ ${corr || '(todos ok)'}
 ${lossTxt || '(sem dados)'}`;
     const j = await api.request('/api/v3/ia/analyze', { method: 'POST', body: { prompt, max_tokens: 3500, dossie: true } });   // cérebro novo (Sonnet 5 + dossiê) v84.4
     if (j.ok && j.text) {
-      box.innerHTML = `<div style="background:linear-gradient(180deg,rgba(124,58,237,.06),transparent);border:1px solid rgba(124,58,237,.25);border-radius:var(--r-md);padding:14px 16px">
-        <div style="font-weight:800;font-size:13px;margin-bottom:8px;color:var(--roxo)">🧠 Plano de ataque <span class="tiny muted" style="font-weight:400">· ${escapeHtml(j.model_used || 'IA')}</span></div>
+      box.innerHTML = `<div style="background:linear-gradient(180deg,rgba(124,58,237,.06),transparent);border:1px solid var(--accent-ink);border-radius:var(--r-md);padding:14px 16px">
+        <div style="font-weight:600;font-size:13px;margin-bottom:8px;color:var(--roxo)">🧠 Plano de ataque <span class="tiny muted" style="font-weight:400">· ${escapeHtml(j.model_used || 'IA')}</span></div>
         <div style="font-size:13px;line-height:1.55">${mdLite(j.text)}</div></div>`;
     } else {
       box.innerHTML = `<div class="alert alert-warn">IA indisponível: ${escapeHtml(j.error || 'erro')}</div>`;
@@ -295,9 +295,9 @@ ${lossTxt || '(sem dados)'}`;
 /* ─── helpers ─── */
 function mdLite(t) {
   return escapeHtml(t)
-    .replace(/^#### (.*)$/gm, '<div style="font-weight:800;margin:8px 0 2px">$1</div>')
-    .replace(/^### (.*)$/gm, '<div style="font-weight:800;margin:8px 0 2px">$1</div>')
-    .replace(/^## (.*)$/gm, '<div style="font-weight:800;font-size:14px;margin:10px 0 4px">$1</div>')
+    .replace(/^#### (.*)$/gm, '<div style="font-weight:600;margin:8px 0 2px">$1</div>')
+    .replace(/^### (.*)$/gm, '<div style="font-weight:600;margin:8px 0 2px">$1</div>')
+    .replace(/^## (.*)$/gm, '<div style="font-weight:600;font-size:14px;margin:10px 0 4px">$1</div>')
     .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
     .replace(/^\s*[-*] (.*)$/gm, '<div style="margin:2px 0 2px 12px">• $1</div>')
     .replace(/\n{2,}/g, '<br><br>').replace(/\n/g, '<br>');

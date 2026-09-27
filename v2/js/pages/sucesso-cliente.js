@@ -15,8 +15,8 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': 
 const fmtData = d => d ? String(d).substring(0, 10).split('-').reverse().join('/') : '—';
 
 const CAT = ['MAP', 'Conquista', 'Locação', 'Terceiros'];
-const CAT_COR = { MAP: '#8b5cf6', Conquista: '#16a34a', 'Locação': '#0ea5e9', Terceiros: '#f59e0b', Outros: '#64748b' };
-const STAT = { ativo: { l: 'Ativo', c: '#16a34a' }, em_risco: { l: 'Em risco', c: '#f59e0b' }, churn: { l: 'Churn', c: '#ef4444' }, renovado: { l: 'Renovado', c: '#0891b2' } };
+const CAT_COR = { MAP: '#8b5cf6', Conquista: '#16a34a', 'Locação': '#806d50', Terceiros: '#f59e0b', Outros: '#64748b' };
+const STAT = { ativo: { l: 'Ativo', c: '#16a34a' }, em_risco: { l: 'Em risco', c: '#f59e0b' }, churn: { l: 'Churn', c: '#ef4444' }, renovado: { l: 'Renovado', c: '#806d50' } };
 
 const TABS = [
   { id: 'onb_cliente', lbl: '🚀 Onboarding do Cliente' },
@@ -36,7 +36,7 @@ const REG = {
       { k: 'etapa', lbl: 'Etapa', type: 'select', opts: ['Boas-vindas', 'Documentação', 'Configuração/Acesso', 'Acompanhamento', 'Concluído'] },
       { k: 'responsavel', lbl: 'Responsável', type: 'text' }, { k: 'data', lbl: 'Data', type: 'date' }, { k: 'obs', lbl: 'Observações', type: 'textarea' }],
     chips: r => [r.categoria, r.etapa].filter(Boolean) },
-  suporte: { titulo: '📞 Relacionamento & Suporte', cor: '#0ea5e9', titleField: 'cliente', sub: 'Tickets e contatos de relacionamento.',
+  suporte: { titulo: '📞 Relacionamento & Suporte', cor: '#806d50', titleField: 'cliente', sub: 'Tickets e contatos de relacionamento.',
     campos: [{ k: 'cliente', lbl: 'Cliente', type: 'text', req: true }, { k: 'categoria', lbl: 'Categoria', type: 'select', opts: CAT },
       { k: 'assunto', lbl: 'Assunto', type: 'text' }, { k: 'canal', lbl: 'Canal', type: 'select', opts: ['WhatsApp', 'Ligação', 'E-mail', 'Presencial'] },
       { k: 'prioridade', lbl: 'Prioridade', type: 'select', opts: ['Baixa', 'Média', 'Alta'] },
@@ -61,7 +61,7 @@ const REG = {
       { k: 'nota', lbl: 'Nota (0–10)', type: 'number' }, { k: 'canal', lbl: 'Canal', type: 'select', opts: ['WhatsApp', 'Ligação', 'E-mail', 'Presencial'] },
       { k: 'comentario', lbl: 'Comentário', type: 'textarea' }, { k: 'data', lbl: 'Data', type: 'date' }],
     chips: r => [r.categoria, (r.nota !== undefined && r.nota !== '') ? 'nota ' + r.nota : ''].filter(Boolean) },
-  indicacoes: { titulo: '🎁 Programa de Indicações', cor: '#0891b2', titleField: 'indicado', sub: 'Indicações por categoria — de quem veio e status.',
+  indicacoes: { titulo: '🎁 Programa de Indicações', cor: '#806d50', titleField: 'indicado', sub: 'Indicações por categoria — de quem veio e status.',
     campos: [{ k: 'indicado', lbl: 'Indicado (novo cliente)', type: 'text', req: true }, { k: 'indicador', lbl: 'Quem indicou', type: 'text' },
       { k: 'categoria', lbl: 'Categoria', type: 'select', opts: CAT }, { k: 'status', lbl: 'Status', type: 'select', opts: ['Recebida', 'Em contato', 'Convertida', 'Perdida'] },
       { k: 'recompensa', lbl: 'Recompensa', type: 'text' }, { k: 'obs', lbl: 'Observações', type: 'textarea' }],
@@ -92,7 +92,7 @@ const body = () => _root.querySelector('#sc-body');
 function renderTabs() {
   _root.querySelector('#sc-tabs').innerHTML = TABS.map(t => {
     const on = t.id === _tab;
-    return `<button class="sc-tb" data-t="${t.id}" style="background:none;border:none;padding:9px 13px;cursor:pointer;font-weight:800;font-size:13px;white-space:nowrap;border-bottom:3px solid ${on ? '#0891b2' : 'transparent'};color:${on ? 'var(--ink,#0f172a)' : 'var(--ink-muted,#64748b)'}">${t.lbl}</button>`;
+    return `<button class="sc-tb" data-t="${t.id}" style="background:none;border:none;padding:9px 13px;cursor:pointer;font-weight:600;font-size:13px;white-space:nowrap;border-bottom:3px solid ${on ? 'var(--accent-ink)' : 'transparent'};color:${on ? 'var(--ink,#0f172a)' : 'var(--ink-muted,#64748b)'}">${t.lbl}</button>`;
   }).join('');
   _root.querySelectorAll('.sc-tb').forEach(b => b.onclick = () => { _tab = b.dataset.t; renderTabs(); route(); });
 }
@@ -120,7 +120,7 @@ function renderCarteira() {
   const list = all.filter(c => (!_fCat || c.categoria === _fCat) && (!_fStat || c.status === _fStat));
   body().innerHTML = `
     <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
-      <div><div style="font-size:18px;font-weight:800">💼 Gestão de Carteira</div><div class="tiny muted">Clientes dos negócios ganhos no RD — enriqueça status, score e renovação.</div></div>
+      <div><div style="font-size:16px;font-weight:600">💼 Gestão de Carteira</div><div class="tiny muted">Clientes dos negócios ganhos no RD — enriqueça status, score e renovação.</div></div>
       <div class="flex gap-2">
         <select id="ca-cat" class="select" style="max-width:150px"><option value="">Todas categorias</option>${CAT.concat('Outros').map(c => `<option${_fCat === c ? ' selected' : ''}>${c}</option>`).join('')}</select>
         <select id="ca-stat" class="select" style="max-width:140px"><option value="">Todos status</option>${Object.keys(STAT).map(s => `<option value="${s}"${_fStat === s ? ' selected' : ''}>${STAT[s].l}</option>`).join('')}</select>
@@ -138,11 +138,11 @@ function renderCarteira() {
 function cliRow(c) {
   const st = STAT[c.status] || STAT.ativo;
   const cc = CAT_COR[c.categoria] || '#64748b';
-  return `<tr style="border-top:1px solid var(--bd,#e2e8f0)">
-    <td style="padding:7px 10px;font-weight:700">${esc(c.nome)}${c.n_negocios > 1 ? ` <span class="tiny muted">(${c.n_negocios})</span>` : ''}</td>
-    <td style="padding:7px 10px"><span class="tiny" style="background:${cc}1f;color:${cc};padding:1px 8px;border-radius:99px;font-weight:700">${esc(c.categoria)}</span></td>
-    <td style="padding:7px 10px;text-align:right;font-weight:700">${BRL(c.ltv)}</td>
-    <td style="padding:7px 10px"><span style="color:${st.c};font-weight:700">●</span> ${st.l}</td>
+  return `<tr style="border-top:1px solid var(--bd,var(--border))">
+    <td style="padding:7px 10px;font-weight:600">${esc(c.nome)}${c.n_negocios > 1 ? ` <span class="tiny muted">(${c.n_negocios})</span>` : ''}</td>
+    <td style="padding:7px 10px"><span class="tiny" style="background:${cc}1f;color:${cc};padding:1px 8px;border-radius:var(--radius-full);font-weight:600">${esc(c.categoria)}</span></td>
+    <td style="padding:7px 10px;text-align:right;font-weight:600">${BRL(c.ltv)}</td>
+    <td style="padding:7px 10px"><span style="color:${st.c};font-weight:600">●</span> ${st.l}</td>
     <td style="padding:7px 10px">${c.score != null && c.score !== '' ? c.score : '<span class="muted">—</span>'}</td>
     <td style="padding:7px 10px;white-space:nowrap">${fmtData(c.ultima_compra)}</td>
     <td style="padding:7px 10px;text-align:right"><button class="btn btn-ghost btn-sm" data-enr="${esc(c.key)}">✏️ Enriquecer</button></td></tr>`;
@@ -151,8 +151,8 @@ function openEnrich(c) {
   if (!c) return;
   const ov = document.createElement('div');
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto';
-  ov.innerHTML = `<div style="background:var(--bg-1,#fff);border-radius:14px;max-width:460px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:92vh;overflow:auto">
-    <div style="font-size:17px;font-weight:800;margin-bottom:2px">${esc(c.nome)}</div>
+  ov.innerHTML = `<div style="background:var(--bg-1,#fff);border-radius:var(--radius-lg);max-width:460px;width:100%;padding:20px;box-shadow:var(--shadow-1);max-height:92vh;overflow:auto">
+    <div style="font-size:16px;font-weight:600;margin-bottom:2px">${esc(c.nome)}</div>
     <div class="tiny muted" style="margin-bottom:12px">LTV ${BRL(c.ltv)} · ${c.n_negocios} negócio(s) · última ${fmtData(c.ultima_compra)}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <div><label class="tiny muted">Categoria</label><select id="en-categoria" class="select">${CAT.concat('Outros').map(o => `<option${c.categoria === o ? ' selected' : ''}>${o}</option>`).join('')}</select></div>
@@ -183,10 +183,10 @@ async function loadMetricas() {
 }
 function kpiRow(m, label, cor) {
   return `<div class="card" style="padding:12px">
-    <div style="font-weight:800;margin-bottom:8px;color:${cor || 'inherit'}">${esc(label)} <span class="tiny muted">· ${m.clientes} cliente(s)</span></div>
+    <div style="font-weight:600;margin-bottom:8px;color:${cor || 'inherit'}">${esc(label)} <span class="tiny muted">· ${m.clientes} cliente(s)</span></div>
     <div class="flex gap-2" style="flex-wrap:wrap">
       ${[['LTV total', BRL(m.ltv_total)], ['LTV médio', BRL(m.ltv_medio)], ['Retenção', m.retencao_pct + '%'], ['Churn', m.churn_pct + '%'], ['Score médio', m.score_medio != null ? m.score_medio : '—'], ['Em risco', m.em_risco], ['Renovados', m.renovados]]
-        .map(([l, v]) => `<div style="flex:1;min-width:92px"><div class="tiny muted">${l}</div><div style="font-size:17px;font-weight:800">${v}</div></div>`).join('')}
+        .map(([l, v]) => `<div style="flex:1;min-width:92px"><div class="tiny muted">${l}</div><div style="font-size:16px;font-weight:600">${v}</div></div>`).join('')}
     </div></div>`;
 }
 function renderMetricas() {
@@ -194,7 +194,7 @@ function renderMetricas() {
   if (!(M.geral && M.geral.clientes)) { body().innerHTML = `<div class="card muted tiny" style="text-align:center;padding:34px">Sem clientes na carteira ainda — as métricas aparecem quando houver negócios ganhos no RD.</div>`; return; }
   const cats = Object.keys(M.por_categoria || {});
   body().innerHTML = `
-    <div style="font-size:18px;font-weight:800;margin-bottom:4px">📊 Métricas de Sucesso do Cliente</div>
+    <div style="font-size:16px;font-weight:600;margin-bottom:4px">📊 Métricas de Sucesso do Cliente</div>
     <div class="tiny muted" style="margin-bottom:12px">% churn, % retenção, LTV e score — visão geral e por categoria. Score/status vêm do enriquecimento da Carteira.</div>
     <div style="display:grid;gap:12px">
       ${kpiRow(M.geral, '🌐 Geral')}
@@ -219,7 +219,7 @@ function renderReg(modulo) {
   const list = (temCat && _fRegCat) ? all.filter(r => r.categoria === _fRegCat) : all;
   body().innerHTML = `
     <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
-      <div><div style="font-size:18px;font-weight:800;color:${T.cor}">${T.titulo}</div><div class="tiny muted">${T.sub}</div></div>
+      <div><div style="font-size:16px;font-weight:600;color:${T.cor}">${T.titulo}</div><div class="tiny muted">${T.sub}</div></div>
       <div class="flex gap-2">
         ${temCat ? `<select id="rg-fcat" class="select" style="max-width:150px"><option value="">Todas categorias</option>${CAT.map(c => `<option${_fRegCat === c ? ' selected' : ''}>${c}</option>`).join('')}</select>` : ''}
         <button class="btn btn-primary" id="rg-new">+ Nova ficha</button>
@@ -233,11 +233,11 @@ function renderReg(modulo) {
 }
 function regCard(modulo, r) {
   const T = REG[modulo];
-  const chips = (T.chips(r) || []).map(c => `<span style="background:${T.cor}1f;color:${T.cor};font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px">${esc(c)}</span>`).join(' ');
+  const chips = (T.chips(r) || []).map(c => `<span style="background:${T.cor}1f;color:${T.cor};font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-full)">${esc(c)}</span>`).join(' ');
   const pf = T.campos.find(c => c.type === 'textarea' && r[c.k]);
   const prev = pf ? esc(String(r[pf.k]).slice(0, 90)) : '';
   return `<div class="card" style="padding:13px;cursor:pointer;border-left:4px solid ${T.cor}" data-rg="${esc(r.id)}">
-    <div style="font-weight:800;font-size:14px">${esc(r[T.titleField] || '—')}</div>
+    <div style="font-weight:600;font-size:14px">${esc(r[T.titleField] || '—')}</div>
     <div class="flex gap-1" style="flex-wrap:wrap;margin:6px 0">${chips}</div>
     ${prev ? `<div class="tiny muted">${prev}${String(r[pf.k]).length > 90 ? '…' : ''}</div>` : ''}</div>`;
 }
@@ -252,8 +252,8 @@ function openRegEditor(modulo, r0) {
     const t = c.type === 'number' ? 'number' : c.type === 'date' ? 'date' : 'text';
     return `<div><label class="tiny muted">${c.lbl}</label><input id="f-${c.k}" class="input" type="${t}" value="${esc(c.type === 'date' ? String(v).slice(0, 10) : v)}"></div>`;
   };
-  ov.innerHTML = `<div style="background:var(--bg-1,#fff);border-radius:14px;max-width:520px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:92vh;overflow:auto">
-    <div style="font-size:17px;font-weight:800;margin-bottom:12px;color:${T.cor}">${r.id ? 'Editar' : 'Nova'} — ${T.titulo}</div>
+  ov.innerHTML = `<div style="background:var(--bg-1,#fff);border-radius:var(--radius-lg);max-width:520px;width:100%;padding:20px;box-shadow:var(--shadow-1);max-height:92vh;overflow:auto">
+    <div style="font-size:16px;font-weight:600;margin-bottom:12px;color:${T.cor}">${r.id ? 'Editar' : 'Nova'} — ${T.titulo}</div>
     <div style="display:flex;flex-direction:column;gap:8px">${T.campos.map(field).join('')}</div>
     <div class="flex gap-2 mt-3" style="justify-content:space-between;margin-top:14px">
       <button class="btn btn-ghost" id="f-del" ${r.id ? '' : 'style="visibility:hidden"'}>🗑 Excluir</button>

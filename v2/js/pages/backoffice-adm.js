@@ -23,7 +23,7 @@ const PGTO = ['PIX', 'Boleto', 'Cartão corporativo', 'Dinheiro', 'Transferênci
 const ST_COMPRA = ['solicitado', 'aprovado', 'comprado', 'recebido', 'cancelado'];
 const ST_COMPRA_LBL = { solicitado: '🟡 Solicitado', aprovado: '🔵 Aprovado', comprado: '🟣 Comprado', recebido: '🟢 Recebido', cancelado: '⚪ Cancelado' };
 const ESTADOS = ['Novo', 'Ótimo', 'Bom', 'Regular', 'Ruim', 'Inservível'];
-const ESTADO_COR = { 'Novo': '#16a34a', 'Ótimo': '#16a34a', 'Bom': '#0891b2', 'Regular': '#f59e0b', 'Ruim': '#ef4444', 'Inservível': '#991b1b' };
+const ESTADO_COR = { 'Novo': '#16a34a', 'Ótimo': '#16a34a', 'Bom': '#806d50', 'Regular': '#f59e0b', 'Ruim': '#ef4444', 'Inservível': '#991b1b' };
 const CAT_PATR = ['Mobiliário', 'Informática', 'Eletrônicos', 'Veículos', 'Eletrodomésticos', 'Imóvel', 'Decoração', 'Outro'];
 const TIPO_MANUT = ['Preventiva', 'Corretiva', 'Instalação', 'Reforma'];
 const ST_MANUT = ['solicitada', 'orcamento', 'aprovada', 'em_andamento', 'concluida', 'cancelada'];
@@ -106,10 +106,10 @@ function renderCompras(root) {
   body.querySelectorAll('[data-cp]').forEach(el => el.onclick = () => editCompra(root, c.find(x => x.id === el.dataset.cp)));
 }
 function compraCard(r) {
-  return `<div class="card" style="padding:12px;cursor:pointer;border-left:4px solid #2563eb" data-cp="${esc(r.id)}">
+  return `<div class="card" style="padding:12px;cursor:pointer;border-left:4px solid var(--accent-ink)" data-cp="${esc(r.id)}">
     <div class="flex items-center" style="justify-content:space-between;gap:6px">
-      <div style="font-weight:800;font-size:13.5px">${esc(r.item || '—')}</div>
-      <span class="tiny" style="font-weight:700">${ST_COMPRA_LBL[r.status] || r.status || ''}</span></div>
+      <div style="font-weight:600;font-size:13px">${esc(r.item || '—')}</div>
+      <span class="tiny" style="font-weight:600">${ST_COMPRA_LBL[r.status] || r.status || ''}</span></div>
     <div class="tiny muted" style="margin:3px 0">${esc(r.qtd || '')} ${esc(r.unidade || '')} · ${esc(r.categoria || '')}${r.urgencia ? ' · ' + esc(r.urgencia) : ''}</div>
     <div class="tiny">${r.valor_estimado ? '~' + money(r.valor_estimado) : ''}${r.valor_final ? ' → <b>' + money(r.valor_final) + '</b>' : ''}</div>
     ${r.responsavel_compra ? `<div class="tiny muted">👤 ${esc(r.responsavel_compra)}${r.metodo_pagto ? ' · ' + esc(r.metodo_pagto) : ''}</div>` : ''}
@@ -153,8 +153,8 @@ function renderEstoque(body, root) {
       <tbody>${est.length ? est.map(e => {
         const low = estoqueBaixo(e);
         return `<tr style="border-bottom:1px solid var(--bd)${low ? ';background:color-mix(in srgb, var(--err) 12%, transparent)' : ''}">
-          <td style="padding:8px"><b>${esc(e.item || '—')}</b> <span class="tiny muted">${esc(e.categoria || '')}</span>${low ? ' <span class="tiny" style="color:var(--err-suave);font-weight:800">⚠ REPOR</span>' : ''}</td>
-          <td style="padding:8px;text-align:center;font-weight:700">${esc(e.qtd_atual || 0)} ${esc(e.unidade || '')}</td>
+          <td style="padding:8px"><b>${esc(e.item || '—')}</b> <span class="tiny muted">${esc(e.categoria || '')}</span>${low ? ' <span class="tiny" style="color:var(--err-suave);font-weight:600">⚠ REPOR</span>' : ''}</td>
+          <td style="padding:8px;text-align:center;font-weight:600">${esc(e.qtd_atual || 0)} ${esc(e.unidade || '')}</td>
           <td style="padding:8px;text-align:center" class="tiny muted">${esc(e.qtd_minima || 0)}</td>
           <td style="padding:8px">${esc(e.local || '—')}</td>
           <td style="padding:8px">${esc(e.responsavel || '—')}</td>
@@ -211,8 +211,8 @@ function renderPatrimonio(root) {
         <button class="btn btn-primary btn-sm" id="pt-new">➕ Novo bem</button>
       </div>
       <div class="flex gap-2 mt-2" style="flex-wrap:wrap">
-        <div class="card" style="padding:10px 14px"><div class="tiny muted">Itens</div><div style="font-size:20px;font-weight:800">${p.length}</div></div>
-        <div class="card" style="padding:10px 14px"><div class="tiny muted">Valor estimado total</div><div style="font-size:20px;font-weight:800;color:var(--ok)">${money(total)}</div></div>
+        <div class="card" style="padding:10px 14px"><div class="tiny muted">Itens</div><div style="font-size:20px;font-weight:600">${p.length}</div></div>
+        <div class="card" style="padding:10px 14px"><div class="tiny muted">Valor estimado total</div><div style="font-size:20px;font-weight:600;color:var(--ok)">${money(total)}</div></div>
       </div>
       <div class="mt-3" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px">
         ${p.length ? p.map(patrCard).join('') : '<div class="muted tiny">Nenhum bem cadastrado.</div>'}
@@ -225,8 +225,8 @@ function patrCard(r) {
   const cor = ESTADO_COR[r.estado_conservacao] || '#64748b';
   return `<div class="card" style="padding:12px;cursor:pointer;border-left:4px solid ${cor}" data-pt="${esc(r.id)}">
     <div class="flex items-center" style="justify-content:space-between;gap:6px">
-      <div style="font-weight:800;font-size:13.5px">${esc(r.nome || '—')}</div>
-      ${r.estado_conservacao ? `<span style="background:${cor}1a;color:${cor};font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px">${esc(r.estado_conservacao)}</span>` : ''}</div>
+      <div style="font-weight:600;font-size:13px">${esc(r.nome || '—')}</div>
+      ${r.estado_conservacao ? `<span style="background:${cor}1a;color:${cor};font-size:11px;font-weight:600;padding:2px 7px;border-radius:var(--radius-full)">${esc(r.estado_conservacao)}</span>` : ''}</div>
     <div class="tiny muted" style="margin:3px 0">${esc(r.categoria || '')}${r.codigo ? ' · 🏷 ' + esc(r.codigo) : ''}</div>
     <div class="tiny">${r.valor_estimado ? '<b>' + money(r.valor_estimado) + '</b>' : ''}${r.local ? ' · 📍 ' + esc(r.local) : ''}</div>
     ${r.responsavel ? `<div class="tiny muted">👤 ${esc(r.responsavel)}</div>` : ''}
@@ -283,10 +283,10 @@ function renderManut(root) {
 }
 function manutCard(r) {
   const orc = Array.isArray(r.orcamentos) ? r.orcamentos : [];
-  return `<div class="card" style="padding:12px;cursor:pointer;border-left:4px solid #ea580c" data-mt="${esc(r.id)}">
+  return `<div class="card" style="padding:12px;cursor:pointer;border-left:4px solid var(--warn)" data-mt="${esc(r.id)}">
     <div class="flex items-center" style="justify-content:space-between;gap:6px">
-      <div style="font-weight:800;font-size:13.5px">${esc(r.equipamento || '—')}</div>
-      <span class="tiny" style="font-weight:700">${ST_MANUT_LBL[r.status] || r.status || ''}</span></div>
+      <div style="font-weight:600;font-size:13px">${esc(r.equipamento || '—')}</div>
+      <span class="tiny" style="font-weight:600">${ST_MANUT_LBL[r.status] || r.status || ''}</span></div>
     <div class="tiny muted" style="margin:3px 0">${esc(r.tipo || '')}${r.urgencia ? ' · ' + esc(r.urgencia) : ''}${r.descricao ? ' · ' + esc(r.descricao).slice(0, 50) : ''}</div>
     <div class="tiny">${orc.length ? '📄 ' + orc.length + ' orçamento(s)' : ''}${r.valor_aprovado ? ' · ✅ ' + money(r.valor_aprovado) : ''}</div>
     ${r.responsavel ? `<div class="tiny muted">👤 ${esc(r.responsavel)}</div>` : ''}
@@ -298,7 +298,7 @@ function editManut(root, r0) {
   _orcEdit = Array.isArray(r.orcamentos) ? r.orcamentos.map(o => ({ ...o })) : [];
   const ov = modal('');
   const drawOrc = () => `<div id="orc-rows">${_orcEdit.map((o, i) => `
-      <div class="flex gap-2" style="align-items:center;margin-bottom:5px;${o.escolhido ? 'background:#16a34a14;border-radius:6px;padding:3px' : ''}">
+      <div class="flex gap-2" style="align-items:center;margin-bottom:5px;${o.escolhido ? 'background:var(--ok-soft);border-radius:var(--radius-sm);padding:3px' : ''}">
         <input class="input orc-forn" data-i="${i}" placeholder="Fornecedor" value="${esc(o.fornecedor || '')}" style="flex:1">
         <input class="input orc-val" data-i="${i}" type="number" placeholder="R$" value="${esc(o.valor || '')}" style="width:90px">
         <input class="input orc-link" data-i="${i}" placeholder="link" value="${esc(o.link || '')}" style="width:90px">
@@ -317,7 +317,7 @@ function editManut(root, r0) {
         ${fI('m-data', 'Data', r.data, '', 'date')}
       `)}
       ${fA('m-descricao', 'Descrição do problema/serviço', r.descricao)}
-      <div style="font-weight:700;font-size:12.5px;margin:10px 0 5px">📄 Orçamentos <span class="tiny muted">(marque ✓ no escolhido)</span></div>
+      <div style="font-weight:600;font-size:13px;margin:10px 0 5px">📄 Orçamentos <span class="tiny muted">(marque ✓ no escolhido)</span></div>
       ${drawOrc()}
       <button class="btn btn-ghost btn-sm mt-1" id="orc-add" type="button">+ Orçamento</button>
       <div class="tiny muted" style="margin-top:6px">Valor aprovado: <b id="m-aprov">${r.valor_aprovado ? money(r.valor_aprovado) : '—'}</b></div>

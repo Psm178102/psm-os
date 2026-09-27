@@ -12,7 +12,7 @@ const ROLES = [
   { id: 'gerente_map',       lbl: 'Gerente MAP',       lvl: 7, color: '#a855f7', ico: '🎯' },
   { id: 'gerente_locacao',   lbl: 'Gerente Locação',   lvl: 7, color: '#a16207', ico: '🎯' },
   { id: 'gerente_terceiros', lbl: 'Gerente Terceiros', lvl: 7, color: '#0d9488', ico: '🎯' },
-  { id: 'backoffice', lbl: 'Back Office',       lvl: 6,  color: '#0891b2', ico: '📋' },
+  { id: 'backoffice', lbl: 'Back Office',       lvl: 6,  color: '#806d50', ico: '📋' },
   { id: 'secretaria_vendas', lbl: 'Secretária de Vendas', lvl: 3, color: '#db2777', ico: '🗂️' },
   { id: 'lider',      lbl: 'Líder de Equipe',   lvl: 5,  color: '#059669', ico: '🛡️' },
   { id: 'financeiro', lbl: 'Financeiro',        lvl: 4,  color: '#16a34a', ico: '💰' },
@@ -52,7 +52,7 @@ const TEAMS_DEFAULT = [
   { id: 'conquista',  lbl: 'Conquista',  color: '#dc2626', ico: '🏆' },
   { id: 'map',        lbl: 'MAP',        color: '#a855f7', ico: '🗺️' },
   { id: 'locacao',    lbl: 'Locação',    color: '#10b981', ico: '🔑' },
-  { id: 'terceiros',  lbl: 'Terceiros',  color: '#3b82f6', ico: '🤝' },
+  { id: 'terceiros',  lbl: 'Terceiros',  color: '#806d50', ico: '🤝' },
   { id: 'lancamento', lbl: 'Lançamento', color: '#d4a843', ico: '🏗' },
   { id: 'geral',      lbl: 'Geral',      color: '#64748b', ico: '📁' },
 ];
@@ -156,12 +156,12 @@ function render() {
 
       <!-- Filtros -->
       <div class="flex gap-3 items-center mt-3" style="padding:10px;background:var(--bg-3);border-radius:var(--r-sm);flex-wrap:wrap">
-        <label class="tiny muted" style="font-weight:700;letter-spacing:1px">EQUIPE:</label>
+        <label class="tiny muted" style="font-weight:600;letter-spacing:1px">EQUIPE:</label>
         <select id="f-team" class="select">
           <option value="todos">Todas equipes</option>
           ${_teams.map(t => `<option value="${t.id}">${t.ico} ${t.lbl}</option>`).join('')}
         </select>
-        <label class="tiny muted" style="font-weight:700;letter-spacing:1px;margin-left:14px">STATUS:</label>
+        <label class="tiny muted" style="font-weight:600;letter-spacing:1px;margin-left:14px">STATUS:</label>
         <select id="f-status" class="select">
           <option value="todos">Todos</option>
           <option value="ativos">Apenas ativos</option>
@@ -179,7 +179,7 @@ function render() {
 
       ${archivedList.length ? `
       <details style="margin-top:16px;border:1px dashed var(--border-2);border-radius:var(--r-md);background:var(--bg-2)">
-        <summary style="cursor:pointer;padding:12px 14px;font-weight:800;font-size:13px;color:var(--ink-muted);user-select:none;list-style:none">
+        <summary style="cursor:pointer;padding:12px 14px;font-weight:600;font-size:13px;color:var(--ink-muted);user-select:none;list-style:none">
           📦 Arquivados · inativos + ocultos (${archivedList.length})
           <span class="tiny muted" style="font-weight:600">— não aparecem em nenhuma opção do sistema; reative aqui se precisar</span>
         </summary>
@@ -214,8 +214,8 @@ function render() {
 function statCard(label, value, bg, fg) {
   return `
     <div style="background:${bg};border-radius:var(--r-sm);padding:10px 12px">
-      <div class="tiny" style="color:${fg};opacity:0.7;letter-spacing:1.5px;font-weight:700;text-transform:uppercase">${label}</div>
-      <div style="font-size:22px;font-weight:900;color:${fg}">${value}</div>
+      <div class="tiny" style="color:${fg};opacity:0.7;letter-spacing:1.5px;font-weight:600;text-transform:uppercase">${label}</div>
+      <div style="font-size:20px;font-weight:600;color:${fg}">${value}</div>
     </div>
   `;
 }
@@ -232,9 +232,9 @@ function userRow(u, isSocio, myId) {
 
   return `
     <div style="display:grid;grid-template-columns:42px 1fr auto auto auto auto auto;gap:10px;padding:10px 12px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r-md);align-items:center${inactive ? ';opacity:0.65' : ''}">
-      <div style="width:36px;height:36px;border-radius:var(--r-sm);background:${u.color || role.color};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px">${ini}</div>
+      <div style="width:36px;height:36px;border-radius:var(--r-sm);background:${u.color || role.color};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px">${ini}</div>
       <div style="min-width:0">
-        <div style="font-weight:700;font-size:13px">${escapeHtml(u.name || 'Sem nome')}${isMe ? ' <span style="font-size:9px;background:var(--psm-navy);color:#fff;padding:1px 6px;border-radius:3px;letter-spacing:1px;margin-left:6px">VOCÊ</span>' : ''}</div>
+        <div style="font-weight:600;font-size:13px">${escapeHtml(u.name || 'Sem nome')}${isMe ? ' <span style="font-size:11px;background:var(--psm-navy);color:#fff;padding:1px 6px;border-radius:var(--radius-sm);letter-spacing:1px;margin-left:6px">VOCÊ</span>' : ''}</div>
         <div class="tiny muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(u.email || 'sem email')}</div>
         ${lastAudit ? `<div class="tiny" style="color:var(--info);margin-top:2px"><a href="#/auditoria" data-link-audit="${u.id}">📜 ${escapeHtml(lastAudit)}</a></div>` : ''}
         ${(() => {   // v87.64: cargos ADICIONAIS — um login pode ocupar mais de um
@@ -242,26 +242,26 @@ function userRow(u, isSocio, myId) {
           if (!cs.length && !editable) return '';
           const nome = id => { const r = allRolesList().find(x => x.id === id); return r ? `${r.ico} ${r.lbl}` : id; };
           return `<div class="tiny" style="margin-top:3px;display:flex;align-items:center;gap:5px;flex-wrap:wrap">
-            ${cs.map(c => `<span style="background:color-mix(in srgb, var(--psm-navy) 16%, transparent);color:var(--navy-txt,var(--ink));padding:1px 7px;border-radius:3px;font-weight:700">＋ ${escapeHtml(nome(c))}</span>`).join('')}
-            ${editable ? `<button class="btn btn-ghost" data-action="cargos" data-id="${u.id}" style="padding:2px 8px;font-size:10px" title="Um login pode ocupar mais de um cargo: o nível vale o maior e as permissões somam">🎭 ${cs.length ? 'Cargos' : '+ cargo'}</button>` : ''}
+            ${cs.map(c => `<span style="background:color-mix(in srgb, var(--psm-navy) 16%, transparent);color:var(--navy-txt,var(--ink));padding:1px 7px;border-radius:var(--radius-sm);font-weight:600">＋ ${escapeHtml(nome(c))}</span>`).join('')}
+            ${editable ? `<button class="btn btn-ghost" data-action="cargos" data-id="${u.id}" style="padding:2px 8px;font-size:11px" title="Um login pode ocupar mais de um cargo: o nível vale o maior e as permissões somam">🎭 ${cs.length ? 'Cargos' : '+ cargo'}</button>` : ''}
           </div>`;
         })()}
         ${Array.isArray(u.menu_groups) ? `<div class="tiny" style="margin-top:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-          <span style="background:color-mix(in srgb, var(--warn) 18%, transparent);color:var(--marrom);padding:1px 7px;border-radius:3px;font-weight:700" title="Esse usuário tem permissão INDIVIDUAL que IGNORA as Permissões por papel. Liberado só: ${escapeHtml((u.menu_groups || []).join(', ') || '(nada)')}">⚠️ Exceção de menu (${u.menu_groups.length})</span>
-          ${editable ? `<button class="btn btn-ghost" data-action="clear-menu-override" data-id="${u.id}" style="padding:2px 8px;font-size:10px" title="Remover a exceção → passa a seguir as Permissões por papel">↩︎ voltar ao papel</button>` : ''}
+          <span style="background:color-mix(in srgb, var(--warn) 18%, transparent);color:var(--marrom);padding:1px 7px;border-radius:var(--radius-sm);font-weight:600" title="Esse usuário tem permissão INDIVIDUAL que IGNORA as Permissões por papel. Liberado só: ${escapeHtml((u.menu_groups || []).join(', ') || '(nada)')}">⚠️ Exceção de menu (${u.menu_groups.length})</span>
+          ${editable ? `<button class="btn btn-ghost" data-action="clear-menu-override" data-id="${u.id}" style="padding:2px 8px;font-size:11px" title="Remover a exceção → passa a seguir as Permissões por papel">↩︎ voltar ao papel</button>` : ''}
         </div>` : ''}
       </div>
-      <select class="select" data-action="role" data-id="${u.id}" ${editable ? '' : 'disabled'} style="padding:5px 8px;font-size:11px;font-weight:700;min-width:170px;border-left:3px solid ${role.color}" title="Papel hierárquico">
+      <select class="select" data-action="role" data-id="${u.id}" ${editable ? '' : 'disabled'} style="padding:5px 8px;font-size:11px;font-weight:600;min-width:170px;border-left:3px solid ${role.color}" title="Papel hierárquico">
         ${roleOptionsHtml(u.role, u.role)}
       </select>
-      <select class="select" data-action="team" data-id="${u.id}" ${editable ? '' : 'disabled'} style="padding:5px 8px;font-size:11px;font-weight:700;min-width:150px;border-left:3px solid ${team.color}" title="Equipe / frente">
+      <select class="select" data-action="team" data-id="${u.id}" ${editable ? '' : 'disabled'} style="padding:5px 8px;font-size:11px;font-weight:600;min-width:150px;border-left:3px solid ${team.color}" title="Equipe / frente">
         ${(_teams.some(t => t.id === u.team) ? _teams : _teams.concat([teamInfo(u.team)])).map(t => `<option value="${t.id}"${u.team === t.id ? ' selected' : ''}>${t.ico} ${t.lbl}</option>`).join('')}
       </select>
       ${isMe
         ? '<span class="tiny muted" style="font-style:italic;padding:0 8px">— você —</span>'
-        : `<button class="btn" data-action="toggle-status" data-id="${u.id}" style="padding:6px 12px;font-size:11px;letter-spacing:1px;text-transform:uppercase;background:${(u.status || 'ativo') === 'ativo' ? '#dcfce7' : (u.status === 'pausado' ? '#fef3c7' : '#fee2e2')};color:${(u.status || 'ativo') === 'ativo' ? '#166534' : (u.status === 'pausado' ? '#92400e' : '#991b1b')};min-width:92px" ${editable ? '' : 'disabled'} title="clique alterna: ativo → pausado (licença) → inativo">${(u.status || 'ativo') === 'ativo' ? '✓ Ativo' : (u.status === 'pausado' ? '⏸ Pausado' : '🔒 Inativo')}</button>`
+        : `<button class="btn" data-action="toggle-status" data-id="${u.id}" style="padding:6px 12px;font-size:11px;letter-spacing:1px;text-transform:uppercase;background:${(u.status || 'ativo') === 'ativo' ? 'var(--ok-soft)' : (u.status === 'pausado' ? 'var(--warn-soft)' : 'var(--err-soft)')};color:${(u.status || 'ativo') === 'ativo' ? 'var(--ok)' : (u.status === 'pausado' ? 'var(--warn)' : 'var(--err)')};min-width:92px" ${editable ? '' : 'disabled'} title="clique alterna: ativo → pausado (licença) → inativo">${(u.status || 'ativo') === 'ativo' ? '✓ Ativo' : (u.status === 'pausado' ? '⏸ Pausado' : '🔒 Inativo')}</button>`
       }
-      <button class="btn" data-action="toggle-hidden" data-id="${u.id}" style="padding:6px 12px;font-size:11px;letter-spacing:1px;text-transform:uppercase;background:${hidden ? '#fef3c7' : 'var(--bg-3)'};color:${hidden ? '#78350f' : 'var(--ink-muted)'};min-width:92px" ${editable ? '' : 'disabled'} title="${hidden ? 'Tornar visível' : 'Ocultar de rankings/TV'}">${hidden ? '👁 Oculto' : '👁 Visível'}</button>
+      <button class="btn" data-action="toggle-hidden" data-id="${u.id}" style="padding:6px 12px;font-size:11px;letter-spacing:1px;text-transform:uppercase;background:${hidden ? 'var(--warn-soft)' : 'var(--bg-3)'};color:${hidden ? 'var(--warn)' : 'var(--ink-muted)'};min-width:92px" ${editable ? '' : 'disabled'} title="${hidden ? 'Tornar visível' : 'Ocultar de rankings/TV'}">${hidden ? '👁 Oculto' : '👁 Visível'}</button>
       ${editable ? `<button class="btn btn-ghost" data-action="reset-pwd" data-id="${u.id}" title="Resetar senha" style="padding:6px 10px;font-size:11px">🔑</button>` : '<span></span>'}
     </div>
   `;
@@ -280,7 +280,7 @@ function abrirCargos(u) {
   box.id = 'cargos-modal';
   box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:32px 14px;overflow-y:auto';
   box.innerHTML = `
-    <div style="background:var(--bg);color:var(--ink);border:1px solid var(--border);border-radius:14px;max-width:620px;width:100%;box-shadow:var(--shadow-lg)">
+    <div style="background:var(--bg);color:var(--ink);border:1px solid var(--border);border-radius:var(--radius-lg);max-width:620px;width:100%;box-shadow:var(--shadow-lg)">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)">
         <b>🎭 Cargos de ${escapeHtml(u.name || '')}</b>
         <button class="btn btn-ghost" id="cg-x">✕</button>
@@ -292,7 +292,7 @@ function abrirCargos(u) {
           e o menu mostra a soma do que cada cargo enxerga.
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:6px;max-height:44vh;overflow-y:auto">
-          ${lista.map(r => `<label style="display:flex;gap:8px;align-items:center;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg-2);font-size:12.5px;cursor:pointer">
+          ${lista.map(r => `<label style="display:flex;gap:8px;align-items:center;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--bg-2);font-size:13px;cursor:pointer">
             <input type="checkbox" value="${r.id}" ${atuais.includes(r.id) ? 'checked' : ''}>
             <span>${r.ico} ${escapeHtml(r.lbl)} <span class="tiny muted">L${r.lvl}</span></span>
           </label>`).join('')}
@@ -323,7 +323,7 @@ function abrirCargos(u) {
 function addUserBlock() {
   return `
     <div class="mt-4" style="padding:14px;background:var(--bg-3);border-radius:var(--r-md);border:1px dashed var(--border-2)">
-      <div style="font-size:12px;font-weight:800;color:var(--ink);margin-bottom:6px">➕ Adicionar novo usuário</div>
+      <div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:6px">➕ Adicionar novo usuário</div>
       <div class="tiny muted" style="margin-bottom:10px">Cria o usuário no Postgres. Depois ele acessa <b>housepsm.com.br/login</b> → "definir senha inicial".</div>
       <div class="flex gap-2 items-center" style="flex-wrap:wrap">
         <input id="nu-name"  class="input" placeholder="Nome completo" style="width:200px;padding:6px 10px;font-size:12px">
@@ -487,7 +487,7 @@ function openTeamsManager() {
 function openRolesManager() {
   const ov = document.createElement('div');
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:5vh 14px;overflow:auto';
-  const crRow = r => `<div class="flex items-center gap-2" style="border-top:1px solid var(--bd,#e2e8f0);padding:7px 0">
+  const crRow = r => `<div class="flex items-center gap-2" style="border-top:1px solid var(--bd,var(--border));padding:7px 0">
     <span style="width:26px;text-align:center">${escapeHtml(r.ico || '🏷️')}</span>
     <span style="flex:1"><b>${escapeHtml(r.label)}</b> <span class="tiny muted">· ${escapeHtml(r.id)} · L${r.lvl}</span></span>
     <span style="width:16px;height:16px;border-radius:50%;background:${escapeHtml(r.color || '#64748b')}"></span>
@@ -501,15 +501,15 @@ function openRolesManager() {
         <button class="btn btn-ghost btn-sm" id="cr-x">✕</button>
       </div>
       <p class="tiny muted" style="margin:4px 0 10px">Crie categorias (papéis) próprias com um <b>nível de acesso</b>. Os papéis fixos do sistema não aparecem aqui. Depois de criar, defina o que cada uma vê em <b>Configurações → Permissões por papel</b>. Só dá pra remover se nenhum usuário ativo estiver nela.</p>
-      <div style="font-weight:700;font-size:12px;margin-bottom:4px">Suas categorias</div>
+      <div style="font-weight:600;font-size:12px;margin-bottom:4px">Suas categorias</div>
       <div id="cr-list">${custom.length ? custom.map(crRow).join('') : '<div class="tiny muted" style="padding:6px 0">Nenhuma categoria custom ainda.</div>'}</div>
-      <div style="border-top:1px solid var(--bd,#e2e8f0);margin-top:12px;padding-top:10px">
-        <div style="font-weight:700;font-size:12px;margin-bottom:6px">➕ Nova categoria</div>
+      <div style="border-top:1px solid var(--bd,var(--border));margin-top:12px;padding-top:10px">
+        <div style="font-weight:600;font-size:12px;margin-bottom:6px">➕ Nova categoria</div>
         <div class="flex gap-2" style="flex-wrap:wrap;align-items:end">
           <input id="cr-ico" class="input" value="🏷️" maxlength="4" style="width:52px;text-align:center" title="ícone">
           <label class="tiny muted">Nome<input id="cr-label" class="input" placeholder="ex.: Consultor Sênior" style="min-width:170px"></label>
           <label class="tiny muted">Nível 1–10<input id="cr-lvl" class="input" type="number" min="1" max="10" value="2" style="width:74px"></label>
-          <input id="cr-cor" class="input" type="color" value="#0ea5e9" style="width:46px;padding:2px;min-width:46px" title="cor">
+          <input id="cr-cor" class="input" type="color" value="#806d50" style="width:46px;padding:2px;min-width:46px" title="cor">
           <button class="btn btn-primary btn-sm" id="cr-add">Criar</button>
         </div>
         <div class="tiny muted" style="margin-top:6px">Nível = alçada (2 corretor · 5 líder · 7 gerente · 10 sócio). O acesso fino é pela matriz de permissões.</div>

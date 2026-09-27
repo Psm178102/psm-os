@@ -27,7 +27,7 @@ const FORMATOS = {
 
 const STAGES = [
   { id: 'curadoria',    lbl: '📚 Curadoria / Pauta', cor: '#64748b' },
-  { id: 'gravacao',     lbl: '🎬 Gravação',          cor: '#0ea5e9' },
+  { id: 'gravacao',     lbl: '🎬 Gravação',          cor: '#806d50' },
   { id: 'edicao',       lbl: '✂️ Edição',            cor: '#8b5cf6' },
   { id: 'aprovacao',    lbl: '👁 Aprovação',         cor: '#f59e0b' },
   { id: 'agendamento',  lbl: '📆 Agendar Post',      cor: '#ca8a04' },
@@ -37,7 +37,7 @@ const stageInfo = id => STAGES.find(s => s.id === id) || { lbl: id || '—', cor
 
 const SEMANAS = [1, 2, 3, 4, 5];
 const RESPONSAVEIS = ['Paulo', 'Guilherme', 'Isabella'];
-const RESP_COR = { Paulo: '#0ea5e9', Guilherme: '#16a34a', Isabella: '#d6249f' };
+const RESP_COR = { Paulo: '#806d50', Guilherme: '#16a34a', Isabella: '#d6249f' };
 const respCor = n => RESP_COR[n] || '#64748b';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
@@ -71,29 +71,29 @@ async function mount(board, root) {
 
 const STYLE = `
   <style>
-    .pc-tab{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:999px;font-weight:700;font-size:13px;cursor:pointer;border:1px solid rgba(148,163,184,.25);background:var(--bg-1,#fff);color:var(--ink,#334155);transition:.15s}
-    .pc-tab.on{color:#fff}
-    .pc-wk{display:inline-flex;align-items:center;padding:5px 12px;border-radius:999px;font-weight:700;font-size:12px;cursor:pointer;border:1px solid rgba(148,163,184,.25);background:var(--bg-1,#fff);color:var(--ink,#475569)}
-    .pc-wk.on{background:#4f46e5;border-color:#4f46e5;color:#fff}
+    .pc-tab{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-full);font-weight:600;font-size:13px;cursor:pointer;border:1px solid var(--border);background:var(--bg-1,#fff);color:var(--ink,#334155);transition:.15s}
+    .pc-tab.on{color:var(--accent-ink)}
+    .pc-wk{display:inline-flex;align-items:center;padding:5px 12px;border-radius:var(--radius-full);font-weight:600;font-size:12px;cursor:pointer;border:1px solid var(--border);background:var(--bg-1,#fff);color:var(--ink,#475569)}
+    .pc-wk.on{background:var(--accent-soft);border-color:var(--accent-ink);color:var(--accent-ink)}
     .pc-board{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 14px;scroll-snap-type:x proximity}
-    .pc-col{min-width:240px;max-width:270px;flex:0 0 auto;background:var(--bg-3,#f1f5f9);border-radius:12px;padding:8px;display:flex;flex-direction:column;scroll-snap-align:start;transition:background .15s,box-shadow .15s}
-    .pc-col.drop{background:rgba(99,102,241,.12);box-shadow:inset 0 0 0 2px #6366f1}
-    .pc-card{background:var(--bg-1,#fff);border-radius:10px;padding:10px 11px;margin-bottom:8px;cursor:grab;box-shadow:0 1px 2px rgba(15,23,42,.06);border:1px solid rgba(148,163,184,.16);transition:transform .12s,box-shadow .12s}
-    .pc-card:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(15,23,42,.12)}
+    .pc-col{min-width:240px;max-width:270px;flex:0 0 auto;background:var(--bg-3,#f1f5f9);border-radius:var(--radius-md);padding:8px;display:flex;flex-direction:column;scroll-snap-align:start;transition:background .15s,box-shadow .15s}
+    .pc-col.drop{background:var(--accent-soft);box-shadow:inset 0 0 0 2px #6366f1}
+    .pc-card{background:var(--bg-1,#fff);border-radius:var(--radius-md);padding:10px 11px;margin-bottom:8px;cursor:grab;box-shadow:var(--shadow-1);border:1px solid var(--border);transition:transform .12s,box-shadow .12s}
+    .pc-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-1)}
     .pc-card.dragging{opacity:.45}
-    .pc-chip{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700}
-    .pc-resp{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800}
-    .pc-resp .dot{width:14px;height:14px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px}
-    .pc-pl-week{background:var(--bg-1,#fff);border:1px solid rgba(148,163,184,.18);border-radius:12px;padding:12px 14px;margin-bottom:12px}
-    .pc-pl-row{display:flex;align-items:center;gap:10px;padding:7px 4px;border-top:1px solid rgba(148,163,184,.12);cursor:pointer}
-    .pc-pl-row:hover{background:rgba(99,102,241,.06)}
+    .pc-chip{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:var(--radius-full);font-size:11px;font-weight:600}
+    .pc-resp{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600}
+    .pc-resp .dot{width:14px;height:14px;border-radius:50%;color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font-size:11px}
+    .pc-pl-week{background:var(--bg-1,#fff);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;margin-bottom:12px}
+    .pc-pl-row{display:flex;align-items:center;gap:10px;padding:7px 4px;border-top:1px solid var(--border);cursor:pointer}
+    .pc-pl-row:hover{background:var(--accent-soft)}
   </style>`;
 
 function header() {
   return `
     <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
       <div>
-        <div style="font-size:20px;font-weight:800">${esc(BOARD_TITLE[_board] || 'Conteúdo')} · Conteúdo</div>
+        <div style="font-size:20px;font-weight:600">${esc(BOARD_TITLE[_board] || 'Conteúdo')} · Conteúdo</div>
         <div class="tiny muted">Por plataforma e por semana · curadoria → gravação → edição → aprovação → agendamento → publicado.</div>
       </div>
       <div class="flex gap-2">
@@ -108,8 +108,8 @@ function tabsRow() {
   PLATAFORMAS.forEach(p => { counts[p.id] = _cards.filter(c => (c.plataforma || 'instagram') === p.id).length; });
   return `
     <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:12px">
-      ${PLATAFORMAS.map(p => `<div class="pc-tab ${p.id === _plat ? 'on' : ''}" data-plat="${p.id}" style="${p.id === _plat ? `background:${p.cor};border-color:${p.cor}` : ''}">${p.ic} ${p.lbl} <span style="opacity:.7;font-weight:800">${counts[p.id] || 0}</span></div>`).join('')}
-      <div class="pc-tab ${_plat === 'planner' ? 'on' : ''}" data-plat="planner" style="${_plat === 'planner' ? 'background:#4f46e5;border-color:#4f46e5' : ''}">📅 Planner Mensal</div>
+      ${PLATAFORMAS.map(p => `<div class="pc-tab ${p.id === _plat ? 'on' : ''}" data-plat="${p.id}" style="${p.id === _plat ? `background:${p.cor};border-color:${p.cor}` : ''}">${p.ic} ${p.lbl} <span style="opacity:.7;font-weight:600">${counts[p.id] || 0}</span></div>`).join('')}
+      <div class="pc-tab ${_plat === 'planner' ? 'on' : ''}" data-plat="planner" style="${_plat === 'planner' ? 'background:var(--accent-soft);border-color:var(--accent-ink)' : ''}">📅 Planner Mensal</div>
     </div>`;
 }
 
@@ -122,7 +122,7 @@ function render() {
     ${header()}
     ${tabsRow()}
     <div class="flex gap-2" style="flex-wrap:wrap;align-items:center;margin-bottom:12px">
-      <span class="tiny muted" style="font-weight:700;margin-right:2px">Semana:</span>
+      <span class="tiny muted" style="font-weight:600;margin-right:2px">Semana:</span>
       <div class="pc-wk ${_semana === '' ? 'on' : ''}" data-wk="">Todas</div>
       ${SEMANAS.map(w => `<div class="pc-wk ${String(_semana) === String(w) ? 'on' : ''}" data-wk="${w}">Semana ${w}</div>`).join('')}
     </div>
@@ -140,11 +140,11 @@ function col(st) {
   return `
     <div class="pc-col" data-col="${st.id}">
       <div class="flex items-center" style="justify-content:space-between;padding:2px 4px 8px">
-        <span style="font-weight:800;font-size:12px;color:${st.cor}">${st.lbl}</span>
-        <span class="tiny muted" style="font-weight:700">${cards.length}</span>
+        <span style="font-weight:600;font-size:12px;color:${st.cor}">${st.lbl}</span>
+        <span class="tiny muted" style="font-weight:600">${cards.length}</span>
       </div>
       ${cards.map(card).join('') || '<div class="tiny muted" style="padding:8px;text-align:center;opacity:.6">—</div>'}
-      <button class="btn btn-ghost tiny pc-add" data-st="${st.id}" style="margin-top:auto;border:1px dashed rgba(148,163,184,.4)">+ adicionar</button>
+      <button class="btn btn-ghost tiny pc-add" data-st="${st.id}" style="margin-top:auto;border:1px dashed var(--border)">+ adicionar</button>
     </div>`;
 }
 
@@ -157,10 +157,10 @@ function respBadge(n) {
 function card(c) {
   return `
     <div class="pc-card" draggable="true" data-card="${esc(c.id)}">
-      <div style="font-weight:800;font-size:13px;line-height:1.3">${esc(c.titulo || 'Sem título')}</div>
+      <div style="font-weight:600;font-size:13px;line-height:1.3">${esc(c.titulo || 'Sem título')}</div>
       <div class="flex gap-1" style="flex-wrap:wrap;margin-top:6px">
         ${c.semana ? `<span class="pc-chip" style="background:rgba(79,70,229,.14);color:var(--indigo)">Sem ${esc(c.semana)}</span>` : ''}
-        ${c.formato ? `<span class="pc-chip" style="background:rgba(99,102,241,.14);color:var(--indigo)">${esc(c.formato)}</span>` : ''}
+        ${c.formato ? `<span class="pc-chip" style="background:var(--accent-soft);color:var(--indigo)">${esc(c.formato)}</span>` : ''}
       </div>
       ${dateChips(c)}
       ${c.responsavel ? `<div style="margin-top:6px">${respBadge(c.responsavel)}</div>` : ''}
@@ -191,16 +191,16 @@ function renderPlanner() {
     ${all.map(g => `
       <div class="pc-pl-week">
         <div class="flex items-center" style="justify-content:space-between">
-          <div style="font-weight:800;font-size:14px;color:var(--indigo)">${g.lbl}</div>
-          <span class="tiny muted" style="font-weight:700">${g.items.length} post${g.items.length === 1 ? '' : 's'}</span>
+          <div style="font-weight:600;font-size:14px;color:var(--indigo)">${g.lbl}</div>
+          <span class="tiny muted" style="font-weight:600">${g.items.length} post${g.items.length === 1 ? '' : 's'}</span>
         </div>
         ${g.items.slice().sort(sortFn).map(c => {
           const pl = platInfo(c.plataforma || 'instagram');
           const stg = stageInfo(c.status || 'curadoria');
           return `<div class="pc-pl-row" data-card="${esc(c.id)}">
-            <span title="${esc(pl.lbl)}" style="font-size:15px">${pl.ic}</span>
+            <span title="${esc(pl.lbl)}" style="font-size:14px">${pl.ic}</span>
             <div style="flex:1;min-width:0">
-              <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.titulo || 'Sem título')}</div>
+              <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.titulo || 'Sem título')}</div>
               <div class="tiny muted">${esc(pl.lbl)}${c.formato ? ' · ' + esc(c.formato) : ''}${c.data_ref ? ' · 📆 ' + esc(fmtData(c.data_ref)) : ''}</div>
             </div>
             ${c.responsavel ? respBadge(c.responsavel) : '<span class="tiny muted">sem resp.</span>'}
@@ -246,8 +246,8 @@ function openEditor(seed) {
   const ov = document.createElement('div');
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto';
   ov.innerHTML = `
-    <div style="background:var(--bg-1,#fff);border-radius:14px;max-width:460px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
-      <div style="font-size:17px;font-weight:800;margin-bottom:12px">${c.id ? 'Editar conteúdo' : 'Novo conteúdo'}</div>
+    <div style="background:var(--bg-1,#fff);border-radius:var(--radius-lg);max-width:460px;width:100%;padding:20px;box-shadow:var(--shadow-1)">
+      <div style="font-size:16px;font-weight:600;margin-bottom:12px">${c.id ? 'Editar conteúdo' : 'Novo conteúdo'}</div>
       <label class="tiny muted">Título / pauta</label>
       <input id="pc-f-titulo" class="input" value="${esc(c.titulo || '')}" placeholder="Ex: Tour casa alto padrão / Dica de investimento" style="margin-bottom:10px">
       <div class="flex gap-2" style="margin-bottom:10px">
@@ -385,8 +385,8 @@ function openImport() {
   const ov = document.createElement('div');
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto';
   ov.innerHTML = `
-    <div style="background:var(--bg-1,#fff);border-radius:14px;max-width:560px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
-      <div style="font-size:17px;font-weight:800;margin-bottom:4px">📥 Importar planilha de conteúdo</div>
+    <div style="background:var(--bg-1,#fff);border-radius:var(--radius-lg);max-width:560px;width:100%;padding:20px;box-shadow:var(--shadow-1)">
+      <div style="font-size:16px;font-weight:600;margin-bottom:4px">📥 Importar planilha de conteúdo</div>
       <div class="tiny muted" style="margin-bottom:14px">Anexe o .xlsx da linha editorial (abas Instagram/TikTok/YouTube). Cada linha vira um card em <b>Curadoria</b>, com plataforma, semana, formato e data. Itens iguais (mesma plataforma + título + data) não duplicam.</div>
       <div class="flex gap-2" style="align-items:flex-end;margin-bottom:12px">
         <div style="flex:1"><label class="tiny muted">Arquivo (.xlsx)</label>

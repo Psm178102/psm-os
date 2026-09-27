@@ -12,10 +12,10 @@ import { parseNum } from '../sim-campos.js';   // v88.46: "1.500.000,50" e "1500
 const MES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
 const METRICS = [
-  { id: 'vgv',          key: 'meta_vgv',          lbl: 'VGV',          ico: '💰', money: true,  color: '#2563eb' },
+  { id: 'vgv',          key: 'meta_vgv',          lbl: 'VGV',          ico: '💰', money: true,  color: '#806d50' },
   { id: 'vendas',       key: 'meta_vendas',       lbl: 'Vendas',       ico: '🏆', money: false, color: '#16a34a' },
   { id: 'agendamentos', key: 'meta_agendamentos', lbl: 'Agendamentos', ico: '📅', money: false, color: '#7c3aed' },
-  { id: 'visitas',      key: 'meta_visitas',      lbl: 'Visitas',      ico: '🚪', money: false, color: '#0891b2' },
+  { id: 'visitas',      key: 'meta_visitas',      lbl: 'Visitas',      ico: '🚪', money: false, color: '#806d50' },
   { id: 'pastas',       key: 'meta_pastas',       lbl: 'Pastas',       ico: '📁', money: false, color: '#d97706' },
 ];
 const ALL_KEYS = ['meta_vgv', 'meta_vendas', 'meta_agendamentos', 'meta_visitas', 'meta_pastas', 'meta_propostas'];
@@ -79,12 +79,12 @@ function forecastPanel(d, grid) {
   const ritmoMes = fracao > 0 ? atingido / (12 * fracao) : 0;
   const st = ritmoPct >= 100 ? { t: '🟢 No ritmo / à frente', c: '#16a34a' } : ritmoPct >= 90 ? { t: '🟡 Levemente atrás', c: '#d97706' } : { t: '🔴 Atrás do ritmo', c: '#dc2626' };
   const mny = v => 'R$ ' + money(v);
-  const box = (l, v, sub, c) => `<div style="background:var(--bg-2);border-radius:10px;padding:12px;border-left:4px solid ${c || 'var(--border)'}"><div class="tiny muted" style="font-weight:700">${l}</div><div style="font-size:18px;font-weight:800;margin-top:3px;color:${c || ''}">${v}</div>${sub ? `<div class="tiny muted" style="margin-top:2px">${sub}</div>` : ''}</div>`;
+  const box = (l, v, sub, c) => `<div style="background:var(--bg-2);border-radius:var(--radius-md);padding:12px;border-left:4px solid ${c || 'var(--border)'}"><div class="tiny muted" style="font-weight:600">${l}</div><div style="font-size:16px;font-weight:600;margin-top:3px;color:${c || ''}">${v}</div>${sub ? `<div class="tiny muted" style="margin-top:2px">${sub}</div>` : ''}</div>`;
   return `
-  <div style="margin-top:14px;border:1px solid var(--border);border-radius:12px;padding:14px;background:var(--bg-3)">
+  <div style="margin-top:14px;border:1px solid var(--border);border-radius:var(--radius-md);padding:14px;background:var(--bg-3)">
     <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-      <div style="font-weight:800">📊 Projeção ${_ano} <span class="tiny muted" style="font-weight:400">— ritmo real das vendas projeta o fechamento</span></div>
-      <div style="font-weight:800;color:${st.c}">${st.t} · ${ritmoPct >= 999 ? '∞%' : pct2(ritmoPct)} do ritmo</div>
+      <div style="font-weight:600">📊 Projeção ${_ano} <span class="tiny muted" style="font-weight:400">— ritmo real das vendas projeta o fechamento</span></div>
+      <div style="font-weight:600;color:${st.c}">${st.t} · ${ritmoPct >= 999 ? '∞%' : pct2(ritmoPct)} do ritmo</div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px">
       ${box('🎯 Meta anual', mny(metaAno), 'esperado até hoje ' + mny(metaProRata), '#334155')}
@@ -124,7 +124,7 @@ function render() {
       <div class="flex items-center gap-2" style="flex-wrap:wrap">
         <div style="flex:1;min-width:240px">
           <h2 class="card-title">🎯 Planejador de Metas · ${_ano}</h2>
-          <p class="card-sub">${grid.length} corretores · ${teamNames.length} equipe(s) · scope <b>${esc(d.scope || '—')}</b>${editable ? ' · <span style="color:var(--ok);font-weight:700">edição inline ativa (clique e digite)</span>' : (canEdit ? ' · <span class="muted">edite na visão Mensal</span>' : '')}</p>
+          <p class="card-sub">${grid.length} corretores · ${teamNames.length} equipe(s) · scope <b>${esc(d.scope || '—')}</b>${editable ? ' · <span style="color:var(--ok);font-weight:600">edição inline ativa (clique e digite)</span>' : (canEdit ? ' · <span class="muted">edite na visão Mensal</span>' : '')}</p>
         </div>
         <select id="mt-ano" class="select" style="padding:6px 10px;font-size:13px">
           ${[2024, 2025, 2026, 2027].map(a => `<option value="${a}"${a === _ano ? ' selected' : ''}>${a}</option>`).join('')}
@@ -145,12 +145,12 @@ function render() {
 
       <!-- Seletor de MÉTRICA -->
       <div class="flex gap-2 mt-3" style="flex-wrap:wrap;align-items:center">
-        <span class="tiny muted" style="font-weight:800;letter-spacing:.5px">MÉTRICA:</span>
+        <span class="tiny muted" style="font-weight:600;letter-spacing:.5px">MÉTRICA:</span>
         ${METRICS.map(x => pill(x.id === _metric, x.ico + ' ' + x.lbl, `mt-met-${x.id}`, x.color)).join('')}
       </div>
       <!-- Seletor de PERÍODO -->
       <div class="flex gap-2 mt-2" style="flex-wrap:wrap;align-items:center">
-        <span class="tiny muted" style="font-weight:800;letter-spacing:.5px">PERÍODO:</span>
+        <span class="tiny muted" style="font-weight:600;letter-spacing:.5px">PERÍODO:</span>
         ${Object.keys(PERIODS).map(p => pill(p === _period, PERIODS[p].lbl, `mt-per-${p}`, '#334155')).join('')}
       </div>
 
@@ -192,14 +192,14 @@ async function projOficial() {
   if (!p) { el.innerHTML = ''; return; }
   const mny = v => 'R$ ' + money(v);
   const st = { batida: ['🏆 Meta do ano batida', '#16a34a'], no_ritmo: ['🟢 Vai bater a meta', '#16a34a'], atras: ['🟡 Atrás (70–99% da meta)', '#d97706'], fora: ['🔴 Fora (< 70% da meta)', '#dc2626'], sem_meta: ['⚪ Sem meta', '#64748b'] }[p.status] || ['—', '#64748b'];
-  const box = (l, v, sub, c) => `<div style="background:var(--bg-2);border-radius:10px;padding:12px;border-left:4px solid ${c || 'var(--border)'}"><div class="tiny muted" style="font-weight:700">${l}</div><div style="font-size:18px;font-weight:800;margin-top:3px;color:${c || ''}">${v}</div>${sub ? `<div class="tiny muted" style="margin-top:2px">${sub}</div>` : ''}</div>`;
+  const box = (l, v, sub, c) => `<div style="background:var(--bg-2);border-radius:var(--radius-md);padding:12px;border-left:4px solid ${c || 'var(--border)'}"><div class="tiny muted" style="font-weight:600">${l}</div><div style="font-size:16px;font-weight:600;margin-top:3px;color:${c || ''}">${v}</div>${sub ? `<div class="tiny muted" style="margin-top:2px">${sub}</div>` : ''}</div>`;
   const hz = pj.horizonte, du = hz.dias_uteis;
   const eqs = Object.entries(pj.equipes || {}).filter(([, e]) => e.meta.vgv > 0);
   el.innerHTML = `
-  <div style="margin-top:14px;border:1px solid var(--border);border-radius:12px;padding:14px;background:var(--bg-3)">
+  <div style="margin-top:14px;border:1px solid var(--border);border-radius:var(--radius-md);padding:14px;background:var(--bg-3)">
     <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-      <div style="font-weight:800">📊 Projeção ${_ano} <span class="tiny muted" style="font-weight:400">— oficial: realizado + maior entre ritmo dos últimos 180 dias e funil calibrado · ${du.restantes} dias úteis restantes${pj.dados_de_hhmm ? ' · dados de ' + esc(pj.dados_de_hhmm) : ''}</span></div>
-      <div style="font-weight:800;color:${st[1]}">${st[0]}${p.provavel.pct_meta != null ? ' · ' + pct2(p.provavel.pct_meta) + ' da meta' : ''}</div>
+      <div style="font-weight:600">📊 Projeção ${_ano} <span class="tiny muted" style="font-weight:400">— oficial: realizado + maior entre ritmo dos últimos 180 dias e funil calibrado · ${du.restantes} dias úteis restantes${pj.dados_de_hhmm ? ' · dados de ' + esc(pj.dados_de_hhmm) : ''}</span></div>
+      <div style="font-weight:600;color:${st[1]}">${st[0]}${p.provavel.pct_meta != null ? ' · ' + pct2(p.provavel.pct_meta) + ' da meta' : ''}</div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px">
       ${box('🎯 Meta anual', mny(p.meta.vgv), 'esperado até hoje ' + mny(p.meta.vgv_ate_hoje), '#334155')}
@@ -217,16 +217,16 @@ function teamBlock(team, rows, per, editable) {
   const collapsed = !!_collapsed[team];
   const tk = teamKey(team);
   const subtotalCells = per.buckets.map((b, bi) =>
-    `<td data-tt="${tk}" data-bi="${bi}" style="text-align:right;padding:7px 8px;font-weight:800;color:${k.color}">${fmtVal(bucketSum(rows, b.months), k.money)}</td>`
+    `<td data-tt="${tk}" data-bi="${bi}" style="text-align:right;padding:7px 8px;font-weight:600;color:${k.color}">${fmtVal(bucketSum(rows, b.months), k.money)}</td>`
   ).join('');
   const teamTotal = yearSum(rows);
   const head = `
     <tr data-team-head="${tk}" style="background:var(--bg-2);border-top:2px solid var(--border);cursor:pointer">
-      <td style="padding:8px 10px;position:sticky;left:0;background:var(--bg-2);font-weight:800;z-index:1">
+      <td style="padding:8px 10px;position:sticky;left:0;background:var(--bg-2);font-weight:600;z-index:1">
         <span style="display:inline-block;width:14px">${collapsed ? '▸' : '▾'}</span> 🛡 ${esc(team)} <span class="tiny muted" style="font-weight:600">· ${rows.length}</span>
       </td>
       ${subtotalCells}
-      <td data-tt="${tk}" data-bi="T" style="text-align:right;padding:8px;background:var(--bg-2);font-weight:900;color:${k.color};border-left:2px solid var(--border)">${fmtVal(teamTotal, k.money)}</td>
+      <td data-tt="${tk}" data-bi="T" style="text-align:right;padding:8px;background:var(--bg-2);font-weight:600;color:${k.color};border-left:2px solid var(--border)">${fmtVal(teamTotal, k.money)}</td>
     </tr>`;
   if (collapsed) return head;
   const brokerRows = rows.map(g => brokerRow(g, per, editable)).join('');
@@ -242,7 +242,7 @@ function brokerRow(g, per, editable) {
       const mes = b.months[0] + 1;
       return `<td style="padding:3px 4px"><input data-edit="${esc(u.id)}|${mes}" value="${val || ''}" placeholder="0"
         inputmode="${k.money ? 'decimal' : 'numeric'}"
-        style="width:80px;text-align:right;padding:5px 6px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--ink)"></td>`;
+        style="width:80px;text-align:right;padding:5px 6px;font-size:12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--ink)"></td>`;
     }
     return `<td style="text-align:right;padding:6px 8px">${val ? fmtVal(val, k.money) : '<span class="muted">—</span>'}</td>`;
   }).join('');
@@ -250,12 +250,12 @@ function brokerRow(g, per, editable) {
     <tr style="border-bottom:1px solid var(--border)">
       <td style="padding:5px 10px;position:sticky;left:0;background:var(--bg);z-index:1">
         <span style="display:inline-flex;align-items:center;gap:7px">
-          <span style="width:20px;height:20px;border-radius:4px;background:${u.color || '#64748b'};color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:9px">${ini}</span>
+          <span style="width:20px;height:20px;border-radius:var(--radius-sm);background:${u.color || '#64748b'};color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:11px">${ini}</span>
           <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px" title="${esc(u.name)}">${esc(u.name || '—')}</span>
         </span>
       </td>
       ${cells}
-      <td data-rt="${esc(u.id)}" style="text-align:right;padding:5px 8px;font-weight:800;background:var(--bg-2);border-left:2px solid var(--border)">${fmtVal(yearSum([g]), k.money)}</td>
+      <td data-rt="${esc(u.id)}" style="text-align:right;padding:5px 8px;font-weight:600;background:var(--bg-2);border-left:2px solid var(--border)">${fmtVal(yearSum([g]), k.money)}</td>
     </tr>`;
 }
 
@@ -275,22 +275,22 @@ function foraGridRow(per) {
   const total = Object.values(fg).reduce((a, v) => a + (Number(v[campo]) || 0), 0);
   return `
     <tr style="border-top:2px dashed var(--border);background:var(--bg-2)">
-      <td style="padding:6px 10px;position:sticky;left:0;background:var(--bg-2);z-index:1;font-weight:700;color:var(--ink-muted)">🚪 Fora do grid <span class="tiny" style="font-weight:400">(desligados + sem corretor no RD) — atingido real</span></td>
+      <td style="padding:6px 10px;position:sticky;left:0;background:var(--bg-2);z-index:1;font-weight:600;color:var(--ink-muted)">🚪 Fora do grid <span class="tiny" style="font-weight:400">(desligados + sem corretor no RD) — atingido real</span></td>
       ${cells}
-      <td style="text-align:right;padding:6px 8px;font-weight:800;color:var(--ink-muted);border-left:2px solid var(--border)">↑ ${fmtVal(total, k.money)}</td>
+      <td style="text-align:right;padding:6px 8px;font-weight:600;color:var(--ink-muted);border-left:2px solid var(--border)">↑ ${fmtVal(total, k.money)}</td>
     </tr>`;
 }
 
 function grandTotalRow(grid, per) {
   const k = mc();
   const cells = per.buckets.map((b, bi) =>
-    `<td data-gt="${bi}" style="text-align:right;padding:9px 8px;font-weight:900;color:#fff">${fmtVal(bucketSum(grid, b.months), k.money)}</td>`
+    `<td data-gt="${bi}" style="text-align:right;padding:9px 8px;font-weight:600;color:#fff">${fmtVal(bucketSum(grid, b.months), k.money)}</td>`
   ).join('');
   return `
     <tr style="background:${k.color};color:#fff;border-top:3px solid var(--ink)">
-      <td style="padding:9px 10px;position:sticky;left:0;background:${k.color};color:#fff;font-weight:900;z-index:1">Σ TOTAL GERAL</td>
+      <td style="padding:9px 10px;position:sticky;left:0;background:${k.color};color:#fff;font-weight:600;z-index:1">Σ TOTAL GERAL</td>
       ${cells}
-      <td data-gt="T" style="text-align:right;padding:9px 8px;font-weight:900;color:#fff;border-left:2px solid rgba(255,255,255,.3)">${fmtVal(yearSum(grid), k.money)}</td>
+      <td data-gt="T" style="text-align:right;padding:9px 8px;font-weight:600;color:#fff;border-left:2px solid var(--border)">${fmtVal(yearSum(grid), k.money)}</td>
     </tr>`;
 }
 
@@ -436,12 +436,12 @@ function teamKey(t) { return String(t).toLowerCase().replace(/[^a-z0-9]+/g, '-')
 function _teamFromKey(tk) { return (_data?.grid || []).map(g => g.user?.team || 'Sem equipe').find(t => teamKey(t) === tk) || tk; }
 function cssEsc(s) { return String(s).replace(/["\\]/g, '\\$&'); }
 function pill(active, label, id, color) {
-  return `<button id="${id}" class="btn" style="padding:5px 12px;font-size:12px;font-weight:700;border-radius:999px;border:1px solid ${active ? color : 'var(--border)'};background:${active ? color : 'transparent'};color:${active ? '#fff' : 'var(--ink-muted)'}">${label}</button>`;
+  return `<button id="${id}" class="btn" style="padding:5px 12px;font-size:12px;font-weight:600;border-radius:var(--radius-full);border:1px solid ${active ? color : 'var(--border)'};background:${active ? color : 'transparent'};color:${active ? '#fff' : 'var(--ink-muted)'}">${label}</button>`;
 }
 function kpi(label, big, sub, color) {
   return `<div style="flex:1;min-width:170px;background:var(--bg-3);border-radius:var(--r-md);padding:13px 16px;border-left:4px solid ${color}">
-    <div class="tiny muted" style="letter-spacing:.5px;text-transform:uppercase;font-weight:700">${label}</div>
-    <div style="font-size:20px;font-weight:900;color:${color};margin-top:2px">${big}</div>
+    <div class="tiny muted" style="letter-spacing:.5px;text-transform:uppercase;font-weight:600">${label}</div>
+    <div style="font-size:20px;font-weight:600;color:${color};margin-top:2px">${big}</div>
     <div class="tiny muted">${sub}</div></div>`;
 }
 function fmtVal(n, isMoney) {

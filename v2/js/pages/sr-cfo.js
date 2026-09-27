@@ -50,7 +50,7 @@ function render() {
   _root.innerHTML = `
   <div style="max-width:1100px;margin:0 auto;padding:14px">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px">
-      <div style="font-size:20px;font-weight:900">🧠 Sr. CFO</div>
+      <div style="font-size:20px;font-weight:600">🧠 Sr. CFO</div>
       <span style="font-size:11px;opacity:.6">o cérebro financeiro da holding · SÓ SÓCIOS</span>
       <span style="margin-left:auto;font-size:11px;opacity:.55">🖥️ rotina roda no PC Windows 24h · aqui é a vitrine</span>
     </div>
@@ -67,11 +67,11 @@ function badge(tab) {
   if (!_data?.ok) return '';
   if (tab === 'radar') {
     const n = (_data.radar?.itens || []).filter(i => i.nivel === 'vermelho').length;
-    return n ? ` <span style="background:#e5484d;color:#fff;border-radius:8px;padding:0 6px;font-size:10px">${n}</span>` : '';
+    return n ? ` <span style="background:#e5484d;color:#fff;border-radius:var(--radius-md);padding:0 6px;font-size:11px">${n}</span>` : '';
   }
   if (tab === 'pendencias') {
     const n = (_data.pendencias || []).filter(p => !p.resolvida).length;
-    return n ? ` <span style="background:#f5a623;color:#111;border-radius:8px;padding:0 6px;font-size:10px">${n}</span>` : '';
+    return n ? ` <span style="background:#f5a623;color:#111;border-radius:var(--radius-md);padding:0 6px;font-size:11px">${n}</span>` : '';
   }
   return '';
 }
@@ -102,9 +102,9 @@ function dossiesHtml(d) {
         <span style="font-size:11px;opacity:.55">${esc(x.autor || '')} · ${dt(x.criado_em)}</span>
         <span style="margin-left:auto;opacity:.5">${open ? '▲' : '▼'}</span>
       </div>
-      ${x.manchete ? `<div style="font-size:12.5px;margin-top:4px;opacity:.85">💬 ${esc(x.manchete)}</div>` : ''}
+      ${x.manchete ? `<div style="font-size:13px;margin-top:4px;opacity:.85">💬 ${esc(x.manchete)}</div>` : ''}
       ${open ? `<div style="margin-top:10px;font-size:13px;line-height:1.55;border-top:1px solid rgba(128,128,128,.2);padding-top:10px">${mdLite(x.corpo_md || '')}</div>
-        ${(x.fontes || []).length ? `<div style="font-size:10.5px;opacity:.5;margin-top:8px">fontes: ${x.fontes.map(esc).join(' · ')}</div>` : ''}` : ''}
+        ${(x.fontes || []).length ? `<div style="font-size:11px;opacity:.5;margin-top:8px">fontes: ${x.fontes.map(esc).join(' · ')}</div>` : ''}` : ''}
     </div>`;
   }).join('');
 }
@@ -120,10 +120,10 @@ function radarHtml(d) {
     return `<div class="card" style="padding:12px;margin-bottom:8px;border-left:4px solid ${n.cor}">
       <div style="display:flex;gap:8px;align-items:baseline">
         <span>${n.ico}</span><b>${esc(i.titulo)}</b>
-        <span style="font-size:10px;font-weight:800;color:${n.cor};letter-spacing:1px">${n.lbl}</span>
+        <span style="font-size:11px;font-weight:600;color:${n.cor};letter-spacing:1px">${n.lbl}</span>
         ${i.prazo ? `<span style="margin-left:auto;font-size:11px;opacity:.6">⏱ ${esc(i.prazo)}</span>` : ''}
       </div>
-      ${i.detalhe ? `<div style="font-size:12.5px;margin-top:4px;opacity:.85">${mdLite(i.detalhe)}</div>` : ''}
+      ${i.detalhe ? `<div style="font-size:13px;margin-top:4px;opacity:.85">${mdLite(i.detalhe)}</div>` : ''}
     </div>`;
   }).join('');
 }
@@ -143,7 +143,7 @@ function diarioHtml(d) {
       </div>
       ${x.premissa ? `<div style="font-size:12px;margin-top:4px"><b>Premissa:</b> ${esc(x.premissa)}</div>` : ''}
       ${x.resultado_esperado ? `<div style="font-size:12px"><b>Esperado:</b> ${esc(x.resultado_esperado)}${x.revisao_em ? ` · <span style="opacity:.6">revisar em ${esc(x.revisao_em)}</span>` : ''}</div>` : ''}
-      ${x.licao ? `<div style="font-size:12px;margin-top:4px;padding:6px 8px;background:rgba(128,128,128,.1);border-radius:6px">📌 <b>Lição:</b> ${esc(x.licao)}</div>` : ''}
+      ${x.licao ? `<div style="font-size:12px;margin-top:4px;padding:6px 8px;background:rgba(128,128,128,.1);border-radius:var(--radius-sm)">📌 <b>Lição:</b> ${esc(x.licao)}</div>` : ''}
     </div>`).join('');
 }
 
@@ -159,7 +159,7 @@ function pendHtml(d) {
         <b>${esc(p.titulo)}</b><span style="font-size:11px;opacity:.55">${dt(p.criado_em)}</span>
         <button class="btn" data-resolver="${esc(p.id)}" style="margin-left:auto;font-size:11px">✓ Decidido</button>
       </div>
-      ${p.detalhe ? `<div style="font-size:12.5px;margin-top:4px;opacity:.85">${mdLite(p.detalhe)}</div>` : ''}
+      ${p.detalhe ? `<div style="font-size:13px;margin-top:4px;opacity:.85">${mdLite(p.detalhe)}</div>` : ''}
     </div>`).join('');
   if (fechadas.length) h += `<details style="margin-top:12px;opacity:.65"><summary style="cursor:pointer;font-size:12px">${fechadas.length} resolvida(s)</summary>
     ${fechadas.map(p => `<div style="font-size:12px;padding:6px 0;border-bottom:1px solid rgba(128,128,128,.15)">✓ ${esc(p.titulo)} <span style="opacity:.5">· ${dt(p.resolvida_em)} por ${esc(p.por || '')}</span></div>`).join('')}</details>`;
@@ -179,15 +179,15 @@ function wire() {
 /* ---------- helpers ---------- */
 function loading() { return '<div style="opacity:.6;padding:30px;text-align:center">Carregando…</div>'; }
 function errBox(e) { return `<div class="card" style="padding:14px;border-left:3px solid #e5484d">⚠️ ${esc(e || 'erro')}</div>`; }
-function vazio(t) { return `<div class="card" style="padding:16px;opacity:.7;font-size:12.5px">${esc(t)}</div>`; }
+function vazio(t) { return `<div class="card" style="padding:16px;opacity:.7;font-size:13px">${esc(t)}</div>`; }
 function dt(iso) { try { return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch { return ''; } }
 function num(n) { return (Math.round(+n || 0)).toLocaleString('pt-BR'); }
 function mdLite(t) {
   return esc(t)
-    .replace(/^#### (.*)$/gm, '<div style="font-weight:800;margin:8px 0 2px">$1</div>')
-    .replace(/^### (.*)$/gm, '<div style="font-weight:800;margin:8px 0 2px">$1</div>')
-    .replace(/^## (.*)$/gm, '<div style="font-weight:800;font-size:14px;margin:12px 0 4px">$1</div>')
-    .replace(/^# (.*)$/gm, '<div style="font-weight:900;font-size:15px;margin:12px 0 4px">$1</div>')
+    .replace(/^#### (.*)$/gm, '<div style="font-weight:600;margin:8px 0 2px">$1</div>')
+    .replace(/^### (.*)$/gm, '<div style="font-weight:600;margin:8px 0 2px">$1</div>')
+    .replace(/^## (.*)$/gm, '<div style="font-weight:600;font-size:14px;margin:12px 0 4px">$1</div>')
+    .replace(/^# (.*)$/gm, '<div style="font-weight:600;font-size:14px;margin:12px 0 4px">$1</div>')
     .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
     .replace(/^\s*\d+\.\s+(.*)$/gm, '<div style="margin:3px 0 3px 6px">▸ $1</div>')
     .replace(/^\s*[-*] (.*)$/gm, '<div style="margin:2px 0 2px 12px">• $1</div>')

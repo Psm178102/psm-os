@@ -10,7 +10,7 @@ import { enviarPdfComoSlides } from './apresentacoes.js';
 
 const COLECAO = 'mapa_venda';
 const NICHOS = [
-  { id: 'conquista', nome: 'Conquista', emoji: '🏆', cor: '#1e2650' },
+  { id: 'conquista', nome: 'Conquista', emoji: '🏆', cor: '#806d50' },
   { id: 'map',       nome: 'MAP',       emoji: '🏢', cor: '#343434' },
   { id: 'terceiros', nome: 'Terceiros', emoji: '🤝', cor: '#b8860b' },
   { id: 'locacao',   nome: 'Locação',   emoji: '🔑', cor: '#6e6752' },
@@ -76,7 +76,7 @@ async function render() {
   corpo.innerHTML = `<div class="tiny muted" style="margin-bottom:8px">📑 ${d.n_slides} página(s)${d.nome ? ` · ${esc(d.nome)}` : ''} · atualizado em ${new Date(d.ts).toLocaleDateString('pt-BR')}</div>`
     + (paginas.length
       ? `<div style="display:flex;flex-direction:column;gap:12px;align-items:center">${paginas.map((u, i) =>
-          `<img src="${u}" alt="Página ${i + 1}" loading="lazy" draggable="false" style="width:100%;max-width:1200px;border-radius:6px;box-shadow:0 2px 12px rgba(0,0,0,.15)">`).join('')}</div>`
+          `<img src="${u}" alt="Página ${i + 1}" loading="lazy" draggable="false" style="width:100%;max-width:1200px;border-radius:var(--radius-sm);box-shadow:var(--shadow-1)">`).join('')}</div>`
       : '<div class="alert alert-warn">As páginas não carregaram — tente atualizar.</div>');
   const cheia = _root.querySelector('#mv-cheia');
   if (cheia) cheia.onclick = () => telaCheia(n, paginas);
@@ -115,11 +115,11 @@ function telaCheia(n, paginas) {
       <div style="position:absolute;top:12px;left:16px;right:16px;display:flex;justify-content:space-between;align-items:center;color:#fffbea">
         <b>${n.emoji} Mapa da Venda · ${n.nome}</b>
         <span class="flex items-center" style="gap:14px"><span style="font-size:13px;opacity:.8">${i + 1} / ${paginas.length}</span>
-        <button id="mvc-x" style="background:rgba(255,251,234,.15);color:#fffbea;border:none;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:700">✕ Fechar</button></span>
+        <button id="mvc-x" style="background:rgba(255,251,234,.15);color:#fffbea;border:none;border-radius:var(--radius-md);padding:6px 14px;cursor:pointer;font-weight:600">✕ Fechar</button></span>
       </div>
-      <img src="${paginas[i]}" draggable="false" style="max-width:96vw;max-height:88vh;border-radius:6px">
-      ${i > 0 ? '<button id="mvc-prev" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:30px;background:rgba(255,251,234,.12);color:#fffbea;border:none;border-radius:10px;padding:14px 16px;cursor:pointer">‹</button>' : ''}
-      ${i < paginas.length - 1 ? '<button id="mvc-next" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:30px;background:rgba(255,251,234,.12);color:#fffbea;border:none;border-radius:10px;padding:14px 16px;cursor:pointer">›</button>' : ''}`;
+      <img src="${paginas[i]}" draggable="false" style="max-width:96vw;max-height:88vh;border-radius:var(--radius-sm)">
+      ${i > 0 ? '<button id="mvc-prev" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:26px;background:rgba(255,251,234,.12);color:#fffbea;border:none;border-radius:var(--radius-md);padding:14px 16px;cursor:pointer">‹</button>' : ''}
+      ${i < paginas.length - 1 ? '<button id="mvc-next" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:26px;background:rgba(255,251,234,.12);color:#fffbea;border:none;border-radius:var(--radius-md);padding:14px 16px;cursor:pointer">›</button>' : ''}`;
     ov.querySelector('#mvc-x').onclick = fechar;
     const p = ov.querySelector('#mvc-prev'); if (p) p.onclick = () => { i--; paint(); };
     const x = ov.querySelector('#mvc-next'); if (x) x.onclick = () => { i++; paint(); };

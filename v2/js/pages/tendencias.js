@@ -28,15 +28,15 @@ async function load() {
 
 function render() {
   _root.innerHTML = `
-    <div class="card" style="background:#0f172a;color:#e2e8f0;padding:20px">
+    <div class="card" style="background:var(--surface-2);color:#e2e8f0;padding:20px">
       <div class="flex" style="align-items:center;gap:14px;margin-bottom:16px">
         <span style="font-size:36px;color:#fffbea">📈</span>
         <div>
-          <h2 style="margin:0;font-size:22px;color:#fff">Tendências de Mercado</h2>
-          <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">Identifique, registre e acompanhe tendências do mercado imobiliário</p>
+          <h2 style="margin:0;font-size:20px;color:#fff">Tendências de Mercado</h2>
+          <p style="margin:4px 0 0;color:var(--ink-muted);font-size:13px">Identifique, registre e acompanhe tendências do mercado imobiliário</p>
         </div>
       </div>
-      <div class="flex gap-2" style="border-bottom:2px solid #334155;padding-bottom:8px;margin-bottom:16px;flex-wrap:wrap">
+      <div class="flex gap-2" style="border-bottom:2px solid var(--border);padding-bottom:8px;margin-bottom:16px;flex-wrap:wrap">
         <button class="btn ${_tab === 'painel' ? 'btn-primary' : 'btn-ghost'}" data-tab="painel">📊 Painel</button>
         <button class="btn ${_tab === 'registro' ? 'btn-primary' : 'btn-ghost'}" data-tab="registro">➕ Registrar</button>
         <button class="btn ${_tab === 'historico' ? 'btn-primary' : 'btn-ghost'}" data-tab="historico">📋 Histórico</button>
@@ -70,22 +70,22 @@ function renderPainel() {
       ${kpi('Em Alta', alta, 'linear-gradient(135deg,#22c55e,#16a34a)')}
       ${kpi('Estável', estavel, 'linear-gradient(135deg,#f59e0b,#d97706)')}
       ${kpi('Em Baixa', baixa, 'linear-gradient(135deg,#ef4444,#dc2626)')}
-      ${kpi('Total', _items.length, 'linear-gradient(135deg,#3b82f6,#2563eb)')}
+      ${kpi('Total', _items.length, 'linear-gradient(135deg,#806d50,#806d50)')}
     </div>
     ${Object.keys(cat).length === 0 ?
-      '<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:40px;text-align:center;color:var(--ink-muted)">Nenhuma tendência registrada. Use a aba Registrar.</div>' :
+      '<div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:40px;text-align:center;color:var(--ink-muted)">Nenhuma tendência registrada. Use a aba Registrar.</div>' :
       Object.keys(cat).sort().map(c => `
-        <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:18px;margin-bottom:14px">
-          <h3 style="color:#fffbea;font-size:14px;font-weight:800;margin:0 0 12px;text-transform:uppercase;letter-spacing:.5px">${esc(c)}</h3>
+        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px;margin-bottom:14px">
+          <h3 style="color:#fffbea;font-size:14px;font-weight:600;margin:0 0 12px;text-transform:uppercase;letter-spacing:.5px">${esc(c)}</h3>
           <div style="display:grid;gap:8px">
             ${cat[c].map(t => `
-              <div style="display:flex;align-items:flex-start;gap:12px;padding:12px;background:#0f172a;border:1px solid #334155;border-radius:8px">
-                <span style="font-size:22px">${DIRECAO_ICO[t.direcao] || '➡️'}</span>
+              <div style="display:flex;align-items:flex-start;gap:12px;padding:12px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md)">
+                <span style="font-size:20px">${DIRECAO_ICO[t.direcao] || '➡️'}</span>
                 <div style="flex:1">
-                  <div style="color:#fff;font-weight:700;margin-bottom:4px">${esc(t.titulo)}</div>
-                  <div style="color:#94a3b8;font-size:12px">${esc(t.descricao || '')}</div>
+                  <div style="color:#fff;font-weight:600;margin-bottom:4px">${esc(t.titulo)}</div>
+                  <div style="color:var(--ink-muted);font-size:12px">${esc(t.descricao || '')}</div>
                 </div>
-                <span style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700;background:${IMPACTO_COLOR[t.impacto] || '#64748b'};color:#fff">${esc(t.impacto || '—')}</span>
+                <span style="padding:4px 10px;border-radius:var(--radius-sm);font-size:11px;font-weight:600;background:${IMPACTO_COLOR[t.impacto] || '#64748b'};color:#fff">${esc(t.impacto || '—')}</span>
               </div>
             `).join('')}
           </div>
@@ -101,22 +101,22 @@ function renderRegistro() {
     return;
   }
   document.getElementById('tend-body').innerHTML = `
-    <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:20px;max-width:640px">
+    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px;max-width:640px">
       <h3 style="color:#fff;margin:0 0 16px;font-size:16px">Registrar Nova Tendência</h3>
       <div style="display:grid;gap:12px">
         <div>
-          <label style="color:#fffbea;font-size:11px;font-weight:700;text-transform:uppercase;display:block;margin-bottom:4px">Título</label>
+          <label style="color:#fffbea;font-size:11px;font-weight:600;text-transform:uppercase;display:block;margin-bottom:4px">Título</label>
           <input id="td-titulo" class="input" placeholder="Ex: Aumento na busca por studios">
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <div>
-            <label style="color:#fffbea;font-size:11px;font-weight:700;text-transform:uppercase;display:block;margin-bottom:4px">Categoria</label>
+            <label style="color:#fffbea;font-size:11px;font-weight:600;text-transform:uppercase;display:block;margin-bottom:4px">Categoria</label>
             <select id="td-cat" class="select">
               ${CATEGORIAS.map(c => `<option value="${c}">${c}</option>`).join('')}
             </select>
           </div>
           <div>
-            <label style="color:#fffbea;font-size:11px;font-weight:700;text-transform:uppercase;display:block;margin-bottom:4px">Direção</label>
+            <label style="color:#fffbea;font-size:11px;font-weight:600;text-transform:uppercase;display:block;margin-bottom:4px">Direção</label>
             <select id="td-dir" class="select">
               <option value="alta">📈 Em Alta</option>
               <option value="estavel" selected>➡️ Estável</option>
@@ -125,7 +125,7 @@ function renderRegistro() {
           </div>
         </div>
         <div>
-          <label style="color:#fffbea;font-size:11px;font-weight:700;text-transform:uppercase;display:block;margin-bottom:4px">Impacto</label>
+          <label style="color:#fffbea;font-size:11px;font-weight:600;text-transform:uppercase;display:block;margin-bottom:4px">Impacto</label>
           <select id="td-imp" class="select">
             <option value="alto">Alto</option>
             <option value="medio" selected>Médio</option>
@@ -133,7 +133,7 @@ function renderRegistro() {
           </select>
         </div>
         <div>
-          <label style="color:#fffbea;font-size:11px;font-weight:700;text-transform:uppercase;display:block;margin-bottom:4px">Descrição</label>
+          <label style="color:#fffbea;font-size:11px;font-weight:600;text-transform:uppercase;display:block;margin-bottom:4px">Descrição</label>
           <textarea id="td-desc" class="input" rows="3"></textarea>
         </div>
       </div>
@@ -170,11 +170,11 @@ function renderHistorico() {
   const body = document.getElementById('tend-body');
   const isLider = (auth.user()?.lvl || 0) >= 5;
   body.innerHTML = `
-    <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:18px;overflow-x:auto">
+    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px;overflow-x:auto">
       <h3 style="color:#fff;margin:0 0 14px">Histórico (${_items.length})</h3>
       ${_items.length === 0 ? '<div style="color:var(--ink-muted)">Nenhuma tendência.</div>' : `
         <table style="width:100%;border-collapse:collapse;min-width:700px;font-size:13px">
-          <thead><tr style="border-bottom:2px solid #334155;background:#0f172a">
+          <thead><tr style="border-bottom:2px solid var(--border);background:var(--surface-2)">
             <th style="padding:10px;text-align:left;color:#fffbea;font-size:11px;text-transform:uppercase">Data</th>
             <th style="padding:10px;text-align:left;color:#fffbea;font-size:11px;text-transform:uppercase">Título</th>
             <th style="padding:10px;text-align:left;color:#fffbea;font-size:11px;text-transform:uppercase">Cat.</th>
@@ -184,12 +184,12 @@ function renderHistorico() {
           </tr></thead>
           <tbody>
             ${_items.map(t => `
-              <tr style="border-bottom:1px solid #334155">
-                <td style="padding:10px;color:#94a3b8">${esc(t.data || '—')}</td>
+              <tr style="border-bottom:1px solid var(--border)">
+                <td style="padding:10px;color:var(--ink-muted)">${esc(t.data || '—')}</td>
                 <td style="padding:10px;color:#fff;font-weight:600">${esc(t.titulo)}</td>
-                <td style="padding:10px;color:#94a3b8">${esc(t.categoria || '—')}</td>
-                <td style="padding:10px;text-align:center;font-size:18px">${DIRECAO_ICO[t.direcao] || '➡️'}</td>
-                <td style="padding:10px;text-align:center"><span style="padding:3px 8px;border-radius:4px;font-size:11px;font-weight:700;background:${IMPACTO_COLOR[t.impacto] || '#64748b'};color:#fff">${esc(t.impacto || '—')}</span></td>
+                <td style="padding:10px;color:var(--ink-muted)">${esc(t.categoria || '—')}</td>
+                <td style="padding:10px;text-align:center;font-size:16px">${DIRECAO_ICO[t.direcao] || '➡️'}</td>
+                <td style="padding:10px;text-align:center"><span style="padding:3px 8px;border-radius:var(--radius-sm);font-size:11px;font-weight:600;background:${IMPACTO_COLOR[t.impacto] || '#64748b'};color:#fff">${esc(t.impacto || '—')}</span></td>
                 ${isLider ? `<td style="padding:10px;text-align:center"><button class="btn btn-ghost btn-sm" data-del="${t.id}" style="color:var(--err-suave)">🗑</button></td>` : ''}
               </tr>
             `).join('')}
@@ -211,8 +211,8 @@ function renderHistorico() {
 
 function kpi(label, value, gradient) {
   return `
-    <div style="background:${gradient};border-radius:12px;padding:18px;text-align:center;color:#fff">
-      <div style="font-size:28px;font-weight:800;margin-bottom:4px">${value}</div>
+    <div style="background:${gradient};border-radius:var(--radius-md);padding:18px;text-align:center;color:#fff">
+      <div style="font-size:26px;font-weight:600;margin-bottom:4px">${value}</div>
       <div style="font-size:12px;opacity:.9">${label}</div>
     </div>
   `;

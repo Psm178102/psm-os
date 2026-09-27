@@ -50,8 +50,8 @@ const fD = iso => { const [y, m, d] = String(iso || '').split('-'); return d ? `
 
 /* ═══════════ CSS do módulo (paleta semântica + layout) — injetado 1× ═══════════ */
 const GC_CSS = `
-.gc{--gc-ok:#22c55e;--gc-warn:#f59e0b;--gc-err:#ef4444;--gc-acc:#60a5fa;--gc-acc2:#a78bfa;--gc-acc-dim:#1d4ed8;font-variant-numeric:tabular-nums}
-:root:not(.dark) .gc{--gc-ok:#16a34a;--gc-warn:#d97706;--gc-err:#dc2626;--gc-acc:#2563eb;--gc-acc2:#7c3aed;--gc-acc-dim:#1e3a8a}
+.gc{--gc-ok:#22c55e;--gc-warn:#f59e0b;--gc-err:#ef4444;--gc-acc:#806d50;--gc-acc2:#a78bfa;--gc-acc-dim:#806d50;font-variant-numeric:tabular-nums}
+:root:not(.dark) .gc{--gc-ok:#16a34a;--gc-warn:#d97706;--gc-err:#dc2626;--gc-acc:#806d50;--gc-acc2:#7c3aed;--gc-acc-dim:#806d50}
 .gc .gc-nota{display:none}.gc.notas .gc-nota{display:block}
 .gc .gc-pan{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px;margin-top:12px}
 .gc .gc-pan-t{font-weight:800;font-size:13px;margin-bottom:10px;letter-spacing:.01em}
@@ -321,7 +321,7 @@ function cockpit() {
   const kpis = `
     <div class="gc-kpi" style="--kc:${st.c}"><div class="l">Vendas ${per}</div>
       <div class="v">${fN(real)}${meta ? ` <small>/ ${fN(meta)}</small>` : ''}</div>
-      <div class="s"><span style="color:${st.c};font-weight:800">● ${st.lbl}</span>${meta ? ` · ${fN(pct)}% da meta${ehMes ? ` · faltam ${fN(Math.max(0, meta - real))}` : ''}` : (vgvMeta ? ' · meta de <b>quantidade</b> não cadastrada no 🎯 Metas — julgando pelo VGV' : '')}</div>
+      <div class="s"><span style="color:${st.c};font-weight:600">● ${st.lbl}</span>${meta ? ` · ${fN(pct)}% da meta${ehMes ? ` · faltam ${fN(Math.max(0, meta - real))}` : ''}` : (vgvMeta ? ' · meta de <b>quantidade</b> não cadastrada no 🎯 Metas — julgando pelo VGV' : '')}</div>
       <div class="gc-bar"><i style="width:${pct}%"></i></div></div>
     ${projCard}
     <div class="gc-kpi" style="--kc:${vgvMeta ? (vgv >= vgvMeta ? 'var(--gc-ok)' : vgv >= vgvMeta * (ehMes ? pctMes : 1) * 0.9 ? 'var(--gc-ok)' : vgv >= vgvMeta * (ehMes ? pctMes : 1) * 0.6 ? 'var(--gc-warn)' : 'var(--gc-err)') : 'var(--border-2)'}"><div class="l">VGV ${per}</div>
@@ -346,9 +346,9 @@ function cockpit() {
   // alertas como lista de AÇÕES
   const its = (v.alertas || {}).itens || [];
   const alerts = its.length ? `<div class="gc-alerts">
-    <div style="font-weight:900;font-size:12.5px;color:var(--gc-err);margin-bottom:4px">🚨 ${its.length} métrica${its.length > 1 ? 's' : ''} fora da régua — gestor e sócios notificados</div>
+    <div style="font-weight:600;font-size:13px;color:var(--gc-err);margin-bottom:4px">🚨 ${its.length} métrica${its.length > 1 ? 's' : ''} fora da régua — gestor e sócios notificados</div>
     ${its.map(a => { const [txt, tab] = ACAO[a.metrica] || ['ver detalhe', 'meta']; return `<div class="gc-alert">
-      <span class="tiny" style="font-weight:700;white-space:nowrap">${tLbl(a.team)}</span>
+      <span class="tiny" style="font-weight:600;white-space:nowrap">${tLbl(a.team)}</span>
       <span>${esc(a.label)}: <b class="v">${fN(a.valor)}</b> <span class="tiny muted">(${a.acima ? '▲' : '▼'} ${fN(Math.abs(a.delta_pct))}% ${a.acima ? 'acima' : 'abaixo'} da régua ${fN(a.limite)})</span></span>
       <button class="btn btn-ghost btn-sm act" data-goto="${tab}">→ ${txt}</button></div>`; }).join('')}</div>` : '';
   const hub = v.hub_conquista;
@@ -490,12 +490,12 @@ function pjBar(p, grande) {
 function pjStatus(p) { const [l, c] = PSTATUS[p.status] || ['—', 'var(--ink-muted)']; return `<span class="pj-st" style="color:${c}">● ${l}</span>`; }
 function pjRow(nome, p, strong) {
   const m = p.meta, r = p.realizado, pv = p.provavel, hz = _proj.horizonte;
-  return `<tr${strong ? ' style="font-weight:800"' : ''}>
+  return `<tr${strong ? ' style="font-weight:600"' : ''}>
     <td style="white-space:nowrap">${nome}</td>
     <td class="num">${m.vgv ? 'R$ ' + kR$(m.vgv) : '—'}<span class="sub">${m.vendas ? '≈ ' + fN(Math.round(m.vendas * 10) / 10) + ' vendas' : ''}</span></td>
     <td class="num">R$ ${kR$(r.vgv)}<span class="sub">${fN(r.vendas)} venda${r.vendas === 1 ? '' : 's'}${r.pct_meta != null ? ' · ' + fN(r.pct_meta) + '%' : ''}</span></td>
     ${hz.passado ? '' : `<td class="num">${m.vgv_ate_hoje ? 'R$ ' + kR$(m.vgv_ate_hoje) : '—'}<span class="sub">esperado até hoje</span></td>`}
-    <td class="num acc" style="font-weight:900">R$ ${kR$(pv.vgv)}<span class="sub">${fN(pv.vendas)} vendas${pv.pct_meta != null ? ' · ' + fN(pv.pct_meta) + '% da meta' : ''}</span></td>
+    <td class="num acc" style="font-weight:600">R$ ${kR$(pv.vgv)}<span class="sub">${fN(pv.vendas)} vendas${pv.pct_meta != null ? ' · ' + fN(pv.pct_meta) + '% da meta' : ''}</span></td>
     ${hz.passado ? '' : `<td class="num">R$ ${kR$(p.conservador.vgv)} – ${kR$(p.otimista.vgv)}<span class="sub">${fN(p.faixa_vendas.lo)}–${fN(p.faixa_vendas.hi)} vendas</span></td>`}
     <td class="num">${p.falta_vgv ? 'R$ ' + kR$(p.falta_vgv) : '—'}<span class="sub">${p.falta_vendas ? '≈ ' + fN(p.falta_vendas) + ' vendas' : ''}${p.por_dia_util_vgv ? ' · R$ ' + kR$(p.por_dia_util_vgv) + '/dia útil' : ''}</span></td>
     <td>${pjBar(p)}</td>
@@ -559,10 +559,10 @@ function tabMetaAntiga() {
   const rows = (_v.visao || []).map(v => {
     const s = statusOf(v), pct = v.meta_vendas ? v.real_vendas / v.meta_vendas * 100 : null;
     return `<tr>
-      <td style="font-weight:700;white-space:nowrap"><span class="gc-dot" style="--kc:${s.c}"></span>${v.label}</td>
-      <td style="text-align:right;font-weight:900;font-size:15px;color:${s.c}">${fN(v.real_vendas)}</td>
-      <td style="text-align:right;font-weight:700">${v.meta_vendas ? fN(v.meta_vendas) : '—'}</td>
-      <td style="text-align:right;font-weight:800;color:${s.c}">${pct != null ? fN(pct) + '%' : '—'}</td>
+      <td style="font-weight:600;white-space:nowrap"><span class="gc-dot" style="--kc:${s.c}"></span>${v.label}</td>
+      <td style="text-align:right;font-weight:600;font-size:14px;color:${s.c}">${fN(v.real_vendas)}</td>
+      <td style="text-align:right;font-weight:600">${v.meta_vendas ? fN(v.meta_vendas) : '—'}</td>
+      <td style="text-align:right;font-weight:600;color:${s.c}">${pct != null ? fN(pct) + '%' : '—'}</td>
       <td style="text-align:right">${v.meta_vendas ? fN(Math.max(0, v.meta_vendas - v.real_vendas)) : '—'}</td>
       <td style="text-align:right" class="acc" title="vendas até hoje ÷ dias corridos × dias do mês">${v.proj_ritmo != null ? fN(v.proj_ritmo) : '—'}</td>
       <td style="text-align:right" class="acc" title="mix × conversão calibrada de cada corretor (Norte)">${v.proj_vendas ? fN(v.proj_vendas) : '—'}</td>
@@ -578,9 +578,9 @@ function tabMetaAntiga() {
         <tbody>${v.por_corretor.slice().sort((a, b) => (b.real || 0) - (a.real || 0)).map(c => {
           const pct = c.meta > 0 ? c.real / c.meta * 100 : null;
           const cc = pct == null ? 'var(--ink-muted)' : pct >= 100 ? 'var(--gc-ok)' : pct >= 60 ? 'var(--gc-warn)' : 'var(--gc-err)';
-          return `<tr><td>${esc(c.nome)}</td><td style="text-align:right;font-weight:800">${fN(c.real)}</td><td style="text-align:right">${c.meta ? fN(c.meta) : '—'}</td>
+          return `<tr><td>${esc(c.nome)}</td><td style="text-align:right;font-weight:600">${fN(c.real)}</td><td style="text-align:right">${c.meta ? fN(c.meta) : '—'}</td>
             <td style="text-align:right" class="acc">${c.proj ? fN(c.proj) : '—'}</td><td style="text-align:right">R$ ${kR$(c.vgv)}</td>
-            <td style="text-align:right;font-weight:800;color:${cc}">${pct != null ? fN(pct) + '%' : '—'}</td></tr>`; }).join('')}</tbody></table></div></details>`).join('');
+            <td style="text-align:right;font-weight:600;color:${cc}">${pct != null ? fN(pct) + '%' : '—'}</td></tr>`; }).join('')}</tbody></table></div></details>`).join('');
   return pan(_d.janela_eh_mes !== false ? '🎯 Mês corrente — real × meta × projeção, por equipe' : `🎯 Período ${_d.janela.since} → ${_d.janela.until} — real × meta (soma dos meses) por equipe`, `
     <div style="overflow-x:auto"><table>
       <thead><tr style="text-align:right"><th style="text-align:left">Equipe</th><th>Real</th><th>Meta</th><th>% meta</th><th>Faltam</th><th>Proj. ritmo</th><th>Proj. Norte</th><th>Faixa normal</th><th>VGV real / meta</th><th>Ticket</th></tr></thead>
@@ -624,9 +624,9 @@ function unitEconomicsCards() {
   const comMidia = custos.filter(c => c.conta || c.spend > 0);
   const semMidia = custos.filter(c => !(c.conta || c.spend > 0));
   const val = x => x != null ? 'R$ ' + kR$(x) : '—';
-  const tile = (team, mid, lbl, v, sub) => { const a = aIdx[team + ':' + mid]; return `<div class="gc-kpi" style="--kc:${a ? 'var(--gc-err)' : 'var(--border-2)'};padding:9px 12px"><div class="l">${lbl}</div><div class="v ${a ? 'err' : ''}" style="font-size:20px">${v}</div><div class="s">${a ? `<span class="err" style="font-weight:800">${a.acima ? '▲' : '▼'} ${fN(Math.abs(a.delta_pct))}% da régua</span>` : (sub || '')}</div></div>`; };
+  const tile = (team, mid, lbl, v, sub) => { const a = aIdx[team + ':' + mid]; return `<div class="gc-kpi" style="--kc:${a ? 'var(--gc-err)' : 'var(--border-2)'};padding:9px 12px"><div class="l">${lbl}</div><div class="v ${a ? 'err' : ''}" style="font-size:20px">${v}</div><div class="s">${a ? `<span class="err" style="font-weight:600">${a.acima ? '▲' : '▼'} ${fN(Math.abs(a.delta_pct))}% da régua</span>` : (sub || '')}</div></div>`; };
   const blocos = comMidia.map(c => { const t = c.team, p = prod[t] || {}; const conv = p.leads ? Math.round(p.venda / p.leads * 10000) / 100 : null; return `
-    <div style="margin-top:10px"><div style="font-weight:800;font-size:12.5px;margin-bottom:6px">${c.label} <span class="tiny muted">· spend do mês R$ ${kR$(c.spend)}</span></div>
+    <div style="margin-top:10px"><div style="font-weight:600;font-size:13px;margin-bottom:6px">${c.label} <span class="tiny muted">· spend do mês R$ ${kR$(c.spend)}</span></div>
     <div class="gc-kpis" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr));margin-top:0">
       ${tile(t, 'custo_lead', 'R$ / lead', val(c.custo_lead), fN(c.leads) + ' leads')}
       ${tile(t, 'custo_agend', 'R$ / agendamento', val(c.custo_agend), fN(c.agend) + ' agend.')}
@@ -650,7 +650,7 @@ function unitEconomicsCards() {
 function velocidadePanel() {
   const resp = _v.resposta || {};
   const linhaR = (lbl, val) => `<div style="display:flex;justify-content:space-between;font-size:12px;border-bottom:1px dashed var(--border);padding:3px 0"><span>${lbl}</span><b style="white-space:nowrap">${val}</b></div>`;
-  const blocos = Object.keys(resp).filter(t => (resp[t] || {}).n_mediveis).map(t => { const r = resp[t]; return `<div><div class="tiny" style="font-weight:800;margin-bottom:4px">${TEAM_LBL[t] || t} <span class="muted">(${fN(r.n_mediveis)} medíveis)</span></div>
+  const blocos = Object.keys(resp).filter(t => (resp[t] || {}).n_mediveis).map(t => { const r = resp[t]; return `<div><div class="tiny" style="font-weight:600;margin-bottom:4px">${TEAM_LBL[t] || t} <span class="muted">(${fN(r.n_mediveis)} medíveis)</span></div>
       ${linhaR('Mediana', fmtDHM(r.mediana_h))}${linhaR('P25 → P75', fmtDHM(r.p25_h) + ' → ' + fmtDHM(r.p75_h))}
       ${linhaR('Conv. metade RÁPIDA', `<span class="ok">${r.conv_rapidos_pct != null ? fN(r.conv_rapidos_pct) + '%' : '—'}</span>`)}
       ${linhaR('Conv. metade LENTA', `<span class="err">${r.conv_lentos_pct != null ? fN(r.conv_lentos_pct) + '%' : '—'}</span>`)}
@@ -672,7 +672,7 @@ function tabMetricas() {
   const P = x => x != null ? fN(x) + '%' : '—';
   const T = t => t && t.media_h != null ? `${fmtDHM(t.media_h)} <span class="tiny muted">med. ${fmtDHM(t.mediana_h)} · n=${t.n}</span>` : '<span class="muted">—</span>';
   const tile = (lbl, val, sub, cls) => `<div class="gc-kpi" style="--kc:${cls === 'err' ? 'var(--gc-err)' : cls === 'acc' ? 'var(--gc-acc)' : 'var(--border-2)'};padding:9px 12px"><div class="l">${lbl}</div><div class="v ${cls || ''}" style="font-size:20px">${val}</div>${sub ? `<div class="s">${sub}</div>` : ''}</div>`;
-  const grupo = (titulo, tiles) => `<div style="margin-top:12px"><div class="tiny" style="font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-muted);margin-bottom:6px">${titulo}</div><div class="gc-kpis" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr));margin-top:0">${tiles}</div></div>`;
+  const grupo = (titulo, tiles) => `<div style="margin-top:12px"><div class="tiny" style="font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-muted);margin-bottom:6px">${titulo}</div><div class="gc-kpis" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr));margin-top:0">${tiles}</div></div>`;
   const bloco = tk => {
     const m = M[tk], c = m.custos || {}, n = m.contagens || {}, pv = m.por_venda || {}, pa = m.pastas || {}, tp = m.tempos || {};
     const semMidia = !(c.conta || c.spend > 0);
@@ -744,7 +744,7 @@ function enterTV() {
     const nxt = Math.max(0, Math.round((_tvNextAt - Date.now()) / 1000));
     const f = s => s < 90 ? s + 's' : Math.round(s / 60) + 'min';
     const cor = age == null ? 'var(--ink-muted)' : age < 720 ? 'var(--gc-ok)' : age < 1800 ? 'var(--gc-warn)' : 'var(--gc-err)';
-    el.innerHTML = `<span style="color:${cor};font-weight:800">● dado de ${age != null ? f(age) : '—'} atrás</span><span class="muted"> · atualiza em ${f(nxt)}</span>`;
+    el.innerHTML = `<span style="color:${cor};font-weight:600">● dado de ${age != null ? f(age) : '—'} atrás</span><span class="muted"> · atualiza em ${f(nxt)}</span>`;
   }, 1000);
 }
 function exitTV() {
@@ -769,7 +769,7 @@ function renderTV() {
   _v = viewFor(_d, _team);
   ov.innerHTML = `
     <div style="position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--border);padding:10px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-      <div style="font-size:18px;font-weight:900;white-space:nowrap">📊 PSM · Gestão Comercial</div>
+      <div style="font-size:16px;font-weight:600;white-space:nowrap">📊 PSM · Gestão Comercial</div>
       <div id="gc-tv-age" class="tiny"></div>
       <div style="flex:1"></div>
       <div style="display:flex;gap:6px">
@@ -796,34 +796,34 @@ function tabCampanhas() {
   const VCOR = { escalar: 'var(--gc-ok)', manter: 'var(--gc-acc)', maturando: 'var(--gc-warn)', pausar: 'var(--gc-err)', observar: 'var(--ink-muted)' };
   const podio = (campo, titulo, ico) => {
     const top = its.filter(x => (x[campo] || 0) > 0).sort((a, b) => b[campo] - a[campo]).slice(0, 3);
-    return `<div><div class="tiny" style="font-weight:800;margin-bottom:4px">${ico} ${titulo}</div><div style="display:grid;gap:4px">
-      ${top.map((x, i) => `<div style="display:flex;gap:8px;align-items:center;background:var(--bg-3);border-radius:8px;padding:6px 10px">
-        <span>${['🥇', '🥈', '🥉'][i]}</span><span class="tiny" style="flex:1;font-weight:700;line-height:1.3" title="${esc(x.campanha)}">${esc(x.campanha)}</span>
+    return `<div><div class="tiny" style="font-weight:600;margin-bottom:4px">${ico} ${titulo}</div><div style="display:grid;gap:4px">
+      ${top.map((x, i) => `<div style="display:flex;gap:8px;align-items:center;background:var(--bg-3);border-radius:var(--radius-md);padding:6px 10px">
+        <span>${['🥇', '🥈', '🥉'][i]}</span><span class="tiny" style="flex:1;font-weight:600;line-height:1.3" title="${esc(x.campanha)}">${esc(x.campanha)}</span>
         <b>${fN(x[campo])}</b></div>`).join('') || '<div class="tiny muted">—</div>'}</div></div>`;
   };
   const linha = x => `<tr>
-      <td style="font-size:12px;font-weight:700;padding:6px 8px 6px 0;min-width:260px;max-width:420px;line-height:1.3" title="${esc(x.campanha)}">${esc(x.campanha)}<div class="tiny muted">${(x.teams || []).join(' · ')}</div></td>
+      <td style="font-size:12px;font-weight:600;padding:6px 8px 6px 0;min-width:260px;max-width:420px;line-height:1.3" title="${esc(x.campanha)}">${esc(x.campanha)}<div class="tiny muted">${(x.teams || []).join(' · ')}</div></td>
       <td style="text-align:right;font-size:12px">${fN(x.leads)}</td>
       <td style="text-align:right;font-size:12px">${fN(x.agend)}</td>
       <td style="text-align:right;font-size:12px">${fN(x.visita)}</td>
       <td style="text-align:right;font-size:12px">${fN(x.pasta)}</td>
-      <td style="text-align:right;font-weight:900;font-size:13px">${fN(x.venda)}</td>
+      <td style="text-align:right;font-weight:600;font-size:13px">${fN(x.venda)}</td>
       <td style="text-align:right;font-size:12px">R$ ${kR$(x.vgv)}</td>
       <td style="text-align:right;font-size:12px" title="≈ 4% do VGV">R$ ${kR$(x.receita_est)}</td>
       <td style="text-align:right;font-size:12px">${x.spend_30d != null ? 'R$ ' + kR$(x.spend_30d) : '—'}</td>
       <td style="text-align:right;font-size:12px">${x.cpl_30d != null ? 'R$ ' + kR$(x.cpl_30d) : '—'}</td>
-      <td style="text-align:right;font-size:12px;font-weight:800">${x.roas != null ? fN(x.roas) + '×' : '—'}</td>
-      <td><span class="tiny" style="font-weight:800;color:${VCOR[x.veredito]};white-space:nowrap">${esc(x.veredito_lbl)}</span></td>
+      <td style="text-align:right;font-size:12px;font-weight:600">${x.roas != null ? fN(x.roas) + '×' : '—'}</td>
+      <td><span class="tiny" style="font-weight:600;color:${VCOR[x.veredito]};white-space:nowrap">${esc(x.veredito_lbl)}</span></td>
     </tr>`;
   const ativas = its.filter(x => x.ativa);
   const inativas = its.filter(x => !x.ativa);
   const cab = `<thead><tr style="text-align:right"><th style="text-align:left">Campanha</th><th>Leads</th><th>Agend.</th><th>Visitas</th><th>Pastas</th><th>Vendas</th><th>VGV</th><th>Receita≈</th><th>Spend</th><th>CPL</th><th>ROAS</th><th style="text-align:left">Veredito</th></tr></thead>`;
   const SPENDS = [['this_month', 'Este mês'], ['last_7d', 'Últimos 7d'], ['last_14d', 'Últimos 14d'], ['last_30d', 'Últimos 30d'], ['last_month', 'Mês passado']];
   const spendSel = `<div class="flex items-center gap-2" style="margin-bottom:8px">
-    <span class="tiny" style="font-weight:800">🎚 Período do spend/CPL (Meta):</span>
+    <span class="tiny" style="font-weight:600">🎚 Período do spend/CPL (Meta):</span>
     <select class="select" id="gc-spend" style="width:auto;padding:3px 8px;font-size:12px">
       ${SPENDS.map(([v, l]) => `<option value="${v}"${_spendPreset === v ? ' selected' : ''}>${l}</option>`).join('')}</select>
-    ${cp.spend_preset_usado && cp.spend_preset_usado !== cp.spend_preset_pedido ? `<span class="tiny" style="color:var(--gc-warn);font-weight:700">⚠ cache da Meta não tinha "${esc(cp.spend_preset_pedido)}" — usando "${esc(cp.spend_preset_usado)}"</span>` : ''}
+    ${cp.spend_preset_usado && cp.spend_preset_usado !== cp.spend_preset_pedido ? `<span class="tiny" style="color:var(--gc-warn);font-weight:600">⚠ cache da Meta não tinha "${esc(cp.spend_preset_pedido)}" — usando "${esc(cp.spend_preset_usado)}"</span>` : ''}
     <span class="tiny muted">o funil segue a janela de safra lá de cima — aqui você troca só a base de CUSTO</span>
   </div>`;
   return spendSel + pan('🏅 Pódio de campanhas — pelo FUNDO do funil, não pelo CPL', `
@@ -846,7 +846,7 @@ function delta(cur, prev, invertido) {
   const p = (cur - prev) / Math.abs(prev) * 100;
   if (!isFinite(p) || Math.abs(p) < 0.05) return '<span class="tiny muted">＝</span>';
   const bom = invertido ? p < 0 : p > 0;
-  return `<span class="tiny" style="font-weight:800;color:${bom ? 'var(--gc-ok)' : 'var(--gc-err)'}">${p > 0 ? '▲' : '▼'} ${Math.abs(p).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}%</span>`;
+  return `<span class="tiny" style="font-weight:600;color:${bom ? 'var(--gc-ok)' : 'var(--gc-err)'}">${p > 0 ? '▲' : '▼'} ${Math.abs(p).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}%</span>`;
 }
 
 /* 📆 tabela do histórico do ano: colunas = meses (mês atual destacado + parcial),
@@ -858,10 +858,10 @@ function histTable(titulo, rows, srId) {
   const head = `<tr><th style="text-align:left"></th>${hs.map((h, i) =>
     `<th style="text-align:right;padding:2px 8px;${h.parcial ? 'background:var(--bg-3);border-radius:6px 6px 0 0' : ''}">${meses[i]}${h.parcial ? '<div style="font-weight:400">parcial</div>' : ''}</th>`).join('')}</tr>`;
   const body = rows.map(r => `<tr>
-    <td class="tiny" style="font-weight:700;white-space:nowrap;padding:3px 8px 3px 0">${r.lbl}</td>
+    <td class="tiny" style="font-weight:600;white-space:nowrap;padding:3px 8px 3px 0">${r.lbl}</td>
     ${hs.map((h, i) => {
       const v = r.get(h), pv = i > 0 ? r.get(hs[i - 1]) : null;
-      return `<td style="text-align:right;padding:3px 8px;font-size:12px;${h.parcial ? 'background:var(--bg-3);font-weight:800' : ''}">${v != null ? r.fmt(v) : '—'}<div>${i > 0 ? delta(v, pv, r.invertido) : ''}</div></td>`;
+      return `<td style="text-align:right;padding:3px 8px;font-size:12px;${h.parcial ? 'background:var(--bg-3);font-weight:600' : ''}">${v != null ? r.fmt(v) : '—'}<div>${i > 0 ? delta(v, pv, r.invertido) : ''}</div></td>`;
     }).join('')}</tr>`).join('');
   return pan(`📆 ${titulo} — mês a mês ${new Date().getFullYear()} (Δ% vs mês anterior · mês atual destacado)`, `
     <div style="overflow-x:auto"><table>${head}${body}</table></div>`, srId);
@@ -880,11 +880,11 @@ function forecastPanel() {
     const cel = k => {
       const h = hz[k];
       if (!h) return '<td style="text-align:right;font-size:12px">—</td>';
-      return `<td style="text-align:right;font-weight:900;font-size:13px;white-space:nowrap${k === 'tri' ? ';color:var(--gc-acc)' : ''}">${fN(h.esp)} <span class="tiny muted" style="font-weight:400">(${fN(h.real)} já)</span></td>`;
+      return `<td style="text-align:right;font-weight:600;font-size:13px;white-space:nowrap${k === 'tri' ? ';color:var(--gc-acc)' : ''}">${fN(h.esp)} <span class="tiny muted" style="font-weight:400">(${fN(h.real)} já)</span></td>`;
     };
     const termos = (f.termos || []).map(x => `${fN(x.abertos)} ${x.etapa}s×${fN(x.taxa_pct)}%`).join(' + ') || '—';
     return `<tr>
-      <td style="font-weight:700;font-size:12.5px;padding:5px 8px 5px 0;white-space:nowrap">${TEAM_LBL[t] || t}</td>
+      <td style="font-weight:600;font-size:13px;padding:5px 8px 5px 0;white-space:nowrap">${TEAM_LBL[t] || t}</td>
       ${HZ.map(([k]) => cel(k)).join('')}
       <td style="text-align:right;font-size:12px">${f.pipeline_vgv_esp ? 'R$ ' + kR$(f.pipeline_vgv_esp) : '—'}</td>
       <td class="tiny muted">${termos}${f.mediana_pasta_venda_d != null ? ` · pasta→venda ~${f.mediana_pasta_venda_d}d` : ''}${f.run_rate_mensal ? ` · run-rate ${fN(f.run_rate_mensal)}/mês` : ''}</td>
@@ -928,17 +928,17 @@ function tabFunilRD() {
           const w = Math.max(3, Math.round((l.alcancaram || 0) / maxA * 100));
           const ehGarg = garg && l.nome === garg.nome;
           return `<div style="display:flex;gap:8px;align-items:center${ehGarg ? ';background:color-mix(in srgb, var(--gc-err) 8%, transparent);border-radius:6px;padding:2px 4px' : ''}">
-            <span class="tiny" style="min-width:210px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(l.nome)}">${esc(l.nome)}</span>
-            <div style="flex:1;height:20px;background:var(--bg-3);border-radius:5px;overflow:hidden;position:relative">
-              <div style="height:100%;width:${w}%;background:linear-gradient(90deg,var(--gc-acc-dim),var(--gc-acc));border-radius:5px"></div>
-              <span class="tiny" style="position:absolute;left:8px;top:2px;color:#fff;font-weight:800">${fN(l.alcancaram || 0)} alcançaram</span>
+            <span class="tiny" style="min-width:210px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(l.nome)}">${esc(l.nome)}</span>
+            <div style="flex:1;height:20px;background:var(--bg-3);border-radius:var(--radius-sm);overflow:hidden;position:relative">
+              <div style="height:100%;width:${w}%;background:linear-gradient(90deg,var(--gc-acc-dim),var(--gc-acc));border-radius:var(--radius-sm)"></div>
+              <span class="tiny" style="position:absolute;left:8px;top:2px;color:#fff;font-weight:600">${fN(l.alcancaram || 0)} alcançaram</span>
             </div>
             <span class="tiny" style="min-width:86px;text-align:right"><b>${fN(l.abertos)}</b> <span class="muted">abertos</span></span>
-            <span class="tiny" style="min-width:64px;text-align:right;font-weight:800;color:${l.passagem_pct == null ? 'var(--ink-muted)' : l.passagem_pct >= 50 ? 'var(--gc-ok)' : l.passagem_pct >= 25 ? 'var(--gc-warn)' : 'var(--gc-err)'}">${l.passagem_pct != null ? '↓ ' + fN(l.passagem_pct) + '%' : ''}${ehGarg ? ' 🔥' : ''}</span>
+            <span class="tiny" style="min-width:64px;text-align:right;font-weight:600;color:${l.passagem_pct == null ? 'var(--ink-muted)' : l.passagem_pct >= 50 ? 'var(--gc-ok)' : l.passagem_pct >= 25 ? 'var(--gc-warn)' : 'var(--gc-err)'}">${l.passagem_pct != null ? '↓ ' + fN(l.passagem_pct) + '%' : ''}${ehGarg ? ' 🔥' : ''}</span>
           </div>`;
         }).join('')}
       </div>
-      ${garg ? `<div style="margin-top:8px;background:color-mix(in srgb, var(--gc-err) 8%, transparent);border:1.5px solid var(--gc-err);border-radius:8px;padding:8px 12px;font-size:12.5px">
+      ${garg ? `<div style="margin-top:8px;background:color-mix(in srgb, var(--gc-err) 8%, transparent);border:1.5px solid var(--gc-err);border-radius:var(--radius-md);padding:8px 12px;font-size:13px">
         🔥 <b>GARGALO:</b> ${esc(garg.nome)} → ${esc(proxDe(garg.nome))} passa só <b>${fN(garg.passagem_pct)}%</b> (${fN(garg.abertos)} parado(s) na lane agora).
         <b>O que fazer:</b> ${esc(rec)}.</div>` : ''}
       <div class="tiny muted gc-nota" style="margin-top:6px">Barra = quantos deals ALCANÇARAM a etapa (abertos de agora + ganhos do ano; aproximação pela etapa atual — dado real, sem invenção). ↓% = passagem pra próxima etapa. “Abertos” = parados na lane HOJE, igual ao RD.</div>`, 'funil_' + tk);
@@ -949,28 +949,28 @@ function tabFunilRD() {
 /* ── 🔀 FONTES & FUNIL: qual origem converte visita/pasta/venda ── */
 function tabFontes() {
   const pod = _v.fontes?.podio || {};
-  const medal = (arr, campo) => (arr || []).map((f, i) => `<div style="display:flex;gap:8px;align-items:center;background:var(--bg-3);border-radius:8px;padding:6px 10px">
-      <span style="font-size:16px">${['🥇', '🥈', '🥉'][i]}</span><b style="flex:1;font-size:12.5px">${esc(f.label)}</b>
-      <span style="font-weight:900">${fN(f[campo])}%</span><span class="tiny muted">(${fN(f.leads)} leads · ${fN(f.venda)} vendas)</span></div>`).join('') || '<div class="tiny muted">Sem fonte com amostra suficiente na janela.</div>';
+  const medal = (arr, campo) => (arr || []).map((f, i) => `<div style="display:flex;gap:8px;align-items:center;background:var(--bg-3);border-radius:var(--radius-md);padding:6px 10px">
+      <span style="font-size:16px">${['🥇', '🥈', '🥉'][i]}</span><b style="flex:1;font-size:13px">${esc(f.label)}</b>
+      <span style="font-weight:600">${fN(f[campo])}%</span><span class="tiny muted">(${fN(f.leads)} leads · ${fN(f.venda)} vendas)</span></div>`).join('') || '<div class="tiny muted">Sem fonte com amostra suficiente na janela.</div>';
   const tabela = (lista) => `<div style="overflow-x:auto"><table>
     <thead><tr style="text-align:right"><th style="text-align:left">Origem</th><th>Leads</th><th>Agend.</th><th>Visitas</th><th>Pastas</th><th>Vendas</th><th>%→Visita</th><th>%→Pasta</th><th>%→Venda</th><th>VGV</th></tr></thead>
     <tbody>${(lista || []).map(f => `<tr${f.rankeavel ? '' : ' style="opacity:.55" title="amostra pequena — fora do pódio"'}>
       <td style="font-weight:600;font-size:12px;padding:4px 6px 4px 0">${esc(f.label)}${f.rankeavel ? '' : ' <span class="tiny">⚠</span>'}</td>
       <td style="text-align:right;font-size:12px">${fN(f.leads)}</td><td style="text-align:right;font-size:12px">${fN(f.agend)}</td>
       <td style="text-align:right;font-size:12px">${fN(f.visita)}</td><td style="text-align:right;font-size:12px">${fN(f.pasta)}</td>
-      <td style="text-align:right;font-weight:800;font-size:12px">${fN(f.venda)}</td>
+      <td style="text-align:right;font-weight:600;font-size:12px">${fN(f.venda)}</td>
       <td style="text-align:right;font-size:12px">${f.pc_visita != null ? fN(f.pc_visita) + '%' : '—'}</td>
       <td style="text-align:right;font-size:12px">${f.pc_pasta != null ? fN(f.pc_pasta) + '%' : '—'}</td>
-      <td style="text-align:right;font-weight:800;font-size:12px">${f.pc_venda != null ? fN(f.pc_venda) + '%' : '—'}</td>
+      <td style="text-align:right;font-weight:600;font-size:12px">${f.pc_venda != null ? fN(f.pc_venda) + '%' : '—'}</td>
       <td style="text-align:right;font-size:12px">R$ ${kR$(f.vgv)}</td></tr>`).join('')}</tbody></table></div>`;
   const porEquipe = ['conquista', 'map', 'terceiros', 'locacao'].filter(t => _v.fontes?.[t]?.length)
     .map(t => pan(`${TEAM_LBL[t]} — funil por origem (safra da janela)`, tabela(_v.fontes[t]), 'fontes_' + t)).join('');
   return `
     ${pan('🏅 Pódio das fontes (safra da janela, amostra mínima ' + 30 + ' leads)', `
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px">
-        <div><div class="tiny" style="font-weight:800;margin-bottom:4px">🚶 CONVERTE MAIS VISITA</div><div style="display:grid;gap:4px">${medal(pod.visita, 'pc_visita')}</div></div>
-        <div><div class="tiny" style="font-weight:800;margin-bottom:4px">📁 CONVERTE MAIS PASTA</div><div style="display:grid;gap:4px">${medal(pod.pasta, 'pc_pasta')}</div></div>
-        <div><div class="tiny" style="font-weight:800;margin-bottom:4px">💰 CONVERTE MAIS VENDA</div><div style="display:grid;gap:4px">${medal(pod.venda, 'pc_venda')}</div></div>
+        <div><div class="tiny" style="font-weight:600;margin-bottom:4px">🚶 CONVERTE MAIS VISITA</div><div style="display:grid;gap:4px">${medal(pod.visita, 'pc_visita')}</div></div>
+        <div><div class="tiny" style="font-weight:600;margin-bottom:4px">📁 CONVERTE MAIS PASTA</div><div style="display:grid;gap:4px">${medal(pod.pasta, 'pc_pasta')}</div></div>
+        <div><div class="tiny" style="font-weight:600;margin-bottom:4px">💰 CONVERTE MAIS VENDA</div><div style="display:grid;gap:4px">${medal(pod.venda, 'pc_venda')}</div></div>
       </div>`, 'podio_fontes')}
     ${pan('🌎 Geral — todas as equipes', tabela(_v.fontes?.geral), 'fontes_geral')}
     ${porEquipe}
@@ -998,21 +998,21 @@ function histFontes() {
 function tabCustos() {
   const c = _v.custos || {};
   const rows = (c.equipes || []).map(e => `<tr>
-      <td style="font-weight:700;font-size:12.5px;padding:5px 8px 5px 0;white-space:nowrap">${e.label}<div class="tiny muted">${e.conta ? 'conta ' + esc(e.conta) : 'sem conta Meta'}</div></td>
+      <td style="font-weight:600;font-size:13px;padding:5px 8px 5px 0;white-space:nowrap">${e.label}<div class="tiny muted">${e.conta ? 'conta ' + esc(e.conta) : 'sem conta Meta'}</div></td>
       <td style="text-align:right;font-size:12px">R$ ${brl(e.spend)}<div class="tiny muted">+ fixo R$ ${kR$(e.fixo_mes)}</div></td>
       <td style="text-align:right;font-size:12px">${e.custo_lead != null ? 'R$ ' + brl(e.custo_lead) : '—'}<div class="tiny muted">${fN(e.leads)} leads</div></td>
       <td style="text-align:right;font-size:12px">${e.custo_agend != null ? 'R$ ' + brl(e.custo_agend) : '—'}<div class="tiny muted">${fN(e.agend)}</div></td>
       <td style="text-align:right;font-size:12px">${e.custo_visita != null ? 'R$ ' + brl(e.custo_visita) : '—'}<div class="tiny muted">${fN(e.visita)}</div></td>
       <td style="text-align:right;font-size:12px">${e.custo_pasta != null ? 'R$ ' + brl(e.custo_pasta) : '—'}<div class="tiny muted">${fN(e.pasta)}</div></td>
-      <td style="text-align:right;font-weight:900;font-size:13px;color:var(--gc-warn)">${e.cac_midia != null ? 'R$ ' + kR$(e.cac_midia) : '—'}<div class="tiny muted">${fN(e.vendas_pagas || 0)} venda(s) de tráfego</div></td>
-      <td style="text-align:right;font-weight:900;font-size:13px;color:var(--gc-acc2)">${e.cac_marketing != null ? 'R$ ' + kR$(e.cac_marketing) : '—'}<div class="tiny muted">🎁 R$ ${kR$(e.premiacao_indicacao || 0)} (${fN(e.vendas_indicacao || 0)} indicação)</div></td>
-      <td style="text-align:right;font-weight:900;font-size:13px;color:var(--gc-err)">${e.cac_completo != null ? 'R$ ' + kR$(e.cac_completo) : '—'}<div class="tiny muted">${fN(e.vendas)} venda(s) no mês</div></td>
+      <td style="text-align:right;font-weight:600;font-size:13px;color:var(--gc-warn)">${e.cac_midia != null ? 'R$ ' + kR$(e.cac_midia) : '—'}<div class="tiny muted">${fN(e.vendas_pagas || 0)} venda(s) de tráfego</div></td>
+      <td style="text-align:right;font-weight:600;font-size:13px;color:var(--gc-acc2)">${e.cac_marketing != null ? 'R$ ' + kR$(e.cac_marketing) : '—'}<div class="tiny muted">🎁 R$ ${kR$(e.premiacao_indicacao || 0)} (${fN(e.vendas_indicacao || 0)} indicação)</div></td>
+      <td style="text-align:right;font-weight:600;font-size:13px;color:var(--gc-err)">${e.cac_completo != null ? 'R$ ' + kR$(e.cac_completo) : '—'}<div class="tiny muted">${fN(e.vendas)} venda(s) no mês</div></td>
     </tr>`).join('');
   return pan(`💰 Unit economics ${c.janela_custo ? c.janela_custo.ini + ' → ' + c.janela_custo.fim : 'do mês (' + (c.mes || '') + ')'} — do lead ao CAC, por equipe`, `
     <div style="overflow-x:auto"><table>
       <thead><tr style="text-align:right"><th style="text-align:left">Equipe</th><th>Spend Meta</th><th>R$/lead</th><th>R$/agendamento</th><th>R$/visita</th><th>R$/pasta</th><th>CAC mídia</th><th>CAC marketing</th><th>CAC completo</th></tr></thead>
       <tbody>${rows}</tbody></table></div>
-    ${c.payback_midia ? `<div class="tiny" style="margin-top:8px;background:var(--bg-3);border-radius:8px;padding:6px 10px">💸 <b>Payback de mídia:</b> a venda vira caixa em mediana <b>${fN(c.payback_midia.mediana_dias)} dias</b> (${esc(c.payback_midia.fonte)}, n=${fN(c.payback_midia.n)}) — é o tempo entre o real investido e o real voltando.</div>` : ''}
+    ${c.payback_midia ? `<div class="tiny" style="margin-top:8px;background:var(--bg-3);border-radius:var(--radius-md);padding:6px 10px">💸 <b>Payback de mídia:</b> a venda vira caixa em mediana <b>${fN(c.payback_midia.mediana_dias)} dias</b> (${esc(c.payback_midia.fonte)}, n=${fN(c.payback_midia.n)}) — é o tempo entre o real investido e o real voltando.</div>` : ''}
     <div class="tiny muted gc-nota" style="margin-top:6px">${esc(c.nota || '')}. Qualificado começa no AGENDAMENTO (decisão 14/ago). <b>CAC mídia</b> = spend ÷ vendas de TRÁFEGO PAGO · <b>CAC marketing</b> = (spend + 🎁 premiação de indicação pela faixa de VGV — só venda de origem INDICAÇÃO, tabela oficial) ÷ todas as vendas · <b>CAC completo</b> = (spend + premiação + fixo orçado da linha) ÷ todas as vendas (decisões 17/ago).</div>`, 'unit_economics')
     + histTable('Custo — mês a mês (global desde jan · POR EQUIPE desde ago/2026 — snapshot horário do cron)', [
       { lbl: 'Spend Meta', get: h => h.total?.spend, fmt: x => 'R$ ' + kR$(x), invertido: true },
@@ -1044,16 +1044,16 @@ function tabEsteira() {
     const st = ehEquipe ? 'font-weight:800;background:var(--bg-3)' : '';
     const p = c.por_venda || {}, cv = c.razao_fluxo || c.conv || {};
     return `<tr style="${st}">
-      <td style="font-size:12.5px;padding:5px 8px 5px 0;white-space:nowrap">${ehEquipe ? '' : '　'}${esc(c.nome)}${ehEquipe ? '' : ` <span class="tiny muted">${(TEAM_LBL[c.team] || c.team || '').replace(/^..\s/, '')}</span>`}</td>
+      <td style="font-size:13px;padding:5px 8px 5px 0;white-space:nowrap">${ehEquipe ? '' : '　'}${esc(c.nome)}${ehEquipe ? '' : ` <span class="tiny muted">${(TEAM_LBL[c.team] || c.team || '').replace(/^..\s/, '')}</span>`}</td>
       <td style="text-align:right;font-size:12px">${fN(c.prospec)}</td>
       <td style="text-align:right;font-size:12px">${fN(c.qualif)}</td>
       <td style="text-align:right;font-size:12px">${fN(c.visita)}</td>
       <td style="text-align:right;font-size:12px">${fN(c.pasta)}</td>
-      <td style="text-align:right;font-size:12px;font-weight:800">${fN(c.venda)}</td>
-      <td style="text-align:right;font-size:11.5px;color:var(--ink-muted)">${pcc(cv.prospec_qualif)}</td>
-      <td style="text-align:right;font-size:11.5px;color:var(--ink-muted)">${pcc(cv.qualif_visita)}</td>
-      <td style="text-align:right;font-size:11.5px;color:var(--ink-muted)">${pcc(cv.visita_pasta)}</td>
-      <td style="text-align:right;font-size:11.5px;color:var(--ink-muted)">${pcc(cv.pasta_venda)}</td>
+      <td style="text-align:right;font-size:12px;font-weight:600">${fN(c.venda)}</td>
+      <td style="text-align:right;font-size:11px;color:var(--ink-muted)">${pcc(cv.prospec_qualif)}</td>
+      <td style="text-align:right;font-size:11px;color:var(--ink-muted)">${pcc(cv.qualif_visita)}</td>
+      <td style="text-align:right;font-size:11px;color:var(--ink-muted)">${pcc(cv.visita_pasta)}</td>
+      <td style="text-align:right;font-size:11px;color:var(--ink-muted)">${pcc(cv.pasta_venda)}</td>
       <td style="text-align:right;font-size:12px">${pv(p.prospec)}</td>
       <td style="text-align:right;font-size:12px">${pv(p.visita)}</td>
       <td style="text-align:right;font-size:12px">${pv(p.pasta)}</td>
@@ -1102,8 +1102,8 @@ function tabProd() {
   const eq = p.equipes || {};
   const eqRows = Object.keys(eq).map(t => {
     const e = eq[t];
-    return `<tr style="font-weight:700;background:var(--bg-3)">
-      <td style="font-size:12.5px;padding:5px 8px 5px 0">${TEAM_LBL[t] || t}</td>
+    return `<tr style="font-weight:600;background:var(--bg-3)">
+      <td style="font-size:13px;padding:5px 8px 5px 0">${TEAM_LBL[t] || t}</td>
       <td></td>
       <td style="text-align:right">${fN(e.leads)}</td>
       <td style="text-align:right">${fN(e.atend)}</td>
@@ -1119,17 +1119,17 @@ function tabProd() {
   }).join('');
   const rows = (p.corretores || []).map(cr => {
     const chips = (cr.canais || []).filter(c => c.vendas > 0).map(c =>
-      `<span style="display:inline-block;white-space:nowrap;background:var(--bg-2);border:1px solid var(--border);border-radius:999px;padding:1px 8px;font-size:10.5px;margin:1px">${esc(c.label)}: <b>${fN(c.share_vendas_pct)}%</b> das vendas · conv ${c.conv_pct != null ? fN(c.conv_pct) + '%' : '—'}</span>`).join('');
+      `<span style="display:inline-block;white-space:nowrap;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-full);padding:1px 8px;font-size:11px;margin:1px">${esc(c.label)}: <b>${fN(c.share_vendas_pct)}%</b> das vendas · conv ${c.conv_pct != null ? fN(c.conv_pct) + '%' : '—'}</span>`).join('');
     return `<tr>
       <td style="font-size:12px;padding:4px 8px 4px 0;min-width:240px;max-width:360px">${esc(cr.nome)} <span class="tiny muted">${(TEAM_LBL[cr.team] || cr.team || '').replace(/^..\s/, '')}</span>
         ${chips ? `<div style="margin-top:2px">${chips}</div>` : ''}</td>
-      <td style="font-size:11.5px;font-weight:800;color:var(--gc-ok);white-space:nowrap">${cr.top_canal ? '🏆 ' + esc(cr.top_canal) : '—'}</td>
+      <td style="font-size:11px;font-weight:600;color:var(--gc-ok);white-space:nowrap">${cr.top_canal ? '🏆 ' + esc(cr.top_canal) : '—'}</td>
       <td style="text-align:right;font-size:12px">${fN(cr.leads)}</td>
       <td style="text-align:right;font-size:12px">${fN(cr.atend)}</td>
       <td style="text-align:right;font-size:12px">${fN(cr.agend)}</td>
-      <td style="text-align:right;font-size:12px;font-weight:700">${fN(cr.visita)}</td>
+      <td style="text-align:right;font-size:12px;font-weight:600">${fN(cr.visita)}</td>
       <td style="text-align:right;font-size:12px">${fN(cr.pasta)}</td>
-      <td style="text-align:right;font-weight:800;font-size:12px">${fN(cr.venda)}</td>
+      <td style="text-align:right;font-weight:600;font-size:12px">${fN(cr.venda)}</td>
       <td style="text-align:right;font-size:12px">${cr.leads_por_venda ?? '—'}</td>
       <td style="text-align:right;font-size:12px">${cr.atend_por_venda ?? '—'}</td>
       <td style="text-align:right;font-size:12px">${cr.visitas_por_venda ?? '—'}</td>
@@ -1155,15 +1155,15 @@ function tabProd() {
 /* ── 📈 SAFRAS & TEMPOS ── */
 function tabSafras() {
   const rows = (_v.safras || []).map(s => `<tr>
-      <td style="font-weight:700;font-size:12px;padding:4px 8px 4px 0">${mesNome(s.ym)}</td>
+      <td style="font-weight:600;font-size:12px;padding:4px 8px 4px 0">${mesNome(s.ym)}</td>
       <td style="text-align:right;font-size:12px">${fN(s.leads)}</td>
-      <td style="text-align:right;font-weight:800;font-size:12px">${fN(s.vendas)}</td>
+      <td style="text-align:right;font-weight:600;font-size:12px">${fN(s.vendas)}</td>
       <td style="text-align:right;font-size:12px">${s.pc != null ? fN(s.pc) + '%' : '—'}</td>
       <td style="text-align:right;font-size:12px">R$ ${kR$(s.vgv)}</td>
       <td style="text-align:right;font-size:12px">${s.dias_medio != null ? fN(s.dias_medio) + 'd' : '—'}</td>
     </tr>`).join('');
   const tempos = Object.keys(_v.tempos || {}).map(t => `
-    <div><div class="tiny" style="font-weight:800;margin-bottom:4px">${TEAM_LBL[t] || t}</div>
+    <div><div class="tiny" style="font-weight:600;margin-bottom:4px">${TEAM_LBL[t] || t}</div>
       ${(_v.tempos[t] || []).map(l => `<div style="display:flex;justify-content:space-between;font-size:12px;border-bottom:1px dashed var(--border);padding:3px 0">
         <span>${esc(l.passo)}</span><span><b>${l.mediana_h != null ? fmtDHM(l.mediana_h) : '—'}</b> <span class="tiny muted">n=${l.n}</span></span></div>`).join('')}
     </div>`).join('');
@@ -1171,7 +1171,7 @@ function tabSafras() {
   const linhaR = (lbl, val) => `<div style="display:flex;justify-content:space-between;font-size:12px;border-bottom:1px dashed var(--border);padding:3px 0"><span>${lbl}</span><b style="white-space:nowrap">${val}</b></div>`;
   const respBlocos = Object.keys(resp).filter(t => (resp[t] || {}).n_mediveis).map(t => {
     const r = resp[t];
-    return `<div><div class="tiny" style="font-weight:800;margin-bottom:4px">${TEAM_LBL[t] || t} <span class="muted">(${fN(r.n_mediveis)} medíveis)</span></div>
+    return `<div><div class="tiny" style="font-weight:600;margin-bottom:4px">${TEAM_LBL[t] || t} <span class="muted">(${fN(r.n_mediveis)} medíveis)</span></div>
       ${linhaR('Mediana', fmtDHM(r.mediana_h))}
       ${linhaR('Média', fmtDHM(r.media_h))}
       ${linhaR('P25 → P75', fmtDHM(r.p25_h) + ' → ' + fmtDHM(r.p75_h))}
@@ -1187,12 +1187,12 @@ function tabSafras() {
   // entra aqui — a análise dele vive só no 🚪 Turnover)
   const perf = _v.performance_corretores || [];
   const perfRow = c => {
-    const dl = v => v == null ? '<span class="tiny muted">novo</span>' : `<span class="tiny" style="font-weight:800;color:${v >= 0 ? 'var(--gc-ok)' : 'var(--gc-err)'}">${v >= 0 ? '▲' : '▼'} ${fN(Math.abs(v))}%</span>`;
+    const dl = v => v == null ? '<span class="tiny muted">novo</span>' : `<span class="tiny" style="font-weight:600;color:${v >= 0 ? 'var(--gc-ok)' : 'var(--gc-err)'}">${v >= 0 ? '▲' : '▼'} ${fN(Math.abs(v))}%</span>`;
     const b = c.base_ajustada || c.base;   // v86.37: base AJUSTADA ao tamanho da janela
     return `<tr>
       <td style="font-size:12px;font-weight:600;padding:4px 8px 4px 0;white-space:nowrap">${esc(c.nome)}</td>
       <td style="text-align:right;font-size:12px">${fN(c.atual.leads)} <span class="tiny muted">/ ${fN(b.leads)}</span></td>
-      <td style="text-align:right;font-weight:800;font-size:12.5px">${fN(c.atual.vendas)} <span class="tiny muted">/ ${fN(b.vendas)}</span></td>
+      <td style="text-align:right;font-weight:600;font-size:13px">${fN(c.atual.vendas)} <span class="tiny muted">/ ${fN(b.vendas)}</span></td>
       <td style="text-align:right">${dl(c.delta_vendas_pct)}</td>
       <td style="text-align:right;font-size:12px">R$ ${kR$(c.atual.vgv)} <span class="tiny muted">/ R$ ${kR$(b.vgv)}</span></td>
       <td style="text-align:right">${dl(c.delta_vgv_pct)}</td>
@@ -1211,8 +1211,8 @@ function tabSafras() {
   const dM = d => d == null ? '—' : `${fN(d)}d <span class="tiny muted">(~${(d / 30.44).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} m)</span>`;
   const rvRows = t => {
     const eq = (rv.equipes || {})[t] || {};
-    const linhaEq = `<tr style="font-weight:700;background:var(--bg-3)">
-      <td style="font-size:12.5px;padding:5px 8px 5px 0">${TEAM_LBL[t] || t} <span class="tiny muted" style="font-weight:400">(${fN(eq.n || 0)} corretores — média da equipe)</span></td>
+    const linhaEq = `<tr style="font-weight:600;background:var(--bg-3)">
+      <td style="font-size:13px;padding:5px 8px 5px 0">${TEAM_LBL[t] || t} <span class="tiny muted" style="font-weight:400">(${fN(eq.n || 0)} corretores — média da equipe)</span></td>
       <td style="text-align:right">—</td>
       <td style="text-align:right">${dM(eq.media_dias_1a_venda)}<div class="tiny muted" style="font-weight:400">mediana ${dM(eq.mediana_dias_1a_venda)}</div></td>
       <td style="text-align:right">—</td>
@@ -1223,13 +1223,13 @@ function tabSafras() {
     const linhas = (rv.corretores || []).filter(c => c.team === t).map(c => `<tr>
       <td style="font-size:12px;font-weight:600;padding:4px 8px 4px 0;white-space:nowrap">${esc(c.nome)}</td>
       <td style="text-align:right;font-size:12px">${dM(c.tempo_casa_d)}</td>
-      <td style="text-align:right;font-size:12px;font-weight:800">${dM(c.dias_ate_1a_venda)}</td>
+      <td style="text-align:right;font-size:12px;font-weight:600">${dM(c.dias_ate_1a_venda)}</td>
       <td style="text-align:right;font-size:12px">${fN(c.vendas_total)}</td>
       <td style="text-align:right;font-size:12px">${dM(c.intervalo_medio_d)}</td>
       <td style="text-align:right;font-size:12px">${dM(c.dias_por_venda)}</td>
-      <td style="text-align:right;font-size:12px;color:${c.dias_desde_ultima_venda == null ? 'var(--ink-muted)' : c.dias_desde_ultima_venda > 90 ? 'var(--gc-err)' : c.dias_desde_ultima_venda > 45 ? 'var(--gc-warn)' : 'var(--gc-ok)'};font-weight:700">${c.dias_desde_ultima_venda != null ? fN(c.dias_desde_ultima_venda) + 'd' : 'nunca vendeu'}</td>
+      <td style="text-align:right;font-size:12px;color:${c.dias_desde_ultima_venda == null ? 'var(--ink-muted)' : c.dias_desde_ultima_venda > 90 ? 'var(--gc-err)' : c.dias_desde_ultima_venda > 45 ? 'var(--gc-warn)' : 'var(--gc-ok)'};font-weight:600">${c.dias_desde_ultima_venda != null ? fN(c.dias_desde_ultima_venda) + 'd' : 'nunca vendeu'}</td>
     </tr>`).join('');
-    const semVenda = (eq.sem_venda || []).length ? `<div class="tiny" style="margin-top:6px;color:var(--gc-warn);font-weight:700">⏳ Ainda sem 1ª venda: ${eq.sem_venda.map(x => `${esc(x.nome)} (${fN(x.dias)}d de casa)`).join(' · ')}</div>` : '';
+    const semVenda = (eq.sem_venda || []).length ? `<div class="tiny" style="margin-top:6px;color:var(--gc-warn);font-weight:600">⏳ Ainda sem 1ª venda: ${eq.sem_venda.map(x => `${esc(x.nome)} (${fN(x.dias)}d de casa)`).join(' · ')}</div>` : '';
     return `<div style="overflow-x:auto"><table>
       <thead><tr style="text-align:right"><th style="text-align:left">Corretor / Equipe</th><th>Tempo de casa</th><th>1ª venda em</th><th>Vendas</th><th>Entre vendas (média)</th><th>Dias p/ venda</th><th>Desde a última</th></tr></thead>
       <tbody>${linhaEq}${linhas}</tbody></table></div>${semVenda}`;
@@ -1242,15 +1242,15 @@ function tabSafras() {
   const toCor = to.dias_desde_ultima == null ? 'var(--ink-muted)' : to.dias_desde_ultima >= (to.regra_dias || 90) ? 'var(--gc-err)' : to.dias_desde_ultima >= 60 ? 'var(--gc-warn)' : 'var(--gc-ok)';
   const toBloco = pan('🚪 Turnover — regra da casa: 1 saída a cada ~90 dias', `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-bottom:10px;text-align:center">
-      <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:19px;font-weight:900">${to.intervalo_medio_dias != null ? fN(to.intervalo_medio_dias) + 'd' : '—'}</div><div class="tiny muted">ciclo REAL medido (média entre saídas)</div></div>
-      <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:19px;font-weight:900;color:${toCor}">${to.dias_desde_ultima != null ? fN(to.dias_desde_ultima) + 'd' : '—'}</div><div class="tiny muted">desde a última saída (régua: ${to.regra_dias || 90}d)</div></div>
-      <div style="background:var(--bg-3);border-radius:8px;padding:8px"><div style="font-size:19px;font-weight:900">${fN((to.saidas || []).length)}</div><div class="tiny muted">saídas identificadas</div></div>
+      <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px"><div style="font-size:20px;font-weight:600">${to.intervalo_medio_dias != null ? fN(to.intervalo_medio_dias) + 'd' : '—'}</div><div class="tiny muted">ciclo REAL medido (média entre saídas)</div></div>
+      <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px"><div style="font-size:20px;font-weight:600;color:${toCor}">${to.dias_desde_ultima != null ? fN(to.dias_desde_ultima) + 'd' : '—'}</div><div class="tiny muted">desde a última saída (régua: ${to.regra_dias || 90}d)</div></div>
+      <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px"><div style="font-size:20px;font-weight:600">${fN((to.saidas || []).length)}</div><div class="tiny muted">saídas identificadas</div></div>
     </div>
-    ${to.tempo_casa_medio_d != null ? `<div class="tiny" style="margin-bottom:8px;background:var(--bg-3);border-radius:8px;padding:6px 10px">🏠 <b>Tempo de casa médio de quem saiu:</b> ${fN(to.tempo_casa_medio_d)}d (~${(to.tempo_casa_medio_d / 30.44).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} meses)</div>` : ''}
-    ${(to.saidas || []).length ? `<div class="tiny" style="font-weight:800;margin-bottom:4px">Saídas (última atividade no CRM · histórico completo):</div>
-      <div>${to.saidas.map(x => `<span style="display:inline-block;background:var(--bg-3);border-radius:999px;padding:2px 10px;font-size:11.5px;margin:2px">${esc(x.nome)} · ${(TEAM_LBL[x.team] || x.team || '').replace(/^..\s/, '')} · saiu ${x.ultima_atividade}${x.tempo_casa_d != null ? ` · ${fN(x.tempo_casa_d)}d de casa` : ''} · ${fN(x.vendas_na_passagem || 0)} venda(s)${x.dias_ate_1a_venda != null ? ` · 1ª em ${fN(x.dias_ate_1a_venda)}d` : ''}</span>`).join('')}</div>` : ''}
-    ${(to.ativos_risco || []).length ? `<div class="tiny" style="font-weight:800;margin:8px 0 4px;color:var(--gc-warn)">⚠ Ativos em zona de atenção (90d+ sem venda com volume de lead):</div>
-      <div>${to.ativos_risco.map(x => `<span style="display:inline-block;background:color-mix(in srgb, var(--gc-warn) 12%, transparent);border:1px solid var(--gc-warn);border-radius:999px;padding:2px 10px;font-size:11.5px;margin:2px;font-weight:700">${esc(x.nome)} · ${fN(x.leads_janela)} leads · 0 vendas/90d</span>`).join('')}</div>` : ''}
+    ${to.tempo_casa_medio_d != null ? `<div class="tiny" style="margin-bottom:8px;background:var(--bg-3);border-radius:var(--radius-md);padding:6px 10px">🏠 <b>Tempo de casa médio de quem saiu:</b> ${fN(to.tempo_casa_medio_d)}d (~${(to.tempo_casa_medio_d / 30.44).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} meses)</div>` : ''}
+    ${(to.saidas || []).length ? `<div class="tiny" style="font-weight:600;margin-bottom:4px">Saídas (última atividade no CRM · histórico completo):</div>
+      <div>${to.saidas.map(x => `<span style="display:inline-block;background:var(--bg-3);border-radius:var(--radius-full);padding:2px 10px;font-size:11px;margin:2px">${esc(x.nome)} · ${(TEAM_LBL[x.team] || x.team || '').replace(/^..\s/, '')} · saiu ${x.ultima_atividade}${x.tempo_casa_d != null ? ` · ${fN(x.tempo_casa_d)}d de casa` : ''} · ${fN(x.vendas_na_passagem || 0)} venda(s)${x.dias_ate_1a_venda != null ? ` · 1ª em ${fN(x.dias_ate_1a_venda)}d` : ''}</span>`).join('')}</div>` : ''}
+    ${(to.ativos_risco || []).length ? `<div class="tiny" style="font-weight:600;margin:8px 0 4px;color:var(--gc-warn)">⚠ Ativos em zona de atenção (90d+ sem venda com volume de lead):</div>
+      <div>${to.ativos_risco.map(x => `<span style="display:inline-block;background:color-mix(in srgb, var(--gc-warn) 12%, transparent);border:1px solid var(--gc-warn);border-radius:var(--radius-full);padding:2px 10px;font-size:11px;margin:2px;font-weight:600">${esc(x.nome)} · ${fN(x.leads_janela)} leads · 0 vendas/90d</span>`).join('')}</div>` : ''}
     <div class="tiny muted gc-nota" style="margin-top:6px">${esc(to.nota || '')} Tempo de casa/média entre saídas e desligados vivem AQUI — performance individual acima é só de ativos.</div>`, 'turnover');
   return `
     ${perfBlocos}
@@ -1272,8 +1272,8 @@ function tabSafras() {
 /* ── 📈 GRÁFICOS DE TUDO (v86.33, pedido 17/ago): o painel inteiro em visual ── */
 
 /* ═══════════ GRÁFICOS (Chart.js) ═══════════ */
-const TEAM_CORES = { conquista: '#60a5fa', map: '#a78bfa', terceiros: '#fbbf24', locacao: '#34d399', outros: '#64748b' };
-const CORES8 = ['#60a5fa', '#a78bfa', '#fbbf24', '#34d399', '#f87171', '#38bdf8', '#f472b6', '#94a3b8'];
+const TEAM_CORES = { conquista: '#806d50', map: '#a78bfa', terceiros: '#fbbf24', locacao: '#34d399', outros: '#64748b' };
+const CORES8 = ['#806d50', '#a78bfa', '#fbbf24', '#34d399', '#f87171', '#806d50', '#f472b6', '#94a3b8'];
 
 function gwrap(canvases, titulo, srId, alto) {
   const cv = (Array.isArray(canvases) ? canvases : [canvases])
@@ -1307,11 +1307,11 @@ async function initCharts() {
 
   mk('gch-hist', { type: 'bar', data: { labels: meses, datasets: [
     ...teams.map(t => ({ label: sigla(TEAM_LBL[t]), data: hs.map(h => h.equipes?.[t]?.vendas || 0), backgroundColor: TEAM_CORES[t], stack: 'v' })),
-    { type: 'line', label: 'VGV total (R$)', data: hs.map(h => h.total?.vgv || 0), borderColor: '#38bdf8', backgroundColor: '#38bdf8', yAxisID: 'y2', tension: .3 },
+    { type: 'line', label: 'VGV total (R$)', data: hs.map(h => h.total?.vgv || 0), borderColor: '#806d50', backgroundColor: '#806d50', yAxisID: 'y2', tension: .3 },
   ] }, options: base({ scales: sc(true) }) });
 
   mk('gch-leads', { type: 'bar', data: { labels: meses, datasets: [
-    { label: 'Leads', data: hs.map(h => h.total?.leads || 0), backgroundColor: '#60a5fa' },
+    { label: 'Leads', data: hs.map(h => h.total?.leads || 0), backgroundColor: '#806d50' },
     { type: 'line', label: 'Spend Meta (R$)', data: hs.map(h => h.total?.spend || 0), borderColor: '#f59e0b', backgroundColor: '#f59e0b', yAxisID: 'y2', tension: .3 },
   ] }, options: base({ scales: sc(true) }) });
 
@@ -1325,7 +1325,7 @@ async function initCharts() {
   mk('gch-fontes', { type: 'doughnut', data: { labels: fg.map(f => f.label), datasets: [{ data: fg.map(f => f.leads), backgroundColor: CORES8 }] },
     options: base({ plugins: { legend: { position: 'right', labels: { color: ink, font: { size: 10 }, boxWidth: 10 } } } }) });
   mk('gch-fontes-conv', { type: 'bar', data: { labels: fg.map(f => f.label), datasets: [
-    { label: '%→Visita', data: fg.map(f => f.pc_visita || 0), backgroundColor: '#60a5fa' },
+    { label: '%→Visita', data: fg.map(f => f.pc_visita || 0), backgroundColor: '#806d50' },
     { label: '%→Venda', data: fg.map(f => f.pc_venda || 0), backgroundColor: '#22c55e' },
   ] }, options: base({ indexAxis: 'y', scales: sc() }) });
 

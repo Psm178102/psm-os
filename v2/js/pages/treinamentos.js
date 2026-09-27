@@ -25,7 +25,7 @@ const PRES = {
   justificado: { l: 'Justificou', c: '#6366f1' },
 };
 const EST = {
-  agendado:  { l: 'Agendado',           c: '#0ea5e9', ico: '📅' },
+  agendado:  { l: 'Agendado',           c: '#806d50', ico: '📅' },
   hoje:      { l: 'É hoje',             c: '#f59e0b', ico: '🔔' },
   chamada:   { l: 'Aguardando chamada', c: '#dc2626', ico: '⏳' },
   realizado: { l: 'Realizado',          c: '#16a34a', ico: '✅' },
@@ -106,82 +106,82 @@ function toast(txt) {
 const CSS = `<style>
 .trn{--trn-acc:#0d9488}
 .trn-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px}
-.trn-h1{font-size:22px;font-weight:800;letter-spacing:-.01em;line-height:1.2}
+.trn-h1{font-size:20px;font-weight:600;letter-spacing:-.01em;line-height:1.2}
 .trn-tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:14px;overflow-x:auto}
-.trn-tab{background:none;border:0;border-bottom:2px solid transparent;padding:9px 13px;font-weight:700;font-size:13px;color:var(--ink-muted);cursor:pointer;white-space:nowrap}
-.trn-tab.on{color:var(--ink);border-bottom-color:var(--trn-acc,#0d9488)}
+.trn-tab{background:none;border:0;border-bottom:2px solid transparent;padding:9px 13px;font-weight:600;font-size:13px;color:var(--ink-muted);cursor:pointer;white-space:nowrap}
+.trn-tab.on{color:var(--ink);border-bottom-color:var(--trn-acc,var(--ok))}
 .trn-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
-.trn-kpi{background:var(--bg-2);border:1px solid var(--border);border-top:3px solid var(--border);border-radius:12px;padding:10px 13px}
-.trn-kpi b{display:block;font-size:22px;font-weight:800;line-height:1.15;margin-top:3px}
+.trn-kpi{background:var(--bg-2);border:1px solid var(--border);border-top:3px solid var(--border);border-radius:var(--radius-md);padding:10px 13px}
+.trn-kpi b{display:block;font-size:20px;font-weight:600;line-height:1.15;margin-top:3px}
 .trn-filtros{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
-.trn-sec-t{font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-muted);margin:18px 2px 8px}
-.trn-card{display:flex;gap:12px;align-items:center;background:var(--bg-2);border:1px solid var(--border);border-left:4px solid var(--c,#0ea5e9);border-radius:12px;padding:11px 13px;cursor:pointer;transition:transform .12s,box-shadow .12s;margin-bottom:8px}
+.trn-sec-t{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-muted);margin:18px 2px 8px}
+.trn-card{display:flex;gap:12px;align-items:center;background:var(--bg-2);border:1px solid var(--border);border-left:4px solid var(--c,var(--accent-ink));border-radius:var(--radius-md);padding:11px 13px;cursor:pointer;transition:transform .12s,box-shadow .12s;margin-bottom:8px}
 .trn-card:hover{transform:translateY(-1px);box-shadow:var(--shadow-md,0 6px 18px rgba(0,0,0,.12))}
 .trn-card-acao{background:color-mix(in srgb,#dc2626 7%,var(--bg-2))}
-.trn-date{flex:0 0 52px;text-align:center;border-radius:10px;background:var(--bg-3);padding:6px 0;line-height:1.05}
-.trn-date .d{font-size:20px;font-weight:900}
-.trn-date .m{font-size:10.5px;font-weight:800;text-transform:uppercase;color:var(--ink-muted)}
-.trn-date .w{font-size:10px;color:var(--ink-muted)}
+.trn-date{flex:0 0 52px;text-align:center;border-radius:var(--radius-md);background:var(--bg-3);padding:6px 0;line-height:1.05}
+.trn-date .d{font-size:20px;font-weight:600}
+.trn-date .m{font-size:11px;font-weight:600;text-transform:uppercase;color:var(--ink-muted)}
+.trn-date .w{font-size:11px;color:var(--ink-muted)}
 .trn-date.lg{flex-basis:74px;padding:10px 0}
-.trn-date.lg .d{font-size:30px}
+.trn-date.lg .d{font-size:26px}
 .trn-main{flex:1;min-width:0}
-.trn-t{font-weight:800;font-size:14.5px;line-height:1.25;overflow:hidden;text-overflow:ellipsis}
+.trn-t{font-weight:600;font-size:14px;line-height:1.25;overflow:hidden;text-overflow:ellipsis}
 .trn-chips{display:flex;gap:5px;flex-wrap:wrap;margin:5px 0}
-.trn-chip{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--bg-3);color:var(--ink-muted);white-space:nowrap}
+.trn-chip{font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-full);background:var(--bg-3);color:var(--ink-muted);white-space:nowrap}
 .trn-side{text-align:right;flex:0 0 auto}
-.trn-big{font-size:20px;font-weight:900;line-height:1}
-.trn-bar{height:6px;background:var(--bg-3);border-radius:99px;overflow:hidden;width:110px;margin-top:3px}
+.trn-big{font-size:20px;font-weight:600;line-height:1}
+.trn-bar{height:6px;background:var(--bg-3);border-radius:var(--radius-full);overflow:hidden;width:110px;margin-top:3px}
 .trn-bar i{display:block;height:100%}
-.trn-row{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:10px;cursor:pointer}
+.trn-row{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:var(--radius-md);cursor:pointer}
 .trn-row:hover{background:var(--bg-3)}
-.trn-row-d{font-weight:800;font-size:12px;min-width:44px;color:var(--ink-muted)}
-.trn-vazio{padding:22px;text-align:center;color:var(--ink-muted);font-size:13px;border:1px dashed var(--border);border-radius:12px}
-.trn-hero{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;background:var(--bg-2);border:1px solid var(--border);border-left:5px solid var(--c);border-radius:14px;padding:16px}
-.trn-h2{font-size:21px;font-weight:800;margin:2px 0 0;line-height:1.2}
-.trn-state{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
-.trn-meta{display:flex;gap:6px 14px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-muted);margin-top:6px}
+.trn-row-d{font-weight:600;font-size:12px;min-width:44px;color:var(--ink-muted)}
+.trn-vazio{padding:22px;text-align:center;color:var(--ink-muted);font-size:13px;border:1px dashed var(--border);border-radius:var(--radius-md)}
+.trn-hero{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;background:var(--bg-2);border:1px solid var(--border);border-left:5px solid var(--c);border-radius:var(--radius-lg);padding:16px}
+.trn-h2{font-size:20px;font-weight:600;margin:2px 0 0;line-height:1.2}
+.trn-state{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em}
+.trn-meta{display:flex;gap:6px 14px;flex-wrap:wrap;font-size:13px;color:var(--ink-muted);margin-top:6px}
 .trn-act{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;margin-left:auto}
 .trn-grid2{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:14px;margin-top:14px;align-items:start}
 .trn-sec{padding:14px;margin-bottom:12px}
-.trn-sec h4{margin:0 0 8px;font-size:13.5px;font-weight:800}
+.trn-sec h4{margin:0 0 8px;font-size:13px;font-weight:600}
 .trn-p{display:flex;gap:10px;align-items:center;padding:9px 2px;border-top:1px solid var(--border);flex-wrap:wrap}
-.trn-av{width:32px;height:32px;border-radius:50%;background:var(--bg-3);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex:0 0 auto}
-.trn-seg{display:inline-flex;border:1px solid var(--border);border-radius:9px;overflow:hidden;flex-wrap:wrap}
-.trn-seg button{background:transparent;border:0;padding:6px 11px;font-size:12px;font-weight:700;color:var(--ink-muted);cursor:pointer;border-right:1px solid var(--border)}
+.trn-av{width:32px;height:32px;border-radius:50%;background:var(--bg-3);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex:0 0 auto}
+.trn-seg{display:inline-flex;border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;flex-wrap:wrap}
+.trn-seg button{background:transparent;border:0;padding:6px 11px;font-size:12px;font-weight:600;color:var(--ink-muted);cursor:pointer;border-right:1px solid var(--border)}
 .trn-seg button:last-child{border-right:0}
-.trn-seg button.on{color:#fff;background:var(--c,#0d9488)}
+.trn-seg button.on{color:var(--err);background:var(--c,#0d9488)}
 .trn-foot{border-top:1px solid var(--border);padding-top:12px;margin-top:10px}
 .trn-mat{display:block;font-size:13px;padding:6px 0;border-bottom:1px solid var(--border);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .trn-modal-bg{position:fixed;inset:0;background:rgba(2,6,23,.62);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:22px 10px;overflow:auto}
-.trn-modal{background:var(--bg-1);border:1px solid var(--border);border-radius:16px;max-width:760px;width:100%;box-shadow:var(--shadow-lg,0 20px 60px rgba(0,0,0,.35));margin:auto 0}
+.trn-modal{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius-lg);max-width:760px;width:100%;box-shadow:var(--shadow-lg,0 20px 60px rgba(0,0,0,.35));margin:auto 0}
 .trn-modal-h,.trn-modal-f{display:flex;align-items:center;gap:10px;padding:14px 18px}
 .trn-modal-h{border-bottom:1px solid var(--border)}
 .trn-modal-f{border-top:1px solid var(--border);position:sticky;bottom:0;background:var(--bg-1);border-radius:0 0 16px 16px;flex-wrap:wrap}
 .trn-modal-b{padding:4px 18px 10px}
 .trn-fs{padding:12px 0;border-bottom:1px dashed var(--border)}
 .trn-fs:last-child{border-bottom:0}
-.trn-fs-t{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:#0d9488;margin-bottom:8px}
+.trn-fs-t{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--err);margin-bottom:8px}
 .trn-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px}
-.trn-l{display:block;font-size:11.5px;color:var(--ink-muted);margin:0 0 3px;font-weight:600}
+.trn-l{display:block;font-size:11px;color:var(--ink-muted);margin:0 0 3px;font-weight:600}
 .trn-check{display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;cursor:pointer}
-.trn-pchip{display:inline-flex;align-items:center;gap:4px;background:var(--bg-3);border-radius:999px;padding:3px 4px 3px 10px;font-size:12px;margin:0 5px 5px 0}
+.trn-pchip{display:inline-flex;align-items:center;gap:4px;background:var(--bg-3);border-radius:var(--radius-full);padding:3px 4px 3px 10px;font-size:12px;margin:0 5px 5px 0}
 .trn-pchip button{background:none;border:0;color:var(--ink-muted);cursor:pointer;font-size:12px;padding:0 5px}
-.trn-sug{border:1px solid var(--border);border-radius:10px;max-height:200px;overflow:auto;margin-top:4px;background:var(--bg-1)}
+.trn-sug{border:1px solid var(--border);border-radius:var(--radius-md);max-height:200px;overflow:auto;margin-top:4px;background:var(--bg-1)}
 .trn-sug div{padding:7px 10px;cursor:pointer;font-size:13px}
 .trn-sug div:hover{background:var(--bg-3)}
 .trn-cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
-.trn-cal-h{font-size:10.5px;font-weight:800;text-transform:uppercase;color:var(--ink-muted);text-align:center;padding:4px 0}
-.trn-cal-d{min-height:88px;background:var(--bg-2);border:1px solid var(--border);border-radius:9px;padding:5px;font-size:11px;cursor:default}
+.trn-cal-h{font-size:11px;font-weight:600;text-transform:uppercase;color:var(--ink-muted);text-align:center;padding:4px 0}
+.trn-cal-d{min-height:88px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:5px;font-size:11px;cursor:default}
 .trn-cal-d.fora{background:transparent;border-style:dashed;opacity:.35}
-.trn-cal-d.hj{outline:2px solid #0d9488}
+.trn-cal-d.hj{outline:2px solid var(--ok)}
 .trn-cal-d.add{cursor:copy}
-.trn-cal-n{font-weight:800;font-size:11px;color:var(--ink-muted)}
-.trn-cal-e{display:block;border-radius:5px;padding:2px 5px;margin-top:3px;color:#fff;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.trn-cal-n{font-weight:600;font-size:11px;color:var(--ink-muted)}
+.trn-cal-e{display:block;border-radius:var(--radius-sm);padding:2px 5px;margin-top:3px;color:var(--err);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
 .trn-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:3px}
 .trn-oo-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px}
-.trn-oo-sub{font-weight:800;font-size:13px;margin-bottom:8px}
-.trn-diag{border:1px solid var(--border);border-left:4px solid #dc2626;border-radius:10px;padding:10px 12px;margin-bottom:8px;background:var(--bg-2)}
-.trn-rank{display:inline-block;background:#dc2626;color:#fff;border-radius:6px;font-size:10px;font-weight:900;padding:1px 6px}
+.trn-oo-sub{font-weight:600;font-size:13px;margin-bottom:8px}
+.trn-diag{border:1px solid var(--border);border-left:4px solid var(--err);border-radius:var(--radius-md);padding:10px 12px;margin-bottom:8px;background:var(--bg-2)}
+.trn-rank{display:inline-block;background:var(--err-soft);color:var(--err);border-radius:var(--radius-sm);font-size:11px;font-weight:600;padding:1px 6px}
 @media (max-width:860px){.trn-grid2,.trn-oo-grid{grid-template-columns:1fr}.trn-act{margin-left:0}}
 </style>`;
 
@@ -231,8 +231,8 @@ function chips(t, { estadoChip = false } = {}) {
   return `<div class="trn-chips">
     ${estadoChip ? `<span class="trn-chip" style="background:${e.c}22;color:${e.c}">${e.ico} ${e.l}</span>` : ''}
     ${t.formato === 'individual' ? '<span class="trn-chip" style="background:#d6249f22;color:#d6249f">👤 Individual</span>' : ''}
-    ${t.obrigatorio ? '<span class="trn-chip" style="background:#dc262622;color:#dc2626">❗ Obrigatório</span>' : ''}
-    ${h ? `<span class="trn-chip" style="background:#0d948822;color:#0d9488">${h.ico} ${esc(h.nome)}</span>` : ''}
+    ${t.obrigatorio ? '<span class="trn-chip" style="background:var(--err-soft);color:var(--err)">❗ Obrigatório</span>' : ''}
+    ${h ? `<span class="trn-chip" style="background:var(--ok-soft);color:var(--ok)">${h.ico} ${esc(h.nome)}</span>` : ''}
     ${t.equipe ? `<span class="trn-chip">${esc(t.equipe)}</span>` : ''}
     ${t.modalidade ? `<span class="trn-chip">${t.modalidade === 'online' ? '💻 Online' : '📍 Presencial'}</span>` : ''}
   </div>`;
@@ -289,7 +289,7 @@ function cardProx(t) {
     <div class="trn-main"><div class="trn-t">${esc(t.titulo)}</div>${chips(t)}<div class="tiny muted">${metaLinha(t)}</div></div>
     <div class="trn-side">
       <div class="trn-big">${n}</div><div class="tiny muted">convocado${n === 1 ? '' : 's'}</div>
-      <div class="tiny" style="margin-top:3px"><span style="color:#16a34a">✓ ${conf}</span>${nv ? ` · <span style="color:#dc2626">✗ ${nv}</span>` : ''}</div>
+      <div class="tiny" style="margin-top:3px"><span style="color:var(--ok)">✓ ${conf}</span>${nv ? ` · <span style="color:var(--err)">✗ ${nv}</span>` : ''}</div>
     </div>
   </div>`;
 }
@@ -306,9 +306,9 @@ function linhaRealizado(t) {
   const pct = n ? Math.round(pres / n * 100) : 0, cor = pct >= 85 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626';
   return `<div class="trn-row" data-open="${esc(t.id)}">
     <div class="trn-row-d">${fmtData(t.data)}</div>
-    <div style="flex:1;min-width:0"><div class="trn-t" style="font-size:13.5px">${esc(t.titulo)}</div>${chips(t)}</div>
+    <div style="flex:1;min-width:0"><div class="trn-t" style="font-size:13px">${esc(t.titulo)}</div>${chips(t)}</div>
     ${t.status === 'cancelado'
-      ? `<span class="tiny" style="color:#94a3b8">🚫 cancelado</span>`
+      ? `<span class="tiny" style="color:var(--ink-muted)">🚫 cancelado</span>`
       : `<div style="text-align:right"><div class="tiny"><b>${pres}/${n}</b> presentes</div><div class="trn-bar"><i style="width:${pct}%;background:${cor}"></i></div></div>`}
   </div>`;
 }
@@ -331,7 +331,7 @@ function renderGeral(host) {
   host.innerHTML = `
     <div class="trn-kpis">
       ${kpi('⏳', 'Aguardando chamada', aguard, aguard ? '#dc2626' : '')}
-      ${kpi('📅', 'Próximos 30 dias', ts.filter(t => estado(t) === 'agendado' && d10(t.data) <= d30).length, '#0ea5e9')}
+      ${kpi('📅', 'Próximos 30 dias', ts.filter(t => estado(t) === 'agendado' && d10(t.data) <= d30).length, '#806d50')}
       ${kpi('✅', 'Realizados no mês', ts.filter(t => t.status === 'realizado' && d10(t.data) >= mesIni).length, '#16a34a')}
       ${kpi('👥', 'Presença · 90 dias', tot ? Math.round(pres / tot * 100) + '%' : '—', '#7c3aed')}
       ${kpi('❗', 'Faltas em obrigatórios', faltas, faltas ? '#dc2626' : '')}
@@ -369,7 +369,7 @@ function renderCalendario(host) {
   host.innerHTML = `
     <div class="flex items-center gap-2" style="margin-bottom:10px;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" id="cal-prev" aria-label="Mês anterior">‹</button>
-      <b style="min-width:150px;text-align:center;font-size:15px">${MESES_L[m]} ${y}</b>
+      <b style="min-width:150px;text-align:center;font-size:14px">${MESES_L[m]} ${y}</b>
       <button class="btn btn-ghost btn-sm" id="cal-next" aria-label="Próximo mês">›</button>
       <button class="btn btn-ghost btn-sm" id="cal-hoje">Hoje</button>
       ${_d.admin ? '<span class="tiny muted" style="margin-left:auto">Clique num dia pra agendar.</span>' : ''}
@@ -395,8 +395,8 @@ function meusTreinos() {
 }
 function confirmBox(t) {
   const c = t.eu && t.eu.confirmacao;
-  if (c === 'confirmado') return `<div class="tiny" style="color:#16a34a;font-weight:800">✓ Você confirmou</div><button class="btn btn-ghost btn-sm mt-1" data-conf="nao_vai" data-id="${esc(t.id)}">Não vou poder</button>`;
-  if (c === 'nao_vai') return `<div class="tiny" style="color:#dc2626;font-weight:800">✗ Você avisou que não vai</div><button class="btn btn-ghost btn-sm mt-1" data-conf="confirmado" data-id="${esc(t.id)}">Vou sim</button>`;
+  if (c === 'confirmado') return `<div class="tiny" style="color:var(--ok);font-weight:600">✓ Você confirmou</div><button class="btn btn-ghost btn-sm mt-1" data-conf="nao_vai" data-id="${esc(t.id)}">Não vou poder</button>`;
+  if (c === 'nao_vai') return `<div class="tiny" style="color:var(--err);font-weight:600">✗ Você avisou que não vai</div><button class="btn btn-ghost btn-sm mt-1" data-conf="confirmado" data-id="${esc(t.id)}">Vou sim</button>`;
   return `<div class="flex gap-1" style="justify-content:flex-end;flex-wrap:wrap"><button class="btn btn-primary btn-sm" data-conf="confirmado" data-id="${esc(t.id)}">✓ Vou</button><button class="btn btn-ghost btn-sm" data-conf="nao_vai" data-id="${esc(t.id)}">Não vou</button></div>`;
 }
 function bindConfirmar(host, depois) {
@@ -418,14 +418,14 @@ function cardMeu(t) {
   return `<div class="trn-card" style="--c:${e.c}" data-open="${esc(t.id)}">
     ${dataBox(t.data)}
     <div class="trn-main"><div class="trn-t">${esc(t.titulo)}</div>${chips(t)}<div class="tiny muted">${metaLinha(t)}</div></div>
-    <div class="trn-side">${instrutor ? '<span class="trn-chip" style="background:#0d948822;color:#0d9488">🎤 Você ministra</span>' : (t.eu ? confirmBox(t) : '')}</div>
+    <div class="trn-side">${instrutor ? '<span class="trn-chip" style="background:var(--ok-soft);color:var(--ok)">🎤 Você ministra</span>' : (t.eu ? confirmBox(t) : '')}</div>
   </div>`;
 }
 function linhaMinha(t) {
   const p = t.eu, pr = p && p.presenca ? PRES[p.presenca] : null;
   return `<div class="trn-row" data-open="${esc(t.id)}">
     <div class="trn-row-d">${fmtData(t.data)}</div>
-    <div style="flex:1;min-width:0"><div class="trn-t" style="font-size:13.5px">${esc(t.titulo)}</div>${chips(t)}</div>
+    <div style="flex:1;min-width:0"><div class="trn-t" style="font-size:13px">${esc(t.titulo)}</div>${chips(t)}</div>
     ${pr ? `<span class="trn-chip" style="background:${pr.c}22;color:${pr.c}">${pr.l}</span>` : '<span class="tiny muted">—</span>'}
     <span class="tiny muted" style="min-width:42px;text-align:right">${fmtHoras(cargaMin(t))}</span>
   </div>`;
@@ -436,7 +436,7 @@ function formacaoCard() {
   if (!podeAbrir('/formacao')) return '';
   return `<div class="trn-sec-t">📚 Mais formação</div>
     <a class="trn-card" href="#/formacao" style="--c:#7c3aed;text-decoration:none;color:inherit">
-      <div class="trn-date" style="font-size:24px;padding:10px 0">📚</div>
+      <div class="trn-date" style="font-size:26px;padding:10px 0">📚</div>
       <div class="trn-main"><div class="trn-t">Formação PSM · Kiwify</div><div class="tiny muted">Onboarding, tutoriais, mercado básico, mentorias e MCMV na plataforma externa.</div></div>
       <span class="tiny muted">Abrir →</span>
     </a>`;
@@ -454,7 +454,7 @@ function renderMeus(host) {
   const instr = ts.filter(t => estado(t) === 'chamada' && t.instrutor_id === me);
   host.innerHTML = `
     <div class="trn-kpis">
-      ${kpi('📅', 'Próximos', prox.length, '#0ea5e9')}
+      ${kpi('📅', 'Próximos', prox.length, '#806d50')}
       ${kpi('⏱', `Horas de treino em ${ano}`, fmtHoras(horas), '#0d9488')}
       ${kpi('👥', 'Sua presença', real.length ? Math.round(presN / real.length * 100) + '%' : '—', '#7c3aed')}
       ${kpi('❗', 'Obrigatórios perdidos', pend.length, pend.length ? '#dc2626' : '')}
@@ -586,8 +586,8 @@ function painelParticipantes(t, ps) {
   const semZoho = g && futuro ? ps.filter(p => !zoho.has(p.user_id)).length : 0;
   const resumo = (t.status === 'realizado' || marcou)
     ? `<b>${pres}</b> de ${ps.length} presentes`
-    : `${ps.length} convocado${ps.length === 1 ? '' : 's'} · <span style="color:#16a34a">✓ ${conf} confirmou</span>${nv ? ` · <span style="color:#dc2626">✗ ${nv} não vai</span>` : ''}`;
-  const aviso = g && st === 'chamada' ? '<div class="tiny" style="margin:6px 0;color:#dc2626">⏳ O treino já passou — falta a chamada pra fechar.</div>' : '';
+    : `${ps.length} convocado${ps.length === 1 ? '' : 's'} · <span style="color:var(--ok)">✓ ${conf} confirmou</span>${nv ? ` · <span style="color:var(--err)">✗ ${nv} não vai</span>` : ''}`;
+  const aviso = g && st === 'chamada' ? '<div class="tiny" style="margin:6px 0;color:var(--err)">⏳ O treino já passou — falta a chamada pra fechar.</div>' : '';
   return `<div class="flex items-center" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><h4 style="margin:0">👥 ${g ? 'Participantes' : 'Sua participação'}</h4>${g ? `<span class="tiny muted">${resumo}</span>` : ''}</div>
     ${aviso}
     ${semZoho ? `<div class="tiny muted" style="margin:6px 0">📵 ${semZoho} sem Zoho conectado — recebem pela agenda do House e pelo sino.</div>` : ''}
@@ -596,12 +596,12 @@ function painelParticipantes(t, ps) {
 }
 function linhaPart(p, temZoho, futuro, gerir) {
   const pr = p.presenca ? PRES[p.presenca] : null;
-  const c = p.confirmacao === 'confirmado' ? '<span class="tiny" style="color:#16a34a">✓ confirmou</span>'
-    : p.confirmacao === 'nao_vai' ? `<span class="tiny" style="color:#dc2626">✗ não vai${p.confirmacao_motivo ? ': ' + esc(p.confirmacao_motivo) : ''}</span>`
+  const c = p.confirmacao === 'confirmado' ? '<span class="tiny" style="color:var(--ok)">✓ confirmou</span>'
+    : p.confirmacao === 'nao_vai' ? `<span class="tiny" style="color:var(--err)">✗ não vai${p.confirmacao_motivo ? ': ' + esc(p.confirmacao_motivo) : ''}</span>`
     : (futuro ? '<span class="tiny muted">sem resposta</span>' : '');
   return `<div class="trn-p">
     <div class="trn-av">${esc(ini(p.nome))}</div>
-    <div style="flex:1;min-width:120px"><div style="font-weight:700;font-size:13px">${esc(p.nome || p.user_id)}</div><div>${c}${gerir && futuro && !temZoho ? ' <span class="tiny muted" title="Sem Zoho conectado">· 📵 sem Zoho</span>' : ''}</div></div>
+    <div style="flex:1;min-width:120px"><div style="font-weight:600;font-size:13px">${esc(p.nome || p.user_id)}</div><div>${c}${gerir && futuro && !temZoho ? ' <span class="tiny muted" title="Sem Zoho conectado">· 📵 sem Zoho</span>' : ''}</div></div>
     ${pr ? `<span class="trn-chip" style="background:${pr.c}22;color:${pr.c}">${pr.l}${p.presenca_obs ? ' · ' + esc(p.presenca_obs) : ''}</span>` : ''}
   </div>`;
 }
@@ -622,7 +622,7 @@ function painelChamada(t, ps) {
       <label class="trn-l" for="ch-obs" style="margin-top:8px">Observação do instrutor (opcional)</label>
       <textarea class="input" id="ch-obs" rows="2" placeholder="Como foi, o que ficou de tarefa, quem se destacou…">${esc(_chamada.observacao || '')}</textarea>
       <div class="flex items-center gap-2" style="margin-top:10px;flex-wrap:wrap">
-        <span class="tiny" id="ch-status" style="font-weight:700;color:${falta ? '#d97706' : '#16a34a'}">${falta ? `Falta marcar ${falta}` : 'Chamada completa ✓'}</span>
+        <span class="tiny" id="ch-status" style="font-weight:600;color:${falta ? 'var(--warn)' : 'var(--ok)'}">${falta ? `Falta marcar ${falta}` : 'Chamada completa ✓'}</span>
         <span style="flex:1"></span>
         <button class="btn btn-ghost" id="ch-cancel">Cancelar</button>
         ${realizado ? '' : '<button class="btn btn-ghost" id="ch-rascunho">💾 Salvar rascunho</button>'}
@@ -635,7 +635,7 @@ function linhaChamada(p) {
   const v = _chamada.p[p.user_id] || {};
   return `<div class="trn-p" data-ch="${esc(p.user_id)}">
     <div class="trn-av">${esc(ini(p.nome))}</div>
-    <div style="flex:1;min-width:120px"><div style="font-weight:700;font-size:13px">${esc(p.nome || p.user_id)}</div>${p.confirmacao === 'nao_vai' ? `<div class="tiny" style="color:#dc2626">avisou que não ia${p.confirmacao_motivo ? ': ' + esc(p.confirmacao_motivo) : ''}</div>` : ''}</div>
+    <div style="flex:1;min-width:120px"><div style="font-weight:600;font-size:13px">${esc(p.nome || p.user_id)}</div>${p.confirmacao === 'nao_vai' ? `<div class="tiny" style="color:var(--err)">avisou que não ia${p.confirmacao_motivo ? ': ' + esc(p.confirmacao_motivo) : ''}</div>` : ''}</div>
     <div class="trn-seg" role="group" aria-label="Presença de ${esc(p.nome || '')}">${Object.entries(PRES).map(([k, x]) => `<button type="button" data-pr="${k}" class="${v.presenca === k ? 'on' : ''}" style="--c:${x.c}">${x.l}</button>`).join('')}</div>
     <input class="input" data-obs placeholder="observação (opcional)" value="${esc(v.obs || '')}" style="${v.presenca && v.presenca !== 'presente' ? '' : 'display:none;'}flex:1 1 100%">
   </div>`;
@@ -904,13 +904,13 @@ export async function openTreinoEditor(seed = {}, onSaved) {
 function itemDiag(it, i, podeAgendar, treinado) {
   const hb = it.hab;
   const evid = it.taxa != null
-    ? `${esc(it.etapa)}: <b style="color:#dc2626">${pctTxt(it.taxa)}</b>${it.ref != null ? ` <span class="muted">· ${esc(it.refLbl || 'média da equipe')}</span> <b>${pctTxt(it.ref)}</b>` : ''}`
-    : `${esc(it.etapa)}: <b style="color:#dc2626">${esc(it.texto || '')}</b>`;
-  return `<div class="trn-diag"${i ? ' style="border-left-color:#f59e0b"' : ''}>
-    <div class="flex items-center gap-1" style="flex-wrap:wrap"><span class="trn-rank"${i ? ' style="background:#f59e0b"' : ''}>${i + 1}º</span> <span style="font-size:15px">${hb.ico}</span> <b>${esc(hb.nome)}</b></div>
+    ? `${esc(it.etapa)}: <b style="color:var(--err)">${pctTxt(it.taxa)}</b>${it.ref != null ? ` <span class="muted">· ${esc(it.refLbl || 'média da equipe')}</span> <b>${pctTxt(it.ref)}</b>` : ''}`
+    : `${esc(it.etapa)}: <b style="color:var(--err)">${esc(it.texto || '')}</b>`;
+  return `<div class="trn-diag"${i ? ' style="border-left-color:var(--warn)"' : ''}>
+    <div class="flex items-center gap-1" style="flex-wrap:wrap"><span class="trn-rank"${i ? ' style="background:var(--warn-soft)"' : ''}>${i + 1}º</span> <span style="font-size:14px">${hb.ico}</span> <b>${esc(hb.nome)}</b></div>
     <div class="tiny" style="margin-top:4px">${evid}</div>
-    ${it.vendas != null && it.vendas >= 0.05 ? `<div class="tiny" style="margin-top:2px;color:#16a34a">≈ +${fmt1(it.vendas)} ${it.vendas >= 2 ? 'vendas' : 'venda'} no período se chegar no nível da equipe${it.vgv ? ` (≈ R$ ${(Number(it.vgv) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})` : ''}</div>` : ''}
-    ${treinado ? `<div class="tiny" style="margin-top:2px;color:#0d9488">✔ Treinou isso em ${fmtData(treinado.data)} — acompanhe se a taxa sobe.</div>` : ''}
+    ${it.vendas != null && it.vendas >= 0.05 ? `<div class="tiny" style="margin-top:2px;color:var(--ok)">≈ +${fmt1(it.vendas)} ${it.vendas >= 2 ? 'vendas' : 'venda'} no período se chegar no nível da equipe${it.vgv ? ` (≈ R$ ${(Number(it.vgv) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})` : ''}</div>` : ''}
+    ${treinado ? `<div class="tiny" style="margin-top:2px;color:var(--ok)">✔ Treinou isso em ${fmtData(treinado.data)} — acompanhe se a taxa sobe.</div>` : ''}
     <div class="flex items-center gap-2" style="margin-top:6px;flex-wrap:wrap">
       ${hb.trilha ? `<a class="tiny" href="#/academy">📚 ${esc(hb.trilha)} › ${esc(hb.modulo)}</a>` : ''}
       ${podeAgendar ? `<button class="btn btn-ghost btn-sm" data-tr-hab="${i}" style="margin-left:auto">🎓 Agendar treino individual</button>` : ''}
@@ -963,8 +963,8 @@ export async function montarBlocoOO(host, { det, gestor }) {
             ${kpi('⏱', 'Horas ' + ano, fmtHoras(horas), '#0d9488')}
             ${kpi('❗', 'Faltas obrig.', faltasOb, faltasOb ? '#dc2626' : '')}
           </div>
-          ${prox.length ? `<div class="tiny muted" style="margin:6px 2px 4px;font-weight:800;letter-spacing:.06em">PRÓXIMOS</div>${prox.slice(0, 3).map(t => `<div class="trn-row" data-open="${esc(t.id)}"><div class="trn-row-d">${fmtData(t.data)}</div><div class="trn-t" style="flex:1;min-width:0;font-size:13px">${esc(t.titulo)}</div>${t.formato === 'individual' ? '<span class="trn-chip">👤 individual</span>' : ''}</div>`).join('')}` : ''}
-          <div class="tiny muted" style="margin:8px 2px 4px;font-weight:800;letter-spacing:.06em">ÚLTIMOS</div>
+          ${prox.length ? `<div class="tiny muted" style="margin:6px 2px 4px;font-weight:600;letter-spacing:.06em">PRÓXIMOS</div>${prox.slice(0, 3).map(t => `<div class="trn-row" data-open="${esc(t.id)}"><div class="trn-row-d">${fmtData(t.data)}</div><div class="trn-t" style="flex:1;min-width:0;font-size:13px">${esc(t.titulo)}</div>${t.formato === 'individual' ? '<span class="trn-chip">👤 individual</span>' : ''}</div>`).join('')}` : ''}
+          <div class="tiny muted" style="margin:8px 2px 4px;font-weight:600;letter-spacing:.06em">ÚLTIMOS</div>
           ${real.length ? real.slice(0, 5).map(linhaMinha).join('') : '<div class="tiny muted" style="padding:4px 2px">Nenhum treino realizado ainda.</div>'}
           <a class="tiny" href="#/rh-treinamentos" style="display:inline-block;margin-top:6px">Ver todos os treinamentos →</a>
         </div>

@@ -65,7 +65,7 @@ function render() {
       </p>
 
       <div class="flex gap-3 items-center mt-3" style="padding:10px;background:var(--bg-3);border-radius:var(--r-sm);flex-wrap:wrap">
-        <label class="tiny muted" style="font-weight:700;letter-spacing:1px">PERÍODO:</label>
+        <label class="tiny muted" style="font-weight:600;letter-spacing:1px">PERÍODO:</label>
         ${[7, 30, 90].map(d => `
           <button class="btn ${d === _dias ? 'btn-primary' : 'btn-ghost'} f-dias" data-d="${d}" style="padding:5px 14px;font-size:12px">${d} dias</button>
         `).join('')}
@@ -91,7 +91,7 @@ function render() {
         <p class="tiny muted">Login ativo, mas nenhum acesso no período. Esta é a lista que responde "quem não está usando".</p>
         <div style="display:grid;gap:6px;margin-top:8px">
           ${fantasmas.map(f => `
-            <div style="display:flex;gap:10px;align-items:center;padding:8px 12px;background:var(--bg-3);border-left:3px solid var(--err-forte);border-radius:var(--r-sm);font-size:12.5px">
+            <div style="display:flex;gap:10px;align-items:center;padding:8px 12px;background:var(--bg-3);border-left:3px solid var(--err-forte);border-radius:var(--r-sm);font-size:13px">
               <b>${esc(f.name)}</b>
               <span class="tiny muted">${esc(f.role)}</span>
               <span class="tiny" style="margin-left:auto;color:var(--ink-muted)">
@@ -133,15 +133,15 @@ function tabela(pessoas) {
   }
   return `
     <div style="overflow-x:auto;margin-top:8px">
-      <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead>
           <tr style="text-align:left;color:var(--ink-muted)">
-            <th style="padding:6px 8px;font-size:10.5px;letter-spacing:1px">PESSOA</th>
-            <th style="padding:6px 8px;font-size:10.5px;letter-spacing:1px;text-align:right">LOGINS</th>
-            <th style="padding:6px 8px;font-size:10.5px;letter-spacing:1px;text-align:right">TEMPO REAL DE TELA</th>
-            <th style="padding:6px 8px;font-size:10.5px;letter-spacing:1px;text-align:right">MÉDIA/LOGIN</th>
-            <th style="padding:6px 8px;font-size:10.5px;letter-spacing:1px;text-align:right">DIAS</th>
-            <th style="padding:6px 8px;font-size:10.5px;letter-spacing:1px">ÚLTIMO SINAL</th>
+            <th style="padding:6px 8px;font-size:11px;letter-spacing:1px">PESSOA</th>
+            <th style="padding:6px 8px;font-size:11px;letter-spacing:1px;text-align:right">LOGINS</th>
+            <th style="padding:6px 8px;font-size:11px;letter-spacing:1px;text-align:right">TEMPO REAL DE TELA</th>
+            <th style="padding:6px 8px;font-size:11px;letter-spacing:1px;text-align:right">MÉDIA/LOGIN</th>
+            <th style="padding:6px 8px;font-size:11px;letter-spacing:1px;text-align:right">DIAS</th>
+            <th style="padding:6px 8px;font-size:11px;letter-spacing:1px">ÚLTIMO SINAL</th>
           </tr>
         </thead>
         <tbody>
@@ -159,13 +159,13 @@ function linhaPessoa(p) {
   return `
     <tr class="p-row" data-u="${esc(p.user_id)}" style="cursor:pointer;border-top:1px solid var(--border);background:${aberto ? 'var(--bg-3)' : 'transparent'}">
       <td style="padding:8px">
-        <span style="font-size:9px;vertical-align:middle">${p.online ? '🟢' : '⚪'}</span>
+        <span style="font-size:11px;vertical-align:middle">${p.online ? '🟢' : '⚪'}</span>
         <b>${esc(p.name)}</b>
         ${inativo ? '<span class="tiny" style="color:var(--err-forte)"> · desligado</span>' : ''}
         <div class="tiny muted">${esc(p.role)}${p.team ? ' · ' + esc(p.team) : ''}</div>
       </td>
       <td style="padding:8px;text-align:right">${p.sessoes}</td>
-      <td style="padding:8px;text-align:right;font-weight:800;${semMedida ? 'color:var(--ink-muted)' : ''}">
+      <td style="padding:8px;text-align:right;font-weight:600;${semMedida ? 'color:var(--ink-muted)' : ''}">
         ${semMedida ? '—' : dur(p.ativo_seg)}
       </td>
       <td style="padding:8px;text-align:right">${semMedida ? '—' : dur(p.media_seg)}</td>
@@ -202,14 +202,14 @@ function linhaSessao(s) {
   const med = s.motivo !== 'sem_medida';
   return `
     <div style="display:grid;grid-template-columns:92px 1fr auto;gap:10px;align-items:center;padding:7px 10px;background:var(--bg-2, var(--bg-1));border:1px solid var(--border);border-radius:var(--r-sm)">
-      <div class="tiny" style="font-weight:700;text-transform:uppercase">${esc(dia)}</div>
+      <div class="tiny" style="font-weight:600;text-transform:uppercase">${esc(dia)}</div>
       <div>
         <b>${hIn}</b> <span class="muted">→</span> <b>${hOut}</b>
         <span class="tiny" style="color:${FIM.c}">${FIM.t}</span>
         <div class="tiny muted">${esc(s.device)}${s.ip ? ' · ' + esc(s.ip) : ''}</div>
       </div>
       <div style="text-align:right">
-        <div style="font-weight:800">${med ? dur(s.ativo_seg) : '—'}</div>
+        <div style="font-weight:600">${med ? dur(s.ativo_seg) : '—'}</div>
         <div class="tiny muted">de tela${med && s.span_seg > s.ativo_seg ? ' · janela ' + dur(s.span_seg) : ''}</div>
       </div>
     </div>
@@ -248,7 +248,7 @@ function faixaDias(p) {
 function kpi(label, value, sub, cor) {
   return `<div style="background:var(--bg-3);padding:12px 18px;border-radius:var(--r-sm);min-width:170px;flex:1">
     <div class="tiny muted">${label}</div>
-    <div style="font-size:22px;font-weight:800;line-height:1.2${cor ? ';color:' + cor : ''}">${value}</div>
+    <div style="font-size:20px;font-weight:600;line-height:1.2${cor ? ';color:' + cor : ''}">${value}</div>
     <div class="tiny muted">${sub}</div>
   </div>`;
 }

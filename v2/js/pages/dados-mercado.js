@@ -61,10 +61,10 @@ function render() {
   _root.innerHTML = `
     <style>
       .dm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
-      .dm-kpi{background:var(--bg-1,#fff);border:1px solid var(--border);border-top:3px solid #2563eb;border-radius:12px;padding:12px 14px;position:relative}
-      .dm-kpi .v{font-size:22px;font-weight:900;color:var(--info)}
-      .dm-tbl{width:100%;border-collapse:collapse;font-size:12.5px}
-      .dm-tbl th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-muted,#64748b);padding:8px 10px;border-bottom:2px solid var(--border);white-space:nowrap}
+      .dm-kpi{background:var(--bg-1,#fff);border:1px solid var(--border);border-top:3px solid var(--accent-ink);border-radius:var(--radius-md);padding:12px 14px;position:relative}
+      .dm-kpi .v{font-size:20px;font-weight:600;color:var(--info)}
+      .dm-tbl{width:100%;border-collapse:collapse;font-size:13px}
+      .dm-tbl th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-muted,#64748b);padding:8px 10px;border-bottom:2px solid var(--border);white-space:nowrap}
       .dm-tbl td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:top}
       .dm-tbl tr:hover td{background:var(--bg-3)}
       .dm-act{cursor:pointer;opacity:.6;padding:2px 5px}.dm-act:hover{opacity:1}
@@ -80,7 +80,7 @@ function render() {
 
       <!-- PANORAMA -->
       <div class="flex items-center gap-2" style="margin-top:16px">
-        <h3 class="card-title" style="flex:1;font-size:15px">📊 Panorama do mercado</h3>
+        <h3 class="card-title" style="flex:1;font-size:14px">📊 Panorama do mercado</h3>
         ${edit ? `<button class="btn btn-ghost btn-sm" id="dm-add-kpi">➕ Indicador</button>` : ''}
       </div>
       ${_d.panorama.length ? `<div class="dm-grid" style="margin-top:8px">${_d.panorama.map(kpiCard).join('')}</div>`
@@ -88,7 +88,7 @@ function render() {
 
       <!-- CONCORRENTES -->
       <div class="flex items-center gap-2" style="margin-top:20px">
-        <h3 class="card-title" style="flex:1;font-size:15px">🏢 Concorrentes & players <span class="tiny muted">· ${_d.concorrentes.length}</span></h3>
+        <h3 class="card-title" style="flex:1;font-size:14px">🏢 Concorrentes & players <span class="tiny muted">· ${_d.concorrentes.length}</span></h3>
         ${edit ? `<button class="btn btn-primary btn-sm" id="dm-add-conc">➕ Concorrente</button>` : ''}
       </div>
       ${_d.concorrentes.length ? `
@@ -102,12 +102,12 @@ function render() {
 
       <!-- NOTAS -->
       <div class="flex items-center gap-2" style="margin-top:20px">
-        <h3 class="card-title" style="flex:1;font-size:15px">📝 Notas de mercado</h3>
+        <h3 class="card-title" style="flex:1;font-size:14px">📝 Notas de mercado</h3>
       </div>
       ${edit
         ? `<textarea id="dm-notas" class="input" rows="5" style="width:100%;margin-top:8px" placeholder="Tendências, movimentos de concorrentes, oportunidades, ameaças, leituras…">${esc(_d.notas)}</textarea>
            <div class="flex" style="justify-content:flex-end;margin-top:6px"><button class="btn btn-ghost btn-sm" id="dm-save-notas">💾 Salvar notas</button></div>`
-        : (_d.notas ? `<div style="white-space:pre-wrap;line-height:1.55;font-size:13px;background:var(--bg-3);border-radius:10px;padding:12px 14px;margin-top:8px">${esc(_d.notas)}</div>` : '<div class="tiny muted" style="margin-top:8px">Sem notas.</div>')}
+        : (_d.notas ? `<div style="white-space:pre-wrap;line-height:1.55;font-size:13px;background:var(--bg-3);border-radius:var(--radius-md);padding:12px 14px;margin-top:8px">${esc(_d.notas)}</div>` : '<div class="tiny muted" style="margin-top:8px">Sem notas.</div>')}
     </div>
     <div id="dm-modal"></div>
   `;
@@ -127,7 +127,7 @@ function kpiCard(k) {
   const e = canEdit();
   return `<div class="dm-kpi">
     ${e ? `<div style="position:absolute;top:8px;right:8px"><span class="dm-act" data-kpi-edit="${esc(k.id)}">✏️</span><span class="dm-act" data-kpi-del="${esc(k.id)}">🗑</span></div>` : ''}
-    <div class="tiny muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.5px;max-width:85%">${esc(k.label)}</div>
+    <div class="tiny muted" style="font-weight:600;text-transform:uppercase;letter-spacing:.5px;max-width:85%">${esc(k.label)}</div>
     <div class="v">${esc(k.valor || '—')}</div>
     ${k.unidade ? `<div class="tiny muted">${esc(k.unidade)}</div>` : ''}
   </div>`;
@@ -143,7 +143,7 @@ function concRow(c) {
     return esc(String(v));
   };
   return `<tr>
-    ${COLS.map((col, idx) => `<td${idx === 0 ? ' style="font-weight:700"' : ''}>${cell(col)}</td>`).join('')}
+    ${COLS.map((col, idx) => `<td${idx === 0 ? ' style="font-weight:600"' : ''}>${cell(col)}</td>`).join('')}
     ${e ? `<td style="white-space:nowrap"><span class="dm-act" data-conc-edit="${esc(c.id)}">✏️</span><span class="dm-act" data-conc-del="${esc(c.id)}">🗑</span></td>` : ''}
   </tr>`;
 }
@@ -179,7 +179,7 @@ function openConcForm(c) {
       ${f('verba_mkt', 'Verba Mkt/mês (R$)', '', 'number')}
       ${f('vendas_mes', 'Vendas/mês', '', 'number')}
       ${f('vendas_ano', 'Vendas/ano', '', 'number')}
-      <div style="grid-column:1/-1"><label class="tiny muted" style="font-weight:700">Observações</label><textarea id="cm-obs" class="input" rows="2" style="width:100%">${esc(c.obs || '')}</textarea></div>
+      <div style="grid-column:1/-1"><label class="tiny muted" style="font-weight:600">Observações</label><textarea id="cm-obs" class="input" rows="2" style="width:100%">${esc(c.obs || '')}</textarea></div>
     </div>`, async () => {
     const nome = val('cm-nome'); if (!nome) return 'Informe o nome do concorrente.';
     upsert('concorrentes', {
@@ -242,7 +242,7 @@ function modal(titulo, inner, onSave) {
 
 /* ─── helpers ─── */
 function inp(id, label, v, ph = '', type = '') {
-  return `<div><label class="tiny muted" style="font-weight:700">${label}</label>
+  return `<div><label class="tiny muted" style="font-weight:600">${label}</label>
     <input id="${id}" class="input" ${type ? `type="${type}"` : ''} value="${esc(v ?? '')}" placeholder="${esc(ph)}" style="width:100%" /></div>`;
 }
 function val(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; }

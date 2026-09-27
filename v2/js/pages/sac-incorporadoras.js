@@ -65,9 +65,9 @@ function render() {
 
   _root.innerHTML = `
     <style>
-      .sac-row{display:flex;align-items:center;gap:10px;border:1px solid var(--bd);border-radius:10px;padding:10px 13px;margin-bottom:8px;flex-wrap:wrap}
-      .sac-row .nm{font-size:14px;font-weight:700}
-      .sac-badge{display:inline-block;font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:20px;background:#e0e7ff;color:#3730a3}
+      .sac-row{display:flex;align-items:center;gap:10px;border:1px solid var(--bd);border-radius:var(--radius-md);padding:10px 13px;margin-bottom:8px;flex-wrap:wrap}
+      .sac-row .nm{font-size:14px;font-weight:600}
+      .sac-badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-lg);background:var(--accent-soft);color:#3730a3}
       .sac-meta{display:flex;flex-wrap:wrap;gap:3px 12px;font-size:12px;color:var(--ink-muted,#64748b);margin-top:1px}
       .sac-acts{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
       .sac-inc-h{font-size:14px;display:flex;align-items:center;gap:8px;margin:0 0 4px}
@@ -90,7 +90,7 @@ function render() {
 
       ${!_items.length ? `
         <div class="card mt-3" style="text-align:center;padding:32px;background:var(--bg-3)">
-          <div style="font-size:30px">📞</div>
+          <div style="font-size:26px">📞</div>
           <div class="muted tiny" style="margin-top:6px">${_canManage ? 'Nenhum contato cadastrado ainda. Clique em “➕ Novo contato”.' : 'Nenhum contato cadastrado ainda.'}</div>
         </div>`
         : (list.length ? order.map(c => groupHTML(c, groups[c])).join('') : '<div class="muted tiny mt-3">Nada encontrado para a busca.</div>')}
@@ -104,7 +104,7 @@ function groupHTML(inc, items) {
   const cor = incColor(inc);
   items = items.slice().sort((a, b) => tipoOrd(a.tipo) - tipoOrd(b.tipo) || String(a.produto || '').localeCompare(String(b.produto || ''), 'pt-BR'));
   return `<div class="card mt-3">
-    <h3 class="sac-inc-h"><span style="width:11px;height:11px;border-radius:3px;background:${cor};display:inline-block"></span>${esc(inc)} <span class="tiny muted" style="font-weight:400">(${items.length})</span></h3>
+    <h3 class="sac-inc-h"><span style="width:11px;height:11px;border-radius:var(--radius-sm);background:${cor};display:inline-block"></span>${esc(inc)} <span class="tiny muted" style="font-weight:400">(${items.length})</span></h3>
     ${items.map(rowHTML).join('')}</div>`;
 }
 
@@ -123,7 +123,7 @@ function rowHTML(it) {
       ${it.obs ? `<div class="tiny muted" style="margin-top:1px">📝 ${esc(it.obs)}</div>` : ''}
     </div>
     <div class="sac-acts">
-      ${wa ? `<a class="btn btn-primary btn-sm" href="${esc(wa)}" target="_blank" rel="noopener" style="background:#16a34a;border-color:#16a34a">💬 WhatsApp</a>` : ''}
+      ${wa ? `<a class="btn btn-primary btn-sm" href="${esc(wa)}" target="_blank" rel="noopener" style="background:var(--ok-soft);border-color:var(--ok)">💬 WhatsApp</a>` : ''}
       ${tel ? `<a class="btn btn-ghost btn-sm" href="${esc(tel)}">📞 Ligar</a>` : ''}
       ${it.email ? `<a class="btn btn-ghost btn-sm" href="mailto:${esc(it.email)}">✉️</a>` : ''}
       ${_canManage ? `<button class="btn btn-ghost btn-sm" data-edit="${esc(it.id)}">✏️</button>

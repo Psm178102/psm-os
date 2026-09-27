@@ -14,7 +14,7 @@ import { auth } from '../auth.js';
 
 const BRL = v => (isFinite(v) ? v : 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 });   // v88.37: sempre com centavos
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
-const TEMP = { quente: { c: '#ef4444', e: '🔥', l: 'Quente' }, morno: { c: '#f59e0b', e: '🟡', l: 'Morno' }, frio: { c: '#0ea5e9', e: '🧊', l: 'Frio' } };
+const TEMP = { quente: { c: '#ef4444', e: '🔥', l: 'Quente' }, morno: { c: '#f59e0b', e: '🟡', l: 'Morno' }, frio: { c: '#806d50', e: '🧊', l: 'Frio' } };
 const loadingCard = msg => `<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> ${esc(msg)} <span class="tiny" style="opacity:.65">— analisando o funil, pode levar alguns segundos</span></div></div>`;
 const emptyCard = () => `<div class="card muted tiny" style="text-align:center;padding:40px">Sem funil pra analisar (nenhum negócio aberto vinculado). Quando houver deals no CRM, a fila de ataque aparece aqui.</div>`;
 
@@ -61,27 +61,27 @@ function render() {
   _root.innerHTML = `
     <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
       <div>
-        <div style="font-size:21px;font-weight:800">🎯 Meu Cérebro de Vendas</div>
+        <div style="font-size:20px;font-weight:600">🎯 Meu Cérebro de Vendas</div>
         <div class="tiny muted">Quem atacar primeiro, o que está esfriando e a próxima ação de cada lead.</div>
       </div>
       ${_isGestor ? `<select id="cb-sel" class="select" style="max-width:260px">${_list.map(x => `<option value="${esc(x.id)}"${x.id === _selId ? ' selected' : ''}>${esc(x.name || x.id)}${x.team ? ' · ' + esc(x.team) : ''}</option>`).join('')}</select>` : ''}
     </div>
 
     <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
-      <div class="card" style="padding:12px 14px;flex:1;min-width:110px;border-left:4px solid #ef4444"><div class="tiny muted">🔥 Quentes</div><div style="font-size:21px;font-weight:800;color:var(--err-suave)">${c.quentes || 0}</div></div>
-      <div class="card" style="padding:12px 14px;flex:1;min-width:110px;border-left:4px solid #f59e0b"><div class="tiny muted">🟡 Mornos</div><div style="font-size:21px;font-weight:800;color:#f59e0b">${c.mornos || 0}</div></div>
-      <div class="card" style="padding:12px 14px;flex:1;min-width:110px;border-left:4px solid #0ea5e9"><div class="tiny muted">🧊 Frios</div><div style="font-size:21px;font-weight:800;color:var(--azul-ceu)">${c.frios || 0}</div></div>
+      <div class="card" style="padding:12px 14px;flex:1;min-width:110px;border-left:4px solid var(--err)"><div class="tiny muted">🔥 Quentes</div><div style="font-size:20px;font-weight:600;color:var(--err-suave)">${c.quentes || 0}</div></div>
+      <div class="card" style="padding:12px 14px;flex:1;min-width:110px;border-left:4px solid var(--warn)"><div class="tiny muted">🟡 Mornos</div><div style="font-size:20px;font-weight:600;color:var(--warn)">${c.mornos || 0}</div></div>
+      <div class="card" style="padding:12px 14px;flex:1;min-width:110px;border-left:4px solid var(--accent-ink)"><div class="tiny muted">🧊 Frios</div><div style="font-size:20px;font-weight:600;color:var(--azul-ceu)">${c.frios || 0}</div></div>
       ${c.projecao_mes
-        ? `<div class="card" style="padding:12px 14px;flex:1;min-width:150px" title="Projeção oficial do mês — a mesma da Gestão Comercial e do 1:1. Pipeline ponderado (prioridade da fila): ${BRL(c.pipeline_ponderado_vgv || 0)}"><div class="tiny muted">📈 Provável do mês</div><div style="font-size:19px;font-weight:800">${BRL(c.projecao_mes.provavel.vgv)}</div><div class="tiny muted">${(Number(c.projecao_mes.provavel.vendas) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} vendas${c.projecao_mes.provavel.pct_meta != null ? ' · ' + Number(c.projecao_mes.provavel.pct_meta).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '% da meta' : ''}</div></div>`
-        : `<div class="card" style="padding:12px 14px;flex:1;min-width:130px"><div class="tiny muted">💰 Pipeline ponderado</div><div style="font-size:19px;font-weight:800">${BRL(c.pipeline_ponderado_vgv || 0)}</div><div class="tiny muted">prioridade da fila</div></div>`}
+        ? `<div class="card" style="padding:12px 14px;flex:1;min-width:150px" title="Projeção oficial do mês — a mesma da Gestão Comercial e do 1:1. Pipeline ponderado (prioridade da fila): ${BRL(c.pipeline_ponderado_vgv || 0)}"><div class="tiny muted">📈 Provável do mês</div><div style="font-size:20px;font-weight:600">${BRL(c.projecao_mes.provavel.vgv)}</div><div class="tiny muted">${(Number(c.projecao_mes.provavel.vendas) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} vendas${c.projecao_mes.provavel.pct_meta != null ? ' · ' + Number(c.projecao_mes.provavel.pct_meta).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '% da meta' : ''}</div></div>`
+        : `<div class="card" style="padding:12px 14px;flex:1;min-width:130px"><div class="tiny muted">💰 Pipeline ponderado</div><div style="font-size:20px;font-weight:600">${BRL(c.pipeline_ponderado_vgv || 0)}</div><div class="tiny muted">prioridade da fila</div></div>`}
     </div>
 
-    ${(semContato || parados) ? `<div class="card" style="padding:12px 14px;margin-bottom:14px;background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.25)">
-      <div style="font-weight:800;color:var(--err-forte);margin-bottom:2px">⚠️ Atenção imediata</div>
+    ${(semContato || parados) ? `<div class="card" style="padding:12px 14px;margin-bottom:14px;background:var(--err-soft);border:1px solid var(--err)">
+      <div style="font-weight:600;color:var(--err-forte);margin-bottom:2px">⚠️ Atenção imediata</div>
       <div class="tiny">${semContato ? `<b>${semContato}</b> sem 1º contato (>48h)` : ''}${semContato && parados ? ' · ' : ''}${parados ? `<b>${parados}</b> parados (>14 dias)` : ''} — perde-se venda aqui. Reaja primeiro nestes.</div>
     </div>` : ''}
 
-    <div style="font-weight:800;margin-bottom:8px">🏹 Atacar primeiro (top ${leads.length})</div>
+    <div style="font-weight:600;margin-bottom:8px">🏹 Atacar primeiro (top ${leads.length})</div>
     ${!leads.length
       ? `<div class="card muted tiny" style="text-align:center;padding:30px">Nenhum lead aberto neste funil.</div>`
       : `<div style="display:grid;gap:10px">${leads.map(leadCard).join('')}</div>`}
@@ -99,15 +99,15 @@ function leadCard(l) {
   return `
     <div class="card" style="padding:12px 14px;border-left:4px solid ${t.c}">
       <div class="flex items-center" style="justify-content:space-between;gap:8px;flex-wrap:wrap">
-        <div style="font-weight:800;font-size:14px">${esc(l.title || 'Negócio')}</div>
-        <span class="tiny" style="font-weight:800;color:${t.c}">${t.e} ${t.l} · ${Math.round((l.prob || 0) * 100)}%</span>
+        <div style="font-weight:600;font-size:14px">${esc(l.title || 'Negócio')}</div>
+        <span class="tiny" style="font-weight:600;color:${t.c}">${t.e} ${t.l} · ${Math.round((l.prob || 0) * 100)}%</span>
       </div>
       <div class="flex gap-2" style="flex-wrap:wrap;margin:6px 0">
-        <span class="tiny" style="background:var(--bg-3,#f1f5f9);padding:2px 8px;border-radius:99px">📍 ${esc(etapa)}</span>
-        <span class="tiny" style="background:var(--bg-3,#f1f5f9);padding:2px 8px;border-radius:99px">💰 ${BRL(l.amount || 0)}</span>
-        ${l.canal ? `<span class="tiny" style="background:var(--bg-3,#f1f5f9);padding:2px 8px;border-radius:99px">📡 ${esc(l.canal)}</span>` : ''}
-        <span class="tiny" style="background:${parado > 14 ? 'rgba(239,68,68,.14)' : 'var(--bg-3,#f1f5f9)'};color:${parado > 14 ? '#b91c1c' : 'inherit'};padding:2px 8px;border-radius:99px">⏱ ${parado}d parado</span>
+        <span class="tiny" style="background:var(--bg-3,#f1f5f9);padding:2px 8px;border-radius:var(--radius-full)">📍 ${esc(etapa)}</span>
+        <span class="tiny" style="background:var(--bg-3,#f1f5f9);padding:2px 8px;border-radius:var(--radius-full)">💰 ${BRL(l.amount || 0)}</span>
+        ${l.canal ? `<span class="tiny" style="background:var(--bg-3,#f1f5f9);padding:2px 8px;border-radius:var(--radius-full)">📡 ${esc(l.canal)}</span>` : ''}
+        <span class="tiny" style="background:${parado > 14 ? 'rgba(239,68,68,.14)' : 'var(--bg-3,#f1f5f9)'};color:${parado > 14 ? 'var(--err)' : 'inherit'};padding:2px 8px;border-radius:var(--radius-full)">⏱ ${parado}d parado</span>
       </div>
-      ${l.acao ? `<div style="background:rgba(16,185,129,.10);border-radius:8px;padding:8px 10px;font-size:13px"><b style="color:var(--verde-esmeralda)">▶ Próxima ação:</b> ${esc(l.acao)}</div>` : ''}
+      ${l.acao ? `<div style="background:var(--ok-soft);border-radius:var(--radius-md);padding:8px 10px;font-size:13px"><b style="color:var(--verde-esmeralda)">▶ Próxima ação:</b> ${esc(l.acao)}</div>` : ''}
     </div>`;
 }

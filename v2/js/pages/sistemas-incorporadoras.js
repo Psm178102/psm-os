@@ -15,7 +15,7 @@ const CATS = {
   MAP:  { lbl: '🏙 MAP', full: 'Médio/Alto Padrão', bg: '#d4a84322', fg: '#a87b1e', bd: '#d4a843' },
   MCMV: { lbl: '🏠 MCMV', full: 'Minha Casa Minha Vida', bg: '#16a34a22', fg: '#15803d', bd: '#16a34a' },
 };
-const catBadge = c => CATS[c] ? `<span title="${CATS[c].full}" style="background:${CATS[c].bg};color:${CATS[c].fg};font-weight:800;font-size:11px;padding:2px 9px;border-radius:20px;white-space:nowrap">${CATS[c].lbl}</span>` : '';
+const catBadge = c => CATS[c] ? `<span title="${CATS[c].full}" style="background:${CATS[c].bg};color:${CATS[c].fg};font-weight:600;font-size:11px;padding:2px 9px;border-radius:var(--radius-lg);white-space:nowrap">${CATS[c].lbl}</span>` : '';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const incColor = c => { let h = 0; for (const ch of String(c || 'x')) h = (h * 31 + ch.charCodeAt(0)) % 360; return `hsl(${h},55%,45%)`; };
@@ -51,13 +51,13 @@ function render() {
   const list = filtrados();
   _root.innerHTML = `
     <style>
-      .si-card{border:1px solid var(--bd);border-left:4px solid var(--c);border-radius:12px;padding:13px 15px;margin-bottom:11px}
+      .si-card{border:1px solid var(--bd);border-left:4px solid var(--c);border-radius:var(--radius-md);padding:13px 15px;margin-bottom:11px}
       .si-h{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
-      .si-sec{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-muted,#94a3b8);font-weight:800;margin:9px 0 4px}
+      .si-sec{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-muted,#94a3b8);font-weight:600;margin:9px 0 4px}
       .si-row{display:flex;align-items:center;gap:8px;font-size:13px;flex-wrap:wrap;margin-bottom:3px}
       .si-row .lbl{font-size:11px;color:var(--ink-muted,#64748b);min-width:74px;flex:0 0 74px}
-      .si-val{font-family:ui-monospace,monospace;font-size:12.5px;background:var(--bg-3);padding:3px 9px;border-radius:6px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-      .si-ico{cursor:pointer;border:0;background:transparent;font-size:14px;padding:2px 5px;border-radius:6px}
+      .si-val{font-family:ui-monospace,monospace;font-size:13px;background:var(--bg-3);padding:3px 9px;border-radius:var(--radius-sm);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .si-ico{cursor:pointer;border:0;background:transparent;font-size:14px;padding:2px 5px;border-radius:var(--radius-sm)}
       .si-ico:hover{background:var(--bg-3)}
       .si-links{display:flex;gap:6px;flex-wrap:wrap}
     </style>
@@ -85,7 +85,7 @@ function render() {
 
       ${!_items.length ? `
         <div class="card mt-3" style="text-align:center;padding:32px;background:var(--bg-3)">
-          <div style="font-size:30px">🏢</div>
+          <div style="font-size:26px">🏢</div>
           <div class="muted tiny" style="margin-top:6px">${_canManage ? 'Nenhuma incorporadora cadastrada ainda. Clique em “➕ Nova incorporadora”.' : 'Nenhuma incorporadora cadastrada ainda.'}</div>
         </div>`
         : (list.length ? list.map(cardHTML).join('') : '<div class="muted tiny mt-3">Nada encontrado para a busca.</div>')}
@@ -113,7 +113,7 @@ function cardHTML(it) {
   const temSistema = it.sistema || it.sistema_url || it.sistema_login || it.sistema_senha;
   return `<div class="si-card" style="--c:${cor}">
     <div class="si-h">
-      <b style="font-size:15px">${esc(it.incorporadora)}</b>
+      <b style="font-size:14px">${esc(it.incorporadora)}</b>
       ${_canManage ? `<div class="flex gap-1">
         <button class="btn btn-ghost btn-sm" data-edit="${esc(it.id)}">✏️</button>
         <button class="btn btn-ghost btn-sm" data-del="${esc(it.id)}" style="color:var(--err)">🗑</button></div>` : ''}
@@ -124,8 +124,8 @@ function cardHTML(it) {
     </div>` : ''}
 
     ${temContato ? `<div class="si-sec">👤 Contatos</div>
-      ${(it.gerente || it.gerente_whatsapp) ? `<div class="si-row"><span class="lbl">Gerente</span><span>${esc(it.gerente || '—')}</span>${waG ? `<a class="btn btn-sm" href="${esc(waG)}" target="_blank" rel="noopener" style="background:#16a34a;color:#fff;border-color:#16a34a">💬 ${esc(it.gerente_whatsapp)}</a>` : ''}</div>` : ''}
-      ${(it.coordenador || it.coordenador_whatsapp) ? `<div class="si-row"><span class="lbl">Coordenador</span><span>${esc(it.coordenador || '—')}</span>${waC ? `<a class="btn btn-sm" href="${esc(waC)}" target="_blank" rel="noopener" style="background:#16a34a;color:#fff;border-color:#16a34a">💬 ${esc(it.coordenador_whatsapp)}</a>` : ''}</div>` : ''}` : ''}
+      ${(it.gerente || it.gerente_whatsapp) ? `<div class="si-row"><span class="lbl">Gerente</span><span>${esc(it.gerente || '—')}</span>${waG ? `<a class="btn btn-sm" href="${esc(waG)}" target="_blank" rel="noopener" style="background:var(--ok-soft);color:var(--ok);border-color:var(--ok)">💬 ${esc(it.gerente_whatsapp)}</a>` : ''}</div>` : ''}
+      ${(it.coordenador || it.coordenador_whatsapp) ? `<div class="si-row"><span class="lbl">Coordenador</span><span>${esc(it.coordenador || '—')}</span>${waC ? `<a class="btn btn-sm" href="${esc(waC)}" target="_blank" rel="noopener" style="background:var(--ok-soft);color:var(--ok);border-color:var(--ok)">💬 ${esc(it.coordenador_whatsapp)}</a>` : ''}</div>` : ''}` : ''}
 
     ${links ? `<div class="si-sec">🔗 Links</div><div class="si-links">${links}</div>` : ''}
 

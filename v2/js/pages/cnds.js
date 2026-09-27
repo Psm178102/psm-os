@@ -74,8 +74,8 @@ function render() {
 
   _root.innerHTML = `
     <style>
-      .cnd-link{display:flex;align-items:center;gap:10px;border:1px solid var(--bd);border-left:4px solid var(--c);border-radius:11px;padding:11px 14px;margin-bottom:8px}
-      .cnd-link .ttl{font-size:14px;font-weight:700}
+      .cnd-link{display:flex;align-items:center;gap:10px;border:1px solid var(--bd);border-left:4px solid var(--c);border-radius:var(--radius-md);padding:11px 14px;margin-bottom:8px}
+      .cnd-link .ttl{font-size:14px;font-weight:600}
       .cnd-meta{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--ink-muted,#64748b);margin-top:2px}
       .cnd-meta b{color:var(--ink,#0f172a);font-weight:600}
       .cnd-cat-h{font-size:13px;display:flex;align-items:center;gap:8px;margin:0 0 2px}
@@ -97,7 +97,7 @@ function render() {
 
       ${!_items.length ? `
         <div class="card mt-3" style="text-align:center;padding:32px;background:var(--bg-3)">
-          <div style="font-size:30px">⚖️</div>
+          <div style="font-size:26px">⚖️</div>
           <div class="muted tiny" style="margin-top:6px">${_canManage ? 'Nenhum link cadastrado ainda. Clique em “➕ Novo link”.' : 'Nenhum link cadastrado ainda.'}</div>
         </div>`
         : (list.length ? order.map(c => groupHTML(c, groups[c])).join('') : '<div class="muted tiny mt-3">Nada encontrado para a busca.</div>')}
@@ -110,7 +110,7 @@ function render() {
 function groupHTML(cat, items) {
   const cor = catColor(cat);
   return `<div class="card mt-3">
-    <h3 class="cnd-cat-h"><span style="width:10px;height:10px;border-radius:3px;background:${cor};display:inline-block"></span>${esc(cat)} <span class="tiny muted" style="font-weight:400">(${items.length})</span></h3>
+    <h3 class="cnd-cat-h"><span style="width:10px;height:10px;border-radius:var(--radius-sm);background:${cor};display:inline-block"></span>${esc(cat)} <span class="tiny muted" style="font-weight:400">(${items.length})</span></h3>
     ${items.map(it => linkHTML(it, cor)).join('')}</div>`;
 }
 

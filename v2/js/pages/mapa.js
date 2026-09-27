@@ -150,9 +150,9 @@ function initEmpMap() {
   // pins dos empreendimentos
   (_emp.pins || []).forEach(p => {
     if (typeof p.lat !== 'number' || typeof p.lng !== 'number') return;
-    const icon = L.divIcon({ className: 'psm-emp-marker', html: `<div style="background:#2563eb;width:16px;height:16px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>`, iconSize: [16, 16], iconAnchor: [8, 16] });
+    const icon = L.divIcon({ className: 'psm-emp-marker', html: `<div style="background:var(--accent-soft);width:16px;height:16px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;box-shadow:var(--shadow-1)"></div>`, iconSize: [16, 16], iconAnchor: [8, 16] });
     const m = L.marker([p.lat, p.lng], { icon }).addTo(_empMap);
-    m.bindPopup(`<div style="font-family:system-ui;font-size:13px;font-weight:700">🏗 ${esc(p.nome || 'Empreendimento')}</div>`);
+    m.bindPopup(`<div style="font-family:system-ui;font-size:13px;font-weight:600">🏗 ${esc(p.nome || 'Empreendimento')}</div>`);
     _empMarkers.push(m);
   });
 
@@ -281,7 +281,7 @@ async function render() {
             : 'Seu Google My Maps com todos os pins, nomes e cores — aqui dentro do sistema.'} Dois mapas separados: <b>MAP</b> e <b>PSM Conquista</b>.</p>
         </div>
         <div class="flex gap-2">
-          <a class="btn btn-primary" href="${esc(earthAtivo)}" target="_blank" rel="noopener" style="background:#1a73e8" title="Abre o Google Earth 3D da fonte ${esc(nomeFonte)}">🌍 Abrir Earth 3D — ${esc(nomeFonte)}</a>
+          <a class="btn btn-primary" href="${esc(earthAtivo)}" target="_blank" rel="noopener" style="background:var(--accent-soft)" title="Abre o Google Earth 3D da fonte ${esc(nomeFonte)}">🌍 Abrir Earth 3D — ${esc(nomeFonte)}</a>
           ${canEditLinks() ? `<button class="btn btn-ghost" id="map-gkey" title="Chave do Google Maps (satélite + pins)">🔑 Chave Maps</button><button class="btn btn-ghost" id="map-mymaps-edit" title="Editar o link do My Maps da fonte ${esc(nomeFonte)}">⚙️ My Maps (${esc(nomeFonte)})</button>` : ''}
         </div>
       </div>
@@ -296,12 +296,12 @@ async function render() {
 
       ${useGoogle ? `
       <!-- GOOGLE MAPS satélite (híbrido) + pins NATIVOS (cor + nome) da fonte ativa -->
-      <div id="gmap" style="height:calc(100vh - 330px);min-height:460px;border-radius:12px;background:var(--bg-3);position:relative;margin-top:12px"></div>
+      <div id="gmap" style="height:calc(100vh - 330px);min-height:460px;border-radius:var(--radius-md);background:var(--bg-3);position:relative;margin-top:12px"></div>
       <div id="gmap-info" class="tiny muted mt-2"></div>
-      ${embedSrc ? `<details class="mt-3"><summary style="cursor:pointer;font-weight:700;padding:6px 0">🗺 Ver o My Maps original da ${esc(nomeFonte)} (embed)</summary><div class="mt-2" style="position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--border);background:#0b1f3a"><iframe src="${esc(embedSrc)}" style="width:100%;height:calc(100vh - 380px);min-height:420px;border:0;display:block" allowfullscreen loading="lazy"></iframe></div></details>` : ''}
+      ${embedSrc ? `<details class="mt-3"><summary style="cursor:pointer;font-weight:600;padding:6px 0">🗺 Ver o My Maps original da ${esc(nomeFonte)} (embed)</summary><div class="mt-2" style="position:relative;border-radius:var(--radius-lg);overflow:hidden;border:1px solid var(--border);background:var(--accent-soft)"><iframe src="${esc(embedSrc)}" style="width:100%;height:calc(100vh - 380px);min-height:420px;border:0;display:block" allowfullscreen loading="lazy"></iframe></div></details>` : ''}
       ` : (embedSrc ? `
       ${canEditLinks() ? '<div class="alert alert-warn mt-3" style="font-size:13px">🔑 Pra ter o <b>mapa do Google em satélite com os pins</b> aqui dentro, cole a <b>chave do Google Maps</b> no botão <b>🔑 Chave Maps</b>. Enquanto isso, abaixo está o My Maps embutido.</div>' : ''}
-      <div class="mt-3" style="position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--border);background:#0b1f3a">
+      <div class="mt-3" style="position:relative;border-radius:var(--radius-lg);overflow:hidden;border:1px solid var(--border);background:var(--accent-soft)">
         <iframe src="${esc(embedSrc)}" style="width:100%;height:calc(100vh - 350px);min-height:440px;border:0;display:block" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
       </div>
       ` : (canEditLinks() ? `<p class="tiny muted mt-3">💡 A fonte <b>${esc(nomeFonte)}</b> ainda não tem mapa. Cole o link do <b>Google My Maps</b> em <b>⚙️ My Maps (${esc(nomeFonte)})</b>${useGoogle ? '' : ' e a <b>chave do Google Maps</b> em <b>🔑 Chave Maps</b>'}.</p>` : `<p class="tiny muted mt-3">Sem mapa configurado para ${esc(nomeFonte)}.</p>`))}
@@ -324,8 +324,8 @@ async function render() {
     if (g) {
       g.style.display = 'flex';
       g.innerHTML = `<div style="margin:auto;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;padding:24px;color:var(--muted)">
-        <div style="font-size:42px">🏘️</div>
-        <div style="font-size:15px;font-weight:800;color:var(--ink,#0b1f3a)">Mapa da ${esc(nomeFonte)} ainda sem fonte</div>
+        <div style="font-size:36px">🏘️</div>
+        <div style="font-size:14px;font-weight:600;color:var(--ink,#806d50)">Mapa da ${esc(nomeFonte)} ainda sem fonte</div>
         <div style="font-size:13px;max-width:470px;line-height:1.55">Cole o link do <b>Google My Maps</b> da <b>${esc(nomeFonte)}</b> que os empreendimentos aparecem aqui no satélite — com nome e cor, igual ao MAP. (O link do Google Earth não serve.)</div>
         ${canEditLinks() ? `<button class="btn btn-primary" id="gmap-add-src" style="margin-top:4px">⚙️ Colar My Maps (${esc(nomeFonte)})</button>` : ''}
       </div>`;
@@ -357,7 +357,7 @@ function loadGoogleMapsApi(key) {
 
 // Pin SVG colorido (cor do My Maps), com a âncora na ponta e o rótulo acima. v81.71
 function pinIcon(cor) {
-  const c = cor || '#2563eb';
+  const c = cor || '#806d50';
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="26" height="36" viewBox="0 0 26 36"><path d="M13 0C5.82 0 0 5.82 0 13c0 9.2 13 23 13 23s13-13.8 13-23C26 5.82 20.18 0 13 0z" fill="${c}" stroke="#fff" stroke-width="2"/><circle cx="13" cy="13" r="4.6" fill="#fff"/></svg>`;
   return { url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg), scaledSize: new google.maps.Size(26, 36), anchor: new google.maps.Point(13, 36), labelOrigin: new google.maps.Point(13, -10) };
 }
@@ -468,7 +468,7 @@ function renderContent() {
 
   stats.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:10px">
-      ${kpi('🏠 Total', total, '#3b82f6')}
+      ${kpi('🏠 Total', total, '#806d50')}
       ${kpi('🟢 Disponíveis', disp, '#22c55e')}
       ${kpi('🏷 Próprios', proprios, 'var(--psm-gold)')}
       ${kpi('✅ Vendidos', vend, '#8b5cf6')}
@@ -479,15 +479,15 @@ function renderContent() {
   const body = document.getElementById('map-body');
   body.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 320px;gap:14px">
-      <div id="psm-map" style="height:calc(100vh - 380px);min-height:450px;border-radius:10px;background:var(--bg-3);position:relative">
+      <div id="psm-map" style="height:calc(100vh - 380px);min-height:450px;border-radius:var(--radius-md);background:var(--bg-3);position:relative">
         ${!window.L ? '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted)">⚠️ Leaflet não carregou. Verifique conexão.</div>' : ''}
       </div>
-      <div style="height:calc(100vh - 380px);min-height:450px;overflow-y:auto;background:var(--bg-3);border-radius:10px;padding:10px">
-        <div class="tiny muted mb-2" style="font-weight:700">📋 ${filtered.length} imóveis no filtro</div>
+      <div style="height:calc(100vh - 380px);min-height:450px;overflow-y:auto;background:var(--bg-3);border-radius:var(--radius-md);padding:10px">
+        <div class="tiny muted mb-2" style="font-weight:600">📋 ${filtered.length} imóveis no filtro</div>
         ${filtered.slice(0, 100).map(i => imovelMini(i)).join('')}
       </div>
     </div>
-    <div class="alert tiny mt-3" style="background:rgba(99,102,241,.1);color:var(--violeta);border:1px solid rgba(99,102,241,.3);padding:8px;border-radius:6px">
+    <div class="alert tiny mt-3" style="background:var(--accent-soft);color:var(--violeta);border:1px solid var(--accent-ink);padding:8px;border-radius:var(--radius-sm)">
       💡 Marcadores são posicionados pelo <b>bairro</b> dos imóveis. Pra geolocalização exata, cadastre lat/lng em cada imóvel.
     </div>
   `;
@@ -548,11 +548,11 @@ function initMap(items) {
     const valor = i.valor ? `R$ ${(+i.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
     m.bindPopup(`
       <div style="font-family:system-ui;font-size:13px">
-        <div style="font-weight:800;margin-bottom:4px">${esc(i.codigo || 'Sem código')}</div>
+        <div style="font-weight:600;margin-bottom:4px">${esc(i.codigo || 'Sem código')}</div>
         <div>${esc(i.tipo || '—')} · ${esc(i.bairro || '—')}</div>
         <div style="color:var(--ink-muted);font-size:11px;margin:4px 0">${esc(i.endereco || '')}</div>
-        <div style="font-weight:700;color:var(--navy-txt)">${valor}</div>
-        <div style="margin-top:4px"><span style="background:${cor}22;color:${cor};padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700">${i.status || '—'}</span></div>
+        <div style="font-weight:600;color:var(--navy-txt)">${valor}</div>
+        <div style="margin-top:4px"><span style="background:${cor}22;color:${cor};padding:2px 6px;border-radius:var(--radius-sm);font-size:11px;font-weight:600">${i.status || '—'}</span></div>
       </div>
     `);
     _markers.push(m);
@@ -569,16 +569,16 @@ function initMap(items) {
 function imovelMini(i) {
   const cor = i.status === 'disponivel' ? '#22c55e' : i.status === 'vendido' ? '#8b5cf6' : '#f59e0b';
   return `
-    <div style="background:var(--bg-2);border-left:3px solid ${cor};border-radius:6px;padding:8px;margin-bottom:6px;font-size:12px">
-      <div style="font-weight:700">${esc(i.codigo || '—')}</div>
+    <div style="background:var(--bg-2);border-left:3px solid ${cor};border-radius:var(--radius-sm);padding:8px;margin-bottom:6px;font-size:12px">
+      <div style="font-weight:600">${esc(i.codigo || '—')}</div>
       <div class="tiny muted">${esc(i.bairro || '')} · ${esc(i.tipo || '')}</div>
-      <div style="color:var(--psm-gold);font-weight:700;font-size:11px">R$ ${(+i.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+      <div style="color:var(--psm-gold);font-weight:600;font-size:11px">R$ ${(+i.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
     </div>
   `;
 }
 
 function kpi(label, value, color) {
-  return `<div style="background:var(--bg-3);border-left:4px solid ${color};padding:10px;border-radius:6px"><div class="tiny muted">${label}</div><div style="font-size:18px;font-weight:800;color:${color}">${value}</div></div>`;
+  return `<div style="background:var(--bg-3);border-left:4px solid ${color};padding:10px;border-radius:var(--radius-sm)"><div class="tiny muted">${label}</div><div style="font-size:16px;font-weight:600;color:${color}">${value}</div></div>`;
 }
 
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

@@ -63,22 +63,22 @@ function render() {
   _root.innerHTML = `
   <style>
     .mkt-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px}
-    .mkt-card{background:var(--bg-3);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;cursor:pointer;transition:border-color .15s}
-    .mkt-card:hover{border-color:#22c55e}
-    .mkt-card.on{border-color:#22c55e;box-shadow:0 0 0 1px #22c55e}
-    .mkt-chat{background:var(--bg-3);border:1px solid var(--bd);border-radius:12px;display:flex;flex-direction:column;height:60vh;min-height:380px}
+    .mkt-card{background:var(--bg-3);border:1px solid var(--bd);border-radius:var(--radius-md);padding:14px 16px;cursor:pointer;transition:border-color .15s}
+    .mkt-card:hover{border-color:var(--ok)}
+    .mkt-card.on{border-color:var(--ok);box-shadow:0 0 0 1px #22c55e}
+    .mkt-chat{background:var(--bg-3);border:1px solid var(--bd);border-radius:var(--radius-md);display:flex;flex-direction:column;height:60vh;min-height:380px}
     .mkt-log{flex:1;overflow-y:auto;padding:14px}
-    .mkt-b{max-width:82%;border-radius:12px;padding:9px 13px;margin-bottom:8px;font-size:13px;line-height:1.55}
-    .mkt-b.user{margin-left:auto;background:rgba(34,197,94,.15);border:1px solid #22c55e44}
+    .mkt-b{max-width:82%;border-radius:var(--radius-md);padding:9px 13px;margin-bottom:8px;font-size:13px;line-height:1.55}
+    .mkt-b.user{margin-left:auto;background:var(--ok-soft);border:1px solid var(--ok)}
     .mkt-b.ia{background:var(--bg-2,rgba(255,255,255,.04));border:1px solid var(--bd)}
   </style>
 
-  <div style="background:linear-gradient(135deg,var(--bg-3),transparent);border:1px solid var(--bd);border-radius:12px;padding:14px 18px;margin-bottom:14px">
+  <div style="background:linear-gradient(135deg,var(--bg-3),transparent);border:1px solid var(--bd);border-radius:var(--radius-md);padding:14px 18px;margin-bottom:14px">
     <div class="flex" style="align-items:center;gap:10px;flex-wrap:wrap">
-      <div style="font-weight:900;font-size:16px">🏭 Equipe de Marketing · Esteira Conquista</div>
+      <div style="font-weight:600;font-size:16px">🏭 Equipe de Marketing · Esteira Conquista</div>
       <span class="tiny muted">14 cadeiras · cada agente é dono de uma estação</span>
-      <a href="#/estudio-ig" class="tiny" style="margin-left:auto;color:#e88530;font-weight:700">📸 Estúdio Instagram (peça pronta + nota) →</a>
-      ${socio ? '<a href="#/cmo" class="tiny" style="color:#38bdf8">🎯 cockpit do CMO (fluxograma + notas) →</a>' : ''}
+      <a href="#/estudio-ig" class="tiny" style="margin-left:auto;color:#e88530;font-weight:600">📸 Estúdio Instagram (peça pronta + nota) →</a>
+      ${socio ? '<a href="#/cmo" class="tiny" style="color:var(--accent-ink)">🎯 cockpit do CMO (fluxograma + notas) →</a>' : ''}
     </div>
     <div class="tiny" style="margin-top:4px;color:var(--muted)">Fluxo: Curador → CMO (briefing) → Copy/Design/Vídeo → Editor → <b>Auditor (nota 0-10, corte 8)</b> → Paulo valida → Agendador → canais → Community. Nenhum agente publica, dispara ou gasta sem aprovação do sócio.</div>
   </div>
@@ -87,15 +87,15 @@ function render() {
     ${SQUAD.map(a => `
     <div class="mkt-card ${_sel === a.id ? 'on' : ''}" data-mkt-ag="${a.id}">
       <div class="flex" style="align-items:center;gap:8px">
-        <span style="font-size:18px">${a.ico}</span><b>${esc(a.nome)}</b>
-        <span class="tiny" style="margin-left:auto;color:#38bdf8">${a.link ? 'módulo ↗' : '💬 chat'}</span>
+        <span style="font-size:16px">${a.ico}</span><b>${esc(a.nome)}</b>
+        <span class="tiny" style="margin-left:auto;color:var(--accent-ink)">${a.link ? 'módulo ↗' : '💬 chat'}</span>
       </div>
-      <div class="tiny" style="color:#38bdf8;margin-top:2px">estação ${esc(a.est)}</div>
+      <div class="tiny" style="color:var(--accent-ink);margin-top:2px">estação ${esc(a.est)}</div>
       <div class="tiny muted" style="margin-top:5px;line-height:1.5">${esc(a.desc)}</div>
     </div>`).join('')}
   </div>
 
-  ${_sel ? chatHtml() : '<div class="cmo-card tiny muted" style="background:var(--bg-3);border:1px solid var(--bd);border-radius:12px;padding:16px;text-align:center">Clique num agente pra conversar — briefe, cobre, peça entregável. O que ele produzir segue a esteira: nota do Auditor + validação do sócio antes de ir ao ar.</div>'}`;
+  ${_sel ? chatHtml() : '<div class="cmo-card tiny muted" style="background:var(--bg-3);border:1px solid var(--bd);border-radius:var(--radius-md);padding:16px;text-align:center">Clique num agente pra conversar — briefe, cobre, peça entregável. O que ele produzir segue a esteira: nota do Auditor + validação do sócio antes de ir ao ar.</div>'}`;
 
   _root.querySelectorAll('[data-mkt-ag]').forEach(el => el.onclick = () => {
     const a = SQUAD.find(x => x.id === el.dataset.mktAg);

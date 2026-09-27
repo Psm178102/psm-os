@@ -14,7 +14,7 @@ const TIPO_PT = { apartment: 'Apartamento', house: 'Casa', land: 'Terreno', comm
   office: 'Sala', store: 'Loja', shed: 'Galpão/Barracão', hall: 'Salão', small_farm: 'Chácara',
   two_story_house: 'Sobrado', area: 'Área', outhouse: 'Edícula', smallholding: 'Sítio', flat: 'Flat' };
 const tipoPt = t => TIPO_PT[String(t || '').toLowerCase()] || String(t || '').replace(/^./, c => c.toUpperCase());
-const STATUS_LBL = { ocupado: ['🔵 Ocupados', '#2563eb'], disponivel: ['🟢 Disponíveis', '#16a34a'],
+const STATUS_LBL = { ocupado: ['🔵 Ocupados', '#806d50'], disponivel: ['🟢 Disponíveis', '#16a34a'],
   em_renovacao: ['🟡 Em renovação', '#d97706'], em_atraso: ['🔴 Em atraso', '#dc2626'] };
 
 export async function pageLocacaoDash(ctx, root) {
@@ -30,15 +30,15 @@ export async function pageLocacaoDash(ctx, root) {
 }
 
 function kpi(lbl, val, sub = '', borda = '') {
-  return `<div style="flex:1;min-width:160px;background:var(--bg-3);border-radius:10px;padding:10px 12px${borda ? ';border-left:3px solid ' + borda : ''}">
-    <div class="tiny muted">${lbl}</div><div style="font-size:19px;font-weight:900">${val}</div>${sub ? `<div class="tiny muted">${sub}</div>` : ''}</div>`;
+  return `<div style="flex:1;min-width:160px;background:var(--bg-3);border-radius:var(--radius-md);padding:10px 12px${borda ? ';border-left:3px solid ' + borda : ''}">
+    <div class="tiny muted">${lbl}</div><div style="font-size:20px;font-weight:600">${val}</div>${sub ? `<div class="tiny muted">${sub}</div>` : ''}</div>`;
 }
 
-function barra(lbl, n, max, cor = '#0891b2', extra = '') {
+function barra(lbl, n, max, cor = '#806d50', extra = '') {
   const pct = max ? Math.max(2, Math.round(n / max * 100)) : 0;
   return `<div class="flex items-center tiny" style="gap:8px;margin:3px 0">
     <span style="width:150px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lbl}</span>
-    <div style="flex:1;background:var(--bg-3);border-radius:6px;height:15px"><div style="width:${pct}%;background:${cor}99;height:15px;border-radius:6px"></div></div>
+    <div style="flex:1;background:var(--bg-3);border-radius:var(--radius-sm);height:15px"><div style="width:${pct}%;background:${cor}99;height:15px;border-radius:var(--radius-sm)"></div></div>
     <span style="width:${extra ? '120px' : '32px'};text-align:right;flex-shrink:0;font-weight:600">${n}${extra}</span></div>`;
 }
 
@@ -76,7 +76,7 @@ function render() {
         <b>📅 Renovações nos próximos 90 dias</b>
         ${(c.vencendo || []).length ? `<div class="mt-1">${c.vencendo.map(v => `
           <div class="flex items-center tiny" style="gap:8px;padding:4px 0;border-bottom:1px solid var(--bg-3)">
-            <span class="badge" style="background:#d9770622;color:var(--warn);font-weight:700">${fmtD(v.fim)}</span>
+            <span class="badge" style="background:var(--warn-soft);color:var(--warn);font-weight:600">${fmtD(v.fim)}</span>
             <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(v.endereco)}${v.inquilino ? ' · ' + esc(v.inquilino) : ''}</span>
             <b>${brl(v.aluguel)}</b>
           </div>`).join('')}</div>`

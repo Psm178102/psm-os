@@ -119,19 +119,19 @@ function renderContent() {
     <!-- Pipeline & Funil -->
     ${secTitle('🔻 Pipeline & Conversão')}
     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:10px;margin-bottom:18px">
-      ${kpi('💼', 'Pipeline Aberto', fmtNum(pipeCount), fmtKM(pipeVgv) + ' em jogo', '#3b82f6')}
+      ${kpi('💼', 'Pipeline Aberto', fmtNum(pipeCount), fmtKM(pipeVgv) + ' em jogo', '#806d50')}
       ${kpi('🎟', 'Ticket Pipeline', fmtKM(ticketPipe), 'média por negócio', '#a855f7')}
       ${coberturaProj != null
         ? kpi('🛡', 'Cobertura da Meta', pct2(coberturaProj * 100), 'do que falta, a projeção cobre', coberturaProj >= 1 ? '#22c55e' : coberturaProj >= 0.7 ? '#f59e0b' : '#ef4444')
         : kpi('🛡', 'Cobertura da Meta', cobertura == null ? '✓' : cobertura.toFixed(1) + '×', cobertura == null ? 'meta batida' : 'pipeline ÷ gap', cobertura == null ? '#22c55e' : (cobertura >= 3 ? '#22c55e' : cobertura >= 1.5 ? '#f59e0b' : '#ef4444'))}
       ${kpi('❌', 'Perdas (mês)', fmtNum(perdMes), fmtKM(perdVgvMes) + ' perdidos', perdMes > 0 ? '#ef4444' : '#22c55e')}
-      ${kpi('⚡', 'Momentum 30d', fmtKM(vgv30), `${vendas30} venda(s) / 30 dias`, '#0891b2')}
+      ${kpi('⚡', 'Momentum 30d', fmtKM(vgv30), `${vendas30} venda(s) / 30 dias`, '#806d50')}
     </div>
 
     <!-- Equipe -->
     ${secTitle('👥 Equipe')}
     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:10px;margin-bottom:18px">
-      ${kpi('🧑‍💼', 'Corretores Ativos', fmtNum(ativos), '', '#3b82f6')}
+      ${kpi('🧑‍💼', 'Corretores Ativos', fmtNum(ativos), '', '#806d50')}
       ${kpi('🎯', 'Com Meta', fmtNum(comMeta), 'metas definidas', '#64748b')}
       ${kpi('🥇', pessoasPj ? 'Vão bater a meta' : 'Batendo Meta', fmtNum(batendo), pessoasPj ? 'projeção ≥ 100% da meta do ano' : '≥ 100%', '#22c55e')}
       ${kpi('🟡', pessoasPj ? 'Atrás' : 'No Caminho', fmtNum(caminho), pessoasPj ? 'projeção 70–99%' : '50–99%', '#f59e0b')}
@@ -155,11 +155,11 @@ function semStatus(v, [c, m, b]) {
 }
 function kpi(ico, label, value, sub, color, textColor) {
   return `
-    <div style="background:var(--bg-3);border-radius:10px;border-left:4px solid ${color};padding:14px;display:flex;gap:10px;align-items:flex-start">
-      <div style="font-size:22px;flex-shrink:0">${ico}</div>
+    <div style="background:var(--bg-3);border-radius:var(--radius-md);border-left:4px solid ${color};padding:14px;display:flex;gap:10px;align-items:flex-start">
+      <div style="font-size:20px;flex-shrink:0">${ico}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:10px;text-transform:uppercase;color:var(--muted);font-weight:600">${label}</div>
-        <div style="font-size:18px;font-weight:800;color:${textColor || color}">${value}</div>
+        <div style="font-size:11px;text-transform:uppercase;color:var(--muted);font-weight:600">${label}</div>
+        <div style="font-size:16px;font-weight:600;color:${textColor || color}">${value}</div>
         ${sub ? `<div class="tiny muted">${sub}</div>` : ''}
       </div>
     </div>

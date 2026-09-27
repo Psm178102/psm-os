@@ -40,7 +40,7 @@ let _libCat = 'Conquista';
 const _isConquista = () => (auth.user()?.role || '').toLowerCase() === 'corretor_conquista';
 
 const TIPOS = ['Carrossel', 'Estático', 'Vídeo', 'Story / Reels'];
-const TIPO_COR = { 'Carrossel': '#8b5cf6', 'Estático': '#0ea5e9', 'Vídeo': '#ef4444', 'Story / Reels': '#d6249f' };
+const TIPO_COR = { 'Carrossel': '#8b5cf6', 'Estático': '#806d50', 'Vídeo': '#ef4444', 'Story / Reels': '#d6249f' };
 const FORMATOS = ['Feed 1:1 (1080×1080)', 'Feed 4:5 (1080×1350)', 'Stories/Reels 9:16 (1080×1920)', 'Paisagem 16:9', 'Outro'];
 const CAMPANHAS = ['Tráfego — Conquista', 'Tráfego — M.A.P', 'Captação', 'Locação', 'Branding', 'Lançamento'];
 const CTAS = ['Saiba mais', 'Enviar mensagem', 'Falar no WhatsApp', 'Cadastre-se', 'Ligar agora', 'Comprar / Tenho interesse'];
@@ -50,12 +50,12 @@ const MAT_ICO = { imagem: '🖼', 'vídeo': '🎞', pdf: '📄', link: '🔗', t
 
 const STAGES = [
   { id: 'solicitado', lbl: '📥 Solicitado',       cor: '#f59e0b' },
-  { id: 'producao',   lbl: '🎨 Em produção',      cor: '#0ea5e9' },
+  { id: 'producao',   lbl: '🎨 Em produção',      cor: '#806d50' },
   // 'revisao' mantém o ID (renomear o id orfanaria os cards já nessa coluna). v81.59
   { id: 'revisao',    lbl: '👁 Para aprovação',   cor: '#8b5cf6' },
   { id: 'corrigir',   lbl: '🔁 Corrigir/Refazer', cor: '#ef4444' },
   { id: 'aprovado',   lbl: '✅ Aprovado',         cor: '#16a34a' },
-  { id: 'publicado',  lbl: '🚀 Publicado',        cor: '#0891b2' },
+  { id: 'publicado',  lbl: '🚀 Publicado',        cor: '#806d50' },
 ];
 const stageInfo = id => STAGES.find(s => s.id === id) || { lbl: id || '—', cor: '#64748b' };
 
@@ -125,13 +125,13 @@ function filtered() {
 const STYLE = `
   <style>
     .cr-board{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 14px}
-    .cr-col{min-width:250px;max-width:288px;flex:0 0 auto;background:var(--bg-3,#f1f5f9);border-radius:12px;padding:8px;display:flex;flex-direction:column}
+    .cr-col{min-width:250px;max-width:288px;flex:0 0 auto;background:var(--bg-3,#f1f5f9);border-radius:var(--radius-md);padding:8px;display:flex;flex-direction:column}
     .cr-col.drop{background:rgba(214,36,159,.12);box-shadow:inset 0 0 0 2px #d6249f}
-    .cr-card{background:var(--bg-1,#fff);border-radius:10px;padding:10px 11px;margin-bottom:8px;cursor:grab;box-shadow:0 1px 2px rgba(15,23,42,.06);border:1px solid rgba(148,163,184,.16);transition:transform .12s,box-shadow .12s}
-    .cr-card:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(15,23,42,.12)}
+    .cr-card{background:var(--bg-1,#fff);border-radius:var(--radius-md);padding:10px 11px;margin-bottom:8px;cursor:grab;box-shadow:var(--shadow-1);border:1px solid var(--border);transition:transform .12s,box-shadow .12s}
+    .cr-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-1)}
     .cr-card.dragging{opacity:.45}
-    .cr-chip{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700}
-    .cr-kpi{background:var(--bg-1,#fff);border:1px solid rgba(148,163,184,.18);border-radius:12px;padding:10px 14px;flex:1;min-width:110px}
+    .cr-chip{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:var(--radius-full);font-size:11px;font-weight:600}
+    .cr-kpi{background:var(--bg-1,#fff);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 14px;flex:1;min-width:110px}
     .cr-matrow{display:flex;gap:6px;margin-bottom:6px;align-items:center}
   </style>`;
 
@@ -139,7 +139,7 @@ function header() {
   return `
     <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
       <div>
-        <div style="font-size:20px;font-weight:800">🎨 Criativos — pedidos pro Marketing</div>
+        <div style="font-size:20px;font-weight:600">🎨 Criativos — pedidos pro Marketing</div>
         <div class="tiny muted">Briefe aqui o que precisa pras campanhas (copy, headline, CTA, número, material) e o marketing produz.</div>
       </div>
       <button class="btn btn-primary" id="cr-new">+ Pedir criativo</button>
@@ -163,11 +163,11 @@ function kpis() {
   const atras = f.filter(c => c.data_ref && c.status !== 'publicado' && c.status !== 'aprovado' && c.data_ref < hoje()).length;
   return `
     <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
-      <div class="cr-kpi"><div class="tiny muted">Pedidos</div><div style="font-size:18px;font-weight:800">${f.length}</div></div>
-      <div class="cr-kpi"><div class="tiny muted">📥 Na fila</div><div style="font-size:18px;font-weight:800;color:#f59e0b">${por('solicitado')}</div></div>
-      <div class="cr-kpi"><div class="tiny muted">🎨 Produzindo</div><div style="font-size:18px;font-weight:800;color:var(--azul-ceu)">${por('producao')}</div></div>
-      <div class="cr-kpi"><div class="tiny muted">⏰ Atrasados</div><div style="font-size:18px;font-weight:800;color:var(--err-suave)">${atras}</div></div>
-      <div class="cr-kpi"><div class="tiny muted">🚀 Publicados</div><div style="font-size:18px;font-weight:800;color:var(--ciano)">${por('publicado')}</div></div>
+      <div class="cr-kpi"><div class="tiny muted">Pedidos</div><div style="font-size:16px;font-weight:600">${f.length}</div></div>
+      <div class="cr-kpi"><div class="tiny muted">📥 Na fila</div><div style="font-size:16px;font-weight:600;color:var(--warn)">${por('solicitado')}</div></div>
+      <div class="cr-kpi"><div class="tiny muted">🎨 Produzindo</div><div style="font-size:16px;font-weight:600;color:var(--azul-ceu)">${por('producao')}</div></div>
+      <div class="cr-kpi"><div class="tiny muted">⏰ Atrasados</div><div style="font-size:16px;font-weight:600;color:var(--err-suave)">${atras}</div></div>
+      <div class="cr-kpi"><div class="tiny muted">🚀 Publicados</div><div style="font-size:16px;font-weight:600;color:var(--ciano)">${por('publicado')}</div></div>
     </div>`;
 }
 
@@ -181,11 +181,11 @@ function col(st) {
   return `
     <div class="cr-col" data-col="${st.id}">
       <div class="flex items-center" style="justify-content:space-between;padding:2px 4px 8px">
-        <span style="font-weight:800;font-size:12px;color:${st.cor}">${st.lbl}</span>
-        <span class="tiny muted" style="font-weight:700">${cards.length}</span>
+        <span style="font-weight:600;font-size:12px;color:${st.cor}">${st.lbl}</span>
+        <span class="tiny muted" style="font-weight:600">${cards.length}</span>
       </div>
       ${cards.map(card).join('') || '<div class="tiny muted" style="padding:8px;text-align:center;opacity:.6">—</div>'}
-      <button class="btn btn-ghost tiny cr-add" data-st="${st.id}" style="margin-top:auto;border:1px dashed rgba(148,163,184,.4)">+ pedir</button>
+      <button class="btn btn-ghost tiny cr-add" data-st="${st.id}" style="margin-top:auto;border:1px dashed var(--border)">+ pedir</button>
     </div>`;
 }
 
@@ -196,16 +196,16 @@ function card(c) {
   const semLink = mats(c).length - linkMats.length;
   return `
     <div class="cr-card" draggable="true" data-card="${esc(c.id)}">
-      <div style="font-weight:800;font-size:13px;line-height:1.3">${esc(c.titulo || 'Sem nome')}</div>
+      <div style="font-weight:600;font-size:13px;line-height:1.3">${esc(c.titulo || 'Sem nome')}</div>
       ${b.headline ? `<div class="tiny muted" style="margin-top:3px;font-style:italic">“${esc(String(b.headline).substring(0, 70))}”</div>` : ''}
       <div class="flex gap-1" style="flex-wrap:wrap;margin-top:6px">
-        ${c.formato ? `<span class="cr-chip" style="background:${(TIPO_COR[c.formato] || '#64748b')}1f;color:${TIPO_COR[c.formato] || '#64748b'}">${esc(c.formato)}</span>` : ''}
+        ${c.formato ? `<span class="cr-chip" style="background:${(TIPO_COR[c.formato] || '#64748b')}1f;color:${TIPO_COR[c.formato] || 'var(--ink-muted)'}">${esc(c.formato)}</span>` : ''}
         ${c.plataforma ? `<span class="cr-chip" style="background:rgba(148,163,184,.16);color:var(--ink,#475569)">🎯 ${esc(c.plataforma)}</span>` : ''}
       </div>
       ${dateChips(c)}
       <div class="flex gap-2" style="margin-top:8px;align-items:center">
-        ${c.responsavel ? `<span class="tiny" style="font-weight:700">👤 ${esc(c.responsavel)}</span>` : '<span class="tiny" style="color:#f59e0b;font-weight:700">sem resp.</span>'}
-        ${linkMats.map(m => `<a class="tiny" href="${esc(m.url)}" target="_blank" rel="noopener" title="${esc(m.nome || m.tipo || 'abrir material')}" onclick="event.stopPropagation()" style="text-decoration:none;font-weight:700">${MAT_ICO[m.tipo] || '🔗'}</a>`).join('')}
+        ${c.responsavel ? `<span class="tiny" style="font-weight:600">👤 ${esc(c.responsavel)}</span>` : '<span class="tiny" style="color:var(--warn);font-weight:600">sem resp.</span>'}
+        ${linkMats.map(m => `<a class="tiny" href="${esc(m.url)}" target="_blank" rel="noopener" title="${esc(m.nome || m.tipo || 'abrir material')}" onclick="event.stopPropagation()" style="text-decoration:none;font-weight:600">${MAT_ICO[m.tipo] || '🔗'}</a>`).join('')}
         ${semLink ? `<span class="tiny muted" title="materiais anexados sem link">📎 ${semLink}</span>` : ''}
         ${b.cta ? `<span class="tiny" title="CTA">▶ ${esc(b.cta)}</span>` : ''}
         <button class="btn btn-ghost tiny cr-edit" data-card="${esc(c.id)}" style="margin-left:auto">abrir</button>
@@ -270,8 +270,8 @@ function openEditor(seed) {
   const ov = document.createElement('div');
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto';
   ov.innerHTML = `
-    <div style="background:var(--bg-1,#fff);border-radius:14px;max-width:620px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:92vh;overflow:auto">
-      <div style="font-size:17px;font-weight:800;margin-bottom:12px">${c.id ? 'Briefing do criativo' : 'Pedir novo criativo'}</div>
+    <div style="background:var(--bg-1,#fff);border-radius:var(--radius-lg);max-width:620px;width:100%;padding:20px;box-shadow:var(--shadow-1);max-height:92vh;overflow:auto">
+      <div style="font-size:16px;font-weight:600;margin-bottom:12px">${c.id ? 'Briefing do criativo' : 'Pedir novo criativo'}</div>
       <label class="tiny muted">Nome / referência do criativo *</label>
       <input id="cr-f-titulo" class="input" value="${esc(c.titulo || '')}" placeholder="Ex: Carrossel lançamento X / Reels captação MAP" style="margin-bottom:10px">
       <div class="flex gap-2" style="margin-bottom:10px">
@@ -427,12 +427,12 @@ function renderDownload() {
   body().innerHTML = `
     <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
       <div>
-        <div style="font-size:20px;font-weight:800">⬇️ Criativos para Download</div>
+        <div style="font-size:20px;font-weight:600">⬇️ Criativos para Download</div>
         <div class="tiny muted">Criativos prontos do marketing — veja a prévia e baixe pelo Drive.${_canEdit ? ' Anexe novos pelo link do Drive.' : ''}</div>
       </div>
       ${_canEdit ? `<button class="btn btn-primary" id="lib-new">+ Anexar criativo</button>` : ''}
     </div>
-    <div class="flex gap-2" style="flex-wrap:wrap;border-bottom:2px solid var(--border,#e2e8f0);padding-bottom:8px;margin-bottom:12px">
+    <div class="flex gap-2" style="flex-wrap:wrap;border-bottom:2px solid var(--border,var(--border));padding-bottom:8px;margin-bottom:12px">
       ${cats.map(cat => `<button class="btn btn-sm ${cat === _libCat ? '' : 'btn-ghost'}" data-libcat="${esc(cat)}" style="${cat === _libCat ? 'background:#d6249f;color:#fff;border-color:#d6249f' : ''}">${esc(cat)} <span class="tiny" style="opacity:.7">(${_lib.filter(c => (c.plataforma || '') === cat).length})</span></button>`).join('')}
     </div>
     <div class="flex gap-2" style="flex-wrap:wrap;align-items:flex-end;margin-bottom:14px">
@@ -461,17 +461,17 @@ function libCard(c) {
              <iframe data-src="${esc(driveEmbed(fid))}" referrerpolicy="no-referrer" allow="autoplay" loading="lazy" style="display:none;width:100%;height:100%;border:0"></iframe>`;
   } else {
     const ph = folder ? ['📁', 'isto é uma PASTA<br>cole o link do arquivo'] : ['🔗', 'sem link de arquivo'];
-    media = `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:#94a3b8;font-size:36px;flex-direction:column;gap:6px;text-align:center;padding:0 8px"><span>${ph[0]}</span><span style="font-size:10px;line-height:1.3">${ph[1]}</span></div>`;
+    media = `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:var(--ink-muted);font-size:36px;flex-direction:column;gap:6px;text-align:center;padding:0 8px"><span>${ph[0]}</span><span style="font-size:11px;line-height:1.3">${ph[1]}</span></div>`;
   }
   return `
-    <div style="background:var(--bg-1,#fff);border:1px solid rgba(148,163,184,.18);border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,.06);display:flex;flex-direction:column">
-      <div style="position:relative;aspect-ratio:4/5;background:#0f172a;display:flex;align-items:center;justify-content:center;overflow:hidden">
+    <div style="background:var(--bg-1,#fff);border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;box-shadow:var(--shadow-1);display:flex;flex-direction:column">
+      <div style="position:relative;aspect-ratio:4/5;background:var(--surface-2);display:flex;align-items:center;justify-content:center;overflow:hidden">
         ${media}
-        <span style="position:absolute;top:8px;left:8px;background:${ativo ? '#16a34a' : 'rgba(100,116,139,.92)'};color:#fff;font-size:10px;font-weight:800;padding:3px 9px;border-radius:999px;pointer-events:none">${ativo ? '🟢 ATIVO' : '⚪ INATIVO'}</span>
-        ${_canEdit ? `<button class="lib-edit" data-id="${esc(c.id)}" title="Editar" style="position:absolute;top:6px;right:6px;background:rgba(15,23,42,.6);color:#fff;border:none;border-radius:8px;width:28px;height:28px;cursor:pointer;font-size:13px;z-index:2">✏️</button>` : ''}
+        <span style="position:absolute;top:8px;left:8px;background:${ativo ? 'var(--ok-soft)' : 'rgba(100,116,139,.92)'};color:#fff;font-size:11px;font-weight:600;padding:3px 9px;border-radius:var(--radius-full);pointer-events:none">${ativo ? '🟢 ATIVO' : '⚪ INATIVO'}</span>
+        ${_canEdit ? `<button class="lib-edit" data-id="${esc(c.id)}" title="Editar" style="position:absolute;top:6px;right:6px;background:rgba(15,23,42,.6);color:#fff;border:none;border-radius:var(--radius-md);width:28px;height:28px;cursor:pointer;font-size:13px;z-index:2">✏️</button>` : ''}
       </div>
       <div style="padding:10px 12px;display:flex;flex-direction:column;gap:8px;flex:1">
-        <div style="font-weight:800;font-size:13px;line-height:1.3">${esc(c.titulo || 'Sem nome')}</div>
+        <div style="font-weight:600;font-size:13px;line-height:1.3">${esc(c.titulo || 'Sem nome')}</div>
         ${c.formato ? `<span class="cr-chip" style="align-self:flex-start;background:${fcor}1f;color:${fcor}">${esc(c.formato)}</span>` : ''}
         <div class="flex gap-2" style="margin-top:auto">
           ${fid
@@ -498,13 +498,13 @@ function openLibEditor(c0) {
   // prévia ao vivo: arquivo → embed (renderiza imagem/vídeo); pasta → aviso; vazio → nada
   const prev = url => {
     const fid = driveFileId(url), folder = driveFolderId(url);
-    if (fid) return `<iframe src="${driveEmbed(fid)}" referrerpolicy="no-referrer" allow="autoplay" style="width:100%;height:220px;border:0;border-radius:8px;margin-top:8px;background:#0f172a"></iframe>`;
+    if (fid) return `<iframe src="${driveEmbed(fid)}" referrerpolicy="no-referrer" allow="autoplay" style="width:100%;height:220px;border:0;border-radius:var(--radius-md);margin-top:8px;background:var(--surface-2)"></iframe>`;
     if (folder) return `<div class="alert alert-warn" style="margin-top:8px;font-size:12px">📁 Isso é um link de <b>PASTA</b>. Cole o link de um <b>arquivo</b> (vídeo/imagem) — botão direito no arquivo → <b>Compartilhar → Copiar link</b>.</div>`;
     return '';
   };
   ov.innerHTML = `
-    <div style="background:var(--bg-1,#fff);border-radius:14px;max-width:480px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:92vh;overflow:auto">
-      <div style="font-size:17px;font-weight:800;margin-bottom:12px">${c.id ? '✏️ Editar criativo' : '⬇️ Anexar criativo pra download'}</div>
+    <div style="background:var(--bg-1,#fff);border-radius:var(--radius-lg);max-width:480px;width:100%;padding:20px;box-shadow:var(--shadow-1);max-height:92vh;overflow:auto">
+      <div style="font-size:16px;font-weight:600;margin-bottom:12px">${c.id ? '✏️ Editar criativo' : '⬇️ Anexar criativo pra download'}</div>
       <label class="tiny muted">Nome do criativo *</label>
       <input id="lb-titulo" class="input" value="${esc(c.titulo || '')}" placeholder="Ex.: Carrossel MCMV — Junho" style="margin-bottom:10px">
       <div class="flex gap-2" style="margin-bottom:10px">
@@ -589,7 +589,7 @@ function adLibsSection() {
     <div class="card" style="margin-bottom:16px">
       <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
         <div>
-          <div style="font-size:16px;font-weight:800">📚 Bibliotecas de Anúncios do Meta</div>
+          <div style="font-size:16px;font-weight:600">📚 Bibliotecas de Anúncios do Meta</div>
           <div class="tiny muted">Veja o que cada conta está anunciando no Facebook/Instagram (Ad Library).${podeEditar ? ' Adicione quantos links quiser por conta.' : ''}</div>
         </div>
       </div>
@@ -597,9 +597,9 @@ function adLibsSection() {
         ${cats.map(([k, lbl]) => {
           const links = _adsLib[k] || [];
           const oculto = !canSeeResource('ads_' + k, _adsPerms, u);   // sócio vê, mas marca
-          return `<div style="border:1px solid var(--border,#e2e8f0);border-radius:10px;padding:12px;background:var(--bg-2)">
+          return `<div style="border:1px solid var(--border,var(--border));border-radius:var(--radius-md);padding:12px;background:var(--bg-2)">
             <div class="flex items-center" style="justify-content:space-between;gap:6px;margin-bottom:8px">
-              <div style="font-weight:800;font-size:13px">${lbl}${oculto ? ' <span class="tiny" style="color:var(--warn-escuro)">(oculto)</span>' : ''}</div>
+              <div style="font-weight:600;font-size:13px">${lbl}${oculto ? ' <span class="tiny" style="color:var(--warn-escuro)">(oculto)</span>' : ''}</div>
               ${isSocio ? `<button class="btn btn-ghost btn-sm adl-perm" data-cat="${k}" data-lbl="${esc(lbl)}" title="Quem vê esta conta" style="padding:2px 7px">👁</button>` : ''}
             </div>
             ${links.length ? links.map(l => `<div class="flex items-center" style="gap:4px;margin-bottom:6px">
@@ -647,12 +647,12 @@ function renderAnuncios() {
     ${adLibsSection()}
     <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
       <div>
-        <div style="font-size:20px;font-weight:800">📣 Anúncios da PSM (criativo + copy)</div>
+        <div style="font-size:20px;font-weight:600">📣 Anúncios da PSM (criativo + copy)</div>
         <div class="tiny muted">Os anúncios que a PSM está rodando — veja o criativo e copie a copy.${_canEdit ? ' Cadastre novos pelo botão.' : ''}</div>
       </div>
       ${_canEdit ? `<button class="btn btn-primary" id="an-new">+ Novo anúncio</button>` : ''}
     </div>
-    <div class="flex gap-2" style="flex-wrap:wrap;align-items:center;border-bottom:2px solid var(--border,#e2e8f0);padding-bottom:8px;margin-bottom:12px">
+    <div class="flex gap-2" style="flex-wrap:wrap;align-items:center;border-bottom:2px solid var(--border,var(--border));padding-bottom:8px;margin-bottom:12px">
       ${cats.map(cat => `<button class="btn btn-sm ${cat === _anCat ? '' : 'btn-ghost'}" data-ancat="${esc(cat)}" style="${cat === _anCat ? 'background:#d6249f;color:#fff;border-color:#d6249f' : ''}">${esc(cat)} <span class="tiny" style="opacity:.7">(${_anuncios.filter(c => (c.plataforma || '') === cat).length})</span></button>`).join('')}
       <select id="an-fstatus" class="select" style="margin-left:auto;max-width:150px"><option value="">Todos</option><option value="ativo"${_fAnStatus === 'ativo' ? ' selected' : ''}>🟢 No ar</option><option value="inativo"${_fAnStatus === 'inativo' ? ' selected' : ''}>⚪ Pausados</option></select>
     </div>
@@ -666,23 +666,23 @@ function anMedia(c) {
   const fid = driveFileId(c.link), folder = driveFolderId(c.link);
   if (fid) return `<img src="${esc(driveThumb(fid))}" loading="lazy" referrerpolicy="no-referrer" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';var f=this.parentNode.querySelector('iframe');if(f){if(!f.src)f.src=f.dataset.src;f.style.display='block';}"><iframe data-src="${esc(driveEmbed(fid))}" referrerpolicy="no-referrer" allow="autoplay" loading="lazy" style="display:none;width:100%;height:100%;border:0"></iframe>`;
   const ph = folder ? ['📁', 'isto é uma PASTA'] : ['📣', 'sem criativo'];
-  return `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:#94a3b8;font-size:34px;flex-direction:column;gap:6px;text-align:center;padding:0 8px"><span>${ph[0]}</span><span style="font-size:10px">${ph[1]}</span></div>`;
+  return `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:var(--ink-muted);font-size:36px;flex-direction:column;gap:6px;text-align:center;padding:0 8px"><span>${ph[0]}</span><span style="font-size:11px">${ph[1]}</span></div>`;
 }
 
 function anCard(c) {
   const fid = driveFileId(c.link), ativo = isAtivo(c), cat = c.plataforma || '';
   const copy = c.obs || '';
   return `
-    <div style="background:var(--bg-1,#fff);border:1px solid rgba(148,163,184,.18);border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,.06);display:flex;flex-direction:column">
-      <div style="position:relative;aspect-ratio:4/5;background:#0f172a;display:flex;align-items:center;justify-content:center;overflow:hidden">
+    <div style="background:var(--bg-1,#fff);border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;box-shadow:var(--shadow-1);display:flex;flex-direction:column">
+      <div style="position:relative;aspect-ratio:4/5;background:var(--surface-2);display:flex;align-items:center;justify-content:center;overflow:hidden">
         ${anMedia(c)}
-        <span style="position:absolute;top:8px;left:8px;background:${ativo ? '#16a34a' : 'rgba(100,116,139,.92)'};color:#fff;font-size:10px;font-weight:800;padding:3px 9px;border-radius:999px">${ativo ? '🟢 NO AR' : '⚪ PAUSADO'}</span>
-        ${_canEdit ? `<button class="an-edit" data-id="${esc(c.id)}" title="Editar" style="position:absolute;top:6px;right:6px;background:rgba(15,23,42,.6);color:#fff;border:none;border-radius:8px;width:28px;height:28px;cursor:pointer;font-size:13px;z-index:2">✏️</button>` : ''}
+        <span style="position:absolute;top:8px;left:8px;background:${ativo ? 'var(--ok-soft)' : 'rgba(100,116,139,.92)'};color:#fff;font-size:11px;font-weight:600;padding:3px 9px;border-radius:var(--radius-full)">${ativo ? '🟢 NO AR' : '⚪ PAUSADO'}</span>
+        ${_canEdit ? `<button class="an-edit" data-id="${esc(c.id)}" title="Editar" style="position:absolute;top:6px;right:6px;background:rgba(15,23,42,.6);color:#fff;border:none;border-radius:var(--radius-md);width:28px;height:28px;cursor:pointer;font-size:13px;z-index:2">✏️</button>` : ''}
       </div>
       <div style="padding:10px 12px;display:flex;flex-direction:column;gap:8px;flex:1">
-        <div style="font-weight:800;font-size:13px;line-height:1.3">${esc(c.titulo || 'Sem nome')}</div>
+        <div style="font-weight:600;font-size:13px;line-height:1.3">${esc(c.titulo || 'Sem nome')}</div>
         <div class="flex gap-1" style="flex-wrap:wrap">${cat ? `<span class="cr-chip" style="background:rgba(214,36,159,.12);color:var(--rosa-forte)">${esc(cat)}</span>` : ''}${c.formato ? `<span class="cr-chip" style="background:#64748b1f;color:var(--ink-muted)">${esc(c.formato)}</span>` : ''}</div>
-        ${copy ? `<div style="font-size:11.5px;line-height:1.4;color:var(--ink-2,#475569);background:var(--bg-3,#f1f5f9);border-radius:8px;padding:8px 9px;max-height:120px;overflow:auto;white-space:pre-wrap">${esc(copy)}</div>
+        ${copy ? `<div style="font-size:11px;line-height:1.4;color:var(--ink-2,#475569);background:var(--bg-3,#f1f5f9);border-radius:var(--radius-md);padding:8px 9px;max-height:120px;overflow:auto;white-space:pre-wrap">${esc(copy)}</div>
           <button class="btn btn-ghost tiny an-copybtn" data-copy="${esc(c.id)}">📋 Copiar copy</button>` : '<div class="tiny muted">Sem copy cadastrada.</div>'}
         <div class="flex gap-2" style="margin-top:auto">
           ${c.link ? `<a class="btn btn-primary tiny" href="${esc(fid ? driveView(c.link, fid) : c.link)}" target="_blank" rel="noopener" style="flex:1;text-align:center">👁 Ver criativo</a>${fid ? `<a class="btn btn-ghost tiny" href="${esc(driveDownload(fid))}" target="_blank" rel="noopener" title="Baixar">⬇️</a>` : ''}` : '<span class="tiny muted">sem link de criativo</span>'}
@@ -711,10 +711,10 @@ function openAnEditor(c0) {
   const c = c0 || { status: 'ativo' };
   const ov = document.createElement('div');
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow:auto';
-  const prev = url => { const fid = driveFileId(url); return fid ? `<iframe src="${driveEmbed(fid)}" referrerpolicy="no-referrer" allow="autoplay" style="width:100%;height:200px;border:0;border-radius:8px;margin-top:8px;background:#0f172a"></iframe>` : (driveFolderId(url) ? `<div class="alert alert-warn" style="margin-top:8px;font-size:12px">📁 Link de PASTA — cole o link de um ARQUIVO.</div>` : ''); };
+  const prev = url => { const fid = driveFileId(url); return fid ? `<iframe src="${driveEmbed(fid)}" referrerpolicy="no-referrer" allow="autoplay" style="width:100%;height:200px;border:0;border-radius:var(--radius-md);margin-top:8px;background:var(--surface-2)"></iframe>` : (driveFolderId(url) ? `<div class="alert alert-warn" style="margin-top:8px;font-size:12px">📁 Link de PASTA — cole o link de um ARQUIVO.</div>` : ''); };
   ov.innerHTML = `
-    <div style="background:var(--bg-1,#fff);border-radius:14px;max-width:520px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);margin:auto">
-      <div style="font-size:17px;font-weight:800;margin-bottom:12px">${c.id ? '✏️ Editar anúncio' : '📣 Novo anúncio'}</div>
+    <div style="background:var(--bg-1,#fff);border-radius:var(--radius-lg);max-width:520px;width:100%;padding:20px;box-shadow:var(--shadow-1);margin:auto">
+      <div style="font-size:16px;font-weight:600;margin-bottom:12px">${c.id ? '✏️ Editar anúncio' : '📣 Novo anúncio'}</div>
       <label class="tiny muted">Nome do anúncio *</label>
       <input id="an-titulo" class="input" value="${esc(c.titulo || '')}" placeholder="Ex.: MCMV — Apto 2 quartos a partir de R$ X" style="margin-bottom:10px">
       <div class="flex gap-2" style="margin-bottom:10px">

@@ -13,7 +13,7 @@ import { auth } from '../auth.js';
 
 const AGENTS = [
   {
-    id: 'ceo', name: 'CEO PSM', ico: '🎩', color: '#0ea5e9',
+    id: 'ceo', name: 'CEO PSM', ico: '🎩', color: '#806d50',
     line: 'Braço direito executivo',
     desc: 'Visão de dono do todo: prioridades, preparo de decisão, fiscalização do Plano de Resgate e arbitragem entre áreas.',
     links: [{ nav: '/cockpit', lbl: '🧭 Sala de Comando' }, { nav: '/diretoria-ceo', lbl: '🏛️ Dossiês (Estado da União)' }],
@@ -60,13 +60,13 @@ const REDE_DESTINOS = [
   { id: 'sr_gerencia', lbl: '👔 Sr. Gerência' },
 ];
 const TIPO_META = {
-  achado:        { ico: '💡', lbl: 'Achado',        color: '#0ea5e9' },
+  achado:        { ico: '💡', lbl: 'Achado',        color: '#806d50' },
   alerta:        { ico: '🚨', lbl: 'Alerta',        color: '#ef4444' },
   incongruencia: { ico: '⚠️', lbl: 'Incongruência', color: '#f59e0b' },
   plano:         { ico: '🗺', lbl: 'Plano',         color: '#8b5cf6' },
   decisao:       { ico: '⚖️', lbl: 'Decisão',       color: '#22c55e' },
   pergunta:      { ico: '❓', lbl: 'Pergunta',      color: '#64748b' },
-  resposta:      { ico: '💬', lbl: 'Resposta',      color: '#06b6d4' },
+  resposta:      { ico: '💬', lbl: 'Resposta',      color: '#806d50' },
 };
 const AUTOR_META = {
   ceo: '🎩 CEO', cfo: '💰 CFO', cmo: '📣 CMO', gestor_trafego: '🚦 Sr. Tráfego',
@@ -111,15 +111,15 @@ function render() {
   _st.root.innerHTML = `
     <div class="card">
       <div style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);padding:18px 22px;margin:-16px -16px 16px;border-radius:14px 14px 0 0;color:#e2e8f0">
-        <div style="font-size:20px;font-weight:900;color:#fff">🏛 Agentes Diretoria</div>
-        <div class="tiny" style="color:#94a3b8;margin-top:4px">
+        <div style="font-size:20px;font-weight:600;color:#fff">🏛 Agentes Diretoria</div>
+        <div class="tiny" style="color:var(--ink-muted);margin-top:4px">
           A mesa C-level da holding: CEO, CFO e CMO com os dados vivos do House — interligados entre si e com o
           Sr. Tráfego, Sr. Performance e Sr. Gerência pela <b>Rede de Agentes</b>: o que um descobre, os outros leem.
         </div>
       </div>
 
       <div class="flex gap-2" style="flex-wrap:wrap;border-bottom:1px solid var(--bd);padding-bottom:8px;margin-bottom:14px">
-        ${tabs.map(t => `<button class="btn ${_st.tab === t.id ? 'btn-primary' : 'btn-ghost'}" data-tab="${t.id}" style="position:relative">${t.lbl}${t.id === 'rede' ? ` <span id="agd-rede-badge" style="display:none;background:#ef4444;color:#fff;font-size:10px;font-weight:800;border-radius:9px;padding:0 5px;margin-left:4px">${(_st.notas || []).length || ''}</span>` : ''}</button>`).join('')}
+        ${tabs.map(t => `<button class="btn ${_st.tab === t.id ? 'btn-primary' : 'btn-ghost'}" data-tab="${t.id}" style="position:relative">${t.lbl}${t.id === 'rede' ? ` <span id="agd-rede-badge" style="display:none;background:var(--err-soft);color:var(--err);font-size:11px;font-weight:600;border-radius:var(--radius-md);padding:0 5px;margin-left:4px">${(_st.notas || []).length || ''}</span>` : ''}</button>`).join('')}
       </div>
 
       <div id="agd-body"></div>
@@ -146,13 +146,13 @@ function renderChat(a) {
   const msgs = _st.msgs[a.id] || [];
   body.innerHTML = `
     <div style="display:flex;flex-direction:column;height:560px">
-      <div style="background:${a.color}11;border-left:4px solid ${a.color};border-radius:10px;padding:10px 14px;margin-bottom:10px">
-        <div style="font-weight:800;color:${a.color};font-size:13px">${a.ico} ${esc(a.name)} · <span style="font-weight:600">${esc(a.line)}</span></div>
+      <div style="background:${a.color}11;border-left:4px solid ${a.color};border-radius:var(--radius-md);padding:10px 14px;margin-bottom:10px">
+        <div style="font-weight:600;color:${a.color};font-size:13px">${a.ico} ${esc(a.name)} · <span style="font-weight:600">${esc(a.line)}</span></div>
         <div class="tiny muted" style="margin-top:2px">${esc(a.desc)} Responde com os dados reais do House (vendas, caixa/HUB, Plano de Resgate, Meta Ads, dossiês da rotina) e publica achados na rede.</div>
         ${(a.links || []).length ? `<div class="flex gap-2" style="margin-top:8px;flex-wrap:wrap">${a.links.map(l => `<button class="btn btn-ghost tiny" data-nav="${l.nav}">${l.lbl} →</button>`).join('')}</div>` : ''}
       </div>
 
-      <div id="agd-msgs" style="flex:1;overflow-y:auto;padding:10px;background:var(--bg-3);border-radius:10px;margin-bottom:10px;display:flex;flex-direction:column;gap:8px">
+      <div id="agd-msgs" style="flex:1;overflow-y:auto;padding:10px;background:var(--bg-3);border-radius:var(--radius-md);margin-bottom:10px;display:flex;flex-direction:column;gap:8px">
         ${msgs.length === 0 ? `
           <div style="text-align:center;padding:24px;color:var(--muted)">
             <div style="font-size:36px;margin-bottom:8px">${a.ico}</div>
@@ -186,12 +186,12 @@ function renderChat(a) {
 
 function bubble(m, a) {
   const isUser = m.role === 'user';
-  const redeTag = m.rede_pub ? `<div class="tiny" style="margin-top:6px;color:#06b6d4;font-weight:700">📡 publicou ${m.rede_pub} recado(s) na rede de agentes</div>` : '';
+  const redeTag = m.rede_pub ? `<div class="tiny" style="margin-top:6px;color:var(--accent-ink);font-weight:600">📡 publicou ${m.rede_pub} recado(s) na rede de agentes</div>` : '';
   return `
     <div style="display:flex;${isUser ? 'justify-content:flex-end' : ''};gap:8px">
       ${!isUser ? `<div style="width:32px;height:32px;border-radius:50%;background:${a.color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${a.ico}</div>` : ''}
-      <div style="max-width:78%;background:${isUser ? 'var(--psm-navy)' : 'var(--bg-2)'};color:${isUser ? '#fff' : 'var(--tx)'};padding:10px 14px;border-radius:10px;font-size:13px;line-height:1.55;white-space:pre-wrap;word-wrap:break-word">${esc(m.content)}${redeTag}</div>
-      ${isUser ? `<div style="width:32px;height:32px;border-radius:50%;background:var(--psm-navy);color:var(--psm-cream);display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">${esc((auth.user()?.ini || '?').toUpperCase())}</div>` : ''}
+      <div style="max-width:78%;background:${isUser ? 'var(--psm-navy)' : 'var(--bg-2)'};color:${isUser ? '#fff' : 'var(--tx)'};padding:10px 14px;border-radius:var(--radius-md);font-size:13px;line-height:1.55;white-space:pre-wrap;word-wrap:break-word">${esc(m.content)}${redeTag}</div>
+      ${isUser ? `<div style="width:32px;height:32px;border-radius:50%;background:var(--psm-navy);color:var(--psm-cream);display:flex;align-items:center;justify-content:center;font-weight:600;flex-shrink:0">${esc((auth.user()?.ini || '?').toUpperCase())}</div>` : ''}
     </div>
   `;
 }
@@ -228,8 +228,8 @@ function renderRede() {
   if (!body) return;
   const notas = _st.notas;
   body.innerHTML = `
-    <div style="background:var(--bg-3);border-radius:10px;padding:14px;margin-bottom:12px">
-      <div style="font-weight:800;margin-bottom:8px">📮 Publicar recado pra rede</div>
+    <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:14px;margin-bottom:12px">
+      <div style="font-weight:600;margin-bottom:8px">📮 Publicar recado pra rede</div>
       <div class="tiny muted" style="margin-bottom:8px">O recado entra no contexto dos agentes destinatários na próxima conversa de cada um — use pra dar ordem, contexto ou cobrar posição.</div>
       <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:8px">
         <select id="rede-para" class="input" style="max-width:180px">
@@ -250,7 +250,7 @@ function renderRede() {
       ${notas === null ? '<div class="muted tiny"><span class="spinner"></span> carregando o quadro…</div>'
         : notas.length === 0 ? `
           <div style="text-align:center;padding:30px;color:var(--muted)">
-            <div style="font-size:40px;margin-bottom:8px">🕸</div>
+            <div style="font-size:36px;margin-bottom:8px">🕸</div>
             <div>O quadro está vazio. Converse com os agentes — quando um descobrir algo relevante, publica aqui e os colegas passam a considerar.</div>
           </div>`
         : notas.map(n => notaCard(n)).join('')}
@@ -273,15 +273,15 @@ function notaCard(n) {
   const para = (n.para || []).map(p => p === 'todos' ? '🌐 todos' : (AUTOR_META[p] || p)).join(', ');
   const quando = String(n.ts || '').slice(0, 16).replace('T', ' ');
   return `
-    <div style="background:var(--bg-2);border-left:4px solid ${t.color};border-radius:10px;padding:12px 14px;margin-bottom:8px">
+    <div style="background:var(--bg-2);border-left:4px solid ${t.color};border-radius:var(--radius-md);padding:12px 14px;margin-bottom:8px">
       <div class="flex" style="align-items:center;gap:8px;flex-wrap:wrap">
-        <span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:12px;background:${t.color}22;color:${t.color}">${t.ico} ${t.lbl.toUpperCase()}</span>
-        <span class="tiny" style="font-weight:700">${esc(autor)}</span>
+        <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-md);background:${t.color}22;color:${t.color}">${t.ico} ${t.lbl.toUpperCase()}</span>
+        <span class="tiny" style="font-weight:600">${esc(autor)}</span>
         <span class="tiny muted">→ ${esc(para)}</span>
         <span class="tiny muted" style="margin-left:auto">${esc(quando)}${n.por ? ' · via ' + esc(n.por) : ''}</span>
         <button class="btn btn-ghost tiny" data-del="${esc(n.id)}" title="Apagar" style="padding:2px 6px">🗑</button>
       </div>
-      <div style="font-weight:700;font-size:13px;margin-top:6px">${esc(n.titulo)}</div>
+      <div style="font-weight:600;font-size:13px;margin-top:6px">${esc(n.titulo)}</div>
       ${n.corpo ? `<div class="tiny" style="margin-top:4px;line-height:1.5;white-space:pre-wrap">${esc(n.corpo)}</div>` : ''}
     </div>
   `;

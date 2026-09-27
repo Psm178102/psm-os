@@ -80,9 +80,9 @@ async function loadFila() {
           const [c, ico] = TEMP[s.temp] || TEMP.frio;
           return `
           <div style="display:flex;align-items:center;gap:10px;background:var(--bg-3);border-left:4px solid ${c};border-radius:var(--r-md);padding:9px 12px">
-            <div style="font-weight:900;color:${c};min-width:54px;text-align:center">${ico} ${s.score}</div>
+            <div style="font-weight:600;color:${c};min-width:54px;text-align:center">${ico} ${s.score}</div>
             <div style="flex:1;min-width:0">
-              <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${i + 1}. ${escapeHtml(s.title)}</div>
+              <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${i + 1}. ${escapeHtml(s.title)}</div>
               <div class="tiny muted">${escapeHtml(s.stage_name || s.ms_label || '')}${s.amount ? ' · R$ ' + fmtKM(s.amount) : ''}${s.dias_parado != null ? ' · parado ' + s.dias_parado + 'd' : ''}</div>
               <div class="tiny" style="color:${c};font-weight:600">👉 ${escapeHtml(s.acao || 'Fazer contato')}</div>
             </div>
@@ -141,7 +141,7 @@ function renderProducaoHoje() {
   if (!host) return;
   const eu = _prodHoje || {};
   const bl = eu.toques_por_bloco || {};
-  const chip = (k, lbl) => `<span class="tiny" style="background:var(--bg-3);border-radius:6px;padding:3px 8px">${lbl}: <b>${bl[k] || 0}</b></span>`;
+  const chip = (k, lbl) => `<span class="tiny" style="background:var(--bg-3);border-radius:var(--radius-sm);padding:3px 8px">${lbl}: <b>${bl[k] || 0}</b></span>`;
   host.innerHTML = `
     <div class="tiny muted" style="margin-bottom:6px">Semana: <b>${eu.toques_7d || 0}</b> toques · <b>${eu.visitas_7d || 0}</b> visitas registradas${eu.visitas_janela != null ? ` (oficial: <b>${eu.visitas_janela}</b>${eu.visitas_fonte === 'hub' ? ' no mês, HUB' : ' no RD'})` : ''}${eu.no_show_pct != null ? ` · no-show ${eu.no_show_pct}%` : ''}${eu.sla_mediana_min != null ? ` · 1º contato ~${eu.sla_mediana_min} min` : ''}</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
@@ -236,7 +236,7 @@ async function loadNorteCard() {
     const cor = pct == null ? '#94a3b8' : pct >= 100 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626';
     return `<div style="display:grid;grid-template-columns:130px 1fr auto;gap:8px;align-items:center">
       <span class="tiny" style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(s.label)}</span>
-      <div style="height:10px;background:var(--bg-3);border-radius:5px;overflow:hidden"><div style="height:100%;width:${meta > 0 ? Math.min(100, s.n / meta * 100) : 0}%;background:${cor}"></div></div>
+      <div style="height:10px;background:var(--bg-3);border-radius:var(--radius-sm);overflow:hidden"><div style="height:100%;width:${meta > 0 ? Math.min(100, s.n / meta * 100) : 0}%;background:${cor}"></div></div>
       <span class="tiny" style="white-space:nowrap"><b>${fN(s.n)}</b><span class="muted"> / ${meta > 0 ? fN(meta) : '—'}</span></span>
     </div>`;
   }).join('');
@@ -244,12 +244,12 @@ async function loadNorteCard() {
     const pct = meta > 0 ? real / meta * 100 : null;
     const cor = pct == null ? '#94a3b8' : pct >= 100 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626';
     return `<div><div class="tiny" style="display:flex;justify-content:space-between"><b>${lbl}</b><span><b>${isMoney ? 'R$ ' + mBRL(real) : fN(real)}</b> <span class="muted">/ ${meta > 0 ? (isMoney ? 'R$ ' + mBRL(meta) : fN(meta)) : '—'}</span></span></div>
-      <div style="height:10px;background:var(--bg-3);border-radius:5px;overflow:hidden;margin-top:2px"><div style="height:100%;width:${pct != null ? Math.min(100, pct) : 0}%;background:${cor}"></div></div></div>`;
+      <div style="height:10px;background:var(--bg-3);border-radius:var(--radius-sm);overflow:hidden;margin-top:2px"><div style="height:100%;width:${pct != null ? Math.min(100, pct) : 0}%;background:${cor}"></div></div></div>`;
   };
   host.innerHTML = `
     <div class="mt-3" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden">
-      <div style="background:linear-gradient(135deg,#0f172a,#1e3a8a);color:#fff;padding:12px 16px;display:flex;gap:18px;flex-wrap:wrap;align-items:center">
-        <div style="font-weight:900;font-size:15px">🎯 Norte do Dia · ${escapeHtml(mesNome)}</div>
+      <div style="background:var(--surface-2);color:var(--ink);padding:12px 16px;display:flex;gap:18px;flex-wrap:wrap;align-items:center">
+        <div style="font-weight:600;font-size:14px">🎯 Norte do Dia · ${escapeHtml(mesNome)}</div>
         ${pace.atend_dia != null ? `<div class="tiny" style="opacity:.95">Ritmo: <b>${fN(pace.atend_dia)} atendimentos/dia</b> (meta ${fN(comp.atendimentos_mes)}/mês) · esperado até hoje: <b>${fN(pace.atend_esperado_ate_hoje)}</b> · faltam <b>${pace.dias_restantes}</b> dia(s)</div>` : ''}
         <div class="tiny" style="margin-left:auto;opacity:.95">Vendas previstas: <b>${fN(comp.vendas_prev)}</b> · VGV: <b>R$ ${mBRL(comp.vgv_prev)}</b></div>
       </div>
@@ -278,25 +278,25 @@ async function loadPropostaMeta() {
   const p = pr.proposta, q = pr.quarter;
   const fN = v => { const x = Number(v) || 0; return Number.isInteger(x) ? x.toLocaleString('pt-BR') : x.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }); };
   const ATV = { lead: 'Leads', contato: 'Contatos', agendamento: 'Agendamentos', visita: 'Visitas', proposta: 'Propostas', pasta: 'Pastas' };
-  const _chip = (lbl, v) => `<span style="display:inline-block;background:rgba(255,255,255,.12);border-radius:999px;padding:2px 10px;margin:2px;font-size:11.5px">${lbl} <b>${fN(v)}</b>/mês</span>`;
+  const _chip = (lbl, v) => `<span style="display:inline-block;background:var(--surface-2);border-radius:var(--radius-full);padding:2px 10px;margin:2px;font-size:11px">${lbl} <b>${fN(v)}</b>/mês</span>`;
   const atv = (p.atividade_rows && p.atividade_rows.length
     ? p.atividade_rows.map(a => _chip(escapeHtml(a.label), a.valor))
     : Object.keys(ATV).filter(k => (p.atividade_mes || {})[k] != null).map(k => _chip(ATV[k], (p.atividade_mes || {})[k]))).join('');
   if (pr.status === 'aceita') {
-    host.innerHTML = `<div class="mt-3" style="background:color-mix(in srgb, var(--ok) 12%, transparent);border:1px solid #bbf7d0;border-radius:var(--r-md);padding:10px 14px;font-size:12.5px">
+    host.innerHTML = `<div class="mt-3" style="background:color-mix(in srgb, var(--ok) 12%, transparent);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 14px;font-size:13px">
       ✅ Meta do <b>${escapeHtml(q)}</b> aceita: <b>${p.vendas_mes} venda(s)/mês</b> (${p.vendas_tri} no tri) — a atividade mensal já está no seu Norte do Dia.</div>`;
     return;
   }
   host.innerHTML = `
-    <div class="mt-3" style="background:linear-gradient(135deg,#14532d,#166534);color:#fff;border-radius:var(--r-md);padding:14px 16px">
+    <div class="mt-3" style="background:var(--surface-2);color:var(--ink);border-radius:var(--r-md);padding:14px 16px">
       <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
         <div style="flex:1;min-width:220px">
-          <div style="font-weight:900;font-size:15px">🎯 Proposta de meta · trimestre ${escapeHtml(q)}</div>
+          <div style="font-weight:600;font-size:14px">🎯 Proposta de meta · trimestre ${escapeHtml(q)}</div>
           <div style="font-size:13px;margin-top:4px"><b>${p.vendas_mes} venda(s)/mês</b> · <b>${p.vendas_tri} no trimestre</b> · VGV ≈ R$ ${(Number(p.vgv_mes_prev) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mês</div>
           <div class="tiny" style="opacity:.9;margin-top:4px">🎲 Estatística honesta: com essa meta, <b>${(p.poisson_tri || {}).lo}–${(p.poisson_tri || {}).hi}</b> vendas no tri é normal — e o mês pode zerar ${Math.round(((p.poisson_mes || {}).p_zero || 0) * 100)}% das vezes MESMO executando certo. O que o mês cobra é a atividade:</div>
           <div style="margin-top:6px">${atv}</div>
         </div>
-        <button class="btn" id="prop-aceitar" style="background:var(--bg-2);color:#14532d;font-weight:800;white-space:nowrap">✅ Aceitar meta</button>
+        <button class="btn" id="prop-aceitar" style="background:var(--bg-2);color:var(--ok);font-weight:600;white-space:nowrap">✅ Aceitar meta</button>
       </div>
     </div>`;
   document.getElementById('prop-aceitar')?.addEventListener('click', async ev => {
@@ -330,7 +330,7 @@ function render() {
     <div class="card">
       <!-- Header -->
       <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid var(--border)">
-        <div style="width:64px;height:64px;border-radius:var(--r-md);background:${u.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:24px">${ini}</div>
+        <div style="width:64px;height:64px;border-radius:var(--r-md);background:${u.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:26px">${ini}</div>
         <div style="flex:1;min-width:200px">
           <h2 class="card-title" style="margin:0">${escapeHtml(u.name || '')}${mine ? '' : ' <span class="tiny muted">(painel do colaborador)</span>'}</h2>
           <div class="muted tiny">${escapeHtml(u.email || '')} · ${escapeHtml(u.role || '')} · ${escapeHtml(u.team || 'Geral')}</div>
@@ -384,7 +384,7 @@ function render() {
           <div style="display:flex;gap:6px;align-items:center">
             <input id="pf-contrato_url" class="input" type="url" value="${escapeHtml(p.contrato_url || '')}" placeholder="Drive / URL do contrato" style="flex:1;min-width:0" ${canEdit ? '' : 'disabled'}>
             <a id="pf-contrato_url-go" href="${/^https?:\/\//i.test(p.contrato_url || '') ? escapeHtml(p.contrato_url) : '#'}" target="_blank" rel="noopener" title="Abrir contrato"
-               style="text-decoration:none;font-size:17px;padding:6px 8px;border-radius:8px;background:rgba(59,130,246,.12);${/^https?:\/\//i.test(p.contrato_url || '') ? '' : 'display:none'}">🔗</a>
+               style="text-decoration:none;font-size:16px;padding:6px 8px;border-radius:var(--radius-md);background:var(--accent-soft);${/^https?:\/\//i.test(p.contrato_url || '') ? '' : 'display:none'}">🔗</a>
           </div>
         </div>
         ${field('perfil_comportamental', '🧭 Perfil comportamental', p.perfil_comportamental, canEdit, 'DISC / eneagrama / pontos fortes / como gosta de ser liderado…', 4)}
@@ -481,9 +481,9 @@ async function loadPainelFuncoes(uid, canCheck) {
   host.innerHTML = `
     <div class="tiny muted" style="margin-bottom:6px"><b>${done}/${items.length}</b> concluídos · cargo + login</div>
     <div>${items.map(it => `
-      <label style="display:flex;gap:9px;align-items:flex-start;padding:7px 0;border-top:1px solid var(--border,#e2e8f0);${canCheck ? 'cursor:pointer' : ''}">
+      <label style="display:flex;gap:9px;align-items:flex-start;padding:7px 0;border-top:1px solid var(--border,var(--border));${canCheck ? 'cursor:pointer' : ''}">
         <input type="checkbox" data-pf-toggle="${escapeHtml(it.id)}" ${checked[it.id] ? 'checked' : ''} ${canCheck ? '' : 'disabled'} style="margin-top:3px;width:16px;height:16px;flex:none">
-        <span style="font-size:13.5px;${checked[it.id] ? 'text-decoration:line-through;opacity:.55' : ''}">${escapeHtml(it.txt)}</span>
+        <span style="font-size:13px;${checked[it.id] ? 'text-decoration:line-through;opacity:.55' : ''}">${escapeHtml(it.txt)}</span>
       </label>`).join('')}</div>`;
   if (canCheck) host.querySelectorAll('[data-pf-toggle]').forEach(cb => cb.addEventListener('change', async () => {
     try { await api.request('/api/v3/settings/funcoes_tarefas', { method: 'POST', body: { action: 'toggle', itemId: cb.dataset.pfToggle, done: cb.checked } }); loadPainelFuncoes(uid, canCheck); }
@@ -499,8 +499,8 @@ function renderPerf(d) {
       ${kpi('💰 VGV', 'R$ ' + fmtKM(d.sales?.vgv_mes || 0), '#16a34a')}
       ${kpi('🎯 Meta VGV', 'R$ ' + fmtKM(d.metas?.meta_vgv || 0), '#d4a843')}
       ${kpi('📊 Atingimento', pctMeta(d.sales?.vgv_mes, d.metas?.meta_vgv), pctColor(d.sales?.vgv_mes, d.metas?.meta_vgv))}
-      ${kpi('📈 Pipeline', 'R$ ' + fmtKM(d.sales?.pipeline_vgv || 0), '#3b82f6')}
-      ${kpi('💎 VGV no Ano', 'R$ ' + fmtKM(d.sales?.vgv_ano || 0), '#0891b2')}
+      ${kpi('📈 Pipeline', 'R$ ' + fmtKM(d.sales?.pipeline_vgv || 0), '#806d50')}
+      ${kpi('💎 VGV no Ano', 'R$ ' + fmtKM(d.sales?.vgv_ano || 0), '#806d50')}
     </div>`;
 }
 
@@ -577,12 +577,12 @@ function pct2(v){ return v==null?'—':(Number(v)||0).toLocaleString('pt-BR',{mi
 function pctColor(real, meta) { if (!meta || meta <= 0) return 'var(--muted)'; const p = (real || 0) / meta; return p >= 1 ? '#16a34a' : p >= 0.7 ? '#f59e0b' : '#dc2626'; }
 function fmtKM(n) { return (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function kpi(label, value, color) {
-  return `<div style="background:var(--bg-3);border-radius:var(--r-sm);padding:10px 14px;min-width:140px"><div class="tiny muted" style="letter-spacing:1px;text-transform:uppercase">${label}</div><div style="font-size:20px;font-weight:800;color:${color || 'var(--ink)'}">${value}</div></div>`;
+  return `<div style="background:var(--bg-3);border-radius:var(--r-sm);padding:10px 14px;min-width:140px"><div class="tiny muted" style="letter-spacing:1px;text-transform:uppercase">${label}</div><div style="font-size:20px;font-weight:600;color:${color || 'var(--ink)'}">${value}</div></div>`;
 }
 function activityRow(e, myId) {
   const ts = new Date(e.ts).toLocaleString('pt-BR');
   const who = e.actor_id === myId ? `<b>Você</b>` : `<b>${escapeHtml(e.actor_name || e.actor_id || 'sistema')}</b>`;
-  return `<div style="display:grid;grid-template-columns:auto 1fr auto;gap:8px;padding:8px 10px;background:var(--bg-3);border-radius:var(--r-sm);font-size:12.5px"><code style="font-size:11px;color:var(--info);align-self:center">${escapeHtml(e.action || '')}</code><div>${who}${e.notes ? ' · <span class="muted">' + escapeHtml(e.notes) + '</span>' : ''}</div><span class="tiny muted">${ts}</span></div>`;
+  return `<div style="display:grid;grid-template-columns:auto 1fr auto;gap:8px;padding:8px 10px;background:var(--bg-3);border-radius:var(--r-sm);font-size:13px"><code style="font-size:11px;color:var(--info);align-self:center">${escapeHtml(e.action || '')}</code><div>${who}${e.notes ? ' · <span class="muted">' + escapeHtml(e.notes) + '</span>' : ''}</div><span class="tiny muted">${ts}</span></div>`;
 }
 function fmtMoney(n) { if (n == null) return '0,00'; return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
@@ -607,17 +607,17 @@ async function loadTravados() {
   const travados = meus.filter(antes);
   const projecao = meus.filter(r => !antes(r)).reduce((a, r) => a + (Number(r.valor_liquido_estimado) || 0), 0);
   box.innerHTML = `
-    <div class="card mt-4" style="border-left:4px solid ${travados.length ? '#dc2626' : '#16a34a'}">
+    <div class="card mt-4" style="border-left:4px solid ${travados.length ? 'var(--err)' : 'var(--ok)'}">
       <h3 class="card-title" style="margin:0">💼 Seus negócios pós-venda</h3>
       <div class="tiny muted">Sua comissão só entra na projeção quando o contrato está ASSINADO — empurre o cliente até lá.</div>
       <div class="flex mt-2" style="gap:10px;flex-wrap:wrap">
         <div class="tiny"><b style="color:var(--ok)">${brl2(projecao)}</b> em projeção (contrato assinado+)</div>
         ${travados.length ? `<div class="tiny"><b style="color:var(--err)">${travados.length} negócio(s) travado(s) antes da assinatura</b></div>` : ''}
       </div>
-      ${travados.map(r => `<div class="tiny" style="border-top:1px solid var(--bd,#ebe3ca);padding:6px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      ${travados.map(r => `<div class="tiny" style="border-top:1px solid var(--bd,var(--border));padding:6px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <b>${escapeHtml((r.descricao || '').slice(0, 60))}</b>
         <span class="muted">${MARCO_LBL[r.marco_atual] || escapeHtml(r.marco_atual)}</span>
-        ${(r.bloqueio || 'nenhum') !== 'nenhum' ? `<span style="color:var(--err);font-weight:800">⛔ ${escapeHtml(r.bloqueio.replace(/_/g, ' '))}</span>` : ''}
+        ${(r.bloqueio || 'nenhum') !== 'nenhum' ? `<span style="color:var(--err);font-weight:600">⛔ ${escapeHtml(r.bloqueio.replace(/_/g, ' '))}</span>` : ''}
         <span style="margin-left:auto">${r.valor_liquido_estimado != null ? brl2(r.valor_liquido_estimado) : ''}</span>
       </div>`).join('')}
     </div>`;

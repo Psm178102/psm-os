@@ -19,7 +19,7 @@ const ST_LABEL = {
   descartado: '🗑 Descartado', nutricao: '🌱 Nutrição',
 };
 const ST_COR = {
-  novo: '#dc2626', em_atendimento: '#2563eb', agendado: '#16a34a',
+  novo: '#dc2626', em_atendimento: '#806d50', agendado: '#16a34a',
   descartado: '#64748b', nutricao: '#a16207',
 };
 
@@ -74,18 +74,18 @@ function render() {
   const kpisHTML = `
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px">
       <div class="card" style="margin:0;text-align:center"><div class="tiny muted">Leads hoje</div>
-        <div style="font-size:26px;font-weight:800">${k.hoje ?? 0}</div>
+        <div style="font-size:26px;font-weight:600">${k.hoje ?? 0}</div>
         <div class="tiny muted">${k.nutricao_hoje ? `+${k.nutricao_hoje} nutrição` : '&nbsp;'}</div></div>
       <div class="card" style="margin:0;text-align:center"><div class="tiny muted">Tempo médio 1ª resposta</div>
-        <div style="font-size:26px;font-weight:800">${k.medio_resp_min != null ? k.medio_resp_min + 'min' : '—'}</div>
+        <div style="font-size:26px;font-weight:600">${k.medio_resp_min != null ? k.medio_resp_min + 'min' : '—'}</div>
         <div class="tiny muted">meta ≤ ${k.sla_min}min</div></div>
       <div class="card" style="margin:0;text-align:center"><div class="tiny muted">% dentro do SLA</div>
-        <div style="font-size:26px;font-weight:800;color:${(k.pct_sla ?? 100) >= 80 ? 'var(--ok,#16a34a)' : '#dc2626'}">${k.pct_sla != null ? k.pct_sla + '%' : '—'}</div>
+        <div style="font-size:26px;font-weight:600;color:${(k.pct_sla ?? 100) >= 80 ? 'var(--ok,#16a34a)' : 'var(--err)'}">${k.pct_sla != null ? k.pct_sla + '%' : '—'}</div>
         <div class="tiny muted">hoje</div></div>
-      <div class="card" style="margin:0;text-align:center;${semResp ? 'border:1px solid #dc2626;animation:lpPulse 1.2s infinite' : ''}">
+      <div class="card" style="margin:0;text-align:center;${semResp ? 'border:1px solid var(--err);animation:lpPulse 1.2s infinite' : ''}">
         <div class="tiny muted">Sem resposta AGORA</div>
-        <div style="font-size:26px;font-weight:800;color:${semResp ? '#dc2626' : 'inherit'}">${semResp}</div>
-        <div class="tiny ${semResp ? '' : 'muted'}" style="${semResp ? 'color:var(--err);font-weight:700' : ''}">${semResp ? 'CHAMA JÁ' : 'tudo respondido'}</div></div>
+        <div style="font-size:26px;font-weight:600;color:${semResp ? 'var(--err)' : 'inherit'}">${semResp}</div>
+        <div class="tiny ${semResp ? '' : 'muted'}" style="${semResp ? 'color:var(--err);font-weight:600' : ''}">${semResp ? 'CHAMA JÁ' : 'tudo respondido'}</div></div>
     </div>
     <style>@keyframes lpPulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.5)}50%{box-shadow:0 0 0 6px rgba(220,38,38,0)}}</style>`;
 
@@ -119,13 +119,13 @@ function render() {
     const camp = (l.utms || {}).utm_campaign || l.origem || '—';
     const pend = l.status_atendimento === 'novo' && !l.nutricao;
     return `
-    <tr style="${pend ? 'background:rgba(220,38,38,.06)' : ''}">
+    <tr style="${pend ? 'background:var(--err-soft)' : ''}">
       <td><span class="lp-timer tiny ${pend ? '' : 'muted'}" data-ts="${esc(l.ts_recebido)}"
-            style="${pend ? 'color:var(--err);font-weight:800' : ''}">${tempoVivo(l.ts_recebido)}</span></td>
+            style="${pend ? 'color:var(--err);font-weight:600' : ''}">${tempoVivo(l.ts_recebido)}</span></td>
       <td><b>${esc(l.nome || '?')}</b>${l.email ? `<div class="tiny muted">${esc(l.email)}</div>` : ''}</td>
-      <td><span style="background:var(--psm-navy,#1e2650);color:#fffbea;border-radius:6px;padding:2px 8px;font-weight:700;font-size:12px;white-space:nowrap">${esc(l.faixa_label || l.faixa_renda || '—')}</span></td>
+      <td><span style="background:var(--psm-navy,#806d50);color:#fffbea;border-radius:var(--radius-sm);padding:2px 8px;font-weight:600;font-size:12px;white-space:nowrap">${esc(l.faixa_label || l.faixa_renda || '—')}</span></td>
       <td class="tiny muted" style="max-width:140px;overflow:hidden;text-overflow:ellipsis">${esc(camp)}</td>
-      <td><span class="tiny" style="color:${ST_COR[l.status_atendimento] || 'inherit'};font-weight:700">${ST_LABEL[l.status_atendimento] || esc(l.status_atendimento)}</span>
+      <td><span class="tiny" style="color:${ST_COR[l.status_atendimento] || 'inherit'};font-weight:600">${ST_LABEL[l.status_atendimento] || esc(l.status_atendimento)}</span>
         ${l.atendido_por_nome ? `<div class="tiny muted">${esc(l.atendido_por_nome)}${rm != null ? ` · ${rm}min` : ''}</div>` : ''}</td>
       <td style="white-space:nowrap">
         <a class="btn btn-sm" target="_blank" rel="noopener" href="https://wa.me/${esc(String(l.whatsapp || '').replace(/\D/g, ''))}?text=${encodeURIComponent(`Olá ${(l.nome || '').split(' ')[0]}! Aqui é da PSM Conquista — recebemos o seu cadastro. Posso te ajudar a encontrar o seu imóvel?`)}"
@@ -152,16 +152,16 @@ function render() {
       <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-top:8px">
         <div class="card" style="margin:0;background:var(--bg-3)">
           <div class="tiny muted">Janela MADURA (+48h — sync RD já passou)</div>
-          <div style="font-size:22px;font-weight:800">${m.pct != null ? m.pct + '%' : '—'}</div>
+          <div style="font-size:20px;font-weight:600">${m.pct != null ? m.pct + '%' : '—'}</div>
           <div class="tiny muted">${m.casados ?? 0}/${m.total ?? 0} casados com o RD</div>
         </div>
         <div class="card" style="margin:0;background:var(--bg-3)">
           <div class="tiny muted">Últimas 48h (casamento ainda em curso)</div>
-          <div style="font-size:22px;font-weight:800">${r.casados ?? 0}/${r.total ?? 0}</div>
+          <div style="font-size:20px;font-weight:600">${r.casados ?? 0}/${r.total ?? 0}</div>
           <div class="tiny muted">o sync RD roda 1×/dia — normal casar amanhã</div>
         </div>
       </div>
-      ${(m.sem_rd || []).length ? `<details style="margin-top:8px"><summary class="tiny" style="cursor:pointer;color:var(--err);font-weight:700">⚠️ ${m.sem_rd.length} leads maduros SEM par no RD (falha da LP→RD?)</summary>
+      ${(m.sem_rd || []).length ? `<details style="margin-top:8px"><summary class="tiny" style="cursor:pointer;color:var(--err);font-weight:600">⚠️ ${m.sem_rd.length} leads maduros SEM par no RD (falha da LP→RD?)</summary>
         <ul class="tiny muted" style="margin:6px 0 0 16px">${m.sem_rd.map(x => `<li>${esc(x.nome)} · ${esc(x.whatsapp)} · ${new Date(x.ts).toLocaleString('pt-BR')}</li>`).join('')}</ul></details>` : ''}
       <div class="tiny muted" style="margin-top:8px">${esc(_data.paridade.nota || '')}</div>
       ${Object.keys(pc).length ? `<div style="margin-top:10px"><b class="tiny">Leads por campanha (janela ${_filtros.dias}d)</b>
@@ -174,7 +174,7 @@ function render() {
 
   const configHTML = (lvl() >= 10 && _data.config) ? `
     <div class="card" style="margin-top:14px">
-      <details><summary style="cursor:pointer;font-weight:700">⚙️ Config — roteio, SLA e horário</summary>
+      <details><summary style="cursor:pointer;font-weight:600">⚙️ Config — roteio, SLA e horário</summary>
         <div id="lp-cfg-box" style="margin-top:10px">
           <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px">
             <div><b class="tiny">📥 Atendentes (recebem o push do lead novo)</b>

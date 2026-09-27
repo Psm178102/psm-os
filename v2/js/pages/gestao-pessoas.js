@@ -213,7 +213,7 @@ function renderRH(tipo) {
   body.innerHTML = `
     <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
       <div>
-        <div style="font-size:18px;font-weight:800;color:${T.cor}">${T.titulo}</div>
+        <div style="font-size:16px;font-weight:600;color:${T.cor}">${T.titulo}</div>
         <div class="tiny muted">${T.sub}</div>
       </div>
       <div class="flex gap-2">
@@ -222,9 +222,9 @@ function renderRH(tipo) {
       </div>
     </div>
     <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
-      <div class="card" style="padding:10px 14px;flex:1;min-width:120px"><div class="tiny muted">Em andamento</div><div style="font-size:20px;font-weight:800;color:${T.cor}">${ativos.length}</div></div>
-      <div class="card" style="padding:10px 14px;flex:1;min-width:120px"><div class="tiny muted">Concluídos</div><div style="font-size:20px;font-weight:800">${list.length - ativos.length}</div></div>
-      <div class="card" style="padding:10px 14px;flex:1;min-width:120px"><div class="tiny muted">Total</div><div style="font-size:20px;font-weight:800">${list.length}</div></div>
+      <div class="card" style="padding:10px 14px;flex:1;min-width:120px"><div class="tiny muted">Em andamento</div><div style="font-size:20px;font-weight:600;color:${T.cor}">${ativos.length}</div></div>
+      <div class="card" style="padding:10px 14px;flex:1;min-width:120px"><div class="tiny muted">Concluídos</div><div style="font-size:20px;font-weight:600">${list.length - ativos.length}</div></div>
+      <div class="card" style="padding:10px 14px;flex:1;min-width:120px"><div class="tiny muted">Total</div><div style="font-size:20px;font-weight:600">${list.length}</div></div>
     </div>
     ${!list.length
       ? `<div class="card muted tiny" style="text-align:center;padding:34px">Nenhum processo de ${tipo === 'onboarding' ? 'admissão' : 'desligamento'} ainda. Clique em <b>+ Novo processo</b>.</div>`
@@ -242,13 +242,13 @@ function rhCard(tipo, p) {
   return `
     <div class="card" style="padding:14px;cursor:pointer;border-left:4px solid ${T.cor}" data-rh-open="${esc(p.id)}">
       <div class="flex items-center" style="justify-content:space-between;gap:8px">
-        <div style="font-weight:800;font-size:14px">${esc(p.nome || 'Sem nome')}</div>
-        <span class="tiny" style="font-weight:800;color:${done ? '#16a34a' : T.cor}">${done ? '✓ Concluído' : pr.pct + '%'}</span>
+        <div style="font-weight:600;font-size:14px">${esc(p.nome || 'Sem nome')}</div>
+        <span class="tiny" style="font-weight:600;color:${done ? 'var(--ok)' : T.cor}">${done ? '✓ Concluído' : pr.pct + '%'}</span>
       </div>
       <div class="tiny muted" style="margin:3px 0 8px">${esc(p.cargo || '—')}${p.equipe && p.equipe !== '—' ? ' · ' + esc(p.equipe) : ''}${p.data ? ' · ' + esc(p.data.split('-').reverse().join('/')) : ''}</div>
-      <div style="height:7px;background:var(--bg-3,#e2e8f0);border-radius:99px;overflow:hidden"><div style="height:100%;width:${pr.pct}%;background:${barcor};transition:width .2s"></div></div>
+      <div style="height:7px;background:var(--bg-3,#e2e8f0);border-radius:var(--radius-full);overflow:hidden"><div style="height:100%;width:${pr.pct}%;background:${barcor};transition:width .2s"></div></div>
       <div class="tiny muted" style="margin-top:5px">${pr.done}/${pr.total} itens${p.responsavel ? ' · 👤 ' + esc(p.responsavel) : ''}</div>
-      ${tipo === 'offboarding' && p.carteira_destino ? `<div class="tiny" style="margin-top:5px;color:var(--ciano);font-weight:700">🤝 carteira → ${esc(p.carteira_destino)}</div>` : ''}
+      ${tipo === 'offboarding' && p.carteira_destino ? `<div class="tiny" style="margin-top:5px;color:var(--ciano);font-weight:600">🤝 carteira → ${esc(p.carteira_destino)}</div>` : ''}
     </div>`;
 }
 
@@ -268,20 +268,20 @@ function openRHEditor(tipo, p0) {
     return '';
   };
   ov.innerHTML = `
-    <div style="background:var(--bg-1,#fff);border-radius:14px;max-width:620px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:92vh;overflow:auto">
-      <div style="font-size:17px;font-weight:800;margin-bottom:4px;color:${T.cor}">${p.id ? 'Editar' : 'Novo'} — ${T.titulo}</div>
+    <div style="background:var(--bg-1,#fff);border-radius:var(--radius-lg);max-width:620px;width:100%;padding:20px;box-shadow:var(--shadow-1);max-height:92vh;overflow:auto">
+      <div style="font-size:16px;font-weight:600;margin-bottom:4px;color:${T.cor}">${p.id ? 'Editar' : 'Novo'} — ${T.titulo}</div>
       <label class="tiny muted">Nome do colaborador *</label>
       <input id="rh-nome" class="input" value="${esc(p.nome || '')}" placeholder="Nome completo" style="margin-bottom:10px">
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-bottom:12px">
         ${T.campos.map(campo).join('')}
         <div><label class="tiny muted">Status</label><select id="rh-status" class="select"><option value="em_andamento"${(p.status || 'em_andamento') === 'em_andamento' ? ' selected' : ''}>Em andamento</option><option value="concluido"${p.status === 'concluido' ? ' selected' : ''}>Concluído</option></select></div>
       </div>
-      <div style="font-weight:800;font-size:13px;margin-bottom:8px">✅ Checklist</div>
+      <div style="font-weight:600;font-size:13px;margin-bottom:8px">✅ Checklist</div>
       <div id="rh-checklist">${T.etapas.map(e => `
         <div style="margin-bottom:12px">
-          <div style="font-weight:700;font-size:12px;color:${T.cor};margin-bottom:5px">${e.lbl}</div>
+          <div style="font-weight:600;font-size:12px;color:${T.cor};margin-bottom:5px">${e.lbl}</div>
           ${e.itens.map(([k, lbl]) => { const key = e.id + '.' + k; return `
-            <label style="display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:7px;cursor:pointer;font-size:13px" onmouseover="this.style.background='var(--bg-3,#f1f5f9)'" onmouseout="this.style.background=''">
+            <label style="display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px" onmouseover="this.style.background='var(--bg-3,#f1f5f9)'" onmouseout="this.style.background=''">
               <input type="checkbox" data-ck="${key}"${p.checklist[key] ? ' checked' : ''} style="width:16px;height:16px;cursor:pointer">
               <span>${esc(lbl)}</span>
             </label>`; }).join('')}
@@ -327,7 +327,7 @@ function openRHEditor(tipo, p0) {
 ═══════════════════════════════════════════════════════════════════════════ */
 const REG_TPL = {
   plano: {
-    titulo: '📈 Plano de Crescimento', cor: '#0ea5e9', titleField: 'pessoa',
+    titulo: '📈 Plano de Crescimento', cor: '#806d50', titleField: 'pessoa',
     sub: 'Trilha de cargos e PDI: onde cada um está e o próximo passo.',
     campos: [
       { k: 'pessoa', lbl: 'Colaborador', type: 'text', req: true },
@@ -387,7 +387,7 @@ function renderReg(modulo) {
   const body = document.getElementById('gp-body');
   body.innerHTML = `
     <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
-      <div><div style="font-size:17px;font-weight:800;color:${T.cor}">${T.titulo}</div><div class="tiny muted">${T.sub}</div></div>
+      <div><div style="font-size:16px;font-weight:600;color:${T.cor}">${T.titulo}</div><div class="tiny muted">${T.sub}</div></div>
       <button class="btn btn-primary" id="reg-new">+ Nova ficha</button>
     </div>
     ${!list.length ? `<div class="card muted tiny" style="text-align:center;padding:30px">Nenhuma ficha ainda. Clique em <b>+ Nova ficha</b>.</div>`
@@ -399,11 +399,11 @@ function renderReg(modulo) {
 function regCard(modulo, r) {
   const T = REG_TPL[modulo];
   const title = r[T.titleField] || '—';
-  const chips = (T.chips(r) || []).map(c => `<span style="background:${T.cor}1f;color:${T.cor};font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px">${esc(c)}</span>`).join(' ');
+  const chips = (T.chips(r) || []).map(c => `<span style="background:${T.cor}1f;color:${T.cor};font-size:11px;font-weight:600;padding:2px 8px;border-radius:var(--radius-full)">${esc(c)}</span>`).join(' ');
   const pf = T.campos.find(c => c.type === 'textarea' && r[c.k]);
   const prev = pf ? esc(String(r[pf.k]).slice(0, 90)) : '';
   return `<div class="card" style="padding:13px;cursor:pointer;border-left:4px solid ${T.cor}" data-reg="${esc(r.id)}">
-    <div style="font-weight:800;font-size:14px">${esc(title)}</div>
+    <div style="font-weight:600;font-size:14px">${esc(title)}</div>
     <div class="flex gap-1" style="flex-wrap:wrap;margin:6px 0">${chips}</div>
     ${prev ? `<div class="tiny muted">${prev}${String(r[pf.k]).length > 90 ? '…' : ''}</div>` : ''}
   </div>`;
@@ -421,8 +421,8 @@ function openRegEditor(modulo, r0) {
     return `<div><label class="tiny muted">${c.lbl}</label><input id="rg-${c.k}" class="input" type="${t}" value="${esc(c.type === 'date' ? String(v).slice(0, 10) : v)}"></div>`;
   };
   ov.innerHTML = `
-    <div style="background:var(--bg-1,#fff);border-radius:14px;max-width:520px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:92vh;overflow:auto">
-      <div style="font-size:17px;font-weight:800;margin-bottom:12px;color:${T.cor}">${r.id ? 'Editar' : 'Nova'} — ${T.titulo}</div>
+    <div style="background:var(--bg-1,#fff);border-radius:var(--radius-lg);max-width:520px;width:100%;padding:20px;box-shadow:var(--shadow-1);max-height:92vh;overflow:auto">
+      <div style="font-size:16px;font-weight:600;margin-bottom:12px;color:${T.cor}">${r.id ? 'Editar' : 'Nova'} — ${T.titulo}</div>
       <div style="display:flex;flex-direction:column;gap:8px">${T.campos.map(field).join('')}</div>
       <div class="flex gap-2 mt-3" style="justify-content:space-between;margin-top:14px">
         <button class="btn btn-ghost" id="rg-del" ${r.id ? '' : 'style="visibility:hidden"'}>🗑 Excluir</button>
@@ -453,8 +453,8 @@ function openRegEditor(modulo, r0) {
 function offCargoRefHTML(cargo) {
   const c = _cargosOff[cargo];
   if (!c || !(c.requisitos || c.metricas || (c.checklist && c.checklist.length))) return '';
-  return `<div style="background:#ef44440e;border:1px solid #ef444433;border-radius:8px;padding:8px 10px;margin:8px 0;font-size:12px">
-    <div style="font-weight:800;color:var(--err-suave);margin-bottom:3px">📋 Padrão do cargo «${esc(cargo)}»</div>
+  return `<div style="background:var(--err-soft);border:1px solid var(--err);border-radius:var(--radius-md);padding:8px 10px;margin:8px 0;font-size:12px">
+    <div style="font-weight:600;color:var(--err-suave);margin-bottom:3px">📋 Padrão do cargo «${esc(cargo)}»</div>
     ${c.requisitos ? `<div><b>Requisitos p/ desligar:</b> ${esc(c.requisitos)}</div>` : ''}
     ${c.metricas ? `<div><b>Métricas:</b> ${esc(c.metricas)}</div>` : ''}
     ${(c.checklist && c.checklist.length) ? `<div><b>Checkout:</b><ul style="margin:3px 0 0 16px">${c.checklist.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}

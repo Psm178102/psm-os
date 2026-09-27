@@ -38,9 +38,9 @@ function render() {
     <div class="card">
       <div style="background:linear-gradient(135deg, ${a.color}33 0%, transparent 100%);border-left:4px solid ${a.color};padding:18px 22px;margin:-16px -16px 16px;border-radius:14px 14px 0 0">
         <div class="flex" style="align-items:center;gap:14px">
-          <div style="width:56px;height:56px;border-radius:14px;background:${a.color}44;display:flex;align-items:center;justify-content:center;font-size:28px">${a.ico}</div>
+          <div style="width:56px;height:56px;border-radius:var(--radius-lg);background:${a.color}44;display:flex;align-items:center;justify-content:center;font-size:26px">${a.ico}</div>
           <div>
-            <div style="font-size:22px;font-weight:900;color:${a.color}">${esc(a.name)}</div>
+            <div style="font-size:20px;font-weight:600;color:${a.color}">${esc(a.name)}</div>
             <div class="tiny muted">${esc(a.line)} · ${esc(a.desc)}</div>
           </div>
         </div>
@@ -68,14 +68,14 @@ function renderChat() {
   const body = document.getElementById('ag-body');
   body.innerHTML = `
     <div style="display:flex;flex-direction:column;height:520px">
-      <div style="background:${a.color}11;border-radius:10px;padding:12px 14px;margin-bottom:10px">
-        <div style="font-weight:800;color:${a.color};font-size:12px;margin-bottom:4px">⚡ Capacidades</div>
+      <div style="background:${a.color}11;border-radius:var(--radius-md);padding:12px 14px;margin-bottom:10px">
+        <div style="font-weight:600;color:${a.color};font-size:12px;margin-bottom:4px">⚡ Capacidades</div>
         <ul style="margin:0;padding-left:20px;font-size:11px;line-height:1.6;color:var(--muted)">
           ${a.capacidades.map(c => `<li>${esc(c)}</li>`).join('')}
         </ul>
       </div>
 
-      <div id="ag-msgs" style="flex:1;overflow-y:auto;padding:10px;background:var(--bg-3);border-radius:10px;margin-bottom:10px;display:flex;flex-direction:column;gap:8px">
+      <div id="ag-msgs" style="flex:1;overflow-y:auto;padding:10px;background:var(--bg-3);border-radius:var(--radius-md);margin-bottom:10px;display:flex;flex-direction:column;gap:8px">
         ${_state.messages.length === 0 ? `
           <div style="text-align:center;padding:30px;color:var(--muted)">
             <div style="font-size:36px;margin-bottom:8px">${a.ico}</div>
@@ -111,8 +111,8 @@ function msgBubble(m, a) {
   return `
     <div style="display:flex;${isUser ? 'justify-content:flex-end' : ''};gap:8px">
       ${!isUser ? `<div style="width:32px;height:32px;border-radius:50%;background:${a.color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${a.ico}</div>` : ''}
-      <div style="max-width:75%;background:${isUser ? 'var(--psm-navy)' : 'var(--bg-2)'};color:${isUser ? '#fff' : 'var(--tx)'};padding:10px 14px;border-radius:10px;font-size:13px;line-height:1.5;white-space:pre-wrap;word-wrap:break-word">${esc(m.content)}</div>
-      ${isUser ? `<div style="width:32px;height:32px;border-radius:50%;background:var(--psm-navy);color:var(--psm-cream);display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">${esc((auth.user()?.ini || '?').toUpperCase())}</div>` : ''}
+      <div style="max-width:75%;background:${isUser ? 'var(--psm-navy)' : 'var(--bg-2)'};color:${isUser ? '#fff' : 'var(--tx)'};padding:10px 14px;border-radius:var(--radius-md);font-size:13px;line-height:1.5;white-space:pre-wrap;word-wrap:break-word">${esc(m.content)}</div>
+      ${isUser ? `<div style="width:32px;height:32px;border-radius:50%;background:var(--psm-navy);color:var(--psm-cream);display:flex;align-items:center;justify-content:center;font-weight:600;flex-shrink:0">${esc((auth.user()?.ini || '?').toUpperCase())}</div>` : ''}
     </div>
   `;
 }
@@ -147,12 +147,12 @@ function renderConvs() {
   body.innerHTML = `
     <div class="card" style="background:var(--bg-3);padding:30px;text-align:center">
       <div style="font-size:48px;margin-bottom:10px">📋</div>
-      <div style="font-weight:800;margin-bottom:6px">Painel de Conversas</div>
+      <div style="font-weight:600;margin-bottom:6px">Painel de Conversas</div>
       <div class="muted tiny mb-3">
         Em breve: logs de todas as conversas reais que ${esc(_state.agent.name)} teve com leads via WhatsApp e Instagram.
         <br>Dependerá da integração com Evolution API + Meta Graph API estar ativa.
       </div>
-      <div class="tiny" style="background:var(--bg-2);padding:10px;border-radius:6px;display:inline-block">
+      <div class="tiny" style="background:var(--bg-2);padding:10px;border-radius:var(--radius-sm);display:inline-block">
         🔧 Pré-requisito: configurar ${esc(_state.agent.name)} na aba Setup
       </div>
     </div>
@@ -164,16 +164,16 @@ function renderConfig() {
   const a = _state.agent;
   body.innerHTML = `
     <div class="card" style="background:var(--bg-3);padding:18px">
-      <div style="font-weight:800;margin-bottom:8px">⚙️ Configuração de ${esc(a.name)}</div>
+      <div style="font-weight:600;margin-bottom:8px">⚙️ Configuração de ${esc(a.name)}</div>
       <p class="tiny muted">Personalidade, tom, regras de qualificação e templates de resposta. (Sócio only)</p>
 
       <div class="mt-3">
-        <label class="tiny" style="color:var(--muted);font-weight:700">Persona</label>
+        <label class="tiny" style="color:var(--muted);font-weight:600">Persona</label>
         <textarea id="cf-persona" class="input" rows="3" placeholder="Ex: Vera é assistente da PSM Imóveis. Tom: profissional, gentil, direta. Foco: qualificar leads e direcionar pra corretor.">Você é ${esc(a.name)}, agente IA da PSM (${esc(a.line)}). ${esc(a.desc)}</textarea>
       </div>
 
       <div class="mt-3">
-        <label class="tiny" style="color:var(--muted);font-weight:700">Regras de qualificação</label>
+        <label class="tiny" style="color:var(--muted);font-weight:600">Regras de qualificação</label>
         <textarea id="cf-regras" class="input" rows="3" placeholder="Ex: Qualificar com: orçamento, prazo, perfil de imóvel...">1. Apresente-se como ${esc(a.name)}
 2. Pergunte intenção (morar/investir)
 3. Pergunte orçamento, bairro, quartos
@@ -182,7 +182,7 @@ function renderConfig() {
       </div>
 
       <div class="mt-3">
-        <label class="tiny" style="color:var(--muted);font-weight:700">Horário de atendimento</label>
+        <label class="tiny" style="color:var(--muted);font-weight:600">Horário de atendimento</label>
         <input id="cf-horario" class="input" value="24/7" placeholder="Ex: 08:00-22:00 Seg-Sab">
       </div>
 
@@ -203,11 +203,11 @@ function renderSetup() {
   const a = _state.agent;
   body.innerHTML = `
     <div class="card" style="background:var(--bg-3);padding:18px">
-      <div style="font-weight:800;margin-bottom:10px">🔧 Setup ${esc(a.name)} — WhatsApp + Instagram</div>
+      <div style="font-weight:600;margin-bottom:10px">🔧 Setup ${esc(a.name)} — WhatsApp + Instagram</div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-        <div style="background:var(--bg-2);padding:14px;border-radius:10px;border-left:4px solid #22c55e">
-          <div style="font-weight:800;color:#22c55e">📱 WhatsApp Business</div>
+        <div style="background:var(--bg-2);padding:14px;border-radius:var(--radius-md);border-left:4px solid var(--ok)">
+          <div style="font-weight:600;color:var(--ok)">📱 WhatsApp Business</div>
           <div class="tiny muted mt-2">Via Evolution API:</div>
           <ol class="tiny mt-1" style="padding-left:20px;line-height:1.7">
             <li>Provisionar instância Evolution na VPS PSM</li>
@@ -218,8 +218,8 @@ function renderSetup() {
           </ol>
         </div>
 
-        <div style="background:var(--bg-2);padding:14px;border-radius:10px;border-left:4px solid #e1306c">
-          <div style="font-weight:800;color:var(--rosa)">📸 Instagram DM</div>
+        <div style="background:var(--bg-2);padding:14px;border-radius:var(--radius-md);border-left:4px solid #e1306c">
+          <div style="font-weight:600;color:var(--rosa)">📸 Instagram DM</div>
           <div class="tiny muted mt-2">Via Meta Graph API:</div>
           <ol class="tiny mt-1" style="padding-left:20px;line-height:1.7">
             <li>App Meta com permissão instagram_manage_messages</li>

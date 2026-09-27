@@ -66,10 +66,10 @@ function commentRow(c, myId) {
   const canDel = au.id === myId;
   const ts = new Date(c.created_at).toLocaleString('pt-BR');
   return `
-    <div style="display:grid;grid-template-columns:30px 1fr auto;gap:8px;padding:8px 10px;background:var(--bg-3);border-radius:var(--r-sm);font-size:12.5px">
-      <div style="width:26px;height:26px;border-radius:4px;background:${au.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:10px">${ini}</div>
+    <div style="display:grid;grid-template-columns:30px 1fr auto;gap:8px;padding:8px 10px;background:var(--bg-3);border-radius:var(--r-sm);font-size:13px">
+      <div style="width:26px;height:26px;border-radius:var(--radius-sm);background:${au.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:11px">${ini}</div>
       <div style="min-width:0">
-        <div style="font-weight:700">${escapeHtml(au.name || 'sistema')} <span class="tiny muted" style="font-weight:400">· ${ts}</span></div>
+        <div style="font-weight:600">${escapeHtml(au.name || 'sistema')} <span class="tiny muted" style="font-weight:400">· ${ts}</span></div>
         <div style="margin-top:2px;white-space:pre-wrap;word-wrap:break-word">${linkifyMentions(escapeHtml(c.texto))}</div>
       </div>
       ${canDel ? `<button class="btn btn-ghost tiny" data-cmt-del="${c.id}" style="padding:3px 6px">🗑</button>` : '<span></span>'}
@@ -78,7 +78,7 @@ function commentRow(c, myId) {
 }
 
 function linkifyMentions(s) {
-  return s.replace(/@([a-z0-9_\-]+)/gi, '<span style="background:#dbeafe;color:#1e40af;padding:1px 4px;border-radius:3px;font-weight:600">@$1</span>');
+  return s.replace(/@([a-z0-9_\-]+)/gi, '<span style="background:var(--accent-soft);color:var(--accent-ink);padding:1px 4px;border-radius:var(--radius-sm);font-weight:600">@$1</span>');
 }
 
 function escapeHtml(s) {

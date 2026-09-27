@@ -67,12 +67,12 @@ function render() {
     const dow = new Date(ano, mesIdx, d).getDay();
     const isWeekend = dow === 0 || dow === 6;
     cells.push(`
-      <div ${canEdit ? `data-day="${d}"` : ''} style="border:1px solid var(--border);border-radius:var(--r-sm);padding:6px;min-height:88px;background:${isToday ? '#dbeafe' : isWeekend ? '#fef3c7' : 'var(--bg-2)'};display:flex;flex-direction:column;gap:3px;${canEdit ? 'cursor:pointer' : ''}">
-        <div style="font-weight:${isToday ? 800 : 600};font-size:12px;color:${isToday ? '#1e40af' : 'var(--ink)'}">${d}</div>
+      <div ${canEdit ? `data-day="${d}"` : ''} style="border:1px solid var(--border);border-radius:var(--r-sm);padding:6px;min-height:88px;background:${isToday ? 'var(--accent-soft)' : isWeekend ? 'var(--warn-soft)' : 'var(--bg-2)'};display:flex;flex-direction:column;gap:3px;${canEdit ? 'cursor:pointer' : ''}">
+        <div style="font-weight:${isToday ? 800 : 600};font-size:12px;color:${isToday ? 'var(--accent-ink)' : 'var(--ink)'}">${d}</div>
         ${day.map(p => {
           const u = _users.find(x => x.id === p.corretor_id);
           const per = PERIODOS.find(x => x.id === p.periodo) || PERIODOS[2];
-          return `<div ${canEdit ? `data-pid="${escapeHtml(p.id)}"` : ''} style="background:${u?.color || '#64748b'};color:#fff;font-size:10px;padding:2px 4px;border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escapeHtml(u?.name || '?')} - ${per.lbl}">${per.ico} ${escapeHtml((u?.name || '?').split(' ')[0])}</div>`;
+          return `<div ${canEdit ? `data-pid="${escapeHtml(p.id)}"` : ''} style="background:${u?.color || '#64748b'};color:#fff;font-size:11px;padding:2px 4px;border-radius:var(--radius-sm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escapeHtml(u?.name || '?')} - ${per.lbl}">${per.ico} ${escapeHtml((u?.name || '?').split(' ')[0])}</div>`;
         }).join('')}
       </div>
     `);
@@ -87,13 +87,13 @@ function render() {
         <button class="btn btn-ghost" id="prev-mes">‹</button>
         <button class="btn btn-ghost" id="hoje-mes">Hoje</button>
         <button class="btn btn-ghost" id="next-mes">›</button>
-        <span style="font-weight:800;font-size:16px;margin-left:8px">${MES_NAMES[mesIdx]} ${ano}</span>
+        <span style="font-weight:600;font-size:16px;margin-left:8px">${MES_NAMES[mesIdx]} ${ano}</span>
         ${canEdit ? '<button class="btn btn-primary" id="btn-novo" style="margin-left:auto">+ Plantão</button>' : ''}
       </div>
 
       <div class="mt-3">
         <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px">
-          ${DIAS_SEMANA.map(d => `<div style="text-align:center;font-weight:700;font-size:11px;color:var(--ink-muted);padding:6px">${d}</div>`).join('')}
+          ${DIAS_SEMANA.map(d => `<div style="text-align:center;font-weight:600;font-size:11px;color:var(--ink-muted);padding:6px">${d}</div>`).join('')}
         </div>
         <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">${cells.join('')}</div>
       </div>
@@ -104,7 +104,7 @@ function render() {
           <div style="display:grid;gap:4px">
             ${topCorr.map(([cid, count]) => {
               const u = _users.find(x => x.id === cid);
-              return `<div style="display:flex;justify-content:space-between;padding:6px 10px;background:var(--bg-3);border-radius:var(--r-sm);font-size:12.5px">
+              return `<div style="display:flex;justify-content:space-between;padding:6px 10px;background:var(--bg-3);border-radius:var(--r-sm);font-size:13px">
                 <span>${escapeHtml(u?.name || cid)}</span>
                 <b>${count} plantão${count !== 1 ? 'ões' : ''}</b>
               </div>`;

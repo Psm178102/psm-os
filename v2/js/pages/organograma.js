@@ -9,9 +9,9 @@ const ROLE_META = {
   gerente:    { ico: '🎯', color: '#7c3aed', label: 'Gerente',       lvl: 7 },
   gerente_conquista: { ico: '🎯', color: '#f59e0b', label: 'Gerente Conquista', lvl: 7 },
   gerente_map:       { ico: '🎯', color: '#a855f7', label: 'Gerente MAP',       lvl: 7 },
-  gerente_locacao:   { ico: '🎯', color: '#0891b2', label: 'Gerente Locação',   lvl: 7 },
+  gerente_locacao:   { ico: '🎯', color: '#806d50', label: 'Gerente Locação',   lvl: 7 },
   gerente_terceiros: { ico: '🎯', color: '#0d9488', label: 'Gerente Terceiros', lvl: 7 },
-  backoffice: { ico: '📋', color: '#0891b2', label: 'Back Office',   lvl: 6 },
+  backoffice: { ico: '📋', color: '#806d50', label: 'Back Office',   lvl: 6 },
   secretaria_vendas: { ico: '🗂️', color: '#db2777', label: 'Secretária de Vendas', lvl: 3 },
   lider:      { ico: '🛡', color: '#059669', label: 'Líder',          lvl: 5 },
   financeiro: { ico: '💰', color: '#0d9488', label: 'Financeiro',    lvl: 4 },
@@ -25,7 +25,7 @@ const ROLE_META = {
 const UNITS = [
   { id: 'conquista', nome: 'PSM Conquista', cor: '#f59e0b', ico: '🏠' },
   { id: 'map',       nome: 'PSM M.A.P',     cor: '#a855f7', ico: '🗺️' },
-  { id: 'locacao',   nome: 'PSM Locações',  cor: '#0891b2', ico: '🔑' },
+  { id: 'locacao',   nome: 'PSM Locações',  cor: '#806d50', ico: '🔑' },
   { id: 'terceiros', nome: 'PSM Terceiros', cor: '#0d9488', ico: '🤝' },
 ];
 
@@ -85,7 +85,7 @@ function render() {
 
       <!-- Cúpula: Grupo PSM -->
       <div style="margin-top:16px;text-align:center">
-        <div style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#dc2626);color:#fff;font-weight:900;letter-spacing:1px;padding:8px 22px;border-radius:999px;font-size:15px">🏛 GRUPO PSM</div>
+        <div style="display:inline-block;background:var(--surface-2);color:var(--ink);font-weight:600;letter-spacing:1px;padding:8px 22px;border-radius:var(--radius-full);font-size:14px">🏛 GRUPO PSM</div>
         ${cupula.length ? connector() + tier(cupula) : ''}
       </div>
 
@@ -100,7 +100,7 @@ function render() {
       ${apoio.length ? `
         <div style="height:1px;background:var(--border-2,#cbd5e1);margin:18px 0 14px"></div>
         <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden">
-          <div style="background:var(--bg-3);padding:8px 12px;border-bottom:1px solid var(--border);font-weight:800;font-size:13px">🧩 Áreas de apoio · Grupo PSM <span class="tiny muted">(${apoio.length})</span></div>
+          <div style="background:var(--bg-3);padding:8px 12px;border-bottom:1px solid var(--border);font-weight:600;font-size:13px">🧩 Áreas de apoio · Grupo PSM <span class="tiny muted">(${apoio.length})</span></div>
           <div style="padding:10px 12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px">${apoio.map(u => personChip(u, 'row')).join('')}</div>
         </div>` : ''}
     </div>`;
@@ -118,13 +118,13 @@ function unitBox(unit, pessoas) {
   return `
     <div style="background:var(--bg-2);border:1px solid var(--border);border-top:3px solid ${unit.cor};border-radius:var(--r-md);overflow:hidden">
       <div style="background:${unit.cor}14;padding:8px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
-        <span style="font-weight:800;font-size:13px;color:${unit.cor}">${unit.ico} ${escapeHtml(unit.nome)}</span>
+        <span style="font-weight:600;font-size:13px;color:${unit.cor}">${unit.ico} ${escapeHtml(unit.nome)}</span>
         <span class="tiny muted">${pessoas.length} pessoa${pessoas.length !== 1 ? 's' : ''}</span>
       </div>
       <div style="padding:10px 12px">
         ${gestores.map(p => personChip(p, 'lead')).join('')}
         ${lideres.map(p => personChip(p, 'lead')).join('')}
-        ${resto.length ? `<div style="margin-top:${gestores.length || lideres.length ? '8px' : '0'};border-left:2px solid var(--border-2,#cbd5e1);padding-left:10px;display:flex;flex-direction:column;gap:5px">
+        ${resto.length ? `<div style="margin-top:${gestores.length || lideres.length ? '8px' : '0'};border-left:2px solid var(--border-2,var(--border));padding-left:10px;display:flex;flex-direction:column;gap:5px">
           ${resto.map(p => personChip(p, 'row')).join('')}
         </div>` : (gestores.length || lideres.length ? '' : '<div class="muted tiny">Sem pessoas nesta unidade.</div>')}
       </div>
@@ -139,17 +139,17 @@ function personChip(u, variant) {
   const cursor = click ? 'cursor:pointer' : '';
   if (variant === 'row' || variant === 'lead') {
     return `<div ${attrs} style="display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:var(--r-sm);${cursor};${variant === 'lead' ? 'background:var(--bg-3)' : ''}">
-      <div style="width:28px;height:28px;border-radius:50%;background:${u.color || meta.color};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;flex-shrink:0">${ini}</div>
+      <div style="width:28px;height:28px;border-radius:50%;background:${u.color || meta.color};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:11px;flex-shrink:0">${ini}</div>
       <div style="min-width:0;flex:1">
-        <div style="font-weight:700;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(u.name || '—')}</div>
+        <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(u.name || '—')}</div>
         <div class="tiny muted">${meta.ico} ${escapeHtml(meta.label)}</div>
       </div>
       ${click ? '<span class="tiny muted">→</span>' : ''}
     </div>`;
   }
   return `<div ${attrs} style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:5px;width:118px;padding:12px 8px;background:var(--bg-2);border:1px solid var(--border);border-top:3px solid ${meta.color};border-radius:var(--r-md);${cursor}">
-    <div style="width:44px;height:44px;border-radius:50%;background:${u.color || meta.color};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px">${ini}</div>
-    <div style="font-weight:700;font-size:13px;line-height:1.2">${escapeHtml(u.name || '—')}</div>
+    <div style="width:44px;height:44px;border-radius:50%;background:${u.color || meta.color};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px">${ini}</div>
+    <div style="font-weight:600;font-size:13px;line-height:1.2">${escapeHtml(u.name || '—')}</div>
     <div class="tiny muted">${meta.ico} ${escapeHtml(meta.label)}</div>
   </div>`;
 }

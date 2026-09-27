@@ -36,35 +36,35 @@ function render() {
         ${_canEdit ? '<button class="btn btn-primary btn-sm" id="man-edit">✏️ Editar Manual</button>' : ''}
       </div>
 
-      ${_isDefault ? `<div class="alert" style="background:rgba(217,119,6,.10);border:1px solid rgba(217,119,6,.35);padding:10px 12px;border-radius:8px;margin-top:10px;font-size:12.5px">
+      ${_isDefault ? `<div class="alert" style="background:var(--warn-soft);border:1px solid var(--warn);padding:10px 12px;border-radius:var(--radius-md);margin-top:10px;font-size:13px">
         📌 <b>Base importada do Manual v2.0</b> — conteúdo real da PSM, porém desatualizado. ${_canEdit ? 'Clique em <b>✏️ Editar Manual</b> para revisar e atualizar para a 3.8.' : 'Em revisão para a versão 3.8.'}</div>` : ''}
 
       ${m.missao ? `<div class="mt-4">
-        <h3 style="color:var(--psm-gold);font-size:15px;margin-bottom:8px">🎯 Nossa Missão</h3>
+        <h3 style="color:var(--psm-gold);font-size:14px;margin-bottom:8px">🎯 Nossa Missão</h3>
         <p style="line-height:1.7">${nl2br(m.missao)}</p></div>` : ''}
 
       ${m.visao ? `<div class="mt-4">
-        <h3 style="color:var(--psm-gold);font-size:15px;margin-bottom:8px">👁 Nossa Visão</h3>
+        <h3 style="color:var(--psm-gold);font-size:14px;margin-bottom:8px">👁 Nossa Visão</h3>
         <p style="line-height:1.7">${nl2br(m.visao)}</p></div>` : ''}
 
       ${valores.length ? `<div class="mt-4">
-        <h3 style="color:var(--psm-gold);font-size:15px;margin-bottom:8px">💛 Nossos Valores</h3>
+        <h3 style="color:var(--psm-gold);font-size:14px;margin-bottom:8px">💛 Nossos Valores</h3>
         <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));gap:10px">
-          ${valores.map(v => `<div style="background:var(--bg-3);border-radius:10px;padding:14px;text-align:center">
-            <div style="font-size:28px;margin-bottom:6px">${esc(v.ico) || '•'}</div>
-            <div style="font-weight:800;color:var(--psm-gold);font-size:13px">${esc(v.t)}</div>
+          ${valores.map(v => `<div style="background:var(--bg-3);border-radius:var(--radius-md);padding:14px;text-align:center">
+            <div style="font-size:26px;margin-bottom:6px">${esc(v.ico) || '•'}</div>
+            <div style="font-weight:600;color:var(--psm-gold);font-size:13px">${esc(v.t)}</div>
             <div class="tiny muted mt-1">${esc(v.d)}</div></div>`).join('')}
         </div></div>` : ''}
 
       ${secoes.map(s => `<div class="mt-4">
-        <h3 style="color:var(--psm-gold);font-size:15px;margin-bottom:8px">${esc(s.ico)} ${esc(s.titulo)}</h3>
+        <h3 style="color:var(--psm-gold);font-size:14px;margin-bottom:8px">${esc(s.ico)} ${esc(s.titulo)}</h3>
         ${s.tipo === 'lista'
           ? `<ul style="list-style:none;padding:0;line-height:2">${(s.itens || []).map(i => `<li>✅ ${esc(i)}</li>`).join('')}</ul>`
           : `<p style="line-height:1.7">${nl2br(s.conteudo)}</p>`}
       </div>`).join('')}
 
-      <div class="mt-4" style="background:linear-gradient(135deg, #0b1f3a 0%, #1e3a5f 100%);color:#fff;padding:24px;border-radius:12px;text-align:center">
-        <div style="font-size:20px;font-weight:900;margin-bottom:6px">PSM Assessoria Imobiliária</div>
+      <div class="mt-4" style="background:var(--surface-2);color:var(--ink);padding:24px;border-radius:var(--radius-md);text-align:center">
+        <div style="font-size:20px;font-weight:600;margin-bottom:6px">PSM Assessoria Imobiliária</div>
         <div style="font-size:13px;opacity:.8;max-width:500px;margin:0 auto">Transformamos sonhos em endereços. Cada negociação é uma oportunidade de impactar vidas com ética, excelência e resultado.</div>
       </div>
 
@@ -92,18 +92,18 @@ function renderEditor() {
       </div>
       <div class="tiny muted" id="man-msg" style="margin-bottom:8px">${esc(_msg)}</div>
 
-      <label class="tiny muted" style="font-weight:800">🎯 Missão</label>
+      <label class="tiny muted" style="font-weight:600">🎯 Missão</label>
       <textarea class="input" data-m="missao" rows="3" style="width:100%;margin:4px 0 12px">${esc(d.missao)}</textarea>
 
-      <label class="tiny muted" style="font-weight:800">👁 Visão</label>
+      <label class="tiny muted" style="font-weight:600">👁 Visão</label>
       <textarea class="input" data-m="visao" rows="3" style="width:100%;margin:4px 0 12px">${esc(d.visao)}</textarea>
 
       <div class="flex items-center" style="justify-content:space-between;margin:6px 0">
-        <label class="tiny muted" style="font-weight:800">💛 Valores</label>
+        <label class="tiny muted" style="font-weight:600">💛 Valores</label>
         <button class="btn btn-ghost btn-sm" id="man-add-valor">+ valor</button>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px">
-        ${(d.valores || []).map((v, i) => `<div style="background:var(--bg-3);border-radius:8px;padding:8px">
+        ${(d.valores || []).map((v, i) => `<div style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px">
           <div class="flex gap-1" style="margin-bottom:4px">
             <input class="input" data-v-ico="${i}" value="${esc(v.ico)}" placeholder="🎯" style="width:48px;text-align:center">
             <input class="input" data-v-t="${i}" value="${esc(v.t)}" placeholder="Título" style="flex:1">
@@ -114,14 +114,14 @@ function renderEditor() {
       </div>
 
       <div class="flex items-center" style="justify-content:space-between;margin:16px 0 6px">
-        <label class="tiny muted" style="font-weight:800">📑 Seções (pilares, carreira, rituais, regras…)</label>
+        <label class="tiny muted" style="font-weight:600">📑 Seções (pilares, carreira, rituais, regras…)</label>
         <div class="flex gap-1">
           <button class="btn btn-ghost btn-sm" id="man-add-texto">+ seção texto</button>
           <button class="btn btn-ghost btn-sm" id="man-add-lista">+ seção lista</button>
         </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:10px">
-        ${(d.secoes || []).map((s, j) => `<div style="background:var(--bg-3);border-radius:8px;padding:10px">
+        ${(d.secoes || []).map((s, j) => `<div style="background:var(--bg-3);border-radius:var(--radius-md);padding:10px">
           <div class="flex gap-1" style="margin-bottom:6px;align-items:center">
             <input class="input" data-s-ico="${j}" value="${esc(s.ico)}" placeholder="🏢" style="width:48px;text-align:center">
             <input class="input" data-s-titulo="${j}" value="${esc(s.titulo)}" placeholder="Título da seção" style="flex:1">

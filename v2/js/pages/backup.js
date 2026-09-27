@@ -133,7 +133,7 @@ async function restoreBackup() {
         ${errTables.length ? ` · ${errTables.length} com erro` : ''}
         ${skipped ? ` · ${skipped} ignoradas` : ''}
       </div>
-      <pre class="tiny" style="background:#0b1220;color:#cbd5e1;padding:8px;border-radius:6px;max-height:200px;overflow:auto;margin-top:6px">${escapeHtml(JSON.stringify(r, null, 2))}</pre>
+      <pre class="tiny" style="background:#0b1220;color:#cbd5e1;padding:8px;border-radius:var(--radius-sm);max-height:200px;overflow:auto;margin-top:6px">${escapeHtml(JSON.stringify(r, null, 2))}</pre>
     `;
   } catch (e) {
     msg.innerHTML = `<div class="alert alert-err">${escapeHtml(e.message)}</div>`;

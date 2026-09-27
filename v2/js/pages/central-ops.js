@@ -94,7 +94,7 @@ function render() {
       </div>` : ''}
     ${calados.length ? `
       <details class="card" style="padding:12px 16px">
-        <summary style="cursor:pointer;font-weight:700">🔕 Silenciados (${calados.length})</summary>
+        <summary style="cursor:pointer;font-weight:600">🔕 Silenciados (${calados.length})</summary>
         <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">${calados.map(linhaAlerta).join('')}</div>
       </details>` : ''}
 
@@ -126,9 +126,9 @@ function veredito(r, ativos) {
   return `
     <div class="card" style="background:${ST[st].fundo};border:1.5px solid ${ST[st].cor}">
       <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-        <div style="font-size:40px;line-height:1">${st === 'ok' ? '✅' : st === 'warn' ? '⚠️' : '🚨'}</div>
+        <div style="font-size:36px;line-height:1">${st === 'ok' ? '✅' : st === 'warn' ? '⚠️' : '🚨'}</div>
         <div style="flex:1;min-width:220px">
-          <div style="font-size:22px;font-weight:800;color:${ST[st].cor}">${frase}</div>
+          <div style="font-size:20px;font-weight:600;color:${ST[st].cor}">${frase}</div>
           <div class="muted" style="font-size:13px;margin-top:2px">
             🟢 ${r.ok || 0} ok · 🟡 ${r.warn || 0} atenção · 🔴 ${r.error || 0} erro · ⏸ ${r.paused || 0} pausado · ⚪ ${r.unknown || 0} sem registro
           </div>
@@ -144,10 +144,10 @@ function veredito(r, ativos) {
 function linhaAlerta(i) {
   const s = ST[i.status] || ST.unknown;
   return `
-    <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:10px;background:${s.fundo};border:1px solid var(--border)">
-      <div style="font-size:18px;line-height:1.2">${s.ico}</div>
+    <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:var(--radius-md);background:${s.fundo};border:1px solid var(--border)">
+      <div style="font-size:16px;line-height:1.2">${s.ico}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-weight:700">${esc(i.nome)} <span class="tiny muted" style="font-weight:500">· ${esc(nomeGrupo(i.grupo))}</span></div>
+        <div style="font-weight:600">${esc(i.nome)} <span class="tiny muted" style="font-weight:500">· ${esc(nomeGrupo(i.grupo))}</span></div>
         <div style="font-size:13px;margin-top:2px">${esc(i.detalhe)}</div>
         <div class="tiny muted" style="margin-top:3px">${i.desde ? `Problema desde ${quando(i.desde)}` : ''}${i.silenciado_ate ? ` · 🔕 silenciado até ${quando(i.silenciado_ate, true)}` : ''}</div>
       </div>
@@ -164,9 +164,9 @@ function chip(id, label, lista) {
   const on = _filtro === id;
   const nErr = lista.filter(i => i.status === 'error').length;
   const nWarn = lista.filter(i => i.status === 'warn' || i.status === 'paused').length;
-  const badge = nErr ? `<span style="background:var(--err);color:#fff;border-radius:9px;padding:0 6px;font-size:11px;margin-left:4px">${nErr}</span>`
-    : nWarn ? `<span style="background:var(--warn);color:#fff;border-radius:9px;padding:0 6px;font-size:11px;margin-left:4px">${nWarn}</span>` : '';
-  return `<button class="btn ${on ? 'btn-primary' : 'btn-ghost'}" data-filtro="${id}" style="font-size:12.5px;padding:7px 12px">${label} <span style="opacity:.6">${lista.length}</span>${badge}</button>`;
+  const badge = nErr ? `<span style="background:var(--err);color:#fff;border-radius:var(--radius-md);padding:0 6px;font-size:11px;margin-left:4px">${nErr}</span>`
+    : nWarn ? `<span style="background:var(--warn);color:#fff;border-radius:var(--radius-md);padding:0 6px;font-size:11px;margin-left:4px">${nWarn}</span>` : '';
+  return `<button class="btn ${on ? 'btn-primary' : 'btn-ghost'}" data-filtro="${id}" style="font-size:13px;padding:7px 12px">${label} <span style="opacity:.6">${lista.length}</span>${badge}</button>`;
 }
 
 function blocoGrupo(g, todos) {
@@ -189,14 +189,14 @@ function cartao(i) {
   const s = ST[i.status] || ST.unknown;
   const titulo = `${i.nome}\n${i.desc || ''}`;
   return `
-    <div title="${esc(titulo)}" style="border:1px solid var(--border);border-left:4px solid ${s.cor};border-radius:10px;padding:10px 12px;background:var(--bg-2);display:flex;flex-direction:column;gap:4px;min-width:0">
+    <div title="${esc(titulo)}" style="border:1px solid var(--border);border-left:4px solid ${s.cor};border-radius:var(--radius-md);padding:10px 12px;background:var(--bg-2);display:flex;flex-direction:column;gap:4px;min-width:0">
       <div style="display:flex;align-items:center;gap:6px;min-width:0">
         ${i.ico ? `<span>${i.ico}</span>` : ''}
         <b style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(i.nome)}</b>
-        <span style="font-size:11px;font-weight:700;color:${s.cor};white-space:nowrap">${s.ico} ${s.txt}</span>
+        <span style="font-size:11px;font-weight:600;color:${s.cor};white-space:nowrap">${s.ico} ${s.txt}</span>
       </div>
       <div class="tiny muted" style="line-height:1.35">${esc(i.desc || '')}</div>
-      <div style="font-size:12.5px;line-height:1.35">${esc(i.detalhe || '')}</div>
+      <div style="font-size:13px;line-height:1.35">${esc(i.detalhe || '')}</div>
       <div class="tiny muted" style="display:flex;gap:8px;justify-content:space-between;margin-top:auto;padding-top:4px">
         <span>${i.agenda ? '⏱ ' + esc(i.agenda) : ''}${i.silenciado_ate ? ' · 🔕' : ''}</span>
         ${i.link ? `<a href="${esc(i.link)}" style="color:var(--info)">abrir →</a>` : ''}
@@ -211,15 +211,15 @@ function blocoCanais() {
       <h2 class="card-title">📣 Como os alertas chegam em você</h2>
       <p class="card-sub">O vigia roda sozinho (e toda vez que esta tela abre). Avisa quando o problema aparece, relembra a cada 6h se for erro e continuar, e avisa quando resolve. Rotinas curtas não alertam de madrugada (só rodam com o sistema em uso).</p>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px">
-        <div style="border:1px solid var(--border);border-radius:10px;padding:12px">
+        <div style="border:1px solid var(--border);border-radius:var(--radius-md);padding:12px">
           <b>🔔 Sino + celular (push)</b>
           <div class="tiny muted" style="margin-top:4px">Sempre ligado — erro, atenção e pausado. Para receber no celular, ative as notificações do House no aparelho.</div>
         </div>
-        <label style="border:1px solid var(--border);border-radius:10px;padding:12px;cursor:pointer;display:block">
+        <label style="border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;cursor:pointer;display:block">
           <input type="checkbox" data-cfg="whatsapp" ${c.whatsapp !== false ? 'checked' : ''}> <b>💬 WhatsApp (só erro)</b>
           <div class="tiny muted" style="margin-top:4px">${c.wa_configurado ? 'Manda no WhatsApp cadastrado em "Minha conta → Meu dia".' : '⚠️ WhatsApp do servidor (Evolution) não configurado — este canal não sai.'}</div>
         </label>
-        <label style="border:1px solid var(--border);border-radius:10px;padding:12px;cursor:pointer;display:block">
+        <label style="border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;cursor:pointer;display:block">
           <input type="checkbox" data-cfg="ntfy" ${c.ntfy !== false ? 'checked' : ''}> <b>🚨 App ntfy (só erro)</b>
           <div class="tiny muted" style="margin-top:4px">Funciona até com o banco fora do ar. Instale o app <b>ntfy</b> e assine o tópico <code>${esc(c.ntfy_topic || '')}</code>.</div>
         </label>
@@ -256,7 +256,7 @@ function blocoAtalhos() {
       <p class="card-sub">Esta Central mostra e avisa. As telas de ajuste continuam onde estavam:</p>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">
         ${links.map(([h, ico, n, d]) => `
-          <a href="${h}" style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;text-decoration:none;color:inherit;display:block">
+          <a href="${h}" style="border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 12px;text-decoration:none;color:inherit;display:block">
             <b>${ico} ${n}</b><div class="tiny muted">${d}</div></a>`).join('')}
       </div>
     </div>`;

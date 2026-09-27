@@ -10,8 +10,8 @@ let _dias = 2;
 let _busy = false;
 
 const COLS = [
-  { key: 'ativo',   titulo: '📇 Fila p/ chamar', sub: 'Carteira ativa (mais antigos primeiro)', cor: '#0891b2' },
-  { key: 'sdr',     titulo: '📞 SDR — em andamento', sub: 'Chamados, aguardando resposta', cor: '#2563eb' },
+  { key: 'ativo',   titulo: '📇 Fila p/ chamar', sub: 'Carteira ativa (mais antigos primeiro)', cor: '#806d50' },
+  { key: 'sdr',     titulo: '📞 SDR — em andamento', sub: 'Chamados, aguardando resposta', cor: '#806d50' },
   { key: 'captar',  titulo: '🎯 Captar imóvel', sub: 'Tem imóvel pra vender/alugar', cor: '#16a34a' },
   { key: 'noventa', titulo: '🗓 90 dias', sub: 'Sem imóvel agora — reaborda em 3 meses', cor: '#64748b' },
 ];
@@ -89,7 +89,7 @@ function colHTML(col, data) {
   return `
     <div class="card" style="border-top:3px solid ${col.cor};padding:12px">
       <div style="margin-bottom:10px">
-        <div style="font-weight:800;color:${col.cor}">${col.titulo}<span class="muted" style="font-weight:600">${extra}</span></div>
+        <div style="font-weight:600;color:${col.cor}">${col.titulo}<span class="muted" style="font-weight:600">${extra}</span></div>
         <div class="tiny muted">${col.sub}</div>
       </div>
       <div style="display:grid;gap:8px;max-height:70vh;overflow-y:auto">
@@ -102,8 +102,8 @@ function cardHTML(d, colKey) {
   const nome = escapeHtml(d.contato || d.name || 'Lead');
   const sub = d.contato && d.name && d.contato !== d.name ? `<div class="tiny muted">${escapeHtml(d.name)}</div>` : '';
   const owner = d.owner ? `<span class="tiny muted">👤 ${escapeHtml(d.owner.split(' ')[0])}</span>` : '';
-  const parado = (d.dias_parado != null) ? `<span class="tiny ${d.needs_followup ? '' : 'muted'}" style="${d.needs_followup ? 'color:var(--err);font-weight:700' : ''}">⏱ ${d.dias_parado}d</span>` : '';
-  const fupBadge = d.needs_followup ? '<span class="chip" style="background:color-mix(in srgb, var(--err) 16%, transparent);color:var(--err-forte);font-weight:700">FOLLOW-UP</span>' : '';
+  const parado = (d.dias_parado != null) ? `<span class="tiny ${d.needs_followup ? '' : 'muted'}" style="${d.needs_followup ? 'color:var(--err);font-weight:600' : ''}">⏱ ${d.dias_parado}d</span>` : '';
+  const fupBadge = d.needs_followup ? '<span class="chip" style="background:color-mix(in srgb, var(--err) 16%, transparent);color:var(--err-forte);font-weight:600">FOLLOW-UP</span>' : '';
 
   // botões por coluna
   let actions = '';
@@ -113,7 +113,7 @@ function cardHTML(d, colKey) {
     actions = `${wa}<button class="btn btn-primary tiny" data-act="move" data-to="sdr" data-deal="${dd}">📞 Chamei → SDR</button>`;
   } else if (colKey === 'sdr') {
     actions = `${wa}
-      <button class="btn btn-primary tiny" data-act="move" data-to="captar" data-deal="${dd}" style="background:#16a34a">✅ Tem imóvel</button>
+      <button class="btn btn-primary tiny" data-act="move" data-to="captar" data-deal="${dd}" style="background:var(--ok-soft)">✅ Tem imóvel</button>
       <button class="btn btn-ghost tiny" data-act="move" data-to="noventa" data-deal="${dd}">❌ Não tem</button>
       <button class="btn btn-ghost tiny" data-act="followup" data-deal="${dd}">📝 Follow-up</button>`;
   } else if (colKey === 'captar') {
@@ -123,7 +123,7 @@ function cardHTML(d, colKey) {
   }
 
   return `
-    <div class="sdr-card" style="border:1px solid var(--bd,#e5e7eb);border-radius:10px;padding:10px;background:var(--bg-1,#fff)">
+    <div class="sdr-card" style="border:1px solid var(--bd,var(--border));border-radius:var(--radius-md);padding:10px;background:var(--bg-1,#fff)">
       <div class="flex items-center gap-1 flex-wrap" style="justify-content:space-between">
         <b style="font-size:13px">${nome}</b>
         ${fupBadge}

@@ -52,7 +52,7 @@ export function renderInvestidores() {
         ${mini('📥 Na esteira', inv.filter(c => c.coluna !== 'fora').length, '', '#64748b')}
         ${mini('✅ Qualificados (score ≥ 70)', qual, '', '#16a34a')}
         ${mini('🏁 Arrematados / carteira', inv.filter(c => ['arrematado', 'carteira'].includes(c.coluna)).length, '', COR.dourado)}
-        ${mini('🚪 Porta 2 → Conquista', inv.filter(porta2).length, '', '#0ea5e9')}
+        ${mini('🚪 Porta 2 → Conquista', inv.filter(porta2).length, '', '#806d50')}
         ${mini('⏰ Sem próximo passo', inv.filter(c => c.coluna !== 'fora' && !S.atividades.some(a => !a.feito && a.investidor_id === c.id)).length, 'agende na ficha', '#ef4444')}
       </div>
     </div>
@@ -75,10 +75,10 @@ function cardInv(c) {
     <div class="flex items-center gap-2"><b style="flex:1">${esc(c.nome)}</b><span class="ma-score" style="background:${cor}">${s}</span></div>
     <div class="tiny muted">${esc([OBJETIVO[c.objetivo], FAIXA[c.faixa], c.cidade].filter(Boolean).join(' · '))}</div>
     <div class="ma-tags">
-      ${prox ? `<span class="ma-tag" style="background:${atras ? '#ef4444' : '#0ea5e9'}">${atras ? '⏰' : '📅'} ${dtBR(prox.quando)}</span>` : '<span class="ma-tag" style="background:#64748b">sem próximo passo</span>'}
-      ${porta2(c) ? '<span class="ma-tag" style="background:#0ea5e9">🚪 Porta 2</span>' : ''}
-      ${c.caixa ? '<span class="ma-tag" style="background:#ef4444">🔴 vínculo CAIXA</span>' : ''}
-      ${alertaCapital(c) ? '<span class="ma-tag" style="background:#d97706">🟡 capital &lt; faixa</span>' : ''}
+      ${prox ? `<span class="ma-tag" style="background:${atras ? 'var(--err-soft)' : 'var(--accent-soft)'}">${atras ? '⏰' : '📅'} ${dtBR(prox.quando)}</span>` : '<span class="ma-tag" style="background:#64748b">sem próximo passo</span>'}
+      ${porta2(c) ? '<span class="ma-tag" style="background:var(--accent-soft)">🚪 Porta 2</span>' : ''}
+      ${c.caixa ? '<span class="ma-tag" style="background:var(--err-soft)">🔴 vínculo CAIXA</span>' : ''}
+      ${alertaCapital(c) ? '<span class="ma-tag" style="background:var(--warn-soft)">🟡 capital &lt; faixa</span>' : ''}
       ${(c.tags || []).map(t => `<span class="ma-tag" style="background:${COR.verde}">${esc(t)}</span>`).join('')}
     </div>
   </div>`;
@@ -90,7 +90,7 @@ export function abrirInvestidor(c, aba) {
   aba = aba || (c.id ? 'timeline' : 'ficha');
   const novo = !c.id;
   const tabs = novo ? [['ficha', '📋 Ficha']] : [['timeline', '🕒 Linha do tempo'], ['ficha', '📋 Ficha'], ['imoveis', '🏠 Imóveis'], ['operacoes', '🔁 Operações']];
-  const titulo = novo ? '＋ Novo investidor' : `<span style="font-family:Georgia,serif">${esc(c.nome)}</span> <span class="ma-score" style="background:${scoreDe(c) >= 70 ? '#16a34a' : scoreDe(c) >= 40 ? '#d97706' : '#64748b'}">${scoreDe(c)}</span> <span class="tiny muted">${esc(COLUNAS.find(k => k.id === (c.coluna || 'pre'))?.nome || '')}</span>`;
+  const titulo = novo ? '＋ Novo investidor' : `<span style="font-family:Georgia,serif">${esc(c.nome)}</span> <span class="ma-score" style="background:${scoreDe(c) >= 70 ? 'var(--ok-soft)' : scoreDe(c) >= 40 ? 'var(--warn-soft)' : '#64748b'}">${scoreDe(c)}</span> <span class="tiny muted">${esc(COLUNAS.find(k => k.id === (c.coluna || 'pre'))?.nome || '')}</span>`;
   const html = `
     ${novo ? '' : `<div class="flex gap-2" style="flex-wrap:wrap">
       ${c.fone ? `<a class="btn btn-ghost" href="${waLink(c.fone)}" target="_blank" rel="noopener">💬 WhatsApp</a>` : ''}
@@ -173,8 +173,8 @@ function timelineInv(c) {
   return `
     <div class="ma-minis">${mini('Objetivo', OBJETIVO[c.objetivo] || '—', PAGAMENTO[c.pagamento] || '')}${mini('Faixa · capital', `${FAIXA[c.faixa] || '—'}`, `${CAPITAL[c.capital] || ''} · ${DISP[c.disp] || ''}`)}${mini('Contato', esc(c.fone || '—'), esc([c.email, c.cidade].filter(Boolean).join(' · ')))}${mini('Origem', esc(c.origem || '—'), `resp. ${esc(c.responsavel || '')}`)}</div>
     ${c.obs ? `<div class="tiny" style="margin-bottom:8px"><b>Obs:</b> ${esc(c.obs)}</div>` : ''}
-    ${porta2(c) ? '<div class="alert alert-warn" style="font-size:12.5px">🚪 Roteio Porta 2: moradia MCMV — encaminhar pra PSM Conquista. A marca Morimatsu não fala com comprador MCMV.</div>' : ''}
-    ${c.caixa ? '<div class="alert alert-err" style="font-size:12.5px">🔴 Vínculo com a CAIXA declarado — leilões CAIXA bloqueados até avaliação do sócio.</div>' : ''}
+    ${porta2(c) ? '<div class="alert alert-warn" style="font-size:13px">🚪 Roteio Porta 2: moradia MCMV — encaminhar pra PSM Conquista. A marca Morimatsu não fala com comprador MCMV.</div>' : ''}
+    ${c.caixa ? '<div class="alert alert-err" style="font-size:13px">🔴 Vínculo com a CAIXA declarado — leilões CAIXA bloqueados até avaliação do sócio.</div>' : ''}
     ${timelineHtml(atv, { investidor_id: c.id })}`;
 }
 function timelineHtml(atv, defaults) {
@@ -249,7 +249,7 @@ export function renderImoveis() {
         <button class="btn btn-primary" id="ma-novo-imv">＋ Novo imóvel</button>
       </div>
       <div class="flex gap-2 mt-2" style="flex-wrap:wrap">
-        ${[['ativos', '🟢 Ativos'], ['todos', 'Todos'], ...IMV_STATUS.map(s => [s.id, `${s.emoji} ${s.nome}`])].map(([id, l]) => `<button class="btn ${_fImv === id ? 'btn-primary' : 'btn-ghost'} f-imv" data-f="${id}" style="font-size:11.5px;padding:4px 9px">${l} <span class="muted">${id === 'ativos' ? todos.filter(i => !['perdido', 'descartado', 'arrematado'].includes(i.status)).length : id === 'todos' ? todos.length : todos.filter(i => i.status === id).length}</span></button>`).join('')}
+        ${[['ativos', '🟢 Ativos'], ['todos', 'Todos'], ...IMV_STATUS.map(s => [s.id, `${s.emoji} ${s.nome}`])].map(([id, l]) => `<button class="btn ${_fImv === id ? 'btn-primary' : 'btn-ghost'} f-imv" data-f="${id}" style="font-size:11px;padding:4px 9px">${l} <span class="muted">${id === 'ativos' ? todos.filter(i => !['perdido', 'descartado', 'arrematado'].includes(i.status)).length : id === 'todos' ? todos.length : todos.filter(i => i.status === id).length}</span></button>`).join('')}
       </div>
       <div class="ma-minis" style="margin:10px 0 0">
         ${mini('🔨 Certames nos próximos 15 dias', todos.filter(i => ['aprovado', 'certame'].includes(i.status) && i.data_certame >= hoje && i.data_certame <= new Date(Date.now() + 15 * 864e5).toISOString().slice(0, 10)).length, '', '#ef4444')}
@@ -268,7 +268,7 @@ function liImovel(i) {
   const hoje = hojeISO();
   return `<div class="ma-li" data-abrir-imv="${esc(i.id)}">
     <div>
-      <div class="flex items-center gap-2" style="flex-wrap:wrap"><b>${esc(i.titulo)}</b><span class="ma-status" style="background:${st.cor}">${st.emoji} ${esc(st.nome)}</span>${i.data_certame ? `<span class="ma-tag" style="background:${i.data_certame < hoje ? '#64748b' : '#ef4444'}">🔨 ${dtBR(i.data_certame)}</span>` : ''}${i.ocupado ? '<span class="ma-tag" style="background:#d97706">ocupado</span>' : ''}${i.aceita_fin ? '<span class="ma-tag" style="background:#0ea5e9">financiável · Porta 2</span>' : ''}${i.analise?.risco ? `<span class="ma-tag" style="background:#334155">${RISCO[i.analise.risco]}</span>` : ''}${V ? `<span class="ma-tag" style="background:${V.cor}">${V.rotulo}</span>` : ''}</div>
+      <div class="flex items-center gap-2" style="flex-wrap:wrap"><b>${esc(i.titulo)}</b><span class="ma-status" style="background:${st.cor}">${st.emoji} ${esc(st.nome)}</span>${i.data_certame ? `<span class="ma-tag" style="background:${i.data_certame < hoje ? '#64748b' : 'var(--err-soft)'}">🔨 ${dtBR(i.data_certame)}</span>` : ''}${i.ocupado ? '<span class="ma-tag" style="background:var(--warn-soft)">ocupado</span>' : ''}${i.aceita_fin ? '<span class="ma-tag" style="background:var(--accent-soft)">financiável · Porta 2</span>' : ''}${i.analise?.risco ? `<span class="ma-tag" style="background:#334155">${RISCO[i.analise.risco]}</span>` : ''}${V ? `<span class="ma-tag" style="background:${V.cor}">${V.rotulo}</span>` : ''}</div>
       <div class="tiny muted">${esc([IMV_TIPO[i.tipo], i.bairro, i.cidade, MODAL[i.modalidade], i.credor].filter(Boolean).join(' · '))}${i.matricula ? ' · matr. ' + esc(i.matricula) : ''}</div>
       <div class="tiny" style="margin-top:3px">Avaliação ${brl(i.avaliacao)} · lance mín. ${brl(i.lance_min)}${an.lance_max ? ` · <b>lance máx. ${brl(an.lance_max)}</b>` : ''}${an.desconto ? ` · desconto ${an.desconto}%` : ''}${inv ? ` · 💼 ${esc(inv.nome)}` : ' · <span class="muted">sem investidor</span>'}</div>
     </div>
@@ -658,8 +658,8 @@ function anOut(i, cen, lm, rotaOcup, rotaDeso, custoOcupacao) {
   const linha = (lbl, fn, fmt) => `<tr><td>${lbl}</td>${cen.map(c => `<td class="ma-num" style="text-align:right">${fmt(fn(c.r))}</td>`).join('')}</tr>`;
   const pct = x => (x * 100).toFixed(1).replace('.', ',') + '%';
   const rota = (nome, R, atual) => `<div class="ma-rota ${atual ? 'on' : ''}">
-      <div class="tiny" style="letter-spacing:1.2px;text-transform:uppercase;font-weight:800;opacity:.7">${nome}${atual ? ' · como está' : ''}</div>
-      <div class="ma-mini-v" style="color:${R.r.lucro > 0 ? '#16a34a' : '#ef4444'}">${brl(R.r.lucro)}</div>
+      <div class="tiny" style="letter-spacing:1.2px;text-transform:uppercase;font-weight:600;opacity:.7">${nome}${atual ? ' · como está' : ''}</div>
+      <div class="ma-mini-v" style="color:${R.r.lucro > 0 ? 'var(--ok)' : 'var(--err)'}">${brl(R.r.lucro)}</div>
       <div class="tiny muted">lucro do investidor · ROI ${pct(R.r.roi)} em ${R.r.prazo}m</div>
       <div class="tiny" style="margin-top:6px">Lance máximo <b>${brl(R.lm)}</b> <span class="muted">(deságio ${R.r.aval ? Math.round((1 - R.lm / R.r.aval) * 100) : 0}% sobre a avaliação)</span></div>
     </div>`;
@@ -682,7 +682,7 @@ function anOut(i, cen, lm, rotaOcup, rotaDeso, custoOcupacao) {
       ${rota('🔒 Ocupado', rotaOcup, !i.ocupado === false)}
       ${rota('🔓 Desocupado', rotaDeso, !i.ocupado === true)}
     </div>
-    <div class="tiny muted" style="margin-top:6px">A ocupação custa <b style="color:#ef4444">${brl(custoOcupacao)}</b> nesta operação — advogado, taxa de ocupação da Caixa e ${rotaOcup.r.prazo - rotaDeso.r.prazo} meses a mais de posse. ${base.aval ? `Isso é ${Math.round(custoOcupacao / base.aval * 100)}% da avaliação: no ticket baixo é o que consome a margem.` : ''}</div>
+    <div class="tiny muted" style="margin-top:6px">A ocupação custa <b style="color:var(--err)">${brl(custoOcupacao)}</b> nesta operação — advogado, taxa de ocupação da Caixa e ${rotaOcup.r.prazo - rotaDeso.r.prazo} meses a mais de posse. ${base.aval ? `Isso é ${Math.round(custoOcupacao / base.aval * 100)}% da avaliação: no ticket baixo é o que consome a margem.` : ''}</div>
 
     <div class="ma-sec">Três cenários</div>
     <div style="overflow-x:auto"><table class="ma-tbl">
@@ -695,7 +695,7 @@ function anOut(i, cen, lm, rotaOcup, rotaDeso, custoOcupacao) {
       ${linha('Ágio ao mês', r => r.agioMes, x => (x * 100).toFixed(2).replace('.', ',') + '%')}
       ${linha('TIR ao mês', r => r.tir, x => (x * 100).toFixed(2).replace('.', ',') + '%')}
       ${linha('VPL pela TMA', r => r.vpl, brl)}
-      <tr><td><b>Fecha neste cenário?</b></td>${cen.map(c => `<td style="text-align:right"><span class="ma-status" style="background:${c.r.viavel ? '#16a34a' : '#94a3b8'}">${c.r.viavel ? 'SIM' : 'NÃO'}</span></td>`).join('')}</tr>
+      <tr><td><b>Fecha neste cenário?</b></td>${cen.map(c => `<td style="text-align:right"><span class="ma-status" style="background:${c.r.viavel ? 'var(--ok-soft)' : '#94a3b8'}">${c.r.viavel ? 'SIM' : 'NÃO'}</span></td>`).join('')}</tr>
     </table></div>
     <div class="tiny muted">TMA exigida: ${(tmaMes() * 100).toFixed(2).replace('.', ',')}% ao mês (${v.tma_aa}% ao ano). Passa quem tiver lucro positivo <i>e</i> TIR acima da TMA.</div>
 
@@ -708,7 +708,7 @@ function anOut(i, cen, lm, rotaOcup, rotaDeso, custoOcupacao) {
       ${mini('💵 Custo total no lance', brl(base.inv), `desconto ${base.desconto}% vs mercado · break-even ${brl(base.breakeven)}${num(i.area) ? ` · mercado ${brl(base.merc / num(i.area))}/m²` : ''}`)}
       ${mini('🏯 Receita do grupo no giro', brl(base.receitaGrupo), `fee ${brl(base.feeGrupo)} + corretagem ${brl(base.corret)}`, COR.verde)}
     </div>
-    ${base.lucro <= 0 && base.receitaGrupo > 0 ? `<div class="alert alert-warn" style="font-size:12.5px;margin-top:8px">⚠️ O grupo fatura ${brl(base.receitaGrupo)} neste giro mesmo com o investidor no prejuízo. Não leve este imóvel ao cliente — com o sobrenome na porta, um caso malconduzido custa mais que o fee.</div>` : ''}`;
+    ${base.lucro <= 0 && base.receitaGrupo > 0 ? `<div class="alert alert-warn" style="font-size:13px;margin-top:8px">⚠️ O grupo fatura ${brl(base.receitaGrupo)} neste giro mesmo com o investidor no prejuízo. Não leve este imóvel ao cliente — com o sobrenome na porta, um caso malconduzido custa mais que o fee.</div>` : ''}`;
 }
 
 function wireAnaliseImv(box, i) {
@@ -937,7 +937,7 @@ export function renderSimulador() {
         ${cmp('Lance que você pretende dar (R$)', input('lance_base', A.lance_base, 'number'), 'É este que o simulador testa contra o teto.')}
         ${cmp('Quanto você quer ganhar (%)', input('margem_pct', A.margem_pct != null && A.margem_pct !== '' ? A.margem_pct : v.margem_alvo, 'number', 'min="0"'),
           num(A.margem_pct) === 0 && A.margem_pct != null
-            ? '<b style="color:#d97706">Com ágio 0 o teto vira o ponto de equilíbrio</b> — o lance máximo passa a ser o que empata, sem lucro. Use só para saber onde é o empate.'
+            ? '<b style="color:var(--warn)">Com ágio 0 o teto vira o ponto de equilíbrio</b> — o lance máximo passa a ser o que empata, sem lucro. Use só para saber onde é o empate.'
             : 'Quanto você quer ganhar sobre o capital investido. É o que define o lance máximo.')}
       </div>
     </div>
@@ -1009,7 +1009,7 @@ function cascata(r) {
     <tr><td>− Comissão de revenda (${String(r.comRevenda).replace('.', ',')}%)</td><td class="ma-num" style="text-align:right">−${brl(r.corret)}</td><td></td></tr>
     <tr><td>− Imposto sobre o ganho</td><td class="ma-num" style="text-align:right">−${brl(r.imposto)}</td><td></td></tr>
     <tr><td>− Investimento total</td><td class="ma-num" style="text-align:right">−${brl(r.inv)}</td><td></td></tr>
-    <tr style="background:var(--bg-3)"><td><b>= LUCRO LÍQUIDO</b></td><td class="ma-num" style="text-align:right"><b style="color:${r.lucro > 0 ? '#16a34a' : '#ef4444'}">${brl(r.lucro)}</b></td><td class="ma-num" style="text-align:right"><b>${pc(r.agio)}</b></td></tr>
+    <tr style="background:var(--bg-3)"><td><b>= LUCRO LÍQUIDO</b></td><td class="ma-num" style="text-align:right"><b style="color:${r.lucro > 0 ? 'var(--ok)' : 'var(--err)'}">${brl(r.lucro)}</b></td><td class="ma-num" style="text-align:right"><b>${pc(r.agio)}</b></td></tr>
   </table></div>`;
 }
 
@@ -1093,7 +1093,7 @@ function resumoSimples(s, b, lm, V) {
 }
 
 const semDados = A => !num(A.lance_base) || !(num(A.mercado) || num(A.venda_esperada));
-const aguardando = txt => `<div class="card"><div class="ma-veredito" style="border-color:#64748b">
+const aguardando = txt => `<div class="card"><div class="ma-veredito" style="border-color:var(--border-strong)">
   <div class="ma-ver-selo" style="background:#64748b">AGUARDANDO</div>
   <div style="flex:1">${txt}</div></div></div>`;
 
@@ -1130,10 +1130,10 @@ function simOut(s) {
           <td><b style="color:${c.cor}">${c.nome}</b><div class="tiny muted">${esc(c.ajuda)}</div></td>
           <td class="ma-num" style="text-align:right">${brl(c.r.venda)}</td>
           <td class="ma-num" style="text-align:right">${c.r.prazo}m</td>
-          <td class="ma-num" style="text-align:right;color:${c.r.lucro > 0 ? '#16a34a' : '#ef4444'}">${brl(c.r.lucro)}</td>
+          <td class="ma-num" style="text-align:right;color:${c.r.lucro > 0 ? 'var(--ok)' : 'var(--err)'}">${brl(c.r.lucro)}</td>
           <td class="ma-num" style="text-align:right"><b>${pc(c.r.agio)}</b></td>
           <td class="ma-num" style="text-align:right"><b>${pc2(c.r.agioMes)}</b></td>
-          <td><span class="ma-status" style="background:${c.r.viavel ? '#16a34a' : '#94a3b8'}">${c.r.viavel ? 'SIM' : 'NÃO'}</span></td>
+          <td><span class="ma-status" style="background:${c.r.viavel ? 'var(--ok-soft)' : '#94a3b8'}">${c.r.viavel ? 'SIM' : 'NÃO'}</span></td>
         </tr>`).join('')}
       </table></div>
       <div class="tiny muted mt-2">Referência: a TMA exigida é de <b>${pc2(tmaMes())} ao mês</b> (${v.tma_aa}% ao ano). Ágio ao mês abaixo disso significa que o capital rende menos parado do que nesta operação.</div>
@@ -1232,14 +1232,14 @@ function liOperacao(o) {
   const inv = invPorId(o.investidor_id), imv = imvPorId(o.imovel_id);
   const pend = ['analise', 'certame', 'exito'].filter(k => !o.honorarios?.[k]?.pago && num(o.honorarios?.[k]?.valor)).reduce((s, k) => s + num(o.honorarios[k].valor), 0);
   const chk = CHECK_POS.filter(([k]) => o.checklist?.[k]?.done).length;
-  const cor = o.status === 'concluida' ? '#16a34a' : o.status === 'destino' ? '#0ea5e9' : COR.dourado;
+  const cor = o.status === 'concluida' ? '#16a34a' : o.status === 'destino' ? '#806d50' : COR.dourado;
   return `<div class="ma-li" data-abrir-op="${esc(o.id)}">
     <div>
       <div class="flex items-center gap-2" style="flex-wrap:wrap"><b>${esc(imv?.titulo || '(imóvel excluído)')}</b><span class="ma-status" style="background:${cor}">${esc(OP_STATUS[o.status] || o.status)}</span><span class="ma-tag" style="background:#334155">${esc((DESTINO[o.destino] || '').replace(/^.. /, ''))}</span></div>
       <div class="tiny muted">💼 ${esc(inv?.nome || '(investidor excluído)')} · arrematado em ${dtBR(o.data_arrematacao)} por ${brl(o.valor)}</div>
-      <div class="tiny" style="margin-top:3px">Fee êxito ${brl(o.honorarios?.exito?.valor)} ${o.honorarios?.exito?.pago ? '<span style="color:#16a34a">✓ pago</span>' : '<span style="color:#ef4444">pendente</span>'} · pós-arrematação ${chk}/${CHECK_POS.length}${o.saida?.valor_venda ? ` · vendido por ${brl(o.saida.valor_venda)}` : o.saida?.aluguel ? ` · alugado por ${brl(o.saida.aluguel)}/mês` : ''}</div>
+      <div class="tiny" style="margin-top:3px">Fee êxito ${brl(o.honorarios?.exito?.valor)} ${o.honorarios?.exito?.pago ? '<span style="color:var(--ok)">✓ pago</span>' : '<span style="color:var(--err)">pendente</span>'} · pós-arrematação ${chk}/${CHECK_POS.length}${o.saida?.valor_venda ? ` · vendido por ${brl(o.saida.valor_venda)}` : o.saida?.aluguel ? ` · alugado por ${brl(o.saida.aluguel)}/mês` : ''}</div>
     </div>
-    <div class="tiny muted" style="text-align:right">${pend ? `a receber<br><b style="color:#ef4444">${brl(pend)}</b>` : '<span style="color:#16a34a">fees ok</span>'}</div>
+    <div class="tiny muted" style="text-align:right">${pend ? `a receber<br><b style="color:var(--err)">${brl(pend)}</b>` : '<span style="color:var(--ok)">fees ok</span>'}</div>
   </div>`;
 }
 export function abrirOperacao(o) {
@@ -1318,7 +1318,7 @@ export function renderAgenda() {
   const abertas = atv.filter(a => !a.feito && a.quando);
   const grupos = [
     ['⏰ Atrasadas', abertas.filter(a => a.quando.slice(0, 10) < hoje), '#ef4444'],
-    ['📌 Hoje', abertas.filter(a => a.quando.slice(0, 10) === hoje), '#0ea5e9'],
+    ['📌 Hoje', abertas.filter(a => a.quando.slice(0, 10) === hoje), '#806d50'],
     ['📅 Próximos 7 dias', abertas.filter(a => a.quando.slice(0, 10) > hoje && a.quando.slice(0, 10) <= sem), COR.verde],
     ['🗓 Depois', abertas.filter(a => a.quando.slice(0, 10) > sem), '#64748b'],
   ];
@@ -1335,7 +1335,7 @@ export function renderAgenda() {
       <div class="flex items-center gap-2" style="flex-wrap:wrap">
         <div><h2 class="card-title" style="margin:0">📅 Agenda de nutrição</h2><div class="card-sub" style="margin:0">Tudo que tem data: próximos contatos, tarefas de análise, prazos de certame, pós-arrematação. Nenhum investidor fica sem próximo passo.</div></div>
         <span style="flex:1"></span>
-        <div class="flex gap-2">${[['abertas', 'Abertas'], ['feitas', 'Concluídas']].map(([id, l]) => `<button class="btn ${_fAg === id ? 'btn-primary' : 'btn-ghost'} f-ag" data-f="${id}" style="font-size:11.5px;padding:4px 9px">${l}</button>`).join('')}</div>
+        <div class="flex gap-2">${[['abertas', 'Abertas'], ['feitas', 'Concluídas']].map(([id, l]) => `<button class="btn ${_fAg === id ? 'btn-primary' : 'btn-ghost'} f-ag" data-f="${id}" style="font-size:11px;padding:4px 9px">${l}</button>`).join('')}</div>
         <button class="btn btn-primary" id="ma-nova-atv">＋ Tarefa / contato</button>
       </div>
       <div class="ma-minis" style="margin:10px 0 0">${grupos.map(([l, g, cor]) => mini(l, g.length, '', cor)).join('')}${mini('👤 Sem próximo passo', semPasso.length, semPasso.slice(0, 3).map(c => esc(c.nome)).join(', '), semPasso.length ? '#d97706' : '#16a34a')}</div>

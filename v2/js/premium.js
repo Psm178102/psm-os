@@ -25,14 +25,14 @@ export function deltaBadge(pct, invert) {
   if (pct == null || isNaN(pct)) return '<span style="font-size:11px;color:var(--ink-muted)">— vs ant.</span>';
   const good = invert ? pct <= 0 : pct >= 0;
   const c = good ? '#22c55e' : '#f87171';
-  return `<span style="font-size:11px;font-weight:700;color:${c}">${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct).toFixed(1)}%</span>`;
+  return `<span style="font-size:11px;font-weight:600;color:${c}">${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct).toFixed(1)}%</span>`;
 }
 
 /* ── KPI premium: label, valor (string já formatada), Δ%, sparkline ────── */
 export function heroKpi(label, value, deltaPct, sparkVals, color, invert) {
-  return `<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:12px 14px 10px">
-    <div style="font-size:11px;color:#94a3b8;letter-spacing:.4px">${label}</div>
-    <div style="font-size:22px;font-weight:800;color:#f1f5f9;line-height:1.1;margin-top:3px">${value}</div>
+  return `<div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px 14px 10px">
+    <div style="font-size:11px;color:var(--ink-muted);letter-spacing:.4px">${label}</div>
+    <div style="font-size:20px;font-weight:600;color:#f1f5f9;line-height:1.1;margin-top:3px">${value}</div>
     <div style="margin-top:2px">${deltaBadge(deltaPct, invert)}</div>
     <div style="margin-top:6px">${sparkSVG(sparkVals, color)}</div>
   </div>`;
@@ -41,28 +41,28 @@ export function heroKpi(label, value, deltaPct, sparkVals, color, invert) {
 /* ── Card de progresso com barra ───────────────────────────────────────── */
 export function progressCard(label, value, sub, frac, color) {
   const w = Math.max(2, Math.min(100, Math.round((frac || 0) * 100)));
-  return `<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:12px 14px">
-    <div style="font-size:11px;color:#94a3b8">${label}</div>
-    <div style="font-size:22px;font-weight:800;color:#f1f5f9;margin-top:2px">${value}</div>
-    <div style="height:7px;border-radius:6px;background:rgba(255,255,255,0.08);margin-top:8px;overflow:hidden"><div style="height:100%;width:${w}%;background:${color}"></div></div>
-    <div style="font-size:10px;color:var(--ink-muted);margin-top:4px">${sub || ''}</div>
+  return `<div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px 14px">
+    <div style="font-size:11px;color:var(--ink-muted)">${label}</div>
+    <div style="font-size:20px;font-weight:600;color:#f1f5f9;margin-top:2px">${value}</div>
+    <div style="height:7px;border-radius:var(--radius-sm);background:var(--surface-2);margin-top:8px;overflow:hidden"><div style="height:100%;width:${w}%;background:${color}"></div></div>
+    <div style="font-size:11px;color:var(--ink-muted);margin-top:4px">${sub || ''}</div>
   </div>`;
 }
 
 /* ── Mini stat (3-col dentro do hero) ──────────────────────────────────── */
 export function miniStat(label, val, color) {
-  return `<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:8px;text-align:center">
-    <div style="font-size:10px;color:#94a3b8">${label}</div><div style="font-size:15px;font-weight:800;color:${color || '#f1f5f9'}">${val}</div></div>`;
+  return `<div style="background:var(--surface-2);border-radius:var(--radius-md);padding:8px;text-align:center">
+    <div style="font-size:11px;color:var(--ink-muted)">${label}</div><div style="font-size:14px;font-weight:600;color:${color || '#f1f5f9'}">${val}</div></div>`;
 }
 
 /* ── Container dark do hero ────────────────────────────────────────────── */
 export function heroWrap(title, subtitle, inner) {
   return `
-  <div style="background:linear-gradient(160deg,#0f172a,#111827);border:1px solid rgba(255,255,255,0.07);border-radius:18px;padding:18px 18px 20px;color:#e2e8f0;margin-bottom:16px">
+  <div style="background:linear-gradient(160deg,#0f172a,#111827);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 18px 20px;color:#e2e8f0;margin-bottom:16px">
     <div class="flex" style="justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
       <div>
-        <div style="font-size:17px;font-weight:800;color:#fff">${title}</div>
-        ${subtitle ? `<div style="font-size:11px;color:#94a3b8">${subtitle}</div>` : ''}
+        <div style="font-size:16px;font-weight:600;color:#fff">${title}</div>
+        ${subtitle ? `<div style="font-size:11px;color:var(--ink-muted)">${subtitle}</div>` : ''}
       </div>
     </div>
     ${inner}
@@ -71,8 +71,8 @@ export function heroWrap(title, subtitle, inner) {
 
 /* ── Card escuro (sub-painel dentro do hero) ───────────────────────────── */
 export function panel(title, inner, extraStyle) {
-  return `<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:14px;${extraStyle || ''}">
-    ${title ? `<div style="font-size:12px;font-weight:700;color:#cbd5e1;margin-bottom:8px">${title}</div>` : ''}
+  return `<div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px;${extraStyle || ''}">
+    ${title ? `<div style="font-size:12px;font-weight:600;color:#cbd5e1;margin-bottom:8px">${title}</div>` : ''}
     ${inner}
   </div>`;
 }

@@ -142,7 +142,7 @@ function htmlGerar(m) {
   const ordem = ['Parte empresa', 'Locatário empresa', 'Visita', 'Imóvel', 'Atividade', 'Cessão', 'Locação', 'Garantia', 'Negócio', 'Comissão', 'Assinaturas', 'Outros'];
   return `
     <div class="card mt-3">
-      <div class="tiny muted" style="font-weight:700;letter-spacing:.5px;text-transform:uppercase">1 · Documento</div>
+      <div class="tiny muted" style="font-weight:600;letter-spacing:.5px;text-transform:uppercase">1 · Documento</div>
       <div class="flex gap-2 mt-2" style="flex-wrap:wrap">
         ${modelos().map(x => `<button class="btn ${x.id === m.id ? 'btn-primary' : 'btn-ghost'}" data-modelo="${esc(x.id)}">${esc(x.titulo)}${x.editado ? ' <span class="tiny" title="texto editado pelo sócio">✎</span>' : ''}</button>`).join('')}
       </div>
@@ -155,9 +155,9 @@ function htmlGerar(m) {
     </div>
 
     <div class="card mt-3">
-      <div class="tiny muted" style="font-weight:700;letter-spacing:.5px;text-transform:uppercase">2 · Negócio do CRM <span style="font-weight:400;text-transform:none">(opcional — preenche cliente, imóvel e valores)</span></div>
+      <div class="tiny muted" style="font-weight:600;letter-spacing:.5px;text-transform:uppercase">2 · Negócio do CRM <span style="font-weight:400;text-transform:none">(opcional — preenche cliente, imóvel e valores)</span></div>
       ${_negocio ? `
-        <div class="flex gap-2 mt-2" style="align-items:center;flex-wrap:wrap;background:var(--bg-3);padding:10px 12px;border-radius:8px">
+        <div class="flex gap-2 mt-2" style="align-items:center;flex-wrap:wrap;background:var(--bg-3);padding:10px 12px;border-radius:var(--radius-md)">
           <div style="flex:1;min-width:200px"><b>${esc(_negocio.nome)}</b>
             <div class="tiny muted">${esc(_negocio.funil)} · ${esc(_negocio.etapa)}${_negocio.corretor_nome ? ' · ' + esc(_negocio.corretor_nome) : ''}${_negocio.valor ? ' · R$ ' + (Number(_negocio.valor) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}</div></div>
           <button class="btn btn-ghost btn-sm" id="doc-neg-trocar">Trocar</button>
@@ -170,11 +170,11 @@ function htmlGerar(m) {
     </div>
 
     <div class="card mt-3">
-      <div class="tiny muted" style="font-weight:700;letter-spacing:.5px;text-transform:uppercase">3 · Dados do documento</div>
+      <div class="tiny muted" style="font-weight:600;letter-spacing:.5px;text-transform:uppercase">3 · Dados do documento</div>
       <p class="tiny muted" style="margin:4px 0 0">O que ficar em branco sai como <code>${VAZIO}</code> no Word pra completar à mão. CPF, RG e endereço <b>não ficam gravados</b> no House.</p>
       ${pessoas.map(p => htmlPessoa(p, m)).join('')}
       ${ordem.filter(g => grupos[g]).map(g => `
-        <div class="mt-3"><div style="font-weight:800;margin-bottom:6px">${({ 'Parte empresa': '🏢', 'Visita': '👀', 'Cessão': '📜', 'Locatário empresa': '🏢', 'Atividade': '🏪', 'Imóvel': '🏠', 'Locação': '🔑', 'Garantia': '🛡', 'Negócio': '💰', 'Comissão': '🤝', 'Assinaturas': '✍️' })[g] || '•'} ${esc(g)}</div>
+        <div class="mt-3"><div style="font-weight:600;margin-bottom:6px">${({ 'Parte empresa': '🏢', 'Visita': '👀', 'Cessão': '📜', 'Locatário empresa': '🏢', 'Atividade': '🏪', 'Imóvel': '🏠', 'Locação': '🔑', 'Garantia': '🛡', 'Negócio': '💰', 'Comissão': '🤝', 'Assinaturas': '✍️' })[g] || '•'} ${esc(g)}</div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">${grupos[g].map(k => htmlCampo(k)).join('')}</div>
         </div>`).join('')}
     </div>
@@ -204,8 +204,8 @@ function htmlListaNegocios() {
 function htmlPessoa(p, m) {
   const aberto = (/1$/.test(p) && p !== 'f1') || PESSOA_CAMPOS.some(([k]) => (_v[`${p}_${k}`] || '').trim() && k !== 'nacionalidade');
   return `
-    <details class="mt-3" ${aberto ? 'open' : ''} style="border:1px solid var(--bd);border-radius:8px;padding:8px 12px">
-      <summary style="font-weight:800;cursor:pointer">${p.startsWith('c') ? '🙋' : p.startsWith('v') ? '🏡' : '🤝'} ${esc(rotuloPessoa(m, p))}${/2$/.test(p) || p === 'f1' ? ' <span class="tiny muted" style="font-weight:400">(deixe o nome vazio se não houver)</span>' : ''}</summary>
+    <details class="mt-3" ${aberto ? 'open' : ''} style="border:1px solid var(--bd);border-radius:var(--radius-md);padding:8px 12px">
+      <summary style="font-weight:600;cursor:pointer">${p.startsWith('c') ? '🙋' : p.startsWith('v') ? '🏡' : '🤝'} ${esc(rotuloPessoa(m, p))}${/2$/.test(p) || p === 'f1' ? ' <span class="tiny muted" style="font-weight:400">(deixe o nome vazio se não houver)</span>' : ''}</summary>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:8px">
         ${PESSOA_CAMPOS.filter(([k]) => !m.pessoaCampos || m.pessoaCampos.includes(k)).map(([k, rot, tipo]) => campoInput(`${p}_${k}`, rot, tipo)).join('')}
       </div>
@@ -283,7 +283,7 @@ function bindGerar() {
     const box = $('doc-preview');
     if (box.innerHTML) { box.innerHTML = ''; return; }
     const txt = textoFinal();
-    box.innerHTML = `<div style="margin-top:12px;max-height:60vh;overflow:auto;background:#fff;color:#111;border:1px solid var(--bd);border-radius:8px;padding:18px 22px;font-family:Arial,sans-serif;font-size:13px;line-height:1.5">${previewHtml(txt)}</div>`;
+    box.innerHTML = `<div style="margin-top:12px;max-height:60vh;overflow:auto;background:var(--surface);color:#111;border:1px solid var(--bd);border-radius:var(--radius-md);padding:18px 22px;font-family:Arial,sans-serif;font-size:13px;line-height:1.5">${previewHtml(txt)}</div>`;
   };
   $('doc-limpar').onclick = () => {
     if (!confirm('Apagar os dados digitados nesta tela?')) return;
@@ -358,11 +358,11 @@ function atualizarBrancos() {
 function previewHtml(txt) {
   return String(txt).split('\n').map(l => {
     const t = l.trimEnd();
-    const b = s => esc(s).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/__________/g, '<span style="background:#fde68a">__________</span>');
+    const b = s => esc(s).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/__________/g, '<span style="background:var(--warn-soft)">__________</span>');
     if (t.startsWith('[[ASSINATURAS]]')) return '<div style="display:flex;gap:30px;margin:26px 0 10px">' + t.slice(15).split('||').map(c => `<div style="flex:1;text-align:center;border-top:1px solid #333;padding-top:4px;font-size:12px">${c.split('|').map(b).join('<br>')}</div>`).join('') + '</div>';
     if (t === '---') return '<div style="height:8px"></div>';
-    if (t.startsWith('## ')) return `<div style="font-weight:800;margin-top:10px">${b(t.slice(3))}</div>`;
-    if (t.startsWith('# ')) return `<div style="font-weight:800;text-align:center;font-size:15px;margin-bottom:8px">${b(t.slice(2))}</div>`;
+    if (t.startsWith('## ')) return `<div style="font-weight:600;margin-top:10px">${b(t.slice(3))}</div>`;
+    if (t.startsWith('# ')) return `<div style="font-weight:600;text-align:center;font-size:14px;margin-bottom:8px">${b(t.slice(2))}</div>`;
     if (!t.trim()) return '<div style="height:4px"></div>';
     return `<p style="margin:4px 0;text-align:justify">${b(t)}</p>`;
   }).join('');
@@ -395,10 +395,10 @@ function htmlModelos() {
   const emps = empresas(), pd = padroes();
   return `
     <div class="card mt-3">
-      <div style="font-weight:800">📄 Modelos</div>
+      <div style="font-weight:600">📄 Modelos</div>
       <p class="tiny muted" style="margin:4px 0 8px">Edite o texto quando a advogada revisar uma cláusula. "Voltar ao padrão" desfaz a sua edição.</p>
       <div style="display:grid;gap:6px">
-        ${modelos().map(m => `<div class="flex gap-2" style="align-items:center;flex-wrap:wrap;border:1px solid var(--bd);border-radius:8px;padding:8px 12px">
+        ${modelos().map(m => `<div class="flex gap-2" style="align-items:center;flex-wrap:wrap;border:1px solid var(--bd);border-radius:var(--radius-md);padding:8px 12px">
           <div style="flex:1;min-width:200px"><b>${esc(m.titulo)}</b> <span class="tiny muted">· ${esc(m.categoria || '')} · ${esc(emps[m.empresa]?.nome || '')}</span>
             ${m.editado ? `<div class="tiny" style="color:var(--psm-gold)">✎ editado${_cfg.modelos[m.id]?.atualizado_por ? ' por ' + esc(_cfg.modelos[m.id].atualizado_por) : ''}${_cfg.modelos[m.id]?.atualizado_em ? ' em ' + new Date(_cfg.modelos[m.id].atualizado_em).toLocaleDateString('pt-BR') : ''}</div>` : ''}</div>
           <button class="btn btn-ghost btn-sm" data-editar="${esc(m.id)}">✏️ Editar texto</button>
@@ -409,17 +409,17 @@ function htmlModelos() {
     </div>
 
     <div class="card mt-3">
-      <div style="font-weight:800">🏢 Imobiliárias</div>
+      <div style="font-weight:600">🏢 Imobiliárias</div>
       <p class="tiny muted" style="margin:4px 0 8px">Razão social, CNPJ, CRECI e dados bancários que entram nos documentos.</p>
       ${Object.entries(emps).map(([id, e]) => `
-        <details style="border:1px solid var(--bd);border-radius:8px;padding:8px 12px;margin-bottom:8px">
+        <details style="border:1px solid var(--bd);border-radius:var(--radius-md);padding:8px 12px;margin-bottom:8px">
           <summary style="cursor:pointer"><b>${esc(e.nome)}</b> <span class="tiny muted">· CNPJ ${esc(e.cnpj)} · CRECI ${esc(e.creci)}</span></summary>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin-top:8px">
             ${[['nome', 'Razão social'], ['cnpj', 'CNPJ'], ['creci', 'CRECI'], ['representante', 'Representante legal (assina)'], ['banco', 'Dados bancários'], ['pix', 'PIX'], ['fone', 'Telefone'], ['email', 'E-mail'], ['instagram', 'Instagram'], ['endereco', 'Endereço (rodapé)']]
               .map(([k, r]) => `<div ${k === 'endereco' ? 'style="grid-column:1/-1"' : ''}><label class="tiny muted">${r}</label><input class="input" data-emp="${esc(id)}" data-ek="${k}" value="${esc(e[k] || '')}"></div>`).join('')}
           </div>
         </details>`).join('')}
-      <div style="font-weight:800;margin-top:10px">✍️ Padrões</div>
+      <div style="font-weight:600;margin-top:10px">✍️ Padrões</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin-top:6px">
         ${[['testemunha1', '1ª testemunha'], ['testemunha2', '2ª testemunha'], ['cidade_foro', 'Foro (comarca)']].map(([k, r]) => `<div><label class="tiny muted">${r}</label><input class="input" data-pad="${k}" value="${esc(pd[k] || '')}"></div>`).join('')}
       </div>
@@ -437,7 +437,7 @@ function htmlEditor() {
   return `
     <div class="card mt-3">
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-        <div style="font-weight:800">✏️ ${e.novo && !_cfg.modelos[e.id] ? 'Novo modelo' : 'Editar: ' + esc(e.titulo)}</div>
+        <div style="font-weight:600">✏️ ${e.novo && !_cfg.modelos[e.id] ? 'Novo modelo' : 'Editar: ' + esc(e.titulo)}</div>
         <button class="btn btn-ghost btn-sm" id="ed-voltar">✕ Cancelar</button>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin-top:8px">
@@ -453,8 +453,8 @@ function htmlEditor() {
         </div>
         <div>
           <label class="tiny muted">Campos disponíveis (clique pra inserir)</label>
-          <div style="max-height:560px;overflow:auto;border:1px solid var(--bd);border-radius:8px;padding:6px">
-            ${vars.map(([k, r]) => `<div data-ins="${esc(k)}" style="cursor:pointer;padding:3px 4px;border-radius:4px;font-size:12px" title="${esc(r)}"><code>{{${esc(k)}}}</code> <span class="muted">${esc(r)}</span></div>`).join('')}
+          <div style="max-height:560px;overflow:auto;border:1px solid var(--bd);border-radius:var(--radius-md);padding:6px">
+            ${vars.map(([k, r]) => `<div data-ins="${esc(k)}" style="cursor:pointer;padding:3px 4px;border-radius:var(--radius-sm);font-size:12px" title="${esc(r)}"><code>{{${esc(k)}}}</code> <span class="muted">${esc(r)}</span></div>`).join('')}
           </div>
         </div>
       </div>

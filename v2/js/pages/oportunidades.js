@@ -9,7 +9,7 @@ let _formOpen = false;
 
 const TIPOS = ['lead', 'imovel', 'parceria', 'investidor', 'outro'];
 const TIPO_ICO = { lead: '🎯', imovel: '🏠', parceria: '🤝', investidor: '💼', outro: '📌' };
-const STATUS_COLOR = { aberta: '#22c55e', pegou: '#3b82f6', fechada: '#8b5cf6', perdida: '#64748b' };
+const STATUS_COLOR = { aberta: '#22c55e', pegou: '#806d50', fechada: '#8b5cf6', perdida: '#64748b' };
 
 export async function pageOportunidades(ctx, root) {
   _root = root;
@@ -56,59 +56,59 @@ function render() {
 function renderForm() {
   const ed = _editing || {};
   return `
-    <div class="card mt-3" style="background:linear-gradient(135deg,#1e293b,#0f172a);border:1px solid #6366f140;padding:18px;color:#fff">
-      <div style="font-weight:800;margin-bottom:12px">${ed.id ? '✏️ Editar' : '➕ Nova'} Oportunidade</div>
+    <div class="card mt-3" style="background:var(--surface-2);border:1px solid var(--accent-ink);padding:18px;color:var(--ink)">
+      <div style="font-weight:600;margin-bottom:12px">${ed.id ? '✏️ Editar' : '➕ Nova'} Oportunidade</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div style="grid-column:1/-1">
-          <label class="tiny" style="color:#94a3b8">Título *</label>
-          <input id="of-tit" class="input" placeholder="Ex: Investidor procura 3 lotes Damha" value="${esc(ed.titulo || '')}" style="background:#0f172a;color:#fff;border-color:#475569">
+          <label class="tiny" style="color:var(--ink-muted)">Título *</label>
+          <input id="of-tit" class="input" placeholder="Ex: Investidor procura 3 lotes Damha" value="${esc(ed.titulo || '')}" style="background:var(--surface-2);color:#fff;border-color:var(--border)">
         </div>
         <div style="grid-column:1/-1">
-          <label class="tiny" style="color:#94a3b8">Descrição</label>
-          <textarea id="of-desc" class="input" rows="3" style="background:#0f172a;color:#fff;border-color:#475569">${esc(ed.descricao || '')}</textarea>
+          <label class="tiny" style="color:var(--ink-muted)">Descrição</label>
+          <textarea id="of-desc" class="input" rows="3" style="background:var(--surface-2);color:#fff;border-color:var(--border)">${esc(ed.descricao || '')}</textarea>
         </div>
         <div>
-          <label class="tiny" style="color:#94a3b8">Tipo</label>
-          <select id="of-tipo" class="select" style="background:#0f172a;color:#fff">
+          <label class="tiny" style="color:var(--ink-muted)">Tipo</label>
+          <select id="of-tipo" class="select" style="background:var(--surface-2);color:#fff">
             ${TIPOS.map(t => `<option value="${t}" ${ed.tipo === t ? 'selected' : ''}>${TIPO_ICO[t]} ${t}</option>`).join('')}
           </select>
         </div>
         <div>
-          <label class="tiny" style="color:#94a3b8">Valor estimado (R$)</label>
-          <input id="of-valor" type="number" class="input" value="${ed.valor_est || ''}" style="background:#0f172a;color:#fff;border-color:#475569">
+          <label class="tiny" style="color:var(--ink-muted)">Valor estimado (R$)</label>
+          <input id="of-valor" type="number" class="input" value="${ed.valor_est || ''}" style="background:var(--surface-2);color:#fff;border-color:var(--border)">
         </div>
         <div>
-          <label class="tiny" style="color:#94a3b8">Origem</label>
-          <input id="of-origem" class="input" placeholder="Indicação Paulo, Instagram, evento..." value="${esc(ed.origem || '')}" style="background:#0f172a;color:#fff;border-color:#475569">
+          <label class="tiny" style="color:var(--ink-muted)">Origem</label>
+          <input id="of-origem" class="input" placeholder="Indicação Paulo, Instagram, evento..." value="${esc(ed.origem || '')}" style="background:var(--surface-2);color:#fff;border-color:var(--border)">
         </div>
         <div>
-          <label class="tiny" style="color:#94a3b8">Contato</label>
-          <input id="of-contato" class="input" placeholder="WhatsApp ou email" value="${esc(ed.contato || '')}" style="background:#0f172a;color:#fff;border-color:#475569">
+          <label class="tiny" style="color:var(--ink-muted)">Contato</label>
+          <input id="of-contato" class="input" placeholder="WhatsApp ou email" value="${esc(ed.contato || '')}" style="background:var(--surface-2);color:#fff;border-color:var(--border)">
         </div>
         <div>
-          <label class="tiny" style="color:#94a3b8">Prazo</label>
-          <input id="of-prazo" type="date" class="input" value="${ed.prazo || ''}" style="background:#0f172a;color:#fff;border-color:#475569">
+          <label class="tiny" style="color:var(--ink-muted)">Prazo</label>
+          <input id="of-prazo" type="date" class="input" value="${ed.prazo || ''}" style="background:var(--surface-2);color:#fff;border-color:var(--border)">
         </div>
-        <div style="grid-column:1/-1;border-top:1px dashed #475569;margin-top:4px;padding-top:8px"></div>
+        <div style="grid-column:1/-1;border-top:1px dashed var(--border);margin-top:4px;padding-top:8px"></div>
         <div style="grid-column:1/-1">
-          <label class="tiny" style="color:#94a3b8">🔗 Link do Kenlo (anúncio no site PSM)</label>
-          <input id="of-kenlo" class="input" placeholder="https://...psm... ou link do Kenlo" value="${esc(ed.kenlo_link || '')}" style="background:#0f172a;color:#fff;border-color:#475569">
-        </div>
-        <div style="grid-column:1/-1">
-          <label class="tiny" style="color:#94a3b8">🖼 Imagem/Vídeo (cole o link — Drive, YouTube, foto do anúncio)</label>
-          <input id="of-midia" class="input" placeholder="https://... (jpg/png/mp4/youtube)" value="${esc(ed.midia_url || '')}" style="background:#0f172a;color:#fff;border-color:#475569">
+          <label class="tiny" style="color:var(--ink-muted)">🔗 Link do Kenlo (anúncio no site PSM)</label>
+          <input id="of-kenlo" class="input" placeholder="https://...psm... ou link do Kenlo" value="${esc(ed.kenlo_link || '')}" style="background:var(--surface-2);color:#fff;border-color:var(--border)">
         </div>
         <div style="grid-column:1/-1">
-          <label class="tiny" style="color:#94a3b8">📝 Condições comerciais</label>
-          <textarea id="of-cond" class="input" rows="2" placeholder="Ex: entrada 20%, saldo em 36x, permuta aceita..." style="background:#0f172a;color:#fff;border-color:#475569">${esc(ed.condicoes || '')}</textarea>
+          <label class="tiny" style="color:var(--ink-muted)">🖼 Imagem/Vídeo (cole o link — Drive, YouTube, foto do anúncio)</label>
+          <input id="of-midia" class="input" placeholder="https://... (jpg/png/mp4/youtube)" value="${esc(ed.midia_url || '')}" style="background:var(--surface-2);color:#fff;border-color:var(--border)">
+        </div>
+        <div style="grid-column:1/-1">
+          <label class="tiny" style="color:var(--ink-muted)">📝 Condições comerciais</label>
+          <textarea id="of-cond" class="input" rows="2" placeholder="Ex: entrada 20%, saldo em 36x, permuta aceita..." style="background:var(--surface-2);color:#fff;border-color:var(--border)">${esc(ed.condicoes || '')}</textarea>
         </div>
         <div>
-          <label class="tiny" style="color:#94a3b8">💰 % de comissão</label>
-          <input id="of-comissao" type="number" step="0.01" class="input" placeholder="Ex: 5" value="${ed.comissao_pct != null ? ed.comissao_pct : ''}" style="background:#0f172a;color:#fff;border-color:#475569">
+          <label class="tiny" style="color:var(--ink-muted)">💰 % de comissão</label>
+          <input id="of-comissao" type="number" step="0.01" class="input" placeholder="Ex: 5" value="${ed.comissao_pct != null ? ed.comissao_pct : ''}" style="background:var(--surface-2);color:#fff;border-color:var(--border)">
         </div>
         <div>
-          <label class="tiny" style="color:#94a3b8">🏆 Prêmio</label>
-          <input id="of-premio" class="input" placeholder="Ex: R$ 500 + bônus / viagem" value="${esc(ed.premio || '')}" style="background:#0f172a;color:#fff;border-color:#475569">
+          <label class="tiny" style="color:var(--ink-muted)">🏆 Prêmio</label>
+          <input id="of-premio" class="input" placeholder="Ex: R$ 500 + bônus / viagem" value="${esc(ed.premio || '')}" style="background:var(--surface-2);color:#fff;border-color:var(--border)">
         </div>
       </div>
       <div class="flex gap-2 mt-3">
@@ -169,13 +169,13 @@ function renderList() {
   body.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));gap:10px;margin-bottom:14px">
       ${kpi('🟢 Abertas', abertas.length, '#22c55e')}
-      ${kpi('🔵 Em Andamento', _items.filter(o => o.status === 'pegou').length, '#3b82f6')}
+      ${kpi('🔵 Em Andamento', _items.filter(o => o.status === 'pegou').length, '#806d50')}
       ${kpi('🟣 Fechadas', _items.filter(o => o.status === 'fechada').length, '#8b5cf6')}
       ${kpi('⚫ Perdidas', _items.filter(o => o.status === 'perdida').length, '#64748b')}
     </div>
 
     ${abertas.length > 0 ? `
-      <h3 style="color:#22c55e;font-size:14px;margin:14px 0 10px">🟢 Disponíveis pra Pegar</h3>
+      <h3 style="color:var(--ok);font-size:14px;margin:14px 0 10px">🟢 Disponíveis pra Pegar</h3>
       <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:12px;margin-bottom:18px">
         ${abertas.map(o => opCard(o, isLider, true)).join('')}
       </div>
@@ -189,7 +189,7 @@ function renderList() {
     ` : ''}
 
     ${daEquipe.length > 0 ? `
-      <h3 style="color:#3b82f6;font-size:14px;margin:14px 0 10px">🔵 Em andamento com a equipe</h3>
+      <h3 style="color:var(--accent-ink);font-size:14px;margin:14px 0 10px">🔵 Em andamento com a equipe</h3>
       <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:12px;margin-bottom:18px">
         ${daEquipe.map(o => opCard(o, isLider, false)).join('')}
       </div>
@@ -208,13 +208,13 @@ function renderList() {
 function opCard(o, isLider, canPegar) {
   const cor = STATUS_COLOR[o.status] || '#64748b';
   return `
-    <div style="background:var(--bg-3);border-left:4px solid ${cor};border-radius:10px;padding:14px">
+    <div style="background:var(--bg-3);border-left:4px solid ${cor};border-radius:var(--radius-md);padding:14px">
       <div class="flex" style="justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">
         <div style="flex:1">
-          <div style="font-weight:800">${TIPO_ICO[o.tipo] || '📌'} ${esc(o.titulo)}</div>
+          <div style="font-weight:600">${TIPO_ICO[o.tipo] || '📌'} ${esc(o.titulo)}</div>
           <div class="tiny muted">${esc(o.origem || '—')}</div>
         </div>
-        <span style="font-size:10px;padding:2px 8px;border-radius:99px;background:${cor}22;color:${cor};font-weight:800;text-transform:uppercase">${o.status}</span>
+        <span style="font-size:11px;padding:2px 8px;border-radius:var(--radius-full);background:${cor}22;color:${cor};font-weight:600;text-transform:uppercase">${o.status}</span>
       </div>
       ${o.descricao ? `<div class="tiny" style="margin-bottom:8px;line-height:1.5">${esc(o.descricao)}</div>` : ''}
       ${o.midia_url ? opMidia(o.midia_url) : ''}
@@ -225,7 +225,7 @@ function opCard(o, isLider, canPegar) {
         ${o.premio ? `<div>🏆 ${esc(o.premio)}</div>` : ''}
         ${o.contato ? `<div style="grid-column:1/-1">📞 ${esc(o.contato)}</div>` : ''}
       </div>
-      ${o.condicoes ? `<div class="tiny" style="margin-top:6px;background:var(--bg-2);border-radius:6px;padding:6px;line-height:1.5">📝 <b>Condições:</b> ${esc(o.condicoes)}</div>` : ''}
+      ${o.condicoes ? `<div class="tiny" style="margin-top:6px;background:var(--bg-2);border-radius:var(--radius-sm);padding:6px;line-height:1.5">📝 <b>Condições:</b> ${esc(o.condicoes)}</div>` : ''}
       ${o.kenlo_link ? `<div class="mt-2"><a href="${esc(o.kenlo_link)}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="text-decoration:none">🔗 Ver anúncio no site PSM</a></div>` : ''}
       <div class="flex gap-2 mt-2">
         ${canPegar ? `<button class="btn btn-primary btn-sm" data-pegar="${o.id}">✋ Pegar</button>` : ''}
@@ -272,14 +272,14 @@ function bindList() {
 function opMidia(url) {
   const u = esc(url);
   if (/\.(jpg|jpeg|png|gif|webp|avif)(\?|$)/i.test(url))
-    return `<a href="${u}" target="_blank" rel="noopener"><img src="${u}" alt="mídia" loading="lazy" style="width:100%;max-height:180px;object-fit:cover;border-radius:8px;margin-bottom:8px"></a>`;
+    return `<a href="${u}" target="_blank" rel="noopener"><img src="${u}" alt="mídia" loading="lazy" style="width:100%;max-height:180px;object-fit:cover;border-radius:var(--radius-md);margin-bottom:8px"></a>`;
   const yt = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/);
-  if (yt) return `<a href="${u}" target="_blank" rel="noopener" style="display:block;position:relative;margin-bottom:8px"><img src="https://img.youtube.com/vi/${yt[1]}/hqdefault.jpg" style="width:100%;max-height:180px;object-fit:cover;border-radius:8px"><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:28px;text-shadow:0 2px 6px #000">▶️</span></a>`;
+  if (yt) return `<a href="${u}" target="_blank" rel="noopener" style="display:block;position:relative;margin-bottom:8px"><img src="https://img.youtube.com/vi/${yt[1]}/hqdefault.jpg" style="width:100%;max-height:180px;object-fit:cover;border-radius:var(--radius-md)"><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:26px;text-shadow:0 2px 6px #000">▶️</span></a>`;
   return `<a href="${u}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="text-decoration:none;margin-bottom:8px;display:inline-block">🎬 Abrir mídia</a>`;
 }
 
 function kpi(label, value, color) {
-  return `<div style="background:var(--bg-3);border-left:4px solid ${color};padding:12px;border-radius:8px"><div class="tiny muted">${label}</div><div style="font-size:22px;font-weight:800;color:${color}">${value}</div></div>`;
+  return `<div style="background:var(--bg-3);border-left:4px solid ${color};padding:12px;border-radius:var(--radius-md)"><div class="tiny muted">${label}</div><div style="font-size:20px;font-weight:600;color:${color}">${value}</div></div>`;
 }
 
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

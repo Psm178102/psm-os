@@ -9,7 +9,7 @@ let _root = null, _d = null, _view = 'fila', _busy = false;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const brl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const ST = [
-  ['contatado', '📱 Contatei', '#2563eb'], ['proposta', '📄 Proposta', '#7c3aed'],
+  ['contatado', '📱 Contatei', '#806d50'], ['proposta', '📄 Proposta', '#7c3aed'],
   ['negociando', '🤝 Negociando', '#d97706'], ['fechou_rd', '🏆 Fechei (marcar no RD!)', '#16a34a'],
   ['perdeu', '❌ Perdeu', '#dc2626'], ['futuro', '⏳ Futuro', '#64748b'],
 ];
@@ -40,11 +40,11 @@ function render() {
         <button class="btn btn-ghost btn-sm" id="pt-reload">↻</button>
       </div>
       <div class="flex mt-2" style="gap:8px;flex-wrap:wrap">
-        <div style="flex:1;min-width:130px;background:var(--bg-3);border-radius:10px;padding:8px 10px"><div class="tiny muted">Trabalhados hoje</div><div style="font-weight:900;font-size:18px">${s.hoje || 0}</div></div>
-        <div style="flex:1;min-width:130px;background:var(--bg-3);border-radius:10px;padding:8px 10px"><div class="tiny muted">🤝 Negociando</div><div style="font-weight:900;font-size:18px">${s.negociando || 0}</div></div>
-        <div style="flex:1;min-width:130px;background:var(--bg-3);border-radius:10px;padding:8px 10px"><div class="tiny muted">📄 Em proposta</div><div style="font-weight:900;font-size:18px">${s.proposta || 0}</div></div>
-        <div style="flex:1;min-width:130px;background:var(--bg-3);border-radius:10px;padding:8px 10px;border-left:3px solid #16a34a"><div class="tiny muted">🏆 Fechados (RD)</div><div style="font-weight:900;font-size:18px">${s.fechou_rd || 0}</div></div>
-        <div style="flex:1;min-width:130px;background:var(--bg-3);border-radius:10px;padding:8px 10px"><div class="tiny muted">Base c/ telefone</div><div style="font-weight:900;font-size:18px">${_d.total_base || 0}</div></div>
+        <div style="flex:1;min-width:130px;background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px"><div class="tiny muted">Trabalhados hoje</div><div style="font-weight:600;font-size:16px">${s.hoje || 0}</div></div>
+        <div style="flex:1;min-width:130px;background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px"><div class="tiny muted">🤝 Negociando</div><div style="font-weight:600;font-size:16px">${s.negociando || 0}</div></div>
+        <div style="flex:1;min-width:130px;background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px"><div class="tiny muted">📄 Em proposta</div><div style="font-weight:600;font-size:16px">${s.proposta || 0}</div></div>
+        <div style="flex:1;min-width:130px;background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px;border-left:3px solid var(--ok)"><div class="tiny muted">🏆 Fechados (RD)</div><div style="font-weight:600;font-size:16px">${s.fechou_rd || 0}</div></div>
+        <div style="flex:1;min-width:130px;background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px"><div class="tiny muted">Base c/ telefone</div><div style="font-weight:600;font-size:16px">${_d.total_base || 0}</div></div>
       </div>
     </div>
     <div class="mt-2">
@@ -53,10 +53,10 @@ function render() {
           <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
             <b style="font-size:14px">${esc(it.contato)}</b>
             <span class="badge">${FRENTE[it.frente] || esc(it.frente)}</span>
-            ${it.sem_valor ? '<span class="badge" style="background:#d9770622;color:var(--warn);font-weight:700">⚠️ SEM VALOR no RD</span>'
+            ${it.sem_valor ? '<span class="badge" style="background:var(--warn-soft);color:var(--warn);font-weight:600">⚠️ SEM VALOR no RD</span>'
       : `<b style="color:var(--ok)">${brl(it.valor)}</b>`}
             <span class="tiny muted">${esc(it.estagio || '')}</span>
-            ${it.st ? `<span class="badge" style="background:#2563eb22;color:var(--info)">${esc(it.st)}</span>` : ''}
+            ${it.st ? `<span class="badge" style="background:var(--accent-soft);color:var(--info)">${esc(it.st)}</span>` : ''}
             <span style="margin-left:auto"></span>
             <a class="btn btn-primary btn-sm" target="_blank" rel="noopener" href="https://wa.me/${esc(it.fone)}">💬 WhatsApp</a>
           </div>

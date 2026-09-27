@@ -169,9 +169,9 @@ function manualSection() {
 function noteCard(n) {
   const arq = n.status === 'arquivado';
   return `
-    <div style="background:var(--bg-3);border:1px solid var(--border);border-top:3px solid #2563eb;border-radius:var(--r-md);padding:12px 14px">
+    <div style="background:var(--bg-3);border:1px solid var(--border);border-top:3px solid var(--accent-ink);border-radius:var(--r-md);padding:12px 14px">
       <div class="flex" style="justify-content:space-between;align-items:flex-start;gap:8px">
-        <div style="font-weight:800;font-size:13px;${arq ? 'opacity:.7' : ''}">💡 ${esc(n.titulo)}</div>
+        <div style="font-weight:600;font-size:13px;${arq ? 'opacity:.7' : ''}">💡 ${esc(n.titulo)}</div>
         <div class="flex gap-1" style="flex-shrink:0">
           <button class="btn btn-ghost btn-sm" data-note-arc="${esc(n.id)}" title="${arq ? 'Reativar' : 'Arquivar'}" style="padding:2px 6px">${arq ? '↩' : '🗄'}</button>
           <button class="btn btn-ghost btn-sm" data-note-edit="${esc(n.id)}" title="Editar" style="padding:2px 6px">✏️</button>
@@ -202,9 +202,9 @@ function openNoteForm(n) {
           <button class="btn btn-ghost btn-sm" id="in-x">✕</button>
         </div>
         <div style="display:grid;gap:10px;margin-top:12px">
-          <div><label class="tiny muted" style="font-weight:700">Título</label>
+          <div><label class="tiny muted" style="font-weight:600">Título</label>
             <input id="in-f-titulo" class="input" value="${esc(n.titulo || '')}" placeholder="Ex.: Clientes de alto padrão respondem melhor a vídeo" style="width:100%" /></div>
-          <div><label class="tiny muted" style="font-weight:700">Detalhe</label>
+          <div><label class="tiny muted" style="font-weight:600">Detalhe</label>
             <textarea id="in-f-texto" class="input" rows="5" style="width:100%" placeholder="Sua leitura, hipótese, o que fazer com isso…">${esc(n.texto || '')}</textarea></div>
         </div>
         <div id="in-f-err" class="tiny" style="color:var(--err);margin-top:8px"></div>
@@ -253,12 +253,12 @@ async function delNote(id) {
 function fmtDate(s) { try { return new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }); } catch { return ''; } }
 
 function card(c) {
-  const COR = { good: '#16a34a', warn: '#d97706', bad: '#dc2626', info: '#2563eb' };
-  const cor = COR[c.tom] || '#2563eb';
+  const COR = { good: '#16a34a', warn: '#d97706', bad: '#dc2626', info: '#806d50' };
+  const cor = COR[c.tom] || '#806d50';
   return `
     <div style="background:var(--bg-2);border:1px solid var(--border);border-top:3px solid ${cor};border-radius:var(--r-md);padding:12px 14px">
-      <div class="tiny muted" style="font-weight:700">${c.icon} ${esc(c.titulo)}</div>
-      <div style="font-size:24px;font-weight:900;color:${cor};margin:2px 0">${esc(c.valor)}</div>
+      <div class="tiny muted" style="font-weight:600">${c.icon} ${esc(c.titulo)}</div>
+      <div style="font-size:26px;font-weight:600;color:${cor};margin:2px 0">${esc(c.valor)}</div>
       <div class="tiny muted" style="line-height:1.45">${esc(c.insight)}</div>
     </div>`;
 }
@@ -273,9 +273,9 @@ async function generate() {
     const prompt = buildPrompt();
     const j = await api.request('/api/v3/ia/analyze', { method: 'POST', body: { prompt, max_tokens: 3000, dossie: true } });   // cérebro novo (Sonnet 5 + dossiê) v84.4
     if (j.ok && j.text) {
-      out.innerHTML = `<div style="background:linear-gradient(180deg,rgba(37,99,235,.06),transparent);border:1px solid rgba(37,99,235,.28);border-radius:var(--r-md);padding:16px 18px">
-        <div style="font-weight:800;font-size:13px;color:var(--info);margin-bottom:8px">💡 Leitura estratégica <span class="tiny muted" style="font-weight:400">· ${esc(j.model_used || 'IA')}</span></div>
-        <div style="font-size:13.5px;line-height:1.6">${mdLite(j.text)}</div></div>`;
+      out.innerHTML = `<div style="background:linear-gradient(180deg,rgba(37,99,235,.06),transparent);border:1px solid var(--accent-ink);border-radius:var(--r-md);padding:16px 18px">
+        <div style="font-weight:600;font-size:13px;color:var(--info);margin-bottom:8px">💡 Leitura estratégica <span class="tiny muted" style="font-weight:400">· ${esc(j.model_used || 'IA')}</span></div>
+        <div style="font-size:13px;line-height:1.6">${mdLite(j.text)}</div></div>`;
     } else {
       out.innerHTML = `<div class="alert alert-warn">IA indisponível: ${esc(j.error || 'erro')}. Os cards acima seguem válidos (são computados, não dependem de IA).</div>`;
     }
@@ -320,9 +320,9 @@ Escreva em português, com esta estrutura (markdown leve, sem floreio):
 /* ─── helpers ─── */
 function mdLite(t) {
   return esc(t)
-    .replace(/^#### (.*)$/gm, '<div style="font-weight:800;margin:8px 0 2px">$1</div>')
-    .replace(/^### (.*)$/gm, '<div style="font-weight:800;margin:8px 0 2px">$1</div>')
-    .replace(/^## (.*)$/gm, '<div style="font-weight:800;font-size:14px;margin:12px 0 4px">$1</div>')
+    .replace(/^#### (.*)$/gm, '<div style="font-weight:600;margin:8px 0 2px">$1</div>')
+    .replace(/^### (.*)$/gm, '<div style="font-weight:600;margin:8px 0 2px">$1</div>')
+    .replace(/^## (.*)$/gm, '<div style="font-weight:600;font-size:14px;margin:12px 0 4px">$1</div>')
     .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
     .replace(/^\s*\d+\.\s+(.*)$/gm, '<div style="margin:3px 0 3px 6px">▸ $1</div>')
     .replace(/^\s*[-*] (.*)$/gm, '<div style="margin:2px 0 2px 12px">• $1</div>')

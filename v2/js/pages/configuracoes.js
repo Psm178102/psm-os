@@ -239,11 +239,11 @@ function initTravasRota() {
     return `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:4px 8px">${escapeHtml(nomeDe(r))} <span class="tiny muted">${r}</span></td>
       <td style="padding:4px 8px;text-align:center" class="tiny muted">${base}</td>
-      <td style="padding:4px 8px;text-align:center"><input type="number" min="0" max="10" class="input tr-lvl" data-route="${r}" value="${ef}" ${isSocio ? '' : 'disabled'} style="width:60px;padding:3px 6px;text-align:center;${mudou ? 'border-color:#d97706;font-weight:700' : ''}"></td>
+      <td style="padding:4px 8px;text-align:center"><input type="number" min="0" max="10" class="input tr-lvl" data-route="${r}" value="${ef}" ${isSocio ? '' : 'disabled'} style="width:60px;padding:3px 6px;text-align:center;${mudou ? 'border-color:var(--warn);font-weight:600' : ''}"></td>
     </tr>`;
   }).join('');
   box.innerHTML = `
-    <div style="overflow-x:auto;max-height:420px;overflow-y:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px;max-width:640px">
+    <div style="overflow-x:auto;max-height:420px;overflow-y:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;max-width:640px">
       <thead><tr style="background:var(--bg-3);text-align:left;position:sticky;top:0"><th style="padding:6px 8px">Página</th><th style="padding:6px 8px;text-align:center">Padrão</th><th style="padding:6px 8px;text-align:center">Trava atual</th></tr></thead>
       <tbody>${rows}</tbody>
     </table></div>
@@ -288,7 +288,7 @@ function initFrentes() {
   if (!box) return;
   const isSocio = (auth.user()?.lvl || 0) >= 10;
   const rows = (_cfgFrentes || []).map(f => `<tr style="border-bottom:1px solid var(--border)">
-    <td style="padding:5px 8px">${f.icon} <input class="input fr-nome" data-id="${f.id}" value="${escapeHtml(f.nome || f.id)}" ${isSocio ? '' : 'disabled'} style="width:150px;padding:3px 6px;font-size:12.5px"></td>
+    <td style="padding:5px 8px">${f.icon} <input class="input fr-nome" data-id="${f.id}" value="${escapeHtml(f.nome || f.id)}" ${isSocio ? '' : 'disabled'} style="width:150px;padding:3px 6px;font-size:13px"></td>
     <td style="padding:5px 8px"><input class="input fr-funis" data-id="${f.id}" value="${escapeHtml((f.funis || []).join(', '))}" ${isSocio ? '' : 'disabled'} title="palavras-chave dos funis do RD, separadas por vírgula" style="width:200px;padding:3px 6px;font-size:12px"></td>
     <td style="padding:5px 8px;text-align:center"><label class="tiny" style="cursor:pointer;display:inline-flex;gap:5px;align-items:center"><input type="checkbox" class="fr-ativa" data-id="${f.id}" ${f.ativa !== false ? 'checked' : ''} ${isSocio ? '' : 'disabled'}> ${f.ativa !== false ? '▶ ativa' : '⏸ pausada'}</label></td>
   </tr>`).join('');
@@ -345,9 +345,9 @@ async function initKvConfig() {
   }
   box.innerHTML = KVCFG_KEYS.map(([k, titulo, hint]) => `
     <div style="margin-bottom:12px">
-      <div style="font-weight:700;font-size:13px">${titulo}</div>
+      <div style="font-weight:600;font-size:13px">${titulo}</div>
       <div class="tiny muted" style="margin:2px 0 4px">${escapeHtml(hint)}</div>
-      <textarea class="input kv-json" data-key="${k}" rows="4" ${isSocio ? '' : 'disabled'} style="width:100%;font-family:monospace;font-size:11.5px">${escapeHtml(JSON.stringify(vals[k], null, 2))}</textarea>
+      <textarea class="input kv-json" data-key="${k}" rows="4" ${isSocio ? '' : 'disabled'} style="width:100%;font-family:monospace;font-size:11px">${escapeHtml(JSON.stringify(vals[k], null, 2))}</textarea>
       ${isSocio ? `<button class="btn btn-primary btn-sm kv-save" data-key="${k}" style="margin-top:4px">💾 Validar & salvar</button> <span class="tiny kv-msg" data-key="${k}"></span>` : ''}
     </div>`).join('');
   if (!isSocio) return;
@@ -453,7 +453,7 @@ function renderPermEditor() {
     const allOn = on === total, noneOn = on === 0;
     return `
       <div class="card" style="margin:0 0 10px;background:var(--bg-3)">
-        <label class="flex items-center gap-2" style="font-weight:800;font-size:13px;cursor:${dis ? 'default' : 'pointer'}">
+        <label class="flex items-center gap-2" style="font-weight:600;font-size:13px;cursor:${dis ? 'default' : 'pointer'}">
           <input type="checkbox" data-perm-grp="${g.key}" ${allOn ? 'checked' : ''} ${dis ? 'disabled' : ''}
                  ref-indet="${!allOn && !noneOn ? '1' : ''}"> ${g.label}
           <span class="tiny muted" style="font-weight:600">${on}/${total}</span>
@@ -464,7 +464,7 @@ function renderPermEditor() {
             // qualquer papel. 'warn' é só um aviso suave (ⓘ): o conteúdo pode exigir
             // nível maior no servidor; aparece no menu mas alguns dados podem não abrir.
             const warn = it.minlvl > roleLvl;
-            return `<label class="flex items-center gap-1" style="font-size:12.5px;min-width:200px;cursor:${dis ? 'default' : 'pointer'}" title="${warn ? 'Aparece no menu deste cargo. O conteúdo pode exigir nível ' + it.minlvl + ' no servidor — pode não abrir pra cargos abaixo.' : ''}">
+            return `<label class="flex items-center gap-1" style="font-size:13px;min-width:200px;cursor:${dis ? 'default' : 'pointer'}" title="${warn ? 'Aparece no menu deste cargo. O conteúdo pode exigir nível ' + it.minlvl + ' no servidor — pode não abrir pra cargos abaixo.' : ''}">
               <input type="checkbox" data-perm-route="${it.route}" ${st.has(it.route) ? 'checked' : ''} ${dis ? 'disabled' : ''}>
               ${it.icon} ${escapeHtml(it.label)}${warn ? ' <span style="opacity:.45;font-size:11px" title="pode exigir nível maior no servidor">ⓘ</span>' : ''}</label>`;
           }).join('')}
@@ -474,14 +474,14 @@ function renderPermEditor() {
 
   host.innerHTML = `
     <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:10px">
-      <span class="tiny muted" style="font-weight:700">Editando o papel:</span>
+      <span class="tiny muted" style="font-weight:600">Editando o papel:</span>
       <select id="perm-role-sel" class="select">${permRoles().map(([r, lbl]) => `<option value="${r}"${r === _permRole ? ' selected' : ''}>${lbl}</option>`).join('')}</select>
       ${_permCanEdit ? `
         <span style="flex:1"></span>
         <button class="btn btn-ghost btn-sm" id="perm-reset">↩ Restaurar padrão deste papel</button>
         <button class="btn btn-primary btn-sm" id="perm-save">💾 Salvar permissões</button>` : `<span class="tiny muted">· somente leitura (edição é do sócio)</span>`}
     </div>
-    ${!_permLoaded ? `<div class="card" style="margin:0 0 10px;background:#7f1d1d;color:#fff;border:1px solid #b91c1c">
+    ${!_permLoaded ? `<div class="card" style="margin:0 0 10px;background:var(--err-soft);color:var(--err);border:1px solid var(--err)">
       <b>⛔ A matriz NÃO carregou do servidor.</b><br>
       <span class="tiny">O que você está vendo abaixo são os <b>padrões do código</b>, não as permissões reais.
       Salvar agora apagaria as configurações de verdade — por isso o salvar está bloqueado.
@@ -611,7 +611,7 @@ function settingRow(it, canEdit) {
   return `
     <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end">
       <div class="field" style="margin:0">
-        <label style="font-size:11px;font-weight:700;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.5px">
+        <label style="font-size:11px;font-weight:600;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.5px">
           ${escapeHtml(it.label)}${it.is_secret ? ' 🔒' : ''}
           ${it.has_value ? '<span class="tiny" style="background:color-mix(in srgb, var(--ok) 18%, transparent);color:var(--ok-escuro);padding:1px 6px;border-radius:var(--r-full);margin-left:6px;font-weight:600">✓ configurado</span>' : ''}
         </label>
@@ -676,20 +676,20 @@ function renderSubAbas() {
   const dis = !_resCanEdit;
   const chip = (key, role, lbl) => {
     const on = (_resState[key] || new Set()).has(role);
-    return `<button class="saba-chip${on ? ' on' : ''}" data-saba="${key}" data-role="${role}" ${dis ? 'disabled' : ''} style="${on ? 'background:#2563eb;color:#fff;border-color:#2563eb' : ''}">${escapeHtml(lbl)}</button>`;
+    return `<button class="saba-chip${on ? ' on' : ''}" data-saba="${key}" data-role="${role}" ${dis ? 'disabled' : ''} style="${on ? 'background:var(--accent-soft);color:var(--accent-ink);border-color:var(--accent-ink)' : ''}">${escapeHtml(lbl)}</button>`;
   };
   const todos = key => {
     const empty = !(_resState[key] && _resState[key].size);
-    return `<button class="saba-chip${empty ? ' on' : ''}" data-saba="${key}" data-role="__todos__" ${dis ? 'disabled' : ''} style="${empty ? 'background:#16a34a;color:#fff;border-color:#16a34a' : ''}">🌐 Todos</button>`;
+    return `<button class="saba-chip${empty ? ' on' : ''}" data-saba="${key}" data-role="__todos__" ${dis ? 'disabled' : ''} style="${empty ? 'background:var(--ok-soft);color:var(--ok);border-color:var(--ok)' : ''}">🌐 Todos</button>`;
   };
   host.innerHTML = `
-    <style>.saba-chip{font-size:11.5px;padding:3px 9px;border-radius:999px;border:1px solid var(--bd,#cbd5e1);background:var(--bg-2);cursor:pointer;white-space:nowrap}.saba-chip[disabled]{cursor:default;opacity:.7}.saba-row{padding:7px 0;border-top:1px solid var(--bd,#e2e8f0)}</style>
+    <style>.saba-chip{font-size:11px;padding:3px 9px;border-radius:var(--radius-full);border:1px solid var(--bd,var(--border));background:var(--bg-2);cursor:pointer;white-space:nowrap}.saba-chip[disabled]{cursor:default;opacity:.7}.saba-row{padding:7px 0;border-top:1px solid var(--bd,var(--border))}</style>
     ${SUBABA_REGISTRY.map(g => `
       <div style="margin-bottom:10px">
-        <div style="font-weight:800;font-size:13px;margin:8px 0 2px">${escapeHtml(g.grupo)}</div>
+        <div style="font-weight:600;font-size:13px;margin:8px 0 2px">${escapeHtml(g.grupo)}</div>
         ${g.itens.map(([key, lbl]) => `
           <div class="saba-row">
-            <div style="font-size:12.5px;font-weight:600;margin-bottom:5px">${escapeHtml(lbl)}</div>
+            <div style="font-size:13px;font-weight:600;margin-bottom:5px">${escapeHtml(lbl)}</div>
             <div class="flex" style="gap:5px;flex-wrap:wrap">
               ${todos(key)}
               ${permRoles().map(([r, rl]) => chip(key, r, rl.replace(/^\S+\s/, ''))).join('')}
@@ -829,7 +829,7 @@ function renderConclEditor() {
         ${_cfTypes.map(t => `<option value="${t}"${(f.type || 'text') === t ? ' selected' : ''}>${t}</option>`).join('')}
       </select>
       ${(f.type === 'select') ? `<input class="input" style="flex:1.5;min-width:140px" value="${escapeHtml((f.options || []).join(', '))}" ${dis ? 'disabled' : ''} data-cf-edit="${kind}|${idx}|options" placeholder="opções: A, B, C">` : ''}
-      <label class="tiny" style="font-weight:700;display:flex;align-items:center;gap:4px;white-space:nowrap"><input type="checkbox" ${f.required ? 'checked' : ''} ${dis ? 'disabled' : ''} data-cf-edit="${kind}|${idx}|required"> obrigatório</label>
+      <label class="tiny" style="font-weight:600;display:flex;align-items:center;gap:4px;white-space:nowrap"><input type="checkbox" ${f.required ? 'checked' : ''} ${dis ? 'disabled' : ''} data-cf-edit="${kind}|${idx}|required"> obrigatório</label>
       ${dis ? '' : `<button class="btn btn-ghost btn-sm" data-cf-del="${kind}|${idx}" style="color:var(--err)">✕</button>`}
     </div>`;
 

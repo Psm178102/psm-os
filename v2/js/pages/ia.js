@@ -8,7 +8,7 @@ import { auth } from '../auth.js';
 const AGENTS = [
   { id: 'vera',          name: 'Vera',          ico: '💜', color: '#8b5cf6', tagline: 'Vendas e estratégia comercial' },
   { id: 'sol',           name: 'Sol',           ico: '☀️', color: '#f59e0b', tagline: 'Marketing e copywriting' },
-  { id: 'sr_performance',name: 'Sr. Performance',ico: '🤖', color: '#3b82f6', tagline: 'Analytics e mídia' },
+  { id: 'sr_performance',name: 'Sr. Performance',ico: '🤖', color: '#806d50', tagline: 'Analytics e mídia' },
   { id: 'sr_gerencia',   name: 'Sr. Gerência',  ico: '👔', color: '#0f172a', tagline: 'Liderança e gestão' },
 ];
 
@@ -60,7 +60,7 @@ function render() {
 
       <!-- Header do agent atual -->
       <div style="background:linear-gradient(135deg, ${agent.color}22, transparent);border-left:3px solid ${agent.color};border-radius:var(--r-sm);padding:10px 14px;margin-bottom:10px">
-        <div style="font-size:16px;font-weight:800;color:${agent.color}">${agent.ico} ${escapeHtml(agent.name)}</div>
+        <div style="font-size:16px;font-weight:600;color:${agent.color}">${agent.ico} ${escapeHtml(agent.name)}</div>
         <div class="tiny muted">${escapeHtml(agent.tagline)}</div>
       </div>
 
@@ -68,7 +68,7 @@ function render() {
       <div id="ia-msgs" style="flex:1;overflow-y:auto;padding:8px;background:var(--bg-3);border-radius:var(--r-sm);margin-bottom:10px;display:flex;flex-direction:column;gap:8px">
         ${_messages.length === 0 ? `
           <div class="muted text-center" style="padding:30px">
-            <div style="font-size:32px;margin-bottom:8px">${agent.ico}</div>
+            <div style="font-size:36px;margin-bottom:8px">${agent.ico}</div>
             <div>Comece uma conversa com <b>${escapeHtml(agent.name)}</b>.</div>
             <div class="tiny muted mt-2">${escapeHtml(agent.tagline)}</div>
           </div>
@@ -111,7 +111,7 @@ function render() {
 function agentTab(a) {
   const active = _agent === a.id;
   return `
-    <button data-agent="${a.id}" class="btn" style="border-radius:var(--r-sm) var(--r-sm) 0 0;background:${active ? a.color : 'transparent'};color:${active ? '#fff' : 'var(--ink-muted)'};border-bottom:none;font-weight:700">
+    <button data-agent="${a.id}" class="btn" style="border-radius:var(--r-sm) var(--r-sm) 0 0;background:${active ? a.color : 'transparent'};color:${active ? '#fff' : 'var(--ink-muted)'};border-bottom:none;font-weight:600">
       ${a.ico} ${escapeHtml(a.name)}
     </button>
   `;
@@ -123,7 +123,7 @@ function msgBubble(m, agent) {
     <div style="display:flex;${isUser ? 'justify-content:flex-end' : ''};gap:8px">
       ${!isUser ? `<div style="width:32px;height:32px;border-radius:50%;background:${agent.color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${agent.ico}</div>` : ''}
       <div style="max-width:75%;background:${isUser ? 'var(--psm-navy)' : 'var(--bg-2)'};color:${isUser ? '#fff' : 'var(--ink)'};padding:10px 14px;border-radius:var(--r-md);font-size:13px;line-height:1.5;white-space:pre-wrap;word-wrap:break-word">${escapeHtml(m.content)}</div>
-      ${isUser ? `<div style="width:32px;height:32px;border-radius:50%;background:var(--psm-navy);color:var(--psm-cream);display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">${escapeHtml((auth.user()?.ini || '?').toUpperCase())}</div>` : ''}
+      ${isUser ? `<div style="width:32px;height:32px;border-radius:50%;background:var(--psm-navy);color:var(--psm-cream);display:flex;align-items:center;justify-content:center;font-weight:600;flex-shrink:0">${escapeHtml((auth.user()?.ini || '?').toUpperCase())}</div>` : ''}
     </div>
   `;
 }

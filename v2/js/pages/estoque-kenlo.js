@@ -63,7 +63,7 @@ const tipoPt = t => TIPO_PT[String(t || '').toLowerCase()] || cap(t);
 function badgeDias(d) {
   if (d == null) return '';
   const cor = d > 180 ? '#dc2626' : d > 90 ? '#d97706' : '#16a34a';
-  return `<span class="badge" style="background:${cor}22;color:${cor};font-weight:700">⏱ ${d}d</span>`;
+  return `<span class="badge" style="background:${cor}22;color:${cor};font-weight:600">⏱ ${d}d</span>`;
 }
 
 function cardImovel(im, extra = '') {
@@ -74,18 +74,18 @@ function cardImovel(im, extra = '') {
   const preco2 = (im.preco_venda && im.preco_locacao)
     ? `<span class="tiny muted">· ${prefLoc ? 'venda ' + brl(im.preco_venda) : 'loc ' + brl(im.preco_locacao) + '/mês'}</span>` : '';
   const foto = im.foto_capa
-    ? `<img src="${esc(im.foto_capa)}" loading="lazy" style="width:86px;height:64px;object-fit:cover;border-radius:8px;flex-shrink:0" onerror="this.style.display='none'">`
-    : `<div style="width:86px;height:64px;border-radius:8px;background:var(--bg-3);display:flex;align-items:center;justify-content:center;flex-shrink:0" class="muted">📷?</div>`;
+    ? `<img src="${esc(im.foto_capa)}" loading="lazy" style="width:86px;height:64px;object-fit:cover;border-radius:var(--radius-md);flex-shrink:0" onerror="this.style.display='none'">`
+    : `<div style="width:86px;height:64px;border-radius:var(--radius-md);background:var(--bg-3);display:flex;align-items:center;justify-content:center;flex-shrink:0" class="muted">📷?</div>`;
   return `<div class="card" style="margin:0 0 8px;padding:10px 12px">
     <div class="flex" style="gap:10px">
       ${foto}
       <div style="flex:1;min-width:0">
         <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
-          <span class="badge" style="font-weight:800">${esc(im.property_code || '?')}</span>
+          <span class="badge" style="font-weight:600">${esc(im.property_code || '?')}</span>
           <b style="font-size:13px">${preco}</b>${preco2}
           ${badgeDias(im.dias_sem_atualizar)}
-          ${!im.n_fotos ? '<span class="badge" style="background:#dc262622;color:var(--err)">sem foto</span>' : `<span class="tiny muted">📷 ${im.n_fotos}</span>`}
-          ${im.property_code ? `<a href="${SITE_IMOVEL(im.property_code)}" target="_blank" rel="noopener" class="badge" style="background:#0891b222;color:var(--ciano);text-decoration:none;font-weight:700">🌐 site</a>` : ''}
+          ${!im.n_fotos ? '<span class="badge" style="background:var(--err-soft);color:var(--err)">sem foto</span>' : `<span class="tiny muted">📷 ${im.n_fotos}</span>`}
+          ${im.property_code ? `<a href="${SITE_IMOVEL(im.property_code)}" target="_blank" rel="noopener" class="badge" style="background:var(--accent-soft);color:var(--ciano);text-decoration:none;font-weight:600">🌐 site</a>` : ''}
           ${extra}
         </div>
         <div class="tiny" style="margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(im.titulo || '')}</div>
@@ -113,12 +113,12 @@ function render() {
         <button class="btn btn-ghost btn-sm" id="ek-reload">↻</button>
       </div>
       <div class="flex mt-2" style="gap:8px;flex-wrap:wrap">
-        <div style="flex:1;min-width:120px;background:var(--bg-3);border-radius:10px;padding:8px 10px"><div class="tiny muted">📦 No ar</div><div style="font-size:19px;font-weight:900">${k.total || 0}</div></div>
-        <div style="flex:1;min-width:120px;background:var(--bg-3);border-radius:10px;padding:8px 10px;border-left:3px solid #d97706"><div class="tiny muted">⏱ 90d+ sem atualizar</div><div style="font-size:19px;font-weight:900">${k.desat_90 || 0}</div></div>
-        <div style="flex:1;min-width:120px;background:var(--bg-3);border-radius:10px;padding:8px 10px;border-left:3px solid #dc2626"><div class="tiny muted">🚨 180d+</div><div style="font-size:19px;font-weight:900">${k.desat_180 || 0}</div></div>
-        <div style="flex:1;min-width:120px;background:var(--bg-3);border-radius:10px;padding:8px 10px"><div class="tiny muted">📷 Sem foto</div><div style="font-size:19px;font-weight:900">${k.sem_foto || 0}</div></div>
-        <div style="flex:2;min-width:190px;background:var(--bg-3);border-radius:10px;padding:8px 10px"><div class="tiny muted">💰 VGV venda (${k.n_venda || 0})</div><div style="font-size:16px;font-weight:900">${brl(k.valor_venda)}</div></div>
-        <div style="flex:2;min-width:190px;background:var(--bg-3);border-radius:10px;padding:8px 10px;border-left:3px solid #0891b2"><div class="tiny muted">🔑 Aluguel anunciado/mês (${k.n_locacao || 0})</div><div style="font-size:16px;font-weight:900">${brl(k.aluguel_mensal)}</div></div>
+        <div style="flex:1;min-width:120px;background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px"><div class="tiny muted">📦 No ar</div><div style="font-size:20px;font-weight:600">${k.total || 0}</div></div>
+        <div style="flex:1;min-width:120px;background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px;border-left:3px solid var(--warn)"><div class="tiny muted">⏱ 90d+ sem atualizar</div><div style="font-size:20px;font-weight:600">${k.desat_90 || 0}</div></div>
+        <div style="flex:1;min-width:120px;background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px;border-left:3px solid var(--err)"><div class="tiny muted">🚨 180d+</div><div style="font-size:20px;font-weight:600">${k.desat_180 || 0}</div></div>
+        <div style="flex:1;min-width:120px;background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px"><div class="tiny muted">📷 Sem foto</div><div style="font-size:20px;font-weight:600">${k.sem_foto || 0}</div></div>
+        <div style="flex:2;min-width:190px;background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px"><div class="tiny muted">💰 VGV venda (${k.n_venda || 0})</div><div style="font-size:16px;font-weight:600">${brl(k.valor_venda)}</div></div>
+        <div style="flex:2;min-width:190px;background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px;border-left:3px solid var(--accent-ink)"><div class="tiny muted">🔑 Aluguel anunciado/mês (${k.n_locacao || 0})</div><div style="font-size:16px;font-weight:600">${brl(k.aluguel_mensal)}</div></div>
       </div>
       <div class="flex mt-2" style="gap:6px;flex-wrap:wrap">
         ${abas.map(([id, lbl]) => `<button class="btn btn-sm ek-aba ${_aba === id ? 'btn-primary' : 'btn-ghost'}" data-aba="${id}">${lbl}</button>`).join('')}
@@ -142,13 +142,13 @@ function renderEstoque(corpo) {
   const opts = (lista, sel) => (lista || []).map(([v, n]) =>
     `<option value="${esc(v)}" ${sel === String(v) ? 'selected' : ''}>${esc(tipoPt(v))} (${n})</option>`).join('');
   corpo.innerHTML = `
-    <div class="card" style="border:1px solid #7c3aed55">
+    <div class="card" style="border:1px solid var(--accent-ink)">
       <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
         <input class="input" id="ek-ia" placeholder='🤖 pergunte ao estoque: "3 dorms zona sul até 700 mil" · "o que é boa oportunidade?" · "o que está abandonado?"' value="${esc(_iaQ)}" style="flex:1;min-width:260px">
         <button class="btn btn-primary btn-sm" id="ek-iago" ${_iaBusy ? 'disabled' : ''}>${_iaBusy ? '⏳ Analisando…' : '🤖 Perguntar'}</button>
         ${_ia && !_iaBusy ? '<button class="btn btn-ghost btn-sm" id="ek-ialimpa" title="limpar resposta">✕</button>' : ''}
       </div>
-      ${_ia ? `<div class="mt-2" style="background:var(--bg-3);border-radius:10px;padding:10px 12px">
+      ${_ia ? `<div class="mt-2" style="background:var(--bg-3);border-radius:var(--radius-md);padding:10px 12px">
         <div class="tiny">${md(_ia.resposta || '')}</div>
         <div class="tiny muted mt-1">🤖 ${esc(_ia.provider || 'ia')} · ${_ia.avaliados || 0} imóveis avaliados</div>
       </div>
@@ -226,11 +226,11 @@ function renderEstoque(corpo) {
   if (il) il.onclick = () => { _ia = null; _iaQ = ''; render(); };
 }
 
-function barra(lbl, n, max, dir = '#2563eb', extra = '') {
+function barra(lbl, n, max, dir = '#806d50', extra = '') {
   const pct = max ? Math.max(2, Math.round(n / max * 100)) : 0;
   return `<div class="flex items-center tiny" style="gap:8px;margin:3px 0">
     <span style="width:132px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lbl}</span>
-    <div style="flex:1;background:var(--bg-3);border-radius:6px;height:15px"><div style="width:${pct}%;background:${dir}99;height:15px;border-radius:6px"></div></div>
+    <div style="flex:1;background:var(--bg-3);border-radius:var(--radius-sm);height:15px"><div style="width:${pct}%;background:${dir}99;height:15px;border-radius:var(--radius-sm)"></div></div>
     <span style="width:${extra ? '140px' : '36px'};text-align:right;flex-shrink:0;font-weight:600">${n}${extra}</span>
   </div>`;
 }
@@ -248,8 +248,8 @@ async function renderAnalises(corpo) {
   }
   const a = _an;
   const brlK = n => 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });   // v88.37: sem mil/mi
-  const kpi = (lbl, val, sub = '') => `<div style="flex:1;min-width:150px;background:var(--bg-3);border-radius:10px;padding:10px 12px">
-    <div class="tiny muted">${lbl}</div><div style="font-size:18px;font-weight:900">${val}</div>${sub ? `<div class="tiny muted">${sub}</div>` : ''}</div>`;
+  const kpi = (lbl, val, sub = '') => `<div style="flex:1;min-width:150px;background:var(--bg-3);border-radius:var(--radius-md);padding:10px 12px">
+    <div class="tiny muted">${lbl}</div><div style="font-size:16px;font-weight:600">${val}</div>${sub ? `<div class="tiny muted">${sub}</div>` : ''}</div>`;
   const maxTipo = Math.max(1, ...(a.por_tipo || []).map(x => x[1]));
   const maxBairro = Math.max(1, ...(a.por_bairro || []).map(x => x[1]));
   const ag = a.aging_atualizacao || {}, ar = a.aging_no_ar || {};
@@ -269,7 +269,7 @@ async function renderAnalises(corpo) {
     <div class="flex mt-2" style="gap:8px;flex-wrap:wrap;align-items:stretch">
       <div class="card" style="flex:1;min-width:300px;margin:0">
         <b>🏷 Por tipo</b><div class="tiny muted">nº de anúncios · VGV de venda</div>
-        <div class="mt-1">${(a.por_tipo || []).map(([t, n, v]) => barra(esc(tipoPt(t)), n, maxTipo, '#2563eb', ` · ${brlK(v)}`)).join('') || '<span class="tiny muted">Rode 1 sync pós-v84.12 pra preencher os tipos.</span>'}</div>
+        <div class="mt-1">${(a.por_tipo || []).map(([t, n, v]) => barra(esc(tipoPt(t)), n, maxTipo, '#806d50', ` · ${brlK(v)}`)).join('') || '<span class="tiny muted">Rode 1 sync pós-v84.12 pra preencher os tipos.</span>'}</div>
       </div>
       <div class="card" style="flex:1;min-width:300px;margin:0">
         <b>📍 Por bairro (top 12)</b><div class="tiny muted">onde o estoque está concentrado</div>
@@ -287,14 +287,14 @@ async function renderAnalises(corpo) {
       </div>
       <div class="card" style="flex:1;min-width:280px;margin:0">
         <b>💵 Faixas de preço (venda)</b><div class="tiny muted">onde está o volume</div>
-        <div class="mt-1">${(a.faixas_venda || []).map(([f, n]) => barra(esc(f), n, maxFx, '#0891b2')).join('')}</div>
+        <div class="mt-1">${(a.faixas_venda || []).map(([f, n]) => barra(esc(f), n, maxFx, '#806d50')).join('')}</div>
       </div>
     </div>
     <div class="card mt-2">
       <b>📈 Evolução do VGV do estoque</b><div class="tiny muted">1 ponto por dia (cron 05:00) — total no ar × VGV de venda</div>
       ${snaps.length >= 2 ? `
         <div class="flex mt-2" style="gap:2px;align-items:flex-end;height:90px">
-          ${snaps.map(s => `<div title="${esc(s.dia)} · ${brl(s.vgv_venda)} · ${s.total} imóveis" style="flex:1;background:#2563eb88;border-radius:3px 3px 0 0;height:${Math.max(4, Math.round(Number(s.vgv_venda || 0) / maxSnap * 100))}%"></div>`).join('')}
+          ${snaps.map(s => `<div title="${esc(s.dia)} · ${brl(s.vgv_venda)} · ${s.total} imóveis" style="flex:1;background:var(--accent-soft);border-radius:3px 3px 0 0;height:${Math.max(4, Math.round(Number(s.vgv_venda || 0) / maxSnap * 100))}%"></div>`).join('')}
         </div>
         <div class="flex tiny muted" style="justify-content:space-between"><span>${esc(snaps[0]?.dia || '')}</span><span>${esc(snaps[snaps.length - 1]?.dia || '')}</span></div>`
     : `<div class="tiny muted mt-2">A série histórica começa a acumular agora — 1 snapshot por dia a partir do próximo sync. Volte em alguns dias pra ver a curva.</div>`}
@@ -350,7 +350,7 @@ async function renderMatch(corpo) {
     res.innerHTML = `
       <div class="card tiny muted">Critérios extraídos${_match.deal_nome ? ' de "' + esc(_match.deal_nome) + '"' : ''}: <b>${esc(crTxt)}</b> · ${_match.avaliados} imóveis avaliados</div>
       <div class="mt-2">${(_match.itens || []).map(im =>
-        cardImovel(im, `<span class="badge" style="background:#2563eb22;color:var(--info);font-weight:800">★ ${im.score}</span><span class="tiny muted">${esc((im.motivos || []).join(' · '))}</span>`)
+        cardImovel(im, `<span class="badge" style="background:var(--accent-soft);color:var(--info);font-weight:600">★ ${im.score}</span><span class="tiny muted">${esc((im.motivos || []).join(' · '))}</span>`)
       ).join('') || '<div class="card">Nenhum imóvel pontuou. Tente descrever de outro jeito (bairro, tipo, verba).</div>'}</div>`;
   };
   corpo.querySelector('#ek-go').onclick = go;

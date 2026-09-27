@@ -37,8 +37,8 @@ function render() {
       <p class="card-sub">Gerador de copy, headlines e CTA pra anúncios e posts — turbinado pela IA Sol</p>
 
       <div style="display:grid;grid-template-columns:320px 1fr;gap:14px;margin-top:12px">
-        <div style="background:var(--bg-3);border-radius:10px;padding:14px">
-          <div class="tiny muted" style="text-transform:uppercase;font-weight:800;margin-bottom:6px">Briefing</div>
+        <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:14px">
+          <div class="tiny muted" style="text-transform:uppercase;font-weight:600;margin-bottom:6px">Briefing</div>
           ${inp('Empreendimento', 'empreendimento', 'text')}
           <div style="margin-bottom:6px">
             <label class="tiny muted" style="font-weight:600;display:block;margin-bottom:2px">Segmento</label>
@@ -65,11 +65,11 @@ function render() {
         <div>
           <div class="card" style="padding:14px;min-height:480px">
             <div class="flex" style="justify-content:space-between;align-items:center;margin-bottom:10px">
-              <div style="font-weight:800">📝 Criativos Gerados</div>
+              <div style="font-weight:600">📝 Criativos Gerados</div>
               ${_output ? '<button class="btn btn-ghost btn-sm" id="copy-all">📋 Copiar tudo</button>' : ''}
             </div>
             ${_output ? `
-              <pre id="output-text" style="white-space:pre-wrap;background:var(--bg-3);padding:14px;border-radius:8px;font-family:inherit;font-size:13px;line-height:1.6;max-height:520px;overflow:auto">${esc(_output)}</pre>
+              <pre id="output-text" style="white-space:pre-wrap;background:var(--bg-3);padding:14px;border-radius:var(--radius-md);font-family:inherit;font-size:13px;line-height:1.6;max-height:520px;overflow:auto">${esc(_output)}</pre>
             ` : `
               <div style="text-align:center;padding:60px 20px;color:var(--muted)">
                 <div style="font-size:48px;margin-bottom:10px">✨</div>

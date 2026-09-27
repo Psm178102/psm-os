@@ -110,7 +110,7 @@ function render(el, o, data, todas) {
         <div class="tt">${esc(d.titulo)}</div>
         <div class="meta">
           <span>👤 <b>${souDono ? 'você' : esc(d.dono.name)}</b></span>
-          <span style="${prazoVencido ? 'color:var(--err,#dc2626);font-weight:800' : ''}">📅 ${fmtPrazo(d.prazo, hoje)}</span>
+          <span style="${prazoVencido ? 'color:var(--err,#dc2626);font-weight:600' : ''}">📅 ${fmtPrazo(d.prazo, hoje)}</span>
           <span class="dz-est" style="color:${ecor}">${elbl}${d.estado.prazo && d.estado.status !== 'nova' ? ` · tarefa ${fmtPrazo(String(d.estado.prazo).slice(0, 10), hoje)}` : ''}</span>
           <span class="muted">${esc(d.tipo_label)}${d.team ? ' · ' + esc(d.team) : ''}</span>
         </div>
