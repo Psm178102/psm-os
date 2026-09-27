@@ -143,6 +143,7 @@ import { pageCentralSol } from './pages/central-sol.js';   // 🤖 Central da So
 import { pageCMO } from './pages/cmo.js';   // 🎯 CMO · Marketing (agente C-level, só sócio) v87.31
 import { pageSrCfo } from './pages/sr-cfo.js';             // 🧠 Sr. CFO (agente financeiro — só sócios) v87.32
 import { pageDiretoriaCeo, initDiretoriaBadge } from './pages/diretoria-ceo.js';   // 🏛️ Diretoria (sala do CEO IA) v87.33
+import { startIconizer, stripEmoji } from './icons.js';   // v88.63: emoji → ícone Lucide (DS House PSM)
 import { pageMorimatsu } from './pages/morimatsu.js';   // 🏯 Morimatsu & Associados — Gestão Patrimonial Imobiliária (só sócio) v87.51
 
 // ─── Permissões por role (Sprint 9.6) ──────────────────────────────────
@@ -525,7 +526,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '88.62';
+const APP_VERSION = '88.63';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -544,6 +545,7 @@ const APP_VERSION = '88.62';
 
   // 2) Renderiza shell
   document.body.innerHTML = shellHTML(user);
+  startIconizer();   // v88.63: troca emoji por ícone em tudo que for renderizado daqui pra frente
 
   // 3) Eventos do shell
   document.getElementById('btn-logout').addEventListener('click', () => auth.logout());
@@ -1404,7 +1406,7 @@ async function page404(ctx, root) {
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────
-function setHeader(t) { const el = document.getElementById('h-title'); if (el) el.textContent = t; }
+function setHeader(t) { const el = document.getElementById('h-title'); if (el) el.textContent = stripEmoji(t); }  // v88.63: título só texto
 
 // ─── Atualização do app (saber/forçar a versão mais nova) ────────────────
 // Compara APP_VERSION (versão do código rodando) com /version.json (versão no ar).

@@ -11,6 +11,7 @@
    Chave do override: a rota ("/captacoes") p/ itens; "sec:<texto padrão>" p/ seções.
 ============================================================================ */
 import { api } from './api.js';
+import { stripEmoji } from './icons.js';
 
 let LABELS = {};
 
@@ -35,12 +36,12 @@ function setBtnLabel(btn, label) {
 
 function btnDefaultIcon(btn) {
   const ico = btn.querySelector('.sb-ico');
-  return ico ? ico.textContent.trim() : '';
+  return ico ? (ico.dataset.emoji || ico.textContent.trim()) : '';  // v88.63: ícone svg guarda o emoji em data-emoji
 }
 
 function setBtnIcon(btn, icon) {
   const ico = btn.querySelector('.sb-ico');
-  if (ico) ico.textContent = icon;
+  if (ico) { ico.dataset.emoji = icon; ico.textContent = icon; }  // o iconizador troca por svg
 }
 
 export function applyMenuLabels() {
@@ -76,7 +77,7 @@ export async function saveMenuLabels(map) {
 // sobrescreve o título do topo se a rota tiver rótulo custom (chamado em highlight)
 export function applyHeaderOverride(path) {
   const o = LABELS[(path || '').split('?')[0]];
-  if (o) { const el = document.getElementById('h-title'); if (el) el.textContent = o; }
+  if (o) { const el = document.getElementById('h-title'); if (el) el.textContent = stripEmoji(o); }
 }
 
 /* ════════════════════════════════════════════════════════════════════════

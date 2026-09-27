@@ -417,3 +417,30 @@
 .hp-empty b{color:var(--ink);font:600 16px/24px var(--font-sans)}
 .hp-skel{background:var(--surface-2);border-radius:var(--radius-sm);height:12px;animation:hp-pulse 1.4s ease-in-out infinite}
 @keyframes hp-pulse{50%{opacity:.5}}
+
+/* ============================================================================
+   v88.63 — ÍCONES (Lucide) no lugar dos emojis — v2/js/icons.js
+============================================================================ */
+.ic { display: inline-block; vertical-align: -0.15em; flex: none; stroke-width: 2; }
+.ic--ok   { color: var(--ok); }
+.ic--warn { color: var(--warn); }
+.ic--err  { color: var(--err); }
+.ic-dot { display: inline-block; width: 0.62em; height: 0.62em; border-radius: var(--radius-full); vertical-align: 0.02em; background: var(--ink-muted); flex: none; }
+.ic-dot--ok   { background: var(--ok); }
+.ic-dot--warn { background: var(--warn); }
+.ic-dot--err  { background: var(--err); }
+.ic-dot--info { background: var(--ink-2); }
+.ic-dot--ink  { background: var(--ink); }
+.ic-dot--mute { background: var(--border-strong); }
+/* menu: ícone 16px em tom de apoio; o item atual herda a cor da marca */
+.sb-ico { width: 18px; color: var(--ink-muted); }
+.sb-ico .ic { width: 16px; height: 16px; vertical-align: middle; }
+.sb-link:hover .sb-ico { color: var(--ink-2); }
+.sb-link.on .sb-ico { color: var(--accent-ink); }
+/* seções do menu e título da página: só texto (sem ícone) */
+.sb-sec .ic, .sb-sec .ic-dot, .h-title .ic, .h-title .ic-dot { display: none; }
+/* botões do cabeçalho: ícone de 18px, tom de apoio */
+.h-user .btn .ic, .h-hamburger .ic { width: 18px; height: 18px; vertical-align: middle; }
+.h-user .btn-ghost { color: var(--ink-2); }
+/* títulos de card: ícone discreto, não compete com o texto */
+.card-title .ic { color: var(--ink-muted); }
