@@ -23,13 +23,13 @@ KV_KEY = "frentes_config"
 
 # default = comportamento histórico do sistema (espelha o mapeamento dos backends)
 DEFAULT = [
-    {"id": "map",       "nome": "PSM M.A.P",      "icon": "🏢", "cor": "#7c3aed",
+    {"id": "map",       "nome": "PSM M.A.P",      "icon": "🏢", "cor": "#3d3a33",
      "funis": ["MAP"], "ativa": True},
-    {"id": "conquista", "nome": "PSM Conquista",  "icon": "🏠", "cor": "#2563eb",
+    {"id": "conquista", "nome": "PSM Conquista",  "icon": "🏠", "cor": "#b85400",
      "funis": ["CONQUISTA"], "ativa": True},
-    {"id": "terceiros", "nome": "PSM Terceiros",  "icon": "🤝", "cor": "#0891b2",
+    {"id": "terceiros", "nome": "PSM Terceiros",  "icon": "🤝", "cor": "#b03a62",
      "funis": ["TERCEIRO"], "ativa": True},
-    {"id": "locacoes",  "nome": "PSM Locações",   "icon": "🔑", "cor": "#d97706",
+    {"id": "locacoes",  "nome": "PSM Locações",   "icon": "🔑", "cor": "#6d3fd1",
      "funis": ["LOCA"], "ativa": True},
 ]
 IDS = [f["id"] for f in DEFAULT]

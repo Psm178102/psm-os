@@ -27,29 +27,30 @@
 
 :root {
   /* Brand — PSM Imóveis */
-  --psm-navy:       #1e2650;
-  --psm-navy-2:     #2c3568;
+  /* v88.62 (DS House PSM): navy/gold legados seguem a cor da marca da tela
+     (creme/grafite na PSM Imóveis, laranja na Conquista) — versão segura p/ texto */
+  --psm-navy:       var(--accent-ink);
+  --psm-navy-2:     var(--accent-ink);
   --psm-cream:      #fffbea;
   --psm-charcoal:   #343434;
-  /* dourado aposentado → mapeado pra navy (acento em fundo claro = navy legível) */
-  --psm-gold:       #1e2650;
-  --psm-gold-2:     #2c3568;
+  --psm-gold:       var(--accent-ink);
+  --psm-gold-2:     var(--accent-ink);
   --psm-red:        #dc2626;
   --psm-blue:       #3b82f6;
   --psm-green:      #10b981;
   --psm-purple:     #a855f7;
 
   /* Surface (light) — base creme, cards brancos */
-  --bg:             #fffbea;
+  --bg:             #f6f5f2;
   --bg-2:           #ffffff;
-  --bg-3:           #f5efda;
-  --border:         #ebe3ca;
-  --border-2:       #dacfa9;
+  --bg-3:           #efede8;
+  --border:         #e3e0d9;
+  --border-2:       #cfcac0;
 
   /* Ink — texto charcoal sobre creme */
-  --ink:            #343434;
-  --ink-2:          #4a4e63;
-  --ink-muted:      #6e6752;
+  --ink:            #1c1c1c;
+  --ink-2:          #45423c;
+  --ink-muted:      #67635a;
   --ink-inverted:   #fffbea;
 
   /* Aliases legados (várias páginas usam --muted/--bd/--tx) — resolvem ao token
@@ -65,10 +66,10 @@
   --bg-1:           var(--bg-2);
 
   /* State */
-  --ok:             #16a34a;
-  --warn:           #d97706;
-  --err:            #dc2626;
-  --info:           #2563eb;
+  --ok:             #17794a;
+  --warn:           #8f5a00;
+  --err:            #c0302d;
+  --info:           #57534b;   /* sem azul (DS v88.62): cinza quente, o ícone diferencia */
   /* v86.83: tons que estavam fixos no código das páginas. No CLARO valem
      exatamente o hex antigo (nada muda); no ESCURO ganham versão legível. */
   --roxo:           #7c3aed;
@@ -100,11 +101,11 @@
   --laranja:        #ea580c;
 
   /* Typography */
-  --font-sans:      -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
+  /* v88.62 (DS House PSM): uma família só na interface — Geist; fonte da marca fica no logo */
+  --font-sans:      "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
                     "Helvetica Neue", Arial, sans-serif;
-  /* Marca: Caviar Dreams SÓ em títulos (cai na sans se a fonte não carregar) */
-  --font-display:   "Caviar Dreams", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-mono:      ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace;
+  --font-display:   var(--font-sans);
+  --font-mono:      "Geist Mono", ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace;
   --fs-xs:          11px;
   --fs-sm:          12.5px;
   --fs-base:        14px;
@@ -136,9 +137,9 @@
   --r-full:         9999px;
 
   /* Shadow */
-  --shadow-sm:      0 1px 2px rgba(15,23,42,0.06);
-  --shadow-md:      0 4px 12px rgba(15,23,42,0.08);
-  --shadow-lg:      0 12px 32px rgba(15,23,42,0.12);
+  --shadow-sm:      0 1px 2px rgba(28,28,28,0.06);
+  --shadow-md:      0 8px 24px rgba(28,28,28,0.10);
+  --shadow-lg:      0 24px 64px rgba(28,28,28,0.18);
 
   /* Z layers */
   --z-toast:        1000;
@@ -152,28 +153,25 @@
    preto (não navy) pra painel de dados; creme só no texto/acentos. */
 :root.dark {
   color-scheme: dark;
-  --bg:             #0b0f19;
-  --bg-2:           #131826;
-  --bg-3:           #1c2235;
-  --border:         #232a3d;
-  --border-2:       #313a52;
+  --bg:             #121212;
+  --bg-2:           #1a1a1a;
+  --bg-3:           #232322;
+  --border:         #2e2d2b;
+  --border-2:       #3d3b37;
 
-  --ink:            #f3efe0;
-  --ink-2:          #c9cbd8;
-  --ink-muted:      #8f95ab;
-  --ink-inverted:   #0b0f19;
+  --ink:            #efece4;
+  --ink-2:          #c3bfb5;
+  --ink-muted:      #969185;
+  --ink-inverted:   #121212;
 
   /* acentos da marca no escuro: navy puro some no fundo preto → navy claro;
      "gold" (aposentado = navy no light) vira creme pra continuar legível */
-  --psm-navy:       #2f3a6e;
-  --psm-navy-2:     #3d4a8a;
-  --psm-gold:       #d9c58a;
-  --psm-gold-2:     #e6d6a6;
+  /* navy/gold legados = accent-ink do tema (definido abaixo) */
 
-  --ok:             #22c55e;
-  --warn:           #f59e0b;
-  --err:            #ef4444;
-  --info:           #60a5fa;
+  --ok:             #43c07f;
+  --warn:           #e6a93f;
+  --err:            #f06464;
+  --info:           #bdb8ac;
   --roxo:           #a78bfa;
   --indigo:         #818cf8;
   --err-forte:      #f87171;
@@ -203,15 +201,10 @@
   --laranja:        #fb923c;
 
   --shadow-sm:      0 1px 2px rgba(0,0,0,0.4);
-  --shadow-md:      0 4px 12px rgba(0,0,0,0.45);
-  --shadow-lg:      0 12px 32px rgba(0,0,0,0.55);
+  --shadow-md:      0 8px 24px rgba(0,0,0,0.45);
+  --shadow-lg:      0 24px 64px rgba(0,0,0,0.55);
 }
-:root.dark .alert-err  { background: rgba(239,68,68,.12);  color: #fca5a5; border-color: rgba(239,68,68,.35); }
-:root.dark .alert-ok   { background: rgba(34,197,94,.12);  color: #86efac; border-color: rgba(34,197,94,.35); }
-:root.dark .alert-warn { background: rgba(245,158,11,.12); color: #fcd34d; border-color: rgba(245,158,11,.35); }
 :root.dark .h-avatar   { color: var(--ink-inverted); }
-:root.dark .btn-primary { background: var(--psm-gold); color: var(--ink-inverted); }
-:root.dark .btn-primary:hover { background: var(--psm-gold-2); }
 :root.dark input, :root.dark select, :root.dark textarea { background: var(--bg-3); color: var(--ink); border-color: var(--border-2); }
 :root.dark ::-webkit-scrollbar { width: 10px; height: 10px; }
 :root.dark ::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 8px; }
@@ -228,11 +221,81 @@ html, body {
   font-size: var(--fs-base);
   line-height: var(--lh-base);
   -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
 }
 button, input, select, textarea {
   font-family: inherit;
   font-size: inherit;
   color: inherit;
 }
-a { color: var(--info); text-decoration: none; }
+a { color: var(--accent-ink); text-decoration: none; }
 a:hover { text-decoration: underline; }
+
+/* ============================================================================
+   v88.62 — DESIGN SYSTEM HOUSE PSM (aprovado pelo Paulo 27/set)
+   https://claude.ai/artifact/7FoS2VGkEtSiA3i1QSoEYw
+   Base neutra sem azul + UM detalhe de cor por marca. A marca vem de
+   <html data-marca="imoveis|conquista"> (M.A.P = PSM Imóveis). Tela nova usa
+   SÓ estes nomes; os de cima ficam como aliases legados até a migração.
+============================================================================ */
+:root {
+  --surface:        var(--bg-2);
+  --surface-2:      var(--bg-3);
+  --border-strong:  #8a867d;
+  --accent:         #2b2b2b;
+  --on-accent:      #fffbea;
+  --accent-ink:     #2b2b2b;
+  --accent-soft:    #efeadb;
+  --brand-2:        #343434;
+  --focus:          #2b2b2b;
+  --ok-soft:        #e3f4ea;
+  --warn-soft:      #fcf0d9;
+  --err-soft:       #fbe5e4;
+  --info-soft:      #efede8;
+  --frente-map:       #3d3a33;
+  --frente-conquista: #b85400;
+  --frente-terceiros: #b03a62;
+  --frente-locacoes:  #6d3fd1;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-12: 48px;
+  --radius-sm: 6px; --radius-md: 10px; --radius-lg: 14px; --radius-full: 999px;
+  --shadow-1: var(--shadow-sm); --shadow-2: var(--shadow-md); --shadow-3: var(--shadow-lg);
+  --dur-1: 120ms; --dur-2: 200ms; --dur-3: 320ms;
+}
+:root[data-marca="conquista"] {
+  --accent:         #ff7f0b;
+  --on-accent:      #16261a;
+  --accent-ink:     #a84a00;
+  --accent-soft:    #fff1e3;
+  --brand-2:        #316235;
+  --focus:          #a84a00;
+}
+:root.dark {
+  --border-strong:  #6e6a63;
+  --accent:         #f3ebcb;
+  --on-accent:      #121212;
+  --accent-ink:     #efe3b8;
+  --accent-soft:    #2b2820;
+  --brand-2:        #5a564d;
+  --focus:          #f3ebcb;
+  --ok-soft:        #15301f;
+  --warn-soft:      #33270f;
+  --err-soft:       #3a1a1b;
+  --info-soft:      #262522;
+  --frente-map:       #efe3b8;
+  --frente-conquista: #ff9d4d;
+  --frente-terceiros: #ec8aa8;
+  --frente-locacoes:  #b69cf7;
+}
+:root.dark[data-marca="conquista"] {
+  --accent:         #ff7f0b;
+  --on-accent:      #16261a;
+  --accent-ink:     #ff9d4d;
+  --accent-soft:    #3a2412;
+  --brand-2:        #5fa865;
+  --focus:          #ff9d4d;
+}
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+}

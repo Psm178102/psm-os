@@ -525,7 +525,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '88.61';
+const APP_VERSION = '88.62';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -535,6 +535,12 @@ const APP_VERSION = '88.61';
     location.href = '/login?from=' + encodeURIComponent(location.pathname + location.hash);
     return;
   }
+
+  // v88.62 (DS House PSM): marca da interface pela equipe — Conquista usa o laranja;
+  // M.A.P, holding e demais ficam na PSM Imóveis. Guardada no aparelho p/ não piscar no boot.
+  const marca = String(user.team || user.frente || '').toLowerCase() === 'conquista' ? 'conquista' : 'imoveis';
+  document.documentElement.setAttribute('data-marca', marca);
+  try { localStorage.setItem('psm_marca', marca); } catch (_) {}
 
   // 2) Renderiza shell
   document.body.innerHTML = shellHTML(user);
@@ -1015,9 +1021,10 @@ function shellHTML(user) {
   return `
     <div class="app-shell">
       <aside class="app-sidebar">
-        <div style="display:flex;flex-direction:column;gap:12px;padding:16px 14px 12px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:6px">
-          <img src="/v2/img/logo-psm-imoveis-creme.png" alt="PSM Imóveis" style="width:86%;max-width:190px;height:auto;display:block" loading="lazy">
-          <img src="/v2/img/logo-psm-conquista.png" alt="PSM Conquista" style="width:86%;max-width:190px;height:auto;display:block;filter:drop-shadow(0 0 6px rgba(255,255,255,.28))" loading="lazy">
+        <div class="sb-logos">
+          <img class="sb-logo so-escuro" src="/v2/img/logo-psm-imoveis-creme.png" alt="PSM Imóveis" loading="lazy">
+          <img class="sb-logo so-claro" src="/v2/img/logo-psm-imoveis-doc.png" alt="PSM Imóveis" loading="lazy">
+          <img class="sb-logo sb-logo-conquista" src="/v2/img/logo-psm-conquista.png" alt="PSM Conquista" loading="lazy">
         </div>
 
         <div class="sb-sec">🏠 Início</div>

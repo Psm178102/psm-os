@@ -6,11 +6,27 @@ import { api } from './api.js';
 
 // default = espelho do backend (settings/frentes.py) — funciona offline/antes do load
 export const FRENTES = [
-  { id: 'map',       nome: 'PSM M.A.P',     icon: '🏢', cor: '#7c3aed', funis: ['MAP'],       ativa: true },
-  { id: 'conquista', nome: 'PSM Conquista', icon: '🏠', cor: '#2563eb', funis: ['CONQUISTA'],                 ativa: true },
-  { id: 'terceiros', nome: 'PSM Terceiros', icon: '🤝', cor: '#0891b2', funis: ['TERCEIRO'],     ativa: true },
-  { id: 'locacoes',  nome: 'PSM Locações',  icon: '🔑', cor: '#d97706', funis: ['LOCA'],     ativa: true },
+  { id: 'map',       nome: 'PSM M.A.P',     icon: '🏢', cor: '#3d3a33', funis: ['MAP'],       ativa: true },
+  { id: 'conquista', nome: 'PSM Conquista', icon: '🏠', cor: '#b85400', funis: ['CONQUISTA'],                 ativa: true },
+  { id: 'terceiros', nome: 'PSM Terceiros', icon: '🤝', cor: '#b03a62', funis: ['TERCEIRO'],     ativa: true },
+  { id: 'locacoes',  nome: 'PSM Locações',  icon: '🔑', cor: '#6d3fd1', funis: ['LOCA'],     ativa: true },
 ];
+// v88.62 (DS House PSM): a cor da frente vem do token --frente-<id> do tema atual
+// (M.A.P creme/grafite, Conquista laranja, Terceiros rosa, Locações roxo — sem azul).
+// Getter: gráficos em canvas recebem o hex resolvido; o set (config salva/backend) é ignorado.
+for (const f of FRENTES) {
+  const fallback = f.cor;
+  Object.defineProperty(f, 'cor', {
+    enumerable: true,
+    get() {
+      try {
+        const v = getComputedStyle(document.documentElement).getPropertyValue('--frente-' + f.id).trim();
+        return v || fallback;
+      } catch (_) { return fallback; }
+    },
+    set(_) { /* cor é do Design System */ },
+  });
+}
 export const FRENTE_IDS = FRENTES.map(f => f.id);
 export const frenteById = id => FRENTES.find(f => f.id === id) || null;
 export const frentesAtivas = () => FRENTES.filter(f => f.ativa !== false);
