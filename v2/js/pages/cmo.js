@@ -417,6 +417,8 @@ function renderValidar(body) {
       ${p.cta ? `<div class="tiny" style="margin-top:5px"><b>CTA:</b> ${esc(p.cta)}</div>` : ''}
       ${p.pendencia ? `<div class="tiny" style="margin-top:5px;color:#fb923c">⚠️ ${esc(p.pendencia)}</div>` : ''}
       ${p.arquivo ? `<div class="tiny muted" style="margin-top:5px">📄 texto completo: <code>${esc(p.arquivo)}</code></div>` : ''}
+      ${p.texto ? `<details style="margin-top:8px"><summary class="tiny" style="cursor:pointer;color:#38bdf8">📄 ver a peça completa${p.origem === 'estudio' ? ' (📸 Estúdio)' : ''}</summary>
+        <pre class="tiny" style="white-space:pre-wrap;margin-top:6px;padding:10px 12px;background:var(--bg-2,rgba(255,255,255,.04));border-radius:8px;line-height:1.55;font-family:inherit">${esc(p.texto)}</pre></details>` : ''}
       <div class="flex gap-2" style="margin-top:10px;flex-wrap:wrap">
         <button class="btn tiny" style="background:#22c55e;color:#04170c;font-weight:800" data-ap="${esc(p.id)}" ${_vBusy ? 'disabled' : ''}>✅ Aprovar</button>
         <button class="btn btn-ghost tiny" data-aj="${esc(p.id)}" ${_vBusy ? 'disabled' : ''}>✏️ Ajustar</button>

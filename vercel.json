@@ -335,6 +335,9 @@
     },
     "api/v3/marketing/meta_timeseries.py": {
       "maxDuration": 90
+    },
+    "api/v3/marketing/estudio.py": {
+      "maxDuration": 240
     }
   }
 }

@@ -19,6 +19,10 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, audit, supabase_client  # type: ignore
+try:
+    from _ig_canon import CANON as _IG_CANON  # type: ignore  (gerado por scripts/sync_ig_skills.py)
+except Exception:
+    _IG_CANON = ""
 
 
 # ─── Agents config ─────────────────────────────────────────────────────
@@ -1027,7 +1031,7 @@ def _call_claude(api_key, system, messages):
     """Chama Anthropic Messages API."""
     url = "https://api.anthropic.com/v1/messages"
     payload = {
-        "model": "claude-3-5-sonnet-20241022",
+        "model": os.environ.get("ANTHROPIC_MODEL") or "claude-sonnet-5",  # v88.60: 3.5 aposentado
         "max_tokens": 1024,
         "system": system,
         "messages": [{"role": m["role"], "content": m["content"]} for m in messages if m.get("role") in ("user", "assistant")],
@@ -1194,6 +1198,13 @@ class handler(BaseHTTPRequestHandler):
             ctx = _diretoria_context(sb, agent_id)
             if ctx:
                 system = system + "\n\n═══ CONTEXTO VIVO (dados reais do House agora) ═══\n" + ctx
+        if agent_id in MKT_SQUAD and _IG_CANON:
+            # v88.60: o squad fala com o MESMO cânone das skills /ig-* (voice.md da Conquista):
+            # REGRA-MÃE da Sol, fórmula de headline do Paulo, proibidos, CTAs, réguas 30/30/40.
+            system = (system + "\n\n═══ CÂNONE PSM CONQUISTA (voice.md — vence qualquer regra acima) ═══\n"
+                      + _IG_CANON + "\n\nPeça pronta pra Instagram (reel, legenda, carrossel, stories, DM...) "
+                      "o time gera no 📸 Estúdio Instagram (menu Marketing), que roda o anti-robô e o Auditor "
+                      "e manda pra fila do Paulo — indique o Estúdio quando pedirem a peça final.")
         elif agent_id == "sala_treino":
             cen = TREINO_CENARIOS.get((body.get("cenario") or "").strip())
             if not cen:
