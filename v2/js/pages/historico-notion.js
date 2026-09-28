@@ -34,7 +34,7 @@ const METS = [{ id: 'vgv', lbl: 'VGV' }, { id: 'n', lbl: 'Nº de vendas' }, { id
 const CSS = `
 .hn-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
 .hn-tab{border:1px solid var(--bd);background:var(--bg-2);border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer;color:var(--tx)}
-.hn-tab.on{background:var(--psm-navy);color:#fff;border-color:var(--psm-navy)}
+.hn-tab.on{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
 .hn-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
 .hn-kpi{border:1px solid var(--bd);border-radius:10px;padding:10px 12px;background:var(--bg-2)}
 .hn-kpi .a{font-weight:900;font-size:15px}.hn-kpi .v{font-size:20px;font-weight:800;margin:2px 0}
@@ -42,7 +42,7 @@ const CSS = `
 .hn-up{color:var(--ok)}.hn-dn{color:var(--err)}
 .hn-bars{display:flex;align-items:flex-end;gap:3px;height:150px;padding-top:6px;overflow-x:auto}
 .hn-bar{flex:1 0 14px;min-width:14px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%}
-.hn-bar i{display:block;width:100%;border-radius:3px 3px 0 0;background:var(--psm-navy)}
+.hn-bar i{display:block;width:100%;border-radius:3px 3px 0 0;background:var(--accent)}
 .hn-bar b{font-size:9px;color:var(--muted);font-weight:500;margin-top:3px;white-space:nowrap}
 .hn-tbl{width:100%;border-collapse:collapse;font-size:13px}
 .hn-tbl th,.hn-tbl td{padding:6px 8px;border-bottom:1px solid var(--bd);text-align:left;vertical-align:top}
@@ -65,7 +65,7 @@ const CSS = `
 .hn-doc hr{border:0;border-top:1px solid var(--bd);margin:10px 0}.hn-doc table{border-collapse:collapse;margin:8px 0;font-size:13px}
 .hn-doc td,.hn-doc th{border:1px solid var(--bd);padding:4px 6px}.hn-doc code{background:var(--bg-3);padding:0 4px;border-radius:4px}
 .hn-doc pre{background:var(--bg-3);padding:8px;border-radius:6px;overflow:auto}
-.hn-prog{height:8px;background:var(--bg-3);border-radius:4px;overflow:hidden}.hn-prog i{display:block;height:100%;background:var(--psm-navy)}
+.hn-prog{height:8px;background:var(--bg-3);border-radius:4px;overflow:hidden}.hn-prog i{display:block;height:100%;background:var(--accent)}
 `;
 
 export async function pageHistoricoNotion(ctx, root) {

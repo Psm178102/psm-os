@@ -59,7 +59,7 @@ function render() {
     <style>
       .lc-tl{position:relative;margin-top:6px}
       .lc-month{display:flex;align-items:center;gap:8px;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-muted,#64748b);margin:16px 0 8px}
-      .lc-month::before{content:'';width:11px;height:11px;border-radius:50%;background:var(--psm-gold,#d4a843);box-shadow:0 0 0 3px rgba(30,38,80,.2)}
+      .lc-month::before{content:'';width:11px;height:11px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
       .lc-row{display:flex;gap:0;align-items:stretch}
       .lc-rail{width:34px;flex:0 0 34px;position:relative;display:flex;justify-content:center}
       .lc-rail::before{content:'';position:absolute;top:0;bottom:0;width:2px;background:var(--border)}

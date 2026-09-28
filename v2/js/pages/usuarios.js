@@ -234,7 +234,7 @@ function userRow(u, isSocio, myId) {
     <div style="display:grid;grid-template-columns:42px 1fr auto auto auto auto auto;gap:10px;padding:10px 12px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r-md);align-items:center${inactive ? ';opacity:0.65' : ''}">
       <div style="width:36px;height:36px;border-radius:var(--r-sm);background:${u.color || role.color};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px">${ini}</div>
       <div style="min-width:0">
-        <div style="font-weight:600;font-size:13px">${escapeHtml(u.name || 'Sem nome')}${isMe ? ' <span style="font-size:11px;background:var(--psm-navy);color:#fff;padding:1px 6px;border-radius:var(--radius-sm);letter-spacing:1px;margin-left:6px">VOCÊ</span>' : ''}</div>
+        <div style="font-weight:600;font-size:13px">${escapeHtml(u.name || 'Sem nome')}${isMe ? ' <span style="font-size:11px;background:var(--accent);color:var(--on-accent);padding:1px 6px;border-radius:var(--radius-sm);letter-spacing:1px;margin-left:6px">VOCÊ</span>' : ''}</div>
         <div class="tiny muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(u.email || 'sem email')}</div>
         ${lastAudit ? `<div class="tiny" style="color:var(--info);margin-top:2px"><a href="#/auditoria" data-link-audit="${u.id}">📜 ${escapeHtml(lastAudit)}</a></div>` : ''}
         ${(() => {   // v87.64: cargos ADICIONAIS — um login pode ocupar mais de um

@@ -164,7 +164,7 @@ function filterBar() {
       <label class="tiny muted" style="display:flex;flex-direction:column;gap:2px">Frente / unidade
         <select id="dir-f-frente" class="select" style="min-width:150px">${frOpts}</select>
       </label>
-      ${ex ? `<span class="badge" style="background:var(--psm-navy);color:#fff;font-weight:600;align-self:flex-end;margin-bottom:2px">${escapeHtml(ex.kpis.label_periodo)}</span>` : ''}
+      ${ex ? `<span class="badge" style="background:var(--accent);color:var(--on-accent);font-weight:600;align-self:flex-end;margin-bottom:2px">${escapeHtml(ex.kpis.label_periodo)}</span>` : ''}
       <button class="btn btn-ghost btn-sm" id="dir-refresh" style="margin-left:auto;align-self:flex-end">🔄 Atualizar</button>
     </div>`;
 }

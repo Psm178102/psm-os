@@ -103,7 +103,7 @@ function pintaSaida() {
   const t = _root.querySelector('#en-tabela');
   if (t) t.innerHTML = `
     <table style="width:100%;border-collapse:collapse;font-size:12px">
-      <thead><tr style="background:var(--psm-navy);color:#fff">
+      <thead><tr style="background:var(--surface-2);color:var(--ink)">
         <th style="padding:8px;text-align:left">Canal</th>
         <th style="padding:8px;text-align:right">Energia</th>
         <th style="padding:8px;text-align:right">Mix %</th>
@@ -124,7 +124,7 @@ function pintaSaida() {
             <td style="padding:6px 8px;text-align:right;color:var(--psm-gold)">${fmt(l.vgv)}</td>
           </tr>
         `).join('')}
-        <tr style="background:var(--psm-navy);color:#fff;font-weight:600">
+        <tr style="background:var(--surface-2);color:var(--ink);font-weight:600">
           <td colspan="5" style="padding:8px">TOTAL</td>
           <td style="padding:8px;text-align:right">${dec(c.totalVendas, 2)}</td>
           <td style="padding:8px;text-align:right">${fmt(c.totalVGV)}</td>

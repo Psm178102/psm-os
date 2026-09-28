@@ -99,7 +99,7 @@ const CSS = `
 .at-ib:hover{background:var(--bg-3)}
 .at-tb{height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg-2);color:var(--ink);cursor:pointer;font-weight:700;font-size:12.5px}
 .at-tb:hover{background:var(--bg-3)}
-.at-tb.on{background:var(--psm-navy);border-color:var(--psm-navy);color:var(--psm-cream)}
+.at-tb.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 .at-period{font-weight:800;font-size:15px;margin-left:6px;white-space:nowrap}
 .at-sp{flex:1}
 .at-search{position:relative}
@@ -214,8 +214,8 @@ const CSS = `
 .at-mini-g button{border:0;background:transparent;color:var(--ink);font-size:12px;height:30px;border-radius:8px;cursor:pointer;position:relative;font-variant-numeric:tabular-nums}
 .at-mini-g button:hover{background:var(--bg-3)}
 .at-mini-g button.out{color:var(--ink-muted);opacity:.5}
-.at-mini-g button.today{color:var(--info);font-weight:900}
-.at-mini-g button.sel{background:var(--psm-navy);color:var(--psm-cream)}
+.at-mini-g button.today{color:var(--accent-ink);font-weight:600;box-shadow:inset 0 0 0 1px var(--accent-ink)}
+.at-mini-g button.sel{background:var(--accent-soft);color:var(--ink)}
 .at-mini-g button.has:after{content:'';position:absolute;bottom:4px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--info)}
 .at-mini-g button.late:after{background:var(--err)}
 .at-cx-row{display:grid;grid-template-columns:26px minmax(0,1fr);gap:8px;padding:10px 0;border-top:1px solid var(--border)}

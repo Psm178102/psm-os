@@ -641,7 +641,7 @@ const TELA_CSS = `
 .pp-tabs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
 .pp-tab{border:1px solid var(--border);background:var(--bg-2);color:var(--ink);border-radius:6px;padding:5px 9px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px}
 .pp-tab i{width:9px;height:9px;border-radius:50%}
-.pp-tab[aria-selected=true]{background:var(--psm-navy,#1E2650);color:#fff;border-color:var(--psm-navy,#1E2650)}
+.pp-tab[aria-selected=true]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
 .pp-bar{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
 .pp-bar .btn{font-size:11.5px;padding:5px 9px}
 .pp-soma{grid-column:1/-1;font-size:12px;padding:7px 9px;border-radius:6px;line-height:1.4}

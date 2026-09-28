@@ -118,7 +118,7 @@ function render() {
                 <div style="font-weight:600">${mi + 1}. ${esc(m.nome)}</div>
                 <div class="tiny muted mt-1">${esc(m.desc)}</div>
               </div>
-              <span style="background:var(--psm-navy);color:var(--psm-cream);font-weight:600;padding:4px 12px;border-radius:var(--radius-lg);font-size:12px;white-space:nowrap">${ok}/${m.aulas.length} aulas</span>
+              <span style="background:var(--accent);color:var(--on-accent);font-weight:600;padding:4px 12px;border-radius:var(--radius-lg);font-size:12px;white-space:nowrap">${ok}/${m.aulas.length} aulas</span>
             </summary>
             <div style="display:grid;gap:6px;margin-top:10px">
               ${m.aulas.map((a, ai) => {

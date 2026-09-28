@@ -153,7 +153,7 @@ function bubble(m) {
     <div style="display:flex;${isUser ? 'justify-content:flex-end' : ''};gap:8px">
       ${!isUser ? '<div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--psm-navy),var(--psm-navy-2));color:var(--psm-cream);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:600">🎖️</div>' : ''}
       <div style="max-width:75%;background:${isUser ? 'var(--psm-navy)' : 'var(--bg-2)'};color:${isUser ? '#fff' : 'var(--tx)'};padding:10px 14px;border-radius:var(--radius-md);font-size:13px;line-height:1.5;white-space:pre-wrap;word-wrap:break-word">${esc(m.content)}</div>
-      ${isUser ? `<div style="width:32px;height:32px;border-radius:50%;background:var(--psm-navy);color:var(--psm-cream);display:flex;align-items:center;justify-content:center;font-weight:600;flex-shrink:0">${esc((auth.user()?.ini || '?').toUpperCase())}</div>` : ''}
+      ${isUser ? `<div style="width:32px;height:32px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:flex;align-items:center;justify-content:center;font-weight:600;flex-shrink:0">${esc((auth.user()?.ini || '?').toUpperCase())}</div>` : ''}
     </div>
   `;
 }

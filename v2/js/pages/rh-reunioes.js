@@ -50,7 +50,7 @@ function render() {
     <div class="card">
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <b style="font-size:16px">📋 Formatos de Reunião</b>
-        <span class="tiny" style="background:var(--psm-navy);color:#fffbea;border-radius:var(--radius-full);padding:3px 12px;font-weight:600">carga total ≈ ${cargaSemanal(fs)} min/semana (todas as cadeiras)</span>
+        <span class="tiny" style="background:var(--accent);color:var(--on-accent);border-radius:var(--radius-full);padding:3px 12px;font-weight:600">carga total ≈ ${cargaSemanal(fs)} min/semana (todas as cadeiras)</span>
       </div>
       <div class="alert" style="background:var(--bg-3);border:none;font-size:12px;margin-top:8px;line-height:1.6">
         <b>Regras universais:</b> toda reunião tem <b>DONO, PAUTA FIXA e PAINEL ABERTO NA TELA</b> (dado, não opinião) ·

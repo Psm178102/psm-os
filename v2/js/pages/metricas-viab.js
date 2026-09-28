@@ -323,7 +323,7 @@ function coerenciaBar() {
     <div class="tiny" style="opacity:.75">${lbl}</div>
     <div style="font-weight:600;font-size:14px;color:${cor || '#fff'}">${val}</div>
     ${sub ? `<div class="tiny" style="opacity:.7">${sub}</div>` : ''}</div>`;
-  return `<div class="card" style="margin:0 0 12px;background:var(--psm-navy);color:#fff;padding:10px 14px">
+  return `<div class="card" style="margin:0 0 12px;background:var(--surface-2);color:var(--ink);padding:10px 14px">
     <div class="flex" style="gap:12px;flex-wrap:wrap;align-items:flex-start">
       <div style="flex:none;min-width:96px">
         <div class="tiny" style="opacity:.75">⚓ Âncora</div>
@@ -759,7 +759,7 @@ function renderOrcado() {
   return orcSubTabs() + `
     <div class="alert" style="background:var(--bg-3);border:none;font-size:12px;margin-bottom:12px">📋 <b>Plano do ano</b> — edite VGV e Vendas por mês (sazonalidade) e as premissas de comissão. O <b>custo</b> vem da aba <b>Custos detalhados</b>. É o baseline que o Realizado compara.</div>
     ${blocks}
-    <div class="card" style="margin:0;background:var(--psm-navy);color:#fff">
+    <div class="card" style="margin:0;background:var(--surface-2);color:var(--ink)">
       <div class="flex items-center"><b style="font-size:14px">🏛 Consolidado — Lucro orçado do ano</b><span style="margin-left:auto;font-size:20px;font-weight:600;color:${consAno >= 0 ? 'var(--ok)' : 'var(--err)'}">${fmt(consAno)}</span></div>
     </div>`;
 }
@@ -1049,7 +1049,7 @@ function renderCustosDet() {
       ${perfilGastoHTML()}
       ${timeline}
       <div class="flex gap-2 mb-2" style="flex-wrap:wrap">${empChips}
-        <div style="flex:1;min-width:150px;background:var(--psm-navy);color:#fff;border-radius:var(--radius-md);padding:8px 10px"><div class="tiny" style="opacity:.8">Total custos/ano</div><div style="font-weight:600;font-size:16px">${fmt(grand)}</div><div class="tiny" style="opacity:.85">Fixo ${fmtC(porClasse.fixo)} · Var ${fmtC(porClasse.variavel)} · Extra ${fmtC(porClasse.extra)} · Parc ${fmtC(porClasse.parcelado)}</div></div>
+        <div style="flex:1;min-width:150px;background:var(--accent);color:var(--on-accent);border-radius:var(--radius-md);padding:8px 10px"><div class="tiny" style="opacity:.8">Total custos/ano</div><div style="font-weight:600;font-size:16px">${fmt(grand)}</div><div class="tiny" style="opacity:.85">Fixo ${fmtC(porClasse.fixo)} · Var ${fmtC(porClasse.variavel)} · Extra ${fmtC(porClasse.extra)} · Parc ${fmtC(porClasse.parcelado)}</div></div>
       </div>
     </div></details>
     <div class="flex gap-2 mb-2" style="flex-wrap:wrap;align-items:center">
@@ -1076,7 +1076,7 @@ function renderCustosDet() {
               <div style="font-weight:600;color:${cor}">${fmt(porClasse[k] || 0)}<span class="tiny muted" style="font-weight:400">/ano</span></div>
               <div class="tiny muted">${fmt((porClasse[k] || 0) / 12)}/mês</div>
             </div>`).join('')}
-          <div style="flex:1.2;min-width:170px;background:var(--psm-navy);color:#fffbea;border-radius:var(--radius-md);padding:6px 12px">
+          <div style="flex:1.2;min-width:170px;background:var(--accent);color:var(--on-accent);border-radius:var(--radius-md);padding:6px 12px">
             <div class="tiny" style="opacity:.8">Σ TOTAL DOS ITENS</div>
             <div style="font-weight:600;font-size:16px">${fmt(grand)}<span class="tiny" style="font-weight:400;opacity:.8">/ano</span></div>
             <div class="tiny" style="opacity:.85">${fmt(grand / 12)}/mês (média)</div>
@@ -1276,7 +1276,7 @@ function renderRealizado() {
     <div class="flex gap-2" style="flex-wrap:wrap;align-items:end;background:var(--bg-3);padding:10px 12px;border-radius:var(--radius-md);margin-bottom:12px">
       <label class="tiny muted" style="display:flex;flex-direction:column;gap:2px">De ${selMes('per-ini', _pIni)}</label>
       <label class="tiny muted" style="display:flex;flex-direction:column;gap:2px">até ${selMes('per-fim', _pFim)}</label>
-      <span class="badge" style="background:var(--psm-navy);color:#fff;font-weight:600">${MES[_pIni - 1]}–${MES[_pFim - 1]}/${_ano}</span>
+      <span class="badge" style="background:var(--accent);color:var(--on-accent);font-weight:600">${MES[_pIni - 1]}–${MES[_pFim - 1]}/${_ano}</span>
       <span class="tiny muted" style="margin-left:auto">VGV/vendas = CRM real · custo = Meta real (auto) + lançado à mão · sem lançamento = custo fixo orçado (est.)</span>
     </div>
     <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
@@ -1490,7 +1490,7 @@ function renderSim() {
       <button class="btn btn-primary btn-sm" id="sim-pull" title="Recarrega VGV/vendas com a média realizada no RD, custo do mês de referência e tráfego da ala — descarta o que você mexeu">📡 Puxar números reais de agora</button>
     </div>
     ${blocks}
-    <div class="card" style="margin:0 0 10px;background:var(--psm-navy);color:#fff">
+    <div class="card" style="margin:0 0 10px;background:var(--surface-2);color:var(--ink)">
       <div class="flex items-center"><b style="font-size:14px">Lucro simulado/mês (consolidado)</b><span style="margin-left:auto;font-size:20px;font-weight:600;color:${cons >= 0 ? 'var(--ok)' : 'var(--err)'}">${fmt(cons)}</span></div>
     </div>
     <div class="flex gap-2" style="flex-wrap:wrap;align-items:center">
@@ -1608,7 +1608,7 @@ function renderBE() {
   return `
     <div class="alert" style="background:var(--bg-3);border:none;font-size:12px;margin-bottom:12px">🎯 <b>Break-even estratégico</b> — mexa nas alavancas e veja o resultado fechar. O custo fixo vem dos Custos detalhados (editável aqui p/ testar cortes). Use o botão <b>Com/Sem pró-labore</b> pra ver as duas realidades: caixa completo (contando sua retirada) × operacional puro (sem ela). Locação: o <b>mínimo garantido</b> come a margem até a carteira recorrente crescer. Salve cenários e compare.</div>
 
-    <div class="card" style="margin:0 0 14px;background:var(--psm-navy);color:#fff">
+    <div class="card" style="margin:0 0 14px;background:var(--surface-2);color:var(--ink)">
       <div class="flex" style="align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
         <div style="display:inline-flex;background:var(--surface-2);border-radius:var(--radius-md);padding:3px">
           <button class="be-pl" data-pl="0" style="cursor:pointer;border:none;padding:6px 13px;font-size:12px;font-weight:600;border-radius:var(--radius-sm);background:${!_beSemPL ? 'var(--ok-soft)' : 'transparent'};color:#fff">Com pró-labore</button>
@@ -1705,7 +1705,7 @@ function renderResumo() {
       ${passo(3, '🎯', 'Simule', 'break-even & alavancas', 'be')}
       ${passo(4, '🧪', 'Decida', 'cenários lado a lado', 'sim')}
     </div>
-    <div class="card" style="margin:0 0 14px;background:var(--psm-navy);color:#fff">
+    <div class="card" style="margin:0 0 14px;background:var(--surface-2);color:var(--ink)">
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
         ${heroStat('🏦 Custo fixo de ' + MESES_N3[d.mr - 1], fmtC(d.fixo), '#cbd5e1')}
         ${heroStat('💚 Contribuição/mês', fmtC(d.contribTotal), '#239a5b')}

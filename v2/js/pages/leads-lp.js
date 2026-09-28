@@ -123,7 +123,7 @@ function render() {
       <td><span class="lp-timer tiny ${pend ? '' : 'muted'}" data-ts="${esc(l.ts_recebido)}"
             style="${pend ? 'color:var(--err);font-weight:600' : ''}">${tempoVivo(l.ts_recebido)}</span></td>
       <td><b>${esc(l.nome || '?')}</b>${l.email ? `<div class="tiny muted">${esc(l.email)}</div>` : ''}</td>
-      <td><span style="background:var(--psm-navy,#806d50);color:#fffbea;border-radius:var(--radius-sm);padding:2px 8px;font-weight:600;font-size:12px;white-space:nowrap">${esc(l.faixa_label || l.faixa_renda || '—')}</span></td>
+      <td><span style="background:var(--accent);color:var(--on-accent);border-radius:var(--radius-sm);padding:2px 8px;font-weight:600;font-size:12px;white-space:nowrap">${esc(l.faixa_label || l.faixa_renda || '—')}</span></td>
       <td class="tiny muted" style="max-width:140px;overflow:hidden;text-overflow:ellipsis">${esc(camp)}</td>
       <td><span class="tiny" style="color:${ST_COR[l.status_atendimento] || 'inherit'};font-weight:600">${ST_LABEL[l.status_atendimento] || esc(l.status_atendimento)}</span>
         ${l.atendido_por_nome ? `<div class="tiny muted">${esc(l.atendido_por_nome)}${rm != null ? ` · ${rm}min` : ''}</div>` : ''}</td>

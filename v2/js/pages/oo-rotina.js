@@ -54,7 +54,7 @@ function box(inner, extra = '') {
 function sec(id, n, titulo, sub, inner) {
   return `<section id="${id}" style="margin-top:16px;scroll-margin-top:70px">${box(`
     <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px">
-      <span style="background:var(--psm-navy);color:var(--ink-inverted);border-radius:999px;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex:none">${n}</span>
+      <span style="background:var(--accent);color:var(--on-accent);border-radius:999px;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex:none">${n}</span>
       <div><div style="font-weight:800;font-size:15px">${titulo}</div>${sub ? `<div class="tiny muted">${sub}</div>` : ''}</div>
     </div>${inner}`)}</section>`;
 }
@@ -162,7 +162,7 @@ function secSemana(p) {
     const est = d.destaque ? `border:2px solid ${GOLD};background:linear-gradient(180deg,rgba(202,138,4,.14),var(--bg-2))` : `border:1px solid ${isHoje ? 'var(--psm-navy)' : 'var(--border)'}`;
     return `<div style="${est};border-radius:10px;padding:10px 12px">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
-        <b>${esc(d.dia)}</b>${isHoje ? '<span class="tiny" style="background:var(--psm-navy);color:var(--ink-inverted);border-radius:999px;padding:1px 8px;font-weight:800">HOJE</span>' : ''}</div>
+        <b>${esc(d.dia)}</b>${isHoje ? '<span class="tiny" style="background:var(--accent);color:var(--on-accent);border-radius:999px;padding:1px 8px;font-weight:800">HOJE</span>' : ''}</div>
       <div style="font-size:12px;font-weight:800;color:${d.destaque ? GOLD : 'var(--info)'};margin-top:2px;text-transform:uppercase;letter-spacing:.4px">${esc(d.canal)}</div>
       <div style="font-size:12.5px;margin-top:5px">☀️ ${esc(d.manha)}</div>
       <div style="font-size:12.5px;margin-top:3px">🌇 ${esc(d.tarde)}</div>

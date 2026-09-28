@@ -206,7 +206,7 @@ function renderOut() {
       <div style="max-height:56vh;overflow:auto;border:1px solid var(--border);border-radius:var(--radius-md)">
         <table style="border-collapse:collapse;width:100%;min-width:max-content;font-size:12px">
           <thead><tr>${['Mês', 'Saldo inicial', 'Juros', 'Amortização', showExtra ? 'Extra' : null, 'Parcela', 'Saldo final'].filter(Boolean)
-            .map(h => `<th style="position:sticky;top:0;background:var(--psm-navy);color:var(--psm-cream);padding:6px 9px;text-align:right;white-space:nowrap">${h}</th>`).join('')}</tr></thead>
+            .map(h => `<th style="position:sticky;top:0;background:var(--surface-2);color:var(--ink);padding:6px 9px;text-align:right;white-space:nowrap">${h}</th>`).join('')}</tr></thead>
           <tbody>${dados.map(p => `<tr style="border-bottom:1px solid var(--border)">
             <td style="padding:5px 9px;text-align:right;font-weight:600">${p.m}</td>
             <td style="padding:5px 9px;text-align:right">${fmt(p.saldoIni)}</td>

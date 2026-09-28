@@ -526,7 +526,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '88.65';
+const APP_VERSION = '88.66';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -985,7 +985,7 @@ const APP_VERSION = '88.65';
     const b = document.createElement('button');
     b.id = 'rt-pill';
     b.innerHTML = '🔄 Novos dados — <b>atualizar</b>';
-    b.style.cssText = 'position:fixed;bottom:18px;right:18px;z-index:9990;background:var(--psm-navy,#1e293b);color:var(--psm-cream,#fff);border:0;border-radius:999px;padding:10px 16px;font-size:13px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.35);cursor:pointer';
+    b.style.cssText = 'position:fixed;bottom:18px;right:18px;z-index:9990;background:var(--accent);color:var(--on-accent);border:0;border-radius:999px;padding:10px 16px;font-size:13px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.35);cursor:pointer';
     b.onclick = () => { b.remove(); try { router.refresh({ quiet: true }); } catch (_) {} };
     document.body.appendChild(b);
   };
@@ -1430,7 +1430,7 @@ function showUpdateBanner(newVer) {
       <h2 style="margin:12px 0 8px;font-size:20px;font-weight:600">Nova versão disponível!</h2>
       <p style="margin:0 0 6px;font-size:14px;color:var(--ink-muted);line-height:1.5">Você está em uma versão <b>desatualizada</b> do sistema${newVer ? ` (a nova é a <b>v${newVer}</b>)` : ''}.</p>
       <p style="margin:0 0 22px;font-size:14px;color:var(--ink-muted);line-height:1.5">Recarregue a página pra ver as novidades — ou saia e entre de novo.</p>
-      <button id="upd-go" style="width:100%;background:var(--psm-navy);color:var(--psm-cream);border:0;border-radius:var(--radius-lg);padding:15px;font-size:16px;font-weight:600;cursor:pointer">🔄 Atualizar agora</button>
+      <button id="upd-go" style="width:100%;background:var(--accent);color:var(--on-accent);border:0;border-radius:var(--radius-lg);padding:15px;font-size:16px;font-weight:600;cursor:pointer">🔄 Atualizar agora</button>
       <button id="upd-x" style="margin-top:12px;background:transparent;border:0;color:var(--ink-muted);font-size:13px;cursor:pointer">Agora não</button>
     </div>`;
   document.body.appendChild(o);
