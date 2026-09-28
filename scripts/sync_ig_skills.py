@@ -56,6 +56,13 @@ def main():
             sys.exit(f"skill ausente: {p}")
         fm, body = _frontmatter(open(p, encoding="utf-8").read())
         data["skills"][sid] = {"name": fm.get("name", sid), "description": fm.get("description", ""), "body": body}
+    # Banco de Imagens (resumo por empreendimento) + Banco de Referências — pra SUGESTÃO DE IMAGEM das peças
+    base = os.path.join(HOME, ".claude", "instagram")
+    bi = open(os.path.join(base, "banco-imagens.md"), encoding="utf-8").read() if os.path.exists(os.path.join(base, "banco-imagens.md")) else ""
+    m = re.search(r"(## 1\..*?)(?=\n## 2\.)", bi, re.S)
+    data["banco"] = (m.group(1) if m else bi[:15000]).strip()
+    rf = os.path.join(base, "referencias.md")
+    data["referencias"] = open(rf, encoding="utf-8").read() if os.path.exists(rf) else ""
     for sid, fn in (("ig-human", "slop.json"), ("ig-reel", "hooks.json"), ("ig-profile", "rubric.json")):
         p = os.path.join(SKILLS, sid, fn)
         data["json"][fn] = json.load(open(p, encoding="utf-8"))
@@ -66,7 +73,8 @@ def main():
         f.write("import json as _json\n\n")
         f.write("_DATA = _json.loads(" + repr(json.dumps(data, ensure_ascii=False)) + ")\n\n")
         f.write("CANON = _DATA['canon']\nSKILLS = _DATA['skills']\nSLOP = _DATA['json']['slop.json']\n"
-                "HOOKS = _DATA['json']['hooks.json']\nRUBRIC = _DATA['json']['rubric.json']\n")
+                "HOOKS = _DATA['json']['hooks.json']\nRUBRIC = _DATA['json']['rubric.json']\n"
+                "BANCO = _DATA.get('banco', '')\nREFERENCIAS = _DATA.get('referencias', '')\n")
     kb = os.path.getsize(OUT) // 1024
     print(f"ok: {len(data['skills'])} skills + cânone ({len(data['canon'])} chars) → {os.path.relpath(OUT)} ({kb} KB)")
 

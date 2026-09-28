@@ -58,9 +58,20 @@ UI = {
     "ig-reply":     ("↩️", "Responder comentários", "community", "Cole os comentários do nosso post/reel (um por linha, com @)"),
     "ig-dm":        ("✉️", "Direct (DM)", "community", "Quem é, como chegou (keyword/comentário/anúncio) e o que já foi dito"),
     "ig-human":     ("🧽", "Tirar cara de IA", "todas", "Cole o texto pra limpar vícios de IA e checar as regras da marca"),
+    # v88.62: substitui o antigo Simulador Criativos (/sim-criativos) — agora no cânone e com Auditor
+    "anuncio-meta": ("📣", "Anúncio Meta", "copywriter → tráfego pago", "Empreendimento (da tabela) ou tema + público/renda + objetivo. Ex.: Solis, casal com renda de R$ 2.500 que paga aluguel na Zona Norte, gerar simulação"),
 }
 # skills que geram PEÇA de conteúdo (vão pra fila do Paulo); as outras são insumo/rascunho
-PECA = {"ig-reel", "ig-caption", "ig-carousel", "ig-story", "ig-repurpose", "ig-profile"}
+PECA = {"ig-reel", "ig-caption", "ig-carousel", "ig-story", "ig-repurpose", "ig-profile", "anuncio-meta"}
+
+# v88.62: toda peça enviada vira card no quadro 🏆 PSM Conquista (conteúdo) — paulo_cards,
+# board conteudo_conquista — e anda sozinha conforme o veredito do Paulo no /cmo.
+BOARD = "conteudo_conquista"
+FORMATO = {"anuncio-meta": "Anúncio", "ig-reel": "Reel", "ig-carousel": "Carrossel", "ig-story": "Stories", "ig-caption": "Post",
+           "ig-repurpose": "Reel", "ig-profile": "Post"}
+# SLA por etapa do quadro (dias corridos) — item parado > 2× o SLA = anomalia (lei da Esteira)
+SLA_DIAS = {"curadoria": 3, "gravacao": 3, "edicao": 2, "aprovacao": 1, "agendamento": 1}
+ETAPAS = ["curadoria", "gravacao", "edicao", "aprovacao", "agendamento", "publicado"]
 
 MODO_HOUSE = (
     "MODO HOUSE PSM: você está rodando DENTRO do House (app web da PSM), não no Claude Code. "
@@ -140,13 +151,75 @@ def _ia(system, user, max_tokens=3000, temperature=0.6):
     return None, None, last
 
 
-def _system_skill(sid):
-    sk = IG.SKILLS[sid]
+def _portfolio(sb):
+    """Tabela Lançamentos Conquista AO VIVO (shared_kv tabelas_lancamentos, marca conquista) —
+    a mesma que o corretor vê em /tabela-conquista. Valor e renda saem daqui, nunca da memória."""
+    try:
+        rows = sb.table("shared_kv").select("value").eq("key", "tabelas_lancamentos").limit(1).execute().data or []
+        v = rows[0]["value"] if rows else {}
+        if isinstance(v, str):
+            v = json.loads(v or "{}")
+    except Exception:
+        return ""
+    out = []
+    for tb in (v or {}).get("tabelas") or []:
+        if (tb.get("marca") or "") != "conquista" or tb.get("tipo") == "pdf":
+            continue
+        cols = [str(c) for c in (tb.get("colunas") or [])]
+        out.append(f"## {tb.get('categoria') or 'Tabela'}" + (f" (vigência {tb.get('vigencia')})" if tb.get("vigencia") else ""))
+        out.append(" | ".join(cols))
+        for ln in tb.get("linhas") or []:
+            out.append(" | ".join(str(x) for x in ln))
+    return "\n".join(out)[:12000]
+
+
+ANUNCIO_BODY = """# anuncio-meta — Campanha Meta Ads da PSM CONQUISTA (formato 6.6 do copywriter-psm-conquista)
+
+Objetivo: lead qualificado pra SIMULAÇÃO DE CRÉDITO GRATUITA (form Meta → RD Station → House). Nunca "comprar".
+
+Regras de plataforma:
+- "Ver mais": o maior benefício nos primeiros 125 caracteres do texto principal (conte e mostre a contagem).
+- Headlines de 27 a 30 caracteres no máximo (mostre a contagem entre parênteses). A headline 2 tempos do Paulo vive no vídeo
+  e na 1ª linha; no campo de headline entregue a REDUÇÃO que carrega só o tempo 1 (pergunta-filtro).
+- Regra dos 3 segundos: 80% do esforço no gancho do vídeo.
+- Formato nativo sempre especificado: Feed 1:1 ou 4:5; Reels/Stories 9:16.
+- Emojis como marcador (🔑 🏢 📄 ✅ 📲), escaneável, sem poluir. Quebras de linha frequentes.
+- BLINDAGEM META: sem atributo pessoal direto ("você que está negativado" → "pra quem já teve o nome negativado"); sem
+  "aprovação garantida"/"100% aprovado"; "financie 100%"/"entrada facilitada" sempre com "sujeito a análise de crédito CAIXA";
+  sem urgência falsa; sem antes/depois enganoso. Selo MCMV oficial permitido.
+- Público pela RENDA IDEAL do empreendimento na tabela ao vivo. Número como CRITÉRIO DE ENTRADA ("renda a partir de R$ 2.400"),
+  nunca como promessa.
+- Ângulos padrão: aluguel × parcela; FGTS como entrada; renda familiar X cabe; composição de renda; subsídio; mudança de regra;
+  tour de decorado; alerta de golpe.
+
+Entregue EXATAMENTE:
+1. ÂNGULO ESTRATÉGICO (dor/desejo, objeção Cuenca, princípio de persuasão dominante — escassez só real)
+2. 3 OPÇÕES DE HEADLINE (até 30 caracteres, contagem entre parênteses) + a headline 2 tempos completa pro vídeo/1ª linha
+3. ROTEIRO AUDIOVISUAL pro Guilherme — formato ideal (ex.: Reels 9:16, 15-30s) e tabela TEMPO | ÁUDIO (fala/off) | VÍDEO/B-ROLL | TEXTO NA TELA
+4. COPY DA LEGENDA — Texto A curto (até 125 caracteres) e Texto B storytelling, ambos com disclaimer
+5. CTA — comando pra simulação gratuita + botão sugerido ("Saiba mais"/"Cadastre-se") + nome do form no padrão `Cod.<campanha>-<seq> dd/mm - criativo`
+6. SUGESTÃO DE IMAGEM — arquivo/pasta oficial do banco de imagens (ou "precisa gravar")
+PENDÊNCIAS: [CONFIRMAR] em aberto
+"""
+
+
+def _system_skill(sid, portfolio=""):
+    sk = IG.SKILLS[sid] if sid in IG.SKILLS else {"body": ANUNCIO_BODY, "description": ""}
     extra = ""
     if sid == "ig-reel":
         extra = "\n\n=== FÓRMULAS DE GANCHO (hooks.json) ===\n" + json.dumps(IG.HOOKS, ensure_ascii=False)[:40000]
     elif sid == "ig-profile":
         extra = "\n\n=== RUBRICA (rubric.json) ===\n" + json.dumps(IG.RUBRIC, ensure_ascii=False)[:20000]
+    if sid in ("ig-reel", "ig-carousel", "ig-story", "ig-repurpose", "ig-plan", "anuncio-meta"):
+        extra += ("\n\n=== IMAGEM: ordem obrigatória = oficial do empreendimento → foto própria → banco licenciado → IA só conceito "
+                  "(Pinterest/posts de terceiros = só referência). Na SUGESTÃO DE IMAGEM cite o arquivo/pasta oficial do banco abaixo "
+                  "e diga se precisa gravar (lacuna). ===\n=== BANCO DE IMAGENS (resumo) ===\n" + (getattr(IG, "BANCO", "") or "")[:16000]
+                  + "\n\n=== BANCO DE REFERÊNCIAS (board do Paulo) ===\n" + (getattr(IG, "REFERENCIAS", "") or "")[:6000])
+    if portfolio:
+        extra += ("\n\n=== PORTFÓLIO CONQUISTA AO VIVO (Tabela Lançamentos Conquista do House — FONTE OFICIAL) ===\n"
+                  "Use SÓ estes valores/rendas ao citar empreendimento; escolha pela renda do público da peça; "
+                  "valor sempre 'a partir de' + 'sujeito a análise de crédito CAIXA' + 'valores sujeitos a alteração pela incorporadora'.\n"
+                  + portfolio)
     return (MODO_HOUSE + "\n\n=== CÂNONE PSM CONQUISTA (voice.md) ===\n" + IG.CANON +
             f"\n\n=== SKILL {sid} ===\n" + sk["body"] + extra)
 
@@ -194,6 +267,31 @@ def _itens(sb, key):
     return [i for i in (_kv_get(sb, key).get("itens") or []) if isinstance(i, dict)]
 
 
+def _esteira(sb):
+    """Foto da Esteira agora: cards do quadro Conquista por etapa + parados > 2× o SLA."""
+    try:
+        rows = (sb.table("paulo_cards").select("id,titulo,status,updated_at,responsavel,plataforma,formato")
+                .eq("board", BOARD).execute().data or [])
+    except Exception as e:
+        return {"erro": str(e)[:200]}
+    agora = datetime.now(timezone.utc)
+    por = {e: 0 for e in ETAPAS}
+    parados = []
+    for r in rows:
+        st = r.get("status") or "curadoria"
+        por[st] = por.get(st, 0) + 1
+        sla = SLA_DIAS.get(st)
+        try:
+            dias = (agora - datetime.fromisoformat(str(r.get("updated_at")).replace("Z", "+00:00"))).total_seconds() / 86400
+        except Exception:
+            continue
+        if sla and dias > 2 * sla:
+            parados.append({"id": r.get("id"), "titulo": r.get("titulo"), "etapa": st, "dias": round(dias, 1),
+                            "sla": sla, "responsavel": r.get("responsavel")})
+    parados.sort(key=lambda x: -x["dias"])
+    return {"por_etapa": por, "parados": parados[:12], "total": len(rows), "sla": SLA_DIAS}
+
+
 def _quem(actor):
     return actor.get("nome") or actor.get("login") or "time"
 
@@ -232,8 +330,12 @@ class handler(BaseHTTPRequestHandler):
                     h["veredito_motivo"] = p.get("motivo") or ""
             skills = [{"id": sid, "ico": UI[sid][0], "nome": UI[sid][1], "estacao": UI[sid][2],
                        "dica": UI[sid][3], "peca": sid in PECA,
-                       "descricao": IG.SKILLS[sid]["description"]} for sid in UI]
-            return self._send(200, {"ok": True, "skills": skills, "historico": hist, "corte": CORTE})
+                       "descricao": IG.SKILLS[sid]["description"] if sid in IG.SKILLS else
+                       "Campanha Meta Ads da Conquista no formato oficial do copywriter: ângulo, 3 headlines de até 30 caracteres, "
+                       "roteiro pro Guilherme, texto A/B com disclaimer, CTA pra simulação gratuita e imagem oficial sugerida. "
+                       "Substitui o antigo Simulador Criativos."} for sid in UI]
+            return self._send(200, {"ok": True, "skills": skills, "historico": hist, "corte": CORTE,
+                                    "esteira": _esteira(sb)})
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)})
 
@@ -281,7 +383,7 @@ class handler(BaseHTTPRequestHandler):
                     f"VEREDITO/AJUSTE DO PAULO: {base.get('veredito_motivo') or '(nenhum)'}\n"
                     f"AJUSTE PEDIDO AGORA: {ajuste or '(nenhum)'}\n\n"
                     "Refaça a entrega inteira corrigindo TODOS os motivos acima.")
-        saida, prov, err = _ia(_system_skill(sid), user)
+        saida, prov, err = _ia(_system_skill(sid, _portfolio(sb)), user)
         if not saida:
             return self._send(502, {"ok": False, "error": f"IA indisponível: {err}"})
         rel = checar(saida)
@@ -330,6 +432,19 @@ class handler(BaseHTTPRequestHandler):
                 "resumo": f"Estúdio · {UI[it['skill']][1]} · v{it.get('versao', 1)} · por {it.get('autor')}",
                 "pendencia": (aud.get("pendencias") or "")[:300], "texto": it.get("saida"),
                 "origem": "estudio", "estudio_id": it["id"]}
+        try:
+            canal = (aud.get("canal") or "").lower()
+            now = _now()
+            card = {"id": "pc_" + uuid.uuid4().hex[:12], "board": BOARD, "status": "aprovacao",
+                    "titulo": peca["titulo"], "formato": FORMATO.get(it["skill"], "Post"),
+                    "plataforma": "tiktok" if "tiktok" in canal else ("youtube" if "youtube" in canal else "instagram"),
+                    "obs": f"📸 Estúdio · nota {nota:g} · v{it.get('versao', 1)} · por {it.get('autor')}\n\n{(it.get('saida') or '')[:6000]}",
+                    "owner_id": actor.get("id"), "created_at": now, "updated_at": now}
+            sb.table("paulo_cards").insert(card).execute()
+            peca["card_id"] = card["id"]
+            it["card_id"] = card["id"]
+        except Exception:
+            pass   # o card é espelho: sem ele a peça continua na fila do Paulo
         pecas.insert(0, peca)
         _kv_set(sb, KV_PECAS, {"itens": pecas[:200]})
         it["peca_id"] = peca["id"]

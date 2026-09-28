@@ -1,4 +1,4 @@
-/* PSM-OS v2 — 📸 Estúdio Instagram (v88.61)
+/* PSM-OS v2 — 📸 Estúdio Instagram (v88.61; aba da 🏭 Central de Marketing desde v88.62)
    Pedido do Paulo (27/set): colocar dentro do marketing do House as 13 skills
    /ig-* adaptadas pra PSM Conquista. Aqui o time pede a peça, a skill escreve
    no cânone da marca, o anti-robô bloqueia vício de IA/regra da Sol, o Auditor
@@ -8,7 +8,7 @@
 import { api } from '../api.js';
 
 const GRUPOS = [
-  { lbl: '✍️ Produzir', ids: ['ig-reel', 'ig-caption', 'ig-carousel', 'ig-story', 'ig-repurpose'] },
+  { lbl: '✍️ Produzir', ids: ['ig-reel', 'ig-caption', 'ig-carousel', 'ig-story', 'anuncio-meta', 'ig-repurpose'] },
   { lbl: '🔎 Pesquisar e planejar', ids: ['ig-viral', 'ig-plan', 'ig-audit', 'ig-profile'] },
   { lbl: '💬 Atender e engajar', ids: ['ig-reply', 'ig-dm', 'ig-comment'] },
   { lbl: '🧽 Revisar', ids: ['ig-human'] },
@@ -57,17 +57,10 @@ function render() {
     .est-pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;border:1px solid var(--bd)}
   </style>
 
-  <div class="est-box" style="background:linear-gradient(135deg,rgba(232,133,48,.14),transparent)">
-    <div class="flex" style="align-items:center;gap:10px;flex-wrap:wrap">
-      <div style="font-weight:900;font-size:16px">📸 Estúdio Instagram · PSM Conquista</div>
-      <span class="tiny muted">13 skills na voz da Sol</span>
-      <a href="#/equipe-marketing" class="tiny" style="margin-left:auto;color:#38bdf8">🏭 Equipe de Marketing →</a>
-    </div>
-    <div class="tiny" style="margin-top:6px;color:var(--muted);line-height:1.6">
-      Você pede → a skill escreve seguindo as regras da marca → o <b>anti-robô</b> bloqueia vício de IA e regra da Sol →
-      o <b>Auditor dá nota 0-10</b> → com <b>${corte}+</b> a peça vai pra <b>fila do Paulo</b> (Diretoria → CMO → Validar peças).
-      Nada aqui publica, agenda ou responde ninguém: quem publica é o Agendador, depois do OK do Paulo.
-    </div>
+  <div class="tiny muted" style="margin:-2px 0 12px;line-height:1.6">
+    Escolha a skill, descreva o pedido e gere. O <b>anti-robô</b> bloqueia vício de IA e regra da Sol, o <b>Auditor dá nota</b>, e com
+    <b>${corte}+</b> a peça vai pra fila do Paulo e vira card no <a href="#/marketing-central?tab=quadro" style="color:#38bdf8">quadro</a>.
+    Valores e rendas vêm da Tabela Lançamentos Conquista ao vivo. Nada aqui publica.
   </div>
 
   ${GRUPOS.map(g => `
@@ -161,7 +154,7 @@ function resultadoHtml(h, corte) {
       <button class="btn btn-ghost tiny" id="est-copiar">📋 Copiar</button>
       <button class="btn btn-ghost tiny" id="est-refazer" ${_busy ? 'disabled' : ''}>🔁 Refazer</button>
       ${s.peca ? (h.peca_id
-        ? `<span class="tiny muted">já está na fila do Paulo</span>`
+        ? `<span class="tiny muted">já está na fila do Paulo${h.card_id ? ' · card criado no <a href="#/marketing-central?tab=quadro" style="color:#38bdf8">quadro Conquista</a>' : ''}</span>`
         : `<button class="btn tiny" id="est-enviar" style="background:#22c55e;color:#04170c;font-weight:800" ${podeEnviar && !_busy ? '' : 'disabled'}
              title="${podeEnviar ? '' : 'só vai com nota ≥ corte e sem bloqueio do anti-robô'}">✅ Enviar pro Paulo validar</button>`)
         : `<span class="tiny muted">insumo — segue pra estação: ${esc(s.estacao)}</span>`}

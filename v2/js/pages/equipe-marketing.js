@@ -77,7 +77,7 @@ function render() {
     <div class="flex" style="align-items:center;gap:10px;flex-wrap:wrap">
       <div style="font-weight:600;font-size:16px">🏭 Equipe de Marketing · Esteira Conquista</div>
       <span class="tiny muted">14 cadeiras · cada agente é dono de uma estação</span>
-      <a href="#/estudio-ig" class="tiny" style="margin-left:auto;color:#e88530;font-weight:600">📸 Estúdio Instagram (peça pronta + nota) →</a>
+      <a href="#/marketing-central?tab=estudio" class="tiny" style="margin-left:auto;color:#e88530;font-weight:600">📸 Estúdio Instagram (peça pronta + nota) →</a>
       ${socio ? '<a href="#/cmo" class="tiny" style="color:var(--accent-ink)">🎯 cockpit do CMO (fluxograma + notas) →</a>' : ''}
     </div>
     <div class="tiny" style="margin-top:4px;color:var(--muted)">Fluxo: Curador → CMO (briefing) → Copy/Design/Vídeo → Editor → <b>Auditor (nota 0-10, corte 8)</b> → Paulo valida → Agendador → canais → Community. Nenhum agente publica, dispara ou gasta sem aprovação do sócio.</div>

@@ -136,6 +136,14 @@ class handler(BaseHTTPRequestHandler):
                     "key": "cmo_pecas", "value": {"itens": itens},
                     "updated_at": datetime.now(timezone.utc).isoformat(),
                 }).execute()
+                # v88.62: peça do Estúdio tem card no quadro 🏆 PSM Conquista — anda com o veredito
+                if alvo.get("card_id"):
+                    etapa = {"aprovada": "agendamento", "ajustar": "edicao", "reprovada": "curadoria"}[veredito]
+                    try:
+                        sb.table("paulo_cards").update({"status": etapa, "updated_at": alvo["validado_em"]}) \
+                            .eq("id", alvo["card_id"]).execute()
+                    except Exception:
+                        pass
                 audit(self, actor, "cmo.peca_validada", target_type="cmo_peca", target_id=peca_id,
                       notes=f"{veredito} {motivo[:120]}")
                 pend = len([i for i in itens if (i.get("status") or "pendente") == "pendente"])

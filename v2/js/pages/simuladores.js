@@ -12,7 +12,7 @@ const SIMS = [
   { id: '/sim-conquista', ico: '🏠', t: 'Conquista',     d: 'Faixa de renda MCMV: imóvel máximo, parcela e subsídio', cor: 'linear-gradient(135deg,#9a3412,#e06208)' },
   { id: '/sim-energia',   ico: '⚡', t: 'Energia',       d: 'Produtividade do corretor por canal',               cor: 'linear-gradient(135deg,#a16207,#ca8a04)' },
   { id: '/sim-leads',     ico: '🎯', t: 'Leads / CAC',   d: 'Custo por lead, CAC e ROI por canal',               cor: 'linear-gradient(135deg,#4338ca,#6366f1)' },
-  { id: '/sim-criativos', ico: '🎨', t: 'Criativos',     d: 'Gerador de copy, headlines e CTA',                  cor: 'linear-gradient(135deg,#be185d,#db2777)' },
+  { id: '/sim-criativos', ico: '📣', t: 'Anúncio Meta',  d: 'Agora no Estúdio da Central de Marketing (com nota do Auditor)',                  cor: 'linear-gradient(135deg,#be185d,#db2777)' },
 ];
 
 // Rota com item no menu lateral segue a visibilidade que o main.js já aplicou

@@ -25,15 +25,26 @@ class _R:
 
 
 class _Q:
-    def __init__(self, db, table): self.db, self.table, self.k, self.payload = db, table, None, None
+    def __init__(self, db, table): self.db, self.table, self.k, self.payload, self.ins, self.upd = db, table, None, None, None, None
     def select(self, *_a): return self
     def eq(self, _c, v): self.k = v; return self
     def limit(self, _n): return self
     def upsert(self, row): self.payload = row; return self
+    def insert(self, row): self.ins = row; return self
+    def update(self, row): self.upd = row; return self
 
     def execute(self):
         if self.table == "users":
             return _R([{"id": "u1", "role": "socio", "status": "ativo"}])
+        if self.table == "paulo_cards":
+            cards = self.db.setdefault("_cards", [])
+            if self.ins is not None:
+                cards.append(dict(self.ins)); return _R([self.ins])
+            if self.upd is not None:
+                for c in cards:
+                    if c["id"] == self.k: c.update(self.upd)
+                return _R([])
+            return _R([c for c in cards if c.get("board") == self.k])
         if self.payload is not None:
             self.db[self.payload["key"]] = json.loads(json.dumps(self.payload["value"]))
             return _R([self.payload])
@@ -114,8 +125,21 @@ def test_fluxo():
     assert st == 200, b
     peca = SB.db["cmo_pecas"]["itens"][0]
     assert peca["status"] == "pendente" and peca["texto"] == BOM and peca["origem"] == "estudio"
+    card = SB.db["_cards"][0]
+    assert card["board"] == "conteudo_conquista" and card["status"] == "aprovacao" and peca["card_id"] == card["id"]
     st, b = call("POST", {"acao": "enviar", "id": item["id"]})
     assert st == 409, "enviou duas vezes"
+
+    # veredito do Paulo no /cmo move o card (aprovada → agendar)
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("cmo", os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "api", "v3", "diretoria", "cmo.py"))
+    C = importlib.util.module_from_spec(spec); spec.loader.exec_module(C)
+    C.supabase_client = lambda: SB; C.audit = lambda *a, **k: None; C.require_user = lambda self, min_lvl=0: ATOR
+    h = C.handler.__new__(C.handler); raw = json.dumps({"acao": "validar", "peca_id": peca["id"], "veredito": "aprovada"}).encode()
+    h.headers = {"Content-Length": str(len(raw))}; h.rfile = io.BytesIO(raw); out = {}
+    h._send = lambda s, bb: out.update(s=s, b=bb); h.do_POST()
+    assert out["s"] == 200 and card["status"] == "agendamento", out
+    SB.db["cmo_pecas"]["itens"][0]["status"] = "pendente"
 
     # abaixo do corte não sobe
     NOTA["v"] = 7.4
@@ -133,11 +157,21 @@ def test_fluxo():
     st, b = call("GET")
     h = next(x for x in b["historico"] if x.get("peca_id") == peca["id"])
     assert h["veredito"] == "ajustar" and h["veredito_motivo"] == "começa pelo número"
-    assert len(b["skills"]) == 13
+    assert len(b["skills"]) == 14
+    assert b["esteira"]["por_etapa"]["agendamento"] == 1
+
+
+def test_portfolio():
+    SB.db["tabelas_lancamentos"] = {"tabelas": [
+        {"marca": "conquista", "categoria": "MCMV", "colunas": ["Empreendimento", "Renda"], "linhas": [["SOLIS", "2.400"]]},
+        {"marca": "imoveis", "categoria": "MAP", "colunas": ["a"], "linhas": [["LUX JK"]]}]}
+    p = E._portfolio(SB)
+    assert "SOLIS" in p and "LUX JK" not in p, p   # só a Conquista entra
+    assert "PORTFÓLIO CONQUISTA AO VIVO" in E._system_skill("ig-caption", p)
 
 
 if __name__ == "__main__":
-    for fn in (test_prompts, test_antirrobo, test_fluxo):
+    for fn in (test_prompts, test_antirrobo, test_fluxo, test_portfolio):
         fn()
         print("ok", fn.__name__)
     print("TUDO OK")
