@@ -62,14 +62,25 @@ def calcular(sb, meses, hoje):
     desde = date(y, m, 1)
     rows = sb.rpc("intel_turmas", {"p_desde": desde.isoformat()}).execute().data or []
     mapa = MX.mapa_origens(sb)
-    nomes = {}
+    nomes, por_nome_colado = {}, {}
     try:
         for u in sb.table("users").select("id,name,email").execute().data or []:
             nomes[str(u["id"])] = u.get("name") or u["id"]
             if u.get("email"):
                 nomes[u["email"].lower()] = u.get("name") or u["email"]
+            if u.get("name"):   # "Paulo Morimatsu" → "paulomorimatsu" (casa com paulomorimatsu@gmail.com do RD)
+                por_nome_colado[MX._norm(u["name"]).replace(" ", "")] = u["name"]
     except Exception:
         pass
+
+    def nome_dono(r):
+        em = (r.get("user_email") or "").lower()
+        n = nomes.get(str(r.get("user_id") or "")) or nomes.get(em)
+        if n:
+            return n
+        # v88.87: o RD às vezes usa o e-mail PESSOAL (ex.: gmail) e o House o da empresa — casa pelo nome
+        local = MX._norm(em.split("@")[0]).replace(" ", "").replace(".", "").replace("_", "")
+        return por_nome_colado.get(local) or em or "sem dono"
 
     turmas, canais, pessoas = {}, {}, {}
     # corretor: só as 3 turmas mais recentes (o retrato de agora, não de meio ano atrás)
@@ -82,7 +93,7 @@ def calcular(sb, meses, hoje):
         for chave in ((fr, cat), ("todas", cat)):
             _soma(canais.setdefault(chave, _vazio()), r)
         if r["mes"] in ult3:
-            dono = nomes.get(str(r.get("user_id") or "")) or nomes.get((r.get("user_email") or "").lower()) or (r.get("user_email") or "sem dono")
+            dono = nome_dono(r)
             for chave in ((fr, dono), ("todas", dono)):
                 _soma(pessoas.setdefault(chave, _vazio()), r)
 
