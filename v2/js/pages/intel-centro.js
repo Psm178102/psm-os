@@ -4,6 +4,11 @@
    e gera uma análise executiva com IA (sob demanda). Tudo dado real. */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
+import { montarDecisoes } from '../decisoes.js';   // v88.83: o Painel começa pelo "Decidir agora" (todas as decisões + Meta + Vigia)
+
+// v88.83: limites = os MESMOS do Cockpit Meta Ads (shared_kv ads_thresholds, editáveis no Marketing).
+const TH_PADRAO = { cpl_conquista: 25, cpl_imoveis: 150, cpl_locacao: 60, freq: 3.0, gasto: 30 };
+let _th = { ...TH_PADRAO }, _thContas = {}, _usuarios = null;
 
 let _root = null, _d = {}, _preset = 'last_30d', _ai = null, _aiBusy = false;
 
@@ -44,14 +49,22 @@ export async function pageIntelCentro(ctx, root) {
 async function reload(quiet) {
   if (!quiet) _root.innerHTML = spinner('Cruzando Ads × Marketing × Vendas…');
   const qp = '?date_preset=' + encodeURIComponent(_preset);
-  const [sum, crm, geo, oo, dir, pj] = await Promise.allSettled([
+  const [sum, crm, geo, oo, dir, pj, th, us] = await Promise.allSettled([
     api.request('/api/v3/marketing/summary' + qp),
     api.request('/api/v3/marketing/crm_metrics' + qp),
     api.request('/api/v3/marketing/leads_geo' + qp),
     api.request('/api/v3/oo/overview?date_preset=this_month'),
     api.request('/api/v3/diretoria/dashboard'),
     api.request('/api/v3/metricas/projecao?h=mes'),   // v88.47: projeção OFICIAL do mês (§8A)
+    api.request('/api/v3/marketing/ads_thresholds'),
+    _usuarios ? Promise.resolve(null) : api.listUsers(),
   ]);
+  if (th.status === 'fulfilled' && th.value && th.value.th) { _th = { ...TH_PADRAO, ...th.value.th }; _thContas = th.value.contas || {}; }
+  if (us.status === 'fulfilled' && us.value) {
+    const lista = Array.isArray(us.value) ? us.value : (us.value.users || []);
+    _usuarios = lista.filter(u => (u.status || 'ativo') === 'ativo' && !u.is_service)
+      .map(u => ({ id: u.id, nome: u.name || u.email || u.id })).sort((a, b) => a.nome.localeCompare(b.nome));
+  }
   const v = r => (r.status === 'fulfilled' ? r.value : null);
   _d = { sum: v(sum), crm: v(crm), geo: v(geo), oo: v(oo), dir: v(dir), pj: v(pj) };
   // v88.47 (Dicionário §0): fonte que falhou fica registrada — o diagnóstico não pode dizer "tudo ok" sem ela
@@ -82,19 +95,21 @@ function buildInsights() {
   const active = camps.filter(c => (c.status || '').toLowerCase() === 'active');
   const totalSpend = (sum.accounts || []).reduce((a, c) => a + (c.spend || 0), 0);
 
-  // ── ADS ──
-  active.filter(c => (c.spend || 0) >= 300 && (c.results || 0) === 0).forEach(c =>
+  // ── ADS ── v88.83: limites da empresa (Cockpit Meta Ads) em vez de 300/120/3,2 fixos no código
+  const alvoCpl = c => +((_thContas[c.accountId] || {}).cpl) || +_th['cpl_' + brandKey(c.account)] || TH_PADRAO.cpl_imoveis;
+  const freqMax = c => +((_thContas[c.accountId] || {}).freq) || +_th.freq || TH_PADRAO.freq;
+  active.filter(c => (c.spend || 0) >= +_th.gasto && (c.results || 0) === 0).forEach(c =>
     add('ads', 'alto', `Campanha queimando verba: ${c.name}`,
-      `Gastou R$ ${money(c.spend)} no período e 0 resultados.`,
-      'Pausar ou revisar criativo/segmentação imediatamente.', '#/marketing'));
-  active.filter(c => (c.results || 0) > 0 && (c.cpr || 0) > 120).forEach(c =>
-    add('ads', 'medio', `CPL alto: ${c.name}`,
-      `Custo por resultado R$ ${money(c.cpr)} (${c.results} resultados, R$ ${money(c.spend)}).`,
-      'Otimizar público/criativo ou realocar verba pra campanha mais eficiente.', '#/marketing'));
-  active.filter(c => (c.frequency || 0) > 3.2 && (c.impressions || 0) > 1000).forEach(c =>
+      `Gastou R$ ${money(c.spend)} no período e 0 resultados (limite da empresa: R$ ${money(+_th.gasto)}).`,
+      'Pausar ou revisar criativo/segmentação imediatamente.', '#/gestor-trafego'));
+  active.filter(c => (c.results || 0) > 0 && (c.cpr || 0) > alvoCpl(c)).forEach(c =>
+    add('ads', (c.cpr || 0) > alvoCpl(c) * 1.5 ? 'alto' : 'medio', `CPL acima do alvo: ${c.name}`,
+      `Custo por resultado R$ ${money(c.cpr)} vs alvo R$ ${money(alvoCpl(c))} (${c.results} resultados, R$ ${money(c.spend)}).`,
+      'Otimizar público/criativo ou realocar verba pra campanha mais eficiente.', '#/gestor-trafego'));
+  active.filter(c => (c.frequency || 0) > freqMax(c) && (c.impressions || 0) > 1000).forEach(c =>
     add('ads', 'medio', `Fadiga de criativo: ${c.name}`,
-      `Frequência ${(c.frequency || 0).toFixed(1)} — público vendo o mesmo anúncio demais.`,
-      'Trocar o criativo / ampliar o público.', '#/marketing'));
+      `Frequência ${(c.frequency || 0).toFixed(1)} acima do máximo ${freqMax(c).toFixed(1)} — público vendo o mesmo anúncio demais.`,
+      'Trocar o criativo / ampliar o público.', '#/gestor-trafego'));
 
   // ── MARKETING (ponte ads↔vendas) ──
   const sb = spendByBrand(sum.accounts);
@@ -226,6 +241,9 @@ function render() {
       </div>
       ${tabsBar()}
 
+      <!-- v88.83: o que exige ação vem primeiro — dono, prazo, tarefa e cobrança -->
+      <div id="ic-dec" style="margin-top:10px"></div>
+
       <!-- 3 pilares -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:10px">
         ${pillar('📢 Ads (Meta)', 'R$ ' + moneyShort(totalSpend), 'investido no período', '#c7861a', [
@@ -249,7 +267,8 @@ function render() {
       <div id="ic-ai-box" style="margin-top:14px"></div>
 
       <!-- Insights -->
-      <h3 class="card-title mt-4" style="margin-top:16px">⚡ Diagnóstico priorizado</h3>
+      <h3 class="card-title mt-4" style="margin-top:16px">⚡ Leitura do período</h3>
+      <div class="tiny muted">Sinais do período escolhido. O que exige ação com dono e prazo está no "Decidir agora" acima.</div>
       ${ins.length ? `<div style="display:grid;gap:8px;margin-top:8px">${ins.map(insightCard).join('')}</div>`
         : (_d.falhas && _d.falhas.length)
           ? `<div style="font-size:13px;color:var(--warn,#d97706);padding:10px">⚠️ Nenhum problema detectado nas fontes que responderam — mas <b>${_d.falhas.length}</b> não responderam (${escapeHtml(_d.falhas.join(', '))}). Diagnóstico incompleto: recarregue.</div>`
@@ -259,6 +278,7 @@ function render() {
     </div>`;
   document.getElementById('ic-preset').addEventListener('change', e => { _preset = e.target.value; reload(); });
   document.getElementById('ic-ai').addEventListener('click', runAI);
+  montarDecisoes(document.getElementById('ic-dec'), { tela: 'painel', max: 8, titulo: '🧭 Decidir agora', usuarios: _usuarios || null });
   wireTabs();   // abas do Centro (v84.5)
   _root.querySelectorAll('[data-link]').forEach(el => el.addEventListener('click', () => { location.hash = el.dataset.link; }));
 }

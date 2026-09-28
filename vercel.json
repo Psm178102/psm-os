@@ -341,6 +341,12 @@
     },
     "api/v3/intel/war_briefing.py": {
       "maxDuration": 120
+    },
+    "api/v3/intel/war_briefing_cron.py": {
+      "maxDuration": 150
+    },
+    "api/v3/ia/analyze.py": {
+      "maxDuration": 120
     }
   }
 }

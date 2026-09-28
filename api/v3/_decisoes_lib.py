@@ -20,6 +20,12 @@ Regras (todas lêem o motor único e a projeção — mesmos números das telas)
   meta_ausente        pessoa ativa sem meta no mês (ou no próximo, a partir do dia 25) → cadastrar (gestor/sócio)
   rd_hub              venda no PSM HUB sem ganho no RD (ou vice-versa) → corrigir no RD (corretor)
   sem_valor           propostas abertas sem valor no RD → preencher valor (corretor)
+  ── v88.83 (Fase 2 da Inteligência): só no Painel do sócio (?tela=painel) ──
+  ads_sem_resultado   campanhas ativas que gastaram ≥ limite da empresa em 7 d sem nenhum resultado → pausar/refazer (sócio, hoje)
+  ads_cpl_alto        campanhas com CPL acima do alvo da conta/marca → otimizar ou realocar verba (sócio)
+  ads_fadiga          campanhas com frequência acima do máximo → trocar criativo/ampliar público (sócio)
+  vigia_alerta        o Vigia marcou um movimento da concorrência como acionável (72 h) → responder (sócio)
+  Limites = os MESMOS do Cockpit Meta Ads (shared_kv 'ads_thresholds', editáveis no Marketing).
 """
 import json
 import math
@@ -45,6 +51,8 @@ TIPO_LABEL = {
     "meta_risco": "Meta em risco", "funil_curto": "Funil insuficiente", "proposta_parada": "Proposta parada",
     "lead_sem_contato": "Lead sem 1º contato", "sem_venda": "Sem venda", "oo_atrasado": "1:1 atrasado",
     "meta_ausente": "Meta não cadastrada", "rd_hub": "Venda divergente RD × HUB", "sem_valor": "Negócio sem valor",
+    "ads_sem_resultado": "Anúncio sem resultado", "ads_cpl_alto": "CPL acima do alvo", "ads_fadiga": "Criativo cansado",
+    "vigia_alerta": "Movimento da concorrência",
 }
 # em quais telas cada tipo aparece (o front filtra por ?tela=)
 TELAS = {
@@ -57,7 +65,14 @@ TELAS = {
     "meta_ausente": ("metas", "gestao", "kpis", "sala"),
     "rd_hub": ("gestao", "cerebro", "sala", "kpis"),
     "sem_valor": ("gestao", "cerebro", "oo"),
+    # v88.83: tipos da Inteligência — só aparecem no Painel (o Painel mostra TODOS os tipos)
+    "ads_sem_resultado": ("painel",), "ads_cpl_alto": ("painel",), "ads_fadiga": ("painel",),
+    "vigia_alerta": ("painel",),
 }
+ADS_TH_PADRAO = {"cpl_conquista": 25.0, "cpl_imoveis": 150.0, "cpl_locacao": 60.0, "freq": 3.0, "gasto": 30.0}  # = DEFAULT_TH do marketing.js
+ADS_JANELA = "last_7d||"          # chave do cache compartilhado do Meta (aquecido pelo meta_cache_cron)
+ADS_CACHE_MAX_H = 48              # cache mais velho que isso não gera decisão (dado parado)
+VIGIA_JANELA_H = 72
 TEAM_NOME = {"conquista": "Conquista", "map": "MAP", "terceiros": "Terceiros", "locacao": "Locação"}
 
 
@@ -345,7 +360,102 @@ def gerar(sb, hoje=None):
                 uid, hoje, team=MX.team_key(ativos[uid].get("team")), pessoa=uid,
                 impacto=((pj.get("pessoas") or {}).get(uid) or {}).get("ticket") or 0, link="#/crm-house", periodo=ym)
 
+    # 7) 🧠 Inteligência (v88.82+ Fase 2): Meta Ads com os limites da empresa + alertas do Vigia
+    try:
+        _regras_inteligencia(sb, add, hoje, socio)
+    except Exception as e:
+        print(f"[decisoes] inteligencia: {e}")
+
     return _estados(out, b, hoje)
+
+
+def _marca(label):
+    s = (label or "").lower()
+    if re.search(r"conquista|mcmv|minha casa|1º|primeiro", s):
+        return "conquista"
+    if re.search(r"loca|aluguel", s):
+        return "locacao"
+    return "imoveis"
+
+
+def _regras_inteligencia(sb, add, hoje, socio):
+    if not socio:
+        return
+    agora = datetime.now(timezone.utc)
+    semana = hoje.isocalendar()
+    per = f"{semana[0]}-W{semana[1]:02d}"   # a decisão vive a semana toda (liga com a tarefa e cobra)
+
+    # ── Meta Ads (últimos 7 dias, cache compartilhado) ──
+    cfg = MX._kv_read(sb, "ads_thresholds") or {}
+    th = dict(ADS_TH_PADRAO)
+    for k, v in ((cfg.get("th") if isinstance(cfg, dict) else None) or {}).items():
+        try:
+            if k in th and v is not None:
+                th[k] = float(v)
+        except (TypeError, ValueError):
+            pass
+    contas = (cfg.get("contas") if isinstance(cfg, dict) else None) or {}
+    rows = sb.table("meta_ads_cache").select("payload,refreshed_at").eq("cache_key", ADS_JANELA).limit(1).execute().data or []
+    ref = MX.parse_dt(rows[0].get("refreshed_at")) if rows else None
+    payload = rows[0].get("payload") if rows else None
+    if isinstance(payload, dict) and ref and (agora - ref) < timedelta(hours=ADS_CACHE_MAX_H):
+        camps = [c for c in (payload.get("campaigns") or []) if str(c.get("status") or "").lower() == "active"]
+
+        def f(c, k):
+            try:
+                return float(c.get(k) or 0)
+            except (TypeError, ValueError):
+                return 0.0
+
+        def alvo_cpl(c):
+            conta = contas.get(str(c.get("accountId") or "")) or {}
+            return float(conta.get("cpl") or th["cpl_" + _marca(c.get("account"))])
+
+        def freq_max(c):
+            conta = contas.get(str(c.get("accountId") or "")) or {}
+            return float(conta.get("freq") or th["freq"])
+
+        dado = f"dado do Meta de {(ref - timedelta(hours=3)).strftime('%d/%m %H:%M')}"
+        queimando = sorted([c for c in camps if f(c, "spend") >= th["gasto"] and f(c, "results") == 0],
+                           key=lambda c: -f(c, "spend"))
+        if queimando:
+            tot = sum(f(c, "spend") for c in queimando)
+            add("ads_sem_resultado", "meta", "critico",
+                f"Pausar ou refazer {len(queimando)} campanha{'s' if len(queimando) > 1 else ''} que gasta{'m' if len(queimando) > 1 else ''} sem resultado",
+                f"Nos últimos 7 dias gastaram {_brl(tot)} e geraram 0 resultados (limite da empresa: {_brl(th['gasto'])} sem resultado · {dado}).",
+                socio, hoje, impacto=0, link="#/gestor-trafego", periodo=per,
+                itens=[{"id": c.get("id"), "nome": f"{c.get('name')} — {_brl(f(c, 'spend'))}"} for c in queimando])
+        caros = sorted([c for c in camps if f(c, "results") > 0 and f(c, "cpr") > alvo_cpl(c)],
+                       key=lambda c: -(f(c, "cpr") / max(alvo_cpl(c), 1)))
+        if caros:
+            pior = max(f(c, "cpr") / max(alvo_cpl(c), 1) for c in caros)
+            add("ads_cpl_alto", "meta", "critico" if pior >= 1.5 else "atencao",
+                f"Otimizar ou realocar verba de {len(caros)} campanha{'s' if len(caros) > 1 else ''} com CPL acima do alvo",
+                f"A pior está {_n((pior - 1) * 100)}% acima do alvo da marca/conta (alvos: Conquista {_brl(th['cpl_conquista'])} · "
+                f"Imóveis {_brl(th['cpl_imoveis'])} · Locação {_brl(th['cpl_locacao'])} · {dado}).",
+                socio, _dia_util_mais(hoje, 1), link="#/gestor-trafego", periodo=per,
+                itens=[{"id": c.get("id"), "nome": f"{c.get('name')} — CPL {_brl(f(c, 'cpr'))} (alvo {_brl(alvo_cpl(c))})"} for c in caros])
+        cansados = [c for c in camps if f(c, "frequency") > freq_max(c) and f(c, "impressions") > 1000]
+        if cansados:
+            add("ads_fadiga", "meta", "atencao",
+                f"Trocar criativo ou ampliar público de {len(cansados)} campanha{'s' if len(cansados) > 1 else ''}",
+                f"Frequência acima do máximo da empresa ({_n(th['freq'])}): o mesmo público está vendo o mesmo anúncio demais · {dado}.",
+                socio, _dia_util_mais(hoje, 2), link="#/gestor-trafego", periodo=per,
+                itens=[{"id": c.get("id"), "nome": f"{c.get('name')} — frequência {_n(f(c, 'frequency'))}"} for c in cansados])
+
+    # ── Vigia de concorrência: só o que a IA marcou como acionável ──
+    vg = MX._kv_read(sb, "gt_vigia") or {}
+    for ins in ((vg.get("insights") if isinstance(vg, dict) else None) or [])[:12]:
+        if not isinstance(ins, dict) or not ins.get("alerta"):
+            continue
+        ts = MX.parse_dt(ins.get("ts"))
+        if not ts or (agora - ts) > timedelta(hours=VIGIA_JANELA_H):
+            continue
+        add("vigia_alerta", ts.strftime("%Y%m%d%H%M"), "critico",
+            ("Responder à concorrência: " + str(ins.get("titulo") or "movimento detectado"))[:140],
+            str(ins.get("insight") or "O Vigia marcou este movimento como acionável.")[:400],
+            socio, _dia_util_mais(hoje, 1), link="#/concorrencia?tab=visao",
+            itens=[{"nome": str(a)[:200]} for a in (ins.get("acoes") or [])[:5]])
 
 
 def _estados(decs, b, hoje):
@@ -424,7 +534,7 @@ def filtrar(decs, user, tela=None, team=None, pessoa=None):
                     continue
             elif d["dono"]["id"] != uid and (d.get("pessoa") or {}).get("id") != uid:
                 continue
-        if tela and tela not in d["telas"]:
+        if tela and tela != "painel" and tela not in d["telas"]:   # v88.83: o Painel (sócio) vê todos os tipos
             continue
         if team and d.get("team") != team:
             continue

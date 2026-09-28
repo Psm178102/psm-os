@@ -226,7 +226,8 @@ def _rodar(sb, forcado=False, actor_name="vigia"):
                     + (("\n\n📌 RESUMO: " + insight) if insight else "")
                     + ("\n\n" + relatorio if relatorio else "")
                     + ("\n\n⚡ AÇÕES:\n" + "\n".join(f"• {a}" for a in acoes) if acoes else ""))
-        insights.insert(0, {"ts": now.isoformat(), "titulo": titulo, "insight": insight, "acoes": acoes})
+        insights.insert(0, {"ts": now.isoformat(), "titulo": titulo, "insight": insight, "acoes": acoes,
+                             "alerta": bool(resultado.get("alerta"))})   # v88.83: o Painel da Inteligência vira decisão só o acionável
         try:
             box = kv_get(sb, KV_RELATORIOS, {"itens": []})
             itens = box.get("itens") or []

@@ -47,11 +47,15 @@ def _gemini(model, system, prompt, max_tokens):
     # thinkingBudget:0 — sem isso o Gemini 2.5 gasta o teto em "pensamento" e CORTA
     # a resposta no meio (mesmo tratamento do legado ia/roteiro). Modelos sem suporte
     # ao campo devolvem 400 → refaz sem ele.
+    # v88.83: o 2.5 PRO só funciona pensando — thinkingBudget:0 dá 400 e o Briefing caía no legado
+    # ("gemini-2.5-flash (fallback)" em 23 de 27 briefings). Pro ganha orçamento próprio de raciocínio,
+    # somado ao teto de saída pra não cortar a resposta.
+    pensa = 2048 if "pro" in (model or "") else 0
     payload = {
         "systemInstruction": {"parts": [{"text": system}]},
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-        "generationConfig": {"maxOutputTokens": max_tokens, "temperature": 0.6,
-                             "thinkingConfig": {"thinkingBudget": 0}},
+        "generationConfig": {"maxOutputTokens": max_tokens + pensa, "temperature": 0.6,
+                             "thinkingConfig": {"thinkingBudget": pensa}},
     }
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     def _call(pl):
@@ -189,6 +193,7 @@ class handler(BaseHTTPRequestHandler):
         else:
             res = _gemini(model, system, final, max_tokens)
         if not res.get("ok"):
+            print(f"[ia/analyze] {model} falhou, indo pro legado: {res.get('error')}")   # v88.83: antes o motivo sumia
             try:
                 leg = _legacy_fallback(final, model, max_tokens)
                 if leg.get("ok") and leg.get("text"):

@@ -8,6 +8,7 @@
    a decisão volta ao topo como crítica. Fonte: /api/v3/metricas/decisoes (api/v3/_decisoes_lib.py).
 
    Uso:  montarDecisoes(el, { tela: 'gestao', team: 'conquista', pessoa: 'kadu', max: 5, titulo: '…' })
+   v88.83: opts.usuarios = [{id, nome}] → mostra "responsável" pra delegar a QUALQUER usuário ativo (Painel do sócio).
 ============================================================================ */
 import { api } from './api.js';
 import { auth } from './auth.js';
@@ -101,7 +102,7 @@ function render(el, o, data, todas) {
     const cor = d.estado.status === 'dispensada' ? 'var(--border)' : d.nivel === 'critico' ? 'var(--err,#dc2626)' : 'var(--warn,#d97706)';
     const souDono = d.dono.id === me.id;
     const podeTarefa = ['nova', 'persistiu'].includes(d.estado.status) && (souDono || lvl >= 5);
-    const itens = (d.itens || []).length ? `<details><summary>${d.itens.length} ${d.tipo.startsWith('meta') ? 'pessoa(s)' : 'negócio(s)'}</summary><ul>${d.itens.map(i =>
+    const itens = (d.itens || []).length ? `<details><summary>${d.itens.length} ${d.tipo.startsWith('meta') ? 'pessoa(s)' : d.tipo.startsWith('ads_') ? 'campanha(s)' : d.tipo === 'vigia_alerta' ? 'ação(ões) sugerida(s)' : 'negócio(s)'}</summary><ul>${d.itens.map(i =>
       `<li>${esc(i.nome)}${i.dias != null ? ` — <b>${i.dias} dias</b> parado` : ''}${i.horas != null ? ` — <b>${i.horas}h</b> sem contato` : ''}${i.valor ? ` — R$ ${(Number(i.valor) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}</li>`).join('')}</ul></details>` : '';
     const prazoVencido = d.prazo < hoje;
     return `<div class="dz-it" style="--dzc:${cor}" data-dz="${esc(d.id)}">
@@ -119,7 +120,8 @@ function render(el, o, data, todas) {
         ${itens}
       </div>
       <div class="acts">
-        ${podeTarefa ? `<button class="btn btn-primary btn-sm" data-dz-t="${esc(d.id)}">📌 ${souDono ? 'Pôr na minha agenda' : 'Delegar a ' + esc(d.dono.name.split(' ')[0])}</button>` : ''}
+        ${podeTarefa && o.usuarios && lvl >= 5 ? `<select class="select" data-dz-r="${esc(d.id)}" style="padding:3px 6px;font-size:12px" title="quem vai executar">${o.usuarios.map(u => `<option value="${esc(u.id)}"${u.id === d.dono.id ? ' selected' : ''}>${esc(u.id === me.id ? 'eu (' + u.nome.split(' ')[0] + ')' : u.nome)}</option>`).join('')}</select>` : ''}
+        ${podeTarefa ? `<button class="btn btn-primary btn-sm" data-dz-t="${esc(d.id)}">📌 ${o.usuarios && lvl >= 5 ? 'Virar tarefa' : souDono ? 'Pôr na minha agenda' : 'Delegar a ' + esc(d.dono.name.split(' ')[0])}</button>` : ''}
         ${d.link ? `<a class="btn btn-ghost btn-sm" href="${esc(d.link)}">Ir agir →</a>` : ''}
         ${lvl >= 5 && d.estado.status !== 'dispensada' ? `<button class="btn btn-ghost btn-sm" data-dz-x="${esc(d.id)}" title="some por 7 dias, com motivo registrado">Dispensar</button>` : ''}
       </div>
@@ -135,7 +137,8 @@ function render(el, o, data, todas) {
   el.querySelectorAll('[data-dz-t]').forEach(b => b.addEventListener('click', async () => {
     b.disabled = true; b.textContent = 'criando…';
     try {
-      const r = await api.request('/api/v3/metricas/decisoes', { method: 'POST', body: { acao: 'tarefa', id: b.dataset.dzT } });
+      const resp = [...el.querySelectorAll('[data-dz-r]')].find(x => x.dataset.dzR === b.dataset.dzT)?.value || null;   // (CSS aqui é a folha de estilo local, não window.CSS)
+      const r = await api.request('/api/v3/metricas/decisoes', { method: 'POST', body: { acao: 'tarefa', id: b.dataset.dzT, responsavel: resp } });
       b.textContent = r.ja_existe ? '✓ já estava na agenda' : '✓ na agenda';
       _cache.clear();
       setTimeout(() => montarDecisoes(el, { ...o, fresh: true }), 700);

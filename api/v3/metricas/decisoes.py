@@ -92,6 +92,18 @@ class handler(BaseHTTPRequestHandler):
             if dec["estado"]["status"] in ("em_andamento", "atrasada") and dec["estado"].get("task_id"):
                 return self._send(200, {"ok": True, "ja_existe": True, "task_id": dec["estado"]["task_id"]})
             dono = dec["dono"]["id"]
+            # v88.83: quem vira a tarefa pode escolher OUTRO responsável (o sócio delega a qualquer usuário ativo)
+            resp = str(body.get("responsavel") or "").strip() or dono
+            if resp != dono:
+                if lvl < 5:
+                    return self._send(403, {"ok": False, "error": "só a gestão delega decisão para outra pessoa"})
+                try:
+                    ok_u = sb.table("users").select("id,status").eq("id", resp).limit(1).execute().data or []
+                except Exception:
+                    ok_u = []
+                if not ok_u or (ok_u[0].get("status") or "ativo") != "ativo":
+                    return self._send(400, {"ok": False, "error": "responsável não encontrado ou inativo"})
+                dono = resp
             if dono != user.get("id") and lvl < 5:
                 return self._send(403, {"ok": False, "error": "só a gestão delega decisão para outra pessoa"})
             itens = "\n".join(f"• {i.get('nome')}" + (f" — {i['dias']} dias parado" if i.get("dias") is not None else "")
