@@ -669,22 +669,28 @@ def _gestor_context(sb):
             return None
 
     sim_txt = []
+    # v88.92: um cenário por marca (Conquista × PSM Imóveis) — réguas diferentes
     sl = _kv("gt_sim_leads")
-    if isinstance(sl, dict) and sl.get("dados"):
-        idade = _idade_dias(sl.get("atualizado_em"))
-        auto = str(sl.get("origem") or "") == "auto"
+    marcas_sl = (sl.get("marcas") or {}) if isinstance(sl, dict) else {}
+    for mk, lbl in (("conquista", "PSM Conquista"), ("imoveis", "PSM Imóveis")):
+        reg = marcas_sl.get(mk)
+        if not (isinstance(reg, dict) and reg.get("dados")):
+            sim_txt.append("📈 LEADS/CAC [%s]: SEM CENÁRIO SALVO — não recomende verba nova nessa marca antes de pedir o preenchimento." % lbl)
+            continue
+        idade = _idade_dias(reg.get("atualizado_em"))
+        auto = str(reg.get("origem") or "") == "auto"
         sim_txt.append(
-            ("⚠️ LEADS/CAC — CENÁRIO PADRÃO NÃO VALIDADO (foi semeado sozinho ao abrir a aba, ninguém "
+            ("⚠️ LEADS/CAC [%s] — CENÁRIO PADRÃO NÃO VALIDADO (foi semeado sozinho ao abrir a aba, ninguém "
              "conferiu os números): trate como rascunho, NÃO cite como premissa do sócio e peça a "
-             "validação antes de usar em decisão de verba.\n" if auto else "") +
-            "📈 LEADS/CAC (%s por %s%s)\n  entradas: %s\n  resultado: %s" % (
-                "semeado" if auto else "editado",
-                sl.get("por") or "—",
+             "validação antes de usar em decisão de verba.\n" % lbl if auto else "") +
+            "📈 LEADS/CAC [%s] (%s por %s%s)%s\n  entradas: %s\n  resultado: %s" % (
+                lbl,
+                "semeado" if auto else "validado",
+                reg.get("por") or "—",
                 (", há %sd" % idade) if idade is not None else "",
-                json.dumps(sl.get("dados") or {}, ensure_ascii=False)[:1200],
-                json.dumps(sl.get("resultado") or {}, ensure_ascii=False)[:1200]))
-    else:
-        sim_txt.append("📈 LEADS/CAC: SEM CENÁRIO SALVO — não recomende verba nova antes de pedir o preenchimento.")
+                ("\n  origem dos números: " + str(reg.get("nota"))[:400]) if reg.get("nota") else "",
+                json.dumps(reg.get("dados") or {}, ensure_ascii=False)[:1200],
+                json.dumps(reg.get("resultado") or {}, ensure_ascii=False)[:1200]))
 
     try:
         rows = sb.table("estrategia_boards").select("data,updated_at").eq("board", "sim_trafego").limit(1).execute().data or []

@@ -5,7 +5,7 @@
 import { ATTR_NUM, parseNum, numCampo } from '../sim-campos.js';
 import { api } from '../api.js';
 
-const KEY = 'psm_v2_sim_leads';
+const KEY = 'psm_v2_sim_leads_marcas';   // v88.92: um cenário por marca
 const DEFAULTS = {
   // Investimento mensal
   metaAds: 10000, googleAds: 5000, instagramOrg: 0,
@@ -16,36 +16,53 @@ const DEFAULTS = {
   // Vendas
   ticketMedio: 600000, comissaoPct: 6,
 };
-let _root, _s;
+// v88.92: Conquista (MCMV) e PSM Imóveis (MAP/Terceiros) têm verba, CPL, funil e
+// ticket de mundos diferentes — um cenário só misturava as duas réguas.
+const MARCAS = { conquista: 'PSM Conquista', imoveis: 'PSM Imóveis' };
+let _root, _s, _marca = 'conquista', _todos = {}, _info = {};
 
 export async function pageSimLeads(ctx, root) {
   _root = root;
-  try { _s = Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch { _s = { ...DEFAULTS }; }
+  let local = {};
+  try { local = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch {}
+  Object.keys(MARCAS).forEach(m => { _todos[m] = Object.assign({}, DEFAULTS, local[m] || {}); });
+  _s = _todos[_marca];
   render();
   // v88.72: o cenário mora no banco pra o Sr. Gestor de Tráfego enxergar. O que
   // estiver salvo no servidor manda sobre o rascunho local deste navegador.
   try {
     const r = await api.request('/api/v3/marketing/gestor?action=sim_leads');
-    const d = r && r.ok && r.sim && r.sim.dados;
-    if (d && Object.keys(d).length) { _s = Object.assign({}, DEFAULTS, d); render(); }
-    else if (r && r.ok) { save('auto'); }   // v88.76: banco vazio → semeia com o cenário da tela.
-    // Sem isso o cenário só subia se alguém EDITASSE um campo, e o agente ficava
-    // repetindo "sem cenário salvo" mesmo com a tela aberta na frente do sócio.
+    if (!(r && r.ok)) return;
+    const mk = r.marcas || {};
+    Object.keys(MARCAS).forEach(m => {
+      const reg = mk[m];
+      if (reg && reg.dados && Object.keys(reg.dados).length) {
+        _todos[m] = Object.assign({}, DEFAULTS, reg.dados);
+        _info[m] = reg;
+      } else {
+        save('auto', m);   // v88.76: banco vazio → semeia com o cenário da tela (marcado 'auto')
+      }
+    });
+    _s = _todos[_marca];
+    render();
   } catch {}
 }
 
-function save(origem) {
-  try { localStorage.setItem(KEY, JSON.stringify(_s)); } catch {}
-  // sobe pro banco em lote (o usuário digita rápido; 1 gravação a cada 800ms)
-  clearTimeout(window._slt);
-  window._slt = setTimeout(async () => {
-    try { await api.request('/api/v3/marketing/gestor', { method: 'POST', body: { action: 'sim_leads', dados: _s, resultado: compute(), origem: origem || 'editado' } }); } catch {}
+function save(origem, marca) {
+  const m = marca || _marca;
+  try { localStorage.setItem(KEY, JSON.stringify(_todos)); } catch {}
+  // sobe pro banco em lote (o usuário digita rápido; 1 gravação a cada 800ms por marca)
+  window._slt = window._slt || {};
+  clearTimeout(window._slt[m]);
+  window._slt[m] = setTimeout(async () => {
+    try { await api.request('/api/v3/marketing/gestor', { method: 'POST', body: { action: 'sim_leads', marca: m, dados: _todos[m], resultado: compute(_todos[m]), origem: origem || 'editado' } }); } catch {}
   }, 800);
 }
 
-function compute() {
+function compute(st) {
+  const src = st || _s;
   const v = {};
-  Object.keys(DEFAULTS).forEach(k => { v[k] = +_s[k] || 0; });
+  Object.keys(DEFAULTS).forEach(k => { v[k] = +src[k] || 0; });
   const invMidia = v.metaAds + v.googleAds;
   const invTotal = invMidia + v.instagramOrg;
   const cliques = v.cpc > 0 ? invMidia / v.cpc : 0;
@@ -71,7 +88,11 @@ function render() {
     <style>@media(max-width:900px){.ld-grid{grid-template-columns:minmax(0,1fr) !important}}</style>
     <div class="card">
       <h2 class="card-title">🎯 Simulador Leads / CAC</h2>
-      <p class="card-sub">Custo por lead, CAC, conversão de funil e ROI do investimento em marketing</p>
+      <p class="card-sub">Custo por lead, CAC, conversão de funil e ROI do investimento em marketing — um cenário por marca</p>
+      <div class="flex gap-2" style="margin-top:10px;flex-wrap:wrap;align-items:center">
+        ${Object.entries(MARCAS).map(([m, lbl]) => `<button class="btn ${m === _marca ? 'btn-primary' : 'btn-ghost'}" data-marca="${m}">${lbl}</button>`).join('')}
+        <span class="tiny muted">${origemTxt(_info[_marca])}</span>
+      </div>
 
       <div class="ld-grid" style="display:grid;grid-template-columns:300px minmax(0,1fr);gap:14px;margin-top:12px;align-items:start">
         <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:14px">
@@ -167,9 +188,16 @@ function funnelStep(label, value, p, color) {
 
 function bind() {
   _root.querySelectorAll('[data-key]').forEach(el => {
-    el.addEventListener('input', () => { _s[el.dataset.key] = parseNum(el.value); save(); pintaSaida(); });
+    el.addEventListener('input', () => {
+      _s[el.dataset.key] = parseNum(el.value);
+      _info[_marca] = { ...(_info[_marca] || {}), origem: 'editado' };
+      save(); pintaSaida();
+    });
     el.addEventListener('blur', () => { el.value = numCampo(_s[el.dataset.key]); });
   });
+  _root.querySelectorAll('[data-marca]').forEach(b => b.addEventListener('click', () => {
+    _marca = b.dataset.marca; _s = _todos[_marca]; render();
+  }));
   const back = _root.querySelector('[data-back]'); if (back) back.addEventListener('click', () => location.hash = '/simuladores');
 }
 
@@ -186,3 +214,14 @@ function mini(label, value, color) {
 }
 
 function fmt(n) { return 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+function origemTxt(reg) {
+  if (!reg || !reg.origem) return '';
+  if (reg.origem === 'auto') return '⚠️ valores padrão — ninguém validou; o agente não usa como premissa';
+  const quando = reg.atualizado_em ? new Date(reg.atualizado_em).toLocaleDateString('pt-BR') : '';
+  return `✅ premissas validadas${reg.por ? ' por ' + txt(reg.por) : ''}${quando ? ' em ' + quando : ''}${reg.nota ? ' — ' + txt(reg.nota) : ''}`;
+}
+
+function txt(v) {
+  return String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}

@@ -103,6 +103,16 @@ def kv_set(sb, key, value):
     sb.table("shared_kv").upsert({"key": key, "value": value}, on_conflict="key").execute()
 
 
+SIM_MARCAS = ("conquista", "imoveis")
+
+
+def sim_leads_marcas(sb):
+    """v88.92: cenário do Simulador Leads/CAC POR MARCA → {conquista: reg, imoveis: reg}.
+    O formato antigo (um cenário só, v88.72–88.91) não diz de qual marca é — fica de fora."""
+    sl = kv_get(sb, KV_SIMLEADS, {}) or {}
+    mk = sl.get("marcas") if isinstance(sl, dict) else None
+    return {m: r for m, r in (mk or {}).items() if m in SIM_MARCAS and isinstance(r, dict) and r.get("dados")}
+
 def _now_iso():
     return datetime.now(timezone.utc).isoformat()
 
@@ -706,11 +716,12 @@ class handler(BaseHTTPRequestHandler):
             recs = recs_get(sb)
             pend = [r for r in recs if r.get("estado") == "pendente"]
             precisa = []
-            sl = kv_get(sb, KV_SIMLEADS, {}) or {}
-            if not sl.get("dados") or sl.get("origem") == "auto":
-                precisa.append({"tipo": "simulador", "texto": "Validar as premissas do Simulador Leads/CAC — hoje ele "
-                                "tem só os valores padrão, e o agente não pode decidir verba em cima deles.",
-                                "ir": "simleads"})
+            sims = sim_leads_marcas(sb)
+            faltam = [("PSM Conquista" if m == "conquista" else "PSM Imóveis") for m in SIM_MARCAS
+                      if (sims.get(m) or {}).get("origem") in (None, "auto")]
+            if faltam:
+                precisa.append({"tipo": "simulador", "texto": "Validar as premissas do Simulador Leads/CAC (" + " e ".join(faltam) +
+                                ") — sem elas o agente não pode decidir verba.", "ir": "simleads"})
             lim_ddd = float(limiares.get("ddd_fora_max_pct") or 25)
             for marca, o in situacao.items():
                 if o.get("pct_fora") is not None and o["pct_fora"] > lim_ddd:
@@ -847,7 +858,8 @@ class handler(BaseHTTPRequestHandler):
 
         # v88.72: cenário salvo do Simulador Leads/CAC — o agente e a aba leem daqui
         if action == "sim_leads":
-            return self._send(200, {"ok": True, "sim": kv_get(sb, KV_SIMLEADS, {}) or {}})
+            sims = sim_leads_marcas(sb)
+            return self._send(200, {"ok": True, "marcas": sims, "sim": sims.get("conquista") or {}})
 
         return self._send(400, {"ok": False, "error": "action inválida"})
 
@@ -1172,8 +1184,12 @@ class handler(BaseHTTPRequestHandler):
         if action == "sim_leads":
             dados = body.get("dados")
             resultado = body.get("resultado")
+            marca = str(body.get("marca") or "")
             if not isinstance(dados, dict):
                 return self._send(400, {"ok": False, "error": "dados precisa ser objeto"})
+            if marca not in SIM_MARCAS:
+                # v88.92: navegador com a versão antiga (cenário único) — não sabe a marca, não grava
+                return self._send(400, {"ok": False, "error": "marca precisa ser conquista ou imoveis (recarregue a página)"})
             reg = {
                 "dados": {k: dados[k] for k in list(dados)[:60]},
                 "resultado": resultado if isinstance(resultado, dict) else {},
@@ -1183,7 +1199,12 @@ class handler(BaseHTTPRequestHandler):
                 # 'editado' = o sócio mexeu nos campos. O agente trata os dois diferente.
                 "origem": "auto" if str(body.get("origem") or "") == "auto" else "editado",
             }
-            kv_set(sb, KV_SIMLEADS, reg)
+            atual = sim_leads_marcas(sb)
+            # semear ('auto') nunca apaga premissa que o sócio já validou
+            if reg["origem"] == "auto" and (atual.get(marca) or {}).get("origem") not in (None, "auto"):
+                return self._send(200, {"ok": True, "sim": atual[marca], "ignorado": "já validado"})
+            atual[marca] = reg
+            kv_set(sb, KV_SIMLEADS, {"marcas": atual})
             return self._send(200, {"ok": True, "sim": reg})
 
         return self._send(400, {"ok": False, "error": "action inválida"})

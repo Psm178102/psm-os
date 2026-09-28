@@ -140,14 +140,21 @@ def _contexto(sb):
     # dois simuladores. Aqui vão os cenários salvos — o relatório amarra a
     # sugestão neles em vez de inventar CPL alvo e custo por venda.
     try:
+        # v88.92: um cenário por marca; 'auto' = valores padrão que ninguém validou
         sl = kv_get(sb, "gt_sim_leads", {}) or {}
-        if sl.get("dados"):
-            parts.append("🧮 SIMULADOR LEADS/CAC (cenário salvo, editado por %s em %s):\n  entradas: %s\n  resultado: %s"
-                         % (sl.get("por") or "—", str(sl.get("atualizado_em"))[:16],
-                            json.dumps(sl.get("dados") or {}, ensure_ascii=False)[:900],
-                            json.dumps(sl.get("resultado") or {}, ensure_ascii=False)[:900]))
-        else:
-            parts.append("🧮 SIMULADOR LEADS/CAC: sem cenário salvo — avise que falta preencher antes de pedir verba nova.")
+        for mk, lbl in (("conquista", "PSM Conquista"), ("imoveis", "PSM Imóveis")):
+            reg = ((sl.get("marcas") or {}) if isinstance(sl, dict) else {}).get(mk) or {}
+            if not reg.get("dados"):
+                parts.append("🧮 SIMULADOR LEADS/CAC [%s]: sem cenário salvo — avise que falta preencher antes de pedir verba nova." % lbl)
+            elif reg.get("origem") == "auto":
+                parts.append("🧮 SIMULADOR LEADS/CAC [%s]: só valores padrão, NÃO validados — não use como premissa; "
+                             "peça a validação antes de recomendar verba." % lbl)
+            else:
+                parts.append("🧮 SIMULADOR LEADS/CAC [%s] (validado por %s em %s)%s:\n  entradas: %s\n  resultado: %s"
+                             % (lbl, reg.get("por") or "—", str(reg.get("atualizado_em"))[:16],
+                                (" — " + str(reg.get("nota"))[:300]) if reg.get("nota") else "",
+                                json.dumps(reg.get("dados") or {}, ensure_ascii=False)[:900],
+                                json.dumps(reg.get("resultado") or {}, ensure_ascii=False)[:900]))
         rows = sb.table("estrategia_boards").select("data,updated_at").eq("board", "sim_trafego").limit(1).execute().data or []
         cfg_st = (((rows[0] if rows else {}).get("data") or {}).get("cfg") or {})
         if cfg_st:
