@@ -862,6 +862,9 @@ class handler(BaseHTTPRequestHandler):
                 "resultado": resultado if isinstance(resultado, dict) else {},
                 "atualizado_em": agora_brt().isoformat(),
                 "por": user.get("name") or user.get("id"),
+                # 'auto' = semeado ao abrir a aba (valores padrão, ninguém validou);
+                # 'editado' = o sócio mexeu nos campos. O agente trata os dois diferente.
+                "origem": "auto" if str(body.get("origem") or "") == "auto" else "editado",
             }
             kv_set(sb, KV_SIMLEADS, reg)
             return self._send(200, {"ok": True, "sim": reg})

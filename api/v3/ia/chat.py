@@ -672,8 +672,13 @@ def _gestor_context(sb):
     sl = _kv("gt_sim_leads")
     if isinstance(sl, dict) and sl.get("dados"):
         idade = _idade_dias(sl.get("atualizado_em"))
+        auto = str(sl.get("origem") or "") == "auto"
         sim_txt.append(
-            "📈 LEADS/CAC (editado por %s%s)\n  entradas: %s\n  resultado: %s" % (
+            ("⚠️ LEADS/CAC — CENÁRIO PADRÃO NÃO VALIDADO (foi semeado sozinho ao abrir a aba, ninguém "
+             "conferiu os números): trate como rascunho, NÃO cite como premissa do sócio e peça a "
+             "validação antes de usar em decisão de verba.\n" if auto else "") +
+            "📈 LEADS/CAC (%s por %s%s)\n  entradas: %s\n  resultado: %s" % (
+                "semeado" if auto else "editado",
                 sl.get("por") or "—",
                 (", há %sd" % idade) if idade is not None else "",
                 json.dumps(sl.get("dados") or {}, ensure_ascii=False)[:1200],

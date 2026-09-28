@@ -28,18 +28,18 @@ export async function pageSimLeads(ctx, root) {
     const r = await api.request('/api/v3/marketing/gestor?action=sim_leads');
     const d = r && r.ok && r.sim && r.sim.dados;
     if (d && Object.keys(d).length) { _s = Object.assign({}, DEFAULTS, d); render(); }
-    else if (r && r.ok) { save(); }   // v88.76: banco vazio → semeia com o cenário da tela.
+    else if (r && r.ok) { save('auto'); }   // v88.76: banco vazio → semeia com o cenário da tela.
     // Sem isso o cenário só subia se alguém EDITASSE um campo, e o agente ficava
     // repetindo "sem cenário salvo" mesmo com a tela aberta na frente do sócio.
   } catch {}
 }
 
-function save() {
+function save(origem) {
   try { localStorage.setItem(KEY, JSON.stringify(_s)); } catch {}
   // sobe pro banco em lote (o usuário digita rápido; 1 gravação a cada 800ms)
   clearTimeout(window._slt);
   window._slt = setTimeout(async () => {
-    try { await api.request('/api/v3/marketing/gestor', { method: 'POST', body: { action: 'sim_leads', dados: _s, resultado: compute() } }); } catch {}
+    try { await api.request('/api/v3/marketing/gestor', { method: 'POST', body: { action: 'sim_leads', dados: _s, resultado: compute(), origem: origem || 'editado' } }); } catch {}
   }, 800);
 }
 
