@@ -1,5 +1,5 @@
 /* ============================================================================
-   PSM-OS v2 — 📺 TV DIRETORIA (v88.83 — centro de comando em 5 telas)
+   PSM-OS v2 — 📺 TV DIRETORIA (v88.88 — centro de comando em 5 telas)
    Segunda tela em tempo real do Paulo e da Isa (SÓ SÓCIO, lvl 10).
 
    Linguagem pedida pelo Paulo (referências Pinterest, 27/set): fundo preto, neon
@@ -8,8 +8,9 @@
      1 Visão geral — KPIs, VGV no ano, funil, pipeline, ranking, pilares, conta cheia
      2 Comercial   — placar por equipe (funil + projeção), hoje (plantão/visitas),
                      perdas e motivos, resposta/conversão por marca, carteira em risco
-     3 Marketing   — mídia × orçamento, custo por resultado, CAC, ROAS por frente,
-                     30 dias de gasto/resultados, contas, campanhas, origem dos leads
+     3 Mídia→Venda — a mídia vira venda? corrente R$ → lead → atendido → visita →
+                     venda → VGV por marca; vazamentos de REGIÃO (lead fora da praça)
+                     e VELOCIDADE (1º contato); qual canal vende de verdade
      4 Financeiro  — caixa HUB, recebíveis (recebido/previsto/travado), caixa 10
                      semanas com furo, Plano de Resgate, vencidos, equilíbrio por frente
      5 Pilares     — os 10 placares do Farol PSM com TODOS os indicadores
@@ -32,7 +33,7 @@ const CAT = ['#9ef01a', '#ffd23f', '#ff8a1f', '#ff5c5c', '#a78bfa', '#2ee6c5', '
 const TELAS = [
   { id: 'geral',      lbl: 'Visão geral', ico: 'gauge' },
   { id: 'comercial',  lbl: 'Comercial',   ico: 'handshake' },
-  { id: 'marketing',  lbl: 'Marketing',   ico: 'megaphone' },
+  { id: 'marketing',  lbl: 'Mídia → Venda', ico: 'megaphone' },
   { id: 'financeiro', lbl: 'Financeiro',  ico: 'wallet' },
   { id: 'pilares',    lbl: 'Pilares',     ico: 'shield' },
 ];
@@ -55,11 +56,11 @@ const FONTES = {
   decisoes:  { url: () => '/api/v3/metricas/decisoes?tela=sala', ttl: 300, telas: ['geral'] },
   hubPainel: { url: () => '/api/v3/psmhub/financeiro?secao=painel', ttl: 300, telas: ['geral', 'financeiro'] },
   hubContas: { url: () => '/api/v3/psmhub/financeiro?secao=contas', ttl: 300, telas: ['geral', 'financeiro'] },
-  resumo:    { url: () => '/api/v3/metricas/resumo?preset=this_month', ttl: 300, telas: ['comercial', 'marketing'] },
-  crm:       { url: () => '/api/v3/marketing/crm_metrics?date_preset=this_month', ttl: 600, telas: ['comercial'] },
+  resumo:    { url: () => '/api/v3/metricas/resumo?preset=this_month', ttl: 300, telas: ['comercial'] },
+  crm:       { url: () => '/api/v3/marketing/crm_metrics?date_preset=this_month', ttl: 600, telas: ['comercial', 'marketing'] },
   oo:        { url: () => '/api/v3/oo/overview?date_preset=this_month', ttl: 300, telas: ['comercial'] },
   mkt:       { url: () => '/api/v3/marketing/summary?date_preset=this_month', ttl: 600, telas: ['marketing'] },
-  mktTs:     { url: () => '/api/v3/marketing/meta_timeseries?date_preset=last_30d', ttl: 1800, telas: ['marketing'] },
+  geo:       { url: () => '/api/v3/marketing/leads_geo?date_preset=this_month', ttl: 1800, telas: ['marketing'] },   // varre os deals do mês sem cache: 30 min
   adsTh:     { url: () => '/api/v3/marketing/ads_thresholds', ttl: 3600, telas: ['marketing'] },
   planoAds:  { url: () => '/api/v3/diretoria/plano_ads', ttl: 900, telas: ['marketing'] },
   caixa:     { url: D => '/api/v3/diretoria/caixa?ym=' + D.ym, ttl: 900, telas: ['financeiro'] },
@@ -315,8 +316,8 @@ const ESQ = {
   comercial: () => `<div class="eq4" id="c-eq"></div>
     <div class="gc">${PANEL('c-hoje')}${PANEL('c-perdas')}${PANEL('c-marcas')}${PANEL('c-risco')}</div>`,
   marketing: () => `<div class="kpis" id="m-kpis"></div>
-    <div class="gm1">${PANEL('m-gasto')}${PANEL('m-leads')}${PANEL('m-roas')}</div>
-    <div class="gm2">${PANEL('m-contas')}${PANEL('m-camp')}${PANEL('m-orig')}</div>`,
+    <div class="gm1">${PANEL('m-flow')}</div>
+    <div class="gm2">${PANEL('m-reg')}${PANEL('m-vel')}${PANEL('m-can')}</div>`,
   financeiro: () => `<div class="kpis" id="f-kpis"></div>
     <div class="gf1">${PANEL('f-caixa')}${PANEL('f-resg')}</div>
     <div class="gf2">${PANEL('f-trav')}${PANEL('f-prox')}${PANEL('f-contas')}${PANEL('f-be')}</div>`,
@@ -341,7 +342,7 @@ function pintarTela() {
   const t = TELAS[_tela].id;
   if (t === 'geral') { kpis(); pAno(); pFunil(); pPipe(); pRank(); pPilares(); pCaixa(); pAcao(); pVivo(); }
   else if (t === 'comercial') { cEquipes(); cHoje(); cPerdas(); cMarcas(); cRisco(); }
-  else if (t === 'marketing') { mKpis(); mGasto(); mLeads(); mRoas(); mContas(); mCamp(); mOrig(); }
+  else if (t === 'marketing') { mKpis(); mCorrente(); mRegiao(); mVelocidade(); mCanais(); }
   else if (t === 'financeiro') { fKpis(); fCaixa(); fResgate(); fTravados(); fProximos(); fContas(); fBreakeven(); }
   else if (t === 'pilares') pTodos();
 }
@@ -702,22 +703,6 @@ function hbars(rows, opt = {}) {   // barras horizontais com valor na ponta
     <span class="hb-b"><i style="width:${Math.abs(r.v || 0) / max * 100}%;background:${r.c || '#9ef01a'};color:${r.c || '#9ef01a'}"></i>${opt.linha != null ? `<b style="left:${opt.linha / max * 100}%"></b>` : ''}</span>
     <span class="hb-v">${r.fv ?? int(r.v)}</span></li>`).join('')}</ul>`;
 }
-function colunas(vals, cor, opt = {}) {   // série diária em colunas (sem texto dentro do SVG: não distorce)
-  const v = vals.map(x => num(x)); const max = Math.max(...v, 1e-9), n = v.length || 1, W = 300, H = 100, bw = W / n;
-  const g = uid('cg');
-  return `<svg class="colsvg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><defs><linearGradient id="${g}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${cor}"/><stop offset="1" stop-color="${cor}" stop-opacity=".25"/></linearGradient></defs>
-    ${v.map((x, i) => `<rect x="${i * bw + bw * .15}" y="${H - x / max * (H - 4)}" width="${bw * .7}" height="${x / max * (H - 4)}" rx="1.2" fill="url(#${g})" style="filter:drop-shadow(0 0 3px ${cor})"><title>${esc((opt.rot || [])[i] || '')}: ${esc((opt.fmt || int)(x))}</title></rect>`).join('')}</svg>`;
-}
-function areaSvg(vals, cor) {
-  const v = vals.map(x => num(x)); if (v.length < 2) return '';
-  const max = Math.max(...v, 1e-9), W = 300, H = 100, xs = W / (v.length - 1);
-  const P = v.map((y, i) => [i * xs, H - 3 - y / max * (H - 8)]);
-  const line = P.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join('');
-  const g = uid('ag');
-  return `<svg class="colsvg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><defs><linearGradient id="${g}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${cor}" stop-opacity=".45"/><stop offset="1" stop-color="${cor}" stop-opacity="0"/></linearGradient></defs>
-    <path d="${line}L${W},${H}L0,${H}Z" fill="url(#${g})"/><path d="${line}" fill="none" stroke="${cor}" stroke-width="2.2" vector-effect="non-scaling-stroke" style="filter:drop-shadow(0 0 5px ${cor})"/></svg>`;
-}
-const eixoX = datas => { if (!datas.length) return ''; const idx = [0, Math.floor(datas.length / 3), Math.floor(2 * datas.length / 3), datas.length - 1]; return `<div class="ax-x">${idx.map(i => `<span>${esc(String(datas[i]).slice(8, 10) + '/' + String(datas[i]).slice(5, 7))}</span>`).join('')}</div>`; };
 const pendente = (id, ico, cor, t) => { const el = document.getElementById(id); if (el) el.innerHTML = head(ico, cor, t) + esperando; return null; };
 function quadro(id, ico, cor, t, fonte) {   // devolve o dado ou pinta espera/erro e devolve null
   const el = document.getElementById(id); if (!el) return null;
@@ -803,7 +788,136 @@ function cRisco() {
     </tbody></table>` : '<div class="wait ok">' + ic('circle-check', 16) + ' Nenhum corretor com carteira parada.</div>');
 }
 
-/* ═══════════════════════════ TELA 3 · MARKETING ═══════════════════════════ */
+/* ═══════════════════════════ TELA 3 · MÍDIA → VENDA ═══════════════════════════
+   A pergunta do sócio não é "quanto custou o clique", é "a mídia está virando venda?".
+   Diagnóstico de 28/09 (funil Conquista): os dois vazamentos são REGIÃO (lead fora da
+   praça) e VELOCIDADE (1º atendimento lento, perda sem contato). A tela mostra os dois
+   ao vivo, a corrente R$ → venda por marca e qual canal vende de fato. */
+const MARCAS_MIDIA = [
+  { k: 'conquista', nome: 'PSM Conquista', frentes: ['conquista'], cor: '#ff8a1f' },
+  { k: 'imoveis', nome: 'PSM Imóveis', frentes: ['map', 'terceiros'], cor: '#f3ebcb' },
+];
+const ALVO_1O_CONTATO_H = 1;   // referência de mercado pra lead de mídia: responder na 1ª hora
+
+function midiaMarca(M) {
+  const P = ok('planoAds'), C = ok('crm'), G = ok('geo');
+  const b = C?.brands?.[M.k] || null;
+  const spend = (P?.frentes || []).filter(f => M.frentes.includes(f.frente)).reduce((s, f) => s + num(f.spend), 0);
+  const g = (G?.by_brand || []).find(x => String(x.marca || '').toLowerCase().includes(M.k === 'imoveis' ? 'imó' : 'conquista') || String(x.marca || '').toLowerCase().includes(M.k));
+  return { b, spend, g, leads: b ? num(b.leads ?? b.leads_criados) : null };
+}
+
+function mKpis() {
+  const el = document.getElementById('m-kpis'); if (!el) return;
+  const D = datas(), C = contasMkt(), R = ok('crm'), G = ok('geo');
+  const diasMes = new Date(D.ano, D.mes, 0).getDate(), ritmo = D.dia / diasMes * 100;
+  const pacing = C && C.t.orc ? C.t.spend / C.t.orc * 100 : null;
+  const gl = R?.global || {}, vendasMidia = R ? num(gl.vendas_pago) : null;
+  const spend = C ? C.t.spend : (ok('planoAds')?.global?.spend ?? null);
+  const bs = Object.entries(R?.brands || {}).filter(([k]) => k !== 'captacao').map(([, b]) => b);
+  const leadsP = bs.reduce((s, b) => s + num(b.leads ?? b.leads_criados), 0);
+  const semAtend = bs.reduce((s, b) => s + Math.max(0, num(b.leads ?? b.leads_criados) - num(b.leads_contatados)), 0);
+  const slaPond = bs.filter(b => b.sla_horas_aprox != null).reduce((a, b) => ({ s: a.s + num(b.sla_horas_aprox) * num(b.leads_criados), n: a.n + num(b.leads_criados) }), { s: 0, n: 0 });
+  const sla = slaPond.n ? slaPond.s / slaPond.n : null;
+  el.innerHTML = tilesHTML([
+    { i: 'banknote', c: '#9ef01a', t: 'Investido em mídia no mês', v: spend != null ? brl(spend) : (_d.mkt?._err && _d.planoAds?._err ? '—' : null),
+      d: pacing != null ? `<span class="dl ${pacing <= ritmo + 5 ? 'up' : 'dn'}">${pct(pacing)}</span><span class="dl-s">do orçamento · mês em ${pct(ritmo)}</span>` : '<span class="dl-s">orçamento por conta não cadastrado</span>', bar: pacing, marca: ritmo },
+    { i: 'trophy', c: vendasMidia ? '#9ef01a' : '#ff5c5c', t: 'Vendas vindas da mídia', v: R ? int(vendasMidia) : null,
+      d: R ? `<span class="dl-s">${brl(gl.vgv_pago)} de VGV · de ${int(gl.vendas)} vendas no total</span>` : '' },
+    { i: 'coins', c: '#ff8a1f', t: 'Custo por venda de mídia', v: R && spend != null ? (vendasMidia ? brl(spend / vendasMidia) : 'sem venda') : null,
+      d: `<span class="dl-s">${vendasMidia ? 'investido ÷ vendas de tráfego pago' : 'todo o investimento ainda sem retorno'}</span>` },
+    { i: 'map-pin', c: G?.alerta_global ? '#ff5c5c' : '#2ee6c5', t: 'Leads fora de Rio Preto', v: G ? fmtPct(G.pct_outras) : (_d.geo?._err ? '—' : null),
+      d: G ? `<span class="dl ${G.alerta_global ? 'dn' : 'up'}">limite ${pct(G.threshold_pct)}</span><span class="dl-s">${int(G.outras)} de ${int(num(G.rio_preto) + num(G.outras))} com DDD</span>` : '' },
+    { i: 'clock', c: sla != null && sla > ALVO_1O_CONTATO_H ? '#ff5c5c' : '#9ef01a', t: 'Tempo até o 1º contato', v: R ? (sla == null ? '—' : horas(sla)) : null,
+      d: `<span class="dl ${sla != null && sla <= ALVO_1O_CONTATO_H ? 'up' : 'dn'}">alvo ${ALVO_1O_CONTATO_H} h</span><span class="dl-s">média ponderada por marca</span>` },
+    { i: 'eye-off', c: semAtend ? '#ff5c5c' : '#9ef01a', t: 'Leads nunca atendidos', v: R ? int(semAtend) : null,
+      d: R ? `<span class="dl-s">de ${int(leadsP)} leads no mês · ${leadsP ? pct(semAtend / leadsP * 100) : '—'}</span>` : '' },
+  ]);
+}
+const horas = h => h < 1 ? `${Math.round(h * 60)} min` : `${num(h).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} h`;
+
+// A corrente: R$ → leads → atendidos → visitas → vendas → VGV, com o custo e a perda em cada elo
+function mCorrente() {
+  const el = document.getElementById('m-flow'); if (!el) return;
+  const T = 'Para onde vai cada R$ 1 de mídia · mês';
+  if (!_d.crm || !_d.planoAds) { el.innerHTML = head('zap', '#9ef01a', T) + esperando; return; }
+  if (!ok('crm')) { el.innerHTML = head('zap', '#9ef01a', T) + falhou(_d.crm._err); return; }
+  const linhas = MARCAS_MIDIA.map(M => {
+    const { b, spend } = midiaMarca(M);
+    if (!b) return `<div class="fl-row"><div class="fl-m" style="--mc:${M.cor}"><b>${M.nome}</b><small>sem dados no mês</small></div></div>`;
+    const leads = num(b.leads ?? b.leads_criados), at = num(b.leads_contatados), vi = num(b.leads_visita), ve = num(b.vendas_pago), vgv = num(b.vgv_pago);
+    const custo = (n) => spend && n ? brl(spend / n) : '—';
+    const perda = (de, para) => de ? Math.max(0, 100 - para / de * 100) : null;
+    const no = (ico, rot, v, sub, k, n) => `<div class="fl-n ${k || ''}" style="animation-delay:${n * 90}ms"><span class="fl-i">${ic(ico, 16)}</span><span class="fl-r">${rot}</span><b>${v}</b><small>${sub}</small></div>`;
+    const seta = (p) => `<div class="fl-a${p != null && p >= 70 ? ' vaza' : ''}"><i></i>${p != null ? `<span>${p >= 70 ? ic('triangle-alert', 11) : ''}−${Math.round(p)}%</span>` : ''}</div>`;
+    const ret = spend ? vgv / spend : null;
+    return `<div class="fl-row">
+      <div class="fl-m" style="--mc:${M.cor}"><b>${M.nome}</b><small>${ret != null ? `cada R$ 1 virou <em>R$ ${ret.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</em> de VGV` : 'sem mídia no mês'}</small></div>
+      ${no('banknote', 'Investido', brl(spend), 'mídia paga', '', 0)}${seta(null)}
+      ${no('users', 'Leads', int(leads), `${custo(leads)} por lead`, '', 1)}${seta(perda(leads, at))}
+      ${no('phone', 'Atendidos', int(at), `${fmtPct(b.contact_rate)} dos leads`, perda(leads, at) >= 70 ? 'bad' : '', 2)}${seta(perda(at, vi))}
+      ${no('house', 'Visitas', int(vi), `${custo(vi)} por visita`, '', 3)}${seta(perda(vi, ve))}
+      ${no('trophy', 'Vendas', int(ve), ve ? `${custo(ve)} por venda` : 'nenhuma de mídia', ve ? 'ok' : 'bad', 4)}${seta(null)}
+      ${no('coins', 'VGV', brl(vgv), ret != null ? `${ret.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}x o investido` : '—', vgv ? 'ok' : '', 5)}
+    </div>`;
+  }).join('');
+  el.innerHTML = head('zap', '#9ef01a', T, `<div class="ph-r"><span class="mini">${ic('triangle-alert', 12)} seta vermelha = perde 70% ou mais na passagem</span></div>`) + `<div class="fl">${linhas}</div>`;
+}
+
+function mRegiao() {
+  const el = quadro('m-reg', 'map-pin', '#ff5c5c', 'Vazamento 1 · mídia fora da praça', 'geo'); if (!el) return;
+  const G = ok('geo'), lim = num(G.threshold_pct) || 30;
+  const camp = (G.by_campaign || []).filter(c => num(c.leads) >= 5 && c.pct_outras != null).sort((a, b) => num(b.pct_outras) - num(a.pct_outras)).slice(0, 4);
+  const marcas = (G.by_brand || []).filter(m => m.pct_outras != null);
+  el.innerHTML = head('map-pin', '#ff5c5c', 'Vazamento 1 · mídia fora da praça', `<div class="ph-r">${selo(G.alerta_global ? 'bad' : 'ok', G.alerta_global ? 'acima do limite' : 'dentro do limite')}</div>`) + `
+    <div class="reg-top"><div class="reg-g">${gaugePct(num(G.pct_outras), lim)}</div>
+      <div class="reg-t"><b>${fmtPct(G.pct_outras)}</b><span>dos leads com DDD vêm de fora de Rio Preto</span>
+      ${marcas.map(m => `<span class="reg-m"><i class="dotc" style="background:${String(m.marca).toLowerCase().includes('conquista') ? '#ff8a1f' : '#f3ebcb'}"></i>${esc(m.marca)} <b style="color:${num(m.pct_outras) > lim ? 'var(--n-bad)' : 'var(--n-ok)'}">${fmtPct(m.pct_outras)}</b></span>`).join('')}</div></div>
+    <div class="sub">Campanhas que mais trazem gente de fora</div>
+    ${camp.length ? hbars(camp.map(c => ({ l: c.campanha || '—', s: `${int(c.leads)} leads · ${int(c.outras)} de fora`, v: num(c.pct_outras), fv: fmtPct(c.pct_outras), c: num(c.pct_outras) > lim ? '#ff5c5c' : '#ffb020' })), { linha: lim, max: 100 })
+      : '<div class="wait ok">' + ic('circle-check', 16) + ' Nenhuma campanha fora do limite.</div>'}
+    <div class="note muted">Região pelo DDD do telefone · traço = limite de ${pct(lim)}.</div>`;
+}
+function gaugePct(v, lim) {   // anel 0–100% com a marca do limite
+  const R = 42, C = 2 * Math.PI * R, f = Math.min(100, v) / 100, cor = v > lim ? '#ff5c5c' : '#9ef01a';
+  const a = -Math.PI / 2 + lim / 100 * 2 * Math.PI;
+  return `<svg viewBox="0 0 110 110" class="ring"><circle cx="55" cy="55" r="${R}" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="11"/>
+    <circle cx="55" cy="55" r="${R}" fill="none" stroke="${cor}" stroke-width="11" stroke-linecap="round" stroke-dasharray="${f * C} ${C}" transform="rotate(-90 55 55)" style="filter:drop-shadow(0 0 6px ${cor})"/>
+    <line x1="${55 + (R - 9) * Math.cos(a)}" y1="${55 + (R - 9) * Math.sin(a)}" x2="${55 + (R + 9) * Math.cos(a)}" y2="${55 + (R + 9) * Math.sin(a)}" stroke="#fff" stroke-width="2.5"/></svg>`;
+}
+
+function mVelocidade() {
+  const el = quadro('m-vel', 'clock', '#ffb020', 'Vazamento 2 · lead esperando atendimento', 'crm'); if (!el) return;
+  const B = ok('crm').brands || {};
+  const ks = Object.keys(B).filter(k => k !== 'captacao' && num(B[k].leads ?? B[k].leads_criados) > 0);
+  const maxH = Math.max(...ks.map(k => num(B[k].sla_horas_aprox)), ALVO_1O_CONTATO_H * 2, 1);
+  el.innerHTML = head('clock', '#ffb020', 'Vazamento 2 · lead esperando atendimento') + (ks.length ? `
+    <div class="sub">Tempo até o 1º contato</div>
+    ${hbars(ks.map(k => { const b = B[k], h = nn(b.sla_horas_aprox); return { l: b.label || k, dot: FRENTE_COR[k] || '#9ef01a', v: h ?? 0, fv: h == null ? '—' : horas(h), c: h == null ? '#5b5f63' : h <= ALVO_1O_CONTATO_H ? '#9ef01a' : h <= 4 ? '#ffb020' : '#ff5c5c' }; }), { linha: ALVO_1O_CONTATO_H, max: maxH })}
+    <div class="sub">Quanto do lead é trabalhado</div>
+    <table class="tb"><thead><tr><th>Marca</th><th>Leads</th><th>Atendidos</th><th>Nunca atendidos</th><th>Visita</th></tr></thead><tbody>
+    ${ks.map(k => { const b = B[k], L = num(b.leads ?? b.leads_criados), s = Math.max(0, L - num(b.leads_contatados)); return `<tr><td><i class="dotc" style="background:${FRENTE_COR[k] || '#9ef01a'}"></i>${esc(b.label || k)}</td><td>${int(L)}</td>
+      <td style="color:${num(b.contact_rate) >= 80 ? 'var(--n-ok)' : num(b.contact_rate) >= 60 ? 'var(--n-warn)' : 'var(--n-bad)'}">${fmtPct(b.contact_rate)}</td>
+      <td style="color:${s ? 'var(--n-bad)' : 'var(--n-ok)'};font-weight:700">${int(s)}</td><td>${fmtPct(b.visita_rate)}</td></tr>`; }).join('')}
+    </tbody></table>
+    <div class="note muted">Traço branco = alvo de ${ALVO_1O_CONTATO_H} h. Lead de mídia esfria rápido: cada hora conta.</div>` : '<div class="wait muted">Sem leads no mês.</div>');
+}
+
+function mCanais() {
+  const el = quadro('m-can', 'chart-pie', '#a78bfa', 'Qual canal vende de verdade · mês', 'crm'); if (!el) return;
+  const A = ok('crm').global?.attribution || {}, rows = (A.by_channel || []).filter(r => r.channel !== 'nao_atribuido' || num(r.vendas));
+  const maxV = Math.max(...rows.map(r => num(r.vgv)), 1);
+  el.innerHTML = head('chart-pie', '#a78bfa', 'Qual canal vende de verdade · mês', `<div class="ph-r"><span class="mini">${A.coverage_pct != null ? `${fmtPct(A.coverage_pct)} do VGV com origem` : ''}</span></div>`) + (rows.length ? `
+    <table class="tb can"><thead><tr><th>Canal</th><th>Leads</th><th>Vendas</th><th style="width:34%">VGV</th><th>Conversão</th></tr></thead><tbody>
+    ${rows.map(r => { const conv = num(r.leads) ? num(r.vendas) / num(r.leads) * 100 : null; const pago = /pago|meta|ads|trafego/i.test(r.channel + r.label);
+      return `<tr><td>${pago ? ic('megaphone', 12) : ''} ${esc(r.label || r.channel)}</td><td>${int(r.leads)}</td>
+      <td style="color:${num(r.vendas) ? 'var(--n-ok)' : (num(r.leads) >= 20 ? 'var(--n-bad)' : 'inherit')};font-weight:700">${int(r.vendas)}</td>
+      <td><span class="mbar"><i style="width:${num(r.vgv) / maxV * 100}%;background:#a78bfa"></i></span><small>${brl(r.vgv)}</small></td>
+      <td>${conv == null ? '—' : fmtPct(conv)}</td></tr>`; }).join('')}
+    </tbody></table>
+    <div class="note muted">Venda atribuída pela origem do negócio no RD. Canal com muito lead e zero venda aparece em vermelho.</div>` : '<div class="wait muted">Sem atribuição no mês.</div>');
+}
+
 function contasMkt() {
   const M = ok('mkt'); if (!M) return null;
   const th = ok('adsTh') || {}, cfg = th.contas || {};
@@ -811,84 +925,6 @@ function contasMkt() {
   const t = acc.reduce((s, a) => ({ spend: s.spend + num(a.spend), res: s.res + num(a.results), orc: s.orc + a.orc }), { spend: 0, res: 0, orc: 0 });
   return { acc, t, M };
 }
-function mKpis() {
-  const el = document.getElementById('m-kpis'); if (!el) return;
-  const D = datas(), C = contasMkt(), P = ok('planoAds'), cac = ind('p.cac') || ind('mk.cac'), nc = ind('mk.naoclass');
-  const diasMes = new Date(D.ano, D.mes, 0).getDate(), ritmo = D.dia / diasMes * 100;
-  const pacing = C && C.t.orc ? C.t.spend / C.t.orc * 100 : null;
-  const TS = ok('mktTs');
-  el.innerHTML = tilesHTML([
-    { i: 'banknote', c: '#9ef01a', t: 'Investido em mídia no mês', v: C ? brl(C.t.spend) : (_d.mkt?._err ? '—' : null),
-      d: pacing != null ? `<span class="dl ${pacing <= ritmo + 5 ? 'up' : 'dn'}">${pct(pacing)}</span><span class="dl-s">do orçamento de ${brl(C.t.orc)} · mês em ${pct(ritmo)}</span>` : '<span class="dl-s">orçamento por conta não cadastrado</span>',
-      bar: pacing, marca: ritmo },
-    { i: 'users', c: '#ffd23f', t: 'Resultados (leads + conversas)', v: C ? int(C.t.res) : null, d: delta(TS?.delta?.results, 'vs 30 dias anteriores'), sp: (TS?.series || []).map(s => s.results) },
-    { i: 'target', c: '#ff8a1f', t: 'Custo por resultado', v: C && C.t.res ? brl(C.t.spend / C.t.res) : (C ? '—' : null), d: TS?.delta?.cpl != null ? delta(-TS.delta.cpl, 'custo menor = melhor') : '<span class="dl-s">no mês</span>', sp: (TS?.series || []).map(s => s.cpl) },
-    { i: 'coins', c: '#2ee6c5', t: 'CAC de mídia', v: cac && nn(cac.valor) != null ? brl(cac.valor) : (_d.scorecard ? '—' : null), d: '<span class="dl-s">mídia ÷ vendas de tráfego pago</span>' },
-    { i: 'trending-up', c: P?.global?.roas >= 2 ? '#9ef01a' : '#ff5c5c', t: 'ROAS (contribuição ÷ mídia)', v: P?.global ? (P.global.roas == null ? '—' : `${num(P.global.roas).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}x`) : (_d.planoAds ? '—' : null),
-      d: P?.global ? `<span class="dl ${P.global.roas >= 2 ? 'up' : 'dn'}">piso 2,0x</span><span class="dl-s">contribuição ${brl(P.global.contribuicao)}</span>` : '' },
-    { i: 'circle-help', c: '#a78bfa', t: 'Leads sem origem', v: nc && nn(nc.valor) != null ? fmtPct(nc.valor) : (_d.scorecard ? '—' : null), d: `<span class="dl-s">meta ≤ ${nc?.meta != null ? pct(nc.meta) : '10%'} · higiene do RD</span>` },
-  ]);
-}
-function mGasto() {
-  const el = quadro('m-gasto', 'banknote', '#9ef01a', 'Investimento por dia · 30 dias', 'mktTs'); if (!el) return;
-  const T = ok('mktTs'), s = T.series || [];
-  el.innerHTML = head('banknote', '#9ef01a', 'Investimento por dia · 30 dias', `<div class="ph-r">${T.delta?.spend != null ? delta(T.delta.spend, 'vs 30d antes') : ''}</div>`) + `
-    <div class="tot"><b class="glowt">${brl(T.totals?.spend)}</b><small>${s.length} dias · média ${brl(num(T.totals?.spend) / Math.max(1, s.length))}/dia</small></div>
-    <div class="chart">${areaSvg(s.map(x => x.spend), '#9ef01a')}</div>${eixoX(s.map(x => x.date))}`;
-}
-function mLeads() {
-  const el = quadro('m-leads', 'users', '#ffd23f', 'Resultados por dia · 30 dias', 'mktTs'); if (!el) return;
-  const T = ok('mktTs'), s = T.series || [];
-  el.innerHTML = head('users', '#ffd23f', 'Resultados por dia · 30 dias', `<div class="ph-r">${T.delta?.results != null ? delta(T.delta.results, 'vs 30d antes') : ''}</div>`) + `
-    <div class="tot"><b style="color:#ffd23f;text-shadow:0 0 16px rgba(255,210,63,.5)">${int(T.totals?.results)}</b><small>custo médio ${T.totals?.cpl ? brl(T.totals.cpl) : '—'} por resultado</small></div>
-    <div class="chart">${colunas(s.map(x => x.results), '#ffd23f', { rot: s.map(x => x.date) })}</div>${eixoX(s.map(x => x.date))}`;
-}
-function mRoas() {
-  const el = quadro('m-roas', 'trending-up', '#2ee6c5', 'ROAS por frente · piso 2,0x', 'planoAds'); if (!el) return;
-  const P = ok('planoAds'), fr = (P.frentes || []).filter(f => num(f.spend) > 0);
-  el.innerHTML = head('trending-up', '#2ee6c5', 'ROAS por frente · piso 2,0x', `<div class="ph-r"><span class="mini">${esc(P.mes || '')}</span></div>`) + (fr.length ? hbars(fr.map(f => ({
-    l: FRENTE_NOME[f.frente] || f.frente, s: `mídia ${brl(f.spend)} · contrib. ${brl(f.contribuicao)}`, v: num(f.roas), dot: FRENTE_COR[f.frente],
-    fv: f.roas == null ? '—' : `${num(f.roas).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}x`, c: f.roas >= 2 ? '#9ef01a' : f.roas >= 1 ? '#ffb020' : '#ff5c5c' })), { linha: 2, max: 2.4 }) +
-    '<div class="note muted">Traço branco = piso de 2,0x. Abaixo de 1,0x a mídia não se paga.</div>' : `<div class="wait muted">${P.erro_meta ? esc(P.erro_meta) : 'Sem gasto de mídia no mês.'}</div>`);
-}
-function mContas() {
-  const el = quadro('m-contas', 'megaphone', '#ff8a1f', 'Contas de anúncio · mês', 'mkt'); if (!el) return;
-  const C = contasMkt(), D = datas(), ritmo = D.dia / new Date(D.ano, D.mes, 0).getDate() * 100;
-  const rows = C.acc.filter(a => num(a.spend) > 0 || a.orc).sort((a, b) => num(b.spend) - num(a.spend));
-  el.innerHTML = head('megaphone', '#ff8a1f', 'Contas de anúncio · mês', `<div class="ph-r"><span class="mini">traço = ritmo do mês</span></div>`) + (rows.length ? `
-    <table class="tb"><thead><tr><th>Conta</th><th>Investido</th><th style="width:26%">Orçamento</th><th>Result.</th><th>Custo/res.</th><th>Freq.</th></tr></thead><tbody>
-    ${rows.map(a => { const pc = a.orc ? num(a.spend) / a.orc * 100 : null; const cpr = num(a.results) ? num(a.spend) / num(a.results) : null;
-      return `<tr><td>${esc(a.label || a.id)}</td><td>${brl(a.spend)}</td>
-      <td>${pc == null ? '<span class="muted">—</span>' : `<span class="mbar"><i style="width:${Math.min(100, pc)}%;background:${pc > ritmo + 10 ? '#ff5c5c' : '#9ef01a'}"></i><b style="left:${Math.min(100, ritmo)}%"></b></span><small>${pct(pc)}</small>`}</td>
-      <td>${int(a.results)}</td><td style="color:${a.alvo && cpr ? (cpr <= a.alvo ? 'var(--n-ok)' : 'var(--n-bad)') : 'inherit'}">${cpr ? brl(cpr) : '—'}${a.alvo ? `<small> / ${brl(a.alvo)}</small>` : ''}</td>
-      <td style="color:${num(a.frequency) > 3 ? 'var(--n-warn)' : 'inherit'}">${a.frequency ? num(a.frequency).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : '—'}</td></tr>`; }).join('')}
-    </tbody></table>` : '<div class="wait muted">Nenhuma conta com gasto no mês.</div>');
-}
-function mCamp() {
-  const el = quadro('m-camp', 'flame', '#ff5c5c', 'Campanhas · melhores e piores', 'mkt'); if (!el) return;
-  const cs = (ok('mkt').campaigns || []).filter(c => num(c.spend) > 0);
-  const top = [...cs].sort((a, b) => num(b.results) - num(a.results)).slice(0, 4);
-  const pior = cs.filter(c => num(c.spend) >= 100).map(c => ({ ...c, cpr: num(c.results) ? num(c.spend) / num(c.results) : Infinity })).sort((a, b) => b.cpr - a.cpr).slice(0, 3);
-  const li = (c, bom) => `<li><span class="fi" style="color:${bom ? '#9ef01a' : '#ff5c5c'};background:${bom ? 'rgba(158,240,26,.12)' : 'rgba(255,92,92,.12)'}">${ic(bom ? 'trending-up' : 'trending-down', 14)}</span>
-    <div><b>${esc(c.name)}</b><small>${esc(c.account || '')} · ${c.status === 'active' ? 'ativa' : 'pausada'} · ${brl(c.spend)}</small></div>
-    <time style="color:${bom ? 'var(--n-ok)' : 'var(--n-bad)'};font-weight:700">${int(c.results)} res.${num(c.results) ? ' · ' + brl(num(c.spend) / num(c.results)) : ''}</time></li>`;
-  el.innerHTML = head('flame', '#ff5c5c', 'Campanhas · melhores e piores') + (cs.length ? `
-    <div class="sub">Mais resultados</div><ul class="feed">${top.map(c => li(c, true)).join('')}</ul>
-    <div class="sub">Custo mais alto por resultado</div><ul class="feed">${pior.length ? pior.map(c => li(c, false)).join('') : '<li class="muted">—</li>'}</ul>` : '<div class="wait muted">Sem campanhas com gasto no mês.</div>');
-}
-function mOrig() {
-  const el = quadro('m-orig', 'chart-pie', '#a78bfa', 'De onde vêm os interessados · mês', 'resumo'); if (!el) return;
-  const R = ok('resumo'), E = R.empresa || {}, cats = R.dicionario?.categorias || {};
-  const po = E.por_origem || {};
-  const cores = { trafego_pago_psm: '#9ef01a', trafego_pago_corretor: '#ffd23f', organico_site: '#2ee6c5', carteira: '#f3ebcb', indicacao: '#ff8a1f', networking: '#a78bfa', reativacao: '#6ec1ff', nao_classificada: '#5b5f63' };
-  const rows = Object.entries(po).filter(([, v]) => num(v) > 0).sort((a, b) => num(b[1]) - num(a[1]));
-  const tot = rows.reduce((s, [, v]) => s + num(v), 0);
-  el.innerHTML = head('chart-pie', '#a78bfa', 'De onde vêm os interessados · mês', `<div class="ph-r"><span class="mini">${int(E.interessados ?? tot)} no mês</span></div>`) + (rows.length ? `
-    <div class="pipe">${donut(rows.map(([k, v]) => ({ l: cats[k] || k, v: num(v), c: cores[k] || '#7b8378' })), int(tot), 'interessados')}
-      <ul class="lg-l tight">${rows.slice(0, 6).map(([k, v]) => `<li><i style="background:${cores[k] || '#7b8378'};color:${cores[k] || '#7b8378'}"></i><span style="text-transform:none">${esc(cats[k] || k)}</span><b>${pct(num(v) / tot * 100)}</b><small>${int(v)} interessados</small></li>`).join('')}</ul></div>`
-    : `<div class="wait muted">${E ? 'Sem entradas no mês.' : 'Resumo da empresa indisponível para este login.'}</div>`);
-}
-
 /* ═══════════════════════════ TELA 4 · FINANCEIRO ═══════════════════════════ */
 const BLOQ = { nota_fiscal: 'Nota fiscal', assinatura_financiamento: 'Financiamento', liberacao_incorporadora: 'Incorporadora', outro: 'Outro', nenhum: 'Status travado' };
 function fKpis() {
@@ -1232,8 +1268,35 @@ body.tv-mode .app-main { padding:0; min-height:100vh; background:#050607; }
 .plant { display:flex; gap:6px; flex-wrap:wrap; flex:none } .plant span { display:inline-flex; align-items:center; gap:5px; padding:4px 9px; border-radius:99px; background:rgba(46,230,197,.1); color:#2ee6c5; font-size:12px } .plant small { color:var(--n-mute) }
 
 /* tela 3 — marketing */
-.gm1 { display:grid; grid-template-columns: 1.2fr 1.2fr 1fr; gap:var(--gap); flex:1 1 0; min-height:0 }
-.gm2 { display:grid; grid-template-columns: 1.45fr 1.1fr 1fr; gap:var(--gap); flex:1.1 1 0; min-height:0 }
+
+
+/* tela 3 — mídia → venda */
+.gm1 { display:grid; grid-template-columns:1fr; gap:var(--gap); flex:1 1 0; min-height:0 }
+.gm2 { display:grid; grid-template-columns: 1fr 1fr 1.15fr; gap:var(--gap); flex:1.45 1 0; min-height:0 }
+.fl { display:flex; flex-direction:column; justify-content:space-around; flex:1; min-height:0; gap:8px }
+.fl-row { display:grid; grid-template-columns: 170px 1fr 34px 1fr 34px 1fr 34px 1fr 34px 1fr 34px 1fr; align-items:center; gap:0 }
+.fl-m { display:flex; flex-direction:column; padding-right:12px; border-left:3px solid var(--mc); padding-left:10px }
+.fl-m b { font-size:15px; color:#fff } .fl-m small { font-size:11.5px; color:var(--n-mute); line-height:1.3 } .fl-m em { font-style:normal; color:var(--n-lime); font-weight:700 }
+.fl-n { position:relative; display:grid; grid-template-columns:auto 1fr; grid-template-rows:auto auto auto; column-gap:8px; align-items:center; padding:8px 12px; border-radius:12px;
+  background:linear-gradient(160deg, rgba(158,240,26,.08), rgba(255,255,255,.02)); border:1px solid rgba(158,240,26,.22); box-shadow:0 0 16px rgba(158,240,26,.08); animation:nIn .6s both; min-width:0 }
+.fl-n .fl-i { grid-row:1 / 3; width:30px; height:30px; display:grid; place-items:center; border-radius:9px; color:var(--n-lime); background:rgba(158,240,26,.12) }
+.fl-n .fl-r { font-size:11px; color:var(--n-mute); text-transform:uppercase; letter-spacing:.08em }
+.fl-n b { font-size:clamp(16px, 1.25vw, 24px); font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.fl-n small { grid-column:1 / 3; font-size:11px; color:var(--n-ink2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.fl-n.bad { border-color:rgba(255,92,92,.5); background:linear-gradient(160deg, rgba(255,92,92,.12), rgba(255,255,255,.02)); box-shadow:0 0 18px rgba(255,92,92,.18) } .fl-n.bad .fl-i { color:var(--n-bad); background:rgba(255,92,92,.14) } .fl-n.bad b { color:#ffb3b3 }
+.fl-n.ok { border-color:rgba(158,240,26,.5); box-shadow:0 0 20px rgba(158,240,26,.22) }
+.fl-a { position:relative; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center }
+.fl-a i { width:100%; height:2px; background:repeating-linear-gradient(90deg, rgba(158,240,26,.7) 0 6px, transparent 6px 10px); background-size:20px 2px; animation:nFlow 1s linear infinite; position:relative }
+.fl-a i::after { content:''; position:absolute; right:-1px; top:-4px; border:5px solid transparent; border-left:7px solid rgba(158,240,26,.8); border-right:0 }
+.fl-a span { position:absolute; top:calc(50% + 6px); font-size:10.5px; color:var(--n-mute); white-space:nowrap; display:flex; align-items:center; gap:2px }
+.fl-a.vaza i { background:repeating-linear-gradient(90deg, rgba(255,92,92,.85) 0 6px, transparent 6px 10px); background-size:20px 2px } .fl-a.vaza i::after { border-left-color:rgba(255,92,92,.9) } .fl-a.vaza span { color:var(--n-bad); font-weight:700 }
+@keyframes nFlow { to { background-position:20px 0 } }
+.tvd.calmo .fl-a i { animation:nFlow 1s linear infinite !important }
+.reg-top { display:flex; gap:14px; align-items:center; flex:none }
+.reg-g { width:78px; flex:none } .ring { width:100%; display:block }
+.reg-t { display:flex; flex-direction:column; gap:2px; min-width:0 } .reg-t > b { font-size:26px; font-weight:700; color:#fff; line-height:1 } .reg-t > span { font-size:12px; color:var(--n-ink2) }
+.reg-m { font-size:12px !important; color:var(--n-ink2) } .reg-m b { margin-left:4px }
+.tb.can td:first-child { max-width:150px }
 
 /* tela 4 — financeiro */
 .gf1 { display:grid; grid-template-columns: 1.9fr 1fr; gap:var(--gap); flex:1 1 0; min-height:0 }
@@ -1286,5 +1349,6 @@ body.tv-mode .app-main { padding:0; min-height:100vh; background:#050607; }
   .tabs { flex-wrap:wrap } .tab.auto { margin-left:0 }
 }
 @media (max-width: 1499px), (max-height: 859px) { .eq4, .gc, .gm1, .gm2, .gf1, .gf2, .gp { flex:none } .gp { grid-auto-rows:auto } .body { flex:none } .chart { height:160px; flex:none } }
-@media (max-width: 760px) { .eq4, .gc, .gm1, .gm2, .gf1, .gf2, .gp { grid-template-columns:1fr } .tab { flex:1 1 40% } .eq-f li { grid-template-columns:84px 1fr 38px } .eq-f small { display:none } .tb { font-size:11.5px } }
+@media (max-width: 1499px) { .fl-row { grid-template-columns:1fr 1fr 1fr; gap:8px } .fl-a { display:none } .fl-m { grid-column:1 / -1 } .gm1 { flex:none; grid-template-columns:1fr } }
+@media (max-width: 760px) { .fl-row { grid-template-columns:1fr 1fr } .eq4, .gc, .gm1, .gm2, .gf1, .gf2, .gp { grid-template-columns:1fr } .tab { flex:1 1 40% } .eq-f li { grid-template-columns:84px 1fr 38px } .eq-f small { display:none } .tb { font-size:11.5px } }
 `;
