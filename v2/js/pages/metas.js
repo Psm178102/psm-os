@@ -151,7 +151,7 @@ function render() {
       <!-- Seletor de PERÍODO -->
       <div class="flex gap-2 mt-2" style="flex-wrap:wrap;align-items:center">
         <span class="tiny muted" style="font-weight:600;letter-spacing:.5px">PERÍODO:</span>
-        ${Object.keys(PERIODS).map(p => pill(p === _period, PERIODS[p].lbl, `mt-per-${p}`, 'var(--ink-2)')).join('')}
+        ${Object.keys(PERIODS).map(p => pill(p === _period, PERIODS[p].lbl, `mt-per-${p}`, 'var(--accent)')).join('')}
       </div>
 
       <!-- Tabela -->
@@ -250,7 +250,7 @@ function brokerRow(g, per, editable) {
     <tr style="border-bottom:1px solid var(--border)">
       <td style="padding:5px 10px;position:sticky;left:0;background:var(--bg);z-index:1">
         <span style="display:inline-flex;align-items:center;gap:7px">
-          <span style="width:20px;height:20px;border-radius:var(--radius-sm);background:${u.color || 'var(--ink-muted)'};color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:11px">${ini}</span>
+          <span style="width:20px;height:20px;border-radius:var(--radius-sm);background:${u.color || 'var(--ink)'};color:var(--bg);display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:11px">${ini}</span>
           <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px" title="${esc(u.name)}">${esc(u.name || '—')}</span>
         </span>
       </td>
@@ -436,7 +436,7 @@ function teamKey(t) { return String(t).toLowerCase().replace(/[^a-z0-9]+/g, '-')
 function _teamFromKey(tk) { return (_data?.grid || []).map(g => g.user?.team || 'Sem equipe').find(t => teamKey(t) === tk) || tk; }
 function cssEsc(s) { return String(s).replace(/["\\]/g, '\\$&'); }
 function pill(active, label, id, color) {
-  return `<button id="${id}" class="btn" style="padding:5px 12px;font-size:12px;font-weight:600;border-radius:var(--radius-full);border:1px solid ${active ? color : 'var(--border)'};background:${active ? color : 'transparent'};color:${active ? '#fff' : 'var(--ink-muted)'}">${label}</button>`;
+  return `<button id="${id}" class="btn" style="padding:5px 12px;font-size:12px;font-weight:600;border-radius:var(--radius-full);border:1px solid ${active ? color : 'var(--border)'};background:${active ? color : 'transparent'};color:${active ? (color === 'var(--accent)' ? 'var(--on-accent)' : '#fff') : 'var(--ink-muted)'}">${label}</button>`;
 }
 function kpi(label, big, sub, color) {
   return `<div style="flex:1;min-width:170px;background:var(--bg-3);border-radius:var(--r-md);padding:13px 16px;border-left:4px solid ${color}">

@@ -97,7 +97,7 @@ function render() {
 function pintaSaida() {
   const c = compute();
   const k = _root.querySelector('#en-kpis');
-  if (k) k.innerHTML = kpi('Vendas Previstas', dec(c.totalVendas, 2), 'var(--psm-navy)', '#fff')
+  if (k) k.innerHTML = kpi('Vendas Previstas', dec(c.totalVendas, 2), 'var(--accent)', 'var(--on-accent)')
     + kpi('VGV Previsto', fmt(c.totalVGV), 'var(--ok)')
     + kpi('Cumprimento Meta', dec(c.cumprimentoMeta, 1) + '%', c.cumprimentoMeta >= 100 ? 'var(--ok)' : 'var(--warn)');
   const t = _root.querySelector('#en-tabela');
@@ -146,7 +146,7 @@ function inp(label, key, suffix) {
 }
 
 function kpi(label, value, bg, color) {
-  return `<div style="background:${bg};color:${color || '#fff'};padding:14px;border-radius:var(--radius-md);text-align:center"><div style="font-size:11px;text-transform:uppercase;opacity:.8;font-weight:600">${label}</div><div style="font-size:16px;font-weight:600;margin-top:4px">${value}</div></div>`;
+  return `<div style="background:${bg};color:${color || (bg === 'var(--accent)' ? 'var(--on-accent)' : '#fff')};padding:14px;border-radius:var(--radius-md);text-align:center"><div style="font-size:11px;text-transform:uppercase;opacity:.8;font-weight:600">${label}</div><div style="font-size:16px;font-weight:600;margin-top:4px">${value}</div></div>`;
 }
 
 function fmt(n) { return 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }

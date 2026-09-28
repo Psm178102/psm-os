@@ -110,7 +110,7 @@ function render() {
 function pintaSaida() {
   const c = compute();
   const set = (sel, html) => { const el = _root.querySelector(sel); if (el) el.innerHTML = html; };
-  set('#ld-kpis', kpi('Investimento', fmt(c.invTotal), 'var(--psm-navy)', '#fff')
+  set('#ld-kpis', kpi('Investimento', fmt(c.invTotal), 'var(--accent)', 'var(--on-accent)')
     + kpi('CPL', fmt(c.cpl), '#806d50')
     + kpi('CAC', fmt(c.cac), '#c7861a')
     + kpi('ROI', dec(c.roi, 1) + '%', c.roi >= 0 ? '#239a5b' : '#d64545'));
@@ -123,7 +123,7 @@ function pintaSaida() {
     + funnelStep('📝 Propostas', int(c.propostas), pct(c.propostas, c.visitas), '#d946ef')
     + funnelStep('🏆 Vendas', dec(c.vendas, 1), pct(c.vendas, c.propostas), '#239a5b'));
   set('#ld-fin', mini('VGV Total', fmt(c.vgv))
-    + mini('Comissão (' + _s.comissaoPct + '%)', fmt(c.comissao), 'var(--psm-gold)')
+    + mini('Comissão (' + _s.comissaoPct + '%)', fmt(c.comissao), 'var(--accent)')
     + mini('Lucro Líquido', fmt(c.lucro), c.lucro >= 0 ? '#239a5b' : '#d64545')
     + mini('LTV / CAC', dec(c.ltvCac, 2) + 'x', c.ltvCac >= 3 ? '#239a5b' : '#c7861a')
     + mini('CPM (mil impressões)', c.impressoes > 0 ? 'R$ ' + c.cpm.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—')
@@ -160,7 +160,7 @@ function inp(label, key, suffix) {
 }
 
 function kpi(label, value, bg, color) {
-  return `<div style="background:${bg};color:${color || '#fff'};padding:14px;border-radius:var(--radius-md);text-align:center"><div style="font-size:11px;text-transform:uppercase;opacity:.8;font-weight:600">${label}</div><div style="font-size:16px;font-weight:600;margin-top:4px">${value}</div></div>`;
+  return `<div style="background:${bg};color:${color || (bg === 'var(--accent)' ? 'var(--on-accent)' : '#fff')};padding:14px;border-radius:var(--radius-md);text-align:center"><div style="font-size:11px;text-transform:uppercase;opacity:.8;font-weight:600">${label}</div><div style="font-size:16px;font-weight:600;margin-top:4px">${value}</div></div>`;
 }
 
 function mini(label, value, color) {

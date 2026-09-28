@@ -470,7 +470,7 @@ function renderContent() {
     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:10px">
       ${kpi('🏠 Total', total, '#806d50')}
       ${kpi('🟢 Disponíveis', disp, '#239a5b')}
-      ${kpi('🏷 Próprios', proprios, 'var(--psm-gold)')}
+      ${kpi('🏷 Próprios', proprios, 'var(--accent)')}
       ${kpi('✅ Vendidos', vend, '#806d50')}
       ${kpi('🔎 No Filtro', filtered.length, '#c7861a')}
     </div>

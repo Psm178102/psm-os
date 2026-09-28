@@ -149,9 +149,9 @@ function cardHtml(card, unico, podeLogar) {
   if (card.key === 'leire') {
     const docs = card.docs || [], tks = card.tickets || [];
     extras = `<div class="tiny mt-1"><b>📄 Docs pendentes:</b> ${docs.length ? docs.map(d =>
-      `<span class="badge" style="background:${d.estourado ? 'var(--err-soft)' : 'var(--warn-soft)'}22;color:${d.estourado ? 'var(--err)' : 'var(--warn)'}">${esc(d.rotulo)} · ${d.horas}h</span>`).join(' ') : 'nenhum ✅'}</div>
+      `<span class="badge" style="background:${d.estourado ? 'var(--err-soft)' : 'var(--warn-soft)'};color:${d.estourado ? 'var(--err)' : 'var(--warn)'}">${esc(d.rotulo)} · ${d.horas}h</span>`).join(' ') : 'nenhum ✅'}</div>
       <div class="tiny"><b>🎫 Tickets locação:</b> ${tks.length ? tks.map(t =>
-      `<span class="badge" style="background:${t.estourado ? 'var(--err-soft)' : 'var(--warn-soft)'}22;color:${t.estourado ? 'var(--err)' : 'var(--warn)'}">${esc(t.rotulo)} · ${t.horas}h</span>`).join(' ') : 'nenhum ✅'}</div>`;
+      `<span class="badge" style="background:${t.estourado ? 'var(--err-soft)' : 'var(--warn-soft)'};color:${t.estourado ? 'var(--err)' : 'var(--warn)'}">${esc(t.rotulo)} · ${t.horas}h</span>`).join(' ') : 'nenhum ✅'}</div>`;
   }
   if (card.key === 'mariane' && card.nps) {
     const n = card.nps;

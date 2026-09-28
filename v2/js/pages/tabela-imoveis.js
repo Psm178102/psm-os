@@ -290,7 +290,7 @@ function filtroBarHTML(tabs, m) {
   dados.forEach(tb => { const fr = filtroResultado(tb); totAll += (tb.linhas || []).length; totV += fr.linhas.length; if (fr.linhas.length) totT++; });
   const chip = (def, o) => {
     const sel = _filtros[def.cat].has(o.id);
-    return `<button type="button" data-fcat="${def.cat}" data-fchip="${o.id}" style="border-radius:var(--radius-lg);padding:3px 10px;font-size:11px;font-weight:600;margin:2px 3px 2px 0;cursor:pointer;${sel ? `background:${corF};color:#fff;border:1px solid ${corF}` : 'background:transparent;color:var(--text,inherit);border:1px solid var(--border)'}">${esc(o.lbl)}</button>`;
+    return `<button type="button" data-fcat="${def.cat}" data-fchip="${o.id}" style="border-radius:var(--radius-lg);padding:3px 10px;font-size:11px;font-weight:600;margin:2px 3px 2px 0;cursor:pointer;${sel ? `background:${corF};color:${corF === 'var(--accent)' ? 'var(--on-accent)' : '#fff'};border:1px solid ${corF}` : 'background:transparent;color:var(--text,inherit);border:1px solid var(--border)'}">${esc(o.lbl)}</button>`;
   };
   return `
     <div style="background:var(--bg-2);border:1px solid ${corF}55;border-radius:var(--radius-md);padding:10px 12px;margin-bottom:12px">
@@ -335,7 +335,7 @@ function viewCard(t, m, idx, total) {
     : (t.linhas || []);
   const canDragRow = _canEdit && !_edit && !isPdf && !mapOrdenado && (t.linhas || []).length > 1;
   const headHandle = canDragRow ? `<th style="position:sticky;top:0;background:${cor};z-index:1;width:26px"></th>` : '';
-  const head = `<thead><tr>${headHandle}${cols.map(c => `<th style="position:sticky;top:0;background:${cor};color:#fff;padding:7px 9px;font-size:11px;text-align:left;white-space:nowrap;z-index:1">${esc(c)}</th>`).join('')}</tr></thead>`;
+  const head = `<thead><tr>${headHandle}${cols.map(c => `<th style="position:sticky;top:0;background:${cor};color:${cor === 'var(--accent)' ? 'var(--on-accent)' : '#fff'};padding:7px 9px;font-size:11px;text-align:left;white-space:nowrap;z-index:1">${esc(c)}</th>`).join('')}</tr></thead>`;
   const rowBg = (i) => zebra ? `background:${i % 2 ? '#ffffff' : cor + '1a'}` : '';
   const handleTd = canDragRow ? `<td data-rowgrip style="padding:0 2px;text-align:center;cursor:grab;touch-action:none;user-select:none;color:${zebra ? cor : 'var(--muted,#94a3b8)'};font-weight:600">⠿</td>` : '';
   const body = `<tbody data-rowdrag="${canDragRow ? t.id : ''}">${linhas.map((r, ri) => `<tr data-ri="${ri}" style="border-bottom:1px solid ${zebra ? cor + '40' : 'var(--border)'};${rowBg(ri)}">${handleTd}${cols.map((_, i) => `<td style="padding:6px 9px;font-size:12px;white-space:nowrap;${cellTxt}">${cellHTML(r[i])}</td>`).join('')}</tr>`).join('')}</tbody>`;

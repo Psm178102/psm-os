@@ -112,7 +112,7 @@ function secPlacar(p) {
     const v = f.valores[i]; const w = Math.max(24, Math.round(v / max * 100));
     return `<div style="display:flex;align-items:center;gap:10px;margin:5px 0">
       <div style="width:110px;font-size:13px;font-weight:700">${esc(e)}</div>
-      <div style="flex:1"><div style="width:${w}%;background:${i === f.etapas.length - 1 ? GOLD : 'var(--psm-navy)'};color:#fff;border-radius:6px;padding:5px 10px;font-weight:800;font-size:13px">${v}/mês</div></div></div>`;
+      <div style="flex:1"><div style="width:${w}%;background:${i === f.etapas.length - 1 ? GOLD : 'var(--accent)'};color:#fff;border-radius:6px;padding:5px 10px;font-weight:800;font-size:13px">${v}/mês</div></div></div>`;
   }).join('');
   const linhas = (p.placar || []).map(x => `<tr><td style="padding:6px 8px;font-weight:600">${esc(x.rotulo)}</td>
       <td style="padding:6px 8px;text-align:center">${esc(x.dia)}</td><td style="padding:6px 8px;text-align:center;font-weight:800">${esc(x.semana)}</td><td style="padding:6px 8px;text-align:center">${esc(x.mes)}</td></tr>`).join('');
@@ -137,7 +137,7 @@ function secDia(p) {
   const util = agora.getDay() >= 1 && agora.getDay() <= 5;
   const itens = (p.dia || []).map(b => {
     const now = util && hm >= mins(b.ini) && hm < mins(b.fim);
-    const cor = b.tipo === 'gold' ? GOLD : b.tipo === 'ouro' ? 'var(--psm-navy)' : b.tipo === 'pausa' ? 'var(--border-2)' : 'var(--info)';
+    const cor = b.tipo === 'gold' ? GOLD : b.tipo === 'ouro' ? 'var(--accent)' : b.tipo === 'pausa' ? 'var(--border-2)' : 'var(--info)';
     const fundo = b.tipo === 'gold' ? 'background:linear-gradient(90deg,rgba(202,138,4,.18),var(--bg-2));' : b.tipo === 'ouro' ? 'background:var(--bg-3);' : '';
     return `<div style="display:flex;gap:12px;align-items:stretch;margin:6px 0">
       <div style="width:92px;flex:none;text-align:right;font-weight:800;font-size:13px;padding-top:8px">${esc(b.ini)}<div class="tiny muted" style="font-weight:600">até ${esc(b.fim)}</div></div>
@@ -159,7 +159,7 @@ function secSemana(p) {
   const hoje = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][new Date().getDay()];
   const cards = (p.semana || []).map(d => {
     const isHoje = d.dia === hoje;
-    const est = d.destaque ? `border:2px solid ${GOLD};background:linear-gradient(180deg,rgba(202,138,4,.14),var(--bg-2))` : `border:1px solid ${isHoje ? 'var(--psm-navy)' : 'var(--border)'}`;
+    const est = d.destaque ? `border:2px solid ${GOLD};background:linear-gradient(180deg,rgba(202,138,4,.14),var(--bg-2))` : `border:1px solid ${isHoje ? 'var(--accent)' : 'var(--border)'}`;
     return `<div style="${est};border-radius:10px;padding:10px 12px">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
         <b>${esc(d.dia)}</b>${isHoje ? '<span class="tiny" style="background:var(--accent);color:var(--on-accent);border-radius:999px;padding:1px 8px;font-weight:800">HOJE</span>' : ''}</div>
@@ -179,7 +179,7 @@ function secCanais(p) {
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <b style="min-width:200px">${esc(c.nome)}</b>
         <div style="flex:1;min-width:160px;background:var(--bg-3);border-radius:6px;height:18px;position:relative">
-          <div style="width:${Math.min(100, c.energia * 2.5)}%;height:100%;border-radius:6px;background:${c.energia >= 20 ? GOLD : 'var(--psm-navy)'}"></div>
+          <div style="width:${Math.min(100, c.energia * 2.5)}%;height:100%;border-radius:6px;background:${c.energia >= 20 ? GOLD : 'var(--accent)'}"></div>
           <span style="position:absolute;left:8px;top:0;font-size:11.5px;font-weight:800;line-height:18px;color:#fff;text-shadow:0 0 3px rgba(0,0,0,.45)">${c.energia}% do seu tempo</span>
         </div>
         <span class="tiny" style="font-weight:800">meta: ${esc(c.vendas)}${/^[\d,]+$/.test(c.vendas) ? ' venda/mês' : ''}</span>
@@ -194,7 +194,7 @@ function secCanais(p) {
 function secCadencia(p) {
   const itens = (p.cadencia || []).map(c => `
     <div style="display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--border);${c.alavanca ? 'background:var(--bg-3);margin:0 -8px;padding:8px;border-radius:8px' : ''}">
-      <div style="width:28px;height:28px;flex:none;border-radius:999px;background:${c.alavanca ? GOLD : 'var(--psm-navy)'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px">${esc(c.passo)}</div>
+      <div style="width:28px;height:28px;flex:none;border-radius:999px;background:${c.alavanca ? GOLD : 'var(--accent)'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px">${esc(c.passo)}</div>
       <div style="flex:1">
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:baseline"><b>${esc(c.nome)}</b><span class="tiny muted">RD: ${esc(c.rd)}</span>${c.alavanca ? '<span class="tiny" style="color:' + GOLD + ';font-weight:800">← maior alavanca</span>' : ''}</div>
         <div style="font-size:12.5px">⏱ ${esc(c.prazo)}</div>

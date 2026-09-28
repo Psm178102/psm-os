@@ -162,13 +162,13 @@ const CSS = `
 /* semana */
 .at-week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
 .at-wcol{background:var(--bg-3);border-radius:10px;min-height:340px;display:flex;flex-direction:column;border:1px solid transparent}
-.at-wcol.today{border-color:var(--info)}
+.at-wcol.today{border-color:var(--accent-ink)}
 .at-wcol.past{opacity:.78}
 .at-whead{padding:8px 8px 6px;display:flex;align-items:baseline;gap:6px;cursor:pointer;border-radius:10px 10px 0 0}
 .at-whead:hover{background:color-mix(in srgb,var(--info) 8%,transparent)}
 .at-whead b{font-size:18px;font-weight:800}
 .at-whead span{font-size:11px;font-weight:800;text-transform:uppercase;color:var(--ink-muted)}
-.at-wcol.today .at-whead b{color:var(--info)}
+.at-wcol.today .at-whead b{color:var(--accent-ink)}
 .at-whead .at-add{margin-left:auto;opacity:0;border:0;background:transparent;color:var(--ink-muted);font-size:18px;cursor:pointer;line-height:1}
 .at-wcol:hover .at-add{opacity:1}
 .at-wbody{padding:0 5px 8px;display:flex;flex-direction:column;gap:4px;flex:1}
@@ -186,9 +186,9 @@ const CSS = `
 .at-mcell{min-height:108px;background:var(--bg-3);border-radius:9px;padding:4px 4px 5px;display:flex;flex-direction:column;gap:2px;cursor:pointer;border:1px solid transparent;min-width:0}
 .at-mcell:hover{border-color:var(--border-2)}
 .at-mcell.out{opacity:.45}
-.at-mcell.today{border-color:var(--info)}
+.at-mcell.today{border-color:var(--accent-ink)}
 .at-mnum{font-size:12px;font-weight:800;padding:1px 4px;display:flex;align-items:center}
-.at-mcell.today .at-mnum b{background:var(--info);color:#fff;border-radius:999px;padding:0 6px}
+.at-mcell.today .at-mnum b{background:var(--accent);color:var(--on-accent);border-radius:999px;padding:0 6px}
 .at-mchip{font-size:10.5px;font-weight:600;padding:2px 5px;border-radius:5px;background:var(--bg-2);border-left:3px solid var(--c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;touch-action:none}
 .at-mchip.done{text-decoration:line-through;opacity:.6}
 .at-more{font-size:10.5px;font-weight:800;color:var(--ink-muted);padding-left:4px}

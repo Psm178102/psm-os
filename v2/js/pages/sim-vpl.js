@@ -509,7 +509,7 @@ function render() {
 }
 
 function kpisHTML(c) {
-  return kpi('Valor VPL', fmt(c.vpl), 'var(--psm-navy)', '#fff', 'proposta a valor de hoje')
+  return kpi('Valor VPL', fmt(c.vpl), 'var(--accent)', 'var(--on-accent)', 'proposta a valor de hoje')
     + kpi('Desc. VPL', c.pad.pv > 0 ? pctSinal(c.descVPL) : '—', corDesc(c), '#fff', leituraCurta(c))
     + kpi('VPL tabela padrão', fmt(c.pad.pv), '#334155', '#fff', 'referência da incorporadora')
     + kpi('R$/m² VPL', 'R$ ' + Number(c.m2VPL).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), '#3b82f6', '#fff', `tabela: R$ ${Number(c.m2Tabela).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/m²`);
@@ -621,7 +621,7 @@ function inp(label, key, type, suffix) {
 
 function kpi(label, value, bg, color, sub) {
   return `
-    <div style="background:${bg};color:${color || '#fff'};padding:12px;border-radius:8px;text-align:center">
+    <div style="background:${bg};color:${color || (bg === 'var(--accent)' ? 'var(--on-accent)' : '#fff')};padding:12px;border-radius:8px;text-align:center">
       <div style="font-size:9px;text-transform:uppercase;opacity:.7;font-weight:700">${label}</div>
       <div style="font-size:16px;font-weight:800;margin-top:4px">${value}</div>
       ${sub ? `<div style="font-size:10.5px;opacity:.85;margin-top:2px">${sub}</div>` : ''}

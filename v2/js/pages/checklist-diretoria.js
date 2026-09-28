@@ -91,7 +91,7 @@ function render() {
           <button class="btn btn-primary" id="ck-novo">➕ Nova tarefa</button></div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px" class="mt-2">
-        ${tile('Abertas', ab.length, '', 'var(--psm-navy)', 'abertas')}
+        ${tile('Abertas', ab.length, '', 'var(--accent)', 'abertas')}
         ${tile('Atrasadas', atras, 'prazo vencido', atras ? '#d64545' : '#239a5b', 'atrasadas')}
         ${tile('Vencem em 7 dias', semana, '', semana ? '#c7861a' : '#8a8579', '')}
         ${tile('Sem dono ou prazo', semDono, 'ou com responsável que saiu', semDono ? '#c7861a' : '#239a5b', '')}

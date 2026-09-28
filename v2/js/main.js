@@ -526,7 +526,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '88.69';
+const APP_VERSION = '88.70';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -1335,7 +1335,7 @@ function userCard(u) {
   const color = u.color || '#8a8579';
   return `
     <div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--bg-3);border-radius:var(--r-md)">
-      <div style="width:36px;height:36px;border-radius:var(--r-sm);background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px">${ini}</div>
+      <div style="width:36px;height:36px;border-radius:var(--r-sm);background:${color};color:${color === 'var(--accent)' ? 'var(--on-accent)' : '#fff'};display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px">${ini}</div>
       <div style="flex:1;min-width:0">
         <div style="font-weight:600">${escapeHtml(u.name || '—')}</div>
         <div class="tiny muted">${escapeHtml(u.email || 'sem email')} · ${escapeHtml(u.role || '—')} · ${escapeHtml(u.team || u.frente || 'geral')}</div>

@@ -93,7 +93,7 @@ function render() {
     <div class="card" style="padding:10px 12px">
       <div class="flex items-center" style="gap:6px;flex-wrap:wrap">
         <h2 class="card-title" style="margin:0;font-size:16px">🧲 CRM House PSM</h2>
-        <span class="tiny" style="background:#0f5c431a;color:#0f5c43;padding:0 8px;border-radius:var(--radius-full);font-weight:600">PILOTO F2</span>
+        <span class="tiny" style="background:var(--ok-soft);color:var(--ok);padding:0 8px;border-radius:var(--radius-full);font-weight:600">PILOTO F2</span>
         <span class="tiny muted">mover card grava evento nativo + sincroniza o RD</span>
         <span style="margin-left:auto"></span>
         <input id="ch-busca" class="input input-sm" placeholder="🔎 nome, fone, corretor" value="${esc(_busca)}" style="width:180px">

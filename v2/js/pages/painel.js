@@ -330,7 +330,7 @@ function render() {
     <div class="card">
       <!-- Header -->
       <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid var(--border)">
-        <div style="width:64px;height:64px;border-radius:var(--r-md);background:${u.color || 'var(--ink-muted)'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:26px">${ini}</div>
+        <div style="width:64px;height:64px;border-radius:var(--r-md);background:${u.color || 'var(--ink)'};color:var(--bg);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:26px">${ini}</div>
         <div style="flex:1;min-width:200px">
           <h2 class="card-title" style="margin:0">${escapeHtml(u.name || '')}${mine ? '' : ' <span class="tiny muted">(painel do colaborador)</span>'}</h2>
           <div class="muted tiny">${escapeHtml(u.email || '')} · ${escapeHtml(u.role || '')} · ${escapeHtml(u.team || 'Geral')}</div>

@@ -142,7 +142,7 @@ function brokerLine(u, me, isLider) {
   const roleIco = { socio: '👑', gerente: '🎯', lider: '🛡', backoffice: '📋', marketing: '📢', corretor: '🏠' }[u.role] || '·';
   return `
     <div style="display:grid;grid-template-columns:28px 1fr auto;gap:8px;padding:6px 8px;background:var(--bg-3);border-radius:var(--r-sm);align-items:center;font-size:12.5px${hidden ? ';opacity:0.6' : ''}">
-      <div style="width:24px;height:24px;border-radius:var(--r-sm);background:${u.color || 'var(--ink-muted)'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:11px">${ini}</div>
+      <div style="width:24px;height:24px;border-radius:var(--r-sm);background:${u.color || 'var(--ink)'};color:var(--bg);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:11px">${ini}</div>
       <div style="min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
         <b>${esc(u.name || 'Sem nome')}</b>${isMe ? ' <span class="tiny" style="background:var(--accent);color:var(--on-accent);padding:1px 6px;border-radius:var(--radius-sm)">VOCÊ</span>' : ''}
         <span class="tiny muted">${roleIco}</span>

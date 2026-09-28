@@ -63,7 +63,7 @@ function render() {
           <div class="tiny muted" style="font-weight:600;text-transform:uppercase;margin-bottom:6px">Etapas</div>
           <div style="display:grid;gap:4px">
             ${etapas.map((e, i) => `<div class="flex gap-1" style="align-items:center">
-              <button class="btn btn-sm ${i === _selE ? '' : 'btn-ghost'}" data-e="${i}" style="flex:1;text-align:left;${i === _selE ? `background:${cor};color:#fff;border-color:${cor}` : ''}">${esc(e.nome)}</button>
+              <button class="btn btn-sm ${i === _selE ? '' : 'btn-ghost'}" data-e="${i}" style="flex:1;text-align:left;${i === _selE ? `background:${cor};color:${cor === 'var(--accent)' ? 'var(--on-accent)' : '#fff'};border-color:${cor}` : ''}">${esc(e.nome)}</button>
               ${_edit ? `<button class="btn btn-ghost btn-sm" data-eup="${i}" ${i === 0 ? 'disabled' : ''} style="padding:2px 5px">↑</button><button class="btn btn-ghost btn-sm" data-edn="${i}" ${i === etapas.length - 1 ? 'disabled' : ''} style="padding:2px 5px">↓</button><button class="btn btn-ghost btn-sm" data-edel="${i}" style="padding:2px 5px;color:var(--err)">✕</button>` : ''}
             </div>`).join('')}
             ${_edit ? '<button class="btn btn-ghost btn-sm" id="sc-newe" style="margin-top:4px">➕ Etapa</button>' : ''}

@@ -133,7 +133,7 @@ function saudeHTML(s) {
   const al = s.alertas || [];
   return `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px" class="mb-3">
-      ${tile('Progresso geral', s.pct_geral + '%', 'var(--psm-navy)')}
+      ${tile('Progresso geral', s.pct_geral + '%', 'var(--accent)')}
       ${tile('Objetivos', s.objetivos, '#806d50')}
       ${tile('OKRs', s.okrs, '#806d50')}
       ${tile('No ritmo', s.on_track, STATUS.on_track.color)}

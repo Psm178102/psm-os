@@ -172,7 +172,7 @@ function renderMsgCard(m) {
       <div class="flex gap-2" style="align-items:flex-start;margin-bottom:10px">
         <div style="width:36px;height:36px;border-radius:var(--radius-md);background:${isAnon ? 'var(--ink-2)' : 'var(--accent-soft)'};display:flex;align-items:center;justify-content:center;font-size:16px">${isAnon ? '🔒' : '👤'}</div>
         <div style="flex:1">
-          <div style="font-weight:600;color:${isAnon ? 'var(--muted)' : 'var(--psm-gold)'}">${escapeHtml(m.de)}</div>
+          <div style="font-weight:600;color:${isAnon ? 'var(--muted)' : 'var(--accent)'}">${escapeHtml(m.de)}</div>
           <div class="tiny muted">📅 ${dt}</div>
         </div>
         ${!m.lido ? `<button class="btn btn-ghost btn-sm" data-mark="${m.id}">Marcar lida</button>` : '<span class="tiny muted">✅ Lida</span>'}

@@ -18,7 +18,7 @@ const AGENTS = [
   { id: 'sol',          name: 'Sol',           line: 'PSM Conquista',              ico: '☀️', color: '#c7861a',
     desc: 'Prospecção, atendimento e nutrição de leads para incorporação e loteamento',
     channels: ['WhatsApp', 'Instagram DM'], status: 'pending', page: '/agente-sol' },
-  { id: 'performance',  name: 'Sr. Performance', line: 'Mentor de Corretores',     ico: '🤖', color: '#0f172a',
+  { id: 'performance',  name: 'Sr. Performance', line: 'Mentor de Corretores',     ico: '🤖', color: '#8a8579',
     desc: 'Treina corretores do zero ao nível expert com dados reais do CRM',
     channels: ['House PSM Chat'], status: 'active', page: '/sr-performance' },
   { id: 'gerencia',     name: 'Sr. Gerência',  line: 'Gestão Operacional',         ico: '👔', color: '#806d50',

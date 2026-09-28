@@ -85,4 +85,4 @@ function render(d, loading) {
     }
   });
 }
-function kpi(l, v, bg) { return `<div style="background:${bg};color:#fff;border-radius:var(--radius-md);padding:12px;text-align:center"><div style="font-size:11px;text-transform:uppercase;opacity:.85;font-weight:600">${l}</div><div style="font-size:16px;font-weight:600;margin-top:4px">${v}</div></div>`; }
+function kpi(l, v, bg) { return `<div style="background:${bg};color:${bg === 'var(--accent)' ? 'var(--on-accent)' : '#fff'};border-radius:var(--radius-md);padding:12px;text-align:center"><div style="font-size:11px;text-transform:uppercase;opacity:.85;font-weight:600">${l}</div><div style="font-size:16px;font-weight:600;margin-top:4px">${v}</div></div>`; }

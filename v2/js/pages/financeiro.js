@@ -65,7 +65,7 @@ async function drawBody() {
 }
 
 function tabBtn(id, lbl) {
-  return `<button class="btn" data-tab="${id}" style="border-radius:var(--r-sm) var(--r-sm) 0 0;background:${_tab === id ? 'var(--psm-navy)' : 'transparent'};color:${_tab === id ? '#fff' : 'var(--ink-muted)'};border-bottom:none">${lbl}</button>`;
+  return `<button class="btn" data-tab="${id}" style="border-radius:var(--r-sm) var(--r-sm) 0 0;background:${_tab === id ? 'var(--accent)' : 'transparent'};color:${_tab === id ? 'var(--on-accent)' : 'var(--ink-muted)'};border-bottom:none">${lbl}</button>`;
 }
 function money(n) {
   if (n == null || isNaN(n)) return '0,00';

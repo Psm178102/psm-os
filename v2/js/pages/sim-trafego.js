@@ -187,7 +187,7 @@ function render() {
   if (!isConsol) bindInputs();
   renderOut();
 }
-function tabBtn(id, label, cor) { const on = _s.active === id; return `<button class="st-tab ${on ? 'on' : ''}" data-tab="${id}" style="${on ? `background:${cor};border-color:${cor}` : ''}">${label}</button>`; }
+function tabBtn(id, label, cor) { const on = _s.active === id; return `<button class="st-tab ${on ? 'on' : ''}" data-tab="${id}" style="${on ? `background:${cor};border-color:${cor};color:${cor === 'var(--accent-ink)' ? 'var(--bg)' : '#fff'}` : ''}">${label}</button>`; }
 function field(label, key, o = {}) {
   const v = getP(_s[_s.active], key);
   return `<div>

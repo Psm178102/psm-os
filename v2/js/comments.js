@@ -67,7 +67,7 @@ function commentRow(c, myId) {
   const ts = new Date(c.created_at).toLocaleString('pt-BR');
   return `
     <div style="display:grid;grid-template-columns:30px 1fr auto;gap:8px;padding:8px 10px;background:var(--bg-3);border-radius:var(--r-sm);font-size:13px">
-      <div style="width:26px;height:26px;border-radius:var(--radius-sm);background:${au.color || 'var(--ink-muted)'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:11px">${ini}</div>
+      <div style="width:26px;height:26px;border-radius:var(--radius-sm);background:${au.color || 'var(--ink)'};color:var(--bg);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:11px">${ini}</div>
       <div style="min-width:0">
         <div style="font-weight:600">${escapeHtml(au.name || 'sistema')} <span class="tiny muted" style="font-weight:400">· ${ts}</span></div>
         <div style="margin-top:2px;white-space:pre-wrap;word-wrap:break-word">${linkifyMentions(escapeHtml(c.texto))}</div>

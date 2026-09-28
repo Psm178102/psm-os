@@ -141,7 +141,7 @@ function blocoMap(c, regua) {
   return `<div class="card mt-2">
     <div class="flex items-center" style="gap:8px;flex-wrap:wrap">
       <b>🏢 Minhas vendas · Empreendimentos</b>
-      <span class="tiny" style="background:${ehSenior ? 'var(--ok-soft)' : 'var(--accent-soft)'}20;color:${ehSenior ? 'var(--ok)' : 'var(--accent-ink)'};border-radius:var(--radius-lg);padding:2px 9px;font-weight:600">${esc(c.senioridade_lbl)}</span>
+      <span class="tiny" style="background:${ehSenior ? 'var(--ok-soft)' : 'var(--accent-soft)'};color:${ehSenior ? 'var(--ok)' : 'var(--accent-ink)'};border-radius:var(--radius-lg);padding:2px 9px;font-weight:600">${esc(c.senioridade_lbl)}</span>
       <span style="margin-left:auto;font-weight:600;font-size:20px;color:var(--ok)">${brl(c.comissao_total)}</span>
     </div>
     <div class="mt-2">

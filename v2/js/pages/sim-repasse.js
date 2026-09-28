@@ -127,7 +127,7 @@ function pintaSaida() {
   const set = (sel, html) => { const el = _root.querySelector(sel); if (el) el.innerHTML = html; };
   const corLucro = c.lucro >= 0 ? '#22c55e' : '#ef4444';
   set('#rp-kpis',
-    kpi('Novo valor', fmt(_s.novoValor), 'var(--psm-navy)')
+    kpi('Novo valor', fmt(_s.novoValor), 'var(--accent)')
     + kpi('Ágio (lucro do vendedor)', fmt(c.lucro), corLucro, c.agioPct != null ? pct(c.agioPct) + ' sobre o valor pago' : 'informe o valor pago')
     + kpi('Rendimento ao mês', c.rendaMes != null ? pct(c.rendaMes) : '—', '#0ea5e9', `ágio ÷ ${num(_s.tempoMeses)} meses`)
     + kpi('Entrada do comprador', fmt(c.entrada), '#16a34a', +_s.parcelasEntrada > 0 ? `${num(_s.parcelasEntrada)}x de ${fmt(c.parcelaEntrada)}` : ''));
@@ -137,7 +137,7 @@ function pintaSaida() {
     mini('Valor pago atualizado', fmt(_s.valorPago)),
     mini('Custo total atualizado', fmt(c.custoTotal), '', 'valor pago + saldo devedor'),
     mini('Diferença total', fmt(c.diferenca), c.diferenca >= 0 ? '' : '#ef4444', 'novo valor − custo total (antes da comissão)'),
-    mini('Comissão ' + pctNum(_s.comissaoPct), fmt(c.comissao), 'var(--psm-gold)'),
+    mini('Comissão ' + pctNum(_s.comissaoPct), fmt(c.comissao), 'var(--accent)'),
     mini('Ágio em R$ (lucro do vendedor)', fmt(c.lucro), corLucro, 'entrada − comissão − valor pago'),
     mini('Ágio em %', c.agioPct != null ? pct(c.agioPct) : '—', corLucro, 'sobre o valor pago'),
     mini('Ágio ÷ tempo', c.rendaMes != null ? pct(c.rendaMes) + ' ao mês' : '—', '', `${num(_s.tempoMeses)} meses p/ vender + prazo da entrada`),
@@ -184,7 +184,7 @@ function inp(label, key, type, suffix) {
 }
 
 function kpi(label, value, bg, sub) {
-  return `<div style="background:${bg};color:#fff;padding:14px;border-radius:8px;text-align:center"><div style="font-size:9px;text-transform:uppercase;opacity:.85;font-weight:700">${label}</div><div style="font-size:18px;font-weight:800;margin-top:4px">${value}</div>${sub ? `<div style="font-size:11px;opacity:.85;margin-top:2px">${sub}</div>` : ''}</div>`;
+  return `<div style="background:${bg};color:${bg === 'var(--accent)' ? 'var(--on-accent)' : '#fff'};padding:14px;border-radius:8px;text-align:center"><div style="font-size:9px;text-transform:uppercase;opacity:.85;font-weight:700">${label}</div><div style="font-size:18px;font-weight:800;margin-top:4px">${value}</div>${sub ? `<div style="font-size:11px;opacity:.85;margin-top:2px">${sub}</div>` : ''}</div>`;
 }
 
 function mini(label, value, color, sub) {

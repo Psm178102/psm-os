@@ -475,7 +475,7 @@ function perfilGastoHTML() {
       <div style="flex:1;min-width:230px;background:var(--accent-soft);border:1px solid var(--accent-ink);border-radius:var(--radius-md);padding:10px 12px">
         <div class="tiny muted">🔁 RECORRENTE MENSAL — bate todo mês · <b>${MESES_N3[mr - 1]}</b></div>
         <div style="font-size:20px;font-weight:600;color:var(--psm-navy)">${fmt(recorrenteMes)}<span class="tiny muted" style="font-weight:400">/mês</span></div>
-        ${barra(recorrenteAno, totFixo, 'var(--psm-navy)')}
+        ${barra(recorrenteAno, totFixo, 'var(--accent)')}
         <div class="tiny muted mt-1">${fmt(recorrenteAno)}/ano · média ${fmt(recorrenteAno / 12)}/mês · ${totFixo ? (recorrenteAno / totFixo * 100).toFixed(0) : 0}% do orçamento fixo</div>
       </div>
       <div style="flex:1;min-width:230px;background:var(--accent-soft);border:1px solid var(--accent-ink);border-radius:var(--radius-md);padding:10px 12px">
@@ -594,7 +594,7 @@ function render() {
           <button class="btn btn-ghost btn-sm" data-ano="${_ano - 1}" style="padding:2px 8px;color:var(--vbgm)">◄</button>
           <b style="color:var(--vbgi)">${_ano}</b>
           <button class="btn btn-ghost btn-sm" data-ano="${_ano + 1}" style="padding:2px 8px;color:var(--vbgm)" ${_ano >= new Date().getFullYear() ? 'disabled' : ''}>►</button>
-          ${erros.length ? `<button id="viab-div-toggle" class="vb-chip" style="background:#D9B45E;color:var(--verde-musgo);border:0;cursor:pointer">⚠ ${erros.length} DIVERGÊNCIA${erros.length > 1 ? 'S' : ''}</button>` : ''}
+          ${erros.length ? `<button id="viab-div-toggle" class="vb-chip" style="background:#D9B45E;color:#22392e;border:0;cursor:pointer">⚠ ${erros.length} DIVERGÊNCIA${erros.length > 1 ? 'S' : ''}</button>` : ''}
           ${sims.length ? `<button id="viab-sim-toggle" class="vb-chip" style="background:rgba(255,255,255,.14);color:var(--vbgi);border:0;cursor:pointer">SIMULAÇÃO ATIVA</button>` : ''}
         </span>
       </div>
@@ -951,8 +951,8 @@ function renderCustosDet() {
     <div class="flex" style="gap:4px;align-items:flex-end;height:86px">
       ${Array.from({length: 12}, (_, i) => { const m = i + 1; const h = Math.max(6, Math.round(72 * totMes[m] / maxMes)); const atual = m === mesCorr;
         return `<div class="cd-tl" data-m="${m}" title="${MESES_N[i]}: ${fmt(totMes[m])}" style="flex:1;cursor:pointer;text-align:center">
-          <div class="tiny" style="font-size:11px;font-weight:600;color:${atual ? 'var(--psm-navy)' : 'var(--ink-muted)'}">${fmt(totMes[m])}</div>
-          <div style="height:${h}px;border-radius:4px 4px 0 0;background:${atual ? 'var(--psm-navy)' : '#b8ad8c'};${atual ? 'box-shadow:0 0 0 2px #1e265033' : ''}"></div>
+          <div class="tiny" style="font-size:11px;font-weight:600;color:${atual ? 'var(--accent)' : 'var(--ink-muted)'}">${fmt(totMes[m])}</div>
+          <div style="height:${h}px;border-radius:4px 4px 0 0;background:${atual ? 'var(--accent)' : '#b8ad8c'};${atual ? 'box-shadow:0 0 0 2px #1e265033' : ''}"></div>
           <div class="tiny" style="font-size:11px;${atual ? 'font-weight:600' : ''}">${MESES_N[i]}</div>
         </div>`; }).join('')}
     </div></div>`;

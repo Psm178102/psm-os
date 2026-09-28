@@ -145,7 +145,7 @@ function forecastPanel(fc) {
 
 function tabBtn(id, lbl) {
   const on = _tab === id;
-  return `<button data-tab="${id}" class="btn" style="padding:4px 10px;font-size:12px;${on ? 'background:var(--accent,#7c3aed);color:#fff;border-color:transparent' : ''}">${lbl}</button>`;
+  return `<button data-tab="${id}" class="btn" style="padding:4px 10px;font-size:12px;${on ? 'background:var(--accent);color:var(--on-accent);border-color:transparent' : ''}">${lbl}</button>`;
 }
 
 function scoreBadge(sc, temp) {

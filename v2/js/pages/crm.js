@@ -52,7 +52,7 @@ function funnelTab(f) {
   const active = _selectedFunnel === id;
   const label = f.name || '—';
   return `
-    <button data-funnel="${escapeHtml(id)}" class="btn" style="border-radius:var(--r-sm) var(--r-sm) 0 0;background:${active ? 'var(--psm-navy)' : 'transparent'};color:${active ? '#fff' : 'var(--ink-muted)'};border-bottom:none;font-weight:600">
+    <button data-funnel="${escapeHtml(id)}" class="btn" style="border-radius:var(--r-sm) var(--r-sm) 0 0;background:${active ? 'var(--accent)' : 'transparent'};color:${active ? 'var(--on-accent)' : 'var(--ink-muted)'};border-bottom:none;font-weight:600">
       ${escapeHtml(label)}${f.excluded ? ' <span class="tiny">⊘</span>' : ''}
     </button>
   `;
@@ -155,7 +155,7 @@ function stageCard(name, data, stageMeta) {
     <div class="card" style="margin:0;border-top:3px solid ${accent}">
       <div class="flex items-center gap-2" style="margin-bottom:6px">
         <div style="font-weight:600;font-size:13px;flex:1">${ico} ${escapeHtml(name)}</div>
-        <span class="tiny" style="background:${accent};color:#fff;padding:2px 8px;border-radius:var(--r-full);font-weight:600">${count}</span>
+        <span class="tiny" style="background:${accent};color:${accent === 'var(--accent)' ? 'var(--on-accent)' : '#fff'};padding:2px 8px;border-radius:var(--r-full);font-weight:600">${count}</span>
       </div>
       <div style="font-size:14px;font-weight:600;color:${accent};margin-bottom:6px">R$ ${money(valor)}</div>
       ${data?.deals_amostra?.length ? `

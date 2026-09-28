@@ -123,7 +123,7 @@ function render() {
     .cmo-chip.on{background:var(--accent-soft);color:#04121f;border-color:transparent;font-weight:600}
     .cmo-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
     .cmo-tab{padding:7px 14px;border-radius:var(--radius-full);border:1px solid var(--bd);cursor:pointer;font-size:13px;font-weight:600;user-select:none}
-    .cmo-tab.on{background:var(--ok-soft);color:#04170c;border-color:transparent;font-weight:600}
+    .cmo-tab.on{background:var(--ok-soft);color:var(--ok);border-color:transparent;font-weight:600}
     .cmo-card{background:var(--bg-3);border:1px solid var(--bd);border-radius:var(--radius-md);padding:14px 16px}
     .cmo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
     .cmo-grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:10px}

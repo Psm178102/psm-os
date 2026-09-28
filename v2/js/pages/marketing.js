@@ -1914,7 +1914,7 @@ function campaignRow(c) {
   return `
     <tr style="border-bottom:1px solid var(--border)">
       <td style="padding:5px 8px;text-align:center">${dot}</td>
-      <td style="padding:5px 8px"><span style="background:${statusColor};color:#fff;padding:2px 8px;border-radius:var(--r-full);font-size:11px;font-weight:600">${statusLbl}</span></td>
+      <td style="padding:5px 8px"><span style="background:${statusColor};color:${statusColor === 'var(--accent)' ? 'var(--on-accent)' : '#fff'};padding:2px 8px;border-radius:var(--r-full);font-size:11px;font-weight:600">${statusLbl}</span></td>
       <td style="padding:5px 8px;font-size:11px" class="muted">${escapeHtml(c.account||'')}</td>
       <td style="padding:5px 8px;font-weight:600;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(c.name||'')}">${escapeHtml(c.name||'—')}</td>
       <td style="text-align:right;padding:5px 8px;color:var(--err)">R$ ${money(c.spend)}</td>

@@ -523,9 +523,9 @@ function marca() {
     <div class="card">
       <h2 class="card-title">Identidade v1 — logotipo</h2>
       <div class="ma-logos">
-        <div class="ma-logo-box" style="background:${COR.marfim}"><img src="/v2/img/morimatsu-logo-marfim.png" alt="logo fundo marfim"><span class="tiny">fundo marfim</span></div>
+        <div class="ma-logo-box" style="background:${COR.marfim}"><img src="/v2/img/morimatsu-logo-marfim.png" alt="logo fundo marfim"><span class="tiny" style="color:#343434">fundo marfim</span></div>
         <div class="ma-logo-box" style="background:${COR.verde}"><img src="/v2/img/morimatsu-logo-negativa.png" alt="logo negativa"><span class="tiny" style="color:#fff">negativa em verde</span></div>
-        <div class="ma-logo-box" style="background:${COR.marfim};flex:0 0 160px"><img src="/v2/img/morimatsu-monograma.png" alt="monograma MA" style="max-height:110px"><span class="tiny">monograma MA (perfil)</span></div>
+        <div class="ma-logo-box" style="background:${COR.marfim};flex:0 0 160px"><img src="/v2/img/morimatsu-monograma.png" alt="monograma MA" style="max-height:110px"><span class="tiny" style="color:#343434">monograma MA (perfil)</span></div>
       </div>
       <div class="flex gap-2 mt-2" style="flex-wrap:wrap">
         <a class="btn btn-ghost" href="${ASSETS}LOGO-Morimatsu-principal-transparente.png" download>⬇ logo transparente (PNG 3000px)</a>
