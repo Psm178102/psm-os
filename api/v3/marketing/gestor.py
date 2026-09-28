@@ -582,9 +582,12 @@ def executar_meta(handler_self, sb, user, op, alvo, alvo_nome, orcamento_brl):
     if _acoes_hoje(sb) >= int(g.get("max_acoes_dia") or 20):
         return 429, {"ok": False, "error": "limite diário de ações atingido (guardrail)"}
 
-    token = os.environ.get("META_ACCESS_TOKEN") or ""
+    # v88.80: escrita usa token próprio (usuário de sistema com ads_management). O de
+    # leitura (META_ACCESS_TOKEN) é de perfil e enxerga as 3 contas — trocar ele pelo de
+    # sistema derrubaria a leitura da conta pessoal. Então: 2 tokens, 2 papéis.
+    token = os.environ.get("META_WRITE_TOKEN") or os.environ.get("META_ACCESS_TOKEN") or ""
     if not token:
-        return 503, {"ok": False, "error": "META_ACCESS_TOKEN não configurado"}
+        return 503, {"ok": False, "error": "META_WRITE_TOKEN/META_ACCESS_TOKEN não configurado"}
 
     if op in ("pause", "resume"):
         fields = {"status": "PAUSED" if op == "pause" else "ACTIVE"}
@@ -787,10 +790,11 @@ class handler(BaseHTTPRequestHandler):
         if action == "meta_diag":
             if (user.get("lvl") or 0) < 10:
                 return self._send(403, {"ok": False, "error": "só sócio"})
-            token = os.environ.get("META_ACCESS_TOKEN") or ""
+            token_w = os.environ.get("META_WRITE_TOKEN") or ""
+            token = token_w or os.environ.get("META_ACCESS_TOKEN") or ""
             if not token:
-                return self._send(200, {"ok": False, "error": "META_ACCESS_TOKEN não configurado"})
-            out = {"ok": True}
+                return self._send(200, {"ok": False, "error": "nenhum token do Meta configurado"})
+            out = {"ok": True, "token_testado": "META_WRITE_TOKEN (escrita)" if token_w else "META_ACCESS_TOKEN (leitura)"}
             out["quem"] = _graph_get_msg("me", {"fields": "id,name"}, token)
             perms = _graph_get_msg("me/permissions", {}, token)
             if perms.get("ok"):
