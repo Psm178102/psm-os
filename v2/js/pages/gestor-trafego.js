@@ -25,7 +25,7 @@ const METRICAS = ['cpl', 'spend', 'leads', 'ctr', 'frequency', 'cpm', 'ddd_fora_
 const MET_LBL = { cpl: 'CPL (R$)', spend: 'Gasto (R$)', leads: 'Leads', ctr: 'CTR (%)', frequency: 'Frequência', cpm: 'CPM (R$)', ddd_fora_pct: '% leads DDD ≠ 17' };
 const LIM_LBL = { cpl_alvo: 'CPL alvo (R$)', cpl_max: 'CPL máximo (R$)', freq_max: 'Frequência máx', ctr_min_pct: 'CTR mínimo (%)', ddd_fora_max_pct: '% máx DDD ≠ 17', escala_fator: 'Fator de escala (0-1)' };
 
-let _root = null, _tab = 'painel';
+let _root = null, _tab = 'painel', _detAberto = false;
 let _painel = null, _summary = null;
 let _messages = [], _busy = false;
 let _seg = null, _segBusy = false;
@@ -183,6 +183,100 @@ async function montaSim(body, mod, fn) {
   }
 }
 
+/* v88.79 — TOPO DO PAINEL EM 3 BLOCOS (pedido do Paulo: "muita informação, desorganizado").
+   Situação (1 linha por marca) · Recomendo (itens com Aprovar/Recusar) · Precisa de você.
+   Todo o resto continua existindo, mas recolhido em "Ver o painel completo". */
+function tresBlocos() {
+  const sit = _painel.situacao || {};
+  const recs = _painel.recomendacoes || [];
+  const feitas = _painel.recomendacoes_recentes || [];
+  const precisa = _painel.precisa_de_voce || [];
+  const lim = +(_painel.limiares?.ddd_fora_max_pct || 25);
+  const socio = (auth.user()?.lvl || 0) >= 10;
+  const nomeMarca = k => k === 'conquista' ? '🏠 PSM Conquista' : '🏢 PSM Imóveis';
+  const linhaMarca = (k, o) => {
+    const fora = o?.pct_fora;
+    const cor = fora == null ? 'var(--muted)' : fora > lim ? 'var(--err, #ef4444)' : 'var(--ok, #22c55e)';
+    return `<div class="gt-sit">
+      <b>${nomeMarca(k)}</b>
+      <span>${brl(o?.spend || 0)}</span>
+      <span>${o?.leads ?? 0} leads</span>
+      <span>CPL <b>${o?.cpl != null ? brl(o.cpl) : '—'}</b></span>
+      <span style="color:${cor};font-weight:600">${fora != null ? Math.round(fora) + '% fora do 17' : 'DDD sem dado'}</span>
+    </div>`;
+  };
+  const opLbl = { pause: '⏸ Pausar', resume: '▶️ Reativar', budget: '💰 Ajustar verba', revisar: '🔧 Revisar' };
+  const estLbl = { executada: '✅ executada', bloqueada: '⛔ bloqueada', recusada: '✖ recusada', aprovada_manual: '✅ aprovada (fazer à mão)' };
+  return `
+  <style>
+    .gt-3b{display:grid;grid-template-columns:1.1fr 1.3fr 1fr;gap:14px;margin-bottom:14px}
+    @media(max-width:1000px){.gt-3b{grid-template-columns:minmax(0,1fr)}}
+    .gt-3b h3{margin:0 0 10px;font-size:15px}
+    .gt-sit{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--bd)}
+    .gt-sit:last-child{border-bottom:0}
+    .gt-rec{border:1px solid var(--bd);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+    .gt-rec .mot{font-size:12px;color:var(--muted);margin-top:4px}
+    .gt-det>summary{cursor:pointer;padding:10px 14px;border:1px dashed var(--bd);border-radius:10px;color:var(--muted);font-size:13px}
+  </style>
+  <div class="gt-3b">
+    <div class="gt-card">
+      <h3>📍 Situação <span class="tiny muted" style="font-weight:400">— últimos 7 dias</span></h3>
+      ${linhaMarca('conquista', sit.conquista)}
+      ${linhaMarca('imoveis', sit.imoveis)}
+      <div class="tiny muted" style="margin-top:6px">% fora do 17 = leads que chegaram no RD com DDD diferente de 17 (limite ${lim}%).</div>
+    </div>
+    <div class="gt-card">
+      <h3>✅ Recomendo</h3>
+      ${recs.length ? recs.map(r => `<div class="gt-rec">
+          <div><b>${opLbl[r.op] || r.op}</b> · ${esc(r.campanha || '—')}${r.op === 'budget' && r.orcamento_brl ? ` → <b>${brl(r.orcamento_brl)}/dia</b>` : ''}</div>
+          <div class="mot">${esc(r.motivo || '')}${r.numero ? ` · <b>${esc(r.numero)}</b>` : ''}</div>
+          ${socio ? `<div class="flex" style="gap:6px;margin-top:8px">
+            <button class="btn btn-primary btn-sm" data-rec="${r.id}" data-dec="aprovar">${r.op === 'revisar' || !r.campanha_id ? 'Aprovar (faço à mão)' : 'Aprovar e executar'}</button>
+            <button class="btn btn-ghost btn-sm" data-rec="${r.id}" data-dec="recusar">Recusar</button>
+          </div>` : ''}
+        </div>`).join('') : `<div class="muted">Nenhuma recomendação pendente. A próxima sai com o relatório das 19h.</div>`}
+      ${feitas.length ? `<div class="tiny muted" style="margin-top:6px">Últimas decisões: ${feitas.slice(0, 3).map(r => `${estLbl[r.estado] || r.estado} · ${esc((r.campanha || '').slice(0, 40))}`).join(' — ')}</div>` : ''}
+    </div>
+    <div class="gt-card" style="border-left:4px solid ${precisa.length ? 'var(--warn)' : 'var(--ok, #22c55e)'}">
+      <h3>🙋 Precisa de você</h3>
+      ${precisa.length ? precisa.map(x => `<div style="padding:6px 0;border-bottom:1px solid var(--bd)">${esc(x.texto)}${x.ir ? ` <a href="#" data-ir-tab="${x.ir}">abrir →</a>` : ''}</div>`).join('') : `<div class="muted">Nada hoje.</div>`}
+    </div>
+  </div>`;
+}
+
+function qualidadeTabela() {
+  const q = _painel.qualidade_campanhas || [];
+  if (!q.length) return '';
+  const lim = +(_painel.limiares?.ddd_fora_max_pct || 25);
+  return `<div class="gt-card" style="margin-bottom:14px">
+    <h4>🎯 Qualidade por campanha (7 dias) — CPL ao lado de quem é o lead</h4>
+    <div style="overflow-x:auto"><table class="table" style="width:100%;font-size:12px">
+      <thead><tr><th style="text-align:left">Campanha</th><th>Gasto</th><th>Leads</th><th>CPL</th><th>Leads no RD</th><th>% fora do 17</th></tr></thead>
+      <tbody>${q.map(c => `<tr>
+        <td style="text-align:left">${esc((c.nome || '').slice(0, 70))} <span class="tiny muted">${esc(c.status || '')}</span></td>
+        <td style="text-align:center">${brl(c.spend)}</td><td style="text-align:center">${c.leads}</td>
+        <td style="text-align:center">${c.cpl != null ? brl(c.cpl) : '—'}</td>
+        <td style="text-align:center">${c.leads_rd ?? '—'}</td>
+        <td style="text-align:center;font-weight:600;color:${c.pct_fora == null ? 'var(--muted)' : c.pct_fora > lim ? 'var(--err, #ef4444)' : 'var(--ok, #22c55e)'}">${c.pct_fora != null ? Math.round(c.pct_fora) + '%' : 'sem lead casado'}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>
+  </div>`;
+}
+
+function ligaTresBlocos(body) {
+  body.querySelectorAll('[data-ir-tab]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); _tab = a.dataset.irTab; render(); }));
+  body.querySelectorAll('[data-rec]').forEach(b => b.addEventListener('click', async () => {
+    const dec = b.dataset.dec;
+    if (dec === 'aprovar' && !confirm('Aprovar esta recomendação? Se for pausar/reativar/verba, ela é executada no Meta agora (com os guardrails).')) return;
+    body.querySelectorAll('[data-rec]').forEach(x => { x.disabled = true; });
+    try {
+      const r = await api.request('/api/v3/marketing/gestor', { method: 'POST', body: { action: 'rec_decidir', id: b.dataset.rec, decisao: dec } });
+      if (r && r.rec && r.rec.resultado) alert(r.rec.resultado);
+    } catch (e) { alert('Não consegui registrar: ' + (e.message || e)); }
+    await load();
+  }));
+}
+
 function renderPainel(body) {
   if (aguarde(body)) return;
   if (_painel.ok === false) { body.innerHTML = `<div class="muted">⚠️ ${esc(_painel.error)}</div>`; return; }
@@ -205,7 +299,10 @@ function renderPainel(body) {
   const ritmoOk = pctPastas >= pctMes - 8;
   const vg = _painel.vigia_ultimo;
 
-  body.innerHTML = `
+  body.innerHTML = tresBlocos() + `
+    <details class="gt-det" ${_detAberto ? 'open' : ''}>
+      <summary>📂 Ver o painel completo — pastas do mês, métricas, qualidade por campanha, ritmo diário e concorrência</summary>
+      <div style="margin-top:14px">${qualidadeTabela()}
     ${contaPausada ? `<div style="background:var(--crit-bg, #7f1d1d22);border:1px solid var(--err);border-left:5px solid var(--err);border-radius:var(--radius-md);padding:12px 16px;margin-bottom:14px">
       <b>🔴 CONTA SEM ENTREGA</b> <span class="tiny">— gasto de 7 dias em R$ 0. Campanhas pausadas: cada dia parado encarece a meta do mês. Plano de religada no último relatório abaixo.</span>
     </div>` : ''}
@@ -289,7 +386,11 @@ function renderPainel(body) {
       </div>
     </div>
 
-    <div id="gt-rel-painel"></div>`;
+    <div id="gt-rel-painel"></div>
+      </div>
+    </details>`;
+  body.querySelector('.gt-det')?.addEventListener('toggle', e => { _detAberto = e.target.open; });
+  ligaTresBlocos(body);
 
   body.querySelector('[data-ir-concorrencia]')?.addEventListener('click', () => { location.hash = '#/concorrencia'; });
   body.querySelector('[data-ir-alertas]')?.addEventListener('click', () => { _tab = 'alertas'; render(); });

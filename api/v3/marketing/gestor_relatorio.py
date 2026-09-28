@@ -24,6 +24,7 @@ IA: mesma cadeia do sr_agente (Gemini primário, header x-goog-api-key).
 from http.server import BaseHTTPRequestHandler
 from datetime import datetime, timezone, timedelta
 import json
+import re
 import os
 import sys
 import urllib.parse
@@ -35,46 +36,46 @@ from _auth_lib import (require_user, AuthError, audit, supabase_client,  # type:
                        lvl_of, notify, send_web_push, agora_brt)
 # helpers do módulo irmão (mesmo padrão de comercial_analise.py → simulador.py)
 from gestor import (kv_get, kv_set, avaliar_alertas, _metricas_do_payload,  # type: ignore
-                    metricas_por_conta, KV_CONFIG, KV_ALERTAS, KV_LOG)
+                    metricas_por_conta, KV_CONFIG, KV_ALERTAS, KV_LOG,
+                    qualidade_leads, situacao_por_marca, cod_campanha, recs_add, KV_RECS)
 from _meta_cache_lib import build_cache_key, read_cache  # type: ignore
 
 KV_RELATORIOS = "gt_relatorios"
 
 TIPOS = ("diario", "semanal", "quinzenal", "mensal")
 
+FORMATO_3_BLOCOS = (
+    "FORMATO OBRIGATÓRIO (v88.79 — pedido do Paulo: 'muita informação, desorganizado'). Sem saudação, sem "
+    "'Prezados sócios', sem introdução. Exatamente estes blocos, nesta ordem, com estes títulos:\n"
+    "## 📍 Situação\n"
+    "Uma linha por marca, só: gasto · leads · CPL · % fora do DDD 17 (use a seção SITUAÇÃO POR MARCA). "
+    "Depois UMA frase dizendo o que mudou de mais importante.\n"
+    "## ✅ Recomendo\n"
+    "No máximo 3 itens numerados. Cada item: o que fazer + em qual campanha + POR QUE em uma frase, citando "
+    "UM número que justifica (do simulador, da qualidade por campanha ou do CPL). Julgue campanha por CPL "
+    "JUNTO com % fora do 17 — campanha barata com muito lead de fora NÃO é a melhor. Se não há nada a mudar, "
+    "escreva 'Manter tudo como está' e o motivo.\n"
+    "## 🙋 Precisa de você\n"
+    "Só o que depende do sócio (aprovar, validar simulador, decidir verba). Se nada, escreva 'Nada hoje'.\n"
+    "Depois dos 3 blocos, e SÓ depois, um bloco ```json``` com as recomendações em lista (máx 3): "
+    "[{\"op\": \"pause|resume|budget|revisar\", \"campanha_id\": \"id numérico da campanha ou vazio\", "
+    "\"campanha\": \"nome\", \"orcamento_brl\": número ou null, \"motivo\": \"uma frase\", "
+    "\"numero\": \"o número que justifica\"}]. Use 'revisar' para o que não é botão do Meta (criativo, "
+    "público, localização). Use o campanha_id EXATO da lista de campanhas; se não tiver, deixe vazio."
+)
+
 INSTRUCOES = {
     "diario": (
-        "RELATÓRIO DIÁRIO (pulso do dia, máx ~220 palavras). Estrutura: "
-        "1) 📊 Números: ONTEM (dia fechado — gasto, leads, CPL, por marca) e HOJE PARCIAL (até a hora do relatório, "
-        "não é dia fechado); compare ONTEM com a média diária dos 7d. Use SOMENTE os números da seção META ADS. "
-        "Se uma janela vier marcada SEM DADO, escreva que o dado não chegou — NUNCA transforme ausência de dado em "
-        "'gasto zero' nem em alerta de campanha parada; "
-        "2) 🚨 Alertas (só os disparados; se nenhum, uma linha dizendo que está tudo dentro); "
-        "3) 🎯 3 destaques (campanha melhor, pior, movimento relevante); "
-        "4) ⚡ Ação de amanhã (1 a 2 ações concretas e priorizadas)."
+        "RELATÓRIO DIÁRIO (máx ~160 palavras nos 3 blocos). Situação = ONTEM (dia fechado) por marca; mencione HOJE PARCIAL só se algo fugir do padrão. Se uma janela vier SEM DADO, diga que o dado não chegou — NUNCA transforme ausência de dado em 'gasto zero'."
     ),
     "semanal": (
-        "RELATÓRIO SEMANAL (segunda-feira — leitura da semana fechada vs anterior, máx ~350 palavras). Estrutura: "
-        "1) 📊 Semana em números (7d: gasto, leads, CPL, CTR — com variação vs período anterior quando houver); "
-        "2) 🏆 Campanhas: top e piores por CPL com números; "
-        "3) 👥 Públicos & criativos: sinais de fadiga (frequência), o que rotacionar; "
-        "4) 🚨 Alertas da semana; "
-        "5) 🗺 Plano da semana: 3 a 5 ações priorizadas com impacto esperado."
+        'RELATÓRIO SEMANAL (máx ~220 palavras nos 3 blocos). Situação = últimos 7 dias por marca vs período anterior. Recomendo = o plano da semana (fadiga de criativo por frequência, o que rotacionar, onde está o lead de fora).'
     ),
     "quinzenal": (
-        "RELATÓRIO QUINZENAL (dia 15 — leitura estratégica da 1ª quinzena, máx ~350 palavras). Estrutura: "
-        "1) 📊 Quinzena vs meta da estratégia vigente (ritmo de verba e de leads: fecha o mês como?); "
-        "2) 🧭 Diagnóstico estrutural (mix de campanhas, marcas, funil — o que os números dizem); "
-        "3) 👥 Públicos: o que saturou, o que testar na 2ª quinzena; "
-        "4) ⚡ Correções de rota pra 2ª quinzena (priorizadas)."
+        'RELATÓRIO QUINZENAL (máx ~220 palavras nos 3 blocos). Situação = quinzena vs meta do mês (pastas, custo por pasta, verba). Recomendo = correções de rota para a 2ª quinzena, amarradas ao simulador.'
     ),
     "mensal": (
-        "FECHAMENTO DE MÊS (mês anterior completo, máx ~450 palavras). Estrutura: "
-        "1) 📊 Mês em números (30d: gasto, leads, CPL, CTR) e leitura vs estratégia/verba definida; "
-        "2) 🏆 O que funcionou (campanhas/abordagens com números); "
-        "3) 📉 O que não funcionou e por quê; "
-        "4) 🎓 Aprendizados do mês (padrões pra guardar); "
-        "5) 🗺 Plano do próximo mês: estrutura de campanhas, públicos e verba recomendada."
+        'FECHAMENTO DO MÊS (máx ~280 palavras nos 3 blocos). Situação = mês fechado por marca (gasto, leads, CPL, % fora do 17, pastas). Recomendo = estrutura e verba do próximo mês, amarradas ao simulador; o que funcionou e o que não funcionou entram como UMA frase cada dentro do item correspondente.'
     ),
 }
 
@@ -125,6 +126,10 @@ def _ia(prompt, max_tokens=1500):
 def _contexto(sb):
     parts = []
     cfg = kv_get(sb, KV_CONFIG, {})
+    # v88.79: as REGRAS do cérebro (sem Advantage, exclusão de corretores, simuladores,
+    # nomenclatura de forms) não chegavam aos relatórios — só a estratégia chegava.
+    if cfg.get("persona_extra"):
+        parts.append("REGRAS PERMANENTES DO SÓCIO (obedeça em toda recomendação):\n" + str(cfg["persona_extra"])[:5000])
     est = cfg.get("estrategia") or {}
     if est.get("conquista") or est.get("imoveis"):
         parts.append("ESTRATÉGIA VIGENTE:\n[Conquista] " + str(est.get("conquista") or "—")[:3000] +
@@ -190,6 +195,7 @@ def _contexto(sb):
                 for c in contas)
         parts.append(linha)
 
+    _QUAL = qualidade_leads(sb, 7)   # (por código de campanha, por marca) — leads que chegaram no RD
     for preset in ("last_7d", "last_30d"):
         payload, _age, _src = read_cache(sb, build_cache_key(preset, "", ""), 10 ** 9)
         m = _metricas_do_payload(payload)
@@ -206,12 +212,26 @@ def _contexto(sb):
             ps, pr = float(prev.get("spend") or 0), int(prev.get("results") or 0)
             linhas.append(f"  período anterior: gasto R$ {ps:,.0f} · {pr} leads · CPL {'R$ %.2f' % (ps / pr) if pr else '—'}")
         camps = sorted([c for c in (payload.get("campaigns") or []) if float(c.get("spend") or 0) > 0],
-                       key=lambda c: -float(c.get("spend") or 0))[:10]
+                       key=lambda c: -float(c.get("spend") or 0))[:12]
+        qual_cod = _QUAL[0] if preset == "last_7d" else {}
         for c in camps:
             cs, cr = float(c.get("spend") or 0), int(c.get("results") or 0)
-            linhas.append(f"  - [{c.get('account') or ''}] {str(c.get('name') or '')[:60]} ({c.get('status')}): "
-                          f"R$ {cs:,.0f} · {cr} leads · CPL {'R$ %.2f' % (cs / cr) if cr else '—'} · CTR {c.get('ctr') or 0}")
+            q = qual_cod.get(cod_campanha(c.get("name")) or "") or {}
+            qtxt = (f" · {q['pct_fora']:.0f}% fora do 17 ({q['leads']} leads no RD)"
+                    if q.get("pct_fora") is not None else " · qualidade: sem lead casado no RD")
+            linhas.append(f"  - [{c.get('account') or ''}] {str(c.get('name') or '')[:70]} "
+                          f"(campanha_id {c.get('id')}, {c.get('status')}): "
+                          f"R$ {cs:,.0f} · {cr} leads · CPL {'R$ %.2f' % (cs / cr) if cr else '—'} · "
+                          f"CTR {c.get('ctr') or 0} · freq {c.get('frequency') or '—'}"
+                          + (qtxt if preset == "last_7d" else ""))
         parts.append("META ADS (" + preset + "):\n" + "\n".join(linhas))
+        if preset == "last_7d":
+            sit = situacao_por_marca(payload, _QUAL[1])
+            parts.append("SITUAÇÃO POR MARCA (7 dias): " + " | ".join(
+                f"{'PSM Conquista' if k == 'conquista' else 'PSM Imóveis'}: R$ {v['spend']:,.0f} · {v['leads']} leads · "
+                f"CPL {'R$ %.2f' % v['cpl'] if v['cpl'] else '—'} · "
+                f"{('%.0f%% fora do DDD 17' % v['pct_fora']) if v.get('pct_fora') is not None else 'DDD: sem dado'}"
+                for k, v in sit.items()))
 
     regras = (kv_get(sb, KV_ALERTAS, {}) or {}).get("regras") or []
     if regras:
@@ -263,14 +283,24 @@ def _gerar(sb, tipo, periodo, actor_name="cron"):
     prompt = (
         "Você é o Sr. Gestor de Tráfego, gestor de tráfego pago sênior da PSM Assessoria Imobiliária "
         "(São José do Rio Preto/SP — marcas PSM Conquista/MCMV e PSM Imóveis/alto padrão). "
-        "Escreva um relatório EXECUTIVO para os sócios, em português BR, baseado EXCLUSIVAMENTE "
-        "nos dados abaixo — cite números reais; se um dado não existir, diga 'sem dado' em vez de inventar. "
-        "Tom: direto, de dono de orçamento. Use os emojis da estrutura pedida como títulos das seções.\n\n"
-        f"HOJE: {hoje}\n\n{INSTRUCOES[tipo]}\n\n═══ DADOS REAIS ═══\n\n" + (ctx or "(sem dados no cache ainda)")
+        "Escreva para o sócio, em português BR, baseado EXCLUSIVAMENTE nos dados abaixo — cite números "
+        "reais; se um dado não existir, diga 'sem dado' em vez de inventar. Tom: curto, direto, de quem "
+        "decide verba. Frases curtas. Nada de parágrafo longo.\n\n"
+        f"HOJE: {hoje}\n\n{INSTRUCOES[tipo]}\n\n{FORMATO_3_BLOCOS}\n\n═══ DADOS REAIS ═══\n\n"
+        + (ctx or "(sem dados no cache ainda)")
     )
-    texto, provider, err = _ia(prompt)
+    texto, provider, err = _ia(prompt, max_tokens=1800)
     if not texto:
         return None, err
+    # v88.79: as recomendações saem do texto e viram itens com Aprovar/Recusar no Painel
+    recs = []
+    mj = re.search(r"```json\s*(\[.*?\])\s*```", texto, re.S)
+    if mj:
+        try:
+            recs = json.loads(mj.group(1))
+        except Exception:
+            recs = []
+        texto = (texto[:mj.start()] + texto[mj.end():]).strip()
     box = kv_get(sb, KV_RELATORIOS, {"itens": []})
     itens = box.get("itens") or []
     item = {"id": "gtr_" + uuid.uuid4().hex[:10], "tipo": tipo, "periodo": periodo,
@@ -278,6 +308,10 @@ def _gerar(sb, tipo, periodo, actor_name="cron"):
             "provider": provider, "gerado_por": actor_name}
     itens.insert(0, item)
     kv_set(sb, KV_RELATORIOS, {"itens": itens[:60]})
+    try:
+        item["recomendacoes_add"] = recs_add(sb, recs if isinstance(recs, list) else [], item["id"])
+    except Exception:
+        pass
 
     # notifica os sócios (in-app + push)
     try:

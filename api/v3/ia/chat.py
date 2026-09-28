@@ -711,6 +711,28 @@ def _gestor_context(sb):
         "caixa projetado que saem daqui, não números de memória. Se um cenário estiver vazio ou com mais "
         "de 30 dias, diga isso ANTES da recomendação e peça a atualização.\n" + "\n".join(sim_txt))
 
+    # 1d) v88.79 — qualidade do lead por campanha (retrato gravado pelo Painel) e o
+    # formato curto de resposta que o Paulo pediu ("muita informação, desorganizado").
+    ql = _kv("gt_qualidade")
+    if isinstance(ql, dict) and ql.get("campanhas"):
+        linhas = []
+        for k, v in (ql.get("situacao") or {}).items():
+            if isinstance(v, dict):
+                linhas.append("  %s: R$ %s · %s leads · CPL %s · %s fora do DDD 17" % (
+                    "PSM Conquista" if k == "conquista" else "PSM Imóveis", v.get("spend"), v.get("leads"),
+                    v.get("cpl") or "—", ("%s%%" % v.get("pct_fora")) if v.get("pct_fora") is not None else "sem dado"))
+        for cp in (ql.get("campanhas") or [])[:12]:
+            linhas.append("  - %s (id %s, %s): CPL %s · %s fora do 17" % (
+                str(cp.get("nome") or "")[:70], cp.get("id"), cp.get("status"), cp.get("cpl") or "—",
+                ("%s%%" % cp.get("pct_fora")) if cp.get("pct_fora") is not None else "sem lead casado"))
+        parts.append("🎯 QUALIDADE DO LEAD (7 dias, retrato de %s) — julgue campanha por CPL JUNTO com %% fora do 17:\n%s"
+                     % (str(ql.get("ts"))[:16], "\n".join(linhas)))
+    parts.append(
+        "FORMATO DE RESPOSTA (ordem do sócio, 27/09): curto e organizado. Quando for análise ou recomendação, "
+        "use exatamente 3 blocos — 📍 Situação (1 linha por marca) · ✅ Recomendo (máx 3 itens, cada um com o "
+        "número que justifica) · 🙋 Precisa de você. Sem saudação, sem introdução, sem parágrafo longo. Pergunta "
+        "simples = resposta simples em até 5 linhas.")
+
     # 1b) União Vigia+Gestor: últimos achados do Vigia de Concorrência
     vg = _kv("gt_vigia")
     if isinstance(vg, dict):

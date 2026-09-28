@@ -51,6 +51,10 @@ KV_PUBLICOS = "gt_publicos"
 KV_LISTAS_IDX = "gt_listas_idx"
 KV_LOG = "gt_acoes_log"
 KV_SIMLEADS = "gt_sim_leads"   # v88.72: cenário do Simulador Leads/CAC (antes só no navegador)
+KV_RECS = "gt_recomendacoes"    # v88.79: fila de recomendações do agente (aprovar/recusar → executa)
+# conta Meta → marca (mesma régua da paridade; Paulo alimenta o MAP)
+CONTA_MARCA = {"act_1851397782164698": "conquista", "act_1413862082678408": "imoveis",
+               "act_2321924467923057": "imoveis"}
 
 # Guardrails padrão — o sócio edita por cima (gt_config.guardrails)
 GUARDRAILS_DEFAULT = {
@@ -216,6 +220,112 @@ def ddd_fora_pct(sb, dias=7):
         return round(fora / tot * 100, 1) if tot >= 10 else None
     except Exception:
         return None
+
+
+_COD_RX = re.compile(r"cod\.?\s*([a-z0-9][a-z0-9\-]*)", re.I)
+
+
+def cod_campanha(nome):
+    """'[PSM CONQUISTA] 15/08 Cod.STP-2 - ...' → 'stp-2'. É a chave que casa a campanha
+    do Meta com o lead no RD (o nome completo muda entre os dois; o código não)."""
+    m = _COD_RX.search(nome or "")
+    return m.group(1).lower().strip("-") if m else None
+
+
+def qualidade_leads(sb, dias=7):
+    """v88.79 — qualidade do lead que CHEGOU no RD, por código de campanha e por marca:
+    quantos vieram e quantos com DDD ≠ 17. É o que falta ao lado do CPL: campanha
+    'barata' que traz lead de fora do raio é dinheiro queimado (regra do Paulo, 19/09)."""
+    por_cod, por_marca = {}, {}
+    try:
+        desde = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
+        rows = (sb.table("deals").select("rd_raw,pipeline_name")
+                .gte("created_at_rd", desde).order("created_at_rd", desc=True)
+                .limit(1500).execute().data or [])
+        for d in rows:
+            raw = d.get("rd_raw") or {}
+            _n, fones, _e = _contatos_do_raw(raw)
+            if not fones:
+                continue
+            f0 = fones[0]
+            ddd = f0[2:4] if f0.startswith("55") and len(f0) >= 4 else ""
+            if not ddd:
+                continue
+            fora = ddd != "17"
+            marca = "conquista" if "CONQUISTA" in str(d.get("pipeline_name") or "").upper() else "imoveis"
+            pm = por_marca.setdefault(marca, {"leads": 0, "fora": 0})
+            pm["leads"] += 1
+            pm["fora"] += 1 if fora else 0
+            camp = ((raw.get("campaign") or {}).get("name")) if isinstance(raw, dict) else None
+            cod = cod_campanha(camp)
+            if cod:
+                pc = por_cod.setdefault(cod, {"leads": 0, "fora": 0})
+                pc["leads"] += 1
+                pc["fora"] += 1 if fora else 0
+        for box in (por_cod, por_marca):
+            for o in box.values():
+                o["pct_fora"] = round(o["fora"] / o["leads"] * 100, 1) if o["leads"] else None
+    except Exception:
+        pass
+    return por_cod, por_marca
+
+
+def situacao_por_marca(payload7, qual_marca):
+    """Uma linha por marca para o topo do Painel e do relatório: gasto, leads, CPL, % fora do 17."""
+    out = {"conquista": {"spend": 0.0, "leads": 0}, "imoveis": {"spend": 0.0, "leads": 0}}
+    for a in ((payload7 or {}).get("accounts") or []) if isinstance(payload7, dict) else []:
+        if not isinstance(a, dict) or a.get("_error"):
+            continue
+        marca = CONTA_MARCA.get(str(a.get("id") or ""))
+        if not marca:
+            continue
+        out[marca]["spend"] += float(a.get("spend") or 0)
+        out[marca]["leads"] += int(a.get("results") or 0)
+    for marca, o in out.items():
+        o["spend"] = round(o["spend"], 2)
+        o["cpl"] = round(o["spend"] / o["leads"], 2) if o["leads"] else None
+        o["pct_fora"] = (qual_marca.get(marca) or {}).get("pct_fora")
+        o["leads_rd"] = (qual_marca.get(marca) or {}).get("leads")
+    return out
+
+
+def recs_get(sb):
+    return (kv_get(sb, KV_RECS, {"itens": []}) or {}).get("itens") or []
+
+
+def recs_add(sb, novas, origem):
+    """Enfileira recomendações do agente. Não duplica: se já existe uma PENDENTE para a
+    mesma campanha + operação, fica a mais antiga (o sócio decide uma vez)."""
+    itens = recs_get(sb)
+    pend = {(i.get("campanha_id") or i.get("campanha"), i.get("op")) for i in itens if i.get("estado") == "pendente"}
+    add = 0
+    for r in novas or []:
+        if not isinstance(r, dict):
+            continue
+        op = str(r.get("op") or "").strip().lower()
+        if op not in ("pause", "resume", "budget", "revisar"):
+            continue
+        cid = str(r.get("campanha_id") or "").strip()
+        if cid and not _ID_RX.match(cid):
+            cid = ""
+        chave = (cid or r.get("campanha"), op)
+        if chave in pend:
+            continue
+        orc = r.get("orcamento_brl")
+        try:
+            orc = float(orc) if orc not in (None, "") else None
+        except Exception:
+            orc = None
+        itens.insert(0, {
+            "id": "rec_" + uuid.uuid4().hex[:10], "ts": _now_iso(), "origem": origem,
+            "op": op, "campanha_id": cid or None, "campanha": str(r.get("campanha") or "")[:160],
+            "orcamento_brl": orc, "motivo": str(r.get("motivo") or "")[:400],
+            "numero": str(r.get("numero") or "")[:200], "estado": "pendente",
+        })
+        pend.add(chave)
+        add += 1
+    kv_set(sb, KV_RECS, {"itens": itens[:80]})
+    return add
 
 
 def diagnosticos_campanhas(payload, limiares, ddd_pct=None):
@@ -457,6 +567,66 @@ def _graph_get(path, params, token):
         return False, str(e)
 
 
+def executar_meta(handler_self, sb, user, op, alvo, alvo_nome, orcamento_brl):
+    """Uma ação no Meta (pause | resume | budget) com todos os guardrails do sócio.
+    Devolve (status_http, corpo). Usada pela ação avulsa e pela aprovação de recomendação."""
+    if not _ID_RX.match(alvo):
+        return 400, {"ok": False, "error": "alvo_id inválido"}
+
+    cfg = kv_get(sb, KV_CONFIG, {})
+    g = {**GUARDRAILS_DEFAULT, **(cfg.get("guardrails") or {})}
+    if op not in ("pause", "resume", "budget"):
+        return 400, {"ok": False, "error": "op inválida (pause|resume|budget)"}
+    if op not in (g.get("ops_permitidas") or []):
+        return 403, {"ok": False, "error": f"op '{op}' bloqueada pelos guardrails"}
+    if _acoes_hoje(sb) >= int(g.get("max_acoes_dia") or 20):
+        return 429, {"ok": False, "error": "limite diário de ações atingido (guardrail)"}
+
+    token = os.environ.get("META_ACCESS_TOKEN") or ""
+    if not token:
+        return 503, {"ok": False, "error": "META_ACCESS_TOKEN não configurado"}
+
+    if op in ("pause", "resume"):
+        fields = {"status": "PAUSED" if op == "pause" else "ACTIVE"}
+    else:
+        try:
+            novo = float(orcamento_brl)
+        except Exception:
+            return 400, {"ok": False, "error": "orcamento_brl precisa ser número"}
+        if not (1 <= novo <= float(g.get("orcamento_max_brl_dia") or 500)):
+            return 400, {"ok": False, "error": f"orçamento fora do teto do guardrail (R$ {g.get('orcamento_max_brl_dia')}/dia)"}
+        ok_atual, atual = _graph_get(alvo, {"fields": "daily_budget,name"}, token)
+        if ok_atual and atual.get("daily_budget"):
+            atual_brl = int(atual["daily_budget"]) / 100.0
+            if atual_brl > 0:
+                var_pct = abs(novo - atual_brl) / atual_brl * 100
+                if var_pct > float(g.get("variacao_max_pct") or 30):
+                    return 400, {"ok": False, "error": f"variação de {var_pct:.0f}% excede o guardrail ({g.get('variacao_max_pct')}%)"}
+        fields = {"daily_budget": str(int(round(novo * 100)))}
+
+    ok, resp = _graph_post(alvo, fields, token)
+    log_acao(sb, user, op, {"id": alvo, "nome": alvo_nome}, orcamento_brl, ok, resp)
+    audit(handler_self, user, "gestor_trafego.meta_exec", target_type="meta_object", target_id=alvo,
+          notes=f"op={op} ok={ok} {str(resp)[:180]}")
+    if not ok:
+        return 502, {"ok": False, "error": f"Meta recusou: {resp}"}
+    return 200, {"ok": True, "op": op, "alvo": alvo, "resp": resp}
+
+
+def _graph_get_msg(path, params, token):
+    qs = urllib.parse.urlencode({**params, "access_token": token})
+    try:
+        with urllib.request.urlopen(f"{GRAPH_API}/{path}?{qs}", timeout=30) as resp:
+            return {"ok": True, "data": json.loads(resp.read().decode() or "{}")}
+    except urllib.error.HTTPError as e:
+        try:
+            err = (json.loads(e.read().decode()).get("error") or {})
+            return {"ok": False, "erro": f"({err.get('code')}/{err.get('error_subcode')}) {err.get('message')}"}
+        except Exception:
+            return {"ok": False, "erro": f"HTTP {e.code}"}
+    except Exception as e:
+        return {"ok": False, "erro": str(e)[:200]}
+
 def _acoes_hoje(sb):
     log = kv_get(sb, KV_LOG, {"itens": []})
     hoje = datetime.now(timezone.utc).date().isoformat()
@@ -525,8 +695,53 @@ class handler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
             ids, labels, _ = resolver_contas(sb)
+
+            # v88.79 — os 3 blocos do topo: Situação · Recomendo · Precisa de você
+            qual_cod, qual_marca = qualidade_leads(sb, 7)
+            situacao = situacao_por_marca(payload7, qual_marca)
+            recs = recs_get(sb)
+            pend = [r for r in recs if r.get("estado") == "pendente"]
+            precisa = []
+            sl = kv_get(sb, KV_SIMLEADS, {}) or {}
+            if not sl.get("dados") or sl.get("origem") == "auto":
+                precisa.append({"tipo": "simulador", "texto": "Validar as premissas do Simulador Leads/CAC — hoje ele "
+                                "tem só os valores padrão, e o agente não pode decidir verba em cima deles.",
+                                "ir": "simleads"})
+            lim_ddd = float(limiares.get("ddd_fora_max_pct") or 25)
+            for marca, o in situacao.items():
+                if o.get("pct_fora") is not None and o["pct_fora"] > lim_ddd:
+                    precisa.append({"tipo": "qualidade", "texto": f"{'PSM Conquista' if marca == 'conquista' else 'PSM Imóveis'}: "
+                                    f"{o['pct_fora']:.0f}% dos leads fora do DDD 17 (limite {lim_ddd:.0f}%). "
+                                    "Revisar localização/raio dos conjuntos."})
+            if pend:
+                precisa.append({"tipo": "recs", "texto": f"{len(pend)} recomendação(ões) esperando aprovar ou recusar."})
+            ult = ((kv_get(sb, KV_LOG, {}) or {}).get("itens") or [None])[0]
+            if ult and not ult.get("ok"):
+                precisa.append({"tipo": "meta", "texto": "A última edição no Meta foi recusada: "
+                                + str(ult.get("resp") or "")[:160]})
+            qual_camp = []
+            for c in ((payload7 or {}).get("campaigns") or []):
+                if float(c.get("spend") or 0) <= 0:
+                    continue
+                q = qual_cod.get(cod_campanha(c.get("name")) or "") or {}
+                sp, rs = float(c.get("spend") or 0), int(c.get("results") or 0)
+                qual_camp.append({"id": c.get("id"), "nome": c.get("name"), "status": c.get("status"),
+                                  "conta": c.get("account"), "spend": round(sp, 2), "leads": rs,
+                                  "cpl": round(sp / rs, 2) if rs else None,
+                                  "leads_rd": q.get("leads"), "pct_fora": q.get("pct_fora")})
+            qual_camp.sort(key=lambda x: -x["spend"])
+            try:   # o chat do agente mora em outra pasta e lê este retrato
+                kv_set(sb, "gt_qualidade", {"ts": _now_iso(), "situacao": situacao, "campanhas": qual_camp[:15]})
+            except Exception:
+                pass
+
             return self._send(200, {
                 "ok": True,
+                "situacao": situacao,
+                "recomendacoes": pend[:6],
+                "recomendacoes_recentes": [r for r in recs if r.get("estado") != "pendente"][:6],
+                "precisa_de_voce": precisa,
+                "qualidade_campanhas": qual_camp[:20],
                 "config": cfg,
                 "guardrails": {**GUARDRAILS_DEFAULT, **(cfg.get("guardrails") or {})},
                 "alertas": {"regras": regras, "avaliacao": alertas},
@@ -560,6 +775,35 @@ class handler(BaseHTTPRequestHandler):
                 "ok": True, "total": len(rows), "com_fone": com_f, "com_email": com_e,
                 "preview": rows[:20],
             })
+
+        # v88.79 — diagnóstico de permissão do token do Meta (sócio). Só leitura, exceto
+        # com teste_escrita=1: aí manda status=PAUSED para uma campanha JÁ pausada
+        # (não muda nada na conta) — é o único jeito de provar se a escrita passa.
+        if action == "meta_diag":
+            if (user.get("lvl") or 0) < 10:
+                return self._send(403, {"ok": False, "error": "só sócio"})
+            token = os.environ.get("META_ACCESS_TOKEN") or ""
+            if not token:
+                return self._send(200, {"ok": False, "error": "META_ACCESS_TOKEN não configurado"})
+            out = {"ok": True}
+            out["quem"] = _graph_get_msg("me", {"fields": "id,name"}, token)
+            perms = _graph_get_msg("me/permissions", {}, token)
+            if perms.get("ok"):
+                dados = (perms.get("data") or {}).get("data") or []
+                out["permissoes"] = sorted(p.get("permission") for p in dados if p.get("status") == "granted")
+            else:
+                out["permissoes_erro"] = perms.get("erro")
+            out["contas"] = {act: _graph_get_msg(act, {"fields": "name,account_status"}, token) for act in CONTA_MARCA}
+            if params.get("teste_escrita") == "1":
+                p7, _a, _s = read_cache(sb, build_cache_key("last_7d", "", ""), 10 ** 9)
+                alvo = next((c for c in ((p7 or {}).get("campaigns") or [])
+                             if str(c.get("status") or "").upper() == "PAUSED" and _ID_RX.match(str(c.get("id") or ""))), None)
+                if alvo:
+                    ok, resp = _graph_post(str(alvo["id"]), {"status": "PAUSED"}, token)
+                    out["teste_escrita"] = {"campanha": alvo.get("name"), "ok": ok, "resp": str(resp)[:300]}
+                else:
+                    out["teste_escrita"] = {"ok": None, "resp": "nenhuma campanha pausada no cache de 7d para testar sem efeito"}
+            return self._send(200, out)
 
         # v88.72: cenário salvo do Simulador Leads/CAC — o agente e a aba leem daqui
         if action == "sim_leads":
@@ -803,50 +1047,49 @@ class handler(BaseHTTPRequestHandler):
         if action == "meta_exec":
             if lvl < 10:
                 return self._send(403, {"ok": False, "error": "ações no Meta são exclusivas do sócio"})
-            op = str(body.get("op") or "")
-            alvo = str(body.get("alvo_id") or "")
-            alvo_nome = str(body.get("alvo_nome") or alvo)[:160]
-            if not _ID_RX.match(alvo):
-                return self._send(400, {"ok": False, "error": "alvo_id inválido"})
+            st, out = executar_meta(self, sb, user, str(body.get("op") or ""), str(body.get("alvo_id") or ""),
+                                    str(body.get("alvo_nome") or body.get("alvo_id") or "")[:160],
+                                    body.get("orcamento_brl"))
+            return self._send(st, out)
 
-            cfg = kv_get(sb, KV_CONFIG, {})
-            g = {**GUARDRAILS_DEFAULT, **(cfg.get("guardrails") or {})}
-            if op not in ("pause", "resume", "budget"):
-                return self._send(400, {"ok": False, "error": "op inválida (pause|resume|budget)"})
-            if op not in (g.get("ops_permitidas") or []):
-                return self._send(403, {"ok": False, "error": f"op '{op}' bloqueada pelos guardrails"})
-            if _acoes_hoje(sb) >= int(g.get("max_acoes_dia") or 20):
-                return self._send(429, {"ok": False, "error": "limite diário de ações atingido (guardrail)"})
-
-            token = os.environ.get("META_ACCESS_TOKEN") or ""
-            if not token:
-                return self._send(503, {"ok": False, "error": "META_ACCESS_TOKEN não configurado"})
-
-            if op in ("pause", "resume"):
-                fields = {"status": "PAUSED" if op == "pause" else "ACTIVE"}
+        # ── decidir uma recomendação do agente (sócio) ─────────────────
+        # v88.79: o agente deixa de só "sugerir em texto". Cada recomendação vira item
+        # com Aprovar/Recusar; aprovar EXECUTA no Meta pelos mesmos guardrails da ação
+        # avulsa. Se o Meta recusar, o item fica "bloqueado" com o erro exato e o passo
+        # a passo pra fazer à mão — nunca some calado.
+        if action == "rec_decidir":
+            if lvl < 10:
+                return self._send(403, {"ok": False, "error": "só sócio aprova recomendação"})
+            rid = str(body.get("id") or "")
+            decisao = str(body.get("decisao") or "")
+            if decisao not in ("aprovar", "recusar"):
+                return self._send(400, {"ok": False, "error": "decisao = aprovar|recusar"})
+            itens = recs_get(sb)
+            rec = next((i for i in itens if i.get("id") == rid), None)
+            if not rec:
+                return self._send(404, {"ok": False, "error": "recomendação não encontrada"})
+            if rec.get("estado") != "pendente":
+                return self._send(409, {"ok": False, "error": f"já decidida ({rec.get('estado')})"})
+            rec["decidido_por"] = user.get("name") or user.get("id")
+            rec["decidido_em"] = _now_iso()
+            if decisao == "recusar":
+                rec["estado"] = "recusada"
+            elif rec.get("op") == "revisar" or not rec.get("campanha_id"):
+                # recomendação que não é um botão do Meta (trocar criativo, público, etc.)
+                rec["estado"] = "aprovada_manual"
+                rec["resultado"] = "Aprovada. Não é uma ação automática — executar no Gerenciador de Anúncios."
             else:
-                try:
-                    novo = float(body.get("orcamento_brl"))
-                except Exception:
-                    return self._send(400, {"ok": False, "error": "orcamento_brl precisa ser número"})
-                if not (1 <= novo <= float(g.get("orcamento_max_brl_dia") or 500)):
-                    return self._send(400, {"ok": False, "error": f"orçamento fora do teto do guardrail (R$ {g.get('orcamento_max_brl_dia')}/dia)"})
-                ok_atual, atual = _graph_get(alvo, {"fields": "daily_budget,name"}, token)
-                if ok_atual and atual.get("daily_budget"):
-                    atual_brl = int(atual["daily_budget"]) / 100.0
-                    if atual_brl > 0:
-                        var_pct = abs(novo - atual_brl) / atual_brl * 100
-                        if var_pct > float(g.get("variacao_max_pct") or 30):
-                            return self._send(400, {"ok": False, "error": f"variação de {var_pct:.0f}% excede o guardrail ({g.get('variacao_max_pct')}%)"})
-                fields = {"daily_budget": str(int(round(novo * 100)))}
-
-            ok, resp = _graph_post(alvo, fields, token)
-            log_acao(sb, user, op, {"id": alvo, "nome": alvo_nome}, body.get("orcamento_brl"), ok, resp)
-            audit(self, user, "gestor_trafego.meta_exec", target_type="meta_object", target_id=alvo,
-                  notes=f"op={op} ok={ok} {str(resp)[:180]}")
-            if not ok:
-                return self._send(502, {"ok": False, "error": f"Meta recusou: {resp}"})
-            return self._send(200, {"ok": True, "op": op, "alvo": alvo, "resp": resp})
+                st, out = executar_meta(self, sb, user, rec["op"], rec["campanha_id"],
+                                        rec.get("campanha") or rec["campanha_id"], rec.get("orcamento_brl"))
+                if out.get("ok"):
+                    rec["estado"] = "executada"
+                    rec["resultado"] = "Executada no Meta."
+                else:
+                    rec["estado"] = "bloqueada"
+                    rec["resultado"] = (f"O Meta/guardrail recusou: {out.get('error')}. "
+                                        "Executar à mão no Gerenciador de Anúncios.")
+            kv_set(sb, KV_RECS, {"itens": itens})
+            return self._send(200, {"ok": True, "rec": rec})
 
         # ── simulador Leads/CAC (líder+) ───────────────────────────────
         # v88.72: o simulador vivia só no localStorage — o agente não enxergava o
