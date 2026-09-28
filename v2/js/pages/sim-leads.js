@@ -28,6 +28,9 @@ export async function pageSimLeads(ctx, root) {
     const r = await api.request('/api/v3/marketing/gestor?action=sim_leads');
     const d = r && r.ok && r.sim && r.sim.dados;
     if (d && Object.keys(d).length) { _s = Object.assign({}, DEFAULTS, d); render(); }
+    else if (r && r.ok) { save(); }   // v88.76: banco vazio → semeia com o cenário da tela.
+    // Sem isso o cenário só subia se alguém EDITASSE um campo, e o agente ficava
+    // repetindo "sem cenário salvo" mesmo com a tela aberta na frente do sócio.
   } catch {}
 }
 
