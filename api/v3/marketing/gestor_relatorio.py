@@ -131,6 +131,30 @@ def _contexto(sb):
                      "\n[Imóveis] " + str(est.get("imoveis") or "—")[:3000])
     if cfg.get("doutrina_competitiva"):
         parts.append("DOUTRINA DE ANÁLISE COMPETITIVA (aplicar na seção de concorrência):\n" + str(cfg["doutrina_competitiva"])[:4000])
+    # v88.72 (ordem do Paulo): toda recomendação de verba/estratégia passa pelos
+    # dois simuladores. Aqui vão os cenários salvos — o relatório amarra a
+    # sugestão neles em vez de inventar CPL alvo e custo por venda.
+    try:
+        sl = kv_get(sb, "gt_sim_leads", {}) or {}
+        if sl.get("dados"):
+            parts.append("🧮 SIMULADOR LEADS/CAC (cenário salvo, editado por %s em %s):\n  entradas: %s\n  resultado: %s"
+                         % (sl.get("por") or "—", str(sl.get("atualizado_em"))[:16],
+                            json.dumps(sl.get("dados") or {}, ensure_ascii=False)[:900],
+                            json.dumps(sl.get("resultado") or {}, ensure_ascii=False)[:900]))
+        else:
+            parts.append("🧮 SIMULADOR LEADS/CAC: sem cenário salvo — avise que falta preencher antes de pedir verba nova.")
+        rows = sb.table("estrategia_boards").select("data,updated_at").eq("board", "sim_trafego").limit(1).execute().data or []
+        cfg_st = (((rows[0] if rows else {}).get("data") or {}).get("cfg") or {})
+        if cfg_st:
+            linhas = []
+            for lid, lbl in (("map", "PSM M.A.P"), ("conquista", "PSM Conquista")):
+                ln = cfg_st.get(lid)
+                if isinstance(ln, dict) and ln:
+                    linhas.append("  [%s] %s" % (lbl, ", ".join("%s=%s" % (k, ln[k]) for k in list(ln)[:14])))
+            parts.append("📊 SIMULADOR DE TRÁFEGO (atualizado em %s):\n%s"
+                         % (str((rows[0] if rows else {}).get("updated_at"))[:16], "\n".join(linhas) or "  —"))
+    except Exception:
+        pass
     try:
         vg = kv_get(sb, "gt_vigia", {})
         ins = [i for i in ((vg or {}).get("insights") or []) if isinstance(i, dict)][:1]

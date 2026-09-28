@@ -39,7 +39,7 @@ import urllib.error
 import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import require_user, AuthError, audit, supabase_client, frente_of  # type: ignore
+from _auth_lib import require_user, AuthError, audit, supabase_client, frente_of, agora_brt  # type: ignore
 from _meta_cache_lib import build_cache_key, read_cache  # type: ignore
 from _accounts_lib import resolver_contas  # type: ignore
 
@@ -50,6 +50,7 @@ KV_ALERTAS = "gt_alertas"
 KV_PUBLICOS = "gt_publicos"
 KV_LISTAS_IDX = "gt_listas_idx"
 KV_LOG = "gt_acoes_log"
+KV_SIMLEADS = "gt_sim_leads"   # v88.72: cenário do Simulador Leads/CAC (antes só no navegador)
 
 # Guardrails padrão — o sócio edita por cima (gt_config.guardrails)
 GUARDRAILS_DEFAULT = {
@@ -560,6 +561,10 @@ class handler(BaseHTTPRequestHandler):
                 "preview": rows[:20],
             })
 
+        # v88.72: cenário salvo do Simulador Leads/CAC — o agente e a aba leem daqui
+        if action == "sim_leads":
+            return self._send(200, {"ok": True, "sim": kv_get(sb, KV_SIMLEADS, {}) or {}})
+
         return self._send(400, {"ok": False, "error": "action inválida"})
 
     # ─── POST ──────────────────────────────────────────────────────────
@@ -842,5 +847,23 @@ class handler(BaseHTTPRequestHandler):
             if not ok:
                 return self._send(502, {"ok": False, "error": f"Meta recusou: {resp}"})
             return self._send(200, {"ok": True, "op": op, "alvo": alvo, "resp": resp})
+
+        # ── simulador Leads/CAC (líder+) ───────────────────────────────
+        # v88.72: o simulador vivia só no localStorage — o agente não enxergava o
+        # cenário que o sócio desenhou. Agora o cenário (entradas + resultado
+        # calculado na tela) fica no banco e entra no contexto do Sr. Tráfego.
+        if action == "sim_leads":
+            dados = body.get("dados")
+            resultado = body.get("resultado")
+            if not isinstance(dados, dict):
+                return self._send(400, {"ok": False, "error": "dados precisa ser objeto"})
+            reg = {
+                "dados": {k: dados[k] for k in list(dados)[:60]},
+                "resultado": resultado if isinstance(resultado, dict) else {},
+                "atualizado_em": agora_brt().isoformat(),
+                "por": user.get("name") or user.get("id"),
+            }
+            kv_set(sb, KV_SIMLEADS, reg)
+            return self._send(200, {"ok": True, "sim": reg})
 
         return self._send(400, {"ok": False, "error": "action inválida"})

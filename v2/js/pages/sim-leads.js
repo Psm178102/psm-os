@@ -3,6 +3,7 @@
    campo parava de apagar; ver sim-campos.js). O CTR, que era digitado mas não
    entrava em conta nenhuma, agora gera as impressões e o CPM do topo do funil. */
 import { ATTR_NUM, parseNum, numCampo } from '../sim-campos.js';
+import { api } from '../api.js';
 
 const KEY = 'psm_v2_sim_leads';
 const DEFAULTS = {
@@ -21,9 +22,23 @@ export async function pageSimLeads(ctx, root) {
   _root = root;
   try { _s = Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch { _s = { ...DEFAULTS }; }
   render();
+  // v88.72: o cenário mora no banco pra o Sr. Gestor de Tráfego enxergar. O que
+  // estiver salvo no servidor manda sobre o rascunho local deste navegador.
+  try {
+    const r = await api.request('/api/v3/marketing/gestor?action=sim_leads');
+    const d = r && r.ok && r.sim && r.sim.dados;
+    if (d && Object.keys(d).length) { _s = Object.assign({}, DEFAULTS, d); render(); }
+  } catch {}
 }
 
-function save() { try { localStorage.setItem(KEY, JSON.stringify(_s)); } catch {} }
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(_s)); } catch {}
+  // sobe pro banco em lote (o usuário digita rápido; 1 gravação a cada 800ms)
+  clearTimeout(window._slt);
+  window._slt = setTimeout(async () => {
+    try { await api.request('/api/v3/marketing/gestor', { method: 'POST', body: { action: 'sim_leads', dados: _s, resultado: compute() } }); } catch {}
+  }, 800);
+}
 
 function compute() {
   const v = {};

@@ -38,7 +38,8 @@ import { loadMenuLabels, loadMenuLayout, applyHeaderOverride, rehideEmptySection
 import { pageMarketing } from './pages/marketing.js';
 import { pageGestorTrafego } from './pages/gestor-trafego.js';
 import { pageEquipeMarketing } from './pages/equipe-marketing.js';   // 🏭 Equipe de Marketing (Esteira Conquista) v87.41
-import { pageEstudioIg } from './pages/estudio-ig.js';   // 📸 Estúdio Instagram (13 skills /ig-* da Conquista) v88.61
+import { pageEstudioIg } from './pages/estudio-ig.js';
+import { pageMarketingCentral } from './pages/marketing-central.js';   // 🏭 Central de Marketing (Esteira+Estúdio+Equipe+Quadro+Pedidos) v88.62   // 📸 Estúdio Instagram (13 skills /ig-* da Conquista) v88.61
 import { pageIA } from './pages/ia.js';
 import { pageLancamentos } from './pages/lancamentos.js';
 import { pageLocacoes } from './pages/locacoes.js';
@@ -117,7 +118,6 @@ import { pageSimRepasse } from './pages/sim-repasse.js';
 import { pageSimEnergia } from './pages/sim-energia.js';
 import { pageSimAmortizacao } from './pages/sim-amortizacao.js';
 import { pageSimLeads } from './pages/sim-leads.js';
-import { pageSimCriativos } from './pages/sim-criativos.js';
 import { pageRankingHub } from './pages/ranking-hub.js';
 import { pageScorecard } from './pages/scorecard.js';
 import { pageChecklistDiretoria } from './pages/checklist-diretoria.js';   // ✅ Checklist da Diretoria (tarefas por setor) v88.41
@@ -169,7 +169,7 @@ export const ROUTE_GROUP = {
   // Financeiro
   '/financeiro': 'financeiro', '/forecast': 'financeiro',
   // Inteligência & Marketing
-  '/marketing': 'marketing', '/gestor-trafego': 'marketing', '/equipe-marketing': 'marketing', '/estudio-ig': 'marketing', '/concorrencia': 'marketing', '/benchmark': 'marketing',
+  '/marketing': 'marketing', '/gestor-trafego': 'marketing', '/equipe-marketing': 'marketing', '/estudio-ig': 'marketing', '/marketing-central': 'marketing', '/concorrencia': 'marketing', '/benchmark': 'marketing',
   '/intel-ads': 'marketing', '/intel-dash': 'marketing', '/tendencias': 'marketing', '/inteligencia': 'marketing', '/biblioteca-ads': 'marketing', '/anuncios-concorrentes': 'marketing', '/marketing-historico': 'marketing', '/cerebro-vendas': 'marketing', '/briefing-guerra': 'marketing', '/paulo-conteudo': 'marketing', '/conteudo-imoveis': 'marketing', '/conteudo-conquista': 'marketing', '/criativos': 'marketing', '/criativos-download': 'marketing',
   '/dados-mercado': 'diretoria',
   // Arena & Performance (Metas/Equipes/Plantões migraram p/ Imóveis & Vendas)
@@ -273,6 +273,7 @@ export const ROUTE_MIN_LVL = {
   '/produtividade-real': 5, // v86.78: quadrante atividade×rendimento — NUNCA público/TV
   '/crm-house': 5,        // v86.52: CRM House PSM em PILOTO (gestão valida primeiro). Backend já
                           // escopa por papel (corretor=só os dele) — abrir pro corretor = baixar p/ 2.
+  '/marketing-central': 5, // v88.62: Central de Marketing — mesmo piso do Estúdio/Equipe (lvl 5+)
   '/estudio-ig': 5,       // v88.61: Estúdio Instagram — espelha MIN_LVL do api/v3/marketing/estudio.py
   '/equipe-marketing': 5, // v87.41: Equipe de Marketing (Esteira Conquista) — 14 agentes, chat lvl 5+ (espelha MKT_SQUAD do chat.py)
   '/gestor-trafego': 5,   // v87.5: Gestor de Tráfego (Sr. Tráfego) — verba/estratégia/base RD:
@@ -526,7 +527,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '88.71';
+const APP_VERSION = '88.72';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -666,7 +667,8 @@ const APP_VERSION = '88.71';
   router.register('/mapa-venda', { render: async (ctx, root) => { setHeader('Mapa da Venda'); highlight('/mapa-venda'); await pageMapaVenda(ctx, root); } });
   router.register('/checklist-diretoria', { render: async (ctx, root) => { setHeader('Checklist da Diretoria'); highlight('/checklist-diretoria'); await pageChecklistDiretoria(ctx, root); } });
   router.register('/scorecard', { render: async (ctx, root) => { setHeader('Farol PSM'); highlight('/scorecard'); await pageScorecard(ctx, root); } });
-  router.register('/norte-estrategico', { render: async (ctx, root) => { setHeader('Norte Estratégico'); highlight('/norte-estrategico'); await pageDiretoria(ctx, root, 'estrategia'); } });
+  // v88.72: Norte Estratégico unificado ao Plano Estratégico (virou a 1ª aba) — redirect preserva links antigos
+  router.register('/norte-estrategico', { render: async () => { location.replace('#/estrategia?tab=norte'); } });
   router.register('/comunicados', { render: async (ctx, root) => { setHeader('Comunicados'); highlight('/comunicados'); await pageDiretoria(ctx, root, 'recados'); } });
   router.register('/projetos', { render: async (ctx, root) => { setHeader('Projetos'); highlight('/projetos'); await pageProjetos(ctx, root); } });
   router.register('/psmhub', { render: async (ctx, root) => { setHeader('PSM HUB · Conquista'); highlight('/psmhub'); await pagePsmHub(ctx, root); } });
@@ -694,8 +696,10 @@ const APP_VERSION = '88.71';
   router.register('/academy-studio', { render: async (ctx, root) => { setHeader('Academy · Produção'); highlight('/academy-studio'); await pageAcademyStudio(ctx, root); } });
   router.register('/marketing', { render: async (ctx, root) => { setHeader('Marketing'); highlight('/marketing'); await pageMarketing(ctx, root); } });
   router.register('/gestor-trafego', { render: async (ctx, root) => { setHeader('Gestor de Tráfego'); highlight('/gestor-trafego'); await pageGestorTrafego(ctx, root); } });
-  router.register('/estudio-ig', { render: async (ctx, root) => { setHeader('Estúdio Instagram'); highlight('/estudio-ig'); await pageEstudioIg(ctx, root); } });
-  router.register('/equipe-marketing', { render: async (ctx, root) => { setHeader('Equipe de Marketing'); highlight('/equipe-marketing'); await pageEquipeMarketing(ctx, root); } });
+  router.register('/marketing-central', { render: async (ctx, root) => { setHeader('Central de Marketing'); highlight('/marketing-central'); await pageMarketingCentral(ctx, root); } });
+  // v88.62: telas soltas viraram abas da Central — rotas antigas redirecionam (links e favoritos continuam valendo)
+  router.register('/estudio-ig', { render: async (ctx) => { location.replace('#/marketing-central?tab=estudio' + (ctx?.query?.skill ? '&skill=' + encodeURIComponent(ctx.query.skill) : '')); } });
+  router.register('/equipe-marketing', { render: async (ctx) => { location.replace('#/marketing-central?tab=equipe' + (ctx?.query?.agente ? '&agente=' + encodeURIComponent(ctx.query.agente) : '')); } });
   router.register('/paulo-conteudo', { render: async (ctx, root) => { setHeader('Paulo Morimatsu · Conteúdo'); highlight('/paulo-conteudo'); await pagePauloConteudo(ctx, root); } });
   router.register('/conteudo-imoveis', { render: async (ctx, root) => { setHeader('PSM Imóveis · Conteúdo'); highlight('/conteudo-imoveis'); await pageConteudoImoveis(ctx, root); } });
   router.register('/conteudo-conquista', { render: async (ctx, root) => { setHeader('PSM Conquista · Conteúdo'); highlight('/conteudo-conquista'); await pageConteudoConquista(ctx, root); } });
@@ -802,7 +806,7 @@ const APP_VERSION = '88.71';
   router.register('/meu-cerebro',      { render: async (ctx, root) => { setHeader('Meu Cérebro de Vendas'); highlight('/meu-cerebro'); await pageMeuCerebro(ctx, root); } });
   router.register('/sim-conquista',    { render: async (ctx, root) => { setHeader('Simulador Conquista'); highlight('/sim-conquista'); await pageSimConquista(ctx, root); } });
   router.register('/sim-leads',   { render: async (ctx, root) => { setHeader('Simulador Leads/CAC'); highlight('/sim-leads'); await pageSimLeads(ctx, root); } });
-  router.register('/sim-criativos', { render: async (ctx, root) => { setHeader('Simulador Criativos'); highlight('/sim-criativos'); await pageSimCriativos(ctx, root); } });
+  router.register('/sim-criativos', { render: async () => { location.replace('#/marketing-central?tab=estudio&skill=anuncio-meta'); } });   // v88.62: virou 📣 Anúncio Meta no Estúdio
   router.register('/ranking-hub', { render: async (ctx, root) => { setHeader('Ranking HUB · Modo TV'); highlight('/ranking-hub'); await pageRankingHub(ctx, root); } });
   router.register('/okrs',        { render: async (ctx, root) => { setHeader('Objetivos & OKRs');                highlight('/okrs');       await pageOKRs(ctx, root); } });
   router.register('/kpis',        { render: async () => { location.hash = '#/cockpit'; } });
@@ -1115,8 +1119,7 @@ function shellHTML(user) {
         <div class="sb-sec">📣 Marketing</div>
         <button class="sb-link" data-nav="/marketing"><span class="sb-ico">📢</span> Marketing (Meta)</button>
         <button class="sb-link" data-nav="/gestor-trafego"><span class="sb-ico">🚦</span> Gestor de Tráfego</button>
-        <button class="sb-link" data-nav="/equipe-marketing"><span class="sb-ico">🏭</span> Equipe de Marketing</button>
-        <button class="sb-link" data-nav="/estudio-ig"><span class="sb-ico">📸</span> Estúdio Instagram</button>
+        <button class="sb-link" data-nav="/marketing-central"><span class="sb-ico">🏭</span> Central de Marketing</button>
         <button class="sb-link" data-nav="/criativos"><span class="sb-ico">🎨</span> Solicitações de Criativos</button>
         <button class="sb-link" data-nav="/criativos-download"><span class="sb-ico">⬇️</span> Criativos para Download</button>
         <button class="sb-link" data-nav="/paulo-conteudo"><span class="sb-ico">🎬</span> Paulo Morimatsu</button>
@@ -1126,7 +1129,6 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/biblioteca-ads"><span class="sb-ico">📣</span> Biblioteca de Anúncios</button>
 <!-- v87.14: Anúncios dos Concorrentes e Intel Ads viraram ABAS de 🥊 Concorrência (seção Inteligência) -->
         <button class="sb-link" data-nav="/sim-leads"><span class="sb-ico">📈</span> Simulador Leads/CAC</button>
-        <button class="sb-link" data-nav="/sim-criativos"><span class="sb-ico">🎨</span> Simulador Criativos</button>
         <button class="sb-link" data-nav="/sim-trafego"><span class="sb-ico">📣</span> Simulador de Tráfego</button>
 
         <div class="sb-sec">🏛 Diretoria</div>
@@ -1142,7 +1144,6 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/checklist-diretoria"><span class="sb-ico">✅</span> Checklist & Tarefas</button>
         <button class="sb-link" data-nav="/historico-notion"><span class="sb-ico">📜</span> Histórico Notion</button>
         <div class="sb-subsec">Estratégia & Planejamento</div>
-        <button class="sb-link" data-nav="/norte-estrategico"><span class="sb-ico">⭐</span> Norte Estratégico</button>
         <button class="sb-link" data-nav="/estrategia"><span class="sb-ico">♟️</span> Plano Estratégico</button>
         <button class="sb-link" data-nav="/okrs"><span class="sb-ico">🎯</span> Objetivos & OKRs</button>
         <button class="sb-link" data-nav="/projetos"><span class="sb-ico">📌</span> Portfólio de Projetos</button>

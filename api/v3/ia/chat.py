@@ -655,6 +655,57 @@ def _gestor_context(sb):
         if cfg.get("doutrina_competitiva"):
             parts.append("DOUTRINA DE ANÁLISE COMPETITIVA (obrigatória em toda análise):\n" + str(cfg["doutrina_competitiva"])[:4000])
 
+    # 1c) 🧮 SIMULADORES — v88.72, ordem do Paulo (27/09): antes de QUALQUER estratégia
+    # nova de campanha o agente tem que passar pelo Simulador Leads/CAC e pelo Simulador
+    # de Tráfego. Os dois viviam longe dele (um no navegador, outro na Diretoria) — então
+    # ele recomendava verba sem olhar o custo por venda nem o caixa projetado.
+    from datetime import datetime, timezone as _tz
+
+    def _idade_dias(iso):
+        try:
+            t = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+            return int((datetime.now(_tz.utc) - t).total_seconds() // 86400)
+        except Exception:
+            return None
+
+    sim_txt = []
+    sl = _kv("gt_sim_leads")
+    if isinstance(sl, dict) and sl.get("dados"):
+        idade = _idade_dias(sl.get("atualizado_em"))
+        sim_txt.append(
+            "📈 LEADS/CAC (editado por %s%s)\n  entradas: %s\n  resultado: %s" % (
+                sl.get("por") or "—",
+                (", há %sd" % idade) if idade is not None else "",
+                json.dumps(sl.get("dados") or {}, ensure_ascii=False)[:1200],
+                json.dumps(sl.get("resultado") or {}, ensure_ascii=False)[:1200]))
+    else:
+        sim_txt.append("📈 LEADS/CAC: SEM CENÁRIO SALVO — não recomende verba nova antes de pedir o preenchimento.")
+
+    try:
+        rows = sb.table("estrategia_boards").select("data,updated_at").eq("board", "sim_trafego").limit(1).execute().data or []
+    except Exception:
+        rows = []
+    row = rows[0] if rows else {}
+    cfg_st = ((row.get("data") or {}).get("cfg") or {}) if isinstance(row, dict) else {}
+    if isinstance(cfg_st, dict) and cfg_st:
+        idade = _idade_dias(row.get("updated_at"))
+        linhas = []
+        for lid, lbl in (("map", "PSM M.A.P"), ("conquista", "PSM Conquista")):
+            ln = cfg_st.get(lid)
+            if isinstance(ln, dict) and ln:
+                linhas.append("  [%s] %s" % (lbl, ", ".join("%s=%s" % (k, ln[k]) for k in list(ln)[:14])))
+        sim_txt.append("📊 SIMULADOR DE TRÁFEGO%s\n%s" % (
+            (" (atualizado há %sd)" % idade) if idade is not None else "", "\n".join(linhas) or "  —"))
+    else:
+        sim_txt.append("📊 SIMULADOR DE TRÁFEGO: SEM CENÁRIO SALVO.")
+
+    parts.append(
+        "🧮 SIMULADORES — CONSULTA OBRIGATÓRIA (ordem do sócio, 27/09/2026): antes de propor QUALQUER "
+        "estratégia nova de campanha (abrir, escalar, pausar, remanejar verba) você PRECISA passar pelos "
+        "dois cenários abaixo e amarrar a recomendação neles — cite CPL alvo, custo por venda/pasta e o "
+        "caixa projetado que saem daqui, não números de memória. Se um cenário estiver vazio ou com mais "
+        "de 30 dias, diga isso ANTES da recomendação e peça a atualização.\n" + "\n".join(sim_txt))
+
     # 1b) União Vigia+Gestor: últimos achados do Vigia de Concorrência
     vg = _kv("gt_vigia")
     if isinstance(vg, dict):

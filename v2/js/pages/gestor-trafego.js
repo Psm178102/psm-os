@@ -13,6 +13,10 @@ const TABS = [
   { id: 'alertas',  lbl: '🚨 Alertas' },
   { id: 'acoes',    lbl: '⚡ Ações' },
   { id: 'relatorios', lbl: '📜 Relatórios' },
+  // v88.72 (ordem do Paulo): os dois simuladores moram AQUI. Antes de qualquer
+  // estratégia nova de campanha, o gestor (humano e agente) passa por eles.
+  { id: 'simleads', lbl: '📈 Leads/CAC' },
+  { id: 'simtrafego', lbl: '📊 Simulador de Tráfego', lvl: 7 },
   { id: 'cerebro',  lbl: '🧠 Cérebro' },
 ];
 
@@ -119,7 +123,7 @@ function render() {
         </div>
       </div>
       <div class="flex gap-2" style="flex-wrap:wrap;border-bottom:1px solid var(--bd);padding-bottom:8px;margin-bottom:14px">
-        ${TABS.map(t => `<button class="btn ${_tab === t.id ? 'btn-primary' : 'btn-ghost'}" data-tab="${t.id}">${t.lbl}</button>`).join('')}
+        ${TABS.filter(t => !t.lvl || (auth.user()?.lvl || 0) >= t.lvl).map(t => `<button class="btn ${_tab === t.id ? 'btn-primary' : 'btn-ghost'}" data-tab="${t.id}">${t.lbl}</button>`).join('')}
       </div>
       <div id="gt-body"></div>
     </div>`;
@@ -132,6 +136,8 @@ function render() {
   if (_tab === 'alertas') renderAlertas(body);
   if (_tab === 'acoes') renderAcoes(body);
   if (_tab === 'relatorios') renderRelatorios(body);
+  if (_tab === 'simleads') montaSim(body, './sim-leads.js', 'pageSimLeads');
+  if (_tab === 'simtrafego') montaSim(body, './sim-trafego.js', 'pageSimTrafego');
   if (_tab === 'cerebro') renderCerebro(body);
 }
 
@@ -163,6 +169,18 @@ function barraFunil(lbl, n, base, cor) {
     <div style="background:var(--bg-2);border-radius:var(--radius-sm);height:18px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${cor}"></div></div>
     <div style="font-variant-numeric:tabular-nums"><b>${n}</b> <span class="tiny muted">${conv}</span></div>
   </div>`;
+}
+
+/* v88.72 — abre o simulador de verdade dentro da aba, importando a MESMA página
+   que roda em /sim-leads e /sim-trafego. Nada é duplicado: mudou lá, muda aqui. */
+async function montaSim(body, mod, fn) {
+  body.innerHTML = '<div class="muted">carregando simulador…</div>';
+  try {
+    const m = await import(mod);
+    await m[fn]({}, body);
+  } catch (e) {
+    body.innerHTML = `<div class="alert alert-warn">Não consegui abrir o simulador: ${e.message}</div>`;
+  }
 }
 
 function renderPainel(body) {
