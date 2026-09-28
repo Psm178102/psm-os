@@ -377,6 +377,30 @@ def hub_esteira(sb, y, m):
     return out
 
 
+# ─── negócios FORA das métricas (v88.95, decisão do Paulo 28/09/2026) ──────────
+# Negócios cujo dono no RD é um destes e-mails não contam em NENHUMA métrica (nem no total da
+# empresa): o gmail pessoal do Paulo no RD guarda carteira antiga/fila (3.276 negócios, 2.093
+# abertos) e distorcia funil, entradas e pipeline. Lista editável em shared_kv 'emails_fora_metricas'.
+KV_FORA = "emails_fora_metricas"
+FORA_PADRAO = ("paulomorimatsu@gmail.com",)
+
+
+def emails_fora(sb):
+    v = _kv_read(sb, KV_FORA)
+    lst = v.get("emails") if isinstance(v, dict) else v
+    if not isinstance(lst, list):
+        lst = list(FORA_PADRAO)
+    return {str(e).strip().lower() for e in lst if str(e or "").strip()}
+
+
+def fora_metricas(d, fora):
+    return bool(fora) and (d.get("user_email") or "").strip().lower() in fora
+
+
+def sem_fora(rows, fora):
+    return [d for d in (rows or []) if not fora_metricas(d, fora)] if fora else list(rows or [])
+
+
 # ─── carga ───────────────────────────────────────────────────────────────────
 def carregar(sb, since_d, until_d):
     ini, fim = limites_utc(since_d, until_d)
@@ -406,6 +430,12 @@ def carregar(sb, since_d, until_d):
         except Exception as e:
             avisos.append({"tipo": "erro_dados", "txt": f"⚠️ Leitura de negócios do RD falhou ({str(e)[:80]}). Números podem estar incompletos.", "n": 1})
 
+    # v88.95: fora das métricas (dono = e-mail da lista) — some do cálculo inteiro
+    fora = emails_fora(sb)
+    ids_fora = {k for k, d in deals.items() if fora_metricas(d, fora)}
+    if ids_fora:
+        deals = {k: d for k, d in deals.items() if k not in ids_fora}
+
     # etapas do RD → chave de marco
     stage_key = {}
     try:
@@ -427,6 +457,8 @@ def carregar(sb, since_d, until_d):
     except Exception:
         avisos.append({"tipo": "erro_dados", "txt": "⚠️ Histórico de etapas do RD indisponível: marcos por coluna podem estar subcontados.", "n": 1})
 
+    eventos = [e for e in eventos if str(e.get("deal_id")) not in ids_fora and not fora_metricas(e, fora)]
+
     # tarefas de VISITA concluídas (§5) — tabela rd_tasks (sync em crm/tasks_sync)
     tarefas, tarefas_ok = [], True
     try:
@@ -435,6 +467,8 @@ def carregar(sb, since_d, until_d):
                             .gte("done_date", ini_iso).lt("done_date", fim_iso).order("id"), cap=10)
     except Exception:
         tarefas_ok = False
+
+    tarefas = [t for t in tarefas if str(t.get("deal_id")) not in ids_fora and not fora_metricas(t, fora)]
 
     # metas dos meses da janela
     metas = []
@@ -453,7 +487,7 @@ def carregar(sb, since_d, until_d):
                                           .select("win,user_id,user_email,amount,src:rd_raw->deal_source->>name,"
                                                   "amt_total:rd_raw->amount_total,amt_unique:rd_raw->amount_unique")
                                           .gte("closed_at", c_ini).order("id"), cap=10)
-                     if d.get("win") is not None]
+                     if d.get("win") is not None and not fora_metricas(d, fora)]
     except Exception:
         pass
 

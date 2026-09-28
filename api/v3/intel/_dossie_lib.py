@@ -13,6 +13,19 @@ mesmo padrão do _auth_lib). Mudou aqui → copiar pra lá.
 import json
 from datetime import datetime, timezone
 
+
+def _emails_fora(sb):
+    """v88.95: negócios cujo dono no RD está em 'emails_fora_metricas' não entram no dossiê (motor único)."""
+    try:
+        import os as _os, sys as _sys
+        _v3 = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+        if _v3 not in _sys.path:
+            _sys.path.append(_v3)
+        import _metricas_lib as _MX  # type: ignore
+        return _MX.emails_fora(sb)
+    except Exception:
+        return {"paulomorimatsu@gmail.com"}
+
 # espelho das premissas default do viab.py (fonte: Paulo, jul/2026) — o orçamento
 # salvo (viab_orcamento) sobrepõe quando existir.
 PREMISSAS = {
@@ -71,8 +84,10 @@ def compile_dossie(sb, frente_of):
     try:
         meta = sum(float(m.get("meta_vgv") or 0) for m in
                    (sb.table("metas").select("meta_vgv").eq("ano", ano).execute().data or []))
-        dd = sb.table("deals").select("amount,closed_at,pipeline_name").eq("win", True) \
+        _fora = _emails_fora(sb)
+        dd = sb.table("deals").select("amount,closed_at,pipeline_name,user_email").eq("win", True) \
             .gte("closed_at", f"{ano}-01-01T00:00:00+00:00").execute().data or []
+        dd = [d for d in dd if (d.get("user_email") or "").strip().lower() not in _fora]
         for d in dd:
             amt = float(d.get("amount") or 0)
             fr = frente_of(d.get("pipeline_name"))
@@ -115,9 +130,12 @@ def compile_dossie(sb, frente_of):
         aberto = {}
         pg = 0
         while pg < 6:
-            rows = sb.table("deals").select("pipeline_name,amount,updated_at_rd").is_("win", "null") \
+            rows = sb.table("deals").select("pipeline_name,amount,updated_at_rd,user_email").is_("win", "null") \
                 .range(pg * 1000, pg * 1000 + 999).execute().data or []
+            _fa = _emails_fora(sb) if pg == 0 else _fa
             for d in rows:
+                if (d.get("user_email") or "").strip().lower() in _fa:
+                    continue
                 fr = frente_of(d.get("pipeline_name"))
                 aberto.setdefault(fr, [0, 0.0, 0])
                 aberto[fr][0] += 1

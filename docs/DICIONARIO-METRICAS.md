@@ -56,6 +56,8 @@ Origem nova que aparecer no RD e não estiver nesta tabela cai em `nao_classific
 
 ## 3. Dono do negócio
 
+- **Fora das métricas** (v88.95, decisão do Paulo 28/09/2026: "todos que estiverem assim não contabilize nas métricas"): negócio cujo dono no RD é um e-mail da lista `emails_fora_metricas` (shared_kv; padrão = `paulomorimatsu@gmail.com`) **não conta em nenhuma métrica** — nem por pessoa, nem no total da empresa: entradas, funil, visitas, propostas, pipeline, projeção, decisões, Cérebro, Turmas e dossiê da IA. O negócio continua no espelho do CRM; só sai das contas. Em 28/09 eram 3.276 negócios (2.093 abertos), nenhuma venda em 2026.
+
 1. `deals.user_id` (resolvido na sincronização).
 2. Se vazio, `deals.user_email` (minúsculo) casado com `users.email`.
 3. Se não casar, ou se casar com conta de serviço: **"sem corretor"**. Continua somando no total da empresa e gera aviso "N negócios sem corretor".

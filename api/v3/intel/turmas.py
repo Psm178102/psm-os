@@ -64,8 +64,10 @@ def calcular(sb, meses, hoje):
         y -= 1
     desde = date(y, m, 1)
     rows = sb.rpc("intel_turmas", {"p_desde": desde.isoformat()}).execute().data or []
+    fora = MX.emails_fora(sb)   # v88.95: dono no RD em 'emails_fora_metricas' não conta
     rows = [r for r in rows
-            if MX._norm(r.get("pipeline") or "").replace("(fechados 3d)", "").strip() not in FUNIS_FORA]
+            if MX._norm(r.get("pipeline") or "").replace("(fechados 3d)", "").strip() not in FUNIS_FORA
+            and (r.get("user_email") or "").strip().lower() not in fora]
     mapa = MX.mapa_origens(sb)
     nomes, por_nome_colado = {}, {}
     try:
@@ -151,7 +153,7 @@ class handler(BaseHTTPRequestHandler):
             meses = 6
         hoje = MX.hoje_brt()
         versao = MX.versao_dados(sb)
-        key = f"intel_turmas:v2:{meses}:{hoje.isoformat()}"   # v2: sem Carteira MAP Paulo + dono pelo nome
+        key = f"intel_turmas:v3:{meses}:{hoje.isoformat()}"   # v2: sem Carteira MAP Paulo + dono pelo nome
         if not q.get("fresh"):
             c = MX._kv_read(sb, key)
             ts = MX.parse_dt((c or {}).get("_cached_at")) if isinstance(c, dict) else None

@@ -35,6 +35,13 @@ from _metricas_lib import resumo as mx_resumo, is_gestor as mx_is_gestor, team_k
 from _projecao_lib import projecao as pj_projecao  # type: ignore   # v87.95: número-título = projeção oficial
 
 
+def _sem_fora(sb, rows):
+    """v88.95: tira negócios cujo dono no RD está em 'emails_fora_metricas' (decisão do Paulo, 28/09)."""
+    from _dossie_lib import _emails_fora  # type: ignore
+    fora = _emails_fora(sb)
+    return [d for d in rows if (d.get("user_email") or "").strip().lower() not in fora] if fora else rows
+
+
 class handler(BaseHTTPRequestHandler):
 
     def _send(self, status, body):
@@ -70,7 +77,7 @@ class handler(BaseHTTPRequestHandler):
             if len(rows) < size:
                 break
             page += 1
-        return out
+        return _sem_fora(sb, out)   # v88.95: negócios fora das métricas
 
     def _fetch_closed(self, sb, since_iso):
         out, page, size = [], 0, 1000
@@ -85,7 +92,7 @@ class handler(BaseHTTPRequestHandler):
             if len(rows) < size:
                 break
             page += 1
-        return out
+        return _sem_fora(sb, out)   # v88.95: negócios fora das métricas
 
     def do_GET(self):
         try:

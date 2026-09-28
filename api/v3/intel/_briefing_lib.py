@@ -17,12 +17,12 @@ from _brain_lib import loss_clusters  # type: ignore
 
 PUBLIC_BASE = (os.environ.get("PUBLIC_BASE_URL") or "https://www.housepsm.com.br").rstrip("/")
 # v84.4 — dossiê rico + frente_of (fonte única)
-from _dossie_lib import compile_dossie  # type: ignore
+from _dossie_lib import compile_dossie, _emails_fora  # type: ignore
 from _auth_lib import frente_of, hoje_brt  # type: ignore
 
 
 def _fetch_closed(sb, since_iso):
-    cols = "id,amount,win,closed_at,created_at_rd,rd_raw"
+    cols = "id,amount,win,closed_at,created_at_rd,rd_raw,user_email"
     out, page, size = [], 0, 1000
     while page < 20:
         try:
@@ -35,6 +35,8 @@ def _fetch_closed(sb, since_iso):
         if len(rows) < size:
             break
         page += 1
+    _fora = _emails_fora(sb)   # v88.95: negócios fora das métricas
+    out = [d for d in out if (d.get("user_email") or "").strip().lower() not in _fora]
     return out
 
 
@@ -59,6 +61,10 @@ def compile_facts(sb, today):
     try:
         oc = sb.table("deals").select("id", count="exact").is_("win", "null").limit(1).execute()
         open_count = oc.count or 0
+        _fora = _emails_fora(sb)   # v88.95: negócios fora das métricas saem do pipeline aberto
+        if _fora:
+            of = sb.table("deals").select("id", count="exact").is_("win", "null").in_("user_email", list(_fora)).limit(1).execute()
+            open_count = max(0, open_count - (of.count or 0))
     except Exception:
         pass
     lc = loss_clusters(losses)
@@ -92,11 +98,12 @@ def compile_facts(sb, today):
             ini_d, janela_txt = today - timedelta(days=29), "últimos 30 dias"
         ini_iso = ini_d.isoformat() + "T03:00:00+00:00"   # 00h em Brasília
         mapa = MX.mapa_origens(sb)
+        _fora_o = _emails_fora(sb)   # v88.95
         rows, pg = [], 0
         while True:
-            lote = (sb.table("deals").select("id,origem_cliente,src:rd_raw->deal_source->>name")
+            lote = (sb.table("deals").select("id,origem_cliente,user_email,src:rd_raw->deal_source->>name")
                     .gte("created_at_rd", ini_iso).order("id").range(pg * 1000, pg * 1000 + 999).execute().data or [])
-            rows += lote
+            rows += [d for d in lote if (d.get("user_email") or "").strip().lower() not in _fora_o]
             if len(lote) < 1000 or pg >= 20:
                 break
             pg += 1

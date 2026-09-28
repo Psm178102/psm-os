@@ -151,6 +151,8 @@ def _calibracao(sb, stage_ids, owner_team, email_team, agora):
                 deals[str(d["id"])] = d
     except Exception:
         return {}
+    fora = MX.emails_fora(sb)   # v88.95: negócios fora das métricas não calibram nada
+    deals = {k: d for k, d in deals.items() if not MX.fora_metricas(d, fora)}
     agg = {}
     for did, t in ent.items():
         d = deals.get(did)
@@ -252,6 +254,8 @@ def calcular(sb, params, hoje=None):
                             .order("id"), cap=10)
     except Exception:
         wins = []
+    _fora = MX.emails_fora(sb)
+    wins = MX.sem_fora(wins, _fora)   # v88.95
     hist_n, hist_vgv = {}, {}
     for w in wins:
         uid = dono(w)
@@ -283,6 +287,7 @@ def calcular(sb, params, hoje=None):
                                         .order("id"), cap=10)
         except Exception:
             abertos = []
+    abertos = MX.sem_fora(abertos, _fora)   # v88.95
 
     def calib(tk):
         for k in (tk, "_empresa"):

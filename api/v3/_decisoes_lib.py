@@ -171,6 +171,9 @@ def _carregar(sb, hoje):
     except Exception:
         pass
     dispensas = MX._kv_read(sb, KV_DISPENSAS) or {}
+    # v88.95: negócios fora das métricas (dono = e-mail da lista) não geram decisão
+    _fora = MX.emails_fora(sb)
+    propostas, leads, wins = MX.sem_fora(propostas, _fora), MX.sem_fora(leads, _fora), MX.sem_fora(wins, _fora)
     return {"users": users, "ativos": ativos, "dono": dono, "stage_key": stage_key, "propostas": propostas,
             "leads": leads, "ult_venda": ult_venda, "ult_oo": ult_oo, "metas": metas, "tarefas": tarefas,
             "dispensas": dispensas if isinstance(dispensas, dict) else {}, "agora": agora}
