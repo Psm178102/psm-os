@@ -353,6 +353,16 @@ def ciclo(sb, slot, actor="cron"):
     alvos = {a["alvo"] for a in plano}
     plano += [r for r in recomendacoes_executaveis(sb, marcas, orc_mes, drest, token_w) if r["alvo"] not in alvos]
 
+    # v88.87.1 — sem efeito cascata: o 1º ciclo real (28/09) sugeriu o MESMO corte às 10h e às
+    # 13h. Ligado, isso cortaria 20% a cada ciclo (4×/dia ≈ −59% no dia). Agora cada regra age no
+    # máximo 1× por objeto por dia, e o corte por CPL alto (R2) espera 3 dias pra ver o efeito.
+    def _chaves(acoes, estados=("executada", "sombra")):
+        return {(a.get("regra"), str(a.get("alvo"))) for a in acoes or [] if a.get("estado") in estados}
+    feito_hoje = _chaves(st["hoje"]["acoes"])
+    feito_3d = feito_hoje | set().union(*[_chaves(h.get("acoes")) for h in (st.get("historico") or [])[:3]] or [set()])
+    plano = [a for a in plano
+             if (a["regra"], str(a["alvo"])) not in (feito_3d if a["regra"] == "R2" else feito_hoje)]
+
     ja_hoje = sum(1 for a in st["hoje"]["acoes"] if a.get("estado") == "executada")
     vaga = max(0, int(aut.get("max_acoes_dia") or 5) - ja_hoje)
     ligado = bool(aut.get("ativo")) and bool(token_w)
