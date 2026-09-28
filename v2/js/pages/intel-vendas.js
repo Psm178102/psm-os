@@ -16,12 +16,30 @@ const TEMP = {
   frio: { c: '#8a8579', lbl: '⚪ Frio', sub: 'baixa' },
 };
 
+let _vtab = 'cerebro';   // v88.86: cerebro | turmas
+
 export async function pageIntelVendas(ctx, root) {
-  _root = root;
   if ((auth.user()?.lvl || 0) < 10) {
     root.innerHTML = '<div class="alert alert-warn">🔒 A seção Inteligência é só dos sócios.</div>';
     return;
   }
+  if (ctx?.query?.tab && ['cerebro', 'turmas'].includes(ctx.query.tab)) _vtab = ctx.query.tab;
+  root.innerHTML = `
+    <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:12px">
+      <button class="btn ${_vtab === 'cerebro' ? 'btn-primary' : 'btn-ghost'}" data-vtab="cerebro">🎯 Cérebro</button>
+      <button class="btn ${_vtab === 'turmas' ? 'btn-primary' : 'btn-ghost'}" data-vtab="turmas">🧪 Turmas e canais</button>
+    </div>
+    <div id="iv-body"></div>`;
+  root.querySelectorAll('[data-vtab]').forEach(b => b.addEventListener('click', () => {
+    _vtab = b.dataset.vtab;
+    pageIntelVendas({ ...(ctx || {}), query: { ...(ctx?.query || {}), tab: _vtab } }, root);
+  }));
+  const body = root.querySelector('#iv-body');
+  if (_vtab === 'turmas') {
+    const { pageIntelTurmas } = await import('./intel-turmas.js');
+    return pageIntelTurmas(ctx, body);
+  }
+  _root = body;
   await reload();
 }
 

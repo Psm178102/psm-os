@@ -3,7 +3,8 @@
      (1) o que o Vigia leu da concorrência (análise diária por IA — gestor_vigia);
      (2) volume de anúncios do mercado (coleta diária da Biblioteca do Meta — ad_library);
      (3) seu tráfego Meta e a tendência mês × mês (marketing/history);
-     (4) os maiores players da base única (concorrentes).
+     (4) os maiores players da base única (concorrentes);
+     (5) v88.86: indicadores do Banco Central (Selic, IPCA, INCC-DI, TR, poupança) — /intel/indicadores.
    A lista manual de Tendências (0 registros em 4 meses) foi aposentada. Só sócio (hub). */
 import { api } from '../api.js';
 
@@ -22,17 +23,19 @@ function parseFollowers(v) {
 export async function pageIntelDash(ctx, root) {
   _root = root;
   root.innerHTML = `<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Consolidando concorrência, anúncios e seu tráfego…</div></div>`;
-  const [conc, hist, lib, vigia] = await Promise.all([
+  const [conc, hist, lib, vigia, ind] = await Promise.all([
     api.request('/api/v3/concorrentes/list').catch(() => ({ concorrentes: [] })),
     api.request('/api/v3/marketing/history').catch(() => ({ meses: [] })),
     api.request('/api/v3/marketing/ad_library').catch(() => ({})),
     api.request('/api/v3/marketing/gestor_vigia').catch(() => ({})),
+    api.request('/api/v3/intel/indicadores').catch(() => ({})),
   ]);
   renderContent(
     (conc.concorrentes || []).map(c => ({ ...c, _f: parseFollowers(c.seguidores) })),
     (hist && (hist.meses || hist.history)) || [],
     lib || {},
-    vigia || {}
+    vigia || {},
+    ind || {}
   );
 }
 
@@ -56,7 +59,7 @@ function autoTrends(meses) {
           mk('Volume de leads', +ult.leads, +pre.leads, false)].filter(Boolean);
 }
 
-function renderContent(concorrentes, meses, lib, vigia) {
+function renderContent(concorrentes, meses, lib, vigia, ind) {
   const tierA = concorrentes.filter(c => (c.tier || '').toUpperCase() === 'A').length;
   const top5 = [...concorrentes].sort((a, b) => b._f - a._f).slice(0, 5);
   const com = meses.filter(m => (+m.spend || 0) > 0);
@@ -81,6 +84,8 @@ function renderContent(concorrentes, meses, lib, vigia) {
         ${card('Seu investimento/mês', ult ? f$(ult.spend) : '—', 'Meta Ads, último mês')}
         ${card('Seu CPL', ult ? f$(cpl) : '—', ult ? fNum(ult.leads) + ' leads no mês' : '')}
       </div>
+
+      ${indicadores(ind, box)}
 
       <div style="${box};margin-top:14px">
         <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:6px">
@@ -123,6 +128,27 @@ function renderContent(concorrentes, meses, lib, vigia) {
       </div>
     </div>`;
   _root.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => { location.hash = '#/concorrencia?tab=' + b.dataset.go; }));
+}
+
+// v88.86: juros, inflação e custo de obra — os números que mexem no financiamento e no preço da planta
+function indicadores(ind, box) {
+  const itens = (ind && ind.itens) || [];
+  if (!itens.length) return `<div style="${box};margin-top:14px" class="tiny muted">🏦 Indicadores do Banco Central indisponíveis agora.</div>`;
+  const fmt = v => Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const dRef = s => { if (!s) return ''; const [y, m, d] = s.split('-'); return `${d}/${m}/${y.slice(2)}`; };
+  return `<div style="${box};margin-top:14px">
+    <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:8px">
+      <h3 class="card-title" style="font-size:14px;margin:0">🏦 Indicadores do mercado</h3>
+      <span class="tiny muted">Banco Central (SGS) · atualiza sozinho${ind.stale ? ' · BC fora do ar, mostrando o último valor' : ''}</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px">
+      ${itens.map(i => `<div style="background:var(--bg-3);border-radius:var(--r-md);padding:10px 12px" title="${esc(i.nota || '')}">
+        <div class="tiny muted" style="font-weight:600">${esc(i.label)}</div>
+        <div style="font-size:18px;font-weight:600;margin-top:2px">${fmt(i.valor)}<span class="tiny muted" style="font-weight:400"> ${esc(i.unidade)}</span></div>
+        <div class="tiny muted">ref. ${dRef(i.ref)}${i.anterior ? ' · valor anterior' : ''}</div>
+      </div>`).join('')}
+    </div>
+  </div>`;
 }
 
 function card(label, value, sub) {
