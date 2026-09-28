@@ -64,6 +64,7 @@ import { pageRanking } from './pages/ranking.js';
 import { pageImoveis } from './pages/imoveis.js';
 import { pageConcorrencia } from './pages/concorrencia.js';
 import { pageTV } from './pages/tv.js';
+import { pageTVDiretoria } from './pages/tv-diretoria.js';   // 📺 TV Diretoria (segunda tela dos sócios) v88.74
 import { pageGovernanca } from './pages/governanca.js';
 import { pageCentralOps, pollBadgeOps } from './pages/central-ops.js';
 import { pageOO } from './pages/oo.js';
@@ -177,7 +178,7 @@ export const ROUTE_GROUP = {
   '/gestao-comercial': 'performance', '/produtividade-real': 'performance',
   '/tv': 'performance', '/ranking-hub': 'performance',
   // Diretoria
-  '/cockpit': 'diretoria', '/rotina-imoveis': 'diretoria', '/projetos': 'diretoria', '/sr-cfo': 'diretoria',
+  '/cockpit': 'diretoria', '/tv-diretoria': 'diretoria', '/rotina-imoveis': 'diretoria', '/projetos': 'diretoria', '/sr-cfo': 'diretoria',
   '/diretoria-ceo': 'diretoria',   // 🏛️ sala do CEO IA (dossiês) — só sócio. v87.33
   '/diretoria': 'diretoria', '/norte-estrategico': 'diretoria', '/scorecard': 'diretoria', '/checklist-diretoria': 'diretoria', '/historico-notion': 'diretoria', '/rotina-conquista': 'diretoria', '/comunicados': 'diretoria', '/kpis': 'diretoria', '/okrs': 'diretoria', '/cmo': 'diretoria',
   '/metricas-viab': 'diretoria', '/comissao-conquista': 'diretoria', '/sim-trafego': 'diretoria', '/mapa-ciclos': 'diretoria', '/governanca': 'diretoria', '/reunioes': 'diretoria',
@@ -298,7 +299,7 @@ export const ROUTE_MIN_LVL = {
   '/cockpit-conquista': 10, '/minha-comissao': 2, '/meu-cerebro': 10, '/sim-conquista': 10,  // v84.51: cada um vê a PRÓPRIA comissão (escopo travado no backend)
   // v86.90: Sala de Comando (Cockpit+Dashboard unificados) — decisão do Paulo: SÓ sócio.
   // /diretoria segue registrado FORA do menu (gestão de recados e retrocompat de links).
-  '/cockpit': 10, '/pontos-atencao': 10, '/rotina-imoveis': 2, '/diretoria': 10, '/norte-estrategico': 10, '/scorecard': 5, '/checklist-diretoria': 7, '/historico-notion': 10, '/rotina-conquista': 5, '/comunicados': 10,
+  '/cockpit': 10, '/tv-diretoria': 10, '/pontos-atencao': 10, '/rotina-imoveis': 2, '/diretoria': 10, '/norte-estrategico': 10, '/scorecard': 5, '/checklist-diretoria': 7, '/historico-notion': 10, '/rotina-conquista': 5, '/comunicados': 10,
   // v87.31/32/33/34: AGENTES DIRETORIA — TUDO SÓ sócio (lvl 10): chats CEO/CFO/CMO
   // + Rede de Agentes (contexto carrega caixa, dívida, pró-labore e Plano de
   // Resgate — espelha o require_user(min_lvl=10) de ia/chat + ia/rede), os
@@ -403,6 +404,10 @@ function canSeeComoCargo(path, role, user) {
   // (lvl 10 = paulo e isa). Mesma trava explícita do Check-in; o backend ainda
   // aceita uma lista de e-mails (shared_kv ops_central_cfg.admins).
   if (base === '/central-ops') return (user?.lvl || 0) >= 10;
+
+  // 📺 TV Diretoria (v88.74): segunda tela em tempo real do Paulo e da Isa — mostra caixa,
+  // resultado e o Farol de todos os pilares. SÓ SÓCIO, trava explícita como o Check-in.
+  if (base === '/tv-diretoria') return (user?.lvl || 0) >= 10;
 
   // 🔒 Consultoria Arch Leg (dado psicológico sensível): SÓ sócio/diretor
   // (lvl>=8) OU quem é da Arch Leg (role consultor_arch_leg). Trava explícita,
@@ -527,7 +532,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '88.72';
+const APP_VERSION = '88.74';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -730,6 +735,7 @@ const APP_VERSION = '88.72';
   router.register('/imoveis',     { render: async (ctx, root) => { setHeader('Imóveis');      highlight('/imoveis');     await pageImoveis(ctx, root); } });
   router.register('/estoque-kenlo', { render: async (ctx, root) => { setHeader('Estoque Kenlo'); highlight('/estoque-kenlo'); await pageEstoqueKenlo(ctx, root); } });
   router.register('/concorrencia',{ render: async (ctx, root) => { setHeader('Concorrência'); highlight('/concorrencia');await pageConcorrencia(ctx, root); } });
+  router.register('/tv-diretoria', { render: async (ctx, root) => { setHeader('TV Diretoria'); highlight('/tv-diretoria'); await pageTVDiretoria(ctx, root); } });
   router.register('/tv',          { render: async (ctx, root) => { setHeader('Modo TV');      highlight('/tv');          await pageTV(ctx, root); } });
   router.register('/central-ops', { render: async (ctx, root) => { setHeader('Central de Operações'); highlight('/central-ops'); await pageCentralOps(ctx, root); } });
   router.register('/governanca',  { render: async (ctx, root) => { setHeader('Saúde do Sistema');   highlight('/governanca');  await pageGovernanca(ctx, root); } });
@@ -1139,6 +1145,7 @@ function shellHTML(user) {
      Os chats CEO/CFO/CMO seguem em /agente-* (abas da Rede). Permissões não mudaram. -->
         <div class="sb-subsec">Presidência</div>
         <button class="sb-link" data-nav="/cockpit"><span class="sb-ico">🧭</span> Sala de Comando</button>
+        <button class="sb-link" data-nav="/tv-diretoria"><span class="sb-ico">📺</span> TV Diretoria</button>
         <button class="sb-link" data-nav="/pontos-atencao"><span class="sb-ico">🚨</span> Pontos de Atenção</button>
         <button class="sb-link" data-nav="/scorecard"><span class="sb-ico">🚦</span> Farol PSM</button>
         <button class="sb-link" data-nav="/checklist-diretoria"><span class="sb-ico">✅</span> Checklist & Tarefas</button>
