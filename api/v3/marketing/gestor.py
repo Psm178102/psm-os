@@ -807,13 +807,21 @@ class handler(BaseHTTPRequestHandler):
             out["contas"] = {act: _graph_get_msg(act, {"fields": "name,account_status"}, token) for act in CONTA_MARCA}
             if params.get("teste_escrita") == "1":
                 p7, _a, _s = read_cache(sb, build_cache_key("last_7d", "", ""), 10 ** 9)
-                alvo = next((c for c in ((p7 or {}).get("campaigns") or [])
-                             if str(c.get("status") or "").upper() == "PAUSED" and _ID_RX.match(str(c.get("id") or ""))), None)
+                # só contas que este token LÊ (a pessoal do Paulo fica de fora do usuário de sistema)
+                legiveis = {a.replace("act_", "") for a, v in out["contas"].items() if v.get("ok")}
+                camps = [c for c in ((p7 or {}).get("campaigns") or [])
+                         if _ID_RX.match(str(c.get("id") or ""))
+                         and str(c.get("accountId") or "").replace("act_", "") in legiveis]
+                # sem efeito: repete o status que a campanha JÁ tem (pausada→PAUSED; ativa→ACTIVE)
+                alvo = (next((c for c in camps if str(c.get("status") or "").upper() == "PAUSED"), None)
+                        or next((c for c in camps if str(c.get("status") or "").upper() == "ACTIVE"), None))
                 if alvo:
-                    ok, resp = _graph_post(str(alvo["id"]), {"status": "PAUSED"}, token)
-                    out["teste_escrita"] = {"campanha": alvo.get("name"), "ok": ok, "resp": str(resp)[:300]}
+                    st_atual = str(alvo.get("status") or "").upper()
+                    ok, resp = _graph_post(str(alvo["id"]), {"status": st_atual}, token)
+                    out["teste_escrita"] = {"campanha": alvo.get("name"), "status_reenviado": st_atual,
+                                            "ok": ok, "resp": str(resp)[:300]}
                 else:
-                    out["teste_escrita"] = {"ok": None, "resp": "nenhuma campanha pausada no cache de 7d para testar sem efeito"}
+                    out["teste_escrita"] = {"ok": None, "resp": "nenhuma campanha das contas legíveis no cache de 7d"}
             return self._send(200, out)
 
         # v88.72: cenário salvo do Simulador Leads/CAC — o agente e a aba leem daqui
