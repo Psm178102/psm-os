@@ -117,6 +117,7 @@ import { pageRankingHub } from './pages/ranking-hub.js';
 import { pageScorecard } from './pages/scorecard.js';
 import { pageChecklistDiretoria } from './pages/checklist-diretoria.js';   // ✅ Checklist da Diretoria (tarefas por setor) v88.41
 import { pageHistoricoNotion } from './pages/historico-notion.js';   // 📜 Histórico Notion (gestão antiga + vendas 2023–26) — só sócio v88.35
+import { pageRitmoGestao } from './pages/ritmo-gestao.js';   // 🔁 Ritmo da Gestão: reunião→tarefa, rotina→tarefa, escada de atraso v88.97
 import { pageRotinaConquista, pageRotinaImoveis } from './pages/rotina-conquista.js';   // 🏠 + Rotina · PSM Imóveis (Paulo × equipe MAP) v88.37
 import { pageDocumentosPsm } from './pages/documentos-psm.js';   // 📂 Jurídico · Documentos PSM v88.37
 import { pageMapaVenda } from './pages/mapa-venda.js';   // 🗺 Imóveis & Vendas · Mapa da Venda v88.37   // 🎯 Rotina de Gestão · PSM Conquista (Isa × Kaue) v88.33   // 📊 Scorecards padrão da Diretoria v88.26
@@ -174,7 +175,7 @@ export const ROUTE_GROUP = {
   // Diretoria
   '/cockpit': 'diretoria', '/tv-diretoria': 'diretoria', '/rotina-imoveis': 'diretoria', '/projetos': 'diretoria', '/sr-cfo': 'diretoria',
   '/diretoria-ceo': 'diretoria',   // 🏛️ sala do CEO IA (dossiês) — só sócio. v87.33
-  '/diretoria': 'diretoria', '/norte-estrategico': 'diretoria', '/scorecard': 'diretoria', '/checklist-diretoria': 'diretoria', '/historico-notion': 'diretoria', '/rotina-conquista': 'diretoria', '/comunicados': 'diretoria', '/kpis': 'diretoria', '/okrs': 'diretoria', '/cmo': 'diretoria',
+  '/diretoria': 'diretoria', '/norte-estrategico': 'diretoria', '/scorecard': 'diretoria', '/checklist-diretoria': 'diretoria', '/historico-notion': 'diretoria', '/rotina-conquista': 'diretoria', '/ritmo-gestao': 'diretoria', '/comunicados': 'diretoria', '/kpis': 'diretoria', '/okrs': 'diretoria', '/cmo': 'diretoria',
   '/metricas-viab': 'diretoria', '/comissao-conquista': 'diretoria', '/sim-trafego': 'diretoria', '/mapa-ciclos': 'diretoria', '/governanca': 'diretoria', '/reunioes': 'diretoria',
   // Jurídico (grupo próprio)
   '/minutas': 'juridico', '/cnds': 'juridico', '/documentos-psm': 'juridico',
@@ -293,7 +294,7 @@ export const ROUTE_MIN_LVL = {
   '/cockpit-conquista': 10, '/minha-comissao': 2, '/meu-cerebro': 10, '/sim-conquista': 10,  // v84.51: cada um vê a PRÓPRIA comissão (escopo travado no backend)
   // v86.90: Sala de Comando (Cockpit+Dashboard unificados) — decisão do Paulo: SÓ sócio.
   // /diretoria segue registrado FORA do menu (gestão de recados e retrocompat de links).
-  '/cockpit': 10, '/tv-diretoria': 10, '/pontos-atencao': 10, '/rotina-imoveis': 2, '/diretoria': 10, '/norte-estrategico': 10, '/scorecard': 5, '/checklist-diretoria': 7, '/historico-notion': 10, '/rotina-conquista': 5, '/comunicados': 10,
+  '/cockpit': 10, '/tv-diretoria': 10, '/pontos-atencao': 10, '/rotina-imoveis': 2, '/diretoria': 10, '/norte-estrategico': 10, '/scorecard': 5, '/checklist-diretoria': 7, '/historico-notion': 10, '/rotina-conquista': 5, '/ritmo-gestao': 7, '/comunicados': 10,
   // v87.31/32/33/34: AGENTES DIRETORIA — TUDO SÓ sócio (lvl 10): chats CEO/CFO/CMO
   // + Rede de Agentes (contexto carrega caixa, dívida, pró-labore e Plano de
   // Resgate — espelha o require_user(min_lvl=10) de ia/chat + ia/rede), os
@@ -539,7 +540,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '88.96';
+const APP_VERSION = '88.97';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -674,6 +675,7 @@ const APP_VERSION = '88.96';
   // v88.12: Visão/Missão e Recados só existiam dentro do /diretoria, fora do menu — ganham rota própria
   router.register('/historico-notion', { render: async (ctx, root) => { setHeader('Histórico Notion'); highlight('/historico-notion'); await pageHistoricoNotion(ctx, root); } });
   router.register('/rotina-conquista', { render: async (ctx, root) => { setHeader('Rotina · PSM Conquista'); highlight('/rotina-conquista'); await pageRotinaConquista(ctx, root); } });
+  router.register('/ritmo-gestao', { render: async (ctx, root) => { setHeader('Ritmo da Gestão'); highlight('/ritmo-gestao'); await pageRitmoGestao(ctx, root); } });
   router.register('/rotina-imoveis', { render: async (ctx, root) => { setHeader('Rotina · PSM Imóveis'); highlight('/rotina-imoveis'); await pageRotinaImoveis(ctx, root); } });
   router.register('/documentos-psm', { render: async (ctx, root) => { setHeader('Documentos PSM'); highlight('/documentos-psm'); await pageDocumentosPsm(ctx, root); } });
   router.register('/mapa-venda', { render: async (ctx, root) => { setHeader('Playbook da Venda'); highlight('/scripts'); await pageMapaVenda(ctx, root); } });
@@ -1165,6 +1167,7 @@ function shellHTML(user) {
         <div class="sb-subsec">Finanças & Viabilidade</div>
         <button class="sb-link" data-nav="/metricas-viab"><span class="sb-ico">🧪</span> Orçado × Realizado</button>
         <div class="sb-subsec">Governança</div>
+        <button class="sb-link" data-nav="/ritmo-gestao"><span class="sb-ico">🔁</span> Ritmo da Gestão</button>
         <button class="sb-link" data-nav="/reunioes"><span class="sb-ico">🤝</span> Ritos & Reuniões</button>
         <button class="sb-link" data-nav="/rotina-conquista"><span class="sb-ico">🎯</span> Rotina · PSM Conquista</button>
         <button class="sb-link" data-nav="/rotina-imoveis"><span class="sb-ico">🏠</span> Rotina · PSM Imóveis</button>

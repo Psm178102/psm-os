@@ -9,6 +9,13 @@ GET  (qualquer autenticado): { ok, atas[], tipos[], can_edit }
      Diretoria (lvl>=7) vê TODAS; os demais veem só onde participam OU são responsáveis
      por algum combinado ("cada área vê a sua").
 POST (lvl>=7 diretoria): action upsert | delete | vira_tarefa | set_tipos.
+
+v88.97 (Paulo, 28/09: "toda reunião tem que sair com tarefas, prazos e responsáveis"):
+  • combinado sem responsável E prazo não é salvo (422) — igual à regra da rotina v2.3;
+  • reunião realizada sem nenhum combinado só salva se marcar "não gerou combinados" (sem_combinados);
+  • todo combinado vira tarefa em dir_tasks NO SAVE (não depende mais do botão "virar tarefa") e
+    entra na escada do Motor do Ritmo (véspera → gestor → sócios);
+  • marcar/desmarcar o combinado conclui/reabre a tarefa, e tarefa concluída aparece como combinado feito.
 """
 from http.server import BaseHTTPRequestHandler
 import json, os, sys, uuid
@@ -16,6 +23,9 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit, notify_all  # type: ignore
+_V3 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _V3 not in sys.path:
+    sys.path.append(_V3)
 
 TIPOS_KEY = "reuniao_tipos"
 TIPOS_DEFAULT = [
@@ -140,6 +150,44 @@ def _sync_evento(sb, actor, row, evento_id):
         return evento_id
 
 
+def _criar_tarefa(sb, actor, ata, comb, tipo_label):
+    """Combinado → tarefa real (dir_tasks) + aviso ao responsável. Devolve o id da tarefa."""
+    tid = "t_" + uuid.uuid4().hex[:12]
+    now = _now()
+    task = {
+        "id": tid,
+        "titulo": str(comb.get("texto") or "Combinado")[:200],
+        "descricao": ("Combinado da reunião: " + (ata.get("titulo") or tipo_label) +
+                      (" (" + str(ata.get("data"))[:10] + ")" if ata.get("data") else "")),
+        "status": "concluida" if comb.get("feito") else "aberta",
+        "prioridade": "media",
+        "categoria": ("Reunião · " + str(tipo_label))[:80],
+        "responsavel": comb.get("responsavel_id") or None,
+        "criado_por": actor["id"],
+        "criado_em": int(datetime.now(timezone.utc).timestamp() * 1000),
+        "prazo": comb.get("prazo") or None,
+        "historico": [{"ts": now, "actor_id": actor["id"], "actor_name": actor.get("name"), "action": "create",
+                       "origem": "reuniao", "ata_id": ata.get("id")}],
+    }
+    sb.table("dir_tasks").insert(task).execute()
+    resp = comb.get("responsavel_id")
+    if resp and resp != actor["id"] and not comb.get("feito"):
+        try:
+            notify_all([resp], tipo="task.assign", title="📋 Novo combinado pra você",
+                       body=(str(comb.get("texto") or "")[:120] + (f" · prazo {str(comb.get('prazo'))[:10]}" if comb.get("prazo") else "")),
+                       link="#/tarefas", target_type="dir_tasks", target_id=tid)
+        except Exception:
+            pass
+    return tid
+
+
+def _validar_combinados(combinados):
+    for c in combinados:
+        if not (c.get("responsavel_id") and c.get("prazo")):
+            return f"Combinado sem responsável e prazo não existe: '{str(c.get('texto'))[:50]}' — defina quem faz e até quando."
+    return None
+
+
 class handler(BaseHTTPRequestHandler):
     def _send(self, s, b):
         self.send_response(s)
@@ -183,6 +231,21 @@ class handler(BaseHTTPRequestHandler):
                     if not r.get("confidencial")
                     or uid in (r.get("participantes") or [])
                     or r.get("criado_por") == uid]
+        # v88.97: o combinado anda junto com a tarefa — concluída lá = feito aqui
+        tids = [c.get("task_id") for r in rows for c in (r.get("combinados") or []) if c.get("task_id")]
+        if tids:
+            try:
+                st = {t["id"]: (t.get("status") or "") for t in
+                      (sb.table("dir_tasks").select("id,status").in_("id", tids[:800]).execute().data or [])}
+                for r in rows:
+                    for c in (r.get("combinados") or []):
+                        s_ = st.get(c.get("task_id"))
+                        if s_ in ("concluida", "concluída"):
+                            c["feito"] = True
+                        elif s_ is not None and c.get("feito") and s_ not in ("cancelada",):
+                            c["feito"] = False
+            except Exception:
+                pass
         return self._send(200, {"ok": True, "atas": rows, "tipos": _read_tipos(sb), "can_edit": lvl >= 7})
 
     def do_POST(self):
@@ -259,23 +322,10 @@ class handler(BaseHTTPRequestHandler):
             if comb.get("task_id"):
                 return self._send(200, {"ok": True, "task_id": comb["task_id"], "ja_existia": True})
             tipo_label = (body.get("tipo_label") or ata.get("tipo") or "Reunião")
-            tid = "t_" + uuid.uuid4().hex[:12]
-            task = {
-                "id": tid,
-                "titulo": str(comb.get("texto") or "Combinado")[:200],
-                "descricao": ("Combinado da reunião: " + (ata.get("titulo") or tipo_label) +
-                              (" (" + str(ata.get("data"))[:10] + ")" if ata.get("data") else "")),
-                "status": "aberta",
-                "prioridade": "media",
-                "categoria": ("Reunião · " + str(tipo_label))[:80],
-                "responsavel": comb.get("responsavel_id") or None,
-                "criado_por": actor["id"],
-                "criado_em": int(datetime.now(timezone.utc).timestamp() * 1000),
-                "prazo": comb.get("prazo") or None,
-                "historico": [{"ts": now, "actor_id": actor["id"], "actor_name": actor.get("name"), "action": "create"}],
-            }
+            if not (comb.get("responsavel_id") and comb.get("prazo")):
+                return self._send(422, {"ok": False, "error": "defina responsável e prazo do combinado antes de virar tarefa"})
             try:
-                sb.table("dir_tasks").insert(task).execute()
+                tid = _criar_tarefa(sb, actor, ata, comb, tipo_label)
             except Exception as e:
                 return self._send(500, {"ok": False, "error": f"tarefa: {e}"})
             comb["task_id"] = tid
@@ -283,14 +333,6 @@ class handler(BaseHTTPRequestHandler):
                 sb.table("reunioes_atas").update({"combinados": combinados, "updated_at": now}).eq("id", aid).execute()
             except Exception:
                 pass
-            resp = comb.get("responsavel_id")
-            if resp and resp != actor["id"]:
-                try:
-                    notify_all([resp], tipo="task.assign", title="📋 Novo combinado pra você",
-                               body=str(comb.get("texto") or "")[:140], link="#/tarefas",
-                               target_type="dir_tasks", target_id=tid)
-                except Exception:
-                    pass
             audit(self, actor, "reunioes.vira_tarefa", target_type="dir_tasks", target_id=tid)
             return self._send(200, {"ok": True, "task_id": tid})
 
@@ -298,10 +340,18 @@ class handler(BaseHTTPRequestHandler):
         aid = (body.get("id") or "").strip() or None
         row = _ata_row(body)
         aviso = None
+        if "combinados" in body:
+            err = _validar_combinados(row["combinados"])
+            if err:
+                return self._send(422, {"ok": False, "error": err})
+        if not aid and row.get("status") == "realizada" and not row["combinados"] and not body.get("sem_combinados"):
+            return self._send(422, {"ok": False, "error": "Toda reunião sai com tarefas: registre ao menos 1 combinado (quem faz + até quando) ou marque que a reunião não gerou combinados."})
+        feito_antes = {}
         try:
             if aid:
                 cur = sb.table("reunioes_atas").select("*").eq("id", aid).limit(1).execute().data or []
                 atual = cur[0] if cur else {}
+                feito_antes = {c.get("id"): bool(c.get("feito")) for c in (atual.get("combinados") or [])}
                 # EDIÇÃO É PATCH, não reconstrução (v84.75): o _ata_row inventa
                 # default pra tudo que o body não trouxe — e o toggle de
                 # "combinado feito" re-POSTava a ata SEM 'confidencial', então
@@ -336,5 +386,32 @@ class handler(BaseHTTPRequestHandler):
                     aviso = "⚠️ Salvo, mas SEM sigilo: o banco ainda não tem a coluna 'confidencial' (migração pendente). Essa reunião está visível pela regra normal."
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)})
-        audit(self, actor, "reunioes.ata_upsert", target_type="reunioes_atas", target_id=aid)
-        return self._send(200, {"ok": True, "id": aid, "evento_id": row.get("evento_id"), "aviso": aviso})
+        # v88.97: todo combinado vira tarefa no save; marcar feito conclui/reabre a tarefa
+        criadas = 0
+        if "combinados" in body and row.get("combinados"):
+            combs = row["combinados"]
+            ata_ctx = {"id": aid, "titulo": row.get("titulo") or body.get("titulo"), "data": row.get("data") or body.get("data")}
+            tipo_label = next((t["label"] for t in _read_tipos(sb) if t["id"] == (row.get("tipo") or body.get("tipo"))), None) or "Reunião"
+            mudou = False
+            for c in combs:
+                if not c.get("task_id"):
+                    try:
+                        c["task_id"] = _criar_tarefa(sb, actor, ata_ctx, c, tipo_label)
+                        criadas += 1
+                        mudou = True
+                    except Exception as e:
+                        print(f"[atas] tarefa do combinado: {e}")
+                elif c.get("id") in feito_antes and feito_antes[c["id"]] != bool(c.get("feito")):
+                    try:
+                        import _ritmo_lib as CAD  # type: ignore
+                        CAD.marcar_tarefa(sb, c["task_id"], bool(c.get("feito")), actor.get("name") or "Reunião")
+                    except Exception as e:
+                        print(f"[atas] sync combinado: {e}")
+            if mudou:
+                try:
+                    sb.table("reunioes_atas").update({"combinados": combs, "updated_at": _now()}).eq("id", aid).execute()
+                except Exception as e:
+                    print(f"[atas] gravar task_id: {e}")
+        audit(self, actor, "reunioes.ata_upsert", target_type="reunioes_atas", target_id=aid,
+              notes=f"{criadas} tarefa(s) criada(s)" if criadas else None)
+        return self._send(200, {"ok": True, "id": aid, "evento_id": row.get("evento_id"), "aviso": aviso, "tarefas_criadas": criadas})

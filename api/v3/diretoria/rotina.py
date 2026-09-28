@@ -349,6 +349,15 @@ class handler(BaseHTTPRequestHandler):
                                          on_conflict="key").execute()
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)})
+        # v88.97: se o Motor do Ritmo já gerou a tarefa deste período, ela anda junto com o check
+        try:
+            _v3 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            if _v3 not in sys.path:
+                sys.path.append(_v3)
+            import _ritmo_lib as CAD  # type: ignore
+            CAD.marcar_tarefa(sb, CAD.task_id_rotina(unidade, t["id"], p), bool(body.get("feito")), u.get("name") or "Rotina")
+        except Exception as e:
+            print(f"[rotina] tarefa da cadência: {e}")
         audit(self, u, "rotina.check", target_type=un["kv"], target_id=t["id"],
               notes=f"{p} {'feito' if body.get('feito') else 'desmarcado'}")
         return self._send(200, {"ok": True, "periodo": p})

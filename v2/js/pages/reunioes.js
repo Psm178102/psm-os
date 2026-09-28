@@ -16,6 +16,7 @@ let _items = [], _canEditF = false, _editingF = null, _busyF = false, _drive = {
 // Reuniões (aba nova)
 let _atas = [], _tipos = [], _canEdit = false, _users = [], _editingR = null, _busyR = false;
 let _fTipo = '', _fStatus = '', _loadedR = false;
+let _ritos = [];   // v88.97: formatos da cadência (gp/reunioes_formatos) — liga a ata ao rito previsto
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const nl2br = s => esc(s).replace(/\n/g, '<br>');
@@ -70,10 +71,12 @@ async function loadRotina() {
 async function loadReunioes() {
   body().innerHTML = `<div class="card mt-3"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando reuniões…</div></div>`;
   try {
-    const [r, u] = await Promise.all([
+    const [r, u, f] = await Promise.all([
       api.request('/api/v3/reunioes/atas'),
       _users.length ? Promise.resolve({ users: _users }) : api.request('/api/v3/users/list').catch(() => ({ users: [] })),
+      _ritos.length ? Promise.resolve({ formatos: _ritos }) : api.request('/api/v3/gp/reunioes_formatos').catch(() => ({ formatos: [] })),
     ]);
+    _ritos = f.formatos || [];
     _atas = r.atas || [];
     _tipos = r.tipos || [];
     _canEdit = !!r.can_edit;
@@ -226,6 +229,8 @@ function openAta(a) {
         <div style="flex:2;min-width:200px"><label class="tiny muted">Título</label>
           <input id="at-titulo" class="input" value="${esc(c.titulo || '')}" placeholder="Ex.: Alinhamento semanal Conquista"></div>
       </div>
+      <div class="mt-2"><label class="tiny muted">🔁 Qual rito da cadência é esta reunião? <span class="muted">(assim o House sabe que ela aconteceu e para de cobrar a ata)</span></label>
+        <select id="at-rito" class="input"><option value="">— reunião avulsa (fora da cadência) —</option>${_ritos.map(r => `<option value="${esc(r.id)}"${c.formato_id === r.id ? ' selected' : ''}>${esc(r.emoji || '📋')} ${esc(r.nome)} · dono ${esc(r.dono || '')}</option>`).join('')}</select></div>
       <div class="flex gap-2 mt-2" style="flex-wrap:wrap">
         <div style="flex:1;min-width:130px"><label class="tiny muted">Data</label>
           <input id="at-data" class="input" type="date" value="${c.data ? String(c.data).substring(0, 10) : ''}"></div>
@@ -253,7 +258,9 @@ function openAta(a) {
           <label class="tiny muted" style="font-weight:600">🤝 Combinados (o que ficou combinado)</label>
           <button class="btn btn-ghost btn-sm" id="at-comb-add" type="button">+ combinado</button>
         </div>
+        <p class="tiny muted" style="margin:2px 0 4px">Toda reunião sai com tarefas: cada combinado precisa de <b>quem faz</b> e <b>até quando</b> — ele vira tarefa na hora e o House cobra (véspera → gestor → sócios).</p>
         <div id="at-combs"></div>
+        <label class="tiny flex gap-1 mt-1" style="align-items:center;cursor:pointer"><input type="checkbox" id="at-semcomb" ${c.sem_combinados ? 'checked' : ''}> Esta reunião não gerou nenhum combinado</label>
         ${isNew ? `<button class="btn btn-ghost btn-sm mt-1" id="at-puxar" type="button" title="Traz os combinados ainda pendentes da última reunião desse tipo">↺ puxar pendentes da última</button>` : ''}
       </div>
 
@@ -372,12 +379,18 @@ async function saveAta(ov, orig, getCombs) {
     recorrencia: $('#at-rec').value,
     proxima_data: $('#at-prox').value || null,
     status: 'realizada',
+    formato_id: $('#at-rito').value || null,
+    sem_combinados: $('#at-semcomb').checked,
   };
   if (!body0.titulo && !body0.data) return alert('Informe ao menos o título ou a data da reunião.');
+  const semDono = body0.combinados.find(c => !c.responsavel_id || !c.prazo);
+  if (semDono) return alert(`Combinado sem responsável e prazo não existe:\n"${semDono.texto}"\n\nDefina quem faz e até quando.`);
+  if (!orig && !body0.combinados.length && !body0.sem_combinados) return alert('Toda reunião sai com tarefas: registre ao menos 1 combinado (quem faz + até quando) ou marque "Esta reunião não gerou nenhum combinado".');
   _busyR = true; $('#at-save').disabled = true; $('#at-save').textContent = '⏳ Salvando…';
   try {
     const r = await api.request('/api/v3/reunioes/atas', { method: 'POST', body: body0 });
     if (r && r.aviso) alert(r.aviso);
+    if (r && r.tarefas_criadas) toastOk(`✅ ${r.tarefas_criadas} tarefa(s) criada(s) e avisada(s) aos responsáveis`);
     _busyR = false; ov.remove();
     await loadReunioes();
   } catch (e) {
@@ -519,7 +532,7 @@ function driveHTML() {
 
 function cardHTML(it) {
   const meta = [
-    it.cadencia && ['🔁 Cadência', it.cadencia],
+    it.cadencia && ['🔁 Ritmo da Gestão', it.cadencia],
     it.quando && ['📆 Quando', it.quando],
     it.duracao && ['⏱ Duração', it.duracao],
     it.participantes && ['👥 Participantes', it.participantes],
@@ -641,4 +654,13 @@ async function delFormato(id) {
   if (!confirm(`Excluir o formato "${it?.nome || ''}"?`)) return;
   try { await api.request('/api/v3/docs/reunioes', { method: 'POST', body: { action: 'delete', id } }); await loadFormatos(false); }
   catch (e) { alert('Erro ao excluir: ' + e.message); }
+}
+
+// v88.97: confirmação discreta das tarefas criadas pela ata
+function toastOk(msg) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = 'position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#14532d;color:#fff;padding:10px 16px;border-radius:10px;z-index:10000;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.3)';
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 4200);
 }

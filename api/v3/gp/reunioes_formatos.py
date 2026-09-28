@@ -13,6 +13,10 @@ GET  ?lembretes=1 (CRON_SECRET ou lvl>=7) → dispara lembretes por alçada dos
      formatos cujo horário está chegando (janela 30min; dedupe por dia em kv).
 Dados: shared_kv reunioes_formatos {formatos:[...]} · reunioes_atas {atas:[...]}
        · reunioes_lembretes_state {formato_id: "YYYY-MM-DD"}.
+
+v88.97: cada pendência da ata vira TAREFA em dir_tasks (dono resolvido pra um usuário do House;
+dono que não existe = 422), entra na escada do Motor do Ritmo e "baixar" conclui a tarefa.
+A pendência aparece como feita também quando a tarefa é concluída em outro lugar.
 """
 from http.server import BaseHTTPRequestHandler
 import json
@@ -139,6 +143,27 @@ def _hoje_bate(f, now):
     return False
 
 
+def _sem_acento(t):
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFD", str(t or "").lower()) if unicodedata.category(c) != "Mn").strip()
+
+
+def _resolver_dono(users, dono):
+    """'Isa' / 'Kaue' / 'Mariane' / id → user id ativo (nome completo, 1º nome ou apelido do login)."""
+    alvo = _sem_acento(dono)
+    if not alvo:
+        return None
+    ativos = [u for u in users if (u.get("status") or "ativo") == "ativo"]
+    for u in ativos:
+        if _sem_acento(u.get("id")) == alvo or _sem_acento(u.get("name")) == alvo:
+            return u["id"]
+    apelidos = {"isa": "isa", "isabella": "isa", "kaue": "kbordini", "paulo": "paulo"}
+    if alvo in apelidos and any(u["id"] == apelidos[alvo] for u in ativos):
+        return apelidos[alvo]
+    hits = [u["id"] for u in ativos if _sem_acento(u.get("name")).split(" ")[0] == alvo.split(" ")[0]]
+    return hits[0] if len(hits) == 1 else None
+
+
 def _resolver_ids(sb, f):
     """participantes (user_match por nome) + papeis → user ids, por alçada."""
     try:
@@ -232,6 +257,18 @@ class handler(BaseHTTPRequestHandler):
                     pass
         akv, _ = _kv(sb, KV_A, {"atas": []})
         atas = (akv.get("atas") or [])[:120]
+        tids = [p.get("task_id") for a in atas for p in (a.get("pendencias") or []) if p.get("task_id") and not p.get("feito")]
+        concl = set()
+        if tids:
+            try:
+                concl = {t["id"] for t in (sb.table("dir_tasks").select("id,status").in_("id", tids[:500]).execute().data or [])
+                         if (t.get("status") or "") in ("concluida", "concluída")}
+            except Exception:
+                concl = set()
+        for a in atas:
+            for p in (a.get("pendencias") or []):
+                if p.get("task_id") in concl:
+                    p["feito"] = {"por": "via tarefa", "ts": None}
         pend = []
         for a in atas:
             for i, p in enumerate(a.get("pendencias") or []):
@@ -264,6 +301,10 @@ class handler(BaseHTTPRequestHandler):
             if not leu:
                 return self._send(503, {"ok": False, "error": "kv indisponível — tente de novo"})
             pends = []
+            try:
+                _users = sb.table("users").select("id,name,status").execute().data or []
+            except Exception:
+                _users = []
             for p in (body.get("pendencias") or [])[:20]:
                 txt = str((p or {}).get("txt") or "").strip()[:300]
                 dono = str((p or {}).get("dono") or "").strip()[:60]
@@ -271,12 +312,35 @@ class handler(BaseHTTPRequestHandler):
                 if txt and not (dono and prazo):
                     return self._send(422, {"ok": False, "error": f"pendência sem dono+prazo não existe: '{txt[:40]}…'"})
                 if txt:
-                    pends.append({"txt": txt, "dono": dono, "prazo": prazo, "feito": False})
+                    uid = _resolver_dono(_users, dono)
+                    if not uid:
+                        return self._send(422, {"ok": False, "error": f"dono '{dono}' não é um usuário do House — use o nome como está no sistema (ex.: Isabella, Kaue, Mariane)"})
+                    pends.append({"txt": txt, "dono": dono, "dono_id": uid, "prazo": prazo, "feito": False})
             ata = {"id": "ata_" + uuid.uuid4().hex[:10], "formato_id": str(body.get("formato_id") or "")[:60],
                    "ts": now.isoformat(), "por": user.get("name"),
                    # v88.33: dia da REUNIÃO (a ata pode ser registrada depois) — AAAA-MM-DD, opcional
                    "data": (str(body.get("data") or "")[:10] or None),
                    "decisoes": str(body.get("decisoes") or "").strip()[:2000], "pendencias": pends}
+            fmt_nome = next((f.get("nome") for f in (_kv(sb, KV_F, {"formatos": SEED_FORMATOS})[0].get("formatos") or [])
+                             if f.get("id") == ata["formato_id"]), None) or ata["formato_id"] or "Reunião"
+            for p in pends:
+                tid = "t_" + uuid.uuid4().hex[:12]
+                try:
+                    sb.table("dir_tasks").insert({
+                        "id": tid, "titulo": p["txt"][:200],
+                        "descricao": f"Pendência da reunião: {fmt_nome}" + (f" ({ata['data']})" if ata.get("data") else ""),
+                        "status": "aberta", "prioridade": "media", "categoria": ("Reunião · " + fmt_nome)[:80],
+                        "responsavel": p["dono_id"], "criado_por": user["id"],
+                        "criado_em": int(now.timestamp() * 1000), "prazo": p["prazo"],
+                        "historico": [{"ts": now.isoformat(), "actor_id": user["id"], "actor_name": user.get("name"),
+                                       "action": "create", "origem": "reuniao", "ata_id": ata["id"]}],
+                    }).execute()
+                    p["task_id"] = tid
+                    if p["dono_id"] != user["id"]:
+                        notify([p["dono_id"]], "task.assign", "📋 Nova pendência de reunião pra você",
+                               f"{p['txt'][:120]} · prazo {p['prazo']}", link="#/tarefas", target_type="dir_tasks", target_id=tid)
+                except Exception as e:
+                    print(f"[reunioes_formatos] tarefa da pendência: {e}")
             akv.setdefault("atas", []).insert(0, ata)
             akv["atas"] = akv["atas"][:300]
             _kv_set(sb, KV_A, akv)
@@ -292,6 +356,15 @@ class handler(BaseHTTPRequestHandler):
                     try:
                         p = a["pendencias"][int(body.get("idx"))]
                         p["feito"] = {"por": user.get("name"), "ts": now.isoformat()}
+                        if p.get("task_id"):
+                            try:
+                                _v3 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                                if _v3 not in sys.path:
+                                    sys.path.append(_v3)
+                                import _ritmo_lib as CAD  # type: ignore
+                                CAD.marcar_tarefa(sb, p["task_id"], True, user.get("name") or "Reunião")
+                            except Exception as e:
+                                print(f"[reunioes_formatos] baixar tarefa: {e}")
                     except Exception:
                         return self._send(404, {"ok": False, "error": "pendência não encontrada"})
                     _kv_set(sb, KV_A, akv)

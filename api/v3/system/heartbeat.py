@@ -33,6 +33,9 @@ JOBS = [
     # sino + celular + WhatsApp. Dedupe por pessoa/dia dentro do endpoint. Substitui o alertas/cron_push,
     # que dependia só do cron da Vercel e nunca chegou a ninguém.
     ("meu_dia",      "/api/v3/agenda/meu_dia?cron=1",       0.5),
+    # 🔁 v88.97 Ritmo da Gestão: rotina ligada vira tarefa, tarefa vencida sobe (véspera → gestor → sócios)
+    # e rito sem ata avisa o dono. Dedupe por tarefa/degrau dentro do motor (api/v3/_ritmo_lib.py).
+    ("ritmo",        "/api/v3/tasks/ritmo_cron?cron=1",     1),
     ("lembrete_dia", "/api/v3/paulo/lembrete_dia",          20),  # aviso gravação(Academy)/prazo(Projetos) do dia
     ("captar",       "/api/v3/crm/captar_cron",             2),
     # radar de recebíveis (v84.83): deal win → rascunho + alertas D-3/D+1/14d-parado
