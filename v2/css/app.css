@@ -450,3 +450,34 @@
 .h-user .btn-ghost { color: var(--ink-2); }
 /* títulos de card: ícone discreto, não compete com o texto */
 .card-title .ic { color: var(--ink-muted); }
+
+/* ============================================================================
+   v88.85 — ÍCONES COLORIDOS POR FAMÍLIA (Paulo 28/09: "cor em todos os ícones")
+   Cada ícone Lucide tem uma família (v2/js/icons.js → CAT). Tons sem azul, ≥3:1
+   nos dois temas. Seta, +, x e ícones de estado seguem a cor do texto/estado.
+============================================================================ */
+:root {
+  --ic-money: #1f8a52;  --ic-time: #b36b00;   --ic-people: #7a4fd6; --ic-data: #0e8575;
+  --ic-comms: #c2417a;  --ic-docs: #8a6a2b;   --ic-places: #c0501f; --ic-ideas: #a23fc7;
+  --ic-system: #6b665c; --ic-alert: var(--err);
+}
+:root.dark, .force-dark {
+  --ic-money: #4cc58a;  --ic-time: #e8a93d;   --ic-people: #b39cf5; --ic-data: #3fc8b3;
+  --ic-comms: #f07aa8;  --ic-docs: #d3b27a;   --ic-places: #f08a5d; --ic-ideas: #d88af0;
+  --ic-system: #a8a296; --ic-alert: var(--err);
+}
+.ic.ic-c-money  { color: var(--ic-money); }
+.ic.ic-c-time   { color: var(--ic-time); }
+.ic.ic-c-people { color: var(--ic-people); }
+.ic.ic-c-data   { color: var(--ic-data); }
+.ic.ic-c-comms  { color: var(--ic-comms); }
+.ic.ic-c-docs   { color: var(--ic-docs); }
+.ic.ic-c-places { color: var(--ic-places); }
+.ic.ic-c-ideas  { color: var(--ic-ideas); }
+.ic.ic-c-system { color: var(--ic-system); }
+.ic.ic-c-alert  { color: var(--ic-alert); }
+/* dentro de botão cheio (principal/perigo) e pílula ativa o ícone acompanha o texto */
+.btn-primary .ic, .btn-gold .ic, .btn-danger .ic, .hp-btn--primary .ic, .hp-btn--danger .ic,
+[style*="background:var(--accent)"] .ic, [style*="background:var(--ink)"] .ic,
+[style*="color:#fff"] .ic, [style*="color: #fff"] .ic, [style*="color:var(--on-accent)"] .ic, [style*="color:var(--bg)"] .ic,
+.force-dark [style*="color:#fff"] .ic { color: inherit; }
