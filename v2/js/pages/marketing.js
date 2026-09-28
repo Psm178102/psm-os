@@ -778,7 +778,7 @@ function progressCard(label, value, sub, frac, color) {
   const w = Math.max(2, Math.min(100, Math.round(frac * 100)));
   return `<div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px 14px">
     <div style="font-size:11px;color:var(--ink-muted)">${label}</div>
-    <div style="font-size:20px;font-weight:600;color:#f1f5f9;margin-top:2px">${value}</div>
+    <div style="font-size:20px;font-weight:600;color:var(--ink);margin-top:2px">${value}</div>
     <div style="height:7px;border-radius:var(--radius-sm);background:var(--surface-2);margin-top:8px;overflow:hidden"><div style="height:100%;width:${w}%;background:${color}"></div></div>
     <div style="font-size:11px;color:var(--ink-muted);margin-top:4px">${sub}</div>
   </div>`;
@@ -798,10 +798,10 @@ function execHero(t, accounts) {
       <div style="position:absolute;inset:3px auto 3px 0;width:${Math.round(frac * 100)}%;background:${color}22;border-radius:var(--radius-sm)"></div>
       <span style="position:relative;font-weight:600">${txt}</span></td>`;
   return `
-  <div style="background:linear-gradient(160deg,#0f172a,#111827);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 18px 20px;color:#e2e8f0;margin-bottom:16px">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 18px 20px;color:var(--ink);margin-bottom:16px">
     <div class="flex" style="justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
       <div>
-        <div style="font-size:16px;font-weight:600;color:#fff">∞ Relatório Meta Ads · PSM</div>
+        <div style="font-size:16px;font-weight:600;color:var(--ink)">∞ Relatório Meta Ads · PSM</div>
         <div style="font-size:11px;color:var(--ink-muted)">${accounts.length} conta(s) · ${escapeHtml(periodLabel(d.period))}${_ts && _ts.prev && _ts.prev.since ? ' · vs ' + _ts.prev.since.slice(5) + '–' + (_ts.prev.until || '').slice(5) : ''}</div>
       </div>
     </div>
@@ -818,7 +818,7 @@ function execHero(t, accounts) {
 
     <div style="display:grid;grid-template-columns:1.05fr 1.35fr;gap:14px;margin-top:16px;align-items:start">
       <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px">
-        <div style="font-size:13px;font-weight:600;color:#cbd5e1;text-align:center;margin-bottom:10px">Funil de Tráfego <span style="font-weight:400;font-size:11px;color:var(--ink-muted)">(largura em escala log)</span></div>
+        <div style="font-size:13px;font-weight:600;color:var(--ink-2);text-align:center;margin-bottom:10px">Funil de Tráfego <span style="font-weight:400;font-size:11px;color:var(--ink-muted)">(largura em escala log)</span></div>
         <div style="display:flex;flex-direction:column;gap:7px">
           ${funnelStage('IMPRESSÕES', t.impressions, 1, '#806d50')}
           ${funnelStage('ALCANCE', t.reach, logFrac(t.reach, t.impressions), '#806d50')}
@@ -838,7 +838,7 @@ function execHero(t, accounts) {
           ${progressCard('Custo por Clique (CPC)', cpc ? 'R$ ' + money(cpc) : '—', deltaTxt(dl.clicks, true) + ' cliques', Math.min(1, cpc / 5), '#806d50')}
         </div>
         <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px;margin-top:10px">
-          <div style="font-size:12px;font-weight:600;color:#cbd5e1;margin-bottom:6px">Investimento × Resultados (dia)</div>
+          <div style="font-size:12px;font-weight:600;color:var(--ink-2);margin-bottom:6px">Investimento × Resultados (dia)</div>
           <div style="position:relative;height:170px"><canvas id="ch-exec-line"></canvas></div>
         </div>
       </div>
@@ -848,18 +848,18 @@ function execHero(t, accounts) {
 
     <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:14px;margin-top:14px;align-items:start">
       <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px;overflow-x:auto">
-        <div style="font-size:12px;font-weight:600;color:#cbd5e1;margin-bottom:6px">Campanhas (top 5 por gasto)</div>
+        <div style="font-size:12px;font-weight:600;color:var(--ink-2);margin-bottom:6px">Campanhas (top 5 por gasto)</div>
         <table style="width:100%;font-size:12px;border-collapse:collapse;min-width:420px">
           <thead><tr style="color:var(--ink-muted);font-size:11px"><th style="text-align:left;padding:6px 8px">Campanha</th><th style="text-align:right;padding:6px 8px">Investido</th><th style="text-align:right;padding:6px 8px">Cliques</th><th style="text-align:right;padding:6px 8px">Result.</th></tr></thead>
           <tbody>${camps.length ? camps.map(c => `<tr style="border-top:1px solid var(--border)">
-            <td style="padding:6px 8px;color:#e2e8f0">${escapeHtml((c.name || '—').slice(0, 34))}</td>
+            <td style="padding:6px 8px;color:var(--ink)">${escapeHtml((c.name || '—').slice(0, 34))}</td>
             ${cell('R$ ' + money(c.spend || 0), (c.spend || 0) / maxSp, '#806d50')}
             ${cell(fmtNum(c.clicks || 0), (c.clicks || 0) / maxCl, '#239a5b')}
             <td style="padding:6px 8px;text-align:right;font-weight:600">${fmtNum(c.results || 0)}</td></tr>`).join('') : '<tr><td colspan="4" style="padding:12px;text-align:center;color:var(--ink-muted)">Sem campanhas no período.</td></tr>'}</tbody>
         </table>
       </div>
       <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px">
-        <div style="font-size:12px;font-weight:600;color:#cbd5e1;margin-bottom:6px">Mix de investimento (campanhas)</div>
+        <div style="font-size:12px;font-weight:600;color:var(--ink-2);margin-bottom:6px">Mix de investimento (campanhas)</div>
         <div style="position:relative;height:210px"><canvas id="ch-exec-donut"></canvas></div>
       </div>
     </div>
@@ -867,7 +867,7 @@ function execHero(t, accounts) {
 }
 function miniStat(label, val) {
   return `<div style="background:var(--surface-2);border-radius:var(--radius-md);padding:8px;text-align:center">
-    <div style="font-size:11px;color:var(--ink-muted)">${label}</div><div style="font-size:14px;font-weight:600;color:#f1f5f9">${val}</div></div>`;
+    <div style="font-size:11px;color:var(--ink-muted)">${label}</div><div style="font-size:14px;font-weight:600;color:var(--ink)">${val}</div></div>`;
 }
 function deltaTxt(pct, raw) {
   if (pct == null || isNaN(pct)) return raw ? '' : 'sem comparativo';
