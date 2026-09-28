@@ -26,6 +26,7 @@ import json
 import os
 import re
 import sys
+import urllib.error
 import urllib.request
 import uuid
 from datetime import datetime, timezone
@@ -111,44 +112,61 @@ def _now():
 
 
 # ─── IA (Claude primeiro — escrita; Gemini de reserva) ──────────────────
-def _ia(system, user, max_tokens=3000, temperature=0.6):
+def _ia(system, user, max_tokens=3000, temperature=0.6, json_mode=False):
+    """Claude primeiro (escrita); Gemini de reserva. Devolve (texto, provider, erro, aviso).
+    v88.76: o Gemini 2.5 conta o "pensamento" dentro do limite de saída — com 3000 tokens a peça
+    saía cortada (337 caracteres) e o Auditor não devolvia o JSON. Agora: limite alto, pensamento
+    com teto próprio, JSON nativo no Auditor e aviso quando o texto é cortado (MAX_TOKENS)."""
     ant = (os.environ.get("ANTHROPIC_API_KEY") or "").strip()
     gem = (os.environ.get("GEMINI_API_KEY") or "").strip()
 
     def claude():
         payload = {"model": os.environ.get("ANTHROPIC_MODEL") or "claude-sonnet-5",
-                   "max_tokens": max_tokens, "temperature": temperature, "system": system,
+                   "max_tokens": max(max_tokens, 4000), "temperature": temperature, "system": system,
                    "messages": [{"role": "user", "content": user}]}
         req = urllib.request.Request("https://api.anthropic.com/v1/messages", data=json.dumps(payload).encode(),
                                      headers={"x-api-key": ant, "anthropic-version": "2023-06-01",
                                               "Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=100) as resp:
             data = json.loads(resp.read().decode())
-        return "".join(c.get("text", "") for c in (data.get("content") or []) if c.get("type") == "text"), "claude"
+        txt = "".join(c.get("text", "") for c in (data.get("content") or []) if c.get("type") == "text")
+        return txt, "claude", ("cortado no limite de tamanho" if data.get("stop_reason") == "max_tokens" else None)
 
     def gemini():
         model = os.environ.get("GEMINI_SMART_MODEL") or "gemini-2.5-flash"
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+        cfg = {"maxOutputTokens": 12000, "temperature": temperature,
+               "thinkingConfig": {"thinkingBudget": 0 if json_mode else 1024}}
+        if json_mode:
+            cfg["responseMimeType"] = "application/json"
         payload = {"systemInstruction": {"parts": [{"text": system}]},
-                   "contents": [{"role": "user", "parts": [{"text": user}]}],
-                   "generationConfig": {"maxOutputTokens": max_tokens, "temperature": temperature}}
+                   "contents": [{"role": "user", "parts": [{"text": user}]}], "generationConfig": cfg}
         req = urllib.request.Request(url, data=json.dumps(payload).encode(),
                                      headers={"Content-Type": "application/json", "x-goog-api-key": gem})
         with urllib.request.urlopen(req, timeout=100) as resp:
             data = json.loads(resp.read().decode())
-        parts = (data.get("candidates") or [{}])[0].get("content", {}).get("parts", [])
-        return "".join(p.get("text", "") for p in parts), "gemini/" + model
+        cand = (data.get("candidates") or [{}])[0]
+        parts = cand.get("content", {}).get("parts", [])
+        txt = "".join(p.get("text", "") for p in parts if not p.get("thought"))
+        return txt, "gemini/" + model, ("cortado no limite de tamanho" if cand.get("finishReason") == "MAX_TOKENS" else None)
 
-    chain = ([claude] if ant else []) + ([gemini] if gem else [])
-    last = "nenhum provider de IA configurado"
-    for fn in chain:
+    chain = ([("claude", claude)] if ant else []) + ([("gemini", gemini)] if gem else [])
+    erros = []
+    for nome, fn in chain:
         try:
-            txt, prov = fn()
+            txt, prov, aviso = fn()
             if txt and txt.strip():
-                return txt.strip(), prov, None
+                return txt.strip(), prov, ("; ".join(erros) or None), aviso
+            erros.append(f"{nome}: resposta vazia")
+        except urllib.error.HTTPError as e:
+            try:
+                corpo = e.read().decode()[:200]
+            except Exception:
+                corpo = ""
+            erros.append(f"{nome}: HTTP {e.code} {corpo}")
         except Exception as e:
-            last = str(e)[:300]
-    return None, None, last
+            erros.append(f"{nome}: {str(e)[:200]}")
+    return None, None, "; ".join(erros) or "nenhum provider de IA configurado", None
 
 
 def _portfolio(sb):
@@ -228,7 +246,7 @@ def _auditar(sid, pedido, saida, rel):
     user = (f"SKILL: {sid}\n\nPEDIDO ORIGINAL:\n{pedido}\n\nENTREGA A AVALIAR:\n{saida}\n\n"
             f"RELATÓRIO DO ANTI-ROBÔ:\n{json.dumps(rel, ensure_ascii=False)[:6000]}")
     sysmsg = AUDITOR + "\n\n=== CÂNONE (referência) ===\n" + IG.CANON
-    txt, prov, err = _ia(sysmsg, user, max_tokens=900, temperature=0.2)
+    txt, prov, err, _aviso = _ia(sysmsg, user, max_tokens=1500, temperature=0.2, json_mode=True)
     if not txt:
         return {"nota": None, "erro": err}
     m = re.search(r"\{.*\}", txt, re.S)
@@ -244,6 +262,8 @@ def _auditar(sid, pedido, saida, rel):
         nota = min(nota, 6.0)   # anti-robô bloqueante manda: não passa do corte com vício de marca
     a["nota"] = nota
     a["provider"] = prov
+    if nota is None:
+        a["erro"] = "o Auditor não devolveu uma nota válida" + (f" ({err})" if err else "")
     return a
 
 
@@ -293,7 +313,7 @@ def _esteira(sb):
 
 
 def _quem(actor):
-    return actor.get("nome") or actor.get("login") or "time"
+    return actor.get("name") or actor.get("nome") or actor.get("login") or "time"
 
 
 class handler(BaseHTTPRequestHandler):
@@ -383,7 +403,7 @@ class handler(BaseHTTPRequestHandler):
                     f"VEREDITO/AJUSTE DO PAULO: {base.get('veredito_motivo') or '(nenhum)'}\n"
                     f"AJUSTE PEDIDO AGORA: {ajuste or '(nenhum)'}\n\n"
                     "Refaça a entrega inteira corrigindo TODOS os motivos acima.")
-        saida, prov, err = _ia(_system_skill(sid, _portfolio(sb)), user)
+        saida, prov, err, aviso = _ia(_system_skill(sid, _portfolio(sb)), user)
         if not saida:
             return self._send(502, {"ok": False, "error": f"IA indisponível: {err}"})
         rel = checar(saida)
@@ -392,6 +412,7 @@ class handler(BaseHTTPRequestHandler):
         item = {"id": "est_" + uuid.uuid4().hex[:10], "ts": _now(), "skill": sid,
                 "pedido": (base.get("pedido") if base else pedido)[:15000], "saida": saida[:14000],
                 "checagem": rel, "auditoria": aud, "provider": prov, "autor": _quem(actor),
+                "aviso": aviso, "falha_ia": err,
                 "versao": int(base.get("versao") or 1) + 1 if base else 1,
                 "base_id": base.get("id") if base else None, "status": "rascunho"}
         hist.insert(0, item)
@@ -422,6 +443,8 @@ class handler(BaseHTTPRequestHandler):
         nota = aud.get("nota")
         if nota is None or float(nota) < CORTE:
             return self._send(422, {"ok": False, "error": f"nota {nota} abaixo do corte {CORTE:g}: refaça antes (lei do Paulo)"})
+        if it.get("aviso"):
+            return self._send(422, {"ok": False, "error": f"a peça veio {it['aviso']}: refaça antes de enviar"})
         if (it.get("checagem") or {}).get("bloqueios"):
             return self._send(422, {"ok": False, "error": "o anti-robô ainda aponta bloqueio de marca: refaça"})
         pecas = _itens(sb, KV_PECAS)

@@ -136,7 +136,7 @@ function resultadoHtml(h, corte) {
   const s = skill(h.skill) || { ico: '•', nome: h.skill, peca: false, estacao: '' };
   const a = h.auditoria || {};
   const bloqueado = (h.checagem?.bloqueios || []).length > 0;
-  const podeEnviar = s.peca && !h.peca_id && a.nota != null && a.nota >= corte && !bloqueado;
+  const podeEnviar = s.peca && !h.peca_id && a.nota != null && a.nota >= corte && !bloqueado && !h.aviso;
   const v = h.veredito && VERED[h.veredito];
   return `
   <div class="est-box" style="border-left:4px solid ${a.nota >= corte && !bloqueado ? '#22c55e' : '#fb923c'}">
@@ -147,7 +147,9 @@ function resultadoHtml(h, corte) {
       <button class="btn btn-ghost tiny" id="est-fechar" style="margin-left:auto">fechar</button>
     </div>
     ${h.veredito === 'ajustar' && h.veredito_motivo ? `<div class="tiny" style="margin-top:6px;color:#fb923c">💬 Paulo: ${esc(h.veredito_motivo)}</div>` : ''}
+    ${h.aviso ? `<div class="tiny" style="margin-top:8px;color:#f43f5e;font-weight:700">✂️ A peça veio ${esc(h.aviso)} — clique em Refazer.</div>` : ''}
     <pre class="est-out" style="margin-top:10px">${esc(h.saida)}</pre>
+    ${h.falha_ia && String(h.provider || '').startsWith('gemini') ? `<div class="tiny muted" style="margin-top:6px">ℹ️ Escrito pelo Gemini porque o Claude não respondeu (${esc(String(h.falha_ia).slice(0, 140))}).</div>` : ''}
     ${checagemHtml(h.checagem)}
     ${auditoriaHtml(a, corte)}
     <div class="flex gap-2" style="margin-top:12px;flex-wrap:wrap;align-items:center">

@@ -72,14 +72,14 @@ BOM = ("Já somou o aluguel de 2026? Essa é a única conta sem data para acabar
 NOTA = {"v": 8.6}
 
 
-def fake_ia(system, user, max_tokens=3000, temperature=0.6):
+def fake_ia(system, user, max_tokens=3000, temperature=0.6, json_mode=False):
     if "AUDITOR DE MARKETING" in system:
         return json.dumps({"nota": NOTA["v"], "itens": {"gancho": 3, "clareza_cta": 2, "marca": 2, "evidencia": 1,
                                                           "originalidade": 1}, "motivos": ["evidência fraca"],
                            "titulo": "FGTS na entrada", "gancho_texto": "Já somou o aluguel de 2026?",
                            "cta": "Comenta SIMULA", "serie": "Sol Explica", "canal": "IG Reels",
-                           "pendencias": ""}), "fake", None
-    return BOM, "fake", None
+                           "pendencias": ""}), "fake", None, None
+    return BOM, "fake", None, None
 
 
 E._ia = fake_ia
@@ -158,6 +158,14 @@ def test_fluxo():
     h = next(x for x in b["historico"] if x.get("peca_id") == peca["id"])
     assert h["veredito"] == "ajustar" and h["veredito_motivo"] == "começa pelo número"
     assert len(b["skills"]) == 14
+
+    # peça cortada no limite não sobe pra fila
+    NOTA["v"] = 9.0
+    E._ia = lambda *a, **k: (BOM, "fake", None, "cortado no limite de tamanho") if "AUDITOR DE MARKETING" not in a[0] else fake_ia(*a, **k)
+    st, b2 = call("POST", {"acao": "gerar", "skill": "ig-caption", "pedido": "x"})
+    E._ia = fake_ia
+    st3, b3 = call("POST", {"acao": "enviar", "id": b2["item"]["id"]})
+    assert st3 == 422 and "cortado" in b3["error"], b3
     assert b["esteira"]["por_etapa"]["agendamento"] == 1
 
 
