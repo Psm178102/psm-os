@@ -49,7 +49,7 @@ ENGAJAMENTO = [
 # listas do CRM (fotos semanais)
 LISTAS = [
     ("crm_quente",   "quente",   "CRM quente (fundo de funil + vendas)"),
-    ("semente_17",   "semente",  "Semente qualificada DDD 17 (fundo + vendas)"),
+    ("semente_17",   "semente",  "Semente qualificada DDD 17 (chegou a visita/proposta ou comprou)"),
     ("excl_compr",   "exclusao", "EXCLUIR · já compraram"),
     ("excl_leads30", "exclusao", "EXCLUIR · lead dos últimos 30d (campanha fria)"),
 ]
@@ -114,12 +114,16 @@ def varrer_crm(sb, frente_of, agora=None, max_pag=40):
             chave = f or e
             linha = [_sha(f) if f else "", _sha(e) if e else ""]
             ganho = d.get("win") is True
-            fundo = d.get("win") is None and bool(_RX_FUNDO.search((d.get("stage_name") or "").upper()))
+            no_fundo = bool(_RX_FUNDO.search((d.get("stage_name") or "").upper()))
+            fundo = d.get("win") is None and no_fundo
             listas = out[marca]
             if ganho or fundo:
                 listas["crm_quente"][chave] = linha
-                if f[2:4] == "17":
-                    listas["semente_17"][chave] = linha
+            # semente = quem virou comprador QUALIFICADO: vendeu ou chegou a visita/aprovação/proposta,
+            # mesmo que depois tenha perdido (o perdido fica na etapa em que caiu). Sem isso a semente
+            # da Conquista não chegava aos 100 que o Meta pede pro semelhante.
+            if (ganho or no_fundo) and f[2:4] == "17":
+                listas["semente_17"][chave] = linha
             if ganho:
                 listas["excl_compr"][chave] = linha
             try:
