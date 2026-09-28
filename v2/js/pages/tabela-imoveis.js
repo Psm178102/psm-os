@@ -16,7 +16,7 @@ let _filtros = null;      // v86.88: filtros do MAP (Sets por categoria) — só
 let _renaming = null;     // id da tabela com título em edição inline
 
 const MARCAS = [
-  { id: 'conquista', label: '🏆 PSM Conquista', cor: '#dc2626', blue: false },
+  { id: 'conquista', label: '🏆 PSM Conquista', cor: '#d64545', blue: false },
   // PSM Imóveis = MAP — paleta AZUL (igual à planilha): header azul + linhas zebradas
   { id: 'imoveis', label: '🗺 PSM MAP', cor: '#5b7fb4', blue: true },
   // v87.55 (Paulo 08/set): Tabela SP CAPITAL — igual ao MAP, dividida por ZONA
@@ -28,7 +28,7 @@ const COMO_MAP = new Set(['imoveis', 'spcapital']);
 // cabeçalho padrão de toda tabela nova do SP Capital (pedido do Paulo, 08/set)
 const SP_COLUNAS = ['EMPREENDIMENTO', 'INCORPORADORA', 'BAIRRO', 'TIPOLOGIA', 'TAMANHO DE PLANTA (M²)', 'VALOR A PARTIR DE', 'Nº DORMS', 'ENTREGA', 'CONDIÇÃO COMERCIAL', 'ATO', 'LINK DRIVE'];
 // paleta de cores prontas pra colorir cada tabela (cor personalizada via seletor também)
-const SWATCHES = ['#dc2626', '#ea580c', '#d4a843', '#16a34a', '#806d50', '#5b7fb4', '#806d50', '#7c3aed', '#db2777', '#475569'];
+const SWATCHES = ['#d64545', '#c7861a', '#806d50', '#239a5b', '#806d50', '#5b7fb4', '#806d50', '#806d50', '#db2777', '#8a8579'];
 
 export async function pageTabelaImoveis(ctx, root, marcaFilter = null) {
   _root = root; _edit = null; _draft = null; _msg = ''; _renaming = null;

@@ -141,8 +141,8 @@ function initEmpMap() {
   // territórios (polígonos/linhas) desenhados no My Maps
   (_emp.shapes || []).forEach(s => {
     if (!s.coords || s.coords.length < 2) return;
-    const style = { color: '#f59e0b', weight: 2, fillColor: '#f59e0b', fillOpacity: .12 };
-    const layer = s.tipo === 'poly' ? L.polygon(s.coords, style) : L.polyline(s.coords, { color: '#f59e0b', weight: 3 });
+    const style = { color: '#c7861a', weight: 2, fillColor: '#c7861a', fillOpacity: .12 };
+    const layer = s.tipo === 'poly' ? L.polygon(s.coords, style) : L.polyline(s.coords, { color: '#c7861a', weight: 3 });
     layer.addTo(_empMap);
     if (s.nome) layer.bindPopup(`<b>${esc(s.nome)}</b>`);
     _empMarkers.push(layer);
@@ -400,7 +400,7 @@ async function initGoogleMap(key) {
   shps.forEach(s => {
     if (!s.coords || s.coords.length < 2) return;
     const path = s.coords.map(c => ({ lat: c[0], lng: c[1] }));
-    const cor = s.cor || '#f59e0b';
+    const cor = s.cor || '#c7861a';
     if (s.tipo === 'poly') new google.maps.Polygon({ paths: path, map, strokeColor: cor, strokeWeight: 2, fillColor: cor, fillOpacity: .1 });
     else new google.maps.Polyline({ path, map, strokeColor: cor, strokeWeight: 3 });
     path.forEach(p => bounds.extend(p));
@@ -469,10 +469,10 @@ function renderContent() {
   stats.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:10px">
       ${kpi('🏠 Total', total, '#806d50')}
-      ${kpi('🟢 Disponíveis', disp, '#22c55e')}
+      ${kpi('🟢 Disponíveis', disp, '#239a5b')}
       ${kpi('🏷 Próprios', proprios, 'var(--psm-gold)')}
-      ${kpi('✅ Vendidos', vend, '#8b5cf6')}
-      ${kpi('🔎 No Filtro', filtered.length, '#f59e0b')}
+      ${kpi('✅ Vendidos', vend, '#806d50')}
+      ${kpi('🔎 No Filtro', filtered.length, '#c7861a')}
     </div>
   `;
 
@@ -537,7 +537,7 @@ function initMap(items) {
       lat = jLat; lng = jLng;
     }
 
-    const cor = i.status === 'disponivel' ? '#22c55e' : i.status === 'vendido' ? '#8b5cf6' : '#f59e0b';
+    const cor = i.status === 'disponivel' ? '#239a5b' : i.status === 'vendido' ? '#806d50' : '#c7861a';
     const icon = L.divIcon({
       className: 'psm-marker',
       html: `<div style="background:${cor};width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 2px ${cor}44"></div>`,
@@ -567,7 +567,7 @@ function initMap(items) {
 }
 
 function imovelMini(i) {
-  const cor = i.status === 'disponivel' ? '#22c55e' : i.status === 'vendido' ? '#8b5cf6' : '#f59e0b';
+  const cor = i.status === 'disponivel' ? '#239a5b' : i.status === 'vendido' ? '#806d50' : '#c7861a';
   return `
     <div style="background:var(--bg-2);border-left:3px solid ${cor};border-radius:var(--radius-sm);padding:8px;margin-bottom:6px;font-size:12px">
       <div style="font-weight:600">${esc(i.codigo || '—')}</div>

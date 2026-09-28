@@ -127,9 +127,9 @@ function renderDeals() {
     <div class="flex gap-3" style="flex-wrap:wrap;margin-bottom:14px">
       ${kpi('# Deals',  d.summary?.total_count || 0)}
       ${kpi('Em aberto', d.summary?.open  || 0, '#806d50')}
-      ${kpi('🏆 Ganho',  d.summary?.won   || 0, '#16a34a')}
-      ${kpi('❌ Perdido',d.summary?.lost  || 0, '#dc2626')}
-      ${kpi('💰 VGV',    'R$ ' + money(d.summary?.total_valor || 0), '#7c3aed')}
+      ${kpi('🏆 Ganho',  d.summary?.won   || 0, 'var(--ok)')}
+      ${kpi('❌ Perdido',d.summary?.lost  || 0, 'var(--err)')}
+      ${kpi('💰 VGV',    'R$ ' + money(d.summary?.total_valor || 0), 'var(--accent-ink)')}
     </div>
 
     <!-- Stages com deals -->
@@ -148,7 +148,7 @@ function stageCard(name, data, stageMeta) {
   const valor = data?.valor || 0;
   const isWon = stageMeta?.is_won;
   const isLost = stageMeta?.is_lost;
-  const accent = isWon ? '#16a34a' : isLost ? '#dc2626' : '#806d50';
+  const accent = isWon ? 'var(--ok)' : isLost ? 'var(--err)' : '#806d50';
   const ico = isWon ? '🏆' : isLost ? '❌' : '🔄';
 
   return `

@@ -7,7 +7,7 @@ let _tab = 'painel';
 let _items = [];
 
 const DIRECAO_ICO = { alta: '📈', estavel: '➡️', baixa: '📉' };
-const IMPACTO_COLOR = { alto: '#ef4444', medio: '#f59e0b', baixo: '#22c55e' };
+const IMPACTO_COLOR = { alto: 'var(--err)', medio: 'var(--warn)', baixo: 'var(--ok)' };
 const CATEGORIAS = ['Mercado', 'Digital', 'Preços', 'Comportamento', 'Tecnologia', 'Geral'];
 
 export async function pageTendencias(ctx, root) {
@@ -85,7 +85,7 @@ function renderPainel() {
                   <div style="color:#fff;font-weight:600;margin-bottom:4px">${esc(t.titulo)}</div>
                   <div style="color:var(--ink-muted);font-size:12px">${esc(t.descricao || '')}</div>
                 </div>
-                <span style="padding:4px 10px;border-radius:var(--radius-sm);font-size:11px;font-weight:600;background:${IMPACTO_COLOR[t.impacto] || '#64748b'};color:#fff">${esc(t.impacto || '—')}</span>
+                <span style="padding:4px 10px;border-radius:var(--radius-sm);font-size:11px;font-weight:600;background:${IMPACTO_COLOR[t.impacto] || 'var(--ink-muted)'};color:#fff">${esc(t.impacto || '—')}</span>
               </div>
             `).join('')}
           </div>
@@ -189,7 +189,7 @@ function renderHistorico() {
                 <td style="padding:10px;color:#fff;font-weight:600">${esc(t.titulo)}</td>
                 <td style="padding:10px;color:var(--ink-muted)">${esc(t.categoria || '—')}</td>
                 <td style="padding:10px;text-align:center;font-size:16px">${DIRECAO_ICO[t.direcao] || '➡️'}</td>
-                <td style="padding:10px;text-align:center"><span style="padding:3px 8px;border-radius:var(--radius-sm);font-size:11px;font-weight:600;background:${IMPACTO_COLOR[t.impacto] || '#64748b'};color:#fff">${esc(t.impacto || '—')}</span></td>
+                <td style="padding:10px;text-align:center"><span style="padding:3px 8px;border-radius:var(--radius-sm);font-size:11px;font-weight:600;background:${IMPACTO_COLOR[t.impacto] || 'var(--ink-muted)'};color:#fff">${esc(t.impacto || '—')}</span></td>
                 ${isLider ? `<td style="padding:10px;text-align:center"><button class="btn btn-ghost btn-sm" data-del="${t.id}" style="color:var(--err-suave)">🗑</button></td>` : ''}
               </tr>
             `).join('')}

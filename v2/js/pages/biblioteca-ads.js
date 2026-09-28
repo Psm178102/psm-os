@@ -50,7 +50,7 @@ function renderList(r) {
 function card(s) {
   const d = s.delta;
   const deltaTxt = d == null ? '' : (d > 0 ? `<span style="color:var(--ok)">▲ ${d}</span>` : d < 0 ? `<span style="color:var(--err)">▼ ${Math.abs(d)}</span>` : '<span class="muted">=</span>');
-  const inv = { alto: ['#dc2626', '🔴 Alto'], medio: ['#d97706', '🟡 Médio'], baixo: ['#16a34a', '🟢 Baixo'] }[s.nivel_invest] || ['#64748b', '—'];
+  const inv = { alto: ['#d64545', '🔴 Alto'], medio: ['#c7861a', '🟡 Médio'], baixo: ['#239a5b', '🟢 Baixo'] }[s.nivel_invest] || ['#8a8579', '—'];
   return `<div data-open="${escapeHtml(s.concorrente)}" style="cursor:pointer;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:12px" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,.08)'" onmouseout="this.style.boxShadow='none'">
     <div class="flex items-center gap-2" style="margin-bottom:6px">
       <div style="font-weight:600;font-size:14px;flex:1">${escapeHtml(s.concorrente)}</div>

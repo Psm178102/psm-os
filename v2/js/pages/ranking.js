@@ -118,11 +118,11 @@ async function loadAudit() {
 function rankRow(u, i, mode) {
   const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
   const ini = escapeHtml((u.ini || (u.name || '?').substring(0, 2)).toUpperCase());
-  const bg = i < 3 ? ['#fef3c7','#e5e7eb','#fed7aa'][i] : 'var(--bg-3)';
+  const bg = i < 3 ? ['var(--warn-soft)','#e5e7eb','#fed7aa'][i] : 'var(--bg-3)';
   return `
     <div style="display:grid;grid-template-columns:40px 36px 1fr auto;gap:10px;padding:10px 14px;background:${bg};border-radius:var(--r-sm);align-items:center">
       <div style="font-size:${i < 3 ? '20px' : '14px'};font-weight:600;text-align:center">${medal}</div>
-      <div style="width:32px;height:32px;border-radius:var(--r-sm);background:${u.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px">${ini}</div>
+      <div style="width:32px;height:32px;border-radius:var(--r-sm);background:${u.color || 'var(--ink-muted)'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px">${ini}</div>
       <div style="min-width:0">
         <div style="font-weight:600;font-size:13px">${escapeHtml(u.name)}</div>
         <div class="tiny muted">${escapeHtml(u.role || '')} · ${escapeHtml(u.team || 'geral')}</div>

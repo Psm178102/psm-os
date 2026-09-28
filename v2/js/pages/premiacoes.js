@@ -147,7 +147,7 @@ function renderList() {
       <h3 style="color:var(--ok);font-size:14px;margin-bottom:10px;display:flex;align-items:center;gap:8px">
         <span style="width:8px;height:8px;border-radius:50%;background:var(--ok-soft);display:inline-block"></span> Ativas
       </h3>
-      ${ativas.sort((a,b)=>a.fim.localeCompare(b.fim)).map(p => premCard(p, 'ATIVA', '#22c55e', isSocio, hoje)).join('')}
+      ${ativas.sort((a,b)=>a.fim.localeCompare(b.fim)).map(p => premCard(p, 'ATIVA', '#239a5b', isSocio, hoje)).join('')}
     ` : ''}
     ${futuras.length ? `
       <h3 style="color:var(--azul-claro);font-size:14px;margin:18px 0 10px">📅 Próximas</h3>
@@ -155,7 +155,7 @@ function renderList() {
     ` : ''}
     ${encerradas.length ? `
       <h3 style="color:var(--muted);font-size:14px;margin:18px 0 10px">📋 Encerradas</h3>
-      ${encerradas.sort((a,b)=>b.fim.localeCompare(a.fim)).slice(0, 10).map(p => premCard(p, 'ENCERRADA', '#64748b', isSocio, hoje)).join('')}
+      ${encerradas.sort((a,b)=>b.fim.localeCompare(a.fim)).slice(0, 10).map(p => premCard(p, 'ENCERRADA', '#8a8579', isSocio, hoje)).join('')}
     ` : ''}
     ${_items.length === 0 ? '<div class="muted tiny" style="text-align:center;padding:30px">Nenhuma premiação cadastrada.</div>' : ''}
   `;

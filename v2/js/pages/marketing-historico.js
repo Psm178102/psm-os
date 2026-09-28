@@ -35,8 +35,8 @@ function render(d, loading) {
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
         ${kpi('💸 Investimento (ano)', f$(t.spend), '#1e293b')}
         ${kpi('👥 Leads (ano)', f1(t.results), '#806d50')}
-        ${kpi('🎯 CPL médio (ano)', f$(t.cpl), '#d97706')}
-        ${kpi('💬 Mensagens (ano)', f1(t.messages), '#7c3aed')}
+        ${kpi('🎯 CPL médio (ano)', f$(t.cpl), 'var(--warn)')}
+        ${kpi('💬 Mensagens (ano)', f1(t.messages), 'var(--accent-ink)')}
       </div>
       <div style="overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-md)"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:680px">
         <thead><tr style="background:var(--bg-3);border-bottom:2px solid var(--border)">

@@ -72,7 +72,7 @@ async function loadFila() {
       el().innerHTML = `<div class="muted tiny">Nenhum negócio aberto na sua carteira${r.aviso ? ' — ' + escapeHtml(r.aviso) : ''}.</div>`;
       return;
     }
-    const TEMP = { quente: ['#dc2626', '🔥'], morno: ['#d97706', '🌤'], frio: ['#64748b', '❄️'] };
+    const TEMP = { quente: ['var(--err)', '🔥'], morno: ['var(--warn)', '🌤'], frio: ['var(--ink-muted)', '❄️'] };
     el().innerHTML = `
       <div class="tiny muted" style="margin-bottom:8px">Os <b>${fila.length}</b> negócios mais quentes da sua carteira (${r.total_abertos} abertos). Comece do topo. 💪</div>
       <div style="display:grid;gap:6px">
@@ -233,7 +233,7 @@ async function loadNorteCard() {
   const rows = stages.map(s => {
     const meta = Number(fm[s.key] || 0);
     const pct = meta > 0 ? s.n / meta * 100 : null;
-    const cor = pct == null ? '#94a3b8' : pct >= 100 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626';
+    const cor = pct == null ? 'var(--ink-muted)' : pct >= 100 ? 'var(--ok)' : pct >= 60 ? 'var(--warn)' : 'var(--err)';
     return `<div style="display:grid;grid-template-columns:130px 1fr auto;gap:8px;align-items:center">
       <span class="tiny" style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(s.label)}</span>
       <div style="height:10px;background:var(--bg-3);border-radius:var(--radius-sm);overflow:hidden"><div style="height:100%;width:${meta > 0 ? Math.min(100, s.n / meta * 100) : 0}%;background:${cor}"></div></div>
@@ -242,7 +242,7 @@ async function loadNorteCard() {
   }).join('');
   const pb = (lbl, real, meta, isMoney) => {
     const pct = meta > 0 ? real / meta * 100 : null;
-    const cor = pct == null ? '#94a3b8' : pct >= 100 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626';
+    const cor = pct == null ? 'var(--ink-muted)' : pct >= 100 ? 'var(--ok)' : pct >= 60 ? 'var(--warn)' : 'var(--err)';
     return `<div><div class="tiny" style="display:flex;justify-content:space-between"><b>${lbl}</b><span><b>${isMoney ? 'R$ ' + mBRL(real) : fN(real)}</b> <span class="muted">/ ${meta > 0 ? (isMoney ? 'R$ ' + mBRL(meta) : fN(meta)) : '—'}</span></span></div>
       <div style="height:10px;background:var(--bg-3);border-radius:var(--radius-sm);overflow:hidden;margin-top:2px"><div style="height:100%;width:${pct != null ? Math.min(100, pct) : 0}%;background:${cor}"></div></div></div>`;
   };
@@ -330,7 +330,7 @@ function render() {
     <div class="card">
       <!-- Header -->
       <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid var(--border)">
-        <div style="width:64px;height:64px;border-radius:var(--r-md);background:${u.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:26px">${ini}</div>
+        <div style="width:64px;height:64px;border-radius:var(--r-md);background:${u.color || 'var(--ink-muted)'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:26px">${ini}</div>
         <div style="flex:1;min-width:200px">
           <h2 class="card-title" style="margin:0">${escapeHtml(u.name || '')}${mine ? '' : ' <span class="tiny muted">(painel do colaborador)</span>'}</h2>
           <div class="muted tiny">${escapeHtml(u.email || '')} · ${escapeHtml(u.role || '')} · ${escapeHtml(u.team || 'Geral')}</div>
@@ -422,10 +422,10 @@ function render() {
       ${(d.commissions?.count || 0) > 0 ? `
         <div class="flex gap-3" style="flex-wrap:wrap">
           ${kpi('# Comissões', d.commissions.count)}
-          ${kpi('Pagas', d.commissions.pagas, '#16a34a')}
-          ${kpi('Pendentes', d.commissions.pendentes, '#d97706')}
+          ${kpi('Pagas', d.commissions.pagas, 'var(--ok)')}
+          ${kpi('Pendentes', d.commissions.pendentes, 'var(--warn)')}
           ${kpi('Valor total', 'R$ ' + fmtMoney(d.commissions.valor_total))}
-          ${kpi('Valor pendente', 'R$ ' + fmtMoney(d.commissions.valor_pendente), '#d97706')}
+          ${kpi('Valor pendente', 'R$ ' + fmtMoney(d.commissions.valor_pendente), 'var(--warn)')}
         </div>` : '<div class="muted tiny">Nenhuma comissão registrada ainda.</div>'}
 
       <h3 class="card-title mt-4">📜 Sua atividade recente</h3>
@@ -495,9 +495,9 @@ function renderPerf(d) {
   return `
     <h3 class="card-title mt-4">💰 Seu Desempenho do Mês</h3>
     <div class="flex gap-3" style="flex-wrap:wrap">
-      ${kpi('🏆 Vendas', d.sales?.vendas_mes || 0, '#16a34a')}
-      ${kpi('💰 VGV', 'R$ ' + fmtKM(d.sales?.vgv_mes || 0), '#16a34a')}
-      ${kpi('🎯 Meta VGV', 'R$ ' + fmtKM(d.metas?.meta_vgv || 0), '#d4a843')}
+      ${kpi('🏆 Vendas', d.sales?.vendas_mes || 0, 'var(--ok)')}
+      ${kpi('💰 VGV', 'R$ ' + fmtKM(d.sales?.vgv_mes || 0), 'var(--ok)')}
+      ${kpi('🎯 Meta VGV', 'R$ ' + fmtKM(d.metas?.meta_vgv || 0), 'var(--accent-ink)')}
       ${kpi('📊 Atingimento', pctMeta(d.sales?.vgv_mes, d.metas?.meta_vgv), pctColor(d.sales?.vgv_mes, d.metas?.meta_vgv))}
       ${kpi('📈 Pipeline', 'R$ ' + fmtKM(d.sales?.pipeline_vgv || 0), '#806d50')}
       ${kpi('💎 VGV no Ano', 'R$ ' + fmtKM(d.sales?.vgv_ano || 0), '#806d50')}
@@ -551,11 +551,11 @@ async function save() {
   sv.disabled = true; if (st) st.textContent = 'Salvando…';
   try {
     await api.request('/api/v3/profile/data', { method: 'POST', body });
-    if (st) { st.textContent = '✓ Salvo'; st.style.color = '#16a34a'; }
+    if (st) { st.textContent = '✓ Salvo'; st.style.color = 'var(--ok)'; }
     // reflete no header (tempo de casa) sem recarregar tudo
     if (_data.profile) Object.assign(_data.profile, body);
   } catch (e) {
-    if (st) { st.textContent = 'Erro: ' + e.message; st.style.color = '#dc2626'; }
+    if (st) { st.textContent = 'Erro: ' + e.message; st.style.color = 'var(--err)'; }
   } finally {
     sv.disabled = false;
     setTimeout(() => { if (st) { st.textContent = ''; st.style.color = ''; } }, 4000);
@@ -574,7 +574,7 @@ function tempoCasa(dateStr) {
 function fmtDate(s) { return s ? String(s).substring(0, 10).split('-').reverse().join('/') : '—'; }
 function pctMeta(real, meta) { if (!meta || meta <= 0) return '—'; return pct2((real || 0) / meta * 100); }
 function pct2(v){ return v==null?'—':(Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%'; }
-function pctColor(real, meta) { if (!meta || meta <= 0) return 'var(--muted)'; const p = (real || 0) / meta; return p >= 1 ? '#16a34a' : p >= 0.7 ? '#f59e0b' : '#dc2626'; }
+function pctColor(real, meta) { if (!meta || meta <= 0) return 'var(--muted)'; const p = (real || 0) / meta; return p >= 1 ? 'var(--ok)' : p >= 0.7 ? 'var(--warn)' : 'var(--err)'; }
 function fmtKM(n) { return (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function kpi(label, value, color) {
   return `<div style="background:var(--bg-3);border-radius:var(--r-sm);padding:10px 14px;min-width:140px"><div class="tiny muted" style="letter-spacing:1px;text-transform:uppercase">${label}</div><div style="font-size:20px;font-weight:600;color:${color || 'var(--ink)'}">${value}</div></div>`;

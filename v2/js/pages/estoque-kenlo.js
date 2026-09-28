@@ -62,7 +62,7 @@ const tipoPt = t => TIPO_PT[String(t || '').toLowerCase()] || cap(t);
 
 function badgeDias(d) {
   if (d == null) return '';
-  const cor = d > 180 ? '#dc2626' : d > 90 ? '#d97706' : '#16a34a';
+  const cor = d > 180 ? '#d64545' : d > 90 ? '#c7861a' : '#239a5b';
   return `<span class="badge" style="background:${cor}22;color:${cor};font-weight:600">⏱ ${d}d</span>`;
 }
 
@@ -256,7 +256,7 @@ async function renderAnalises(corpo) {
   const maxFx = Math.max(1, ...(a.faixas_venda || []).map(x => x[1]));
   const snaps = a.snapshots || [];
   const maxSnap = Math.max(1, ...snaps.map(s => Number(s.vgv_venda || 0)));
-  const cores = { '0-30': '#16a34a', '31-90': '#65a30d', '91-180': '#d97706', '180+': '#dc2626', '?': '#64748b' };
+  const cores = { '0-30': '#239a5b', '31-90': '#65a30d', '91-180': '#c7861a', '180+': '#d64545', '?': '#8a8579' };
   corpo.innerHTML = `
     <div class="card">
       <div class="flex" style="gap:8px;flex-wrap:wrap">
@@ -273,7 +273,7 @@ async function renderAnalises(corpo) {
       </div>
       <div class="card" style="flex:1;min-width:300px;margin:0">
         <b>📍 Por bairro (top 12)</b><div class="tiny muted">onde o estoque está concentrado</div>
-        <div class="mt-1">${(a.por_bairro || []).map(([b, n, v]) => barra(esc(b), n, maxBairro, '#7c3aed', ` · ${brlK(v)}`)).join('')}</div>
+        <div class="mt-1">${(a.por_bairro || []).map(([b, n, v]) => barra(esc(b), n, maxBairro, '#806d50', ` · ${brlK(v)}`)).join('')}</div>
       </div>
     </div>
     <div class="flex mt-2" style="gap:8px;flex-wrap:wrap;align-items:stretch">

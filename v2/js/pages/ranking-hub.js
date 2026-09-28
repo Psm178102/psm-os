@@ -340,7 +340,7 @@ function telaRecado() {
   if (!tvs.length) return vazio('📣', 'Nenhum recado 📺 ativo na Timeline.');
   const r = tvs[_recTvIdx % tvs.length];
   _recTvIdx++;
-  const cor = r.cor && r.cor !== '#0f172a' ? r.cor : '#eab308';
+  const cor = r.cor && r.cor !== '#0f172a' ? r.cor : '#c7861a';
   return `
     <div style="display:flex;align-items:center;justify-content:center;height:100%;padding:5vh 7vw">
       <div style="max-width:1100px;width:100%;text-align:center;border-radius:var(--radius-full);padding:56px 54px;background:linear-gradient(180deg,${cor}26,#0d1120 65%);border:3px solid ${cor};box-shadow:0 0 90px ${cor}33">
@@ -371,7 +371,7 @@ function telaDuelo() {
       <span style="font-size:26px;font-weight:600;color:var(--warn)">⚔️ Duelo pela liderança</span>
     </div>
     <div style="display:flex;gap:24px;align-items:stretch;padding:24px 50px">
-      ${lado(a, '#facc15', true)}
+      ${lado(a, '#c7861a', true)}
       <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px">
         <div style="font-size:36px;font-weight:600;color:var(--ink-muted)">VS</div>
         <div style="background:#7c2d12;border:1px solid var(--warn);border-radius:var(--radius-md);padding:10px 16px;text-align:center">
@@ -379,7 +379,7 @@ function telaDuelo() {
           <div style="font-size:12px;color:#fdba74">separam os dois</div>
         </div>
       </div>
-      ${lado(b, '#94a3b8', false)}
+      ${lado(b, '#8a8579', false)}
     </div>
     <div style="text-align:center;font-size:20px;font-weight:600;color:#e2e8f0">${escapeHtml(b.agentName || '')} precisa de <span style="color:var(--warn)">${fmtPts(diff + 1)} pontos</span> pra tomar a ponta 🔥</div>`;
 }
@@ -430,11 +430,11 @@ const driveThumb = id => id ? `https://drive.google.com/thumbnail?id=${id}&sz=w8
 /* ── classificação de regra → badge (mesma legenda do Modo TV do HUB) ── */
 const BADGES = {
   prosp: { ab: 'Prosp.', lbl: 'Prospecção',      bg: '#3b3b8f', fg: '#c7c9ff' },
-  agend: { ab: 'Agend.', lbl: 'Visita Agendada', bg: '#806d50', fg: '#bfdbfe' },
+  agend: { ab: 'Agend.', lbl: 'Visita Agendada', bg: '#806d50', fg: 'var(--accent-soft)' },
   aten:  { ab: 'Aten.',  lbl: 'Visita Realizada',bg: '#134e4a', fg: '#99f6e4' },
   doc:   { ab: 'Doc.',   lbl: 'Proposta',        bg: '#4c1d95', fg: '#ddd6fe' },
-  venda: { ab: 'Venda',  lbl: 'Venda',           bg: '#14532d', fg: '#bbf7d0' },
-  perdas:{ ab: 'Perdas', lbl: 'Penalidades',     bg: '#7f1d1d', fg: '#fecaca' },
+  venda: { ab: 'Venda',  lbl: 'Venda',           bg: '#239a5b', fg: 'var(--ok-soft)' },
+  perdas:{ ab: 'Perdas', lbl: 'Penalidades',     bg: '#d64545', fg: 'var(--err-soft)' },
 };
 function classifyRule(rb) {
   const t = `${rb.label || ''} ${rb.stageName || ''}`.toLowerCase();
@@ -616,8 +616,8 @@ function telaPremiacoes() {
    anotado à caneta: ONE ON ONE de segunda e os TREINOs de quarta e sexta).
    Hoje fica em destaque e o horário em curso ganha o selo AGORA. ── */
 const CRONO_DIAS = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-const CRONO_COR = { reuniao: '#facc15', oneonone: '#a78bfa', ligacao: '#806d50', indicacao: '#4ade80',
-  treino: '#f472b6', decorado: '#fb923c', market: '#2dd4bf', corujao: '#818cf8', atend: '#22c55e' };
+const CRONO_COR = { reuniao: '#c7861a', oneonone: '#a78bfa', ligacao: '#806d50', indicacao: '#239a5b',
+  treino: '#f472b6', decorado: '#c7861a', market: '#2dd4bf', corujao: '#806d50', atend: '#239a5b' };
 const LIG_AGENDOU = 'Clientes atuais e os que agendaram mas não vieram (foco em encher o sábado → eventos)';
 const DECORADO = 'Escala de gravação: 3 corretores no decorado gravam os criativos';
 const CORUJAO = 'Leads atuais > listas · 1h → 20min → 1h';
@@ -643,7 +643,7 @@ function telaCronograma() {
   const cel = (c, i, emCurso) => {
     const hoje = i === hojeIdx;
     if (!c) return `<div style="border-radius:var(--radius-md);background:${hoje ? 'rgba(234,179,8,.06)' : 'rgba(30,41,59,.25)'};border:1px dashed rgba(71,85,105,.35)"></div>`;
-    const cor = CRONO_COR[c.k] || '#94a3b8';
+    const cor = CRONO_COR[c.k] || '#8a8579';
     const agoraAqui = hoje && emCurso;
     return `<div style="border-radius:var(--radius-md);padding:8px 12px;background:linear-gradient(180deg,${cor}${hoje ? '33' : '1f'},#0d1120);border:${agoraAqui ? `3px solid ${cor}` : `1px solid ${cor}77`};border-left:6px solid ${cor};${agoraAqui ? `box-shadow:0 0 28px ${cor}66;` : ''}${hoje ? '' : 'opacity:.82;'}">
       ${agoraAqui ? `<div style="display:inline-block;font-size:11px;font-weight:600;letter-spacing:.14em;color:#1c1917;background:${cor};padding:2px 8px;border-radius:var(--radius-full);margin-bottom:4px">● AGORA</div>` : ''}
@@ -744,7 +744,7 @@ function telaPlacar() {
   const pct = metaMes ? Math.round(100 * vendido / metaMes) : 0;
   const pctProj = metaMes ? Math.round(100 * proj / metaMes) : 0;
   const falta = Math.max(0, metaMes - vendido);
-  const farol = p => p >= 100 ? '#4ade80' : p >= 70 ? '#facc15' : '#f87171';
+  const farol = p => p >= 100 ? '#239a5b' : p >= 70 ? '#c7861a' : '#d64545';
   // produção do mês — as colunas da esteira do HUB
   const prod = { prospeccao: 0, qualificacao: 0, agendamento: 0, atendimento: 0, pasta: 0, vendaCount: 0 };
   rows.forEach(r => Object.keys(prod).forEach(k => { prod[k] += Number(r[k]) || 0; }));
@@ -771,7 +771,7 @@ function telaPlacar() {
   const linhas = pessoas.filter(x => x.meta > 0 || x.real > 0 || x.p.vendas > 0)
     .sort((a, b) => b.p.vgv - a.p.vgv || b.meta - a.meta).slice(0, 9).map(x => {
       const pP = x.meta && !x.p.semTicket ? Math.round(100 * x.p.vgv / x.meta) : null;   // sem ticket não há R$ pra comparar
-      const cor = pP != null ? farol(pP) : '#94a3b8';
+      const cor = pP != null ? farol(pP) : '#8a8579';
       const pm = paraMeta(x.r, x.meta, tx, fator);
       const sug = !pm ? '' : pm.batida ? '<span style="color:var(--ok)">✅ meta batida</span>'
         : pm.itens.every(i => !i.faltam) ? '<span style="color:var(--ok)">✅ produção já cobre a meta</span>'
@@ -799,11 +799,11 @@ function telaPlacar() {
       <span style="font-size:13px;color:var(--ink-muted)">dia ${dia}/${diasMes} · ${uteis} dia(s) útil(eis) restando · ${EST_HUB}</span>
     </div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:8px 36px 0">
-      ${kpi('VENDIDO', fmtMi(vendido), `${nVend} venda(s) · ${pct}% da meta`, '#f8fafc')}
+      ${kpi('VENDIDO', fmtMi(vendido), `${nVend} venda(s) · ${pct}% da meta`, 'var(--surface-2)')}
       ${tx.ticket ? kpi('PROJEÇÃO DO MÊS', fmtMi(proj), `${pctProj}% da meta · pelo funil`, farol(pctProj))
-        : kpi('PROJEÇÃO DO MÊS', `≈ ${projVendas.toFixed(1).replace('.', ',')} vendas`, 'pelo funil · sem ticket médio no histórico pra virar R$', '#facc15')}
+        : kpi('PROJEÇÃO DO MÊS', `≈ ${projVendas.toFixed(1).replace('.', ',')} vendas`, 'pelo funil · sem ticket médio no histórico pra virar R$', '#c7861a')}
       ${kpi('META DO MÊS', fmtMi(metaMes), metaHub ? 'soma das metas do HUB' : 'meta anual ÷ 12', '#cbd5e1')}
-      ${kpi('FALTA VENDER', falta > 0 ? fmtMi(falta) : '✅', falta > 0 ? `${tx.ticket ? `≈ ${Math.ceil(falta / tx.ticket)} venda(s) · ` : ''}${uteis ? `${fmtMi(falta / uteis)}/dia útil` : ''}` : 'meta batida — agora é recorde', '#fb923c')}
+      ${kpi('FALTA VENDER', falta > 0 ? fmtMi(falta) : '✅', falta > 0 ? `${tx.ticket ? `≈ ${Math.ceil(falta / tx.ticket)} venda(s) · ` : ''}${uteis ? `${fmtMi(falta / uteis)}/dia útil` : ''}` : 'meta batida — agora é recorde', '#c7861a')}
     </div>
     <div style="padding:8px 36px 0">
       <div style="position:relative;height:12px;background:var(--surface-2);border-radius:var(--radius-full);overflow:hidden">
@@ -830,7 +830,7 @@ function podiumCard(a, cat) {
     : a.pos === 2
       ? 'border:1px solid #475569;background:rgba(30,41,59,.45)'
       : 'border:1px solid #b45309;background:rgba(69,26,3,.35)';
-  const posColor = a.pos === 1 ? '#facc15' : a.pos === 3 ? '#fb923c' : '#e2e8f0';
+  const posColor = a.pos === 1 ? '#c7861a' : a.pos === 3 ? '#c7861a' : '#e2e8f0';
   return `
     <div style="border-radius:var(--radius-lg);padding:${first ? '26px' : '22px'} 18px;text-align:center;${style}">
       <div style="font-size:${first ? '30px' : '24px'};font-weight:600;color:${posColor}">${a.pos}°</div>
@@ -876,10 +876,10 @@ const TK_ALTURA = '56px';
 const TK_OPORT_MAX = 12;
 let _tkItems = [], _tkSig = '';
 function tickerItems() {
-  const rec = _recados.map(r => ({ kind: 'recado', tag: 'RECADO', ico: '📣', cor: r.cor || '#eab308', texto: r.texto || '', extra: r.autor || '' }));
+  const rec = _recados.map(r => ({ kind: 'recado', tag: 'RECADO', ico: '📣', cor: r.cor || '#c7861a', texto: r.texto || '', extra: r.autor || '' }));
   const outros = [
     ..._atividade.slice(0, 6).map(a => ({ kind: 'atividade', tag: 'ATIVIDADE', ico: '⚡', cor: '#806d50', texto: `${a.nome} · ${a.lbl}`, extra: a.hora })),
-    ..._oport.slice(0, TK_OPORT_MAX).map(o => ({ kind: 'oportunidade', tag: 'OPORTUNIDADE', ico: OP_ICO[o.tipo] || '💡', cor: '#22c55e',
+    ..._oport.slice(0, TK_OPORT_MAX).map(o => ({ kind: 'oportunidade', tag: 'OPORTUNIDADE', ico: OP_ICO[o.tipo] || '💡', cor: '#239a5b',
       texto: o.titulo || '', extra: o.valor_est ? fmtBRL(o.valor_est) : '', desc: o.descricao || '' })),
   ];
   const its = [...rec];
@@ -996,7 +996,7 @@ function shell(body) {
     : (_data ? `Ranking — ${meses[_data.month] || ''} ${_data.year}` : 'Ranking — PSM HUB');
   const CICLO = CICLO_ATUAL();
   const dots = `<span style="display:inline-flex;gap:5px;margin-left:10px;align-items:center">
-    ${CICLO.map((id, i) => `<span style="width:8px;height:8px;border-radius:var(--radius-full);background:${i === ((_secIdx % CICLO.length) + CICLO.length) % CICLO.length ? 'var(--warn-soft)' : '#334155'}"></span>`).join('')}</span>`;
+    ${CICLO.map((id, i) => `<span style="width:8px;height:8px;border-radius:var(--radius-full);background:${i === ((_secIdx % CICLO.length) + CICLO.length) % CICLO.length ? 'var(--warn-soft)' : '#8a8579'}"></span>`).join('')}</span>`;
   const tabs = ['GERAL', ...teams()];
   return `
   <style>

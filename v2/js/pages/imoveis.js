@@ -3,10 +3,10 @@ import { api, selectableUsers } from '../api.js';
 import { auth } from '../auth.js';
 
 const STATUS = [
-  { id: 'disponivel',    lbl: 'Disponível',     color: '#16a34a' },
-  { id: 'em_negociacao', lbl: 'Em negociação',  color: '#d97706' },
-  { id: 'vendido',       lbl: 'Vendido',        color: '#7c3aed' },
-  { id: 'inativo',       lbl: 'Inativo',        color: '#64748b' },
+  { id: 'disponivel',    lbl: 'Disponível',     color: 'var(--ok)' },
+  { id: 'em_negociacao', lbl: 'Em negociação',  color: 'var(--warn)' },
+  { id: 'vendido',       lbl: 'Vendido',        color: 'var(--accent-ink)' },
+  { id: 'inativo',       lbl: 'Inativo',        color: 'var(--ink-muted)' },
 ];
 const TIPOS = ['Apartamento', 'Casa', 'Cobertura', 'Sobrado', 'Terreno', 'Comercial', 'Rural'];
 
@@ -40,10 +40,10 @@ function render() {
       <p class="card-sub">${_kpis.total || 0} cadastrados · R$ ${money(_kpis.valor_total)} disponíveis · ${_kpis.proprios || 0} próprios · ${_kpis.terceiros || 0} terceiros</p>
 
       <div class="flex gap-3 mt-3" style="flex-wrap:wrap">
-        ${kpi('🟢 Disponíveis', _kpis.disponiveis || 0, '', '#16a34a')}
-        ${kpi('💰 Valor estoque', 'R$ ' + money(_kpis.valor_total), 'soma disponíveis', '#7c3aed')}
+        ${kpi('🟢 Disponíveis', _kpis.disponiveis || 0, '', 'var(--ok)')}
+        ${kpi('💰 Valor estoque', 'R$ ' + money(_kpis.valor_total), 'soma disponíveis', 'var(--accent-ink)')}
         ${kpi('🏠 Próprios', _kpis.proprios || 0, 'do PSM', '#806d50')}
-        ${kpi('🤝 Terceiros', _kpis.terceiros || 0, 'Kenlo/outros', '#d97706')}
+        ${kpi('🤝 Terceiros', _kpis.terceiros || 0, 'Kenlo/outros', 'var(--warn)')}
       </div>
 
       <div class="flex gap-2 mt-3" style="flex-wrap:wrap;align-items:center;padding:10px;background:var(--bg-3);border-radius:var(--r-sm)">

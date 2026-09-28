@@ -13,7 +13,7 @@ const DISMISS_KEY = 'psm.tl.dismissed';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const dismissed = () => { try { return new Set(JSON.parse(localStorage.getItem(DISMISS_KEY) || '[]')); } catch (_) { return new Set(); } };
 const setDismissed = s => { try { localStorage.setItem(DISMISS_KEY, JSON.stringify([...s].slice(-200))); } catch (_) {} };
-const CORES = ['#0f172a', '#806d50', '#16a34a', '#d97706', '#dc2626', '#7c3aed'];
+const CORES = ['#0f172a', '#806d50', 'var(--ok)', 'var(--warn)', 'var(--err)', 'var(--accent-ink)'];
 
 function rel(iso) {
   if (!iso) return '';
@@ -152,7 +152,7 @@ function compose() {
   ov.querySelector('#tl-pub').onclick = async () => {
     const texto = ov.querySelector('#tl-txt').value.trim();
     const msg = ov.querySelector('#tl-msg');
-    if (!texto) { msg.textContent = 'Escreva o recado.'; msg.style.color = '#dc2626'; return; }
+    if (!texto) { msg.textContent = 'Escreva o recado.'; msg.style.color = 'var(--err)'; return; }
     const btn = ov.querySelector('#tl-pub'); btn.disabled = true; btn.textContent = 'Publicando…';
     try {
       const r = await api.request('/api/v3/timeline/recados', { method: 'POST', body: {
@@ -164,7 +164,7 @@ function compose() {
       } });
       _items = r.items || [];
       close(); render();
-    } catch (e) { btn.disabled = false; btn.textContent = '📣 Publicar'; msg.textContent = 'Erro: ' + e.message; msg.style.color = '#dc2626'; }
+    } catch (e) { btn.disabled = false; btn.textContent = '📣 Publicar'; msg.textContent = 'Erro: ' + e.message; msg.style.color = 'var(--err)'; }
   };
   setTimeout(() => ov.querySelector('#tl-txt').focus(), 30);
 }

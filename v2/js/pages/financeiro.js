@@ -145,11 +145,11 @@ async function renderHubComissoes() {
       ${kpi('Vendas', vs.length)}
       ${kpi('VGV', money(sum('_vgv')))}
       ${kpi('Receita bruta', money(sum('_bruto')))}
-      ${kpi('Impostos', money(sum('_imp')), '#d97706')}
+      ${kpi('Impostos', money(sum('_imp')), 'var(--warn)')}
       ${kpi('Receita líquida', money(sum('_liq')))}
       ${kpi('Comissões corretor', money(sum('_cCor')), '#806d50')}
       ${kpi('Comissões gestor', money(sum('_cGes')), '#806d50')}
-      ${kpi('Sobra da casa', money(casa), casa >= 0 ? '#16a34a' : '#dc2626')}
+      ${kpi('Sobra da casa', money(casa), casa >= 0 ? 'var(--ok)' : 'var(--err)')}
     </div>
     <div class="card" style="margin:0 0 12px"><b class="tiny">Por corretor</b>
       <div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse">
@@ -238,7 +238,7 @@ async function renderHubSecao(sec) {
   const eps = d.endpoints || {};
   const chip = (nome, ep) => {
     const ok = ep.status === 'ok';
-    const cor = ok ? '#16a34a' : (ep.status === 'sem_permissao' ? '#d97706' : '#dc2626');
+    const cor = ok ? 'var(--ok)' : (ep.status === 'sem_permissao' ? 'var(--warn)' : 'var(--err)');
     const lbl = ok ? 'ok' : (ep.status === 'sem_permissao' ? 'sem permissão no Hub' : ep.status);
     return `<span class="tiny" style="background:var(--bg-3);border-radius:var(--radius-full);padding:2px 10px;white-space:nowrap">
       <span style="color:${cor}">●</span> ${escapeHtml(nome.replace(/_/g, ' '))} · ${escapeHtml(lbl)}</span>`;

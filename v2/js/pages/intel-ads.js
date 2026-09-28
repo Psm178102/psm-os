@@ -70,7 +70,7 @@ function kpi(label, value, color, sub) {
     <div style="color:${color};font-size:20px;font-weight:600">${value}</div>
     ${sub ? `<div style="color:var(--ink-muted);font-size:11px;margin-top:2px">${esc(sub)}</div>` : ''}</div>`;
 }
-const tierColor = t => t === 'A' ? '#f59e0b' : t === 'B' ? '#806d50' : '#64748b';
+const tierColor = t => t === 'A' ? 'var(--warn)' : t === 'B' ? '#806d50' : 'var(--ink-muted)';
 
 function renderContent() {
   const body = document.getElementById('ads-body');
@@ -100,8 +100,8 @@ function renderContent() {
     </div>
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px">
-      ${kpi('📢 Anúncios ativos (mercado)', fNum(totalAds), '#22c55e', capturados + ' concorrentes mapeados')}
-      ${kpi('🔥 Mais agressivo', top ? fNum(top.anuncios_count) : '—', '#ef4444', top ? top.nome : 'capture um print')}
+      ${kpi('📢 Anúncios ativos (mercado)', fNum(totalAds), 'var(--ok)', capturados + ' concorrentes mapeados')}
+      ${kpi('🔥 Mais agressivo', top ? fNum(top.anuncios_count) : '—', 'var(--err)', top ? top.nome : 'capture um print')}
       ${kpi('⏱ Tempo médio ativo', tempoMedio != null ? tempoMedio + ' dias' : '—', '#806d50', 'campanhas no ar')}
       ${kpi('💰 Investimento estimado/mês', f$(investTotal), '#fffbea', '≈ volume × premissa')}
     </div>
@@ -126,9 +126,9 @@ function renderContent() {
             <td style="padding:8px 10px;color:#fff;font-weight:600">${esc(c.nome || '—')}${c.handle ? `<div style="font-size:11px;color:var(--ink-muted)">${esc(c.handle)}</div>` : ''}</td>
             <td style="padding:8px 10px;text-align:center"><span style="padding:2px 8px;border-radius:var(--radius-sm);background:${tierColor(c.tier)};color:#fff;font-size:11px;font-weight:600">${esc(c.tier || '—')}</span></td>
             <td style="padding:8px 10px;color:var(--ink-muted)">${esc(c.segmento || '—')}</td>
-            <td style="padding:8px 10px;text-align:right;font-weight:600;color:${c.anuncios_count > 0 ? 'var(--ok)' : '#475569'}">${c.anuncios_count || '—'}${c.ultima_atualizacao && c.anuncios_count ? `<div class="tiny" style="font-weight:400;color:var(--ink-muted)">${fmtDate(c.ultima_atualizacao)}</div>` : ''}</td>
-            <td style="padding:8px 10px;text-align:right;color:${c.anuncios_dias_medio ? '#e2e8f0' : '#475569'}">${c.anuncios_dias_medio ? Math.round(c.anuncios_dias_medio) + 'd' : '—'}</td>
-            <td style="padding:8px 10px;text-align:right;font-weight:600;color:${inv.v ? '#fffbea' : '#475569'}">${inv.v ? '≈ ' + f$(inv.v) : '—'}${inv.manual ? '<div class="tiny" style="font-weight:400;color:var(--ink-muted)">manual</div>' : ''}</td>
+            <td style="padding:8px 10px;text-align:right;font-weight:600;color:${c.anuncios_count > 0 ? 'var(--ok)' : 'var(--ink-2)'}">${c.anuncios_count || '—'}${c.ultima_atualizacao && c.anuncios_count ? `<div class="tiny" style="font-weight:400;color:var(--ink-muted)">${fmtDate(c.ultima_atualizacao)}</div>` : ''}</td>
+            <td style="padding:8px 10px;text-align:right;color:${c.anuncios_dias_medio ? '#e2e8f0' : 'var(--ink-2)'}">${c.anuncios_dias_medio ? Math.round(c.anuncios_dias_medio) + 'd' : '—'}</td>
+            <td style="padding:8px 10px;text-align:right;font-weight:600;color:${inv.v ? '#fffbea' : 'var(--ink-2)'}">${inv.v ? '≈ ' + f$(inv.v) : '—'}${inv.manual ? '<div class="tiny" style="font-weight:400;color:var(--ink-muted)">manual</div>' : ''}</td>
             <td style="padding:8px 10px;text-align:center;white-space:nowrap">
               <a href="${adLibUrl(c.nome)}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" title="Ver anúncios na Biblioteca Meta" style="font-size:11px">🔗</a>
               <button class="btn btn-ghost btn-sm" data-print="${c.id}" title="Contar anúncios + tempo por print (IA)" style="font-size:11px">📷</button>
@@ -153,13 +153,13 @@ function renderContent() {
   if (fi) fi.addEventListener('change', onFile);
 }
 
-function setStatus(msg, color) { const s = document.getElementById('ads-status'); if (s) { s.textContent = msg || ''; s.style.color = color || '#22c55e'; } }
+function setStatus(msg, color) { const s = document.getElementById('ads-status'); if (s) { s.textContent = msg || ''; s.style.color = color || 'var(--ok)'; } }
 function startPrint(id) { _pendingPrint = id; const f = document.getElementById('ads-file'); if (f) { f.value = ''; f.click(); } }
 async function onFile(e) {
   const file = e.target.files && e.target.files[0];
   if (!file || _pendingPrint == null) return;
   const id = _pendingPrint;
-  setStatus('⏳ IA lendo o print (volume + tempo)…', '#f59e0b');
+  setStatus('⏳ IA lendo o print (volume + tempo)…', 'var(--warn)');
   try {
     const dataUrl = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(file); });
     const r = await api.request('/api/v3/ia/ad_count', { method: 'POST', body: { id: Number(id), image: dataUrl } });
@@ -167,9 +167,9 @@ async function onFile(e) {
       const c = _conc.find(x => String(x.id) === String(id));
       if (c) { c.anuncios_count = r.count; if (r.dias_medio != null) c.anuncios_dias_medio = r.dias_medio; c.ultima_atualizacao = new Date().toISOString(); }
       renderContent();
-      setStatus(`✅ ${(c && c.nome) || ''}: ${r.count} anúncios${r.dias_medio != null ? ' · ~' + r.dias_medio + 'd ativos' : ''}${r.saved === false ? ' (não salvou)' : ''}`, '#22c55e');
+      setStatus(`✅ ${(c && c.nome) || ''}: ${r.count} anúncios${r.dias_medio != null ? ' · ~' + r.dias_medio + 'd ativos' : ''}${r.saved === false ? ' (não salvou)' : ''}`, 'var(--ok)');
     } else {
-      setStatus('⚠️ Não li' + (r && r.error ? ': ' + r.error : '') + '. Print nítido com "~X resultados".', '#ef4444');
+      setStatus('⚠️ Não li' + (r && r.error ? ': ' + r.error : '') + '. Print nítido com "~X resultados".', 'var(--err)');
     }
-  } catch (err) { setStatus('⚠️ Erro: ' + err.message, '#ef4444'); }
+  } catch (err) { setStatus('⚠️ Erro: ' + err.message, 'var(--err)'); }
 }

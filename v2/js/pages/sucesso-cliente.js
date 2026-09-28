@@ -15,8 +15,8 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': 
 const fmtData = d => d ? String(d).substring(0, 10).split('-').reverse().join('/') : '—';
 
 const CAT = ['MAP', 'Conquista', 'Locação', 'Terceiros'];
-const CAT_COR = { MAP: '#8b5cf6', Conquista: '#16a34a', 'Locação': '#806d50', Terceiros: '#f59e0b', Outros: '#64748b' };
-const STAT = { ativo: { l: 'Ativo', c: '#16a34a' }, em_risco: { l: 'Em risco', c: '#f59e0b' }, churn: { l: 'Churn', c: '#ef4444' }, renovado: { l: 'Renovado', c: '#806d50' } };
+const CAT_COR = { MAP: '#806d50', Conquista: '#239a5b', 'Locação': '#806d50', Terceiros: '#c7861a', Outros: '#8a8579' };
+const STAT = { ativo: { l: 'Ativo', c: '#239a5b' }, em_risco: { l: 'Em risco', c: '#c7861a' }, churn: { l: 'Churn', c: '#d64545' }, renovado: { l: 'Renovado', c: '#806d50' } };
 
 const TABS = [
   { id: 'onb_cliente', lbl: '🚀 Onboarding do Cliente' },
@@ -31,7 +31,7 @@ const TABS = [
 ];
 
 const REG = {
-  onb_cliente: { titulo: '🚀 Onboarding do Cliente', cor: '#16a34a', titleField: 'cliente', sub: 'Jornada de entrada do cliente, por categoria.',
+  onb_cliente: { titulo: '🚀 Onboarding do Cliente', cor: '#239a5b', titleField: 'cliente', sub: 'Jornada de entrada do cliente, por categoria.',
     campos: [{ k: 'cliente', lbl: 'Cliente', type: 'text', req: true }, { k: 'categoria', lbl: 'Categoria', type: 'select', opts: CAT },
       { k: 'etapa', lbl: 'Etapa', type: 'select', opts: ['Boas-vindas', 'Documentação', 'Configuração/Acesso', 'Acompanhamento', 'Concluído'] },
       { k: 'responsavel', lbl: 'Responsável', type: 'text' }, { k: 'data', lbl: 'Data', type: 'date' }, { k: 'obs', lbl: 'Observações', type: 'textarea' }],
@@ -42,12 +42,12 @@ const REG = {
       { k: 'prioridade', lbl: 'Prioridade', type: 'select', opts: ['Baixa', 'Média', 'Alta'] },
       { k: 'status', lbl: 'Status', type: 'select', opts: ['Aberto', 'Em andamento', 'Resolvido'] }, { k: 'descricao', lbl: 'Descrição', type: 'textarea' }],
     chips: r => [r.categoria, r.status, r.prioridade ? '⚑ ' + r.prioridade : ''].filter(Boolean) },
-  retencao: { titulo: '🔄 Retenção & Renovação', cor: '#8b5cf6', titleField: 'cliente', sub: 'Renovações, riscos de churn e reativações.',
+  retencao: { titulo: '🔄 Retenção & Renovação', cor: '#806d50', titleField: 'cliente', sub: 'Renovações, riscos de churn e reativações.',
     campos: [{ k: 'cliente', lbl: 'Cliente', type: 'text', req: true }, { k: 'categoria', lbl: 'Categoria', type: 'select', opts: CAT },
       { k: 'tipo', lbl: 'Tipo', type: 'select', opts: ['Renovação', 'Risco de churn', 'Reativação'] }, { k: 'data_alvo', lbl: 'Data alvo', type: 'date' },
       { k: 'valor', lbl: 'Valor (R$)', type: 'number' }, { k: 'status', lbl: 'Status', type: 'select', opts: ['A fazer', 'Em negociação', 'Renovado', 'Perdido'] }, { k: 'obs', lbl: 'Observações', type: 'textarea' }],
     chips: r => [r.categoria, r.tipo, r.status].filter(Boolean) },
-  upsell: { titulo: '📈 Upsell & Cross-sell', cor: '#f59e0b', titleField: 'cliente', sub: 'Oportunidades de aumentar ticket e portfólio.',
+  upsell: { titulo: '📈 Upsell & Cross-sell', cor: '#c7861a', titleField: 'cliente', sub: 'Oportunidades de aumentar ticket e portfólio.',
     campos: [{ k: 'cliente', lbl: 'Cliente', type: 'text', req: true }, { k: 'categoria', lbl: 'Categoria', type: 'select', opts: CAT },
       { k: 'oferta', lbl: 'Oferta', type: 'text' }, { k: 'tipo', lbl: 'Tipo', type: 'select', opts: ['Upsell', 'Cross-sell'] },
       { k: 'valor_potencial', lbl: 'Valor potencial (R$)', type: 'number' }, { k: 'status', lbl: 'Status', type: 'select', opts: ['Identificado', 'Proposto', 'Fechado', 'Perdido'] }, { k: 'obs', lbl: 'Observações', type: 'textarea' }],
@@ -56,7 +56,7 @@ const REG = {
     campos: [{ k: 'cliente', lbl: 'Cliente', type: 'text', req: true }, { k: 'tipo', lbl: 'Tipo', type: 'select', opts: ['Depoimento', 'Case', 'Avaliação', 'Foto/Vídeo'] },
       { k: 'conteudo', lbl: 'Conteúdo', type: 'textarea' }, { k: 'link', lbl: 'Link', type: 'text' }, { k: 'status', lbl: 'Status', type: 'select', opts: ['Coletado', 'Aprovado', 'Publicado'] }, { k: 'obs', lbl: 'Observações', type: 'textarea' }],
     chips: r => [r.tipo, r.status].filter(Boolean) },
-  avaliacoes: { titulo: '🌟 Avaliações de Atendimento', cor: '#16a34a', titleField: 'cliente', sub: 'Notas e comentários de atendimento (NPS/CSAT).',
+  avaliacoes: { titulo: '🌟 Avaliações de Atendimento', cor: '#239a5b', titleField: 'cliente', sub: 'Notas e comentários de atendimento (NPS/CSAT).',
     campos: [{ k: 'cliente', lbl: 'Cliente', type: 'text', req: true }, { k: 'categoria', lbl: 'Categoria', type: 'select', opts: CAT },
       { k: 'nota', lbl: 'Nota (0–10)', type: 'number' }, { k: 'canal', lbl: 'Canal', type: 'select', opts: ['WhatsApp', 'Ligação', 'E-mail', 'Presencial'] },
       { k: 'comentario', lbl: 'Comentário', type: 'textarea' }, { k: 'data', lbl: 'Data', type: 'date' }],
@@ -137,7 +137,7 @@ function renderCarteira() {
 }
 function cliRow(c) {
   const st = STAT[c.status] || STAT.ativo;
-  const cc = CAT_COR[c.categoria] || '#64748b';
+  const cc = CAT_COR[c.categoria] || '#8a8579';
   return `<tr style="border-top:1px solid var(--bd,var(--border))">
     <td style="padding:7px 10px;font-weight:600">${esc(c.nome)}${c.n_negocios > 1 ? ` <span class="tiny muted">(${c.n_negocios})</span>` : ''}</td>
     <td style="padding:7px 10px"><span class="tiny" style="background:${cc}1f;color:${cc};padding:1px 8px;border-radius:var(--radius-full);font-weight:600">${esc(c.categoria)}</span></td>

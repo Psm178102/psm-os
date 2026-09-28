@@ -18,13 +18,13 @@ import {
 
 /* ── dicionários ── */
 export const IMV_STATUS = [
-  { id: 'garimpado',  nome: 'Garimpado',     emoji: '🔎', cor: '#64748b' },
-  { id: 'analise',    nome: 'Em análise',    emoji: '📑', cor: '#f59e0b' },
-  { id: 'aprovado',   nome: 'Aprovado p/ lance', emoji: '✅', cor: '#16a34a' },
-  { id: 'certame',    nome: 'Em certame',    emoji: '🔨', cor: '#ef4444' },
+  { id: 'garimpado',  nome: 'Garimpado',     emoji: '🔎', cor: 'var(--ink-muted)' },
+  { id: 'analise',    nome: 'Em análise',    emoji: '📑', cor: 'var(--warn)' },
+  { id: 'aprovado',   nome: 'Aprovado p/ lance', emoji: '✅', cor: 'var(--ok)' },
+  { id: 'certame',    nome: 'Em certame',    emoji: '🔨', cor: 'var(--err)' },
   { id: 'arrematado', nome: 'Arrematado',    emoji: '🏁', cor: '#9C7A3C' },   // dourado literal: import circular (TDZ) proíbe COR aqui
-  { id: 'perdido',    nome: 'Perdido',       emoji: '❌', cor: '#334155' },
-  { id: 'descartado', nome: 'Descartado',    emoji: '🗑', cor: '#334155' },
+  { id: 'perdido',    nome: 'Perdido',       emoji: '❌', cor: 'var(--ink-2)' },
+  { id: 'descartado', nome: 'Descartado',    emoji: '🗑', cor: 'var(--ink-2)' },
 ];
 const IMV_TIPO = { apartamento: 'Apartamento', casa: 'Casa', terreno: 'Terreno', comercial: 'Sala/Loja', barracao: 'Barracão', rural: 'Sítio/Chácara', outro: 'Outro' };
 const RISCO = { baixo: '🟢 Baixo', medio: '🟡 Médio', alto: '🔴 Alto' };
@@ -49,11 +49,11 @@ export function renderInvestidores() {
         <button class="btn btn-primary" id="ma-novo-inv">＋ Novo investidor</button>
       </div>
       <div class="ma-minis" style="margin:10px 0 0">
-        ${mini('📥 Na esteira', inv.filter(c => c.coluna !== 'fora').length, '', '#64748b')}
-        ${mini('✅ Qualificados (score ≥ 70)', qual, '', '#16a34a')}
+        ${mini('📥 Na esteira', inv.filter(c => c.coluna !== 'fora').length, '', 'var(--ink-muted)')}
+        ${mini('✅ Qualificados (score ≥ 70)', qual, '', 'var(--ok)')}
         ${mini('🏁 Arrematados / carteira', inv.filter(c => ['arrematado', 'carteira'].includes(c.coluna)).length, '', COR.dourado)}
         ${mini('🚪 Porta 2 → Conquista', inv.filter(porta2).length, '', '#806d50')}
-        ${mini('⏰ Sem próximo passo', inv.filter(c => c.coluna !== 'fora' && !S.atividades.some(a => !a.feito && a.investidor_id === c.id)).length, 'agende na ficha', '#ef4444')}
+        ${mini('⏰ Sem próximo passo', inv.filter(c => c.coluna !== 'fora' && !S.atividades.some(a => !a.feito && a.investidor_id === c.id)).length, 'agende na ficha', 'var(--err)')}
       </div>
     </div>
     <div class="ma-kanban" id="ma-kanban">
@@ -68,7 +68,7 @@ export function renderInvestidores() {
     </div>`;
 }
 function cardInv(c) {
-  const s = scoreDe(c), cor = s >= 70 ? '#16a34a' : s >= 40 ? '#d97706' : '#64748b';
+  const s = scoreDe(c), cor = s >= 70 ? 'var(--ok)' : s >= 40 ? 'var(--warn)' : 'var(--ink-muted)';
   const prox = S.atividades.filter(a => !a.feito && a.investidor_id === c.id && a.quando).sort((a, b) => a.quando.localeCompare(b.quando))[0];
   const atras = prox && prox.quando.slice(0, 10) < hojeISO();
   return `<div class="ma-card" data-id="${esc(c.id)}">
@@ -90,7 +90,7 @@ export function abrirInvestidor(c, aba) {
   aba = aba || (c.id ? 'timeline' : 'ficha');
   const novo = !c.id;
   const tabs = novo ? [['ficha', '📋 Ficha']] : [['timeline', '🕒 Linha do tempo'], ['ficha', '📋 Ficha'], ['imoveis', '🏠 Imóveis'], ['operacoes', '🔁 Operações']];
-  const titulo = novo ? '＋ Novo investidor' : `<span style="font-family:Georgia,serif">${esc(c.nome)}</span> <span class="ma-score" style="background:${scoreDe(c) >= 70 ? 'var(--ok-soft)' : scoreDe(c) >= 40 ? 'var(--warn-soft)' : '#64748b'}">${scoreDe(c)}</span> <span class="tiny muted">${esc(COLUNAS.find(k => k.id === (c.coluna || 'pre'))?.nome || '')}</span>`;
+  const titulo = novo ? '＋ Novo investidor' : `<span style="font-family:Georgia,serif">${esc(c.nome)}</span> <span class="ma-score" style="background:${scoreDe(c) >= 70 ? 'var(--ok-soft)' : scoreDe(c) >= 40 ? 'var(--warn-soft)' : 'var(--ink-muted)'}">${scoreDe(c)}</span> <span class="tiny muted">${esc(COLUNAS.find(k => k.id === (c.coluna || 'pre'))?.nome || '')}</span>`;
   const html = `
     ${novo ? '' : `<div class="flex gap-2" style="flex-wrap:wrap">
       ${c.fone ? `<a class="btn btn-ghost" href="${waLink(c.fone)}" target="_blank" rel="noopener">💬 WhatsApp</a>` : ''}
@@ -252,9 +252,9 @@ export function renderImoveis() {
         ${[['ativos', '🟢 Ativos'], ['todos', 'Todos'], ...IMV_STATUS.map(s => [s.id, `${s.emoji} ${s.nome}`])].map(([id, l]) => `<button class="btn ${_fImv === id ? 'btn-primary' : 'btn-ghost'} f-imv" data-f="${id}" style="font-size:11px;padding:4px 9px">${l} <span class="muted">${id === 'ativos' ? todos.filter(i => !['perdido', 'descartado', 'arrematado'].includes(i.status)).length : id === 'todos' ? todos.length : todos.filter(i => i.status === id).length}</span></button>`).join('')}
       </div>
       <div class="ma-minis" style="margin:10px 0 0">
-        ${mini('🔨 Certames nos próximos 15 dias', todos.filter(i => ['aprovado', 'certame'].includes(i.status) && i.data_certame >= hoje && i.data_certame <= new Date(Date.now() + 15 * 864e5).toISOString().slice(0, 10)).length, '', '#ef4444')}
-        ${mini('📑 Em análise', todos.filter(i => i.status === 'analise').length, `${brl(todos.filter(i => i.status === 'analise').length * cfg().fee.analise)} em análises`, '#f59e0b')}
-        ${mini('✅ Aprovados p/ lance', todos.filter(i => i.status === 'aprovado').length, '', '#16a34a')}
+        ${mini('🔨 Certames nos próximos 15 dias', todos.filter(i => ['aprovado', 'certame'].includes(i.status) && i.data_certame >= hoje && i.data_certame <= new Date(Date.now() + 15 * 864e5).toISOString().slice(0, 10)).length, '', 'var(--err)')}
+        ${mini('📑 Em análise', todos.filter(i => i.status === 'analise').length, `${brl(todos.filter(i => i.status === 'analise').length * cfg().fee.analise)} em análises`, 'var(--warn)')}
+        ${mini('✅ Aprovados p/ lance', todos.filter(i => i.status === 'aprovado').length, '', 'var(--ok)')}
         ${mini('🏁 Arrematados', todos.filter(i => i.status === 'arrematado').length, '', COR.dourado)}
       </div>
     </div>
@@ -268,7 +268,7 @@ function liImovel(i) {
   const hoje = hojeISO();
   return `<div class="ma-li" data-abrir-imv="${esc(i.id)}">
     <div>
-      <div class="flex items-center gap-2" style="flex-wrap:wrap"><b>${esc(i.titulo)}</b><span class="ma-status" style="background:${st.cor}">${st.emoji} ${esc(st.nome)}</span>${i.data_certame ? `<span class="ma-tag" style="background:${i.data_certame < hoje ? '#64748b' : 'var(--err-soft)'}">🔨 ${dtBR(i.data_certame)}</span>` : ''}${i.ocupado ? '<span class="ma-tag" style="background:var(--warn-soft)">ocupado</span>' : ''}${i.aceita_fin ? '<span class="ma-tag" style="background:var(--accent-soft)">financiável · Porta 2</span>' : ''}${i.analise?.risco ? `<span class="ma-tag" style="background:#334155">${RISCO[i.analise.risco]}</span>` : ''}${V ? `<span class="ma-tag" style="background:${V.cor}">${V.rotulo}</span>` : ''}</div>
+      <div class="flex items-center gap-2" style="flex-wrap:wrap"><b>${esc(i.titulo)}</b><span class="ma-status" style="background:${st.cor}">${st.emoji} ${esc(st.nome)}</span>${i.data_certame ? `<span class="ma-tag" style="background:${i.data_certame < hoje ? 'var(--ink-muted)' : 'var(--err-soft)'}">🔨 ${dtBR(i.data_certame)}</span>` : ''}${i.ocupado ? '<span class="ma-tag" style="background:var(--warn-soft)">ocupado</span>' : ''}${i.aceita_fin ? '<span class="ma-tag" style="background:var(--accent-soft)">financiável · Porta 2</span>' : ''}${i.analise?.risco ? `<span class="ma-tag" style="background:#334155">${RISCO[i.analise.risco]}</span>` : ''}${V ? `<span class="ma-tag" style="background:${V.cor}">${V.rotulo}</span>` : ''}</div>
       <div class="tiny muted">${esc([IMV_TIPO[i.tipo], i.bairro, i.cidade, MODAL[i.modalidade], i.credor].filter(Boolean).join(' · '))}${i.matricula ? ' · matr. ' + esc(i.matricula) : ''}</div>
       <div class="tiny" style="margin-top:3px">Avaliação ${brl(i.avaliacao)} · lance mín. ${brl(i.lance_min)}${an.lance_max ? ` · <b>lance máx. ${brl(an.lance_max)}</b>` : ''}${an.desconto ? ` · desconto ${an.desconto}%` : ''}${inv ? ` · 💼 ${esc(inv.nome)}` : ' · <span class="muted">sem investidor</span>'}</div>
     </div>
@@ -491,8 +491,8 @@ export function veredito(i, o) {
   const base = motor(i, o);
   const lm = lanceMax(i, o);
   const minEdital = num(i.lance_min) || 0;
-  if (!base.L || !base.merc) return { status: 'sem_dados', rotulo: 'SEM DADOS', cor: '#64748b', lm, base, cond: [], motivo: 'informe ao menos o valor de mercado e o lance para o motor rodar' };
-  if (base.viavel) return { status: 'viavel', rotulo: 'VIÁVEL', cor: '#16a34a', lm, base, cond: [], motivo: '' };
+  if (!base.L || !base.merc) return { status: 'sem_dados', rotulo: 'SEM DADOS', cor: 'var(--ink-muted)', lm, base, cond: [], motivo: 'informe ao menos o valor de mercado e o lance para o motor rodar' };
+  if (base.viavel) return { status: 'viavel', rotulo: 'VIÁVEL', cor: 'var(--ok)', lm, base, cond: [], motivo: '' };
 
   const cond = [];
   const alt = mod => motor({ ...i, analise: { ...(i.analise || {}), ...(mod.analise || {}) } }, { ...o, ...(mod.opts || {}) });
@@ -517,13 +517,13 @@ export function veredito(i, o) {
   const mv = A.m_venda != null ? num(A.m_venda) : 3;
   if (mv > 1 && alt({ analise: { m_venda: 1 } }).viavel) cond.push('vender em até 1 mês após a reforma — só com preço de liquidez');
 
-  if (cond.length && precoPossivel) return { status: 'condicionado', rotulo: 'CONDICIONADO', cor: '#d97706', lm, base, cond, motivo: '' };
-  if (cond.length) return { status: 'condicionado', rotulo: 'CONDICIONADO', cor: '#d97706', lm, base,
+  if (cond.length && precoPossivel) return { status: 'condicionado', rotulo: 'CONDICIONADO', cor: 'var(--warn)', lm, base, cond, motivo: '' };
+  if (cond.length) return { status: 'condicionado', rotulo: 'CONDICIONADO', cor: 'var(--warn)', lm, base,
     cond: cond.concat([`atenção: mesmo assim o teto (${brl(lm)}) fica abaixo do lance mínimo do edital (${brl(minEdital)})`]), motivo: '' };
   const motivo = (minEdital && lm < minEdital)
     ? `o lance máximo (${brl(lm)}) fica abaixo do lance mínimo do edital (${brl(minEdital)}) — não há preço que feche`
     : 'nem mexendo em preço, ocupação, débitos, reforma ou prazo a operação entrega o retorno exigido';
-  return { status: 'reprovado', rotulo: 'REPROVADO', cor: '#ef4444', lm, base, cond: [], motivo };
+  return { status: 'reprovado', rotulo: 'REPROVADO', cor: 'var(--err)', lm, base, cond: [], motivo };
 }
 
 /* Compat: liImovel e criarOperacao continuam chamando analise(i) */
@@ -534,11 +534,11 @@ export function analise(i) {
 }
 
 const CENARIOS = [
-  { id: 'pes', nome: 'Pessimista', multVenda: 0.93, multRef: 1.3, extra: 3, cor: '#ef4444',
+  { id: 'pes', nome: 'Pessimista', multVenda: 0.93, multRef: 1.3, extra: 3, cor: 'var(--err)',
     ajuda: 'vende 7% abaixo do esperado · reforma 30% maior · 3 meses a mais' },
   { id: 'base', nome: 'Realista', multVenda: 1, multRef: 1, extra: 0, cor: '#9C7A3C',   // literal: import circular proíbe COR no top-level
     ajuda: 'exatamente os números que você digitou' },
-  { id: 'oti', nome: 'Otimista', multVenda: 1.03, multRef: 0.85, extra: -1, cor: '#16a34a',
+  { id: 'oti', nome: 'Otimista', multVenda: 1.03, multRef: 0.85, extra: -1, cor: 'var(--ok)',
     ajuda: 'vende 3% acima · reforma 15% menor · 1 mês a menos' },
 ];
 
@@ -695,7 +695,7 @@ function anOut(i, cen, lm, rotaOcup, rotaDeso, custoOcupacao) {
       ${linha('Ágio ao mês', r => r.agioMes, x => (x * 100).toFixed(2).replace('.', ',') + '%')}
       ${linha('TIR ao mês', r => r.tir, x => (x * 100).toFixed(2).replace('.', ',') + '%')}
       ${linha('VPL pela TMA', r => r.vpl, brl)}
-      <tr><td><b>Fecha neste cenário?</b></td>${cen.map(c => `<td style="text-align:right"><span class="ma-status" style="background:${c.r.viavel ? 'var(--ok-soft)' : '#94a3b8'}">${c.r.viavel ? 'SIM' : 'NÃO'}</span></td>`).join('')}</tr>
+      <tr><td><b>Fecha neste cenário?</b></td>${cen.map(c => `<td style="text-align:right"><span class="ma-status" style="background:${c.r.viavel ? 'var(--ok-soft)' : 'var(--ink-muted)'}">${c.r.viavel ? 'SIM' : 'NÃO'}</span></td>`).join('')}</tr>
     </table></div>
     <div class="tiny muted">TMA exigida: ${(tmaMes() * 100).toFixed(2).replace('.', ',')}% ao mês (${v.tma_aa}% ao ano). Passa quem tiver lucro positivo <i>e</i> TIR acima da TMA.</div>
 
@@ -704,7 +704,7 @@ function anOut(i, cen, lm, rotaOcup, rotaDeso, custoOcupacao) {
         return mini('🎯 LANCE MÁXIMO', brl(lm), usado === 0
           ? 'ágio 0 — este é o lance que EMPATA, não o que dá lucro'
           : `para ${String(usado).replace('.', ',')}% de ágio · deságio ${base.aval ? Math.round((1 - lm / base.aval) * 100) : 0}% sobre a avaliação`, COR.dourado); })()}
-      ${mini(base.L <= lm ? '✅ Seu lance cabe' : '🚫 Lance acima do teto', brl(Math.abs(lm - base.L)), base.L <= lm ? 'de folga até o teto' : 'acima do que a conta suporta', base.L <= lm ? '#16a34a' : '#ef4444')}
+      ${mini(base.L <= lm ? '✅ Seu lance cabe' : '🚫 Lance acima do teto', brl(Math.abs(lm - base.L)), base.L <= lm ? 'de folga até o teto' : 'acima do que a conta suporta', base.L <= lm ? 'var(--ok)' : 'var(--err)')}
       ${mini('💵 Custo total no lance', brl(base.inv), `desconto ${base.desconto}% vs mercado · break-even ${brl(base.breakeven)}${num(i.area) ? ` · mercado ${brl(base.merc / num(i.area))}/m²` : ''}`)}
       ${mini('🏯 Receita do grupo no giro', brl(base.receitaGrupo), `fee ${brl(base.feeGrupo)} + corretagem ${brl(base.corret)}`, COR.verde)}
     </div>
@@ -1048,17 +1048,17 @@ function resumoSimples(s, b, lm, V) {
 
   let selo, cor, frase;
   if (impossivel) {
-    selo = 'NÃO DÁ'; cor = '#ef4444';
+    selo = 'NÃO DÁ'; cor = 'var(--err)';
     frase = `A conta só suporta até <b>${brl(lm)}</b>, e o edital pede no mínimo <b>${brl(minEdital)}</b>.
       Não existe lance que feche: o banco está pedindo mais do que o imóvel comporta. <b>Passe este imóvel.</b>`;
   } else if (semLance) {
     selo = 'PODE DAR ATÉ'; cor = '#9C7A3C';
     frase = `Você pode cobrir até <b>${brl(lm)}</b> e ainda ganhar o que pediu. Coloque o lance que pretende dar para comparar.`;
   } else if (cabe) {
-    selo = 'PODE DAR'; cor = '#16a34a';
+    selo = 'PODE DAR'; cor = 'var(--ok)';
     frase = `Seu lance de <b>${brl(lance)}</b> cabe. O teto é <b>${brl(lm)}</b> — você ainda tem <b>${brl(dif)}</b> de folga para disputar.`;
   } else {
-    selo = 'NÃO COBRIR'; cor = '#ef4444';
+    selo = 'NÃO COBRIR'; cor = 'var(--err)';
     frase = `Seu lance de <b>${brl(lance)}</b> passa <b>${brl(dif)}</b> do teto. O máximo que fecha é <b>${brl(lm)}</b>.
       Acima disso você compra o prejuízo.`;
   }
@@ -1084,8 +1084,8 @@ function resumoSimples(s, b, lm, V) {
       <div class="ma-resumo">
         ${cartao('💸', 'Você coloca', brl(b.inv), 'lance + taxas + reforma + os meses até vender')}
         ${cartao('💰', 'Você recebe', brl(liquido), 'venda já sem a comissão e o imposto')}
-        ${cartao(b.lucro > 0 ? '✅' : '🔻', b.lucro > 0 ? 'Sobra' : 'Falta', brl(Math.abs(b.lucro)), b.lucro > 0 ? 'no seu bolso, no fim' : 'você põe mais do que tira', b.lucro > 0 ? '#16a34a' : '#ef4444')}
-        ${cartao('📈', 'Rende', pc2(b.agioMes) + ' ao mês', `em ${b.prazo} meses · seu piso é ${pc2(b.tma_m)} ao mês`, b.agioMes >= b.tma_m ? '#16a34a' : '#ef4444')}
+        ${cartao(b.lucro > 0 ? '✅' : '🔻', b.lucro > 0 ? 'Sobra' : 'Falta', brl(Math.abs(b.lucro)), b.lucro > 0 ? 'no seu bolso, no fim' : 'você põe mais do que tira', b.lucro > 0 ? 'var(--ok)' : 'var(--err)')}
+        ${cartao('📈', 'Rende', pc2(b.agioMes) + ' ao mês', `em ${b.prazo} meses · seu piso é ${pc2(b.tma_m)} ao mês`, b.agioMes >= b.tma_m ? 'var(--ok)' : 'var(--err)')}
       </div>
       ${V && V.status === 'condicionado' && V.cond.length ? `<div class="alert alert-warn mt-2" style="font-size:13px">
         <b>Fecharia se:</b><ul class="ma-cond">${V.cond.map(c => `<li>${esc(c)}</li>`).join('')}</ul></div>` : ''}
@@ -1133,7 +1133,7 @@ function simOut(s) {
           <td class="ma-num" style="text-align:right;color:${c.r.lucro > 0 ? 'var(--ok)' : 'var(--err)'}">${brl(c.r.lucro)}</td>
           <td class="ma-num" style="text-align:right"><b>${pc(c.r.agio)}</b></td>
           <td class="ma-num" style="text-align:right"><b>${pc2(c.r.agioMes)}</b></td>
-          <td><span class="ma-status" style="background:${c.r.viavel ? 'var(--ok-soft)' : '#94a3b8'}">${c.r.viavel ? 'SIM' : 'NÃO'}</span></td>
+          <td><span class="ma-status" style="background:${c.r.viavel ? 'var(--ok-soft)' : 'var(--ink-muted)'}">${c.r.viavel ? 'SIM' : 'NÃO'}</span></td>
         </tr>`).join('')}
       </table></div>
       <div class="tiny muted mt-2">Referência: a TMA exigida é de <b>${pc2(tmaMes())} ao mês</b> (${v.tma_aa}% ao ano). Ágio ao mês abaixo disso significa que o capital rende menos parado do que nesta operação.</div>
@@ -1221,8 +1221,8 @@ export function renderOperacoes() {
       </div>
       <div class="ma-minis" style="margin:10px 0 0">
         ${mini('🔁 Em andamento', ops.filter(o => o.status !== 'concluida').length, `${ops.filter(o => o.status === 'concluida').length} concluídas`, COR.dourado)}
-        ${mini('💰 Fee recebido (total)', brl(tot('pago')), '', '#16a34a')}
-        ${mini('⏳ Fee a receber', brl(tot('pend')), '', '#ef4444')}
+        ${mini('💰 Fee recebido (total)', brl(tot('pago')), '', 'var(--ok)')}
+        ${mini('⏳ Fee a receber', brl(tot('pend')), '', 'var(--err)')}
         ${mini('🏘 Comissão PSM nas saídas', brl(comissao), 'registrada nas operações concluídas', COR.verde)}
       </div>
     </div>
@@ -1232,7 +1232,7 @@ function liOperacao(o) {
   const inv = invPorId(o.investidor_id), imv = imvPorId(o.imovel_id);
   const pend = ['analise', 'certame', 'exito'].filter(k => !o.honorarios?.[k]?.pago && num(o.honorarios?.[k]?.valor)).reduce((s, k) => s + num(o.honorarios[k].valor), 0);
   const chk = CHECK_POS.filter(([k]) => o.checklist?.[k]?.done).length;
-  const cor = o.status === 'concluida' ? '#16a34a' : o.status === 'destino' ? '#806d50' : COR.dourado;
+  const cor = o.status === 'concluida' ? 'var(--ok)' : o.status === 'destino' ? '#806d50' : COR.dourado;
   return `<div class="ma-li" data-abrir-op="${esc(o.id)}">
     <div>
       <div class="flex items-center gap-2" style="flex-wrap:wrap"><b>${esc(imv?.titulo || '(imóvel excluído)')}</b><span class="ma-status" style="background:${cor}">${esc(OP_STATUS[o.status] || o.status)}</span><span class="ma-tag" style="background:#334155">${esc((DESTINO[o.destino] || '').replace(/^.. /, ''))}</span></div>
@@ -1260,7 +1260,7 @@ export function abrirOperacao(o) {
       <button class="btn btn-ghost" id="d-tarefa">📅 Agendar passo</button>
       <button class="btn btn-danger" id="d-del" style="margin-left:auto">🗑 Excluir</button>
     </div>
-    <div class="ma-minis" style="margin-top:10px">${mini('Arrematação', brl(o.valor), dtBR(o.data_arrematacao))}${mini('Custo total do investidor', brl(custoInv), 'lance + custos + honorários', '#64748b')}${mini('Receita Morimatsu', brl(['analise', 'certame', 'exito'].reduce((t, k) => t + num(h[k]?.valor), 0)), `${brl(['analise', 'certame', 'exito'].reduce((t, k) => t + (h[k]?.pago ? num(h[k].valor) : 0), 0))} recebido`, COR.dourado)}${s.valor_venda ? mini('Resultado do giro', brl(lucro), `${custoInv ? Math.round(lucro / custoInv * 100) : 0}% · comissão PSM ${brl(comissao)}`, lucro > 0 ? '#16a34a' : '#ef4444') : ''}</div>
+    <div class="ma-minis" style="margin-top:10px">${mini('Arrematação', brl(o.valor), dtBR(o.data_arrematacao))}${mini('Custo total do investidor', brl(custoInv), 'lance + custos + honorários', 'var(--ink-muted)')}${mini('Receita Morimatsu', brl(['analise', 'certame', 'exito'].reduce((t, k) => t + num(h[k]?.valor), 0)), `${brl(['analise', 'certame', 'exito'].reduce((t, k) => t + (h[k]?.pago ? num(h[k].valor) : 0), 0))} recebido`, COR.dourado)}${s.valor_venda ? mini('Resultado do giro', brl(lucro), `${custoInv ? Math.round(lucro / custoInv * 100) : 0}% · comissão PSM ${brl(comissao)}`, lucro > 0 ? 'var(--ok)' : 'var(--err)') : ''}</div>
 
     <div class="ma-sec">💰 Honorários Morimatsu</div>
     <div class="ma-list">${parc('analise', 'Análise do imóvel')}${parc('certame', 'Participação no certame')}${parc('exito', `Honorários de êxito (${f.exito_pct}% · piso ${brl(f.piso)})`)}</div>
@@ -1317,10 +1317,10 @@ export function renderAgenda() {
   const atv = S.atividades.slice().sort((a, b) => (a.quando || '9').localeCompare(b.quando || '9'));
   const abertas = atv.filter(a => !a.feito && a.quando);
   const grupos = [
-    ['⏰ Atrasadas', abertas.filter(a => a.quando.slice(0, 10) < hoje), '#ef4444'],
+    ['⏰ Atrasadas', abertas.filter(a => a.quando.slice(0, 10) < hoje), 'var(--err)'],
     ['📌 Hoje', abertas.filter(a => a.quando.slice(0, 10) === hoje), '#806d50'],
     ['📅 Próximos 7 dias', abertas.filter(a => a.quando.slice(0, 10) > hoje && a.quando.slice(0, 10) <= sem), COR.verde],
-    ['🗓 Depois', abertas.filter(a => a.quando.slice(0, 10) > sem), '#64748b'],
+    ['🗓 Depois', abertas.filter(a => a.quando.slice(0, 10) > sem), 'var(--ink-muted)'],
   ];
   const semData = atv.filter(a => !a.feito && !a.quando);
   const feitas = atv.filter(a => a.feito).sort((a, b) => (b.feito_em || '').localeCompare(a.feito_em || '')).slice(0, 40);
@@ -1338,7 +1338,7 @@ export function renderAgenda() {
         <div class="flex gap-2">${[['abertas', 'Abertas'], ['feitas', 'Concluídas']].map(([id, l]) => `<button class="btn ${_fAg === id ? 'btn-primary' : 'btn-ghost'} f-ag" data-f="${id}" style="font-size:11px;padding:4px 9px">${l}</button>`).join('')}</div>
         <button class="btn btn-primary" id="ma-nova-atv">＋ Tarefa / contato</button>
       </div>
-      <div class="ma-minis" style="margin:10px 0 0">${grupos.map(([l, g, cor]) => mini(l, g.length, '', cor)).join('')}${mini('👤 Sem próximo passo', semPasso.length, semPasso.slice(0, 3).map(c => esc(c.nome)).join(', '), semPasso.length ? '#d97706' : '#16a34a')}</div>
+      <div class="ma-minis" style="margin:10px 0 0">${grupos.map(([l, g, cor]) => mini(l, g.length, '', cor)).join('')}${mini('👤 Sem próximo passo', semPasso.length, semPasso.slice(0, 3).map(c => esc(c.nome)).join(', '), semPasso.length ? 'var(--warn)' : 'var(--ok)')}</div>
     </div>
     ${_fAg === 'abertas' ? `
       ${grupos.map(([l, g]) => g.length ? `<div class="card"><h2 class="card-title">${l} <span class="muted">${g.length}</span></h2><div class="ma-timeline" style="max-height:none">${g.map(li).join('')}</div></div>` : '').join('')}

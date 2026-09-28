@@ -11,7 +11,7 @@ const dBR = s => (s || '').slice(0, 10).split('-').reverse().join('/');
 const MARCOS = ['ganho', 'dossie_correspondente', 'credito_aprovado', 'contrato_assinado', 'nota_solicitada', 'comissao_liberada', 'recebido'];
 const MARCO_LBL = { ganho: '🏁 Ganho', dossie_correspondente: '📂 Dossiê', credito_aprovado: '🏦 Crédito', contrato_assinado: '✍️ Assinado', nota_solicitada: '🧾 Nota', comissao_liberada: '💸 Liberada', recebido: '✅ Recebido' };
 const BLOQ_LBL = { nenhum: '—', nota_fiscal: '🧾 Nota fiscal', assinatura_financiamento: '✍️ Assinatura financ.', liberacao_incorporadora: '🏗 Liberação incorp.', outro: '⚠️ Outro' };
-const ST_COR = { previsto: '#64748b', travado: '#dc2626', confirmado: '#16a34a', recebido: '#806d50', perdido: '#94a3b8' };
+const ST_COR = { previsto: '#8a8579', travado: '#d64545', confirmado: '#239a5b', recebido: '#806d50', perdido: '#8a8579' };
 const FRENTES = ['conquista', 'map', 'terceiros', 'locacao'];
 
 let _c = null, _d = null, _users = [], _edit = null;
@@ -58,8 +58,8 @@ function draw() {
 
   _c.innerHTML = `
     <div class="flex" style="gap:10px;flex-wrap:wrap">
-      ${kpi('✅ Confirmado · próximos 7 dias', brl(k.confirmado_7d), '#16a34a')}
-      ${kpi('⛔ Travado', brl(k.travado_total), '#dc2626', travBreak || 'nenhum bloqueio')}
+      ${kpi('✅ Confirmado · próximos 7 dias', brl(k.confirmado_7d), '#239a5b')}
+      ${kpi('⛔ Travado', brl(k.travado_total), '#d64545', travBreak || 'nenhum bloqueio')}
       ${kpi('📅 Previsto no mês', brl(k.previsto_mes), '#806d50', `recebido: ${brl(k.recebido_mes)}`)}
     </div>
     <div class="card mt-2">
@@ -79,7 +79,7 @@ function draw() {
 function linha(r) {
   const dd = diasAte(r);
   const vencido = dd !== null && dd < 0 && r.status !== 'recebido';
-  const cor = vencido ? '#dc2626' : (ST_COR[r.status] || '#64748b');
+  const cor = vencido ? '#d64545' : (ST_COR[r.status] || '#8a8579');
   const mi = MARCOS.indexOf(r.marco_atual || 'ganho');
   const esteira = MARCOS.map((m, i) => `<span title="${MARCO_LBL[m]}" style="width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:2px;background:${i <= mi ? 'var(--ok-soft)' : 'var(--border-2,#dacfa9)'}"></span>`).join('');
   const prem = r.premiacao && (r.premiacao.detalhe || r.premiacao.valor)

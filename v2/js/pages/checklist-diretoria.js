@@ -22,7 +22,7 @@ export const SETORES = [
   { id: 'Jurídico', ico: '⚖️' }, { id: 'Locação', ico: '🔑' }, { id: 'Tecnologia & Sistema', ico: '💻' },
   { id: 'Morimatsu & Associados', ico: '🏯' },
 ];
-const PRIOR = { critica: ['Crítica', '#7f1d1d'], alta: ['Alta', '#dc2626'], media: ['Média', '#d97706'], baixa: ['Baixa', '#64748b'] };
+const PRIOR = { critica: ['Crítica', '#d64545'], alta: ['Alta', '#d64545'], media: ['Média', '#c7861a'], baixa: ['Baixa', '#8a8579'] };
 const ALIAS = { 'Locações': 'Locação' };   // categorias antigas que já existem nas tarefas
 const setorDe = t => ALIAS[t.categoria] || t.categoria || 'Sem setor';
 const listaSetores = () => (_cats && _cats.lista && _cats.lista.length) ? _cats.lista : SETORES.map(s => s.id);
@@ -92,10 +92,10 @@ function render() {
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px" class="mt-2">
         ${tile('Abertas', ab.length, '', 'var(--psm-navy)', 'abertas')}
-        ${tile('Atrasadas', atras, 'prazo vencido', atras ? '#dc2626' : '#16a34a', 'atrasadas')}
-        ${tile('Vencem em 7 dias', semana, '', semana ? '#d97706' : '#64748b', '')}
-        ${tile('Sem dono ou prazo', semDono, 'ou com responsável que saiu', semDono ? '#d97706' : '#16a34a', '')}
-        ${tile('Concluídas no mês', feitasMes, '', '#16a34a', 'concluidas')}
+        ${tile('Atrasadas', atras, 'prazo vencido', atras ? '#d64545' : '#239a5b', 'atrasadas')}
+        ${tile('Vencem em 7 dias', semana, '', semana ? '#c7861a' : '#8a8579', '')}
+        ${tile('Sem dono ou prazo', semDono, 'ou com responsável que saiu', semDono ? '#c7861a' : '#239a5b', '')}
+        ${tile('Concluídas no mês', feitasMes, '', '#239a5b', 'concluidas')}
       </div>
       <div class="flex gap-1 mt-3" style="flex-wrap:wrap;align-items:center">
         <select id="ck-st" class="select" style="width:auto">

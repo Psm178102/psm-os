@@ -25,7 +25,7 @@ export async function pageScripts(ctx, root) {
   render();
 }
 
-const SWATCHES = ['#5b7fb4', '#dc2626', '#16a34a', '#d4a843', '#806d50', '#7c3aed', '#db2777', '#ea580c', '#475569'];
+const SWATCHES = ['#5b7fb4', 'var(--err)', 'var(--ok)', 'var(--accent-ink)', '#806d50', 'var(--accent-ink)', '#db2777', 'var(--warn)', 'var(--ink-2)'];
 
 function render() {
   if (_selL >= _linhas.length) _selL = 0;
@@ -112,7 +112,7 @@ function wire(E) {
   if ($('sc-save')) $('sc-save').onclick = salvar;
 
   // edição estrutural
-  if ($('sc-newl')) $('sc-newl').onclick = () => { _linhas.push({ id: 'l_' + Date.now(), nome: 'Nova linha', cor: '#475569', ordem: _linhas.length, etapas: [] }); _selL = _linhas.length - 1; _selE = 0; render(); };
+  if ($('sc-newl')) $('sc-newl').onclick = () => { _linhas.push({ id: 'l_' + Date.now(), nome: 'Nova linha', cor: 'var(--ink-2)', ordem: _linhas.length, etapas: [] }); _selL = _linhas.length - 1; _selE = 0; render(); };
   if ($('sc-newe')) $('sc-newe').onclick = () => { syncContent(); _linhas[_selL].etapas.push({ id: 'et_' + Date.now(), nome: 'Nova etapa', ordem: _linhas[_selL].etapas.length, conteudo: '' }); _selE = _linhas[_selL].etapas.length - 1; render(); };
   if ($('sc-ldel')) $('sc-ldel').onclick = () => { if (confirm('Excluir a linha "' + _linhas[_selL].nome + '" e todas as suas etapas?')) { _linhas.splice(_selL, 1); _selL = 0; _selE = 0; render(); } };
 

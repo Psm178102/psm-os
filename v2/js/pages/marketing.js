@@ -93,9 +93,9 @@ function canEditTh() { return (auth.user()?.lvl || 0) >= 7; }
 // 1 conta Meta = 1 marca. Classifica pelo rótulo da conta + metas por segmento.
 function brandInfo(label) {
   const s = (label || '').toLowerCase();
-  if (/conquista|mcmv|minha casa|1º|primeiro/.test(s)) return { key: 'conquista', brand: 'PSM Conquista', sub: 'MCMV / 1º Imóvel', cor: '#16a34a', cplAlvo: _th.cpl_conquista };
-  if (/loca|aluguel|locaç/.test(s))                    return { key: 'locacao',   brand: 'Locação',       sub: 'Aluguel & Adm',  cor: '#d97706', cplAlvo: _th.cpl_locacao };
-  return { key: 'imoveis', brand: 'PSM Imóveis', sub: 'Médio / Alto Padrão', cor: '#7c3aed', cplAlvo: _th.cpl_imoveis };
+  if (/conquista|mcmv|minha casa|1º|primeiro/.test(s)) return { key: 'conquista', brand: 'PSM Conquista', sub: 'MCMV / 1º Imóvel', cor: '#239a5b', cplAlvo: _th.cpl_conquista };
+  if (/loca|aluguel|locaç/.test(s))                    return { key: 'locacao',   brand: 'Locação',       sub: 'Aluguel & Adm',  cor: '#c7861a', cplAlvo: _th.cpl_locacao };
+  return { key: 'imoveis', brand: 'PSM Imóveis', sub: 'Médio / Alto Padrão', cor: '#806d50', cplAlvo: _th.cpl_imoveis };
 }
 // CPL-alvo da campanha = alvo da marca da conta (fonte única p/ alertas + semáforo)
 function cplTarget(c) { return (_accTargets[c.accountId] && _accTargets[c.accountId].cpl) || brandInfo(c.account).cplAlvo; }
@@ -509,14 +509,14 @@ function alertStrip() {
   const nm = c => escapeHtml(String(c.name || '—').slice(0, 40));
   const pills = [];
   const mk = (bd, txt) => pills.push(`<span style="display:inline-flex;align-items:center;gap:6px;background:color-mix(in srgb, ${bd} 14%, transparent);border:1.5px solid ${bd};border-radius:var(--radius-full);padding:5px 13px;font-size:13px;font-weight:600;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis">${txt}</span>`);
-  al.burning.slice(0, 2).forEach(c => mk('#dc2626', `🔥 QUEIMANDO · ${nm(c)} · R$ ${money(c.spend || 0)} sem resultado → <u>PAUSAR/REVISAR JÁ</u>`));
-  al.cplHigh.slice(0, 2).forEach(c => mk('#ea580c', `💸 CPL R$ ${money(c.cpr || 0)} (alvo R$ ${money(cplTarget(c))}) · ${nm(c)} → otimizar público/criativo`));
-  al.fadiga.slice(0, 2).forEach(c => mk('#d97706', `😵 FREQ ${(c.frequency || 0).toFixed(1)} · ${nm(c)} → TROCAR CRIATIVO`));
+  al.burning.slice(0, 2).forEach(c => mk('#d64545', `🔥 QUEIMANDO · ${nm(c)} · R$ ${money(c.spend || 0)} sem resultado → <u>PAUSAR/REVISAR JÁ</u>`));
+  al.cplHigh.slice(0, 2).forEach(c => mk('#c7861a', `💸 CPL R$ ${money(c.cpr || 0)} (alvo R$ ${money(cplTarget(c))}) · ${nm(c)} → otimizar público/criativo`));
+  al.fadiga.slice(0, 2).forEach(c => mk('#c7861a', `😵 FREQ ${(c.frequency || 0).toFixed(1)} · ${nm(c)} → TROCAR CRIATIVO`));
   al.ctrLow.slice(0, 2).forEach(c => mk('#806d50', `📉 CTR ${pct2(c.ctr || 0)} · ${nm(c)} → gancho fraco, testar novo criativo`));
-  al.qualBaixo.slice(0, 1).forEach(c => mk('#7c3aed', `🏳 QUALIDADE ABAIXO DA MÉDIA · ${nm(c)}`));
+  al.qualBaixo.slice(0, 1).forEach(c => mk('#806d50', `🏳 QUALIDADE ABAIXO DA MÉDIA · ${nm(c)}`));
   // oportunidade (verde): mesma regra do semáforo "Escala Vertical"
   al.active.filter(c => classifySemaforo(c) === 'vertical')
-    .slice(0, 2).forEach(c => mk('#16a34a', `🚀 ESCALAR +20% · ${nm(c)} · CPL R$ ${money(c.cpr || 0)} ok, freq ${(c.frequency || 0).toFixed(1)}`));
+    .slice(0, 2).forEach(c => mk('#239a5b', `🚀 ESCALAR +20% · ${nm(c)} · CPL R$ ${money(c.cpr || 0)} ok, freq ${(c.frequency || 0).toFixed(1)}`));
   const total = al.burning.length + al.cplHigh.length + al.fadiga.length + al.ctrLow.length + al.qualBaixo.length;
   const mostrados = Math.min(al.burning.length, 2) + Math.min(al.cplHigh.length, 2) + Math.min(al.fadiga.length, 2) + Math.min(al.ctrLow.length, 2) + Math.min(al.qualBaixo.length, 1);
   const head = total
@@ -577,7 +577,7 @@ function tvTickAge() {
   const d = _data || {};
   const age = d.fetchedAt ? Math.max(0, Math.round((Date.now() - new Date(d.fetchedAt).getTime()) / 1000)) : null;
   const nxt = Math.max(0, Math.round((_tvNextAt - Date.now()) / 1000));
-  const cor = age == null ? '#94a3b8' : age < 300 ? '#4ade80' : age < 1200 ? '#fbbf24' : '#f87171';
+  const cor = age == null ? '#8a8579' : age < 300 ? '#239a5b' : age < 1200 ? '#c7861a' : '#d64545';
   const fmtA = s => s < 90 ? `${s}s` : `${Math.round(s / 60)}min`;
   el.innerHTML = `<span style="color:${cor};font-weight:600">● dado de ${age != null ? fmtA(age) : '—'} atrás</span>
     <span style="opacity:.7"> · atualiza em ${fmtA(nxt)}</span>`;
@@ -675,7 +675,7 @@ function leadsGeoPanel() {
   const maxLeads = Math.max(1, ...top.map(c => c.leads));
   const cityRows = top.map(c => {
     const w = Math.round(c.leads / maxLeads * 100);
-    const col = c.cidade === 'Não informado' ? '#64748b' : (c.is_rio_preto ? '#22c55e' : '#fbbf24');
+    const col = c.cidade === 'Não informado' ? '#8a8579' : (c.is_rio_preto ? '#239a5b' : '#c7861a');
     return `<tr style="border-top:1px solid var(--border)">
       <td style="padding:6px 10px;color:${col};font-weight:600">${c.is_rio_preto ? '📍 ' : ''}${escapeHtml(c.cidade)}</td>
       <td style="padding:6px 8px;position:relative;min-width:120px"><div style="position:absolute;inset:5px auto 5px 0;width:${w}%;background:${col}33;border-radius:var(--radius-sm)"></div><span style="position:relative;font-weight:600;color:#e2e8f0">${fmtNum(c.leads)}</span></td>
@@ -701,7 +701,7 @@ function leadsGeoPanel() {
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px">
     ${brands.map(b => {
       const al = b.alerta;
-      const col = al ? '#f87171' : (b.pct_outras != null && b.pct_outras <= 10 ? '#4ade80' : '#fbbf24');
+      const col = al ? '#d64545' : (b.pct_outras != null && b.pct_outras <= 10 ? '#239a5b' : '#c7861a');
       return `<div style="background:${al ? 'rgba(239,68,68,0.1)' : 'rgba(255,255,255,0.04)'};border:1px solid ${al ? 'var(--err)' : 'var(--border)'};border-radius:var(--radius-md);padding:8px 12px">
         <div style="font-size:12px;color:#cbd5e1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${al ? '🚨 ' : ''}${escapeHtml(b.marca)}</div>
         <div style="font-size:16px;font-weight:600;color:${col}">${b.pct_outras != null ? pct2(b.pct_outras) + ' fora' : '—'}</div>
@@ -725,9 +725,9 @@ function leadsGeoPanel() {
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:start">
         ${crmMiniDark('Total de leads', fmtNum(g.total), '#806d50')}
-        ${crmMiniDark('📍 DDD 17 · Rio Preto', fmtNum(g.rio_preto), '#22c55e', g.com_cidade ? pct2(g.rio_preto / g.com_cidade * 100) + ' dos c/ DDD' : '')}
-        ${crmMiniDark('Outras regiões', fmtNum(g.outras), '#fbbf24', g.pct_outras != null ? pct2(g.pct_outras) : '')}
-        ${crmMiniDark('Sem telefone/DDD', fmtNum(g.sem_cidade), '#94a3b8', pct2(semPct) + ' do total')}
+        ${crmMiniDark('📍 DDD 17 · Rio Preto', fmtNum(g.rio_preto), '#239a5b', g.com_cidade ? pct2(g.rio_preto / g.com_cidade * 100) + ' dos c/ DDD' : '')}
+        ${crmMiniDark('Outras regiões', fmtNum(g.outras), '#c7861a', g.pct_outras != null ? pct2(g.pct_outras) : '')}
+        ${crmMiniDark('Sem telefone/DDD', fmtNum(g.sem_cidade), '#8a8579', pct2(semPct) + ' do total')}
       </div>
     </div>
     ${g.truncated ? `<div style="margin-top:10px;font-size:11px;color:var(--warn)">⚠️ Período muito grande: análise feita nos primeiros 30 mil leads — reduza o período para o número exato.</div>` : ''}
@@ -750,7 +750,7 @@ function sparkSVG(vals, color) {
 function deltaBadge(pct, invert) {
   if (pct == null || isNaN(pct)) return '<span style="font-size:11px;color:var(--ink-muted)">— vs ant.</span>';
   const good = invert ? pct <= 0 : pct >= 0;
-  const c = good ? '#22c55e' : '#f87171';
+  const c = good ? '#239a5b' : '#d64545';
   return `<span style="font-size:11px;font-weight:600;color:${c}">${pct >= 0 ? '▲' : '▼'} ${pct2(Math.abs(pct))}</span>`;
 }
 function heroKpi(label, value, deltaPct, sparkVals, color, invert) {
@@ -807,12 +807,12 @@ function execHero(t, accounts) {
     </div>
 
     <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-top:14px">
-      ${heroKpi('💰 Investimento', 'R$ ' + money(t.spend), dl.spend, col('spend'), '#ef4444')}
-      ${heroKpi('💬 Mensagens', fmtNum(t.messages), dl.messages, col('messages'), '#22c55e')}
-      ${heroKpi('🧲 Leads', fmtNum(t.leads), dl.leads, col('leads'), '#14b8a6')}
+      ${heroKpi('💰 Investimento', 'R$ ' + money(t.spend), dl.spend, col('spend'), '#d64545')}
+      ${heroKpi('💬 Mensagens', fmtNum(t.messages), dl.messages, col('messages'), '#239a5b')}
+      ${heroKpi('🧲 Leads', fmtNum(t.leads), dl.leads, col('leads'), '#239a5b')}
       ${heroKpi('🖱 Cliques', fmtNum(t.clicks), dl.clicks, col('clicks'), '#806d50')}
-      ${heroKpi('👥 Alcance', fmtNum(t.reach), dl.reach, col('reach'), '#a855f7')}
-      ${heroKpi('📊 Impressões', fmtNum(t.impressions), dl.impressions, col('impressions'), '#d4a843')}
+      ${heroKpi('👥 Alcance', fmtNum(t.reach), dl.reach, col('reach'), '#806d50')}
+      ${heroKpi('📊 Impressões', fmtNum(t.impressions), dl.impressions, col('impressions'), '#806d50')}
       ${heroKpi('🎯 CTR', pct2(t.ctr || 0), dl.ctr, col('ctr'), '#806d50')}
     </div>
 
@@ -834,7 +834,7 @@ function execHero(t, accounts) {
 
       <div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          ${progressCard('Custo por Mensagem/Lead (CPL)', t.cpl ? 'R$ ' + money(t.cpl) : '—', `meta R$ ${money(cplMeta)} · ${deltaTxt(dl.cpl)}`, cplMeta ? (t.cpl / cplMeta) : 0, (t.cpl <= cplMeta ? '#22c55e' : '#f87171'))}
+          ${progressCard('Custo por Mensagem/Lead (CPL)', t.cpl ? 'R$ ' + money(t.cpl) : '—', `meta R$ ${money(cplMeta)} · ${deltaTxt(dl.cpl)}`, cplMeta ? (t.cpl / cplMeta) : 0, (t.cpl <= cplMeta ? '#239a5b' : '#d64545'))}
           ${progressCard('Custo por Clique (CPC)', cpc ? 'R$ ' + money(cpc) : '—', deltaTxt(dl.clicks, true) + ' cliques', Math.min(1, cpc / 5), '#806d50')}
         </div>
         <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px;margin-top:10px">
@@ -854,7 +854,7 @@ function execHero(t, accounts) {
           <tbody>${camps.length ? camps.map(c => `<tr style="border-top:1px solid var(--border)">
             <td style="padding:6px 8px;color:#e2e8f0">${escapeHtml((c.name || '—').slice(0, 34))}</td>
             ${cell('R$ ' + money(c.spend || 0), (c.spend || 0) / maxSp, '#806d50')}
-            ${cell(fmtNum(c.clicks || 0), (c.clicks || 0) / maxCl, '#22c55e')}
+            ${cell(fmtNum(c.clicks || 0), (c.clicks || 0) / maxCl, '#239a5b')}
             <td style="padding:6px 8px;text-align:right;font-weight:600">${fmtNum(c.results || 0)}</td></tr>`).join('') : '<tr><td colspan="4" style="padding:12px;text-align:center;color:var(--ink-muted)">Sem campanhas no período.</td></tr>'}</tbody>
         </table>
       </div>
@@ -885,13 +885,13 @@ async function buildExecutivaCharts() {
   if (_ts && _ts.series && _ts.series.length) {
     const labels = _ts.series.map(p => (p.date || '').slice(5));
     mk('ch-exec-line', { type: 'line', data: { labels, datasets: [
-      { label: 'Investimento (R$)', data: _ts.series.map(p => p.spend), borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.14)', fill: true, tension: 0.35, pointRadius: 0, yAxisID: 'y' },
+      { label: 'Investimento (R$)', data: _ts.series.map(p => p.spend), borderColor: '#239a5b', backgroundColor: 'rgba(34,197,94,0.14)', fill: true, tension: 0.35, pointRadius: 0, yAxisID: 'y' },
       { label: 'Resultados', data: _ts.series.map(p => p.results), borderColor: '#806d50', tension: 0.35, pointRadius: 0, yAxisID: 'y1' },
     ] }, options: opts({ scales: { x: { ticks: { color: ink, maxTicksLimit: 10 }, grid: { color: grid } }, y: { position: 'left', beginAtZero: true, ticks: { color: ink }, grid: { color: grid } }, y1: { position: 'right', beginAtZero: true, ticks: { color: ink }, grid: { drawOnChartArea: false } } } }) });
   }
   const camps = filteredCampaigns().slice().sort((a, b) => (b.spend || 0) - (a.spend || 0)).slice(0, 6).filter(c => (c.spend || 0) > 0);
   if (camps.length) {
-    const PAL = ['#806d50', '#22c55e', '#a855f7', '#f59e0b', '#ef4444', '#806d50'];
+    const PAL = ['#806d50', '#239a5b', '#806d50', '#c7861a', '#d64545', '#806d50'];
     mk('ch-exec-donut', { type: 'doughnut', data: { labels: camps.map(c => (c.name || '—').slice(0, 20)), datasets: [{ data: camps.map(c => c.spend), backgroundColor: camps.map((_, i) => PAL[i % PAL.length]), borderWidth: 0 }] }, options: opts({ cutout: '60%' }) });
   }
 }
@@ -914,11 +914,11 @@ function heroAlertas() {
       <span class="tiny" style="color:var(--ink-muted)">detalhe na aba 📊 Tráfego</span>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
-      ${stat('🛑', 'Sangria (pausar)', al.burning.length, '#dc2626', verba ? ('R$ ' + money(verba) + ' em risco') : 'verba sem retorno')}
-      ${stat('💸', 'CPL acima da meta', al.cplHigh.length, '#ea580c', 'custo por lead alto')}
-      ${stat('😵', 'Fadiga (freq alta)', al.fadiga.length, '#a16207', 'trocar criativo')}
+      ${stat('🛑', 'Sangria (pausar)', al.burning.length, '#d64545', verba ? ('R$ ' + money(verba) + ' em risco') : 'verba sem retorno')}
+      ${stat('💸', 'CPL acima da meta', al.cplHigh.length, '#c7861a', 'custo por lead alto')}
+      ${stat('😵', 'Fadiga (freq alta)', al.fadiga.length, '#c7861a', 'trocar criativo')}
       ${stat('📉', 'CTR baixo', al.ctrLow.length, '#806d50', 'gancho fraco')}
-      ${stat('🚀', 'Escalar vertical', buckets.vertical, '#16a34a', 'CPL ok + freq baixa → +20% verba')}
+      ${stat('🚀', 'Escalar vertical', buckets.vertical, '#239a5b', 'CPL ok + freq baixa → +20% verba')}
       ${stat('🧭', 'Escalar horizontal', buckets.horizontal, '#806d50', 'novo público / lookalike')}
     </div>
   </div>`;
@@ -957,18 +957,18 @@ function tabExecutiva() {
       <div style="font-size:11px;color:var(--ink-muted)">Mídia paga convertida em venda real — CAC, VGV e ROAS cruzam Meta Ads × deals ganhos no RD no mesmo período.${filterTag()}</div>
 
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px">
-        ${crmKpiDark('💰 Investimento Total', 'R$ ' + money(t.spend), `${accounts.length} conta(s) Meta`, '#f87171')}
-        ${crmKpiDark('🧮 CAC', cac ? 'R$ ' + money(cac) : '—', `${vendasPagas} de tráfego pago (de ${g.vendas} no período)`, '#fb923c')}
-        ${crmKpiDark('🏛 VGV Influenciado', vgvInf > 0 ? 'R$ ' + moneyShort(vgvInf) : '—', vgvInfLbl, '#c4b5fd')}
-        ${crmKpiDark('📈 ROAS Imobiliário', roas ? roas.toFixed(1) + 'x' : '—', vgvInf > 0 ? 'VGV influenciado ÷ investimento' : 'sem ganhos com origem paga marcada', '#4ade80')}
+        ${crmKpiDark('💰 Investimento Total', 'R$ ' + money(t.spend), `${accounts.length} conta(s) Meta`, '#d64545')}
+        ${crmKpiDark('🧮 CAC', cac ? 'R$ ' + money(cac) : '—', `${vendasPagas} de tráfego pago (de ${g.vendas} no período)`, '#c7861a')}
+        ${crmKpiDark('🏛 VGV Influenciado', vgvInf > 0 ? 'R$ ' + moneyShort(vgvInf) : '—', vgvInfLbl, '#806d50')}
+        ${crmKpiDark('📈 ROAS Imobiliário', roas ? roas.toFixed(1) + 'x' : '—', vgvInf > 0 ? 'VGV influenciado ÷ investimento' : 'sem ganhos com origem paga marcada', '#239a5b')}
       </div>
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:12px">
         ${crmMiniDark('Leads de tráfego pago (RD)', fmtNum(g.leads ?? g.leads_criados), '#806d50', g.leads != null ? fmtNum(g.leads_criados) + ' negócios criados' : undefined)}
-        ${crmMiniDark('Vendas ganhas', fmtNum(g.vendas), '#4ade80')}
-        ${crmMiniDark('Ticket médio', g.ticket_medio ? 'R$ ' + moneyShort(g.ticket_medio) : '—', '#c4b5fd')}
+        ${crmMiniDark('Vendas ganhas', fmtNum(g.vendas), '#239a5b')}
+        ${crmMiniDark('Ticket médio', g.ticket_medio ? 'R$ ' + moneyShort(g.ticket_medio) : '—', '#806d50')}
         ${crmMiniDark('Conversão', g.taxa_conversao != null ? pct2(g.taxa_conversao) : '—', '#806d50', 'ganhos ÷ fechados')}
-        ${crmMiniDark('CPL real (RD)', (g.leads ?? g.leads_criados) ? 'R$ ' + money(t.spend / (g.leads ?? g.leads_criados)) : '—', '#fbbf24', 'gasto ÷ leads de tráfego pago')}
+        ${crmMiniDark('CPL real (RD)', (g.leads ?? g.leads_criados) ? 'R$ ' + money(t.spend / (g.leads ?? g.leads_criados)) : '—', '#c7861a', 'gasto ÷ leads de tráfego pago')}
       </div>
 
       ${attrBanner(attr)}
@@ -1012,11 +1012,11 @@ function googleSection(attr) {
   const top = (gg.campaigns || []).slice(0, 6);
   return crmPanelDark('🔎 Google Ads', '', `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px">
-      ${crmMiniDark('Investido Google', 'R$ ' + money(gg.spend), '#f87171')}
+      ${crmMiniDark('Investido Google', 'R$ ' + money(gg.spend), '#d64545')}
       ${crmMiniDark('Cliques', fmtNum(gg.clicks), '#806d50')}
       ${crmMiniDark('Conversões (Google)', fmtNum(gg.conversions), '#806d50')}
-      ${crmMiniDark('VGV via Google (RD)', gVgv ? 'R$ ' + moneyShort(gVgv) : '—', '#c4b5fd')}
-      ${crmMiniDark('ROAS Google', roas ? roas.toFixed(1) + 'x' : '—', '#4ade80', 'VGV Google ÷ gasto')}
+      ${crmMiniDark('VGV via Google (RD)', gVgv ? 'R$ ' + moneyShort(gVgv) : '—', '#806d50')}
+      ${crmMiniDark('ROAS Google', roas ? roas.toFixed(1) + 'x' : '—', '#239a5b', 'VGV Google ÷ gasto')}
     </div>
     ${top.length ? `<div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:480px;margin-top:10px">
       <thead><tr style="color:var(--ink-muted);font-size:11px;border-bottom:1px solid var(--border)">
@@ -1129,7 +1129,7 @@ async function buildGraficos() {
   const themeEl = (_tv && document.getElementById('ma-tv')) || document.documentElement;
   const ink = (getComputedStyle(themeEl).getPropertyValue('--ink') || '#0f172a').trim() || '#0f172a';
   const grid = 'rgba(148,163,184,0.18)';
-  const PAL = ['#806d50', '#16a34a', '#dc2626', '#d4a843', '#7c3aed', '#806d50', '#ea580c', '#db2777'];
+  const PAL = ['#806d50', '#239a5b', '#d64545', '#806d50', '#806d50', '#806d50', '#c7861a', '#db2777'];
   const opts = (extra) => Object.assign({ responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: ink, font: { size: 11 } } } } }, extra || {});
   const mk = (id, cfg) => { const el = document.getElementById(id); if (el) _charts.push(new Chart(el, cfg)); };
   const accounts = filteredAccounts();   // v88.11: respeita o filtro de conta
@@ -1138,11 +1138,11 @@ async function buildGraficos() {
   // 1+2 — série diária
   if (_ts && _ts.series && _ts.series.length) {
     const labels = _ts.series.map(p => (p.date || '').slice(5));
-    mk('ch-gasto', { type: 'line', data: { labels, datasets: [{ label: 'Gasto (R$)', data: _ts.series.map(p => p.spend), borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.12)', fill: true, tension: 0.3, pointRadius: 2 }] },
+    mk('ch-gasto', { type: 'line', data: { labels, datasets: [{ label: 'Gasto (R$)', data: _ts.series.map(p => p.spend), borderColor: '#d64545', backgroundColor: 'rgba(220,38,38,0.12)', fill: true, tension: 0.3, pointRadius: 2 }] },
       options: opts({ scales: { x: { ticks: { color: ink, maxTicksLimit: 12 }, grid: { color: grid } }, y: { ticks: { color: ink }, grid: { color: grid }, beginAtZero: true } }, plugins: { legend: { display: false } } }) });
     mk('ch-cplres', { type: 'line', data: { labels, datasets: [
-      { label: 'CPL (R$)', data: _ts.series.map(p => p.cpl), borderColor: '#7c3aed', tension: 0.3, pointRadius: 2, yAxisID: 'y' },
-      { label: 'Resultados', data: _ts.series.map(p => p.results), borderColor: '#16a34a', tension: 0.3, pointRadius: 2, yAxisID: 'y1' },
+      { label: 'CPL (R$)', data: _ts.series.map(p => p.cpl), borderColor: '#806d50', tension: 0.3, pointRadius: 2, yAxisID: 'y' },
+      { label: 'Resultados', data: _ts.series.map(p => p.results), borderColor: '#239a5b', tension: 0.3, pointRadius: 2, yAxisID: 'y1' },
     ] }, options: opts({ scales: { x: { ticks: { color: ink, maxTicksLimit: 12 }, grid: { color: grid } }, y: { position: 'left', beginAtZero: true, ticks: { color: ink }, grid: { color: grid } }, y1: { position: 'right', beginAtZero: true, ticks: { color: ink }, grid: { drawOnChartArea: false } } } }) });
   }
 
@@ -1164,7 +1164,7 @@ async function buildGraficos() {
   // 6 — funil de aquisição (log)
   const t = periodTotals(accounts);
   const vendas = (_crm && _crm.global && _crm.global.vendas) || 0;
-  mk('ch-funil', { type: 'bar', data: { labels: ['Impressões', 'Cliques', 'Resultados Meta', 'Vendas RD'], datasets: [{ label: 'Funil', data: [t.impressions, t.clicks, t.results, vendas], backgroundColor: ['#806d50', '#806d50', '#7c3aed', '#16a34a'] }] },
+  mk('ch-funil', { type: 'bar', data: { labels: ['Impressões', 'Cliques', 'Resultados Meta', 'Vendas RD'], datasets: [{ label: 'Funil', data: [t.impressions, t.clicks, t.results, vendas], backgroundColor: ['#806d50', '#806d50', '#806d50', '#239a5b'] }] },
     options: opts({ plugins: { legend: { display: false } }, scales: { x: { ticks: { color: ink }, grid: { display: false } }, y: { type: 'logarithmic', ticks: { color: ink }, grid: { color: grid } } } }) });
 }
 
@@ -1224,10 +1224,10 @@ function metaMetricsCockpit() {
       <div style="font-size:11px;color:var(--ink-muted)">${camps.length} campanha(s) no período · entrega · tráfego · engajamento · vídeo · mensagens · leads — tudo em tempo real</div>
 
       ${crmPanelDark('🚀 Entrega & Custo', '', `<div style="${grid}">
-        ${crmMiniDark('Investido', 'R$ ' + money(s.spend), '#f87171')}
-        ${crmMiniDark('Impressões', fmtNum(s.impressions), '#fbbf24')}
-        ${crmMiniDark('Alcance', fmtNum(s.reach), '#a855f7')}
-        ${crmMiniDark('Frequência', freq.toFixed(2), '#c4b5fd')}
+        ${crmMiniDark('Investido', 'R$ ' + money(s.spend), '#d64545')}
+        ${crmMiniDark('Impressões', fmtNum(s.impressions), '#c7861a')}
+        ${crmMiniDark('Alcance', fmtNum(s.reach), '#806d50')}
+        ${crmMiniDark('Frequência', freq.toFixed(2), '#806d50')}
         ${crmMiniDark('CPM', 'R$ ' + money(cpm), '#806d50')}
       </div>`)}
 
@@ -1236,18 +1236,18 @@ function metaMetricsCockpit() {
         ${crmMiniDark('Cliques (todos)', fmtNum(s.clicks), '#806d50')}
         ${crmMiniDark('CTR link', pct2(ctrLink), '#806d50')}
         ${crmMiniDark('CTR todos', pct2(ctrAll), '#67e8f9')}
-        ${crmMiniDark('CPC link', 'R$ ' + money(cpcLink), '#34d399')}
+        ${crmMiniDark('CPC link', 'R$ ' + money(cpcLink), '#239a5b')}
         ${crmMiniDark('CPC todos', 'R$ ' + money(cpcAll), '#6ee7b7')}
-        ${crmMiniDark('Cliques de saída', fmtNum(s.outbound), '#94a3b8')}
-        ${crmMiniDark('Visitas LP', fmtNum(s.lpViews), '#fbbf24', cpLp ? 'R$ ' + money(cpLp) + '/visita' : '')}
+        ${crmMiniDark('Cliques de saída', fmtNum(s.outbound), '#8a8579')}
+        ${crmMiniDark('Visitas LP', fmtNum(s.lpViews), '#c7861a', cpLp ? 'R$ ' + money(cpLp) + '/visita' : '')}
       </div>`)}
 
       ${crmPanelDark('❤️ Engajamento', '', `<div style="${grid}">
         ${crmMiniDark('Engaj. c/ post', fmtNum(s.postEng), '#f472b6')}
         ${crmMiniDark('Curtidas/Reações', fmtNum(s.reactions), '#fb7185')}
         ${crmMiniDark('Comentários', fmtNum(s.comments), '#806d50')}
-        ${crmMiniDark('Compartilham.', fmtNum(s.shares), '#34d399')}
-        ${crmMiniDark('Salvamentos', fmtNum(s.saves), '#fbbf24')}
+        ${crmMiniDark('Compartilham.', fmtNum(s.shares), '#239a5b')}
+        ${crmMiniDark('Salvamentos', fmtNum(s.saves), '#c7861a')}
         ${crmMiniDark('Taxa engaj.', pct2(engRate), '#806d50', 'engaj ÷ impr')}
         ${crmMiniDark('Custo/engaj.', costPerEng ? 'R$ ' + money(costPerEng) : '—', '#6ee7b7')}
       </div>`)}
@@ -1256,16 +1256,16 @@ function metaMetricsCockpit() {
         <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:16px;align-items:start">
           <div>
             ${vstage('▶︎ Reproduções', s.views, '#806d50')}
-            ${vstage('25% assistido', s.v25, '#6366f1')}
-            ${vstage('50% assistido', s.v50, '#8b5cf6')}
-            ${vstage('75% assistido', s.v75, '#a855f7')}
+            ${vstage('25% assistido', s.v25, '#806d50')}
+            ${vstage('50% assistido', s.v50, '#806d50')}
+            ${vstage('75% assistido', s.v75, '#806d50')}
             ${vstage('95% assistido', s.v95, '#c026d3')}
-            ${vstage('100% (assistiu tudo)', s.v100, '#22c55e')}
+            ${vstage('100% (assistiu tudo)', s.v100, '#239a5b')}
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            ${crmMiniDark('Tempo médio', avgWatch ? avgWatch.toFixed(1) + 's' : '—', '#a855f7')}
-            ${crmMiniDark('VTR', pct2(vtr), '#22c55e', '100% ÷ views')}
-            ${crmMiniDark('Hold', s.v25 ? pct2(s.v75/s.v25*100) : '—', '#c4b5fd', '75% ÷ 25%')}
+            ${crmMiniDark('Tempo médio', avgWatch ? avgWatch.toFixed(1) + 's' : '—', '#806d50')}
+            ${crmMiniDark('VTR', pct2(vtr), '#239a5b', '100% ÷ views')}
+            ${crmMiniDark('Hold', s.v25 ? pct2(s.v75/s.v25*100) : '—', '#806d50', '75% ÷ 25%')}
             ${crmMiniDark('Hook', s.views ? pct2(s.v25/s.views*100) : '—', '#806d50', '25% ÷ views')}
           </div>
         </div>`) : ''}
@@ -1274,16 +1274,16 @@ function metaMetricsCockpit() {
         <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px">
           <div style="font-size:13px;font-weight:600;color:#cbd5e1;margin-bottom:8px">💬 Mensagens</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            ${crmMiniDark('Conversas iniciadas', fmtNum(s.messages), '#22c55e')}
+            ${crmMiniDark('Conversas iniciadas', fmtNum(s.messages), '#239a5b')}
             ${crmMiniDark('Custo/conversa', cplMsg ? 'R$ ' + money(cplMsg) : '—', '#6ee7b7')}
           </div>
         </div>
         <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px">
           <div style="font-size:13px;font-weight:600;color:#cbd5e1;margin-bottom:8px">🧲 Leads & Conversão</div>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-            ${crmMiniDark('Leads', fmtNum(s.leads), '#14b8a6')}
+            ${crmMiniDark('Leads', fmtNum(s.leads), '#239a5b')}
             ${crmMiniDark('Custo/lead', cplLead ? 'R$ ' + money(cplLead) : '—', '#6ee7b7')}
-            ${crmMiniDark('Valor conv.', s.leadValue ? 'R$ ' + moneyShort(s.leadValue) : 'R$ 0', '#fbbf24')}
+            ${crmMiniDark('Valor conv.', s.leadValue ? 'R$ ' + moneyShort(s.leadValue) : 'R$ 0', '#c7861a')}
           </div>
         </div>
       </div>
@@ -1319,10 +1319,10 @@ function tabTrafego() {
     ${metasContaPanel()}
     ${metaMetricsCockpit()}
     <div class="flex gap-3" style="flex-wrap:wrap">
-      ${kpi('💰 Investido', 'R$ ' + money(t.spend), 'no período', '#dc2626')}
-      ${kpi('🎯 Resultados', fmtNum(t.results), t.cpl ? `CPL médio: R$ ${money(t.cpl)}` : 'sem conversões', '#16a34a')}
+      ${kpi('💰 Investido', 'R$ ' + money(t.spend), 'no período', '#d64545')}
+      ${kpi('🎯 Resultados', fmtNum(t.results), t.cpl ? `CPL médio: R$ ${money(t.cpl)}` : 'sem conversões', '#239a5b')}
       ${kpi('👁 Alcance', fmtNum(t.reach), `${fmtNum(t.impressions)} impressões · freq ${t.freq.toFixed(2)}`, '#806d50')}
-      ${kpi('📊 CTR', pct2(t.ctr), `CPM: R$ ${money(t.cpm)} · ${fmtNum(t.clicks)} cliques`, '#7c3aed')}
+      ${kpi('📊 CTR', pct2(t.ctr), `CPM: R$ ${money(t.cpm)} · ${fmtNum(t.clicks)} cliques`, '#806d50')}
       ${t.roas > 0 ? kpi('📈 ROAS (pixel)', t.roas.toFixed(2) + 'x', `R$ ${money(t.purchaseValue)} em vendas`, '#806d50') : ''}
     </div>
 
@@ -1335,11 +1335,11 @@ function tabTrafego() {
       </div>
       <div id="ma-th-panel" style="display:none"></div>
       ${totalAlerts === 0 ? '<div class="alert alert-ok">✅ Nenhum alerta. Campanhas ativas dentro dos limiares.</div>' : `<div style="display:grid;gap:10px">
-        ${alertCard('🔴', 'CRÍTICO · Verba queimando sem resultado', '#dc2626', al.burning, `Ativas que já gastaram ≥ R$ ${_th.gasto} e geraram 0 resultados.`, c => `gastou <strong>R$ ${money(c.spend)}</strong> · 0 result.`, true)}
-        ${alertCard('🟠', 'CPL acima da meta', '#ea580c', al.cplHigh, `CPL acima do alvo da marca (Conquista R$ ${money(_th.cpl_conquista)} · Imóveis R$ ${money(_th.cpl_imoveis)} · Locação R$ ${money(_th.cpl_locacao)}).`, c => `CPL <strong>R$ ${money(c.cpr)}</strong> (alvo R$ ${money(cplTarget(c))}) · ${fmtNum(c.results)} result.`)}
-        ${alertCard('🟠', 'Fadiga de criativo (frequência alta)', '#d97706', al.fadiga, `Frequência > ${_th.freq.toFixed(1)} — público saturado.`, c => `freq <strong>${(c.frequency || 0).toFixed(2)}</strong> · alcance ${fmtNum(c.reach)}`)}
-        ${alertCard('🟡', 'CTR baixo (criativo fraco)', '#ca8a04', al.ctrLow, `CTR < ${_th.ctr.toFixed(1)}% com ≥ 500 impressões.`, c => `CTR <strong>${pct2(c.ctr || 0)}</strong> · ${fmtNum(c.impressions)} imp.`)}
-        ${alertCard('🟡', 'Ranking de qualidade baixo', '#ca8a04', al.qualBaixo, 'Meta classificou abaixo da média — afeta entrega e custo.', c => `qualidade <strong>${escapeHtml(rankLabel(c.qualityRanking))}</strong>`)}
+        ${alertCard('🔴', 'CRÍTICO · Verba queimando sem resultado', '#d64545', al.burning, `Ativas que já gastaram ≥ R$ ${_th.gasto} e geraram 0 resultados.`, c => `gastou <strong>R$ ${money(c.spend)}</strong> · 0 result.`, true)}
+        ${alertCard('🟠', 'CPL acima da meta', '#c7861a', al.cplHigh, `CPL acima do alvo da marca (Conquista R$ ${money(_th.cpl_conquista)} · Imóveis R$ ${money(_th.cpl_imoveis)} · Locação R$ ${money(_th.cpl_locacao)}).`, c => `CPL <strong>R$ ${money(c.cpr)}</strong> (alvo R$ ${money(cplTarget(c))}) · ${fmtNum(c.results)} result.`)}
+        ${alertCard('🟠', 'Fadiga de criativo (frequência alta)', '#c7861a', al.fadiga, `Frequência > ${_th.freq.toFixed(1)} — público saturado.`, c => `freq <strong>${(c.frequency || 0).toFixed(2)}</strong> · alcance ${fmtNum(c.reach)}`)}
+        ${alertCard('🟡', 'CTR baixo (criativo fraco)', '#c7861a', al.ctrLow, `CTR < ${_th.ctr.toFixed(1)}% com ≥ 500 impressões.`, c => `CTR <strong>${pct2(c.ctr || 0)}</strong> · ${fmtNum(c.impressions)} imp.`)}
+        ${alertCard('🟡', 'Ranking de qualidade baixo', '#c7861a', al.qualBaixo, 'Meta classificou abaixo da média — afeta entrega e custo.', c => `qualidade <strong>${escapeHtml(rankLabel(c.qualityRanking))}</strong>`)}
       </div>`}
     </div>
 
@@ -1497,11 +1497,11 @@ function tabVendas() {
   return `
     <p class="card-sub">Motor de Vendas (TV War Arena) — o que acontece com o lead depois do clique. Dados do RD Station no período.</p>
     <div class="flex gap-3 mt-3" style="flex-wrap:wrap;margin-top:12px">
-      ${kpi('🎯 Conversão', g.taxa_conversao != null ? pct2(g.taxa_conversao) : '—', `${g.vendas} ganhos / ${g.perdas} perdas`, '#16a34a')}
+      ${kpi('🎯 Conversão', g.taxa_conversao != null ? pct2(g.taxa_conversao) : '—', `${g.vendas} ganhos / ${g.perdas} perdas`, '#239a5b')}
       ${kpi('⏱ Ciclo de venda', cycleLbl(g.ranking), 'média lead → ganho (ponderada por vendas)', '#806d50')}
-      ${kpi('📞 Contact Rate', contactGlobal(), `leads que chegaram a Contato/qualificação ${basisChip(mb)}`, '#7c3aed')}
+      ${kpi('📞 Contact Rate', contactGlobal(), `leads que chegaram a Contato/qualificação ${basisChip(mb)}`, '#806d50')}
       ${kpi('🚪 Show-up / Visita', visitaGlobal(), `contatados que chegaram à visita realizada ${basisChip(mb)}`, '#806d50')}
-      ${kpi(slaLabel, slaGlobal(), `${mb === 'real' ? 'criação → 1º contato (eventos reais)' : 'criação → última atividade RD'} ${basisChip(mb)}`, '#ea580c')}
+      ${kpi(slaLabel, slaGlobal(), `${mb === 'real' ? 'criação → 1º contato (eventos reais)' : 'criação → última atividade RD'} ${basisChip(mb)}`, '#c7861a')}
     </div>
 
     <div class="mt-4" style="margin-top:18px">
@@ -1596,7 +1596,7 @@ function fmtDateBR(iso) { try { return new Date(iso).toLocaleDateString('pt-BR')
 // Selo de cobertura: % do VGV ganho que tem origem marcada no RD.
 function attrChip(cov) {
   if (cov == null) return '';
-  const c = cov >= 80 ? '#15803d' : cov >= 50 ? '#b45309' : '#dc2626';
+  const c = cov >= 80 ? '#239a5b' : cov >= 50 ? '#c7861a' : '#d64545';
   const bg = cov >= 80 ? '#dcfce7' : cov >= 50 ? '#fef3c7' : '#fee2e2';
   return ` <span style="display:inline-block;padding:1px 6px;border-radius:var(--r-full);background:${bg};color:${c};font-weight:600;font-size:11px;vertical-align:middle">${pct2(cov)} c/ origem</span>`;
 }
@@ -1623,7 +1623,7 @@ function attrChannelTable(attr) {
       const pct = totalVgv > 0 ? (r.vgv / totalVgv * 100) : 0;
       const isPaid = r.channel === 'meta' || r.channel === 'google';
       const isUnatt = r.channel === 'nao_atribuido';
-      const col = isUnatt ? '#64748b' : isPaid ? '#c4b5fd' : '#806d50';
+      const col = isUnatt ? '#8a8579' : isPaid ? '#806d50' : '#806d50';
       return `<tr style="border-top:1px solid var(--border)">
         <td style="padding:6px 10px;font-weight:600;color:${col}">${escapeHtml(r.label)}${isPaid ? ' 💳' : ''}</td>
         <td style="text-align:right;padding:6px 8px;color:#e2e8f0">${fmtNum(r.leads)}</td>
@@ -1654,11 +1654,11 @@ function tabSemaforo() {
   return `
     <p class="card-sub">Decisão de escala sem achismo. CPL alvo por marca: Conquista R$ ${money(_th.cpl_conquista)} · Imóveis R$ ${money(_th.cpl_imoveis)} · Locação R$ ${money(_th.cpl_locacao)} (editável em ⚙️ Limiares).</p>
     <div style="display:grid;gap:10px;margin-top:12px">
-      ${semaCard('🚀', 'Escala Vertical · aumentar orçamento 20%', '#16a34a', buckets.vertical, 'CPL no alvo + frequência baixa (<2.0). O leilão ainda tem lead barato.', metric, true)}
+      ${semaCard('🚀', 'Escala Vertical · aumentar orçamento 20%', '#239a5b', buckets.vertical, 'CPL no alvo + frequência baixa (<2.0). O leilão ainda tem lead barato.', metric, true)}
       ${semaCard('🧭', 'Escala Horizontal · novo público / lookalike', '#806d50', buckets.horizontal, 'CPL ainda ok mas frequência subindo — o público atual está secando.', metric)}
-      ${semaCard('♻️', 'Troca de Criativo · acionar videomaker', '#d97706', buckets.troca, 'Frequência alta (>5) ou gancho fraco — anúncio cansado.', metric, true)}
-      ${semaCard('🛑', 'Sangria · pausar imediatamente', '#dc2626', buckets.sangria, 'Verba virando pó: 0 resultado com gasto ou CPL muito acima do alvo.', metric, true)}
-      ${semaCard('🟢', 'Manter · estável', '#64748b', buckets.manter, 'Dentro do esperado, sem ação urgente.', metric)}
+      ${semaCard('♻️', 'Troca de Criativo · acionar videomaker', '#c7861a', buckets.troca, 'Frequência alta (>5) ou gancho fraco — anúncio cansado.', metric, true)}
+      ${semaCard('🛑', 'Sangria · pausar imediatamente', '#d64545', buckets.sangria, 'Verba virando pó: 0 resultado com gasto ou CPL muito acima do alvo.', metric, true)}
+      ${semaCard('🟢', 'Manter · estável', '#8a8579', buckets.manter, 'Dentro do esperado, sem ação urgente.', metric)}
     </div>
     <div class="alert alert-warn mt-3" style="margin-top:12px">🔌 <strong>Roadmap:</strong> "Perda de IS por orçamento" exige métricas avançadas do Google Ads; "CTR Decay" exige histórico diário acumulado — próximos sprints. <span class="muted">(Breakdown por hora já disponível em 🎬 Criativos & breakdowns, nesta aba · Google Ads conectável na aba Executiva.)</span></div>
   `;
@@ -1725,23 +1725,23 @@ function marcaPanel(key, camps) {
       </div>
       <div class="tiny muted" style="margin-top:8px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Mídia (Meta)</div>
       <div class="flex gap-2 mt-1" style="flex-wrap:wrap;margin-top:4px">
-        ${miniKpi('Investido', 'R$ ' + money(t.spend), '#dc2626')}
-        ${miniKpi('Result. Meta', fmtNum(t.results), '#16a34a')}
-        ${miniKpi('CPL Meta', cpl ? 'R$ ' + money(cpl) : '—', cplOk ? '#16a34a' : '#ea580c', `alvo R$ ${bi.cplAlvo}`)}
-        ${miniKpi('CTR', pct2(ctr), '#7c3aed')}
-        ${miniKpi('Freq', freq.toFixed(2), freq > _th.freq ? '#d97706' : '#806d50')}
+        ${miniKpi('Investido', 'R$ ' + money(t.spend), '#d64545')}
+        ${miniKpi('Result. Meta', fmtNum(t.results), '#239a5b')}
+        ${miniKpi('CPL Meta', cpl ? 'R$ ' + money(cpl) : '—', cplOk ? '#239a5b' : '#c7861a', `alvo R$ ${bi.cplAlvo}`)}
+        ${miniKpi('CTR', pct2(ctr), '#806d50')}
+        ${miniKpi('Freq', freq.toFixed(2), freq > _th.freq ? '#c7861a' : '#806d50')}
       </div>
       ${crm ? `
         <div class="tiny muted" style="margin-top:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Vendas (RD CRM)</div>
         <div class="flex gap-2 mt-1" style="flex-wrap:wrap;margin-top:4px">
           ${miniKpi('Leads RD', fmtNum(leadsPagos), '#806d50', crm.leads != null ? `tráfego pago · ${fmtNum(crm.leads_criados)} negócios` : undefined)}
-          ${miniKpi('Vendas', fmtNum(crm.vendas), '#16a34a')}
-          ${miniKpi('CAC', cac ? 'R$ ' + money(cac) : '—', '#ea580c', 'gasto ÷ vendas de tráfego pago')}
-          ${miniKpi(bi.key==='conquista'?'CPL-R':'CPO', cpo ? 'R$ ' + money(cpo) : '—', cpo && cpo <= bi.cplAlvo ? '#16a34a' : '#d97706', 'gasto ÷ leads')}
-          ${miniKpi('VGV', 'R$ ' + moneyShort(crm.vgv), '#7c3aed')}
+          ${miniKpi('Vendas', fmtNum(crm.vendas), '#239a5b')}
+          ${miniKpi('CAC', cac ? 'R$ ' + money(cac) : '—', '#c7861a', 'gasto ÷ vendas de tráfego pago')}
+          ${miniKpi(bi.key==='conquista'?'CPL-R':'CPO', cpo ? 'R$ ' + money(cpo) : '—', cpo && cpo <= bi.cplAlvo ? '#239a5b' : '#c7861a', 'gasto ÷ leads')}
+          ${miniKpi('VGV', 'R$ ' + moneyShort(crm.vgv), '#806d50')}
           ${miniKpi('Conversão', crm.taxa_conversao != null ? pct2(crm.taxa_conversao) : '—', '#806d50')}
-          ${miniKpi('Ciclo', crm.ciclo_medio_dias != null ? crm.ciclo_medio_dias + 'd' : '—', '#64748b')}
-          ${bi.key==='conquista' && crm.trash_rate != null ? miniKpi('Trash Rate', pct2(crm.trash_rate), crm.trash_rate <= 25 ? '#16a34a' : '#dc2626', 'leads descartados') : ''}
+          ${miniKpi('Ciclo', crm.ciclo_medio_dias != null ? crm.ciclo_medio_dias + 'd' : '—', '#8a8579')}
+          ${bi.key==='conquista' && crm.trash_rate != null ? miniKpi('Trash Rate', pct2(crm.trash_rate), crm.trash_rate <= 25 ? '#239a5b' : '#d64545', 'leads descartados') : ''}
         </div>` : ''}
     </div>`;
 }
@@ -1802,16 +1802,16 @@ function produtoEficienciaPanel() {
     const cell = (v, col) => `<td style="text-align:right;padding:6px 8px;color:${col || '#e2e8f0'}">${v}</td>`;
     return `<tr style="border-top:1px solid var(--border)">
       <td style="padding:6px 10px;font-weight:600;color:${bi.cor}">${escapeHtml(c?.label || bi.brand)}</td>
-      ${cell('R$ ' + money(spend), '#f87171')}
+      ${cell('R$ ' + money(spend), '#d64545')}
       ${cell(fmtNum(leads))}
-      ${cell(cpl ? 'R$ ' + money(cpl) : '—', '#fbbf24')}
+      ${cell(cpl ? 'R$ ' + money(cpl) : '—', '#c7861a')}
       ${cell(fmtNum(qual))}
-      ${cell(cpql ? 'R$ ' + money(cpql) : '—', '#fb923c')}
+      ${cell(cpql ? 'R$ ' + money(cpql) : '—', '#c7861a')}
       ${cell(fmtNum(visitas))}
       ${cell(cpar ? 'R$ ' + money(cpar) : '—', '#f472b6')}
-      ${cell(fmtNum(vendas), '#4ade80')}
+      ${cell(fmtNum(vendas), '#239a5b')}
       ${cell('R$ ' + moneyShort(vgv), '#f1f5f9')}
-      ${cell(roas ? roas.toFixed(2) + 'x' : '—', roas >= 1 ? '#4ade80' : '#fb923c').replace('<td ', `<td title="VGV pago R$ ${moneyShort(vgvPago)} × ${pct2(OO_COMISSAO_PCT*100)}" `)}
+      ${cell(roas ? roas.toFixed(2) + 'x' : '—', roas >= 1 ? '#239a5b' : '#c7861a').replace('<td ', `<td title="VGV pago R$ ${moneyShort(vgvPago)} × ${pct2(OO_COMISSAO_PCT*100)}" `)}
     </tr>`;
   }).filter(Boolean).join('');
   if (!rows) return '';
@@ -1893,15 +1893,15 @@ function roadmapMini() {
 
 function campaignRow(c) {
   const st = (c.status || '').toLowerCase();
-  const statusColor = st === 'active' ? '#16a34a' : st === 'paused' ? '#d97706' : 'var(--ink-muted)';
+  const statusColor = st === 'active' ? '#239a5b' : st === 'paused' ? '#c7861a' : 'var(--ink-muted)';
   const statusLbl = st === 'active' ? 'ATIVA' : st === 'paused' ? 'PAUSADA' : (c.status || 'N/A').toUpperCase();
   const flags = [];
   if (st === 'active') {
-    if ((c.spend||0) >= _th.gasto && (c.results||0) === 0) flags.push(['#dc2626','Verba sem resultado']);
-    if ((c.results||0) > 0 && (c.cpr||0) > cplTarget(c)) flags.push(['#ea580c','CPL alto']);
-    if ((c.frequency||0) > freqMax(c)) flags.push(['#d97706','Fadiga']);
-    if ((c.impressions||0) >= 500 && (c.ctr||0) < _th.ctr) flags.push(['#ca8a04','CTR baixo']);
-    if (/BELOW_AVERAGE/.test(c.qualityRanking||'')) flags.push(['#ca8a04','Qualidade baixa']);
+    if ((c.spend||0) >= _th.gasto && (c.results||0) === 0) flags.push(['#d64545','Verba sem resultado']);
+    if ((c.results||0) > 0 && (c.cpr||0) > cplTarget(c)) flags.push(['#c7861a','CPL alto']);
+    if ((c.frequency||0) > freqMax(c)) flags.push(['#c7861a','Fadiga']);
+    if ((c.impressions||0) >= 500 && (c.ctr||0) < _th.ctr) flags.push(['#c7861a','CTR baixo']);
+    if (/BELOW_AVERAGE/.test(c.qualityRanking||'')) flags.push(['#c7861a','Qualidade baixa']);
   }
   const dot = flags.length ? `<span title="${escapeHtml(flags.map(f=>f[1]).join(', '))}" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${flags[0][0]}"></span>` : '';
   const cplHi = (c.results||0) > 0 && (c.cpr||0) > cplTarget(c);
@@ -2271,7 +2271,7 @@ function funilCard(F) {
   const n = F.st.length;
   const rows = F.st.map((x, i) => {
     const w = Math.round(100 - i * (46 / Math.max(1, n - 1)));
-    const cor = x.ok == null ? '#334155' : x.ok ? '#166534' : '#991b1b';
+    const cor = x.ok == null ? '#8a8579' : x.ok ? '#239a5b' : '#d64545';
     const taxa = x.taxaTxt != null ? x.taxaTxt : (x.taxa != null ? pct2(x.taxa) : '—');
     const isG = F.garg && F.garg.x === x;
     return `<div style="margin:0 auto;width:${w}%;background:linear-gradient(135deg,#0f172a,#1e293b);border:2px solid ${isG ? 'var(--warn)' : 'transparent'};border-left:6px solid ${cor};border-radius:var(--radius-md);padding:8px 12px;margin-bottom:6px;color:#e2e8f0">
@@ -2305,7 +2305,7 @@ function rankLabel(r) {
   return r;
 }
 function rankDot(r) {
-  const c = r === 'ABOVE_AVERAGE' ? '#16a34a' : r === 'AVERAGE' ? '#ca8a04' : /BELOW_AVERAGE/.test(r || '') ? '#dc2626' : '#cbd5e1';
+  const c = r === 'ABOVE_AVERAGE' ? '#239a5b' : r === 'AVERAGE' ? '#c7861a' : /BELOW_AVERAGE/.test(r || '') ? '#d64545' : '#cbd5e1';
   return `<span title="${escapeHtml(rankLabel(r))}" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c};margin:0 2px"></span>`;
 }
 function colorVal(level) { return level === 2 ? 'color:var(--ok);font-weight:700' : level === 1 ? 'color:var(--warn);font-weight:700' : 'color:var(--err);font-weight:700'; }

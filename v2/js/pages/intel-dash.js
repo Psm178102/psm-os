@@ -84,16 +84,16 @@ function renderContent(concorrentes, meses, tendManual) {
   const cpl = ult ? (+ult.cpl || (ult.leads ? ult.spend / ult.leads : 0)) : 0;
   const trends = autoTrends(meses);
 
-  const corDir = t => t.direcao === 'estavel' ? '#64748b' : (t.ruim ? '#ef4444' : '#22c55e');
+  const corDir = t => t.direcao === 'estavel' ? 'var(--ink-muted)' : (t.ruim ? 'var(--err)' : 'var(--ok)');
   const icoDir = t => t.direcao === 'alta' ? '📈' : t.direcao === 'baixa' ? '📉' : '➡️';
 
   body.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:22px">
       ${card('🎯 Concorrentes', totalConc, '#806d50')}
-      ${card('🏆 Tier A', tierA, '#f59e0b')}
-      ${card('👥 Alcance somado', fNum(somaFollow), '#a855f7')}
-      ${card('💰 Seu invest/mês', ult ? f$(ult.spend) : '—', '#22c55e')}
-      ${card('📉 Seu CPL', ult ? f$(cpl) : '—', '#10b981')}
+      ${card('🏆 Tier A', tierA, 'var(--warn)')}
+      ${card('👥 Alcance somado', fNum(somaFollow), 'var(--accent-ink)')}
+      ${card('💰 Seu invest/mês', ult ? f$(ult.spend) : '—', 'var(--ok)')}
+      ${card('📉 Seu CPL', ult ? f$(cpl) : '—', 'var(--ok)')}
       ${card('🎯 Seus leads/mês', ult ? fNum(ult.leads) : '—', '#806d50')}
     </div>
 

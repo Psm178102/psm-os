@@ -9,7 +9,7 @@
 import { api } from './api.js';
 import { auth } from './auth.js';
 
-const COR = { bad: '#dc2626', warn: '#d97706' };
+const COR = { bad: 'var(--err)', warn: 'var(--warn)' };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const money = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const num = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };

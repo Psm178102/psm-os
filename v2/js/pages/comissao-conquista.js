@@ -11,7 +11,7 @@ let _root = null, _d = null, _mes = '', _aba = 'corretores', _busy = false;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const brl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const pct = n => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 }) + '%';
-const NIVEL_COR = { 1: '#64748b', 2: '#806d50', 3: '#7c3aed', 4: '#16a34a' };
+const NIVEL_COR = { 1: '#8a8579', 2: '#806d50', 3: '#806d50', 4: '#239a5b' };
 
 export async function pageComissaoConquista(ctx, root) { _root = root; await reload(); }
 
@@ -240,7 +240,7 @@ function wireLeire() {
 }
 
 /* ── 🏢 MAP / Empreendimentos (origem × senioridade) ────────────────────── */
-const SEN_COR = { estagiario: '#94a3b8', corretor: '#806d50', senior: '#16a34a' };
+const SEN_COR = { estagiario: '#8a8579', corretor: '#806d50', senior: '#239a5b' };
 
 /* corretor desligado é tirado da conta — mas NUNCA em silêncio */
 function avisoOcultos(lst) {

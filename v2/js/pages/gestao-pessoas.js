@@ -88,7 +88,7 @@ function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;
    (House PSM como sistema oficial; papéis por FUNÇÃO, não por nome — pessoas mudam). */
 const RH_TPL = {
   onboarding: {
-    titulo: '🚀 Onboarding — admissão', cor: '#16a34a', dataLbl: 'Data de início',
+    titulo: '🚀 Onboarding — admissão', cor: '#239a5b', dataLbl: 'Data de início',
     sub: 'Jornada 0→90 dias: da papelada à primeira avaliação formal. Base: Onboarding PSM v4.0 + 3.10, evoluído.',
     campos: ['cargo', 'equipe', 'data', 'responsavel'],
     etapas: [
@@ -138,7 +138,7 @@ const RH_TPL = {
     ],
   },
   offboarding: {
-    titulo: '👋 Offboarding — desligamento', cor: '#ef4444', dataLbl: 'Data de saída',
+    titulo: '👋 Offboarding — desligamento', cor: '#d64545', dataLbl: 'Data de saída',
     sub: '"Quando alguém sai, sai inteiro": aviso 30d · bloqueio de acessos em 48h · devolução em 5 dias úteis · carteira sem perder cliente.',
     campos: ['cargo', 'equipe', 'motivo', 'data', 'responsavel', 'carteira_destino'],
     etapas: [
@@ -238,7 +238,7 @@ function rhCard(tipo, p) {
   const T = RH_TPL[tipo];
   const pr = rhProgress(tipo, p);
   const done = (p.status || 'em_andamento') === 'concluido';
-  const barcor = done ? '#16a34a' : (pr.pct >= 67 ? '#16a34a' : pr.pct >= 34 ? '#f59e0b' : '#ef4444');
+  const barcor = done ? '#239a5b' : (pr.pct >= 67 ? '#239a5b' : pr.pct >= 34 ? '#c7861a' : '#d64545');
   return `
     <div class="card" style="padding:14px;cursor:pointer;border-left:4px solid ${T.cor}" data-rh-open="${esc(p.id)}">
       <div class="flex items-center" style="justify-content:space-between;gap:8px">
@@ -341,7 +341,7 @@ const REG_TPL = {
     chips: r => [r.cargo_atual, r.proximo_cargo ? '→ ' + r.proximo_cargo : '', r.status].filter(Boolean),
   },
   clima: {
-    titulo: '🌡 Clima Interno', cor: '#16a34a', titleField: 'periodo',
+    titulo: '🌡 Clima Interno', cor: '#239a5b', titleField: 'periodo',
     sub: 'Pesquisas de clima / pulso — participação, eNPS e ações.',
     campos: [
       { k: 'periodo', lbl: 'Período (ex.: Jun/2026)', type: 'text', req: true },
@@ -354,7 +354,7 @@ const REG_TPL = {
     chips: r => [r.participacao ? r.participacao + '% part.' : '', (r.enps !== undefined && r.enps !== '') ? 'eNPS ' + r.enps : ''].filter(Boolean),
   },
   avaliacoes: {
-    titulo: '⭐ Avaliações & Feedbacks', cor: '#f59e0b', titleField: 'pessoa',
+    titulo: '⭐ Avaliações & Feedbacks', cor: '#c7861a', titleField: 'pessoa',
     sub: 'Avaliações de desempenho e feedbacks estruturados por colaborador.',
     campos: [
       { k: 'pessoa', lbl: 'Colaborador', type: 'text', req: true },

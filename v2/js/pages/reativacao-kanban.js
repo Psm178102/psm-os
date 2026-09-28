@@ -28,9 +28,9 @@ const prazoStatus = c => {
   return d < hojeStr() ? 'atrasada' : d === hojeStr() ? 'hoje' : d === amanhaStr() ? 'amanha' : null;
 };
 const PRAZO_UI = {
-  atrasada: ['#dc2626', '⏰ ATRASADO'],
-  hoje: ['#d97706', '📅 VENCE HOJE'],
-  amanha: ['#eab308', '⚠️ VENCE AMANHÃ'],
+  atrasada: ['#d64545', '⏰ ATRASADO'],
+  hoje: ['#c7861a', '📅 VENCE HOJE'],
+  amanha: ['#c7861a', '⚠️ VENCE AMANHÃ'],
 };
 
 export async function pageReativacaoKanban(ctx, root) { _host = root; await reload(); }
@@ -60,7 +60,7 @@ async function post(body, okMsg) {
   return r;
 }
 
-const tagInfo = id => (_d.cfg.etiquetas || []).find(t => t.id === id) || { id, nome: id, cor: '#64748b' };
+const tagInfo = id => (_d.cfg.etiquetas || []).find(t => t.id === id) || { id, nome: id, cor: '#8a8579' };
 const corretorNome = c => {
   const em = (c.corretor_email || '').toLowerCase();
   if (!em) return null;
@@ -141,11 +141,11 @@ function render() {
       const taxa = abord ? Math.round(reat / abord * 100) : 0;
       const mini = (l, v, cor) => `<div style="flex:1;min-width:110px;background:var(--bg-2);border-radius:var(--radius-md);padding:6px 10px;border-left:3px solid ${cor}"><div class="tiny muted">${l}</div><div style="font-weight:600;font-size:16px">${v}</div></div>`;
       return `<div class="flex mt-2" style="gap:8px;flex-wrap:wrap">
-        ${mini('📥 Estoque a reativar', cs.filter(c => c.coluna === 'a_reativar').length, '#64748b')}
+        ${mini('📥 Estoque a reativar', cs.filter(c => c.coluna === 'a_reativar').length, '#8a8579')}
         ${mini('💬 Já abordados', abord, '#806d50')}
-        ${mini('🔥 Responderam', resp, '#d97706')}
-        ${mini('✅ Reativados', reat, '#16a34a')}
-        ${mini('📈 Conversão abordado→reativado', taxa + '%', taxa >= 10 ? '#16a34a' : '#d97706')}
+        ${mini('🔥 Responderam', resp, '#c7861a')}
+        ${mini('✅ Reativados', reat, '#239a5b')}
+        ${mini('📈 Conversão abordado→reativado', taxa + '%', taxa >= 10 ? '#239a5b' : '#c7861a')}
       </div>`;
     })()}
     <div class="mt-2" style="display:flex;gap:10px;overflow-x:auto;align-items:flex-start;padding-bottom:8px">
@@ -639,12 +639,12 @@ function abrirCfg() {
   wireDel(); wireMove();
   ov.querySelector('#cg-addcol').onclick = () => {
     const d = document.createElement('div');
-    d.innerHTML = colRow({ id: '', emoji: '📌', nome: '', cor: '#64748b' });
+    d.innerHTML = colRow({ id: '', emoji: '📌', nome: '', cor: '#8a8579' });
     ov.querySelector('#cg-cols').appendChild(d.firstElementChild); wireDel(); wireMove();
   };
   ov.querySelector('#cg-addtag').onclick = () => {
     const d = document.createElement('div');
-    d.innerHTML = tagRow({ id: '', nome: '', cor: '#64748b' });
+    d.innerHTML = tagRow({ id: '', nome: '', cor: '#8a8579' });
     ov.querySelector('#cg-tags').appendChild(d.firstElementChild); wireDel();
   };
   ov.querySelector('#cg-x').onclick = () => ov.remove();

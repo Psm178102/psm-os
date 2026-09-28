@@ -357,11 +357,11 @@ async function initKvConfig() {
     const m = box.querySelector(`.kv-msg[data-key="${k}"]`);
     let value;
     try { value = JSON.parse(ta.value || '{}'); if (typeof value !== 'object' || Array.isArray(value)) throw new Error('precisa ser um objeto {}'); }
-    catch (e) { if (m) { m.textContent = '⚠️ JSON inválido: ' + e.message; m.style.color = '#dc2626'; } return; }
+    catch (e) { if (m) { m.textContent = '⚠️ JSON inválido: ' + e.message; m.style.color = 'var(--err)'; } return; }
     try {
       await api.request('/api/v3/settings/kv_config', { method: 'POST', body: { key: k, value } });
-      if (m) { m.textContent = '✅ salvo'; m.style.color = '#16a34a'; setTimeout(() => m.textContent = '', 3000); }
-    } catch (e) { if (m) { m.textContent = '⚠️ ' + e.message; m.style.color = '#dc2626'; } }
+      if (m) { m.textContent = '✅ salvo'; m.style.color = 'var(--ok)'; setTimeout(() => m.textContent = '', 3000); }
+    } catch (e) { if (m) { m.textContent = '⚠️ ' + e.message; m.style.color = 'var(--err)'; } }
   }));
 }
 
@@ -889,9 +889,9 @@ async function saveConcl() {
   const msg = document.getElementById('cf-msg');
   try {
     await api.request('/api/v3/settings/conclusao_forms', { method: 'POST', body: { forms: out } });
-    if (msg) { msg.textContent = '✓ Salvo'; msg.style.color = '#16a34a'; }
+    if (msg) { msg.textContent = '✓ Salvo'; msg.style.color = 'var(--ok)'; }
   } catch (e) {
-    if (msg) { msg.textContent = 'Erro: ' + e.message; msg.style.color = '#dc2626'; }
+    if (msg) { msg.textContent = 'Erro: ' + e.message; msg.style.color = 'var(--err)'; }
   }
 }
 

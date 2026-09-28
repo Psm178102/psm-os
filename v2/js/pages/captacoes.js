@@ -15,34 +15,34 @@ let _fResp = '';
 
 // Status agrupados (= colunas Kanban do Notion) — 3 fases, 17 status
 const FASES = [
-  { fase: 'A fazer', cor: '#ef4444', status: [
-    { id: 'a_fazer',       lbl: 'À Fazer Captação', cor: '#dc2626' },
-    { id: 'agendar_prop',  lbl: 'Agendar c/ Prop',  cor: '#ea580c' },
+  { fase: 'A fazer', cor: '#d64545', status: [
+    { id: 'a_fazer',       lbl: 'À Fazer Captação', cor: '#d64545' },
+    { id: 'agendar_prop',  lbl: 'Agendar c/ Prop',  cor: '#c7861a' },
     { id: 'agendado',      lbl: 'Agendado',         cor: '#806d50' },
-    { id: 'pausado',       lbl: 'Pausado',          cor: '#64748b' },
+    { id: 'pausado',       lbl: 'Pausado',          cor: '#8a8579' },
   ]},
-  { fase: 'Em andamento', cor: '#f59e0b', status: [
-    { id: 'captacao_realizada',     lbl: 'Captação Realizada',     cor: '#ca8a04' },
+  { fase: 'Em andamento', cor: '#c7861a', status: [
+    { id: 'captacao_realizada',     lbl: 'Captação Realizada',     cor: '#c7861a' },
     { id: 'edicao_fotos',           lbl: 'Edição Fotos',           cor: '#806d50' },
-    { id: 'edicao_videos',          lbl: 'Edição Vídeos',          cor: '#8b5cf6' },
-    { id: 'aprovacao',              lbl: 'Pendente Aprovação',     cor: '#ca8a04' },
+    { id: 'edicao_videos',          lbl: 'Edição Vídeos',          cor: '#806d50' },
+    { id: 'aprovacao',              lbl: 'Pendente Aprovação',     cor: '#c7861a' },
   ]},
-  { fase: 'Concluídos', cor: '#16a34a', status: [
-    { id: 'formulario_kenlo',   lbl: 'Formulário → Kenlo', cor: '#8b5cf6' },
-    { id: 'subir_kenlo',        lbl: 'Subir Direto Kenlo', cor: '#8b5cf6' },
-    { id: 'agendar_mlabs',      lbl: 'Agendar Post',       cor: '#ca8a04' },
-    { id: 'refazer',            lbl: 'Refazer',            cor: '#dc2626' },
-    { id: 'concluido',          lbl: 'Concluído',          cor: '#16a34a' },
+  { fase: 'Concluídos', cor: '#239a5b', status: [
+    { id: 'formulario_kenlo',   lbl: 'Formulário → Kenlo', cor: '#806d50' },
+    { id: 'subir_kenlo',        lbl: 'Subir Direto Kenlo', cor: '#806d50' },
+    { id: 'agendar_mlabs',      lbl: 'Agendar Post',       cor: '#c7861a' },
+    { id: 'refazer',            lbl: 'Refazer',            cor: '#d64545' },
+    { id: 'concluido',          lbl: 'Concluído',          cor: '#239a5b' },
   ]},
 ];
 const ALL_STATUS = FASES.flatMap(f => f.status);
 // Etapas removidas (v77.37) → pra onde os cards antigos vão (não some nenhum card).
 const STATUS_REMAP = { colher_dados: 'a_fazer', aguardando_autorizacao: 'a_fazer', a_fazer_formulario: 'formulario_kenlo', aprovado: 'concluido' };
 const normStatus = s => STATUS_REMAP[s] || s;
-const statusInfo = id => ALL_STATUS.find(s => s.id === id) || { lbl: id || '—', cor: '#64748b' };
+const statusInfo = id => ALL_STATUS.find(s => s.id === id) || { lbl: id || '—', cor: '#8a8579' };
 const statusCor = id => statusInfo(id).cor;
 const faseOf = id => FASES.find(f => f.status.some(s => s.id === id))?.fase || '';
-const faseCorOf = id => (FASES.find(f => f.status.some(s => s.id === id)) || {}).cor || '#64748b';
+const faseCorOf = id => (FASES.find(f => f.status.some(s => s.id === id)) || {}).cor || '#8a8579';
 
 // Alerta de "parado na etapa" (v77.48): a partir de "Agendar c/ Prop" pra frente,
 // 2+ dias na mesma etapa → cartão amarelo. "Concluído" não alerta (terminal).
@@ -79,7 +79,7 @@ const TIPOS = [
   { v: 'Sala comercial', ic: '🏢', cat: 'com' },
   { v: 'Andar laje inteira', ic: '🏙️', cat: 'com' },
 ];
-const TIPO_CAT_COR = { res: '#16a34a', com: '#806d50', terreno: '#d97706', rural: '#65a30d', industrial: '#475569' };
+const TIPO_CAT_COR = { res: '#239a5b', com: '#806d50', terreno: '#c7861a', rural: '#65a30d', industrial: '#8a8579' };
 const TIPO_MAP = Object.fromEntries(TIPOS.map(t => [t.v, t]));
 
 // Flag (ícone + tipo) colorida por categoria — vai no topo do card
@@ -87,7 +87,7 @@ function tipoFlag(tipo) {
   if (!tipo) return '';
   const t = TIPO_MAP[tipo];
   const ic = t ? t.ic : '🏠';
-  const cor = t ? (TIPO_CAT_COR[t.cat] || '#64748b') : '#64748b';
+  const cor = t ? (TIPO_CAT_COR[t.cat] || '#8a8579') : '#8a8579';
   return `<span class="cap-chip" title="${esc(tipo)}" style="background:${cor}1f;color:${cor};font-weight:600;border:1px solid ${cor}55">${ic} ${esc(tipo)}</span>`;
 }
 
@@ -106,32 +106,32 @@ function capTitulo(c) {
   return t || c.nome_imovel || c.condominio || c.localizacao || c.proprietario || 'Sem endereço';
 }
 const SITUACOES = [
-  { id: 'desocupado', lbl: 'Desocupado', cor: '#16a34a' },
-  { id: 'semi_pronto', lbl: 'Semi Pronto', cor: '#d97706' },
-  { id: 'ocupado_proprietario', lbl: 'Ocupado Proprietário', cor: '#dc2626' },
-  { id: 'ocupado_inquilino', lbl: 'Ocupado Inquilino', cor: '#dc2626' },
-  { id: 'inquilino', lbl: 'Inquilino', cor: '#dc2626' },
-  { id: 'reformando', lbl: 'Reformando', cor: '#a16207' },
+  { id: 'desocupado', lbl: 'Desocupado', cor: '#239a5b' },
+  { id: 'semi_pronto', lbl: 'Semi Pronto', cor: '#c7861a' },
+  { id: 'ocupado_proprietario', lbl: 'Ocupado Proprietário', cor: '#d64545' },
+  { id: 'ocupado_inquilino', lbl: 'Ocupado Inquilino', cor: '#d64545' },
+  { id: 'inquilino', lbl: 'Inquilino', cor: '#d64545' },
+  { id: 'reformando', lbl: 'Reformando', cor: '#c7861a' },
 ];
 const PENDENCIAS = [
   { id: 'falta_fotos', lbl: 'Falta Fotos', cor: '#806d50' },
-  { id: 'falta_fotos_videos', lbl: 'Falta Fotos e Vídeos', cor: '#a16207' },
-  { id: 'falta_video_drone', lbl: 'Falta Vídeo Drone', cor: '#8b5cf6' },
-  { id: 'falta_atualizar_fotos', lbl: 'Falta Atualizar Fotos', cor: '#16a34a' },
-  { id: 'video_corretor', lbl: 'Vídeo com Corretor', cor: '#64748b' },
-  { id: 'pendencia_documentacao', lbl: 'Pendência Documentação', cor: '#a16207' },
+  { id: 'falta_fotos_videos', lbl: 'Falta Fotos e Vídeos', cor: '#c7861a' },
+  { id: 'falta_video_drone', lbl: 'Falta Vídeo Drone', cor: '#806d50' },
+  { id: 'falta_atualizar_fotos', lbl: 'Falta Atualizar Fotos', cor: '#239a5b' },
+  { id: 'video_corretor', lbl: 'Vídeo com Corretor', cor: '#8a8579' },
+  { id: 'pendencia_documentacao', lbl: 'Pendência Documentação', cor: '#c7861a' },
   { id: 'pendencia_chaves', lbl: 'Pendência Chaves', cor: '#be185d' },
-  { id: 'pendencia_agendamento', lbl: 'Pendência Agendamento', cor: '#64748b' },
-  { id: 'atualizado', lbl: 'Atualizado', cor: '#16a34a' },
+  { id: 'pendencia_agendamento', lbl: 'Pendência Agendamento', cor: '#8a8579' },
+  { id: 'atualizado', lbl: 'Atualizado', cor: '#239a5b' },
 ];
 const TERMOS = [
   { id: 'solicitar', lbl: 'Solicitar Autorização', cor: '#806d50' },
-  { id: 'pendente', lbl: 'Autorização Pendente', cor: '#a16207' },
-  { id: 'aprovado', lbl: 'Aprovado', cor: '#16a34a' },
-  { id: 'recusado', lbl: 'Recusado', cor: '#dc2626' },
+  { id: 'pendente', lbl: 'Autorização Pendente', cor: '#c7861a' },
+  { id: 'aprovado', lbl: 'Aprovado', cor: '#239a5b' },
+  { id: 'recusado', lbl: 'Recusado', cor: '#d64545' },
 ];
 
-const AVATAR_COLORS = ['#6366f1', '#806d50', '#16a34a', '#d97706', '#db2777', '#7c3aed', '#dc2626', '#0d9488'];
+const AVATAR_COLORS = ['#806d50', '#806d50', '#239a5b', '#c7861a', '#db2777', '#806d50', '#d64545', '#239a5b'];
 const colorFor = s => AVATAR_COLORS[[...String(s || '?')].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_COLORS.length];
 const initials = s => (String(s || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('') || '?').toUpperCase();
 const fmtBRL = v => (v || v === 0) ? Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
@@ -205,15 +205,15 @@ function render() {
   document.getElementById('cap-refresh').addEventListener('click', load);
   document.getElementById('cap-rd').addEventListener('click', async () => {
     const st = document.getElementById('cap-rd-status');
-    if (st) { st.style.color = '#d97706'; st.innerHTML = '<span class="spinner"></span> Puxando da etapa CAPTAR IMÓVEL do RD…'; }
+    if (st) { st.style.color = '#c7861a'; st.innerHTML = '<span class="spinner"></span> Puxando da etapa CAPTAR IMÓVEL do RD…'; }
     try {
       const r = await api.request('/api/v3/crm/captar_now');
       if (st) {
-        if (r && r.ok) { st.style.color = '#16a34a'; st.textContent = `✅ ${r.created || 0} nova(s) captação(ões) criada(s) · ${r.deals_na_etapa || 0} deal(s) na etapa CAPTAR IMÓVEL.`; }
-        else { st.style.color = '#dc2626'; st.textContent = '⚠️ ' + ((r && r.error) || 'não consegui puxar agora'); }
+        if (r && r.ok) { st.style.color = '#239a5b'; st.textContent = `✅ ${r.created || 0} nova(s) captação(ões) criada(s) · ${r.deals_na_etapa || 0} deal(s) na etapa CAPTAR IMÓVEL.`; }
+        else { st.style.color = '#d64545'; st.textContent = '⚠️ ' + ((r && r.error) || 'não consegui puxar agora'); }
       }
       if (r && r.created) await load();
-    } catch (e) { if (st) { st.style.color = '#dc2626'; st.textContent = '⚠️ ' + e.message; } }
+    } catch (e) { if (st) { st.style.color = '#d64545'; st.textContent = '⚠️ ' + e.message; } }
   });
   document.getElementById('cap-search').addEventListener('input', e => { _search = e.target.value; renderBoard(); });
   document.getElementById('cap-fobj').addEventListener('change', e => { _fObj = e.target.value; renderBoard(); });
@@ -250,10 +250,10 @@ function renderBoard() {
   document.getElementById('cap-stats').innerHTML = `
     <div class="flex gap-2" style="flex-wrap:wrap">
       ${kpi('Total', items.length, '#806d50')}
-      ${kpi('Pipeline (VGV)', fmtBRL(pipeline) || 'R$ 0', '#16a34a')}
+      ${kpi('Pipeline (VGV)', fmtBRL(pipeline) || 'R$ 0', '#239a5b')}
       ${porFase.map(f => kpi(f.fase, f.n, f.cor)).join('')}
-      ${kpi('⚠ Pendências', pend, '#f59e0b')}
-      ${kpi('📷 Mídia p/ MKT', midia, '#8b5cf6')}
+      ${kpi('⚠ Pendências', pend, '#c7861a')}
+      ${kpi('📷 Mídia p/ MKT', midia, '#806d50')}
     </div>`;
 
   const board = document.getElementById('cap-board');
@@ -590,8 +590,8 @@ async function saveForm(overlay) {
     if (!payload.bairro) faltam.push('Bairro');
     if (!temValor) faltam.push(payload.objetivo === 'locacao' ? 'Valor de locação' : 'Valor de venda');
     if (faltam.length) {
-      if (!payload.bairro) g('cf-bairro').style.borderColor = '#dc2626';
-      const vEl = g(payload.objetivo === 'locacao' ? 'cf-vl' : 'cf-vv'); if (vEl && !temValor) vEl.style.borderColor = '#dc2626';
+      if (!payload.bairro) g('cf-bairro').style.borderColor = '#d64545';
+      const vEl = g(payload.objetivo === 'locacao' ? 'cf-vl' : 'cf-vv'); if (vEl && !temValor) vEl.style.borderColor = '#d64545';
       g('cf-msg').innerHTML = `<div class="alert alert-warn">📍 Pra entrar no inventário de <b>Imóveis</b> + aparecer no <b>Mapa</b>, preencha: <b>${faltam.join(' e ')}</b>. (Obrigatório a partir da etapa de captura.)</div>`;
       return;
     }

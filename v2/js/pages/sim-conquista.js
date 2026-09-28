@@ -15,12 +15,12 @@ import { api } from '../api.js';
 // ⚠️ REFERÊNCIA MCMV urbano 2024 — confira sempre os valores vigentes (mudam por ano/região).
 //    rendaMax = teto de renda mensal da faixa | jurosRef = juros a.a. típicos | subsidioRef = subsídio máx estimado
 let FAIXAS = [
-  { nome: 'Faixa 1', rendaMax: 2640,  jurosRef: 4.75,  subsidioRef: 55000, cor: '#16a34a', nota: 'Maior subsídio + menores juros' },
+  { nome: 'Faixa 1', rendaMax: 2640,  jurosRef: 4.75,  subsidioRef: 55000, cor: 'var(--ok)', nota: 'Maior subsídio + menores juros' },
   { nome: 'Faixa 2', rendaMax: 4400,  jurosRef: 6.50,  subsidioRef: 29000, cor: '#806d50', nota: 'Subsídio decresce conforme a renda' },
-  { nome: 'Faixa 3', rendaMax: 8000,  jurosRef: 8.16,  subsidioRef: 0,     cor: '#f59e0b', nota: 'Sem subsídio direto; juros reduzidos' },
-  { nome: 'Faixa 4 · Classe Média', rendaMax: 12000, jurosRef: 10.0, subsidioRef: 0, cor: '#8b5cf6', nota: 'Imóvel até ~R$500k (piloto MCMV classe média)' },
+  { nome: 'Faixa 3', rendaMax: 8000,  jurosRef: 8.16,  subsidioRef: 0,     cor: 'var(--warn)', nota: 'Sem subsídio direto; juros reduzidos' },
+  { nome: 'Faixa 4 · Classe Média', rendaMax: 12000, jurosRef: 10.0, subsidioRef: 0, cor: 'var(--accent-ink)', nota: 'Imóvel até ~R$500k (piloto MCMV classe média)' },
 ];
-let ACIMA = { nome: 'Acima do MCMV', jurosRef: 11.0, subsidioRef: 0, cor: '#64748b', nota: 'Financiamento SBPE / mercado' };
+let ACIMA = { nome: 'Acima do MCMV', jurosRef: 11.0, subsidioRef: 0, cor: 'var(--ink-muted)', nota: 'Financiamento SBPE / mercado' };
 
 // v86.74: as faixas saíram do CÓDIGO (estavam congeladas em 2024, e em 2026 fazem o
 // corretor cotar errado). Agora vêm do shared_kv 'sim_conquista_faixas' (o sócio edita
@@ -36,7 +36,7 @@ async function carregaFaixas() {
     if (fx && fx.length) {
       FAIXAS = fx.map(f => ({ nome: String(f.nome || 'Faixa'), rendaMax: Number(f.rendaMax) || 0,
                               jurosRef: Number(f.jurosRef) || 0, subsidioRef: Number(f.subsidioRef) || 0,
-                              cor: f.cor || '#64748b', nota: String(f.nota || '') }))
+                              cor: f.cor || 'var(--ink-muted)', nota: String(f.nota || '') }))
                    .sort((a, b) => a.rendaMax - b.rendaMax);
       if (v.acima && Number(v.acima.jurosRef) > 0) ACIMA = { ...ACIMA, ...v.acima };
       FONTE_FAIXAS = { origem: 'config', ano: Number(v.ano) || null };

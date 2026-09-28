@@ -85,7 +85,7 @@ async function loadReunioes() {
   }
 }
 
-const tipoInfo = id => _tipos.find(t => t.id === id) || { id, label: id || 'Reunião', emoji: '📋', cor: '#64748b' };
+const tipoInfo = id => _tipos.find(t => t.id === id) || { id, label: id || 'Reunião', emoji: '📋', cor: '#8a8579' };
 const userName = id => (_users.find(u => u.id === id) || {}).name || id || '';
 
 // status de 1 combinado: feito | atrasado | pendente
@@ -117,10 +117,10 @@ function renderReunioes() {
             <option value="">Todos os tipos</option>
             ${_tipos.map(t => `<option value="${esc(t.id)}"${_fTipo === t.id ? ' selected' : ''}>${t.emoji} ${esc(t.label)}</option>`).join('')}
           </select>
-          ${chip('', 'Todos', '#64748b')}
-          ${chip('atrasado', `🔴 Atrasados ${atr}`, '#dc2626')}
-          ${chip('pendente', `⏳ Pendentes ${pend}`, '#a16207')}
-          ${chip('feito', `✅ Feitos ${feito}`, '#16a34a')}
+          ${chip('', 'Todos', '#8a8579')}
+          ${chip('atrasado', `🔴 Atrasados ${atr}`, '#d64545')}
+          ${chip('pendente', `⏳ Pendentes ${pend}`, '#c7861a')}
+          ${chip('feito', `✅ Feitos ${feito}`, '#239a5b')}
         </div>
         ${_canEdit ? `<div class="flex gap-2">
           <button class="btn btn-ghost btn-sm" id="rn-tipos">⚙️ Tipos</button>
@@ -176,7 +176,7 @@ function ataCard(a) {
 
 function combRow(a, c) {
   const s = combStatus(c);
-  const cor = s === 'feito' ? '#16a34a' : s === 'atrasado' ? '#dc2626' : '#a16207';
+  const cor = s === 'feito' ? '#239a5b' : s === 'atrasado' ? '#d64545' : '#c7861a';
   const ic = s === 'feito' ? '✅' : s === 'atrasado' ? '🔴' : '⏳';
   return `
     <div class="flex items-center gap-2" style="padding:4px 0;border-top:1px solid var(--bd,var(--border))">
@@ -442,7 +442,7 @@ function openTipos() {
   ov.querySelector('#tp-save').onclick = async () => {
     const tipos = ov.querySelector('#tp-txt').value.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
       const p = l.split('|').map(x => x.trim());
-      let emoji = '📋', label = '', cor = '#64748b';
+      let emoji = '📋', label = '', cor = '#8a8579';
       if (p.length >= 3) { emoji = p[0] || emoji; label = p[1]; cor = p[2] || cor; }
       else if (p.length === 2) { emoji = p[0] || emoji; label = p[1]; }
       else { label = p[0]; }

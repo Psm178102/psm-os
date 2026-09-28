@@ -33,17 +33,17 @@ const CHECK = [
 const checkDone = c => CHECK.filter(x => (c.checklist || {})[x.k]).length;
 
 const STAGES = [
-  { id: 'ideia',     lbl: '💡 Ideia / Tema', cor: '#64748b' },
+  { id: 'ideia',     lbl: '💡 Ideia / Tema', cor: '#8a8579' },
   { id: 'roteiro',   lbl: '📝 Roteiro',      cor: '#806d50' },
-  { id: 'gravacao',  lbl: '🎬 Gravação',     cor: '#f59e0b' },
-  { id: 'edicao',    lbl: '✂️ Edição',       cor: '#8b5cf6' },
-  { id: 'revisao',   lbl: '👁 Revisão',      cor: '#d97706' },
-  { id: 'publicada', lbl: '✅ Publicada',    cor: '#16a34a' },
+  { id: 'gravacao',  lbl: '🎬 Gravação',     cor: '#c7861a' },
+  { id: 'edicao',    lbl: '✂️ Edição',       cor: '#806d50' },
+  { id: 'revisao',   lbl: '👁 Revisão',      cor: '#c7861a' },
+  { id: 'publicada', lbl: '✅ Publicada',    cor: '#239a5b' },
 ];
-const stageInfo = id => STAGES.find(s => s.id === id) || { lbl: id || '—', cor: '#64748b' };
+const stageInfo = id => STAGES.find(s => s.id === id) || { lbl: id || '—', cor: '#8a8579' };
 
-const COR = ['#806d50', '#16a34a', '#d6249f', '#8b5cf6', '#f59e0b', '#ef4444', '#806d50', '#ca8a04', '#64748b', '#7c3aed', '#db2777'];
-const linhaCor = l => COR[(LINHAS.indexOf(l) + 11) % COR.length] || '#64748b';
+const COR = ['#806d50', '#239a5b', '#d6249f', '#806d50', '#c7861a', '#d64545', '#806d50', '#c7861a', '#8a8579', '#806d50', '#db2777'];
+const linhaCor = l => COR[(LINHAS.indexOf(l) + 11) % COR.length] || '#8a8579';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const fmtData = d => d ? String(d).substring(0, 10).split('-').reverse().join('/') : '';
@@ -248,7 +248,7 @@ function renderMetricas() {
     </div>
     <div class="as-day">
       <div style="font-weight:600;font-size:14px;margin-bottom:8px">Carga por responsável</div>
-      ${respArr.map(([r, v]) => `<div style="margin-bottom:8px"><div class="flex" style="justify-content:space-between"><span class="tiny" style="font-weight:600">👤 ${esc(r)}</span><span class="tiny muted">${v} aula${v === 1 ? '' : 's'}</span></div>${bar(v, respMax, '#7c3aed')}</div>`).join('')}
+      ${respArr.map(([r, v]) => `<div style="margin-bottom:8px"><div class="flex" style="justify-content:space-between"><span class="tiny" style="font-weight:600">👤 ${esc(r)}</span><span class="tiny muted">${v} aula${v === 1 ? '' : 's'}</span></div>${bar(v, respMax, '#806d50')}</div>`).join('')}
     </div>`;
 }
 
@@ -365,7 +365,7 @@ function coberturaCurriculo() {
     return `<div style="margin-bottom:9px">
       <div class="flex" style="justify-content:space-between"><span class="tiny" style="font-weight:600">${t.icon || ''} ${esc(t.trilha)}</span>
       <span class="tiny muted">✅ ${pub} publicadas · 🔧 ${prod} em produção · ementa ${ementa}</span></div>
-      ${bar(pub, ementa, '#16a34a')}</div>`;
+      ${bar(pub, ementa, '#239a5b')}</div>`;
   }).join('');
   const totE = CURRICULUM.reduce((s, t) => s + t.modulos.reduce((x, m) => x + m.aulas.length, 0), 0);
   const totP = _cards.filter(c => c.status === 'publicada').length;

@@ -98,8 +98,8 @@ function pintaSaida() {
   const c = compute();
   const k = _root.querySelector('#en-kpis');
   if (k) k.innerHTML = kpi('Vendas Previstas', dec(c.totalVendas, 2), 'var(--psm-navy)', '#fff')
-    + kpi('VGV Previsto', fmt(c.totalVGV), '#22c55e')
-    + kpi('Cumprimento Meta', dec(c.cumprimentoMeta, 1) + '%', c.cumprimentoMeta >= 100 ? '#22c55e' : '#f59e0b');
+    + kpi('VGV Previsto', fmt(c.totalVGV), 'var(--ok)')
+    + kpi('Cumprimento Meta', dec(c.cumprimentoMeta, 1) + '%', c.cumprimentoMeta >= 100 ? 'var(--ok)' : 'var(--warn)');
   const t = _root.querySelector('#en-tabela');
   if (t) t.innerHTML = `
     <table style="width:100%;border-collapse:collapse;font-size:12px">

@@ -12,8 +12,8 @@ let _busy = false;
 const COLS = [
   { key: 'ativo',   titulo: '📇 Fila p/ chamar', sub: 'Carteira ativa (mais antigos primeiro)', cor: '#806d50' },
   { key: 'sdr',     titulo: '📞 SDR — em andamento', sub: 'Chamados, aguardando resposta', cor: '#806d50' },
-  { key: 'captar',  titulo: '🎯 Captar imóvel', sub: 'Tem imóvel pra vender/alugar', cor: '#16a34a' },
-  { key: 'noventa', titulo: '🗓 90 dias', sub: 'Sem imóvel agora — reaborda em 3 meses', cor: '#64748b' },
+  { key: 'captar',  titulo: '🎯 Captar imóvel', sub: 'Tem imóvel pra vender/alugar', cor: 'var(--ok)' },
+  { key: 'noventa', titulo: '🗓 90 dias', sub: 'Sem imóvel agora — reaborda em 3 meses', cor: 'var(--ink-muted)' },
 ];
 
 const WA_MSG = 'Olá! Aqui é da PSM Imóveis. Tudo bem? Você tem algum imóvel para vender ou alugar?';

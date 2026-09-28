@@ -20,7 +20,7 @@ let _notes = [];
 let _notesPending = false;
 
 const TERMINAIS = new Set(['aprovado', 'concluido']); // captação encerrada
-const PRIO = { alta: { lbl: 'Alta', cor: '#dc2626' }, media: { lbl: 'Média', cor: '#d97706' }, baixa: { lbl: 'Baixa', cor: '#806d50' } };
+const PRIO = { alta: { lbl: 'Alta', cor: '#d64545' }, media: { lbl: 'Média', cor: '#c7861a' }, baixa: { lbl: 'Baixa', cor: '#806d50' } };
 
 export async function pagePontosAtencao(ctx, root) {
   _root = root;
@@ -229,8 +229,8 @@ function render(signals) {
       </div>
 
       <div class="flex gap-3 mt-3" style="flex-wrap:wrap">
-        ${sumCard('🔴 Críticos', crit.length, '#dc2626')}
-        ${sumCard('🟡 Atenção', warn.length, '#d97706')}
+        ${sumCard('🔴 Críticos', crit.length, '#d64545')}
+        ${sumCard('🟡 Atenção', warn.length, '#c7861a')}
         ${sumCard('📋 Total', total, '#806d50')}
       </div>
 
@@ -381,7 +381,7 @@ async function delNote(id) {
 function fmtDate(s) { try { return new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }); } catch { return ''; } }
 
 function sigRow(s) {
-  const cor = s.sev === 'crit' ? '#dc2626' : '#d97706';
+  const cor = s.sev === 'crit' ? '#d64545' : '#c7861a';
   const dot = s.sev === 'crit' ? '🔴' : '🟡';
   return `
     <div style="display:flex;gap:11px;align-items:flex-start;background:var(--bg-3);border-left:4px solid ${cor};border-radius:var(--radius-md);padding:11px 13px">

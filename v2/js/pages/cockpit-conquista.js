@@ -16,13 +16,13 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': 
 
 // teto de valor de imóvel por faixa MCMV (referência — varia por região)
 const FAIXA_TETO = [
-  { nome: 'Faixa 1', teto: 200000, cor: '#16a34a' },
+  { nome: 'Faixa 1', teto: 200000, cor: '#239a5b' },
   { nome: 'Faixa 2', teto: 264000, cor: '#806d50' },
-  { nome: 'Faixa 3', teto: 350000, cor: '#f59e0b' },
-  { nome: 'Faixa 4', teto: 500000, cor: '#8b5cf6' },
-  { nome: 'Acima MCMV', teto: Infinity, cor: '#64748b' },
+  { nome: 'Faixa 3', teto: 350000, cor: '#c7861a' },
+  { nome: 'Faixa 4', teto: 500000, cor: '#806d50' },
+  { nome: 'Acima MCMV', teto: Infinity, cor: '#8a8579' },
 ];
-const PJ_STATUS = { batida: ['meta batida', '#16a34a'], no_ritmo: ['vai bater', '#16a34a'], atras: ['atrás', '#d97706'], fora: ['fora do ritmo', '#dc2626'], sem_meta: ['sem meta', '#64748b'] };
+const PJ_STATUS = { batida: ['meta batida', '#239a5b'], no_ritmo: ['vai bater', '#239a5b'], atras: ['atrás', '#c7861a'], fora: ['fora do ritmo', '#d64545'], sem_meta: ['sem meta', '#8a8579'] };
 const fN1 = v => (Number(v) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
 const faixaDeValor = v => (FAIXA_TETO.find(f => v <= f.teto) || FAIXA_TETO[FAIXA_TETO.length - 1]);
 
@@ -83,7 +83,7 @@ function renderShell(c) {
     const meta = c.meta_vgv_mes || 0;
     const pond = c.pipeline_ponderado_vgv || 0;
     const pj = c.projecao_mes;   // v87.95: projeção oficial do mês (a mesma da Gestão Comercial e do 1:1)
-    const [pjLbl, pjCor] = PJ_STATUS[pj && pj.status] || ['', '#16a34a'];
+    const [pjLbl, pjCor] = PJ_STATUS[pj && pj.status] || ['', '#239a5b'];
     const atencao = (c.sem_contato_48h || 0) + (c.parados_14d || 0);
     kpis = `
       <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
@@ -112,7 +112,7 @@ function renderShell(c) {
       <div class="card" style="padding:14px;margin-bottom:14px">
         <div class="flex items-center" style="justify-content:space-between;margin-bottom:8px"><div style="font-weight:600">🏹 Atacar primeiro</div><button class="btn btn-ghost btn-sm" onclick="location.hash='/meu-cerebro'">ver tudo →</button></div>
         ${!tl.length ? '<div class="tiny muted" style="padding:14px;text-align:center">Sem leads abertos.</div>' : tl.map(l => {
-          const tc = l.temp === 'quente' ? '#ef4444' : l.temp === 'morno' ? '#f59e0b' : '#806d50';
+          const tc = l.temp === 'quente' ? '#d64545' : l.temp === 'morno' ? '#c7861a' : '#806d50';
           return `<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--bd,var(--border))">
             <div style="min-width:0"><div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.title || 'Negócio')}</div><div class="tiny muted">${esc(l.stage_name || l.ms_label || '—')}${l.acao ? ' · ▶ ' + esc(l.acao) : ''}</div></div>
             <div style="text-align:right;white-space:nowrap"><div style="font-weight:600;color:${tc};font-size:13px">${Math.round((l.prob || 0) * 100)}%</div><div class="tiny muted">${BRL(l.amount || 0)}</div></div>

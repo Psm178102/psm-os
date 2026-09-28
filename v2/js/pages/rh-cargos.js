@@ -29,7 +29,7 @@ const CARGO_LVL = { socio: 10, diretor: 10, gerente: 7, gerente_conquista: 7, ge
 // ── ESTRUTURA SOCIETÁRIA (pedido do Paulo, v84.7) ──
 const ORG = [
   {
-    id: 'holding', nome: '🏛 HOLDING PSM', cor: '#7c3aed',
+    id: 'holding', nome: '🏛 HOLDING PSM', cor: '#806d50',
     sub: 'Sócios + estrutura compartilhada que atende as duas empresas',
     niveis: [
       { titulo: 'Sociedade', cargos: ['socio', 'diretor'] },
@@ -45,7 +45,7 @@ const ORG = [
     ],
   },
   {
-    id: 'conquista', nome: '🏠 PSM CONQUISTA', cor: '#f59e0b',
+    id: 'conquista', nome: '🏠 PSM CONQUISTA', cor: '#c7861a',
     sub: 'Residencial / MCMV / primeiro imóvel',
     niveis: [
       { titulo: 'Gestão', cargos: ['gerente_conquista'] },
@@ -163,7 +163,7 @@ function avatar(u, size = 34) {
   const p = _perfil[u.id] || {};
   const ini = esc((u.ini || (u.name || '?').slice(0, 2)).toUpperCase());
   if (p.foto) return `<img src="${esc(p.foto)}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex:none" alt="">`;
-  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${u.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:${Math.round(size * 0.36)}px;flex:none">${ini}</div>`;
+  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${u.color || '#8a8579'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:${Math.round(size * 0.36)}px;flex:none">${ini}</div>`;
 }
 
 function render() {

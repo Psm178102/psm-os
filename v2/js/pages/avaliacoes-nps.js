@@ -13,12 +13,12 @@ let _host = null, _d = null, _busy = false, _aba = 'kanban', _fOrigem = '', _bus
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const ORIGENS = {
-  map: ['🏘 MAP', '#806d50'], conquista: ['🚀 Conquista', '#d97706'],
-  terceiros: ['🤝 Terceiros', '#7c3aed'], locacoes: ['🔑 Locação', '#806d50'],
-  manual: ['✍️ Manual', '#64748b'],
+  map: ['🏘 MAP', '#806d50'], conquista: ['🚀 Conquista', '#c7861a'],
+  terceiros: ['🤝 Terceiros', '#806d50'], locacoes: ['🔑 Locação', '#806d50'],
+  manual: ['✍️ Manual', '#8a8579'],
 };
 const MOTIVOS = ['duplicado', 'não quis avaliar', 'não responde'];
-const notaCor = n => n >= 9 ? '#16a34a' : n >= 7 ? '#d97706' : '#dc2626';
+const notaCor = n => n >= 9 ? '#239a5b' : n >= 7 ? '#c7861a' : '#d64545';
 const hojeStr = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -34,9 +34,9 @@ const prazoStatus = c => { // 'atrasada' | 'hoje' | 'amanha' | null
   return d < hojeStr() ? 'atrasada' : d === hojeStr() ? 'hoje' : d === amanhaStr() ? 'amanha' : null;
 };
 const PRAZO_UI = {
-  atrasada: ['#dc2626', '⏰ ATRASADO'],
-  hoje: ['#d97706', '📅 VENCE HOJE'],
-  amanha: ['#eab308', '⚠️ VENCE AMANHÃ'],
+  atrasada: ['#d64545', '⏰ ATRASADO'],
+  hoje: ['#c7861a', '📅 VENCE HOJE'],
+  amanha: ['#c7861a', '⚠️ VENCE AMANHÃ'],
 };
 
 export async function pageAvaliacoesNps(ctx, root) { _host = root; await reload(); }
@@ -67,7 +67,7 @@ async function post(body, okMsg) {
 }
 
 function tagInfo(id) {
-  return (_d.cfg.etiquetas || []).find(t => t.id === id) || { id, nome: id, cor: '#64748b' };
+  return (_d.cfg.etiquetas || []).find(t => t.id === id) || { id, nome: id, cor: '#8a8579' };
 }
 
 function corretorNome(c) {
@@ -148,12 +148,12 @@ function render() {
       const cob = cs.length ? Math.round(comNota.length / cs.length * 100) : 0;
       const mini = (l, v, cor) => `<div style="flex:1;min-width:105px;background:var(--bg-2);border-radius:var(--radius-md);padding:6px 10px;border-left:3px solid ${cor}"><div class="tiny muted">${l}</div><div style="font-weight:600;font-size:16px">${v}</div></div>`;
       return `<div class="flex mt-2" style="gap:8px;flex-wrap:wrap">
-        ${mini('📊 NPS', nps === null ? '—' : nps, nps === null ? '#64748b' : nps >= 50 ? '#16a34a' : nps >= 0 ? '#d97706' : '#dc2626')}
+        ${mini('📊 NPS', nps === null ? '—' : nps, nps === null ? '#8a8579' : nps >= 50 ? '#239a5b' : nps >= 0 ? '#c7861a' : '#d64545')}
         ${mini('⭐ Nota média', media, '#806d50')}
-        ${mini('🌟 Promotores (9–10)', prom, '#16a34a')}
-        ${mini('😐 Neutros (7–8)', neut, '#d97706')}
-        ${mini('🔴 Detratores (0–6)', detr, '#dc2626')}
-        ${mini('📋 Cobertura', cob + '%', cob >= 80 ? '#16a34a' : '#d97706')}
+        ${mini('🌟 Promotores (9–10)', prom, '#239a5b')}
+        ${mini('😐 Neutros (7–8)', neut, '#c7861a')}
+        ${mini('🔴 Detratores (0–6)', detr, '#d64545')}
+        ${mini('📋 Cobertura', cob + '%', cob >= 80 ? '#239a5b' : '#c7861a')}
       </div>`;
     })()}
     <div class="mt-2" style="display:flex;gap:10px;overflow-x:auto;align-items:flex-start;padding-bottom:8px">
@@ -281,7 +281,7 @@ function abrirCard(id) {
         ${(_d.cfg.colunas || []).filter(col => col.id !== c.coluna).map(col => `<button class="btn btn-ghost btn-sm av-mv" data-col="${esc(col.id)}" style="padding:3px 11px;border:1px solid ${esc(col.cor)}55">${esc(col.emoji)} ${esc(col.nome)}</button>`).join('')}
       </div>
     </div>
-    <div style="background:${c.nota != null ? notaCor(c.nota) : '#64748b'}12;border-radius:var(--radius-md);padding:10px;margin-top:8px">
+    <div style="background:${c.nota != null ? notaCor(c.nota) : '#8a8579'}12;border-radius:var(--radius-md);padding:10px;margin-top:8px">
       <label class="tiny muted" style="font-weight:600">⭐ Nota (0–10) + feedback ${c.nota != null ? '— já coletada, pode corrigir' : ''}</label>
       <div class="flex" style="gap:6px;flex-wrap:wrap;margin-top:4px;align-items:flex-start">
         <input class="input" id="av-nota" type="number" min="0" max="10" step="1" value="${c.nota ?? ''}" placeholder="0–10" style="width:80px;font-weight:600;font-size:16px">
@@ -561,12 +561,12 @@ function abrirCfg() {
   wireDel(); wireMove();
   ov.querySelector('#cg-addcol').onclick = () => {
     const d = document.createElement('div');
-    d.innerHTML = colRow({ id: '', emoji: '📌', nome: '', cor: '#64748b' });
+    d.innerHTML = colRow({ id: '', emoji: '📌', nome: '', cor: '#8a8579' });
     ov.querySelector('#cg-cols').appendChild(d.firstElementChild); wireDel(); wireMove();
   };
   ov.querySelector('#cg-addtag').onclick = () => {
     const d = document.createElement('div');
-    d.innerHTML = tagRow({ id: '', nome: '', cor: '#64748b' });
+    d.innerHTML = tagRow({ id: '', nome: '', cor: '#8a8579' });
     ov.querySelector('#cg-tags').appendChild(d.firstElementChild); wireDel();
   };
   ov.querySelector('#cg-x').onclick = () => ov.remove();

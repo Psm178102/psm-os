@@ -13,10 +13,10 @@ const MES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out
 
 const METRICS = [
   { id: 'vgv',          key: 'meta_vgv',          lbl: 'VGV',          ico: '💰', money: true,  color: '#806d50' },
-  { id: 'vendas',       key: 'meta_vendas',       lbl: 'Vendas',       ico: '🏆', money: false, color: '#16a34a' },
-  { id: 'agendamentos', key: 'meta_agendamentos', lbl: 'Agendamentos', ico: '📅', money: false, color: '#7c3aed' },
+  { id: 'vendas',       key: 'meta_vendas',       lbl: 'Vendas',       ico: '🏆', money: false, color: 'var(--ok)' },
+  { id: 'agendamentos', key: 'meta_agendamentos', lbl: 'Agendamentos', ico: '📅', money: false, color: 'var(--accent-ink)' },
   { id: 'visitas',      key: 'meta_visitas',      lbl: 'Visitas',      ico: '🚪', money: false, color: '#806d50' },
-  { id: 'pastas',       key: 'meta_pastas',       lbl: 'Pastas',       ico: '📁', money: false, color: '#d97706' },
+  { id: 'pastas',       key: 'meta_pastas',       lbl: 'Pastas',       ico: '📁', money: false, color: 'var(--warn)' },
 ];
 const ALL_KEYS = ['meta_vgv', 'meta_vendas', 'meta_agendamentos', 'meta_visitas', 'meta_pastas', 'meta_propostas'];
 
@@ -77,7 +77,7 @@ function forecastPanel(d, grid) {
   const mesesRest = Math.max(0, 12 - 12 * fracao);
   const necMes = mesesRest > 0 ? falta / mesesRest : 0;
   const ritmoMes = fracao > 0 ? atingido / (12 * fracao) : 0;
-  const st = ritmoPct >= 100 ? { t: '🟢 No ritmo / à frente', c: '#16a34a' } : ritmoPct >= 90 ? { t: '🟡 Levemente atrás', c: '#d97706' } : { t: '🔴 Atrás do ritmo', c: '#dc2626' };
+  const st = ritmoPct >= 100 ? { t: '🟢 No ritmo / à frente', c: 'var(--ok)' } : ritmoPct >= 90 ? { t: '🟡 Levemente atrás', c: 'var(--warn)' } : { t: '🔴 Atrás do ritmo', c: 'var(--err)' };
   const mny = v => 'R$ ' + money(v);
   const box = (l, v, sub, c) => `<div style="background:var(--bg-2);border-radius:var(--radius-md);padding:12px;border-left:4px solid ${c || 'var(--border)'}"><div class="tiny muted" style="font-weight:600">${l}</div><div style="font-size:16px;font-weight:600;margin-top:3px;color:${c || ''}">${v}</div>${sub ? `<div class="tiny muted" style="margin-top:2px">${sub}</div>` : ''}</div>`;
   return `
@@ -87,10 +87,10 @@ function forecastPanel(d, grid) {
       <div style="font-weight:600;color:${st.c}">${st.t} · ${ritmoPct >= 999 ? '∞%' : pct2(ritmoPct)} do ritmo</div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px">
-      ${box('🎯 Meta anual', mny(metaAno), 'esperado até hoje ' + mny(metaProRata), '#334155')}
+      ${box('🎯 Meta anual', mny(metaAno), 'esperado até hoje ' + mny(metaProRata), 'var(--ink-2)')}
       ${box('↑ Atingido (YTD)', mny(atingido), vendas + ' vendas · ritmo ' + mny(ritmoMes) + '/mês', st.c)}
-      ${box('📈 Projeção fim do ano', mny(forecast), (gap >= 0 ? '✅ ' + mny(gap) + ' acima' : '⚠️ ' + mny(-gap) + ' abaixo') + ' da meta', gap >= 0 ? '#16a34a' : '#dc2626')}
-      ${box('🎯 Pra bater a meta', mny(necMes) + '/mês', 'faltam ' + mny(falta) + ' em ' + mesesRest.toFixed(1) + ' meses', necMes > ritmoMes * 1.05 ? '#dc2626' : '#16a34a')}
+      ${box('📈 Projeção fim do ano', mny(forecast), (gap >= 0 ? '✅ ' + mny(gap) + ' acima' : '⚠️ ' + mny(-gap) + ' abaixo') + ' da meta', gap >= 0 ? 'var(--ok)' : 'var(--err)')}
+      ${box('🎯 Pra bater a meta', mny(necMes) + '/mês', 'faltam ' + mny(falta) + ' em ' + mesesRest.toFixed(1) + ' meses', necMes > ritmoMes * 1.05 ? 'var(--err)' : 'var(--ok)')}
     </div>
     <div class="tiny muted" style="margin-top:8px">💡 No ritmo atual (${mny(ritmoMes)}/mês) você fecha <b>${mny(forecast)}</b>. Pra bater a meta de ${mny(metaAno)}, precisa de <b>${mny(necMes)}/mês</b> nos meses que faltam${necMes > ritmoMes * 1.05 ? ' — <b style="color:var(--err)">acima do ritmo de hoje</b>, então ou acelera as vendas ou recalibra a meta.' : ' — dentro/abaixo do ritmo de hoje. ✅'}</div>
   </div>`;
@@ -136,7 +136,7 @@ function render() {
       <!-- KPIs -->
       <div class="flex gap-3 mt-3" style="flex-wrap:wrap">
         ${kpi(`${m.ico} Meta ${m.lbl} · ${_ano}`, fmtVal(totalAno, m.money), `total · ${grid.length} corretores`, m.color)}
-        ${m.id === 'vgv' ? kpi('↑ Atingido VGV', 'R$ ' + money(atingidoVgv), `${(d.totals && d.totals.vendas_count) || 0} vendas (RD)`, atingidoVgv >= totalAno ? '#16a34a' : '#d97706') : ''}
+        ${m.id === 'vgv' ? kpi('↑ Atingido VGV', 'R$ ' + money(atingidoVgv), `${(d.totals && d.totals.vendas_count) || 0} vendas (RD)`, atingidoVgv >= totalAno ? 'var(--ok)' : 'var(--warn)') : ''}
         ${pctVgv != null ? kpi('% Atingimento', pct2(pctVgv), atingidoDaMeta !== atingidoVgv ? 'só de quem tem meta (sem desligados/sem corretor)' : 'atingido ÷ meta', pctColor(pctVgv)) : ''}
       </div>
 
@@ -151,7 +151,7 @@ function render() {
       <!-- Seletor de PERÍODO -->
       <div class="flex gap-2 mt-2" style="flex-wrap:wrap;align-items:center">
         <span class="tiny muted" style="font-weight:600;letter-spacing:.5px">PERÍODO:</span>
-        ${Object.keys(PERIODS).map(p => pill(p === _period, PERIODS[p].lbl, `mt-per-${p}`, '#334155')).join('')}
+        ${Object.keys(PERIODS).map(p => pill(p === _period, PERIODS[p].lbl, `mt-per-${p}`, 'var(--ink-2)')).join('')}
       </div>
 
       <!-- Tabela -->
@@ -191,7 +191,7 @@ async function projOficial() {
   const p = pj.empresa || Object.values(pj.equipes || {})[0];
   if (!p) { el.innerHTML = ''; return; }
   const mny = v => 'R$ ' + money(v);
-  const st = { batida: ['🏆 Meta do ano batida', '#16a34a'], no_ritmo: ['🟢 Vai bater a meta', '#16a34a'], atras: ['🟡 Atrás (70–99% da meta)', '#d97706'], fora: ['🔴 Fora (< 70% da meta)', '#dc2626'], sem_meta: ['⚪ Sem meta', '#64748b'] }[p.status] || ['—', '#64748b'];
+  const st = { batida: ['🏆 Meta do ano batida', 'var(--ok)'], no_ritmo: ['🟢 Vai bater a meta', 'var(--ok)'], atras: ['🟡 Atrás (70–99% da meta)', 'var(--warn)'], fora: ['🔴 Fora (< 70% da meta)', 'var(--err)'], sem_meta: ['⚪ Sem meta', 'var(--ink-muted)'] }[p.status] || ['—', 'var(--ink-muted)'];
   const box = (l, v, sub, c) => `<div style="background:var(--bg-2);border-radius:var(--radius-md);padding:12px;border-left:4px solid ${c || 'var(--border)'}"><div class="tiny muted" style="font-weight:600">${l}</div><div style="font-size:16px;font-weight:600;margin-top:3px;color:${c || ''}">${v}</div>${sub ? `<div class="tiny muted" style="margin-top:2px">${sub}</div>` : ''}</div>`;
   const hz = pj.horizonte, du = hz.dias_uteis;
   const eqs = Object.entries(pj.equipes || {}).filter(([, e]) => e.meta.vgv > 0);
@@ -202,10 +202,10 @@ async function projOficial() {
       <div style="font-weight:600;color:${st[1]}">${st[0]}${p.provavel.pct_meta != null ? ' · ' + pct2(p.provavel.pct_meta) + ' da meta' : ''}</div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px">
-      ${box('🎯 Meta anual', mny(p.meta.vgv), 'esperado até hoje ' + mny(p.meta.vgv_ate_hoje), '#334155')}
+      ${box('🎯 Meta anual', mny(p.meta.vgv), 'esperado até hoje ' + mny(p.meta.vgv_ate_hoje), 'var(--ink-2)')}
       ${box('↑ Realizado', mny(p.realizado.vgv), p.realizado.vendas + ' vendas' + (p.realizado.pct_meta != null ? ' · ' + pct2(p.realizado.pct_meta) : ''), st[1])}
       ${box('📈 Fechamento provável', mny(p.provavel.vgv), 'faixa ' + mny(p.conservador.vgv) + ' – ' + mny(p.otimista.vgv), st[1])}
-      ${box('🎯 Pra bater a meta', p.por_dia_util_vgv ? mny(p.por_dia_util_vgv) + '/dia útil' : '✓', p.falta_vgv ? 'faltam ' + mny(p.falta_vgv) + ' (≈ ' + p.falta_vendas + ' vendas)' : 'meta batida', p.falta_vgv ? '#dc2626' : '#16a34a')}
+      ${box('🎯 Pra bater a meta', p.por_dia_util_vgv ? mny(p.por_dia_util_vgv) + '/dia útil' : '✓', p.falta_vgv ? 'faltam ' + mny(p.falta_vgv) + ' (≈ ' + p.falta_vendas + ' vendas)' : 'meta batida', p.falta_vgv ? 'var(--err)' : 'var(--ok)')}
     </div>
     ${eqs.length > 1 ? `<div class="tiny" style="margin-top:8px">${eqs.map(([tk, e]) => `<b>${esc(tk)}</b>: provável ${mny(e.provavel.vgv)} de ${mny(e.meta.vgv)} (${e.provavel.pct_meta != null ? pct2(e.provavel.pct_meta) : '—'})`).join(' · ')}</div>` : ''}
   </div>`;
@@ -250,7 +250,7 @@ function brokerRow(g, per, editable) {
     <tr style="border-bottom:1px solid var(--border)">
       <td style="padding:5px 10px;position:sticky;left:0;background:var(--bg);z-index:1">
         <span style="display:inline-flex;align-items:center;gap:7px">
-          <span style="width:20px;height:20px;border-radius:var(--radius-sm);background:${u.color || '#64748b'};color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:11px">${ini}</span>
+          <span style="width:20px;height:20px;border-radius:var(--radius-sm);background:${u.color || 'var(--ink-muted)'};color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:11px">${ini}</span>
           <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px" title="${esc(u.name)}">${esc(u.name || '—')}</span>
         </span>
       </td>
@@ -451,5 +451,5 @@ function fmtVal(n, isMoney) {
 }
 function money(n) { if (n == null || isNaN(n)) return '0,00'; return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function pct2(v){ return v==null?'—':(Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%'; }
-function pctColor(p) { if (p == null) return 'var(--ink-muted)'; if (p < 50) return '#dc2626'; if (p < 90) return '#d97706'; if (p < 110) return '#16a34a'; return '#065f46'; }
+function pctColor(p) { if (p == null) return 'var(--ink-muted)'; if (p < 50) return 'var(--err)'; if (p < 90) return 'var(--warn)'; if (p < 110) return 'var(--ok)'; return 'var(--ok)'; }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

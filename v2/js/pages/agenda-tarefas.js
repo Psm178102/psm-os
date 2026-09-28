@@ -47,7 +47,7 @@ const STATUS_EVT = [['agendado', 'Agendado'], ['confirmado', 'Confirmado'], ['re
 const ATRASAVEL = { tarefa: 1, criativo: 1, conteudo: 1 };   // compromisso que passou não "atrasa": já aconteceu
 const VIEWS = [['dia', 'Dia'], ['semana', 'Semana'], ['mes', 'Mês'], ['lista', 'Lista'], ['quadro', 'Quadro']];
 const FILTROS = [
-  ['tudo', 'Tudo', '#94a3b8', () => true],
+  ['tudo', 'Tudo', 'var(--ink-muted)', () => true],
   ['tarefas', 'Tarefas', CORES.tarefa, i => i.kind === 'tarefa'],
   ['compromissos', 'Compromissos', CORES.reuniao, i => i.kind === 'evento' && i.tipo !== 'plantao'],
   ['visitas', 'Visitas', CORES.visita, i => i.kind === 'evento' && i.tipo === 'visita'],

@@ -5,7 +5,7 @@ const AGENT = {
   id: 'sol',
   name: 'Sol',
   ico: '☀️',
-  color: '#f59e0b',
+  color: 'var(--warn)',
   line: 'PSM Conquista',
   desc: 'Prospecção, atendimento e nutrição de leads para incorporação e loteamento',
   capacidades: [

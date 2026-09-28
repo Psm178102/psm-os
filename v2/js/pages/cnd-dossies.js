@@ -25,26 +25,26 @@ const hojeStr = () => hojeISO(); // v86.68: hoje local (BRT)
 
 /* status da EMISSÃO (o caminho até ter o papel na mão) */
 const ST_CERT = {
-  aguardando:  ['⏳ Aguardando', '#a16207'],
-  emitida:     ['✅ Emitida', '#16a34a'],
-  nao_emitida: ['⚪ Não emitida', '#64748b'],
-  bloqueada:   ['🚫 Bloqueada', '#dc2626'],
+  aguardando:  ['⏳ Aguardando', '#c7861a'],
+  emitida:     ['✅ Emitida', '#239a5b'],
+  nao_emitida: ['⚪ Não emitida', '#8a8579'],
+  bloqueada:   ['🚫 Bloqueada', '#d64545'],
 };
 /* resultado da certidão emitida (o que ela DIZ) — é o que decide o negócio */
 const RES_CERT = {
-  negativa: ['🟢 NEGATIVA (nada consta)', '#16a34a'],
-  positiva: ['🔴 POSITIVA (tem débito)', '#dc2626'],
+  negativa: ['🟢 NEGATIVA (nada consta)', '#239a5b'],
+  positiva: ['🔴 POSITIVA (tem débito)', '#d64545'],
 };
 /* os 3 tipos que a PSM aceita (v84.70) */
 const GARANTIAS = {
   fiador: 'Fiador', seguro: 'Seguro-fiança', capitalizacao: 'Título de capitalização',
 };
 const ST_GARANTIA = {
-  nao_definida: ['⚪ Não definida', '#64748b'],
-  em_analise:   ['🔎 Em análise', '#a16207'],
-  pendente_doc: ['📄 PENDENTE DOC', '#7c3aed'],
-  aprovada:     ['✅ APROVADA', '#16a34a'],
-  reprovada:    ['❌ REPROVADA', '#dc2626'],
+  nao_definida: ['⚪ Não definida', '#8a8579'],
+  em_analise:   ['🔎 Em análise', '#c7861a'],
+  pendente_doc: ['📄 PENDENTE DOC', '#806d50'],
+  aprovada:     ['✅ APROVADA', '#239a5b'],
+  reprovada:    ['❌ REPROVADA', '#d64545'],
 };
 const PAPEIS_VENDA = { comprador: 'Comprador', vendedor: 'Vendedor' };
 const PAPEIS_LOC = { locatario: 'Locatário', locador: 'Locador', fiador: 'Fiador' };
@@ -53,7 +53,7 @@ const PAPEIS_INT = { candidato: 'Candidato' };
 const TIPOS = {
   venda:   { lbl: '🏠 Venda', cor: '#806d50' },
   locacao: { lbl: '🔑 Locação', cor: '#806d50' },
-  interno: { lbl: '🧑‍💼 Interno', cor: '#b45309' },
+  interno: { lbl: '🧑‍💼 Interno', cor: '#c7861a' },
 };
 const tipoDe = t => TIPOS[t] || TIPOS.venda;
 const chipTipo = t => { const x = tipoDe(t); return `<span class="tiny" style="background:${x.cor}20;color:${x.cor};border-radius:var(--radius-lg);padding:1px 9px;font-weight:600">${x.lbl}</span>`; };

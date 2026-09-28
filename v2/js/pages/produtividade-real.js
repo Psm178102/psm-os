@@ -15,10 +15,10 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const fmtK = n => (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });   // v88.37: valor cheio (era 1,0M / 784k)
 
 const QUAD = {
-  maquina:             ['🟢 Máquina', '#16a34a', 'Alta atividade, alto rendimento — dar MAIS lead: é o melhor ROI da casa.'],
+  maquina:             ['🟢 Máquina', 'var(--ok)', 'Alta atividade, alto rendimento — dar MAIS lead: é o melhor ROI da casa.'],
   talento_ocioso:      ['🔵 Talento ocioso', '#806d50', 'Converte bem e trabalha pouco — cobrar VOLUME: o upside mais barato.'],
-  esforco_sem_tecnica: ['🟡 Esforço sem técnica', '#d97706', 'Trabalha muito e converte pouco — role-play, campo com o gestor, revisar script.'],
-  escada:              ['🔴 Escada', '#dc2626', 'Atividade e rendimento baixos — degrau 1 da escada de consequência, no 1:1.'],
+  esforco_sem_tecnica: ['🟡 Esforço sem técnica', 'var(--warn)', 'Trabalha muito e converte pouco — role-play, campo com o gestor, revisar script.'],
+  escada:              ['🔴 Escada', 'var(--err)', 'Atividade e rendimento baixos — degrau 1 da escada de consequência, no 1:1.'],
 };
 
 export async function pageProdutividadeReal(ctx, root) {

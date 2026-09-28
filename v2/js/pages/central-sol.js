@@ -793,11 +793,11 @@ async function desenhaGraficoVisao(body) {
   try { Chart = await loadChartLib(); } catch (_) { /* fallback CSS */ }
   const el = wrap.querySelector('#sol-canvas');
   if (Chart && el && el.isConnected) {
-    const ink = (getComputedStyle(document.documentElement).getPropertyValue('--ink-muted') || '#94a3b8').trim();
+    const ink = (getComputedStyle(document.documentElement).getPropertyValue('--ink-muted') || '#8a8579').trim();
     _charts.push(new Chart(el, {
       type: 'bar',
       data: { labels, datasets: [
-        { label: 'Agendamentos', data: ag, backgroundColor: '#22c55e', borderRadius: 3 },
+        { label: 'Agendamentos', data: ag, backgroundColor: '#239a5b', borderRadius: 3 },
         { label: 'Qualificados', data: qa, backgroundColor: '#806d50', borderRadius: 3 },
       ] },
       options: {
@@ -834,15 +834,15 @@ async function desenhaGraficoGastos(body, serie) {
   try { Chart = await loadChartLib(); } catch (_) { /* fallback CSS */ }
   const el = wrap.querySelector('#sol-custo-canvas');
   if (Chart && el && el.isConnected) {
-    const ink = (getComputedStyle(document.documentElement).getPropertyValue('--ink-muted') || '#94a3b8').trim();
+    const ink = (getComputedStyle(document.documentElement).getPropertyValue('--ink-muted') || '#8a8579').trim();
     _charts.push(new Chart(el, {
       data: {
         labels,
         datasets: [
-          { type: 'line', label: 'Acumulado (R$)', data: acum, borderColor: '#22c55e', pointRadius: 0, tension: .25, yAxisID: 'y2' },
-          { type: 'bar', label: 'Meta (templates)', data: tpl, backgroundColor: '#f59e0b', stack: 's' },
+          { type: 'line', label: 'Acumulado (R$)', data: acum, borderColor: '#239a5b', pointRadius: 0, tension: .25, yAxisID: 'y2' },
+          { type: 'bar', label: 'Meta (templates)', data: tpl, backgroundColor: '#c7861a', stack: 's' },
           { type: 'bar', label: 'IA', data: ia, backgroundColor: '#a78bfa', stack: 's' },
-          { type: 'bar', label: 'Fixos', data: fx, backgroundColor: '#64748b', stack: 's' },
+          { type: 'bar', label: 'Fixos', data: fx, backgroundColor: '#8a8579', stack: 's' },
         ],
       },
       options: {
@@ -851,7 +851,7 @@ async function desenhaGraficoGastos(body, serie) {
         scales: {
           x: { stacked: true, ticks: { color: ink, font: { size: 9 } }, grid: { display: false } },
           y: { stacked: true, ticks: { color: ink, font: { size: 10 } }, grid: { color: 'rgba(148,163,184,.14)' }, beginAtZero: true },
-          y2: { position: 'right', ticks: { color: '#22c55e', font: { size: 10 } }, grid: { drawOnChartArea: false }, beginAtZero: true },
+          y2: { position: 'right', ticks: { color: '#239a5b', font: { size: 10 } }, grid: { drawOnChartArea: false }, beginAtZero: true },
         },
       },
     }));

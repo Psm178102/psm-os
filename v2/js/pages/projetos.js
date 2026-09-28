@@ -14,18 +14,18 @@ const _board = 'projetos';
 
 const AREAS = ['Comercial', 'Marketing', 'Produto / Sistema', 'Pessoas / RH', 'Financeiro', 'Expansão', 'Operações'];
 const PRIOR = ['Alta', 'Média', 'Baixa'];
-const PRIOR_COR = { 'Alta': '#ef4444', 'Média': '#f59e0b', 'Baixa': '#64748b' };
+const PRIOR_COR = { 'Alta': '#d64545', 'Média': '#c7861a', 'Baixa': '#8a8579' };
 const RESP_SUGEST = ['Paulo', 'Guilherme', 'Isabella'];
 
 const STAGES = [
-  { id: 'ideia',        lbl: '💡 Ideia',        cor: '#64748b' },
+  { id: 'ideia',        lbl: '💡 Ideia',        cor: '#8a8579' },
   { id: 'planejamento', lbl: '📋 Planejamento', cor: '#806d50' },
-  { id: 'andamento',    lbl: '🚧 Em andamento', cor: '#f59e0b' },
-  { id: 'revisao',      lbl: '👁 Em revisão',   cor: '#8b5cf6' },
-  { id: 'concluido',    lbl: '✅ Concluído',    cor: '#16a34a' },
-  { id: 'pausado',      lbl: '⏸ Pausado',       cor: '#94a3b8' },
+  { id: 'andamento',    lbl: '🚧 Em andamento', cor: '#c7861a' },
+  { id: 'revisao',      lbl: '👁 Em revisão',   cor: '#806d50' },
+  { id: 'concluido',    lbl: '✅ Concluído',    cor: '#239a5b' },
+  { id: 'pausado',      lbl: '⏸ Pausado',       cor: '#8a8579' },
 ];
-const stageInfo = id => STAGES.find(s => s.id === id) || { lbl: id || '—', cor: '#64748b' };
+const stageInfo = id => STAGES.find(s => s.id === id) || { lbl: id || '—', cor: '#8a8579' };
 
 const CHECK = [
   { k: 'escopo',     l: '🎯 Escopo definido' },
@@ -38,8 +38,8 @@ const CHECK = [
 ];
 const checkDone = c => CHECK.filter(x => (c.checklist || {})[x.k]).length;
 
-const COR = ['#806d50', '#16a34a', '#d6249f', '#8b5cf6', '#f59e0b', '#ef4444', '#806d50'];
-const areaCor = a => COR[(AREAS.indexOf(a) + 7) % COR.length] || '#64748b';
+const COR = ['#806d50', '#239a5b', '#d6249f', '#806d50', '#c7861a', '#d64545', '#806d50'];
+const areaCor = a => COR[(AREAS.indexOf(a) + 7) % COR.length] || '#8a8579';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const fmtData = d => d ? String(d).substring(0, 10).split('-').reverse().join('/') : '';
@@ -152,7 +152,7 @@ function card(c) {
       <div style="font-weight:600;font-size:13px;line-height:1.3">${esc(c.titulo || 'Sem nome')}</div>
       <div class="flex gap-1" style="flex-wrap:wrap;margin-top:6px">
         ${c.plataforma ? `<span class="pj-chip" style="background:${areaCor(c.plataforma)}1f;color:${areaCor(c.plataforma)}">${esc(c.plataforma)}</span>` : ''}
-        ${c.formato ? `<span class="pj-chip" style="background:${(PRIOR_COR[c.formato] || '#64748b')}1f;color:${PRIOR_COR[c.formato] || 'var(--ink-muted)'}">⚑ ${esc(c.formato)}</span>` : ''}
+        ${c.formato ? `<span class="pj-chip" style="background:${(PRIOR_COR[c.formato] || '#8a8579')}1f;color:${PRIOR_COR[c.formato] || 'var(--ink-muted)'}">⚑ ${esc(c.formato)}</span>` : ''}
         ${c.data_ref ? `<span class="pj-chip" style="background:${atras ? 'rgba(239,68,68,.16)' : 'rgba(148,163,184,.16)'};color:${atras ? 'var(--err)' : 'var(--ink,#475569)'}">📅 ${esc(fmtData(c.data_ref))}${atras ? ' ⚠' : ''}</span>` : ''}
         ${(() => { if (!c.okr_id) return ''; const o = _okrs.find(x => x.id === c.okr_id); if (!o) return ''; const t = o.objetivo.length > 24 ? o.objetivo.slice(0, 23) + '…' : o.objetivo; return `<span class="pj-chip" style="background:var(--accent-soft);color:var(--warn)" title="OKR: ${esc(o.objetivo)}">🎯 ${esc(t)}</span>`; })()}
       </div>
@@ -257,7 +257,7 @@ function renderInsights() {
   const f = filtered();
   if (!f.length) return '<div class="muted tiny">Sem projetos ainda — crie o primeiro em "+ Novo projeto".</div>';
   const ins = computeInsights(f);
-  const SEV = { red: '#ef4444', amber: '#f59e0b', green: '#16a34a' };
+  const SEV = { red: '#d64545', amber: '#c7861a', green: '#239a5b' };
   const linha = c => `<div class="pj-row" data-card="${esc(c.id)}">
       <span style="font-size:14px">${stageInfo(c.status).lbl.split(' ')[0]}</span>
       <div style="flex:1;min-width:0">

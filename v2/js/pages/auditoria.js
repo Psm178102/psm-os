@@ -6,15 +6,15 @@ import { api } from '../api.js';
 import { auth } from '../auth.js';
 
 const ACTION_LABELS = {
-  'auth.login_ok':              { ico: '🔓', lbl: 'Login OK',                color: '#16a34a' },
-  'auth.login_fail':            { ico: '⛔', lbl: 'Login falhou',            color: '#dc2626' },
+  'auth.login_ok':              { ico: '🔓', lbl: 'Login OK',                color: 'var(--ok)' },
+  'auth.login_fail':            { ico: '⛔', lbl: 'Login falhou',            color: 'var(--err)' },
   'auth.bootstrap_password':    { ico: '🆕', lbl: 'Senha inicial definida',   color: '#806d50' },
-  'auth.change_password':       { ico: '🔐', lbl: 'Senha alterada',          color: '#7c3aed' },
-  'auth.admin_set_password':    { ico: '🔧', lbl: 'Senha alterada (admin)',  color: '#d97706' },
-  'auth.admin_reset_password':  { ico: '🔑', lbl: 'Senha resetada (Sócio)',  color: '#d97706' },
-  'user.create':                { ico: '➕', lbl: 'Usuário criado',           color: '#16a34a' },
+  'auth.change_password':       { ico: '🔐', lbl: 'Senha alterada',          color: 'var(--accent-ink)' },
+  'auth.admin_set_password':    { ico: '🔧', lbl: 'Senha alterada (admin)',  color: 'var(--warn)' },
+  'auth.admin_reset_password':  { ico: '🔑', lbl: 'Senha resetada (Sócio)',  color: 'var(--warn)' },
+  'user.create':                { ico: '➕', lbl: 'Usuário criado',           color: 'var(--ok)' },
   'user.update':                { ico: '✏️', lbl: 'Usuário atualizado',      color: '#806d50' },
-  'user.delete':                { ico: '🗑',  lbl: 'Usuário removido',        color: '#dc2626' },
+  'user.delete':                { ico: '🗑',  lbl: 'Usuário removido',        color: 'var(--err)' },
 };
 
 let _entries = [];

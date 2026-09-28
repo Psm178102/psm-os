@@ -24,7 +24,7 @@ export function sparkSVG(vals, color) {
 export function deltaBadge(pct, invert) {
   if (pct == null || isNaN(pct)) return '<span style="font-size:11px;color:var(--ink-muted)">— vs ant.</span>';
   const good = invert ? pct <= 0 : pct >= 0;
-  const c = good ? '#22c55e' : '#f87171';
+  const c = good ? 'var(--ok)' : 'var(--err)';
   return `<span style="font-size:11px;font-weight:600;color:${c}">${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct).toFixed(1)}%</span>`;
 }
 
@@ -52,7 +52,7 @@ export function progressCard(label, value, sub, frac, color) {
 /* ── Mini stat (3-col dentro do hero) ──────────────────────────────────── */
 export function miniStat(label, val, color) {
   return `<div style="background:var(--surface-2);border-radius:var(--radius-md);padding:8px;text-align:center">
-    <div style="font-size:11px;color:var(--ink-muted)">${label}</div><div style="font-size:14px;font-weight:600;color:${color || '#f1f5f9'}">${val}</div></div>`;
+    <div style="font-size:11px;color:var(--ink-muted)">${label}</div><div style="font-size:14px;font-weight:600;color:${color || 'var(--surface-2)'}">${val}</div></div>`;
 }
 
 /* ── Container dark do hero ────────────────────────────────────────────── */

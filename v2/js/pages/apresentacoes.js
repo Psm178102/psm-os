@@ -13,7 +13,7 @@ const MARCAS = [
     sub: 'Residencial · MCMV · primeiro imóvel' },
   { id: 'assessoria', nome: 'PSM ASSESSORIA IMOBILIÁRIA', emoji: '🏛', cor: '#343434',
     sub: 'Alto padrão · assessoria completa' },
-  { id: 'locacoes', nome: 'PSM LOCAÇÕES', emoji: '🔑', cor: '#6e6752',
+  { id: 'locacoes', nome: 'PSM LOCAÇÕES', emoji: '🔑', cor: '#8a8579',
     sub: 'Locação e administração' },
 ];
 

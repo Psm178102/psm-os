@@ -13,7 +13,7 @@ const NICHOS = [
   { id: 'conquista', nome: 'Conquista', emoji: '🏆', cor: '#806d50' },
   { id: 'map',       nome: 'MAP',       emoji: '🏢', cor: '#343434' },
   { id: 'terceiros', nome: 'Terceiros', emoji: '🤝', cor: '#b8860b' },
-  { id: 'locacao',   nome: 'Locação',   emoji: '🔑', cor: '#6e6752' },
+  { id: 'locacao',   nome: 'Locação',   emoji: '🔑', cor: 'var(--ink-muted)' },
   { id: 'captacoes', nome: 'Captações', emoji: '📥', cor: '#0f766e' },
 ];
 

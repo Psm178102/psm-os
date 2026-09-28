@@ -9,9 +9,9 @@ let _root = null, _d = null, _view = 'fila', _busy = false;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const brl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const ST = [
-  ['contatado', '📱 Contatei', '#806d50'], ['proposta', '📄 Proposta', '#7c3aed'],
-  ['negociando', '🤝 Negociando', '#d97706'], ['fechou_rd', '🏆 Fechei (marcar no RD!)', '#16a34a'],
-  ['perdeu', '❌ Perdeu', '#dc2626'], ['futuro', '⏳ Futuro', '#64748b'],
+  ['contatado', '📱 Contatei', '#806d50'], ['proposta', '📄 Proposta', 'var(--accent-ink)'],
+  ['negociando', '🤝 Negociando', 'var(--warn)'], ['fechou_rd', '🏆 Fechei (marcar no RD!)', 'var(--ok)'],
+  ['perdeu', '❌ Perdeu', 'var(--err)'], ['futuro', '⏳ Futuro', 'var(--ink-muted)'],
 ];
 const FRENTE = { map: '🏠 MAP', terceiros: '🔁 Terceiros' };
 

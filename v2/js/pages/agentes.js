@@ -6,16 +6,16 @@ const AGENTS = [
   { id: 'ceo',          name: 'CEO PSM',       line: 'Diretoria · rede de agentes', ico: '🎩', color: '#806d50',
     desc: 'Braço direito executivo: visão do todo, prioridades, preparo de decisão e fiscalização do Plano de Resgate',
     channels: ['House PSM Chat', 'Rede de Agentes'], status: 'active', page: '/agente-ceo' },
-  { id: 'cfo',          name: 'Sr. CFO',       line: 'Diretoria · rede de agentes', ico: '💰', color: '#22c55e',
+  { id: 'cfo',          name: 'Sr. CFO',       line: 'Diretoria · rede de agentes', ico: '💰', color: '#239a5b',
     desc: 'Cérebro financeiro: caixa, dívida, margens, break-even e auditoria de incongruências',
     channels: ['House PSM Chat', 'Rede de Agentes'], status: 'active', page: '/agente-cfo' },
-  { id: 'cmo',          name: 'CMO PSM',       line: 'Diretoria · rede de agentes', ico: '📣', color: '#f59e0b',
+  { id: 'cmo',          name: 'CMO PSM',       line: 'Diretoria · rede de agentes', ico: '📣', color: '#c7861a',
     desc: 'Estratégia de marketing integrada: budget por nicho, CAC/ROAS e arbitragem dos executores',
     channels: ['House PSM Chat', 'Rede de Agentes'], status: 'active', page: '/agente-cmo' },
-  { id: 'vera',         name: 'Vera',          line: 'PSM Assessoria Imobiliária', ico: '💜', color: '#8b5cf6',
+  { id: 'vera',         name: 'Vera',          line: 'PSM Assessoria Imobiliária', ico: '💜', color: '#806d50',
     desc: 'Atendimento de leads, qualificação, nutrição e captação para assessoria imobiliária',
     channels: ['WhatsApp', 'Instagram DM'], status: 'config', page: '/agente-vera' },
-  { id: 'sol',          name: 'Sol',           line: 'PSM Conquista',              ico: '☀️', color: '#f59e0b',
+  { id: 'sol',          name: 'Sol',           line: 'PSM Conquista',              ico: '☀️', color: '#c7861a',
     desc: 'Prospecção, atendimento e nutrição de leads para incorporação e loteamento',
     channels: ['WhatsApp', 'Instagram DM'], status: 'pending', page: '/agente-sol' },
   { id: 'performance',  name: 'Sr. Performance', line: 'Mentor de Corretores',     ico: '🤖', color: '#0f172a',
@@ -24,7 +24,7 @@ const AGENTS = [
   { id: 'gerencia',     name: 'Sr. Gerência',  line: 'Gestão Operacional',         ico: '👔', color: '#806d50',
     desc: 'Organiza operação, corrige e orienta corretores com foco em resultados',
     channels: ['House PSM Chat'], status: 'pending', page: '/sr-gerencia' },
-  { id: 'intelligence', name: 'Sr. Intelligence', line: 'Inteligência Estratégica', ico: '🔍', color: '#059669',
+  { id: 'intelligence', name: 'Sr. Intelligence', line: 'Inteligência Estratégica', ico: '🔍', color: '#239a5b',
     desc: 'Audita, analisa concorrentes e orienta sócios e diretores com dados',
     channels: ['House PSM Chat'], status: 'pending', page: null },
 ];
@@ -50,9 +50,9 @@ export async function pageAgentes(ctx, root) {
       <p style="margin:6px 0 18px;color:var(--ink-muted)">Inteligência artificial a serviço da sua operação imobiliária</p>
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));gap:12px;margin-bottom:24px">
-        ${kpi('🧠', 'Agentes Totais', AGENTS.length, '#8b5cf6')}
-        ${kpi('🟢', 'Ativos', ativos, '#22c55e')}
-        ${kpi('🟡', 'Configurando', config, '#f59e0b')}
+        ${kpi('🧠', 'Agentes Totais', AGENTS.length, '#806d50')}
+        ${kpi('🟢', 'Ativos', ativos, '#239a5b')}
+        ${kpi('🟡', 'Configurando', config, '#c7861a')}
         ${kpi('💬', 'Conversas Ativas', '—', '#806d50')}
         ${kpi('📡', 'Canais Conectados', 1, '#806d50')}
       </div>
@@ -91,7 +91,7 @@ function kpi(ico, label, value, color) {
 
 function agentCard(a) {
   const status = STATUS_MAP[a.status] || '⚪ —';
-  const statusColor = a.status === 'active' ? '#22c55e' : a.status === 'config' ? '#f59e0b' : '#64748b';
+  const statusColor = a.status === 'active' ? '#239a5b' : a.status === 'config' ? '#c7861a' : '#8a8579';
   return `
     <div style="background:var(--surface-2);border-radius:var(--radius-lg);padding:20px;border:1px solid ${a.color}33">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">

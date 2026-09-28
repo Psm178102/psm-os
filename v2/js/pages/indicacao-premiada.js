@@ -15,10 +15,10 @@ let _aba = 'funil', _editFaixas = false, _editFluxo = null; // id do fluxo em ed
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const brl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const ST = {
-  nova: ['🆕 Nova', '#64748b'], qualificada: ['⭐ Qualificada', '#806d50'],
-  no_crm: ['🔗 No CRM', '#7c3aed'], vendida: ['💰 Vendida — prêmio a pagar', '#d97706'],
-  premio_aprovado: ['✔ Prêmio aprovado', '#806d50'], premio_pago: ['✅ Prêmio pago', '#16a34a'],
-  perdida: ['❌ Perdida', '#dc2626'],
+  nova: ['🆕 Nova', '#8a8579'], qualificada: ['⭐ Qualificada', '#806d50'],
+  no_crm: ['🔗 No CRM', '#806d50'], vendida: ['💰 Vendida — prêmio a pagar', '#c7861a'],
+  premio_aprovado: ['✔ Prêmio aprovado', '#806d50'], premio_pago: ['✅ Prêmio pago', '#239a5b'],
+  perdida: ['❌ Perdida', '#d64545'],
 };
 
 export async function pageIndicacaoPremiada(ctx, root) { _root = root; await reload(); }
@@ -307,7 +307,7 @@ function botoes(it) {
 }
 
 function cardIndicacao(it) {
-  const [lbl, cor] = ST[it.status] || [it.status, '#64748b'];
+  const [lbl, cor] = ST[it.status] || [it.status, '#8a8579'];
   const deal = it.deal;
   return `<div class="card" style="margin:0 0 8px;padding:10px 12px;border-left:3px solid ${cor}">
     <div class="flex items-center" style="gap:8px;flex-wrap:wrap">

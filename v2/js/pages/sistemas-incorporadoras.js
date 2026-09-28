@@ -12,8 +12,8 @@ const _shown = new Set();   // ids com senha revelada nesta sessão de tela
 
 // Categoria de atuação da incorporadora (pode ser as duas ao mesmo tempo).
 const CATS = {
-  MAP:  { lbl: '🏙 MAP', full: 'Médio/Alto Padrão', bg: '#d4a84322', fg: '#a87b1e', bd: '#d4a843' },
-  MCMV: { lbl: '🏠 MCMV', full: 'Minha Casa Minha Vida', bg: '#16a34a22', fg: '#15803d', bd: '#16a34a' },
+  MAP:  { lbl: '🏙 MAP', full: 'Médio/Alto Padrão', bg: '#d4a84322', fg: '#a87b1e', bd: 'var(--accent-ink)' },
+  MCMV: { lbl: '🏠 MCMV', full: 'Minha Casa Minha Vida', bg: '#16a34a22', fg: 'var(--ok)', bd: 'var(--ok)' },
 };
 const catBadge = c => CATS[c] ? `<span title="${CATS[c].full}" style="background:${CATS[c].bg};color:${CATS[c].fg};font-weight:600;font-size:11px;padding:2px 9px;border-radius:var(--radius-lg);white-space:nowrap">${CATS[c].lbl}</span>` : '';
 

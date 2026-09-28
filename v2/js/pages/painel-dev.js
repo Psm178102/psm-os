@@ -15,9 +15,9 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': 
 const LETRA_ANIMAL = { I: 'aguia', C: 'gato', A: 'tubarao', O: 'lobo' };
 const PERFIS = {
   aguia:   { nome: 'Águia',   emoji: '🦅', cor: '#806d50', lema: 'Fazer Diferente', resumo: 'Criativa, intuitiva, visionária — foco no futuro, flexível e curiosa.', forte: 'Antecipa o futuro, provoca mudanças, criatividade e visão global.', melhoria: 'Falta de atenção ao aqui e agora; impaciência; defender o novo só por ser novo.', motiva: 'Liberdade de expressão, ausência de controles rígidos, ambiente descentralizado, delegar detalhes.' },
-  gato:    { nome: 'Gato',    emoji: '🐱', cor: '#16a34a', lema: 'Fazer Junto',     resumo: 'Sensível, relacional, focada em time, harmonia e contribuição.', forte: 'Mantém comunicação harmoniosa, desenvolve a cultura, une o grupo.', melhoria: 'Esconder conflitos; colocar a felicidade acima dos resultados; manipular pelos sentimentos.', motiva: 'Aceitação social, reconhecimento da equipe, ambiente harmônico, trabalho em grupo.' },
-  tubarao: { nome: 'Tubarão', emoji: '🦈', cor: '#dc2626', lema: 'Fazer Rápido',   resumo: 'Senso de urgência, ação, prática — vence desafios, aqui e agora.', forte: 'Faz acontecer, para com a burocracia, iniciativa e foco em resultado.', melhoria: 'Impaciência e rebeldia; não gostar de delegar; competir demais.', motiva: 'Liberdade para agir, controle das próprias atividades, competição individual, variedade de tarefas.' },
-  lobo:    { nome: 'Lobo',    emoji: '🐺', cor: '#7c3aed', lema: 'Fazer Certo',     resumo: 'Detalhista, organizado, estrategista — pontual, conservador, previsível.', forte: 'Consistência, conformidade e qualidade; estratégia e profundidade.', melhoria: 'Dificuldade de se adaptar a mudanças; pode travar o progresso; sistematização excessiva.', motiva: 'Regras claras, ausência de riscos/erros, segurança, ver o produto acabado (começo, meio e fim).' },
+  gato:    { nome: 'Gato',    emoji: '🐱', cor: '#239a5b', lema: 'Fazer Junto',     resumo: 'Sensível, relacional, focada em time, harmonia e contribuição.', forte: 'Mantém comunicação harmoniosa, desenvolve a cultura, une o grupo.', melhoria: 'Esconder conflitos; colocar a felicidade acima dos resultados; manipular pelos sentimentos.', motiva: 'Aceitação social, reconhecimento da equipe, ambiente harmônico, trabalho em grupo.' },
+  tubarao: { nome: 'Tubarão', emoji: '🦈', cor: '#d64545', lema: 'Fazer Rápido',   resumo: 'Senso de urgência, ação, prática — vence desafios, aqui e agora.', forte: 'Faz acontecer, para com a burocracia, iniciativa e foco em resultado.', melhoria: 'Impaciência e rebeldia; não gostar de delegar; competir demais.', motiva: 'Liberdade para agir, controle das próprias atividades, competição individual, variedade de tarefas.' },
+  lobo:    { nome: 'Lobo',    emoji: '🐺', cor: '#806d50', lema: 'Fazer Certo',     resumo: 'Detalhista, organizado, estrategista — pontual, conservador, previsível.', forte: 'Consistência, conformidade e qualidade; estratégia e profundidade.', melhoria: 'Dificuldade de se adaptar a mudanças; pode travar o progresso; sistematização excessiva.', motiva: 'Regras claras, ausência de riscos/erros, segurança, ver o produto acabado (começo, meio e fim).' },
 };
 // Teste IBC — 25 questões, 4 alternativas (letra → animal)
 const QUESTOES = [
@@ -67,9 +67,9 @@ async function patch(secao, valor, statusEl) {
   if (statusEl) statusEl.textContent = 'Salvando…';
   try {
     await api.request('/api/v3/profile/painel_extra', { method: 'POST', body: { uid: _uid, patch: { [secao]: valor } } });
-    if (statusEl) { statusEl.textContent = '✓ Salvo'; statusEl.style.color = '#16a34a'; setTimeout(() => { statusEl.textContent = ''; }, 3000); }
+    if (statusEl) { statusEl.textContent = '✓ Salvo'; statusEl.style.color = '#239a5b'; setTimeout(() => { statusEl.textContent = ''; }, 3000); }
     return true;
-  } catch (e) { if (statusEl) { statusEl.textContent = 'Erro: ' + e.message; statusEl.style.color = '#dc2626'; } return false; }
+  } catch (e) { if (statusEl) { statusEl.textContent = 'Erro: ' + e.message; statusEl.style.color = '#d64545'; } return false; }
 }
 
 function render() {
@@ -212,7 +212,7 @@ async function interpretarIA() {
     render();
   } catch (e) {
     btn.disabled = false; btn.textContent = '🤖 Interpretar com IA';
-    if (st) { st.textContent = 'IA indisponível: ' + e.message; st.style.color = '#dc2626'; }
+    if (st) { st.textContent = 'IA indisponível: ' + e.message; st.style.color = '#d64545'; }
   }
 }
 

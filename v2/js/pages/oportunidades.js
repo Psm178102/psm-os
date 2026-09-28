@@ -9,7 +9,7 @@ let _formOpen = false;
 
 const TIPOS = ['lead', 'imovel', 'parceria', 'investidor', 'outro'];
 const TIPO_ICO = { lead: '🎯', imovel: '🏠', parceria: '🤝', investidor: '💼', outro: '📌' };
-const STATUS_COLOR = { aberta: '#22c55e', pegou: '#806d50', fechada: '#8b5cf6', perdida: '#64748b' };
+const STATUS_COLOR = { aberta: '#239a5b', pegou: '#806d50', fechada: '#806d50', perdida: '#8a8579' };
 
 export async function pageOportunidades(ctx, root) {
   _root = root;
@@ -168,10 +168,10 @@ function renderList() {
 
   body.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));gap:10px;margin-bottom:14px">
-      ${kpi('🟢 Abertas', abertas.length, '#22c55e')}
+      ${kpi('🟢 Abertas', abertas.length, '#239a5b')}
       ${kpi('🔵 Em Andamento', _items.filter(o => o.status === 'pegou').length, '#806d50')}
-      ${kpi('🟣 Fechadas', _items.filter(o => o.status === 'fechada').length, '#8b5cf6')}
-      ${kpi('⚫ Perdidas', _items.filter(o => o.status === 'perdida').length, '#64748b')}
+      ${kpi('🟣 Fechadas', _items.filter(o => o.status === 'fechada').length, '#806d50')}
+      ${kpi('⚫ Perdidas', _items.filter(o => o.status === 'perdida').length, '#8a8579')}
     </div>
 
     ${abertas.length > 0 ? `
@@ -206,7 +206,7 @@ function renderList() {
 }
 
 function opCard(o, isLider, canPegar) {
-  const cor = STATUS_COLOR[o.status] || '#64748b';
+  const cor = STATUS_COLOR[o.status] || '#8a8579';
   return `
     <div style="background:var(--bg-3);border-left:4px solid ${cor};border-radius:var(--radius-md);padding:14px">
       <div class="flex" style="justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">

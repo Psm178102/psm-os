@@ -114,7 +114,7 @@ function renderInsights() {
   const ticketMedio = ganhos.length > 0 ? ganhos.reduce((s, d) => s + dealAmt(d), 0) / ganhos.length
     : (vendasCount > 0 ? (+meu.vgv_atingido || 0) / vendasCount : 0);
   const pct = meu.meta_vgv > 0 ? (meu.vgv_atingido / meu.meta_vgv * 100) : 0;
-  const statusColor = pct >= 100 ? '#22c55e' : pct >= 70 ? '#f59e0b' : '#ef4444';
+  const statusColor = pct >= 100 ? '#239a5b' : pct >= 70 ? '#c7861a' : '#d64545';
 
   wrap.innerHTML = `
     <div class="card" style="background:linear-gradient(135deg,${statusColor}22,transparent);border:1px solid ${statusColor}40;padding:14px;margin-bottom:10px">

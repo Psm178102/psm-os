@@ -23,7 +23,7 @@ const CAD = [
   { id: 'diario', lbl: 'Todo dia' }, { id: 'semanal', lbl: 'Toda semana' }, { id: 'quinzenal', lbl: 'A cada 15 dias' },
   { id: 'mensal', lbl: 'Todo mês' }, { id: 'trimestral', lbl: 'Todo trimestre' },
 ];
-const COR = { verde: '#16a34a', amarelo: '#d97706', vermelho: '#dc2626', cinza: '#94a3b8', info: '#806d50' };
+const COR = { verde: '#239a5b', amarelo: '#c7861a', vermelho: '#d64545', cinza: '#8a8579', info: '#806d50' };
 
 export async function pageRotinaConquista(ctx, root) { return pageRotina(root, 'conquista'); }
 export async function pageRotinaImoveis(ctx, root) { return pageRotina(root, 'imoveis'); }

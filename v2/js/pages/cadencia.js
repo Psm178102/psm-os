@@ -4,10 +4,10 @@ import { auth } from '../auth.js';
 import { getLinks, saveLinks, canEditLinks, promptLink } from '../links.js';
 
 const CAD_TEAMS = [
-  { key: 'map',       lbl: 'MAP',       cor: '#d4a843' },
-  { key: 'conquista', lbl: 'Conquista', cor: '#dc2626' },
+  { key: 'map',       lbl: 'MAP',       cor: 'var(--accent-ink)' },
+  { key: 'conquista', lbl: 'Conquista', cor: 'var(--err)' },
   { key: 'terceiros', lbl: 'Terceiros', cor: '#806d50' },
-  { key: 'locacao',   lbl: 'Locação',   cor: '#10b981' },
+  { key: 'locacao',   lbl: 'Locação',   cor: 'var(--ok)' },
 ];
 
 let _root = null;

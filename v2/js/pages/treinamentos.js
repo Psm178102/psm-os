@@ -19,17 +19,17 @@ import { HABILIDADES, habilidade, diagnosticar } from '../habilidades.js';
 const API = '/api/v3/gp/treinamentos3';
 const TIPO_LBL = { tecnico: 'Técnico', comportamental: 'Comportamental', comercial: 'Comercial', lideranca: 'Liderança', integracao: 'Integração' };
 const PRES = {
-  presente:    { l: 'Presente',   c: '#16a34a' },
-  atrasado:    { l: 'Atrasou',    c: '#d97706' },
-  ausente:     { l: 'Faltou',     c: '#dc2626' },
-  justificado: { l: 'Justificou', c: '#6366f1' },
+  presente:    { l: 'Presente',   c: '#239a5b' },
+  atrasado:    { l: 'Atrasou',    c: '#c7861a' },
+  ausente:     { l: 'Faltou',     c: '#d64545' },
+  justificado: { l: 'Justificou', c: '#806d50' },
 };
 const EST = {
   agendado:  { l: 'Agendado',           c: '#806d50', ico: '📅' },
-  hoje:      { l: 'É hoje',             c: '#f59e0b', ico: '🔔' },
-  chamada:   { l: 'Aguardando chamada', c: '#dc2626', ico: '⏳' },
-  realizado: { l: 'Realizado',          c: '#16a34a', ico: '✅' },
-  cancelado: { l: 'Cancelado',          c: '#94a3b8', ico: '🚫' },
+  hoje:      { l: 'É hoje',             c: '#c7861a', ico: '🔔' },
+  chamada:   { l: 'Aguardando chamada', c: '#d64545', ico: '⏳' },
+  realizado: { l: 'Realizado',          c: '#239a5b', ico: '✅' },
+  cancelado: { l: 'Cancelado',          c: '#8a8579', ico: '🚫' },
 };
 const EQUIPES = ['Conquista', 'MAP', 'Locação', 'Terceiros'];
 const EQUIPE_LBL = { conquista: 'Conquista', map: 'MAP', locacao: 'Locação', terceiros: 'Terceiros' };
@@ -303,7 +303,7 @@ function cardAcao(t) {
 }
 function linhaRealizado(t) {
   const ps = t.participantes || [], n = ps.length, pres = ps.filter(presente).length;
-  const pct = n ? Math.round(pres / n * 100) : 0, cor = pct >= 85 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626';
+  const pct = n ? Math.round(pres / n * 100) : 0, cor = pct >= 85 ? '#239a5b' : pct >= 60 ? '#c7861a' : '#d64545';
   return `<div class="trn-row" data-open="${esc(t.id)}">
     <div class="trn-row-d">${fmtData(t.data)}</div>
     <div style="flex:1;min-width:0"><div class="trn-t" style="font-size:13px">${esc(t.titulo)}</div>${chips(t)}</div>
@@ -330,11 +330,11 @@ function renderGeral(host) {
   const aguard = ts.filter(t => estado(t) === 'chamada').length;
   host.innerHTML = `
     <div class="trn-kpis">
-      ${kpi('⏳', 'Aguardando chamada', aguard, aguard ? '#dc2626' : '')}
+      ${kpi('⏳', 'Aguardando chamada', aguard, aguard ? '#d64545' : '')}
       ${kpi('📅', 'Próximos 30 dias', ts.filter(t => estado(t) === 'agendado' && d10(t.data) <= d30).length, '#806d50')}
-      ${kpi('✅', 'Realizados no mês', ts.filter(t => t.status === 'realizado' && d10(t.data) >= mesIni).length, '#16a34a')}
-      ${kpi('👥', 'Presença · 90 dias', tot ? Math.round(pres / tot * 100) + '%' : '—', '#7c3aed')}
-      ${kpi('❗', 'Faltas em obrigatórios', faltas, faltas ? '#dc2626' : '')}
+      ${kpi('✅', 'Realizados no mês', ts.filter(t => t.status === 'realizado' && d10(t.data) >= mesIni).length, '#239a5b')}
+      ${kpi('👥', 'Presença · 90 dias', tot ? Math.round(pres / tot * 100) + '%' : '—', '#806d50')}
+      ${kpi('❗', 'Faltas em obrigatórios', faltas, faltas ? '#d64545' : '')}
     </div>
     ${filtrosHtml()}
     ${acao.length ? `<div class="trn-sec-t">⏳ Precisa de você</div><div class="tiny muted" style="margin:-4px 2px 8px">Já aconteceu (ou é hoje) e ainda não teve chamada.</div>${acao.map(cardAcao).join('')}` : ''}
@@ -455,9 +455,9 @@ function renderMeus(host) {
   host.innerHTML = `
     <div class="trn-kpis">
       ${kpi('📅', 'Próximos', prox.length, '#806d50')}
-      ${kpi('⏱', `Horas de treino em ${ano}`, fmtHoras(horas), '#0d9488')}
-      ${kpi('👥', 'Sua presença', real.length ? Math.round(presN / real.length * 100) + '%' : '—', '#7c3aed')}
-      ${kpi('❗', 'Obrigatórios perdidos', pend.length, pend.length ? '#dc2626' : '')}
+      ${kpi('⏱', `Horas de treino em ${ano}`, fmtHoras(horas), '#239a5b')}
+      ${kpi('👥', 'Sua presença', real.length ? Math.round(presN / real.length * 100) + '%' : '—', '#806d50')}
+      ${kpi('❗', 'Obrigatórios perdidos', pend.length, pend.length ? '#d64545' : '')}
     </div>
     ${instr.length ? `<div class="trn-sec-t">🎤 Você é o instrutor — falta a chamada</div>${instr.map(cardAcao).join('')}` : ''}
     <div class="trn-sec-t">📅 Próximos</div>
@@ -646,7 +646,7 @@ function bindChamada() {
   const atualiza = () => {
     const falta = ps.filter(p => !(_chamada.p[p.user_id] || {}).presenca).length;
     const s = box.querySelector('#ch-status');
-    if (s) { s.textContent = falta ? `Falta marcar ${falta}` : 'Chamada completa ✓'; s.style.color = falta ? '#d97706' : '#16a34a'; }
+    if (s) { s.textContent = falta ? `Falta marcar ${falta}` : 'Chamada completa ✓'; s.style.color = falta ? '#c7861a' : '#239a5b'; }
     const ok = box.querySelector('#ch-ok'); if (ok) ok.disabled = !!falta;
   };
   box.querySelectorAll('[data-ch]').forEach(row => {
@@ -679,7 +679,7 @@ function bindChamada() {
       _chamada = null;
       renderFicha();
       toast(action === 'realizar' ? '✅ Treinamento realizado — presença registrada' : '💾 Chamada salva');
-    } catch (err) { msg.textContent = '⚠️ ' + err.message; msg.style.color = '#dc2626'; btn.disabled = false; }
+    } catch (err) { msg.textContent = '⚠️ ' + err.message; msg.style.color = '#d64545'; btn.disabled = false; }
   };
   const ok = box.querySelector('#ch-ok'); if (ok) ok.onclick = () => salvar(_ficha.status === 'realizado' ? 'chamada' : 'realizar', ok);
   const ra = box.querySelector('#ch-rascunho'); if (ra) ra.onclick = () => salvar('chamada', ra);
@@ -871,7 +871,7 @@ export async function openTreinoEditor(seed = {}, onSaved) {
       : !f.parts.length ? (f.formato === 'individual' ? 'Escolha a pessoa.' : 'Convoque ao menos 1 pessoa.')
       : (f.hora_inicio && f.hora_fim && f.hora_fim <= f.hora_inicio) ? 'O fim precisa ser depois do início.'
       : (f.externo && !f.instrutor.trim()) ? 'Escreva o nome do instrutor de fora.' : '';
-    if (erro) { msg.textContent = '⚠️ ' + erro; msg.style.color = '#dc2626'; return; }
+    if (erro) { msg.textContent = '⚠️ ' + erro; msg.style.color = '#d64545'; return; }
     btn.disabled = true; msg.style.color = ''; msg.textContent = f.id ? '⏳ salvando…' : '⏳ agendando e convocando…';
     const dur = difMin(f.hora_inicio, f.hora_fim);
     const treino = {
@@ -893,7 +893,7 @@ export async function openTreinoEditor(seed = {}, onSaved) {
         ? `💾 Treinamento salvo${r.avisados ? ` · ${r.avisados} avisado(s)` : ''}`
         : `📣 Convocação enviada · ${r.avisados || 0} no sino · ${z.zoho || 0} no Zoho${z.zoho_pendente ? ` (+${z.zoho_pendente} em até 30 min)` : ''}`);
       if (onSaved) onSaved(r);
-    } catch (e) { msg.textContent = '⚠️ ' + e.message; msg.style.color = '#dc2626'; btn.disabled = false; }
+    } catch (e) { msg.textContent = '⚠️ ' + e.message; msg.style.color = '#d64545'; btn.disabled = false; }
   };
 
   render();
@@ -959,9 +959,9 @@ export async function montarBlocoOO(host, { det, gestor }) {
         <div>
           <div class="trn-oo-sub">📚 Histórico de treino</div>
           <div class="trn-kpis" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:8px">
-            ${kpi('👥', 'Presença', real.length ? Math.round(presN / real.length * 100) + '%' : '—', '#7c3aed')}
-            ${kpi('⏱', 'Horas ' + ano, fmtHoras(horas), '#0d9488')}
-            ${kpi('❗', 'Faltas obrig.', faltasOb, faltasOb ? '#dc2626' : '')}
+            ${kpi('👥', 'Presença', real.length ? Math.round(presN / real.length * 100) + '%' : '—', '#806d50')}
+            ${kpi('⏱', 'Horas ' + ano, fmtHoras(horas), '#239a5b')}
+            ${kpi('❗', 'Faltas obrig.', faltasOb, faltasOb ? '#d64545' : '')}
           </div>
           ${prox.length ? `<div class="tiny muted" style="margin:6px 2px 4px;font-weight:600;letter-spacing:.06em">PRÓXIMOS</div>${prox.slice(0, 3).map(t => `<div class="trn-row" data-open="${esc(t.id)}"><div class="trn-row-d">${fmtData(t.data)}</div><div class="trn-t" style="flex:1;min-width:0;font-size:13px">${esc(t.titulo)}</div>${t.formato === 'individual' ? '<span class="trn-chip">👤 individual</span>' : ''}</div>`).join('')}` : ''}
           <div class="tiny muted" style="margin:8px 2px 4px;font-weight:600;letter-spacing:.06em">ÚLTIMOS</div>

@@ -34,15 +34,15 @@ let _dirFiltro = 'abertas';  // 'abertas' | 'historico'
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 const TIPO = {
-  'estado-da-uniao':   { lbl: 'Estado da União',   ico: '🏛️', color: '#7c3aed', bg: '#7c3aed22' },
+  'estado-da-uniao':   { lbl: 'Estado da União',   ico: '🏛️', color: 'var(--accent-ink)', bg: '#7c3aed22' },
   'plano-estrategico': { lbl: 'Plano Estratégico', ico: '♟️', color: '#806d50', bg: '#2563eb22' },
-  'parecer':           { lbl: 'Parecer',           ico: '⚖️', color: '#d97706', bg: '#d9770622' },
-  'insight':           { lbl: 'Insight',           ico: '💡', color: '#16a34a', bg: '#16a34a22' },
+  'parecer':           { lbl: 'Parecer',           ico: '⚖️', color: 'var(--warn)', bg: '#d9770622' },
+  'insight':           { lbl: 'Insight',           ico: '💡', color: 'var(--ok)', bg: '#16a34a22' },
   'fechamento-mensal': { lbl: 'Fechamento do mês', ico: '🗓️', color: '#806d50', bg: '#0e749022' },
 };
 // fallback genérico: outros agentes publicam no mesmo kv com tipos próprios
 // (ex.: Sr. CFO usa tipo 'relatorio', v87.32) — mostra o tipo cru, sem mentir.
-const tipoDe = t => TIPO[t] || { lbl: (t || 'Dossiê'), ico: '📄', color: '#64748b', bg: '#64748b22' };
+const tipoDe = t => TIPO[t] || { lbl: (t || 'Dossiê'), ico: '📄', color: 'var(--ink-muted)', bg: '#64748b22' };
 
 /* ─── data relativa ─── */
 function rel(iso) {

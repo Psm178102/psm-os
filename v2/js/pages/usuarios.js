@@ -6,27 +6,27 @@ import { api, ApiError, tokenStore } from '../api.js';
 import { auth } from '../auth.js';
 
 const ROLES = [
-  { id: 'socio',      lbl: 'Sócio / Diretor',   lvl: 10, color: '#dc2626', ico: '👑' },
-  { id: 'gerente',    lbl: 'Gerente (geral)',   lvl: 7,  color: '#7c3aed', ico: '🎯' },
-  { id: 'gerente_conquista', lbl: 'Gerente Conquista', lvl: 7, color: '#f59e0b', ico: '🎯' },
-  { id: 'gerente_map',       lbl: 'Gerente MAP',       lvl: 7, color: '#a855f7', ico: '🎯' },
-  { id: 'gerente_locacao',   lbl: 'Gerente Locação',   lvl: 7, color: '#a16207', ico: '🎯' },
-  { id: 'gerente_terceiros', lbl: 'Gerente Terceiros', lvl: 7, color: '#0d9488', ico: '🎯' },
+  { id: 'socio',      lbl: 'Sócio / Diretor',   lvl: 10, color: 'var(--err)', ico: '👑' },
+  { id: 'gerente',    lbl: 'Gerente (geral)',   lvl: 7,  color: 'var(--accent-ink)', ico: '🎯' },
+  { id: 'gerente_conquista', lbl: 'Gerente Conquista', lvl: 7, color: 'var(--warn)', ico: '🎯' },
+  { id: 'gerente_map',       lbl: 'Gerente MAP',       lvl: 7, color: 'var(--accent-ink)', ico: '🎯' },
+  { id: 'gerente_locacao',   lbl: 'Gerente Locação',   lvl: 7, color: 'var(--warn)', ico: '🎯' },
+  { id: 'gerente_terceiros', lbl: 'Gerente Terceiros', lvl: 7, color: 'var(--ok)', ico: '🎯' },
   { id: 'backoffice', lbl: 'Back Office',       lvl: 6,  color: '#806d50', ico: '📋' },
   { id: 'secretaria_vendas', lbl: 'Secretária de Vendas', lvl: 3, color: '#db2777', ico: '🗂️' },
-  { id: 'lider',      lbl: 'Líder de Equipe',   lvl: 5,  color: '#059669', ico: '🛡️' },
-  { id: 'financeiro', lbl: 'Financeiro',        lvl: 4,  color: '#16a34a', ico: '💰' },
-  { id: 'marketing',  lbl: 'Marketing',         lvl: 3,  color: '#d97706', ico: '📢' },
-  { id: 'corretor_conquista', lbl: 'Corretor Conquista', lvl: 2, color: '#f59e0b', ico: '🏠' },
-  { id: 'corretor_map',       lbl: 'Corretor MAP',       lvl: 2, color: '#a855f7', ico: '🗺️' },
-  { id: 'corretor_locacao',   lbl: 'Corretor Locação',   lvl: 2, color: '#a16207', ico: '🔑' },
-  { id: 'corretor_terceiros', lbl: 'Corretor Terceiros', lvl: 2, color: '#0d9488', ico: '🤝' },
+  { id: 'lider',      lbl: 'Líder de Equipe',   lvl: 5,  color: 'var(--ok)', ico: '🛡️' },
+  { id: 'financeiro', lbl: 'Financeiro',        lvl: 4,  color: 'var(--ok)', ico: '💰' },
+  { id: 'marketing',  lbl: 'Marketing',         lvl: 3,  color: 'var(--warn)', ico: '📢' },
+  { id: 'corretor_conquista', lbl: 'Corretor Conquista', lvl: 2, color: 'var(--warn)', ico: '🏠' },
+  { id: 'corretor_map',       lbl: 'Corretor MAP',       lvl: 2, color: 'var(--accent-ink)', ico: '🗺️' },
+  { id: 'corretor_locacao',   lbl: 'Corretor Locação',   lvl: 2, color: 'var(--warn)', ico: '🔑' },
+  { id: 'corretor_terceiros', lbl: 'Corretor Terceiros', lvl: 2, color: 'var(--ok)', ico: '🤝' },
   // legado: não é mais oferecido pra novos; some do seletor, mas continua exibindo
   // pra quem ainda é 'corretor' (até o sócio reatribuir) + serve de fallback interno. v81.38
-  { id: 'corretor',   lbl: 'Corretor (antigo)', lvl: 2,  color: '#64748b', ico: '🏠', legacy: true },
+  { id: 'corretor',   lbl: 'Corretor (antigo)', lvl: 2,  color: 'var(--ink-muted)', ico: '🏠', legacy: true },
 ];
 let _customRoles = [];   // categorias de login CUSTOM (shared_kv 'custom_roles'). v81.91
-const allRolesList = () => [...ROLES, ..._customRoles.map(r => ({ id: r.id, lbl: r.label, lvl: r.lvl, color: r.color || '#64748b', ico: r.ico || '🏷️', custom: true }))];
+const allRolesList = () => [...ROLES, ..._customRoles.map(r => ({ id: r.id, lbl: r.label, lvl: r.lvl, color: r.color || 'var(--ink-muted)', ico: r.ico || '🏷️', custom: true }))];
 // Papéis OFERECIDOS no seletor: esconde legados, mas mantém o papel atual do usuário
 const roleOptions = (curId) => allRolesList().filter(r => !r.legacy || r.id === curId);
 
@@ -49,15 +49,15 @@ function roleOptionsHtml(curId, selId) {
 
 // Equipes: fallback local; a lista REAL e personalizável vem de /api/v3/settings/teams. v81.39
 const TEAMS_DEFAULT = [
-  { id: 'conquista',  lbl: 'Conquista',  color: '#dc2626', ico: '🏆' },
-  { id: 'map',        lbl: 'MAP',        color: '#a855f7', ico: '🗺️' },
-  { id: 'locacao',    lbl: 'Locação',    color: '#10b981', ico: '🔑' },
+  { id: 'conquista',  lbl: 'Conquista',  color: 'var(--err)', ico: '🏆' },
+  { id: 'map',        lbl: 'MAP',        color: 'var(--accent-ink)', ico: '🗺️' },
+  { id: 'locacao',    lbl: 'Locação',    color: 'var(--ok)', ico: '🔑' },
   { id: 'terceiros',  lbl: 'Terceiros',  color: '#806d50', ico: '🤝' },
-  { id: 'lancamento', lbl: 'Lançamento', color: '#d4a843', ico: '🏗' },
-  { id: 'geral',      lbl: 'Geral',      color: '#64748b', ico: '📁' },
+  { id: 'lancamento', lbl: 'Lançamento', color: 'var(--accent-ink)', ico: '🏗' },
+  { id: 'geral',      lbl: 'Geral',      color: 'var(--ink-muted)', ico: '📁' },
 ];
 let _teams = TEAMS_DEFAULT;
-const teamInfo = id => _teams.find(t => t.id === id) || { id: id || 'geral', lbl: id || 'Geral', color: '#64748b', ico: '📁' };
+const teamInfo = id => _teams.find(t => t.id === id) || { id: id || 'geral', lbl: id || 'Geral', color: 'var(--ink-muted)', ico: '📁' };
 
 // State
 let _users = [];
@@ -149,9 +149,9 @@ function render() {
       <!-- Stats -->
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
         ${statCard('Total',    total,    'var(--bg-3)',  'var(--ink)')}
-        ${statCard('Ativos',   ativos,   '#dcfce7',     '#166534')}
-        ${statCard('Inativos', inativos, '#fee2e2',     '#991b1b')}
-        ${statCard('Ocultos',  ocultos,  '#fef3c7',     '#78350f')}
+        ${statCard('Ativos',   ativos,   'var(--ok-soft)',     'var(--ok)')}
+        ${statCard('Inativos', inativos, 'var(--err-soft)',     'var(--err)')}
+        ${statCard('Ocultos',  ocultos,  'var(--warn-soft)',     'var(--warn)')}
       </div>
 
       <!-- Filtros -->
@@ -453,7 +453,7 @@ function openTeamsManager() {
       <div class="flex gap-2" style="align-items:center;margin-top:6px" data-trow="${i}">
         <input class="input te-ico" value="${escapeHtml(t.ico || '📁')}" maxlength="4" style="width:52px;text-align:center">
         <input class="input te-lbl" value="${escapeHtml(t.lbl || '')}" placeholder="Nome da equipe" style="flex:1">
-        <input class="input te-cor" type="color" value="${escapeHtml(t.color || '#64748b')}" style="width:46px;padding:2px;min-width:46px">
+        <input class="input te-cor" type="color" value="${escapeHtml(t.color || 'var(--ink-muted)')}" style="width:46px;padding:2px;min-width:46px">
         <button class="btn btn-ghost btn-sm" type="button" data-tdel="${i}" style="color:var(--err)" title="Remover">×</button>
       </div>`).join('');
   };
@@ -462,7 +462,7 @@ function openTeamsManager() {
   ov.addEventListener('click', e => { if (e.target === ov) close(); });
   ov.querySelector('#te-x').onclick = close;
   ov.querySelector('#te-cancel').onclick = close;
-  ov.querySelector('#te-add').onclick = () => { teams.push({ id: '', lbl: '', color: '#64748b', ico: '📁' }); draw(); };
+  ov.querySelector('#te-add').onclick = () => { teams.push({ id: '', lbl: '', color: 'var(--ink-muted)', ico: '📁' }); draw(); };
   rows.addEventListener('click', e => { const d = e.target.closest('[data-tdel]'); if (d) { teams.splice(+d.dataset.tdel, 1); draw(); } });
   ov.querySelector('#te-save').onclick = async () => {
     const out = [...rows.querySelectorAll('[data-trow]')].map(r => {
@@ -471,7 +471,7 @@ function openTeamsManager() {
         id: (teams[i] && teams[i].id) || '',
         lbl: r.querySelector('.te-lbl').value.trim(),
         ico: r.querySelector('.te-ico').value.trim() || '📁',
-        color: r.querySelector('.te-cor').value || '#64748b',
+        color: r.querySelector('.te-cor').value || 'var(--ink-muted)',
       };
     }).filter(t => t.lbl);
     if (!out.length) return alert('Informe ao menos 1 equipe.');
@@ -490,7 +490,7 @@ function openRolesManager() {
   const crRow = r => `<div class="flex items-center gap-2" style="border-top:1px solid var(--bd,var(--border));padding:7px 0">
     <span style="width:26px;text-align:center">${escapeHtml(r.ico || '🏷️')}</span>
     <span style="flex:1"><b>${escapeHtml(r.label)}</b> <span class="tiny muted">· ${escapeHtml(r.id)} · L${r.lvl}</span></span>
-    <span style="width:16px;height:16px;border-radius:50%;background:${escapeHtml(r.color || '#64748b')}"></span>
+    <span style="width:16px;height:16px;border-radius:50%;background:${escapeHtml(r.color || 'var(--ink-muted)')}"></span>
     <button class="btn btn-ghost btn-sm" data-cr-del="${escapeHtml(r.id)}" style="color:var(--err)">remover</button></div>`;
   const draw = () => {
     const custom = _customRoles || [];

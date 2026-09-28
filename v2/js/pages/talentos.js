@@ -44,7 +44,7 @@ const catArr = v => String(v || '').split(/[,;/]+/).map(s => s.trim()).filter(Bo
 
 // ── ATS / Pipeline R&S (v81.87) ──
 const ETAPAS = ['Triagem', 'Entrevista RH', 'Entrevista Gestor', 'Avaliação interna', 'Due Diligence', 'Proposta', 'Contratado', 'Banco de Talentos'];
-const ETAPA_COR = { 'Triagem': '#64748b', 'Entrevista RH': '#806d50', 'Entrevista Gestor': '#7c3aed', 'Avaliação interna': '#b45309', 'Due Diligence': '#dc2626', 'Proposta': '#806d50', 'Contratado': '#16a34a', 'Banco de Talentos': '#94a3b8' };
+const ETAPA_COR = { 'Triagem': '#8a8579', 'Entrevista RH': '#806d50', 'Entrevista Gestor': '#806d50', 'Avaliação interna': '#c7861a', 'Due Diligence': '#d64545', 'Proposta': '#806d50', 'Contratado': '#239a5b', 'Banco de Talentos': '#8a8579' };
 const CANAIS = ['Indicação', 'Indicação interna', 'Prospecção ativa', 'Campanha / Anúncio', 'LinkedIn', 'Instagram', 'Site / Trabalhe conosco', 'RD Station', 'Banco de Talentos', 'Headhunter', 'Evento / Feira', 'Outro'];
 const DECISOES = ['Em andamento', 'Aprovado', 'Reprovado', 'Standby'];
 const VOTOS = ['Aprovo', 'Reprovo', 'Standby'];
@@ -332,7 +332,7 @@ function cardHTML(t) {
     <div class="tiny muted">${esc(t.cargo || t.funcao || '—')}${t.setor ? ' · ' + esc(t.setor) : ''}</div>
     ${atv ? `<div class="tiny muted" style="margin-top:2px">💼 ${esc(atv)}</div>` : ''}
     <div style="margin-top:5px;display:flex;gap:4px;flex-wrap:wrap;align-items:center">
-      ${chip(t.canal, '#7c3aed')}
+      ${chip(t.canal, '#806d50')}
       ${cats.map(c => chip(c, '#d6249f')).join('')}
       ${t.score ? `<span class="tiny" style="color:var(--warn)" title="Score">${stars(t.score)}</span>` : ''}
       ${nav ? `<span class="tiny muted" title="Pareceres">🗳 ${nav}</span>` : ''}
@@ -357,7 +357,7 @@ function cardHTML(t) {
 function cndBadge(t) {
   const c = t.cnd_dossie;
   if (!c) return '';
-  const cor = c.positivas ? '#dc2626' : c.emitidas >= c.total ? '#16a34a' : '#b45309';
+  const cor = c.positivas ? '#d64545' : c.emitidas >= c.total ? '#239a5b' : '#c7861a';
   const extra = c.positivas ? ` · ${c.positivas} POSITIVA` : '';
   return `<span class="tiny" title="Dossiê de CND (interno)" style="background:${cor}1a;color:${cor};font-weight:600;padding:1px 6px;border-radius:var(--radius-sm)">⚖️ ${c.emitidas}/${c.total}${extra}</span>`;
 }
@@ -393,11 +393,11 @@ function renderLista(items) {
           return `
           <tr style="border-bottom:1px solid var(--bd)">
             <td style="padding:8px"><div style="font-weight:600">${esc(t.nome)}${t.origem === 'rd' ? ' <span class="tiny" style="color:var(--ok)">🟢RD</span>' : ''}</div>${sub ? `<div class="tiny muted">${esc(sub)}</div>` : ''}</td>
-            <td style="padding:8px">${chip(et, ETAPA_COR[et] || '#64748b')}</td>
+            <td style="padding:8px">${chip(et, ETAPA_COR[et] || '#8a8579')}</td>
             <td style="padding:8px">${esc(cargo) || '—'}${t.setor ? `<div class="tiny muted">${esc(t.setor)}</div>` : ''}</td>
-            <td style="padding:8px">${chip(t.canal, '#7c3aed') || '—'}</td>
+            <td style="padding:8px">${chip(t.canal, '#806d50') || '—'}</td>
             <td style="padding:8px">${esc(t.responsavel || '—')}</td>
-            <td style="padding:8px">${chip(t.decisao || 'Em andamento', t.decisao === 'Aprovado' ? '#16a34a' : t.decisao === 'Reprovado' ? '#dc2626' : '#64748b')}</td>
+            <td style="padding:8px">${chip(t.decisao || 'Em andamento', t.decisao === 'Aprovado' ? '#239a5b' : t.decisao === 'Reprovado' ? '#d64545' : '#8a8579')}</td>
             <td style="padding:8px;text-align:right;white-space:nowrap">
               ${ig ? `<a class="btn btn-ghost btn-sm" href="${ig}" target="_blank" rel="noopener" title="Instagram">📷</a>` : ''}
               ${wa ? `<a class="btn btn-ghost btn-sm" href="${wa}" target="_blank" rel="noopener" title="WhatsApp">💬</a>` : ''}
@@ -524,7 +524,7 @@ function renderDetail(e) {
       ${av.length ? `<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">${av.map(a => `
         <div style="border:1px solid var(--bd);border-radius:var(--radius-md);padding:7px;background:var(--bg-3)">
           <div style="display:flex;gap:6px;align-items:center;font-size:12px"><b>${esc(a.by_nome || '—')}</b>${a.papel ? `<span class="tiny muted">${esc(a.papel)}</span>` : ''}
-            <span style="margin-left:auto">${chip(a.voto || '—', /aprov/i.test(a.voto || '') ? '#16a34a' : /reprov/i.test(a.voto || '') ? '#dc2626' : '#64748b')}</span>
+            <span style="margin-left:auto">${chip(a.voto || '—', /aprov/i.test(a.voto || '') ? '#239a5b' : /reprov/i.test(a.voto || '') ? '#d64545' : '#8a8579')}</span>
             ${a.nota ? `<span class="tiny" style="color:var(--warn)">${stars(a.nota)}</span>` : ''}</div>
           ${a.texto ? `<div class="tiny" style="margin-top:4px">${esc(a.texto)}</div>` : ''}
           <div class="tiny muted" style="margin-top:3px">${a.at ? new Date(a.at).toLocaleString('pt-BR') : ''}</div>
@@ -557,7 +557,7 @@ function cndPainelHTML(e) {
   const c = e.cnd_dossie;
   const podeCnd = (auth.user()?.lvl || 0) >= 5 || ['backoffice'].includes(auth.user()?.role);
   if (c) {
-    const cor = c.positivas ? '#dc2626' : (c.total && c.emitidas >= c.total ? '#16a34a' : '#b45309');
+    const cor = c.positivas ? '#d64545' : (c.total && c.emitidas >= c.total ? '#239a5b' : '#c7861a');
     return `<div style="border:1px solid ${cor}44;background:${cor}0d;border-radius:var(--radius-md);padding:9px;margin-bottom:8px">
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <b style="font-size:13px;color:${cor}">⚖️ Dossiê de CND (interno) — ${c.emitidas}/${c.total} emitida(s)</b>
@@ -689,7 +689,7 @@ function cargoRefHTML(cargo, field) {
   const c = (_cargosCfg.recrutamento || {})[cargo]; const v = c && c[field];
   if (!v) return '';
   const lbl = field === 'requisitos' ? '📋 Requisitos padrão do cargo' : '⛔ Impeditivos padrão do cargo';
-  const cor = field === 'requisitos' ? '#806d50' : '#dc2626';
+  const cor = field === 'requisitos' ? '#806d50' : '#d64545';
   return `<div style="background:${cor}0e;border:1px solid ${cor}33;border-radius:var(--radius-md);padding:7px 9px;margin-bottom:6px;font-size:12px"><b style="color:${cor}">${lbl} «${esc(cargo)}»</b><br>${esc(v).replace(/\n/g, '<br>')}</div>`;
 }
 

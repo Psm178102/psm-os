@@ -14,10 +14,10 @@ let _users = null;
 let _h = null;        // histórico mês a mês (v88.30)
 
 const FAROL = {
-  verde:    { cor: '#16a34a', ico: '🟢', lbl: 'No alvo' },
-  amarelo:  { cor: '#d97706', ico: '🟡', lbl: 'Atenção' },
-  vermelho: { cor: '#dc2626', ico: '🔴', lbl: 'Fora' },
-  cinza:    { cor: '#94a3b8', ico: '⚪', lbl: 'Sem dado' },
+  verde:    { cor: '#239a5b', ico: '🟢', lbl: 'No alvo' },
+  amarelo:  { cor: '#c7861a', ico: '🟡', lbl: 'Atenção' },
+  vermelho: { cor: '#d64545', ico: '🔴', lbl: 'Fora' },
+  cinza:    { cor: '#8a8579', ico: '⚪', lbl: 'Sem dado' },
   info:     { cor: '#806d50', ico: '📈', lbl: 'Acompanhamento' },
 };
 const GRUPOS = [

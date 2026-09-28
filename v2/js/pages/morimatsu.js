@@ -51,14 +51,14 @@ export const COR = { verde: '#1F4A3D', dourado: '#9C7A3C', tinta: '#1B201D', mar
 
 /* ── Dicionários da ficha v2 ── */
 export const COLUNAS = [
-  { id: 'pre',         nome: 'Pré-cadastro',     emoji: '📥', cor: '#64748b', hint: 'ficha recebida · SLA 48h úteis' },
+  { id: 'pre',         nome: 'Pré-cadastro',     emoji: '📥', cor: 'var(--ink-muted)', hint: 'ficha recebida · SLA 48h úteis' },
   { id: 'diagnostico', nome: 'Diagnóstico',      emoji: '🩺', cor: '#806d50', hint: '20 min: objetivos + esteira' },
-  { id: 'curadoria',   nome: 'Curadoria',        emoji: '🔎', cor: '#8b5cf6', hint: 'oportunidades por perfil' },
-  { id: 'analise',     nome: 'Análise',          emoji: '📑', cor: '#f59e0b', hint: 'R$ 500/imóvel · viabilidade' },
-  { id: 'certame',     nome: 'Certame',          emoji: '🔨', cor: '#ef4444', hint: 'R$ 500 · representação' },
+  { id: 'curadoria',   nome: 'Curadoria',        emoji: '🔎', cor: 'var(--accent-ink)', hint: 'oportunidades por perfil' },
+  { id: 'analise',     nome: 'Análise',          emoji: '📑', cor: 'var(--warn)', hint: 'R$ 500/imóvel · viabilidade' },
+  { id: 'certame',     nome: 'Certame',          emoji: '🔨', cor: 'var(--err)', hint: 'R$ 500 · representação' },
   { id: 'arrematado',  nome: 'Arrematado',       emoji: '🏁', cor: COR.dourado, hint: 'fee 5% · piso R$ 6 mil' },
   { id: 'carteira',    nome: 'Carteira ativa',   emoji: '🔁', cor: COR.verde, hint: 'ciclo rodando · recompra' },
-  { id: 'fora',        nome: 'Fora / Porta 2',   emoji: '⛔', cor: '#334155', hint: 'sem fit ou moradia MCMV' },
+  { id: 'fora',        nome: 'Fora / Porta 2',   emoji: '⛔', cor: 'var(--ink-2)', hint: 'sem fit ou moradia MCMV' },
 ];
 export const OBJETIVO  = { revenda: 'REVENDA', renda: 'RENDA', uso: 'USO PRÓPRIO', indef: 'INDEFINIDO' };
 export const PAGAMENTO = { vista: 'À vista (próprio)', mobiliza: 'À vista (mobilizando)', financ: 'Financiamento', mcmv: 'FGTS + MCMV' };
@@ -273,13 +273,13 @@ function visao() {
   return `
     <div class="ma-minis">
       ${mini('💼 Investidores na esteira', ativos.length, `${qual} qualificados (score ≥ 70) · ${inv.length} no total`)}
-      ${mini('🏠 Imóveis em análise / aprovados', `${imv.filter(i => i.status === 'analise').length} / ${imv.filter(i => i.status === 'aprovado').length}`, `${imv.length} garimpados`, '#8b5cf6')}
-      ${mini('🔨 Certames nos próximos 15 dias', certames.length, certames.slice(0, 2).map(i => `${dtBR(i.data_certame)} · ${esc(i.titulo)}`).join(' · ') || 'nenhum agendado', '#ef4444')}
+      ${mini('🏠 Imóveis em análise / aprovados', `${imv.filter(i => i.status === 'analise').length} / ${imv.filter(i => i.status === 'aprovado').length}`, `${imv.length} garimpados`, 'var(--accent-ink)')}
+      ${mini('🔨 Certames nos próximos 15 dias', certames.length, certames.slice(0, 2).map(i => `${dtBR(i.data_certame)} · ${esc(i.titulo)}`).join(' · ') || 'nenhum agendado', 'var(--err)')}
       ${mini('🔁 Operações em andamento', ops.filter(o => o.status !== 'concluida').length, `${ops.filter(o => o.status === 'concluida').length} concluídas`, COR.dourado)}
-      ${mini('💰 Fee recebido no mês', brl(feeMes), `${brl(feePend)} a receber`, '#16a34a')}
-      ${mini('📅 Nutrição', `${atrasadas.length} atrasadas · ${deHoje.length} hoje`, `${semContato.length} investidor(es) sem próximo passo`, atrasadas.length ? '#ef4444' : '#806d50')}
+      ${mini('💰 Fee recebido no mês', brl(feeMes), `${brl(feePend)} a receber`, 'var(--ok)')}
+      ${mini('📅 Nutrição', `${atrasadas.length} atrasadas · ${deHoje.length} hoje`, `${semContato.length} investidor(es) sem próximo passo`, atrasadas.length ? 'var(--err)' : '#806d50')}
       ${mini('🗓 Roteiro 90 dias', `${feito}/${total}`, 'itens concluídos')}
-      ${mini('🚫 Linha vermelha', 'R$ 0 fixo', 'nenhum custo fixo novo até dez/2026', '#64748b')}
+      ${mini('🚫 Linha vermelha', 'R$ 0 fixo', 'nenhum custo fixo novo até dez/2026', 'var(--ink-muted)')}
     </div>
 
     <div class="ma-grid2" style="margin-bottom:12px">
@@ -382,7 +382,7 @@ function calcGiro() {
     mini('🏯 Fee Morimatsu (no ato)', brl(fee), lance * feeP / 100 < piso ? 'piso aplicado' : `${feeP}% do lance`, COR.dourado),
     mini('🏘 Comissão PSM na saída', brl(com), `${comP}% de ${brl(rev)}`),
     mini('💼 Receita do grupo por giro', brl(fee + com), '', COR.verde),
-    mini('📈 Lucro bruto do investidor', brl(lucro), `${lance ? Math.round(lucro / (lance + custos + fee) * 100) : 0}% sobre o capital · desconto ${desc}% vs avaliação`, lucro > 0 ? '#16a34a' : '#ef4444'),
+    mini('📈 Lucro bruto do investidor', brl(lucro), `${lance ? Math.round(lucro / (lance + custos + fee) * 100) : 0}% sobre o capital · desconto ${desc}% vs avaliação`, lucro > 0 ? 'var(--ok)' : 'var(--err)'),
     mini(`🔑 Se virar renda: adm ${adm}%/mês`, brl(alug * adm / 100) + '/mês', `${brl(alug * adm / 100 * 12)}/ano perpétuos + 1º aluguel`, '#806d50'),
   ].join('');
 }

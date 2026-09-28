@@ -112,20 +112,20 @@ function pintaSaida() {
   const set = (sel, html) => { const el = _root.querySelector(sel); if (el) el.innerHTML = html; };
   set('#ld-kpis', kpi('Investimento', fmt(c.invTotal), 'var(--psm-navy)', '#fff')
     + kpi('CPL', fmt(c.cpl), '#806d50')
-    + kpi('CAC', fmt(c.cac), '#f59e0b')
-    + kpi('ROI', dec(c.roi, 1) + '%', c.roi >= 0 ? '#22c55e' : '#ef4444'));
+    + kpi('CAC', fmt(c.cac), '#c7861a')
+    + kpi('ROI', dec(c.roi, 1) + '%', c.roi >= 0 ? '#239a5b' : '#d64545'));
   set('#ld-funil',
     (c.impressoes > 0 ? funnelStep('👀 Impressões', int(c.impressoes), 100, '#806d50') : '')
     + funnelStep('💸 Cliques', int(c.cliques), c.impressoes > 0 ? pct(c.cliques, c.impressoes) : 100, '#806d50')
-    + funnelStep('🎯 Leads', int(c.leads), pct(c.leads, c.cliques), '#6366f1')
-    + funnelStep('✅ Qualificados', int(c.qualificados), pct(c.qualificados, c.leads), '#8b5cf6')
-    + funnelStep('🚪 Visitas', int(c.visitas), pct(c.visitas, c.qualificados), '#a855f7')
+    + funnelStep('🎯 Leads', int(c.leads), pct(c.leads, c.cliques), '#806d50')
+    + funnelStep('✅ Qualificados', int(c.qualificados), pct(c.qualificados, c.leads), '#806d50')
+    + funnelStep('🚪 Visitas', int(c.visitas), pct(c.visitas, c.qualificados), '#806d50')
     + funnelStep('📝 Propostas', int(c.propostas), pct(c.propostas, c.visitas), '#d946ef')
-    + funnelStep('🏆 Vendas', dec(c.vendas, 1), pct(c.vendas, c.propostas), '#22c55e'));
+    + funnelStep('🏆 Vendas', dec(c.vendas, 1), pct(c.vendas, c.propostas), '#239a5b'));
   set('#ld-fin', mini('VGV Total', fmt(c.vgv))
     + mini('Comissão (' + _s.comissaoPct + '%)', fmt(c.comissao), 'var(--psm-gold)')
-    + mini('Lucro Líquido', fmt(c.lucro), c.lucro >= 0 ? '#22c55e' : '#ef4444')
-    + mini('LTV / CAC', dec(c.ltvCac, 2) + 'x', c.ltvCac >= 3 ? '#22c55e' : '#f59e0b')
+    + mini('Lucro Líquido', fmt(c.lucro), c.lucro >= 0 ? '#239a5b' : '#d64545')
+    + mini('LTV / CAC', dec(c.ltvCac, 2) + 'x', c.ltvCac >= 3 ? '#239a5b' : '#c7861a')
     + mini('CPM (mil impressões)', c.impressoes > 0 ? 'R$ ' + c.cpm.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—')
     + mini('Cliques / mês', int(c.cliques)));
 }

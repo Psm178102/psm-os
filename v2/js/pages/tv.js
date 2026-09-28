@@ -197,7 +197,7 @@ function placarView() {
   const p = _tv?.placar || {}, mt = _tv?.meta || {};
   const vgv = num(p.vgv_mes), metaVgv = num(mt.meta_vgv);
   const pct = mt.pct;
-  const cor = pct == null ? '#94a3b8' : pct >= 100 ? '#16a34a' : pct >= 70 ? '#22c55e' : pct >= 40 ? '#d97706' : '#dc2626';
+  const cor = pct == null ? '#8a8579' : pct >= 100 ? '#239a5b' : pct >= 70 ? '#239a5b' : pct >= 40 ? '#c7861a' : '#d64545';
   const mesNome = new Date().toLocaleDateString('pt-BR', { month: 'long' });
   return `
     <div class="tv-anim" style="display:grid;gap:24px">
@@ -226,7 +226,7 @@ function placarView() {
         </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px">
-        ${kpiBox('🎟 Ticket médio', 'R$ ' + money(p.ticket_medio_mes), 'média da venda no mês', '#8b5cf6')}
+        ${kpiBox('🎟 Ticket médio', 'R$ ' + money(p.ticket_medio_mes), 'média da venda no mês', '#806d50')}
         ${kpiBox(p.pipeline_basis === 'ponderado' ? '📈 Pipeline ponderado' : '📈 Pipeline', 'R$ ' + money(p.pipeline_vgv), int(p.pipeline_count) + (p.pipeline_basis === 'ponderado' ? ' em atendimento · chance × valor' : ' negócios em aberto'), '#806d50')}
         ${kpiBox('💎 VGV no ano', 'R$ ' + money(p.vgv_ano), int(p.vendas_ano) + ' vendas em ' + new Date().getFullYear(), '#806d50')}
       </div>
@@ -239,15 +239,15 @@ function ritmoView() {
   const metaVgv = num(mt.meta_vgv);
   const proj = num(pr.projecao_fim);
   const bate = pr.bate_meta;
-  const projCor = bate == null ? '#fde68a' : bate ? '#4ade80' : '#f87171';
+  const projCor = bate == null ? 'var(--warn-soft)' : bate ? '#239a5b' : '#d64545';
   const mom = pr.mom_pct;
-  const momCor = mom == null ? '#94a3b8' : mom >= 0 ? '#4ade80' : '#f87171';
+  const momCor = mom == null ? '#8a8579' : mom >= 0 ? '#239a5b' : '#d64545';
   return `
     <div class="tv-anim" style="display:grid;gap:24px">
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px">
         ${kpiBig('📅 Dias úteis restantes', int(pr.uteis_restantes), `${int(pr.uteis_decorridos)} de ${int(pr.uteis_total)} já passaram`, '#806d50')}
-        ${kpiBig('⚡ Ritmo atual', 'R$ ' + money(pr.run_rate_dia), 'VGV por dia útil até agora', '#8b5cf6')}
-        ${kpiBig('🎯 Precisa por dia', 'R$ ' + money(pr.precisa_por_dia), 'por dia útil restante p/ bater a meta', '#d4a843')}
+        ${kpiBig('⚡ Ritmo atual', 'R$ ' + money(pr.run_rate_dia), 'VGV por dia útil até agora', '#806d50')}
+        ${kpiBig('🎯 Precisa por dia', 'R$ ' + money(pr.precisa_por_dia), 'por dia útil restante p/ bater a meta', '#806d50')}
       </div>
       <div style="background:var(--surface-2);border-radius:var(--radius-lg);padding:28px 32px;text-align:center">
         <div style="font-size:20px;letter-spacing:2px;opacity:.8;text-transform:uppercase">🔮 Projeção de fechamento do mês</div>
@@ -300,7 +300,7 @@ function rankRow(c, i, topVgv) {
     <div class="tv-row" style="animation-delay:${i * 55}ms;display:grid;grid-template-columns:60px 44px 60px 1fr auto auto;gap:16px;align-items:center;padding:15px 20px;border-radius:var(--radius-lg);background:rgba(255,255,255,${top3 ? '.13' : '.06'});${top3 ? 'border:2px solid var(--accent-ink)' : ''}">
       <div style="font-size:${top3 ? 38 : 28}px;font-weight:600;text-align:center">${medal}</div>
       <div style="font-size:20px;text-align:center">${seta}</div>
-      <div style="width:56px;height:56px;border-radius:var(--radius-md);background:${c.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:20px">${ini}</div>
+      <div style="width:56px;height:56px;border-radius:var(--radius-md);background:${c.color || '#8a8579'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:20px">${ini}</div>
       <div style="min-width:0">
         <div style="font-weight:600;font-size:26px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(c.name || '—')}</div>
         <div style="font-size:14px;opacity:.65">${escapeHtml(c.team || 'geral')}${c.meta_attainment_pct != null ? ` · ${pct2(c.meta_attainment_pct)} da meta` : ''}</div>
@@ -316,7 +316,7 @@ function destaquesView() {
   const d = _tv?.destaques || {}, pr = _tv?.projecao || {};
   const mt = d.maior_ticket_mes, vd = d.venda_do_dia;
   const mom = pr.mom_pct;
-  const momCor = mom == null ? '#94a3b8' : mom >= 0 ? '#4ade80' : '#f87171';
+  const momCor = mom == null ? '#8a8579' : mom >= 0 ? '#239a5b' : '#d64545';
   return `
     <div class="tv-anim" style="display:grid;gap:22px">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px">
@@ -336,9 +336,9 @@ function destaquesView() {
         </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px">
-        ${kpiBox('✅ Vendas hoje', int(d.vendas_hoje), 'R$ ' + money(d.vgv_hoje) + ' em VGV', '#16a34a')}
+        ${kpiBox('✅ Vendas hoje', int(d.vendas_hoje), 'R$ ' + money(d.vgv_hoje) + ' em VGV', '#239a5b')}
         ${kpiBox('🌱 Leads hoje', int(d.leads_hoje), d.interessados_hoje != null ? `de tráfego pago · ${int(d.interessados_hoje)} negócios criados hoje` : 'novos negócios criados hoje', '#806d50')}
-        ${kpiBox('📊 vs mês anterior', (mom == null ? '—' : (mom >= 0 ? '+' : '') + pct2(mom)), 'no mesmo ponto do mês', momCor === '#94a3b8' ? '#64748b' : (mom >= 0 ? '#16a34a' : '#dc2626'))}
+        ${kpiBox('📊 vs mês anterior', (mom == null ? '—' : (mom >= 0 ? '+' : '') + pct2(mom)), 'no mesmo ponto do mês', momCor === '#8a8579' ? '#8a8579' : (mom >= 0 ? '#239a5b' : '#d64545'))}
       </div>
     </div>`;
 }
@@ -350,9 +350,9 @@ function funilView() {
   const real = _funil.metrics_basis === 'real';
   const stages = [
     { lbl: 'Negócios criados', n: int0(g.leads_criados), cor: '#806d50' },
-    { lbl: 'Contatos', n: int0(g.leads_contatados), cor: '#8b5cf6' },
-    { lbl: 'Visitas', n: int0(g.leads_visita), cor: '#d4a843' },
-    { lbl: 'Vendas', n: int0(g.vendas), cor: '#16a34a' },
+    { lbl: 'Contatos', n: int0(g.leads_contatados), cor: '#806d50' },
+    { lbl: 'Visitas', n: int0(g.leads_visita), cor: '#806d50' },
+    { lbl: 'Vendas', n: int0(g.vendas), cor: '#239a5b' },
   ];
   const top = Math.max(1, stages[0].n);
   return `
@@ -472,7 +472,7 @@ function configModal() {
 async function saveConfig() {
   const paineis = [...document.querySelectorAll('[data-painel]')].filter(c => c.checked).map(c => c.dataset.painel);
   const msg = document.getElementById('tvcfg-msg');
-  if (!paineis.length) { if (msg) { msg.textContent = '⚠️ Selecione ao menos um painel.'; msg.style.color = '#fca5a5'; } return; }
+  if (!paineis.length) { if (msg) { msg.textContent = '⚠️ Selecione ao menos um painel.'; msg.style.color = '#d64545'; } return; }
   const rotacao_s = Math.max(6, Math.min(120, parseInt(document.getElementById('tvcfg-rot')?.value, 10) || 15));
   const marcos = (document.getElementById('tvcfg-marcos')?.value || '').split(',').map(x => parseInt(String(x).replace(/\D/g, ''), 10)).filter(n => n > 0);
   if (msg) { msg.textContent = '⏳ salvando…'; msg.style.color = '#cbd5e1'; }
@@ -483,7 +483,7 @@ async function saveConfig() {
     startTimers();
     const wantFunil = paineis.includes('funil');
     if (wantFunil && !_funil) { await reload(); } else { render(); }
-  } catch (e) { if (msg) { msg.textContent = '⚠️ ' + e.message; msg.style.color = '#fca5a5'; } }
+  } catch (e) { if (msg) { msg.textContent = '⚠️ ' + e.message; msg.style.color = '#d64545'; } }
 }
 
 /* ─────────────────────────── selo wakelock ─────────────────────────── */
@@ -494,9 +494,9 @@ function updateWakeBadge(s) {
     el.style.cssText = 'position:fixed;left:22px;bottom:8px;z-index:99999;font:600 12px system-ui,sans-serif;padding:4px 11px;border-radius:999px;pointer-events:none;color:#fff;box-shadow:0 2px 10px rgba(0,0,0,.3);transition:opacity .4s';
     document.body.appendChild(el);
   }
-  if (s.on && s.method === 'wakelock') { el.style.background = '#16a34a'; el.textContent = '🔆 Tela travada acesa'; setTimeout(() => { if (el) el.style.opacity = '0.3'; }, 6000); }
+  if (s.on && s.method === 'wakelock') { el.style.background = '#239a5b'; el.textContent = '🔆 Tela travada acesa'; setTimeout(() => { if (el) el.style.opacity = '0.3'; }, 6000); }
   else if (s.on && s.method === 'video') { el.style.background = '#806d50'; el.textContent = '🔆 Tela acesa (vídeo)'; setTimeout(() => { if (el) el.style.opacity = '0.3'; }, 6000); }
-  else { el.style.opacity = '1'; el.style.background = '#d97706'; el.textContent = '⚠️ A TV pode dormir — desligue o descanso de tela'; }
+  else { el.style.opacity = '1'; el.style.background = '#c7861a'; el.textContent = '⚠️ A TV pode dormir — desligue o descanso de tela'; }
 }
 
 /* ─────────────────────────── helpers ─────────────────────────── */

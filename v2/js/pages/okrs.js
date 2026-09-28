@@ -21,11 +21,11 @@ let _allOkrs = [];           // todos os OKRs do ano (pro select de projetos ór
 let _users = null;           // okrs.responsavel é FK de users.id → o dono é escolhido numa lista
 
 const STATUS = {
-  on_track:     { lbl: 'No ritmo',      color: '#16a34a' },
-  at_risk:      { lbl: 'Em risco',      color: '#d97706' },
-  off_track:    { lbl: 'Fora do ritmo', color: '#dc2626' },
+  on_track:     { lbl: 'No ritmo',      color: '#239a5b' },
+  at_risk:      { lbl: 'Em risco',      color: '#c7861a' },
+  off_track:    { lbl: 'Fora do ritmo', color: '#d64545' },
   completed:    { lbl: 'Concluído',     color: '#806d50' },
-  nao_iniciado: { lbl: 'Não iniciado',  color: '#64748b' },
+  nao_iniciado: { lbl: 'Não iniciado',  color: '#8a8579' },
 };
 const AREAS = ['Presidência', 'Comercial', 'Marketing', 'Financeiro', 'Operações', 'Pessoas', 'Jurídico & Compliance', 'Tecnologia & Dados'];
 const FONTES = { manual: '✍️ Manual', vgv: '🔗 VGV (aba Metas)', vendas: '🔗 Vendas (aba Metas)' };
@@ -129,7 +129,7 @@ function saudeHTML(s) {
   const tile = (lbl, val, cor) => `<div style="background:var(--bg-3);border-radius:var(--radius-md);padding:10px;text-align:center;border-top:3px solid ${cor}">
     <div class="tiny muted" style="text-transform:uppercase;letter-spacing:.5px">${lbl}</div>
     <div style="font-size:20px;font-weight:600;color:${cor}">${val}</div></div>`;
-  const NIV = { alto: ['🔴', '#dc2626'], medio: ['🟡', '#d97706'], baixo: ['⚪', '#64748b'] };
+  const NIV = { alto: ['🔴', '#d64545'], medio: ['🟡', '#c7861a'], baixo: ['⚪', '#8a8579'] };
   const al = s.alertas || [];
   return `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px" class="mb-3">
@@ -155,7 +155,7 @@ function barra(pct, cor, ritmo) {
     ${ritmo > 0 && ritmo < 100 ? `<div title="ritmo esperado hoje: ${ritmo}%" style="position:absolute;top:-3px;left:${ritmo}%;width:2px;height:14px;background:var(--ink,#806d50);opacity:.55"></div>` : ''}
   </div>`;
 }
-const corPct = p => p >= 70 ? '#16a34a' : p >= 40 ? '#d97706' : '#dc2626';
+const corPct = p => p >= 70 ? '#239a5b' : p >= 40 ? '#c7861a' : '#d64545';
 
 function objetivoHTML(ob) {
   return `

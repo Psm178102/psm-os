@@ -4,29 +4,29 @@
 import { api } from '../api.js';
 
 const ROLE_META = {
-  socio:      { ico: '👑', color: '#dc2626', label: 'Sócio/Diretor', lvl: 10 },
-  diretor:    { ico: '👑', color: '#dc2626', label: 'Sócio/Diretor', lvl: 10 },
-  gerente:    { ico: '🎯', color: '#7c3aed', label: 'Gerente',       lvl: 7 },
-  gerente_conquista: { ico: '🎯', color: '#f59e0b', label: 'Gerente Conquista', lvl: 7 },
-  gerente_map:       { ico: '🎯', color: '#a855f7', label: 'Gerente MAP',       lvl: 7 },
+  socio:      { ico: '👑', color: '#d64545', label: 'Sócio/Diretor', lvl: 10 },
+  diretor:    { ico: '👑', color: '#d64545', label: 'Sócio/Diretor', lvl: 10 },
+  gerente:    { ico: '🎯', color: '#806d50', label: 'Gerente',       lvl: 7 },
+  gerente_conquista: { ico: '🎯', color: '#c7861a', label: 'Gerente Conquista', lvl: 7 },
+  gerente_map:       { ico: '🎯', color: '#806d50', label: 'Gerente MAP',       lvl: 7 },
   gerente_locacao:   { ico: '🎯', color: '#806d50', label: 'Gerente Locação',   lvl: 7 },
-  gerente_terceiros: { ico: '🎯', color: '#0d9488', label: 'Gerente Terceiros', lvl: 7 },
+  gerente_terceiros: { ico: '🎯', color: '#239a5b', label: 'Gerente Terceiros', lvl: 7 },
   backoffice: { ico: '📋', color: '#806d50', label: 'Back Office',   lvl: 6 },
   secretaria_vendas: { ico: '🗂️', color: '#db2777', label: 'Secretária de Vendas', lvl: 3 },
-  lider:      { ico: '🛡', color: '#059669', label: 'Líder',          lvl: 5 },
-  financeiro: { ico: '💰', color: '#0d9488', label: 'Financeiro',    lvl: 4 },
-  marketing:  { ico: '📢', color: '#d97706', label: 'Marketing',     lvl: 3 },
-  corretor:   { ico: '🏠', color: '#64748b', label: 'Corretor',      lvl: 2 },
-  corretor_conquista: { ico: '🏠', color: '#f59e0b', label: 'Corretor Conquista', lvl: 2 },
-  corretor_map:       { ico: '🗺️', color: '#a855f7', label: 'Corretor MAP',       lvl: 2 },
-  corretor_locacao:   { ico: '🔑', color: '#a16207', label: 'Corretor Locação',   lvl: 2 },
-  corretor_terceiros: { ico: '🤝', color: '#0d9488', label: 'Corretor Terceiros', lvl: 2 },
+  lider:      { ico: '🛡', color: '#239a5b', label: 'Líder',          lvl: 5 },
+  financeiro: { ico: '💰', color: '#239a5b', label: 'Financeiro',    lvl: 4 },
+  marketing:  { ico: '📢', color: '#c7861a', label: 'Marketing',     lvl: 3 },
+  corretor:   { ico: '🏠', color: '#8a8579', label: 'Corretor',      lvl: 2 },
+  corretor_conquista: { ico: '🏠', color: '#c7861a', label: 'Corretor Conquista', lvl: 2 },
+  corretor_map:       { ico: '🗺️', color: '#806d50', label: 'Corretor MAP',       lvl: 2 },
+  corretor_locacao:   { ico: '🔑', color: '#c7861a', label: 'Corretor Locação',   lvl: 2 },
+  corretor_terceiros: { ico: '🤝', color: '#239a5b', label: 'Corretor Terceiros', lvl: 2 },
 };
 const UNITS = [
-  { id: 'conquista', nome: 'PSM Conquista', cor: '#f59e0b', ico: '🏠' },
-  { id: 'map',       nome: 'PSM M.A.P',     cor: '#a855f7', ico: '🗺️' },
+  { id: 'conquista', nome: 'PSM Conquista', cor: '#c7861a', ico: '🏠' },
+  { id: 'map',       nome: 'PSM M.A.P',     cor: '#806d50', ico: '🗺️' },
   { id: 'locacao',   nome: 'PSM Locações',  cor: '#806d50', ico: '🔑' },
-  { id: 'terceiros', nome: 'PSM Terceiros', cor: '#0d9488', ico: '🤝' },
+  { id: 'terceiros', nome: 'PSM Terceiros', cor: '#239a5b', ico: '🤝' },
 ];
 
 let _root = null, _users = [];

@@ -8,9 +8,9 @@
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 export const CORES = {
-  tarefa: '#806d50', reuniao: '#8b5cf6', visita: '#16a34a', plantao: '#806d50', evento: '#e11d48',
-  outro: '#64748b', treino: '#14b8a6', academy: '#f97316', projeto: '#f59e0b', captacao: '#ca8a04',
-  criativo: '#d946ef', conteudo: '#a855f7', oneonone: '#ec4899',
+  tarefa: '#806d50', reuniao: 'var(--accent-ink)', visita: 'var(--ok)', plantao: '#806d50', evento: 'var(--err)',
+  outro: 'var(--ink-muted)', treino: 'var(--ok)', academy: 'var(--warn)', projeto: 'var(--warn)', captacao: 'var(--warn)',
+  criativo: '#d946ef', conteudo: 'var(--accent-ink)', oneonone: '#ec4899',
 };
 
 const CSS = `

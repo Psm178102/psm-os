@@ -72,7 +72,7 @@ function render() {
         ${day.map(p => {
           const u = _users.find(x => x.id === p.corretor_id);
           const per = PERIODOS.find(x => x.id === p.periodo) || PERIODOS[2];
-          return `<div ${canEdit ? `data-pid="${escapeHtml(p.id)}"` : ''} style="background:${u?.color || '#64748b'};color:#fff;font-size:11px;padding:2px 4px;border-radius:var(--radius-sm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escapeHtml(u?.name || '?')} - ${per.lbl}">${per.ico} ${escapeHtml((u?.name || '?').split(' ')[0])}</div>`;
+          return `<div ${canEdit ? `data-pid="${escapeHtml(p.id)}"` : ''} style="background:${u?.color || 'var(--ink-muted)'};color:#fff;font-size:11px;padding:2px 4px;border-radius:var(--radius-sm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escapeHtml(u?.name || '?')} - ${per.lbl}">${per.ico} ${escapeHtml((u?.name || '?').split(' ')[0])}</div>`;
         }).join('')}
       </div>
     `);

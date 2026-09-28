@@ -14,8 +14,8 @@ const TIPO_PT = { apartment: 'Apartamento', house: 'Casa', land: 'Terreno', comm
   office: 'Sala', store: 'Loja', shed: 'Galpão/Barracão', hall: 'Salão', small_farm: 'Chácara',
   two_story_house: 'Sobrado', area: 'Área', outhouse: 'Edícula', smallholding: 'Sítio', flat: 'Flat' };
 const tipoPt = t => TIPO_PT[String(t || '').toLowerCase()] || String(t || '').replace(/^./, c => c.toUpperCase());
-const STATUS_LBL = { ocupado: ['🔵 Ocupados', '#806d50'], disponivel: ['🟢 Disponíveis', '#16a34a'],
-  em_renovacao: ['🟡 Em renovação', '#d97706'], em_atraso: ['🔴 Em atraso', '#dc2626'] };
+const STATUS_LBL = { ocupado: ['🔵 Ocupados', '#806d50'], disponivel: ['🟢 Disponíveis', '#239a5b'],
+  em_renovacao: ['🟡 Em renovação', '#c7861a'], em_atraso: ['🔴 Em atraso', '#d64545'] };
 
 export async function pageLocacaoDash(ctx, root) {
   _root = root;
@@ -61,8 +61,8 @@ function render() {
       <div class="flex mt-2" style="gap:8px;flex-wrap:wrap">
         ${kpi('🔑 Contratos ativos', c.ocupadas || 0, (c.total || 0) + ' na carteira')}
         ${kpi('🏠 Aluguel sob gestão/mês', brl(c.aluguel_mes), 'ticket médio ' + brl(c.ticket_medio))}
-        ${kpi('💰 Receita de administração/mês', brl(c.receita_adm_mes), 'taxa média ' + (c.taxa_adm_media || 0).toFixed(1) + '%', '#16a34a')}
-        ${kpi('⏳ Vencendo', `${c.vence_30 || 0} · ${c.vence_60 || 0} · ${c.vence_90 || 0}`, '30 · 60 · 90 dias', (c.vence_30 ? '#dc2626' : '#d97706'))}
+        ${kpi('💰 Receita de administração/mês', brl(c.receita_adm_mes), 'taxa média ' + (c.taxa_adm_media || 0).toFixed(1) + '%', '#239a5b')}
+        ${kpi('⏳ Vencendo', `${c.vence_30 || 0} · ${c.vence_60 || 0} · ${c.vence_90 || 0}`, '30 · 60 · 90 dias', (c.vence_30 ? '#d64545' : '#c7861a'))}
       </div>
       ${!c.total ? `<div class="alert alert-warn mt-2" style="font-size:12px">A carteira ainda está vazia no House. Cadastre os contratos em <b>🗂 Carteira</b> (ou importe CSV) — referência do painel Kenlo em 04/07/2026: <b>11 contratos · R$ 39.065,47 de aluguéis · R$ 3.752,77/mês de taxa adm</b>.</div>` : ''}
     </div>

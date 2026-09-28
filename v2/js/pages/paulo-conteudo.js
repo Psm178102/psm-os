@@ -15,9 +15,9 @@ const BOARD_TITLE = { conteudo: 'Paulo Morimatsu', conteudo_imoveis: 'PSM Imóve
 const PLATAFORMAS = [
   { id: 'instagram', lbl: 'Instagram', ic: '📸', cor: '#d6249f' },
   { id: 'tiktok',    lbl: 'TikTok',    ic: '🎵', cor: '#111827' },
-  { id: 'youtube',   lbl: 'YouTube',   ic: '▶️', cor: '#ef4444' },
+  { id: 'youtube',   lbl: 'YouTube',   ic: '▶️', cor: '#d64545' },
 ];
-const platInfo = id => PLATAFORMAS.find(p => p.id === id) || { lbl: id || '—', ic: '•', cor: '#64748b' };
+const platInfo = id => PLATAFORMAS.find(p => p.id === id) || { lbl: id || '—', ic: '•', cor: '#8a8579' };
 
 const FORMATOS = {
   instagram: ['Reel', 'Carrossel', 'Post', 'Stories'],
@@ -26,19 +26,19 @@ const FORMATOS = {
 };
 
 const STAGES = [
-  { id: 'curadoria',    lbl: '📚 Curadoria / Pauta', cor: '#64748b' },
+  { id: 'curadoria',    lbl: '📚 Curadoria / Pauta', cor: '#8a8579' },
   { id: 'gravacao',     lbl: '🎬 Gravação',          cor: '#806d50' },
-  { id: 'edicao',       lbl: '✂️ Edição',            cor: '#8b5cf6' },
-  { id: 'aprovacao',    lbl: '👁 Aprovação',         cor: '#f59e0b' },
-  { id: 'agendamento',  lbl: '📆 Agendar Post',      cor: '#ca8a04' },
-  { id: 'publicado',    lbl: '🚀 Publicado',         cor: '#16a34a' },
+  { id: 'edicao',       lbl: '✂️ Edição',            cor: '#806d50' },
+  { id: 'aprovacao',    lbl: '👁 Aprovação',         cor: '#c7861a' },
+  { id: 'agendamento',  lbl: '📆 Agendar Post',      cor: '#c7861a' },
+  { id: 'publicado',    lbl: '🚀 Publicado',         cor: '#239a5b' },
 ];
-const stageInfo = id => STAGES.find(s => s.id === id) || { lbl: id || '—', cor: '#64748b' };
+const stageInfo = id => STAGES.find(s => s.id === id) || { lbl: id || '—', cor: '#8a8579' };
 
 const SEMANAS = [1, 2, 3, 4, 5];
 const RESPONSAVEIS = ['Paulo', 'Guilherme', 'Isabella'];
-const RESP_COR = { Paulo: '#806d50', Guilherme: '#16a34a', Isabella: '#d6249f' };
-const respCor = n => RESP_COR[n] || '#64748b';
+const RESP_COR = { Paulo: '#806d50', Guilherme: '#239a5b', Isabella: '#d6249f' };
+const respCor = n => RESP_COR[n] || '#8a8579';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const fmtData = d => d ? String(d).substring(0, 10).split('-').reverse().join('/') : '';
@@ -46,9 +46,9 @@ const fmtData = d => d ? String(d).substring(0, 10).split('-').reverse().join('/
 // Cronograma da demanda: Início ▶ / Entrega 📦 / Post 📣 (v81.35)
 const dateChips = c => {
   const mk = (ic, d, lbl, bg, fg) => d ? `<span class="pc-chip" title="${lbl}" style="background:${bg};color:${fg}">${ic} ${esc(fmtData(d))}</span>` : '';
-  const chips = mk('▶', c.data_inicio, 'Início', 'rgba(16,185,129,.14)', '#047857')
-    + mk('📦', c.data_entrega, 'Entrega', 'rgba(239,68,68,.14)', '#b91c1c')
-    + mk('📣', c.data_post, 'Post', 'rgba(79,70,229,.14)', '#4f46e5');
+  const chips = mk('▶', c.data_inicio, 'Início', 'rgba(16,185,129,.14)', '#239a5b')
+    + mk('📦', c.data_entrega, 'Entrega', 'rgba(239,68,68,.14)', '#d64545')
+    + mk('📣', c.data_post, 'Post', 'rgba(79,70,229,.14)', '#806d50');
   return chips ? `<div class="flex gap-1" style="flex-wrap:wrap;margin-top:5px">${chips}</div>` : '';
 };
 

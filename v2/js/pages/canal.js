@@ -165,12 +165,12 @@ function renderMessages() {
 function renderMsgCard(m) {
   const isAnon = m.de === 'Anônimo';
   const bg = m.lido ? 'var(--bg-3)' : 'rgba(99, 102, 241, 0.1)';
-  const border = m.lido ? 'var(--bd)' : '#6366f1';
+  const border = m.lido ? 'var(--bd)' : 'var(--accent-ink)';
   const dt = new Date(m.ts).toLocaleString('pt-BR');
   return `
     <div style="background:${bg};border:1px solid ${border};border-radius:var(--radius-md);padding:14px">
       <div class="flex gap-2" style="align-items:flex-start;margin-bottom:10px">
-        <div style="width:36px;height:36px;border-radius:var(--radius-md);background:${isAnon ? '#475569' : 'var(--accent-soft)'};display:flex;align-items:center;justify-content:center;font-size:16px">${isAnon ? '🔒' : '👤'}</div>
+        <div style="width:36px;height:36px;border-radius:var(--radius-md);background:${isAnon ? 'var(--ink-2)' : 'var(--accent-soft)'};display:flex;align-items:center;justify-content:center;font-size:16px">${isAnon ? '🔒' : '👤'}</div>
         <div style="flex:1">
           <div style="font-weight:600;color:${isAnon ? 'var(--muted)' : 'var(--psm-gold)'}">${escapeHtml(m.de)}</div>
           <div class="tiny muted">📅 ${dt}</div>

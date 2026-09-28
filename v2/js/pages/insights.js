@@ -253,7 +253,7 @@ async function delNote(id) {
 function fmtDate(s) { try { return new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }); } catch { return ''; } }
 
 function card(c) {
-  const COR = { good: '#16a34a', warn: '#d97706', bad: '#dc2626', info: '#806d50' };
+  const COR = { good: 'var(--ok)', warn: 'var(--warn)', bad: 'var(--err)', info: '#806d50' };
   const cor = COR[c.tom] || '#806d50';
   return `
     <div style="background:var(--bg-2);border:1px solid var(--border);border-top:3px solid ${cor};border-radius:var(--r-md);padding:12px 14px">

@@ -21,14 +21,14 @@ const FAIXAS = [
 const faixa = v => FAIXAS.find(f => v <= f.ate) || FAIXAS[FAIXAS.length - 1];
 
 const LINES = [
-  { id: 'map', nome: 'PSM M.A.P', icon: '🏢', cor: '#7c3aed' },
-  { id: 'conquista', nome: 'PSM Conquista', icon: '🏠', cor: '#16a34a' },
+  { id: 'map', nome: 'PSM M.A.P', icon: '🏢', cor: 'var(--accent-ink)' },
+  { id: 'conquista', nome: 'PSM Conquista', icon: '🏠', cor: 'var(--ok)' },
 ];
 // 3 colunas de conversão (como na planilha do Paulo)
 const COLS = [
-  { key: 'convOtim', nome: 'Otimista', cor: '#16a34a' },
+  { key: 'convOtim', nome: 'Otimista', cor: 'var(--ok)' },
   { key: 'convReal', nome: 'Realista', cor: '#806d50' },
-  { key: 'convMin', nome: 'Mínima', cor: '#d97706' },
+  { key: 'convMin', nome: 'Mínima', cor: 'var(--warn)' },
 ];
 
 function freshLine(over) {
@@ -432,7 +432,7 @@ function orcView(L) {
         <span class="tiny muted">— pegue o VGV de equilíbrio/meta no <a href="#/metricas-viab" style="color:var(--psm-gold)">Ponto de Equilíbrio</a></span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px">
-        ${ok('🏆 VGV alvo', fK(alvoVal))}${ok('🤝 Vendas', f1(o.vendas))}${ok('👥 Leads', f1(o.leads))}${ok('💸 Investir/mês', f$(o.invest), '#7c3aed')}${ok('💰 Caixa', f$(fa.caixa), fa.caixa >= 0 ? '#16a34a' : '#dc2626')}${ok('📊 CPA', f$(fa.cpa))}
+        ${ok('🏆 VGV alvo', fK(alvoVal))}${ok('🤝 Vendas', f1(o.vendas))}${ok('👥 Leads', f1(o.leads))}${ok('💸 Investir/mês', f$(o.invest), 'var(--accent-ink)')}${ok('💰 Caixa', f$(fa.caixa), fa.caixa >= 0 ? 'var(--ok)' : 'var(--err)')}${ok('📊 CPA', f$(fa.cpa))}
       </div>
       <div class="tiny muted" style="margin-top:7px">Pra fazer <b>${fK(alvoVal)}</b> de VGV na <b>${esc(lineMeta(_s.active).nome)}</b>, invista <b style="color:var(--roxo)">${f$(o.invest)}</b>/mês em tráfego (CPL ${f$(L.cpl)}, conversão ${pct2(L.convReal)}, descarte ${pct2(L.descartePct)}). Hoje você investe ${f$(cur.invest)} → <b style="color:${dInv >= 0 ? 'var(--warn)' : 'var(--ok)'}">${dInv >= 0 ? '+' : ''}${f$(dInv)}</b>.</div>
     </div>`;

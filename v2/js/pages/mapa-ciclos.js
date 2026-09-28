@@ -72,11 +72,11 @@ function render(d, loading) {
   if (loading) { _root.innerHTML = `<div class="card"><h2 class="card-title">🗺️ Mapa dos Ciclos de Feedback</h2><div class="muted tiny"><span class="spinner"></span> Lendo os dados reais…</div></div>`; return; }
   const m = d.meta, c = d.crm, fc = d.fc, fi = d.finc;
   const arrow = (txt) => `<div class="mc-arrow"><span class="mc-ar">▶</span><span class="tiny muted">${txt}</span></div>`;
-  const atingCor = fc.ating == null ? '' : (fc.ating >= 100 ? '#16a34a' : fc.ating >= 70 ? '#d97706' : '#dc2626');
+  const atingCor = fc.ating == null ? '' : (fc.ating >= 100 ? 'var(--ok)' : fc.ating >= 70 ? 'var(--warn)' : 'var(--err)');
 
   const ciclo = (n, nome, desc, status) => {
     // v88.47: "✅ ativo" só quando a fonte do ciclo respondeu agora; ciclo que é só desenho de fluxo não finge status
-    const st = status === 'ok' ? { t: '✅ fonte ok', c: '#16a34a' } : status === 'warn' ? { t: '⚠️ fonte fora', c: '#d97706' } : { t: '📐 fluxo', c: '#64748b' };
+    const st = status === 'ok' ? { t: '✅ fonte ok', c: 'var(--ok)' } : status === 'warn' ? { t: '⚠️ fonte fora', c: 'var(--warn)' } : { t: '📐 fluxo', c: 'var(--ink-muted)' };
     return `<div class="mc-ciclo">
       <div class="mc-cn" style="color:${st.c}">${n}</div>
       <div style="flex:1"><b>${esc(nome)}</b><div class="tiny muted">${desc}</div></div>
@@ -90,7 +90,7 @@ function render(d, loading) {
 
     <div class="mc-band">OPERAÇÃO REAL <span class="tiny muted" style="font-weight:400">— o que de fato aconteceu (Meta + CRM + Financeiro)</span></div>
     <div class="mc-row">
-      ${node('#/marketing-historico', '📣', 'Tráfego (Meta)', '#7c3aed', 'investimento → leads', [
+      ${node('#/marketing-historico', '📣', 'Tráfego (Meta)', 'var(--accent-ink)', 'investimento → leads', [
         { v: f$(m.investMes), l: 'invest/mês' }, { v: f1(m.leadsMes), l: 'leads/mês' }, { v: f$(m.cpl), l: 'CPL' },
       ])}
       ${arrow('leads viram oportunidades')}
@@ -107,13 +107,13 @@ function render(d, loading) {
 
     <div class="mc-band">INSTRUMENTOS DE DECISÃO <span class="tiny muted" style="font-weight:400">— leem o real e projetam o futuro</span></div>
     <div class="mc-grid">
-      ${node('#/sim-trafego', '📣', 'Simulador de Tráfego', '#7c3aed', 'real → simulado + otimizador', [
+      ${node('#/sim-trafego', '📣', 'Simulador de Tráfego', 'var(--accent-ink)', 'real → simulado + otimizador', [
         { v: f$(m.cpl), l: 'CPL real usado' }, { v: pct2(c.conv), l: 'vendas (todas) ÷ leads Meta' },
       ])}
-      ${node('#/metricas-viab', '🧪', 'Métrica de Viabilidade', '#16a34a', 'realizado × premissa + equilíbrio', [
+      ${node('#/metricas-viab', '🧪', 'Métrica de Viabilidade', 'var(--ok)', 'realizado × premissa + equilíbrio', [
         { v: fK(c.vgvMes), l: 'VGV real/mês' },
       ])}
-      ${node('#/gestao-comercial', '🎯', 'Projeção / Metas', '#d97706', 'projeção oficial (ritmo × funil) → meta', [
+      ${node('#/gestao-comercial', '🎯', 'Projeção / Metas', 'var(--warn)', 'projeção oficial (ritmo × funil) → meta', [
         { v: fc.projAno == null ? '—' : fK(fc.projAno), l: 'fechamento provável do ano' }, { v: fc.ating == null ? '—' : pct2(fc.ating), l: 'da meta', cor: atingCor },
       ])}
       ${node('#/sim-trafego', '⚡', 'Otimizador de Verba', '#806d50', 'aloca orçamento ótimo', [

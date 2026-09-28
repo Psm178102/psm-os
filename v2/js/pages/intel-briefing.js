@@ -45,10 +45,10 @@ function render() {
 
       <!-- fatos atuais -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:10px">
-        ${factCard('🤝 Vendas (mês)', `${v.vendas_mes ?? '—'}`, `R$ ${moneyShort(v.vgv_mes)} VGV · ${v.pipeline_aberto ?? '—'} no pipeline`, '#16a34a')}
-        ${factCard('📢 Mídia (Meta)', a.cpl != null ? 'R$ ' + money(a.cpl) : '—', `CPL · ${fmtNum(a.leads_30d)} leads/30d`, '#f59e0b')}
-        ${factCard('📉 Perdas 90d', `${v.perdas_90d ?? '—'}`, `${v.trash_pct == null ? '—' : pct2(v.trash_pct)} lixo/desqualificado`, '#dc2626')}
-        ${factCard('🎯 Concorrentes', `${c.length}`, c.length ? c.slice(0,3).map(x=>escapeHtml(x.concorrente)).join(', ') : 'sem captura', '#7c3aed')}
+        ${factCard('🤝 Vendas (mês)', `${v.vendas_mes ?? '—'}`, `R$ ${moneyShort(v.vgv_mes)} VGV · ${v.pipeline_aberto ?? '—'} no pipeline`, 'var(--ok)')}
+        ${factCard('📢 Mídia (Meta)', a.cpl != null ? 'R$ ' + money(a.cpl) : '—', `CPL · ${fmtNum(a.leads_30d)} leads/30d`, 'var(--warn)')}
+        ${factCard('📉 Perdas 90d', `${v.perdas_90d ?? '—'}`, `${v.trash_pct == null ? '—' : pct2(v.trash_pct)} lixo/desqualificado`, 'var(--err)')}
+        ${factCard('🎯 Concorrentes', `${c.length}`, c.length ? c.slice(0,3).map(x=>escapeHtml(x.concorrente)).join(', ') : 'sem captura', 'var(--accent-ink)')}
       </div>
 
       ${ordensCard()}

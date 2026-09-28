@@ -7,7 +7,7 @@ const AGENT = {
   id: 'vera',
   name: 'Vera',
   ico: '💜',
-  color: '#8b5cf6',
+  color: 'var(--accent-ink)',
   line: 'PSM Assessoria Imobiliária',
   desc: 'Atendimento de leads, qualificação, nutrição e captação para assessoria imobiliária',
   capacidades: [

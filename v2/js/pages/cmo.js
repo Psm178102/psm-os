@@ -12,7 +12,7 @@ import { api } from '../api.js';
 import { auth } from '../auth.js';
 
 const TIPO_LBL = { diario: '📅 Diário (19h15)', semanal: '🗓 Placar Semanal (seg)', mensal: '📊 Fechamento de mês', trimestral: '♟️ Plano do trimestre' };
-const TIPO_COR = { diario: '#fb923c', semanal: '#806d50', mensal: '#22c55e', trimestral: '#a855f7' };
+const TIPO_COR = { diario: 'var(--warn)', semanal: '#806d50', mensal: 'var(--ok)', trimestral: 'var(--accent-ink)' };
 const TABS = [
   { id: 'status', lbl: '📖 Como funciona' },
   { id: 'validar', lbl: '✅ Validar peças' },
@@ -178,7 +178,7 @@ function render() {
    está, no House não sei nem onde acompanhar". Esta aba é a resposta: uma tela,
    verde/amarelo/vermelho, com o que destrava cada item e de quem é a vez. */
 
-const ST = { ok: ['#22c55e', '✅ funcionando'], meio: ['#eab308', '🟡 parcial'], off: ['#f43f5e', '🔴 travado'], espera: ['#806d50', '⏳ aguarda você'] };
+const ST = { ok: ['var(--ok)', '✅ funcionando'], meio: ['var(--warn)', '🟡 parcial'], off: ['var(--err)', '🔴 travado'], espera: ['#806d50', '⏳ aguarda você'] };
 
 const STATUS_BLOCOS = [
   { titulo: '🏭 A ESTEIRA (as 8 estações produzindo)', itens: [
@@ -370,10 +370,10 @@ function renderStatus(body) {
    POST /api/v3/diretoria/cmo {acao:"validar"}. */
 
 const VER = {
-  pendente:  ['#eab308', '⏳ aguardando você'],
-  aprovada:  ['#22c55e', '✅ aprovada'],
-  ajustar:   ['#fb923c', '✏️ ajustar'],
-  reprovada: ['#f43f5e', '🚫 reprovada'],
+  pendente:  ['var(--warn)', '⏳ aguardando você'],
+  aprovada:  ['var(--ok)', '✅ aprovada'],
+  ajustar:   ['var(--warn)', '✏️ ajustar'],
+  reprovada: ['var(--err)', '🚫 reprovada'],
 };
 let _vAberta = null, _vBusy = false;
 
@@ -515,7 +515,7 @@ function renderPainel(body) {
 /* ─────────────────────────── 🏭 Esteira ─────────────────────────── */
 function svgFabrica() {
   /* Porte do fluxograma-mãe (artifact Esteira Conquista) pro tema do House. */
-  const V = '#22c55e', VT = 'rgba(34,197,94,.10)', T = '#f43f5e', TT = 'rgba(244,63,94,.08)', A = '#eab308', AT = 'rgba(234,179,8,.10)', Z = '#806d50', ZT = 'rgba(56,189,248,.08)';
+  const V = 'var(--ok)', VT = 'rgba(34,197,94,.10)', T = 'var(--err)', TT = 'rgba(244,63,94,.08)', A = 'var(--warn)', AT = 'rgba(234,179,8,.10)', Z = '#806d50', ZT = 'rgba(56,189,248,.08)';
   const box = (x, y, w, h, fill, stroke, dash, lines, bold) => `
     <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="11" fill="${fill}" stroke="${stroke}" stroke-width="${bold ? 2.4 : 1.6}" ${dash ? 'stroke-dasharray="5 4"' : ''}/>
     ${lines.map((l, i) => `<text x="${x + w / 2}" y="${y + 24 + i * 16}" text-anchor="middle" font-size="${i ? 10.5 : 12.5}" ${i ? 'opacity=".75"' : 'font-weight="800"'} fill="currentColor">${l}</text>`).join('')}`;

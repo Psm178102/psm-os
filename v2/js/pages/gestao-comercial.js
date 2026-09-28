@@ -1272,8 +1272,8 @@ function tabSafras() {
 /* ── 📈 GRÁFICOS DE TUDO (v86.33, pedido 17/ago): o painel inteiro em visual ── */
 
 /* ═══════════ GRÁFICOS (Chart.js) ═══════════ */
-const TEAM_CORES = { conquista: '#806d50', map: '#a78bfa', terceiros: '#fbbf24', locacao: '#34d399', outros: '#64748b' };
-const CORES8 = ['#806d50', '#a78bfa', '#fbbf24', '#34d399', '#f87171', '#806d50', '#f472b6', '#94a3b8'];
+const TEAM_CORES = { conquista: '#806d50', map: '#a78bfa', terceiros: '#c7861a', locacao: '#239a5b', outros: '#8a8579' };
+const CORES8 = ['#806d50', '#a78bfa', '#c7861a', '#239a5b', '#d64545', '#806d50', '#f472b6', '#8a8579'];
 
 function gwrap(canvases, titulo, srId, alto) {
   const cv = (Array.isArray(canvases) ? canvases : [canvases])
@@ -1289,7 +1289,7 @@ async function initCharts() {
   _gcharts.forEach(c => { try { c.destroy(); } catch (_) {} });
   _gcharts = [];
   const cs = getComputedStyle(document.documentElement);
-  const ink = (cs.getPropertyValue('--ink-muted') || '#8f95ab').trim();
+  const ink = (cs.getPropertyValue('--ink-muted') || '#8a8579').trim();
   const grid = document.documentElement.classList.contains('dark') ? 'rgba(148,163,184,.14)' : 'rgba(100,116,139,.14)';
   const base = extra => ({ responsive: true, maintainAspectRatio: false,
     plugins: { legend: { labels: { color: ink, font: { size: 11 }, boxWidth: 12 } } }, ...(extra || {}) });
@@ -1312,7 +1312,7 @@ async function initCharts() {
 
   mk('gch-leads', { type: 'bar', data: { labels: meses, datasets: [
     { label: 'Leads', data: hs.map(h => h.total?.leads || 0), backgroundColor: '#806d50' },
-    { type: 'line', label: 'Spend Meta (R$)', data: hs.map(h => h.total?.spend || 0), borderColor: '#f59e0b', backgroundColor: '#f59e0b', yAxisID: 'y2', tension: .3 },
+    { type: 'line', label: 'Spend Meta (R$)', data: hs.map(h => h.total?.spend || 0), borderColor: '#c7861a', backgroundColor: '#c7861a', yAxisID: 'y2', tension: .3 },
   ] }, options: base({ scales: sc(true) }) });
 
   const eq = (_v.produtividade || {}).equipes || {};
@@ -1326,24 +1326,24 @@ async function initCharts() {
     options: base({ plugins: { legend: { position: 'right', labels: { color: ink, font: { size: 10 }, boxWidth: 10 } } } }) });
   mk('gch-fontes-conv', { type: 'bar', data: { labels: fg.map(f => f.label), datasets: [
     { label: '%→Visita', data: fg.map(f => f.pc_visita || 0), backgroundColor: '#806d50' },
-    { label: '%→Venda', data: fg.map(f => f.pc_venda || 0), backgroundColor: '#22c55e' },
+    { label: '%→Venda', data: fg.map(f => f.pc_venda || 0), backgroundColor: '#239a5b' },
   ] }, options: base({ indexAxis: 'y', scales: sc() }) });
 
   const sf = _v.safras || [];
   mk('gch-safras', { type: 'bar', data: { labels: sf.map(s => mesNome(s.ym).slice(0, 3)), datasets: [
-    { label: 'Leads da safra', data: sf.map(s => s.leads), backgroundColor: '#94a3b8' },
-    { type: 'line', label: 'Conv. até hoje (%)', data: sf.map(s => s.pc || 0), borderColor: '#22c55e', backgroundColor: '#22c55e', yAxisID: 'y2', tension: .3 },
+    { label: 'Leads da safra', data: sf.map(s => s.leads), backgroundColor: '#8a8579' },
+    { type: 'line', label: 'Conv. até hoje (%)', data: sf.map(s => s.pc || 0), borderColor: '#239a5b', backgroundColor: '#239a5b', yAxisID: 'y2', tension: .3 },
   ] }, options: base({ scales: sc(true) }) });
 
   const ce = (_v.custos || {}).equipes || [];
   mk('gch-cac', { type: 'bar', data: { labels: ce.map(c => sigla(c.label)), datasets: [
-    { label: 'CAC mídia (só vendas de tráfego)', data: ce.map(c => c.cac_midia ?? 0), backgroundColor: '#fbbf24' },
+    { label: 'CAC mídia (só vendas de tráfego)', data: ce.map(c => c.cac_midia ?? 0), backgroundColor: '#c7861a' },
     { label: 'CAC marketing (+premiação indicação)', data: ce.map(c => c.cac_marketing ?? 0), backgroundColor: '#a78bfa' },
-    { label: 'CAC completo (+fixo da linha)', data: ce.map(c => c.cac_completo ?? 0), backgroundColor: '#ef4444' },
+    { label: 'CAC completo (+fixo da linha)', data: ce.map(c => c.cac_completo ?? 0), backgroundColor: '#d64545' },
   ] }, options: base({ scales: sc() }) });
 
   const ci = ((_v.campanhas || {}).itens || []).filter(x => x.venda > 0).slice(0, 10);
   mk('gch-camp', { type: 'bar', data: { labels: ci.map(x => x.campanha.slice(0, 30)), datasets: [
-    { label: 'Vendas', data: ci.map(x => x.venda), backgroundColor: '#22c55e' },
+    { label: 'Vendas', data: ci.map(x => x.venda), backgroundColor: '#239a5b' },
   ] }, options: base({ indexAxis: 'y', scales: sc() }) });
 }

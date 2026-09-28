@@ -11,9 +11,9 @@ const dataBR = s => (s || '').slice(0, 10).split('-').reverse().join('/');
 
 const PERFIS = {
   aguia:   { nome: 'Águia',   emoji: '🦅', cor: '#806d50', lema: 'Fazer Diferente' },
-  gato:    { nome: 'Gato',    emoji: '🐱', cor: '#16a34a', lema: 'Fazer Junto' },
-  tubarao: { nome: 'Tubarão', emoji: '🦈', cor: '#dc2626', lema: 'Fazer Rápido' },
-  lobo:    { nome: 'Lobo',    emoji: '🐺', cor: '#7c3aed', lema: 'Fazer Certo' },
+  gato:    { nome: 'Gato',    emoji: '🐱', cor: 'var(--ok)', lema: 'Fazer Junto' },
+  tubarao: { nome: 'Tubarão', emoji: '🦈', cor: 'var(--err)', lema: 'Fazer Rápido' },
+  lobo:    { nome: 'Lobo',    emoji: '🐺', cor: 'var(--accent-ink)', lema: 'Fazer Certo' },
 };
 
 // tipos de material — ícone + rótulo; auto-detectado pela extensão/URL

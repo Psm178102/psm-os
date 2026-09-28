@@ -11,17 +11,17 @@ import { heroWrap, heroKpi, miniStat, panel, loadChartLib, darkOpts, DARK_INK, D
 let _charts = [];
 
 const TIPOS_EST = [
-  { id: 'visao',      lbl: 'Visão',      ico: '🎯', color: '#7c3aed' },
+  { id: 'visao',      lbl: 'Visão',      ico: '🎯', color: '#806d50' },
   { id: 'missao',     lbl: 'Missão',     ico: '🚀', color: '#806d50' },
-  { id: 'objetivo',   lbl: 'Objetivos',  ico: '📍', color: '#16a34a' },
-  { id: 'okr',        lbl: 'OKRs',       ico: '✅', color: '#d97706' },
-  { id: 'iniciativa', lbl: 'Iniciativas',ico: '🛠', color: '#dc2626' },
+  { id: 'objetivo',   lbl: 'Objetivos',  ico: '📍', color: '#239a5b' },
+  { id: 'okr',        lbl: 'OKRs',       ico: '✅', color: '#c7861a' },
+  { id: 'iniciativa', lbl: 'Iniciativas',ico: '🛠', color: '#d64545' },
 ];
 
 const PRIOR_LBL = {
   info:    { lbl: 'Info',     bg: '#dbeafe', fg: '#806d50', ico: 'ℹ️' },
-  alerta:  { lbl: 'Alerta',   bg: '#fef3c7', fg: '#78350f', ico: '⚠️' },
-  critica: { lbl: 'Crítica',  bg: '#fee2e2', fg: '#991b1b', ico: '🔴' },
+  alerta:  { lbl: 'Alerta',   bg: '#fef3c7', fg: '#c7861a', ico: '⚠️' },
+  critica: { lbl: 'Crítica',  bg: '#fee2e2', fg: '#d64545', ico: '🔴' },
 };
 
 let _root = null;
@@ -116,9 +116,9 @@ function renderDashboard() {
     <!-- Operação -->
     <div class="flex gap-3" style="flex-wrap:wrap;margin:16px 0 4px">
       ${kpi('👥 Equipe ativa', k.users_ativos || 0, `${k.users_total || 0} cadastrados`, '#806d50')}
-      ${kpi('📋 Tarefas abertas', k.tarefas_abertas ?? '—', totalTarefas(k.tarefas), (k.tarefas_abertas || 0) > 0 ? '#d97706' : '#16a34a')}
-      ${kpi('📅 Eventos 7d', k.eventos_proxima_semana || 0, 'próximos 7 dias', '#7c3aed')}
-      ${kpi('📢 Recados', k.recados_ativos || 0, `${k.recados_criticos || 0} críticos`, k.recados_criticos > 0 ? '#dc2626' : '#16a34a')}
+      ${kpi('📋 Tarefas abertas', k.tarefas_abertas ?? '—', totalTarefas(k.tarefas), (k.tarefas_abertas || 0) > 0 ? '#c7861a' : '#239a5b')}
+      ${kpi('📅 Eventos 7d', k.eventos_proxima_semana || 0, 'próximos 7 dias', '#806d50')}
+      ${kpi('📢 Recados', k.recados_ativos || 0, `${k.recados_criticos || 0} críticos`, k.recados_criticos > 0 ? '#d64545' : '#239a5b')}
     </div>
     ${execMetrics(k)}
 
@@ -173,7 +173,7 @@ function filterBar() {
 function subline(txt) { return `<div style="font-size:12px;color:var(--ink-muted);margin-top:2px">${txt}</div>`; }
 function deltaBadge(pct) {
   if (pct == null) return `<span style="font-size:12px;color:var(--ink-muted)">— vs anterior</span>`;
-  const up = pct >= 0, c = up ? '#34d399' : '#f87171', ar = up ? '▲' : '▼';
+  const up = pct >= 0, c = up ? '#239a5b' : '#d64545', ar = up ? '▲' : '▼';
   return `<span style="font-size:12px;color:${c};font-weight:600">${ar} ${Math.abs(pct).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%</span> <span style="font-size:11px;color:var(--ink-muted)">vs anterior</span>`;
 }
 function heroCard(label, val, subHtml, color) {
@@ -184,7 +184,7 @@ function heroCard(label, val, subHtml, color) {
   </div>`;
 }
 function atingCard(pct) {
-  const col = pct == null ? '#94a3b8' : pct < 60 ? '#f87171' : pct < 95 ? '#fbbf24' : '#34d399';
+  const col = pct == null ? '#8a8579' : pct < 60 ? '#d64545' : pct < 95 ? '#c7861a' : '#239a5b';
   const w = Math.min(100, Math.max(0, pct || 0));
   return `<div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px">
     <div style="font-size:11px;color:#cbd5e1;text-transform:uppercase;letter-spacing:1px;font-weight:600">📊 % Atingimento</div>
@@ -214,16 +214,16 @@ function shareOfSelected(ex) {
 function forecastCard(fc) {
   if (!fc) return '';
   const on = fc.on_track;
-  const col = on == null ? '#64748b' : on ? '#16a34a' : '#dc2626';
+  const col = on == null ? '#8a8579' : on ? '#239a5b' : '#d64545';
   return `
     <div class="card" style="margin:14px 0;border-left:5px solid ${col}">
       <h3 class="card-title">🔮 Projeção do ano <span class="tiny muted" style="font-weight:400">· ritmo atual</span></h3>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
-        ${miniStat('Realizado YTD', 'R$ ' + moneyC(fc.ytd_vgv), '#a855f7')}
+        ${miniStat('Realizado YTD', 'R$ ' + moneyC(fc.ytd_vgv), '#806d50')}
         ${miniStat('Projeção fim do ano', 'R$ ' + moneyC(fc.run_rate_anual), col)}
         ${miniStat('% da meta (projeção)', fc.proj_pct == null ? '—' : pct2(fc.proj_pct), col)}
-        ${miniStat('Falta p/ meta', fc.falta > 0 ? 'R$ ' + moneyC(fc.falta) : 'R$ 0', fc.falta > 0 ? '#d97706' : '#16a34a')}
-        ${miniStat('Ritmo necessário/mês', fc.ritmo_necessario_mes > 0 ? 'R$ ' + moneyC(fc.ritmo_necessario_mes) : '✔ no ritmo', fc.ritmo_necessario_mes > 0 ? '#dc2626' : '#16a34a')}
+        ${miniStat('Falta p/ meta', fc.falta > 0 ? 'R$ ' + moneyC(fc.falta) : 'R$ 0', fc.falta > 0 ? '#c7861a' : '#239a5b')}
+        ${miniStat('Ritmo necessário/mês', fc.ritmo_necessario_mes > 0 ? 'R$ ' + moneyC(fc.ritmo_necessario_mes) : '✔ no ritmo', fc.ritmo_necessario_mes > 0 ? '#d64545' : '#239a5b')}
       </div>
       <div class="tiny muted mt-2">Projeção = run-rate (VGV ÷ ${fc.elapsed_months} ${fc.elapsed_months === 1 ? 'mês' : 'meses'} × 12). ${on ? '✅ No ritmo pra bater a meta.' : '⚠️ Abaixo do ritmo — precisa acelerar os meses restantes.'}</div>
     </div>`;
@@ -316,10 +316,10 @@ function execMetrics(k) {
       <h3 class="card-title">📊 Métricas Executivas <span class="tiny muted" style="font-weight:400">· só Diretoria</span></h3>
       <div class="flex gap-2" style="flex-wrap:wrap">
         ${ex('🎟 Ticket médio', 'R$ ' + moneyShort(k.ticket_medio || 0), 'VGV ÷ vendas (ano)', '#806d50')}
-        ${ex('🏦 Custo fixo / venda', k.custo_fixo_por_venda != null ? 'R$ ' + moneyShort(k.custo_fixo_por_venda) : '—', cfHint, '#ef4444')}
-        ${ex('💚 Margem contrib. / venda', 'R$ ' + moneyShort(k.margem_contrib_venda || 0), 'comissão − custo variável', '#16a34a')}
-        ${ex('♻️ LTV (comissão/cliente)', 'R$ ' + moneyShort(k.ltv || 0), 'comissão média por cliente', '#a855f7')}
-        ${ex('🔄 Turnover', k.turnover_pct != null ? pct2(k.turnover_pct) : '—', `${k.users_inativos || 0} inativos / ${k.users_total || 0}`, (k.turnover_pct || 0) > 15 ? '#dc2626' : '#d97706')}
+        ${ex('🏦 Custo fixo / venda', k.custo_fixo_por_venda != null ? 'R$ ' + moneyShort(k.custo_fixo_por_venda) : '—', cfHint, '#d64545')}
+        ${ex('💚 Margem contrib. / venda', 'R$ ' + moneyShort(k.margem_contrib_venda || 0), 'comissão − custo variável', '#239a5b')}
+        ${ex('♻️ LTV (comissão/cliente)', 'R$ ' + moneyShort(k.ltv || 0), 'comissão média por cliente', '#806d50')}
+        ${ex('🔄 Turnover', k.turnover_pct != null ? pct2(k.turnover_pct) : '—', `${k.users_inativos || 0} inativos / ${k.users_total || 0}`, (k.turnover_pct || 0) > 15 ? '#d64545' : '#c7861a')}
       </div>
       <div class="tiny muted mt-2">Premissas PSM: comissão <b>${pct2(comPct)}</b> do VGV · custo variável <b>${pct2(cvPct)}</b> do VGV · custo fixo/mês <b>${pr.custo_fixo_mensal ? 'R$ ' + moneyShort(pr.custo_fixo_mensal) : '—'}</b>. Margem = comissão (${pct2(comPct)} VGV) − custo variável (${pct2(cvPct)} VGV) = <b>${pct2(margemPct)}</b> por venda.</div>
     </div>`;
@@ -340,7 +340,7 @@ async function buildDashCharts() {
   const s = ex.serie || {};
   if ((s.vgv || []).length) {
     const ds = [{ type: 'bar', label: 'VGV realizado', data: s.vgv, backgroundColor: 'rgba(168,85,247,0.65)', borderRadius: 4, order: 2 }];
-    if (s.meta) ds.push({ type: 'line', label: 'Meta mensal', data: s.meta, borderColor: '#f59e0b', borderDash: [5, 4], pointRadius: 0, borderWidth: 2, order: 1 });
+    if (s.meta) ds.push({ type: 'line', label: 'Meta mensal', data: s.meta, borderColor: '#c7861a', borderDash: [5, 4], pointRadius: 0, borderWidth: 2, order: 1 });
     else if (s.vgv_ano_ant) ds.push({ type: 'line', label: `${_ano - 1}`, data: s.vgv_ano_ant, borderColor: '#806d50', pointRadius: 0, borderWidth: 2, order: 1 });
     mk('dir-ch-vgv', {
       type: 'bar',
@@ -637,10 +637,10 @@ function kpi(label, big, sub, color) {
 }
 function pctColor(pct) {
   if (pct == null) return 'var(--ink-muted)';
-  if (pct < 50) return '#dc2626';
-  if (pct < 90) return '#d97706';
-  if (pct < 110) return '#16a34a';
-  return '#065f46';
+  if (pct < 50) return '#d64545';
+  if (pct < 90) return '#c7861a';
+  if (pct < 110) return '#239a5b';
+  return '#239a5b';
 }
 function totalTarefas(t) {
   if (!t) return '—';

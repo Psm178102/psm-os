@@ -11,9 +11,9 @@ import { montarDecisoes } from '../decisoes.js';   // v87.95 🧭 Decidir agora 
 let _root = null, _d = null, _lookback = 120, _tab = 'top', _aiBusy = false;
 
 const TEMP = {
-  quente: { c: '#16a34a', lbl: '🟢 Quente', sub: 'alta probabilidade' },
-  morno: { c: '#d97706', lbl: '🟡 Morno', sub: 'média' },
-  frio: { c: '#64748b', lbl: '⚪ Frio', sub: 'baixa' },
+  quente: { c: '#239a5b', lbl: '🟢 Quente', sub: 'alta probabilidade' },
+  morno: { c: '#c7861a', lbl: '🟡 Morno', sub: 'média' },
+  frio: { c: '#8a8579', lbl: '⚪ Frio', sub: 'baixa' },
 };
 
 export async function pageIntelVendas(ctx, root) {
@@ -65,8 +65,8 @@ function render() {
         ${pill('🟢 Quentes', fmtNum(s.quentes || 0), 'alta prob. de fechar', TEMP.quente.c)}
         ${pill('🟡 Mornos', fmtNum(s.mornos || 0), 'prob. média', TEMP.morno.c)}
         ${pill('⚪ Frios', fmtNum(s.frios || 0), 'prob. baixa', TEMP.frio.c)}
-        ${pill('💎 Pipeline quente', 'R$ ' + moneyShort(s.pipeline_quente_vgv || 0), 'score × valor dos quentes (prioridade)', '#7c3aed')}
-        ${pill('📉 Perdas analisadas', fmtNum((_d.loss && _d.loss.total) || 0), `últimos ${s.lookback_dias || _lookback}d`, '#dc2626')}
+        ${pill('💎 Pipeline quente', 'R$ ' + moneyShort(s.pipeline_quente_vgv || 0), 'score × valor dos quentes (prioridade)', '#806d50')}
+        ${pill('📉 Perdas analisadas', fmtNum((_d.loss && _d.loss.total) || 0), `últimos ${s.lookback_dias || _lookback}d`, '#d64545')}
       </div>
 
       <div id="cv-ai-box" style="margin-top:14px"></div>
@@ -120,8 +120,8 @@ function pill(title, big, sub, color) {
 /* v87.95 — número-título = PROJEÇÃO OFICIAL do mês (Dicionário §8A), a mesma da Gestão Comercial, do 1:1 e do Meu dia.
    O pipeline ponderado fica como leitura de prioridade: soma score × valor de todos os abertos e não é calibrado. */
 const PSTATUS = {
-  batida: ['🏆 meta batida', '#16a34a'], no_ritmo: ['🟢 vai bater', '#16a34a'], atras: ['🟡 atrás (70–99%)', '#d97706'],
-  fora: ['🔴 fora (<70%)', '#dc2626'], sem_meta: ['sem meta', '#64748b'],
+  batida: ['🏆 meta batida', '#239a5b'], no_ritmo: ['🟢 vai bater', '#239a5b'], atras: ['🟡 atrás (70–99%)', '#c7861a'],
+  fora: ['🔴 fora (<70%)', '#d64545'], sem_meta: ['sem meta', '#8a8579'],
 };
 function forecastPanel(fc) {
   const p = fc && fc.projecao_oficial;
@@ -129,7 +129,7 @@ function forecastPanel(fc) {
     if (!fc || !fc.pipeline_ponderado_vgv) return '';
     return `<div class="alert alert-warn tiny" style="margin-top:12px">Projeção oficial do mês indisponível agora — tente 🔄 em instantes. Pipeline ponderado (score dos abertos, não é previsão): R$ ${moneyShort(fc.pipeline_ponderado_vgv)}.</div>`;
   }
-  const [stLbl, stCor] = PSTATUS[p.status] || ['—', '#64748b'];
+  const [stLbl, stCor] = PSTATUS[p.status] || ['—', '#8a8579'];
   const hz = fc.horizonte || {}, du = hz.dias_uteis || {};
   return `<div style="margin-top:12px;background:linear-gradient(180deg,rgba(124,58,237,.07),transparent);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px">
     <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:10px"><div style="font-weight:600;font-size:13px">🎯 Meta · Realizado · Projeção do mês</div><span class="tiny" style="font-weight:600;color:${stCor}">● ${stLbl}</span><span class="tiny muted" style="margin-left:auto">mesma projeção da Gestão Comercial e do 1:1${du.total ? ` · dia útil ${du.decorridos}/${du.total}` : ''}</span></div>
@@ -162,7 +162,7 @@ function priorityTable(rows, mode) {
       </tr></thead>
       <tbody>${rows.map(r => {
         const stale = r.dias_parado != null ? r.dias_parado + 'd' : '—';
-        const staleC = (r.dias_parado || 0) > 14 ? '#dc2626' : (r.dias_parado || 0) > 7 ? '#d97706' : 'var(--ink-muted)';
+        const staleC = (r.dias_parado || 0) > 14 ? '#d64545' : (r.dias_parado || 0) > 7 ? '#c7861a' : 'var(--ink-muted)';
         return `<tr style="border-top:1px solid var(--border)">
           <td style="padding:7px 8px">${scoreBadge(r.score, r.temp)}</td>
           <td style="max-width:200px"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.title)}</div></td>

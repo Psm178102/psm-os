@@ -74,10 +74,10 @@ function render(d, board, prod) {
 
     <!-- HERO KPIs — VENDAS + META (só time comercial) -->
     ${comercial ? `<div class="flex gap-3" style="flex-wrap:wrap">
-      ${heroKpi('💰 VGV no Mês',  'R$ ' + fmtKM(d.sales?.vgv_mes), `${d.sales?.vendas_mes || 0} venda(s) fechada(s)`,          '#16a34a')}
-      ${heroKpi('🎯 Meta do Mês', 'R$ ' + fmtKM(d.metas?.meta_vgv), pctMeta(d.sales?.vgv_mes, d.metas?.meta_vgv),               '#d4a843')}
+      ${heroKpi('💰 VGV no Mês',  'R$ ' + fmtKM(d.sales?.vgv_mes), `${d.sales?.vendas_mes || 0} venda(s) fechada(s)`,          '#239a5b')}
+      ${heroKpi('🎯 Meta do Mês', 'R$ ' + fmtKM(d.metas?.meta_vgv), pctMeta(d.sales?.vgv_mes, d.metas?.meta_vgv),               '#806d50')}
       ${heroKpi('📈 Pipeline em andamento', 'R$ ' + fmtKM(d.sales?.pipeline_vgv), `${d.sales?.pipeline_count || 0} em atendimento (ativ. ≤${d.sales?.pipeline_dias || 30}d)`, '#806d50')}
-      ${heroKpi('🏆 Ticket Médio','R$ ' + fmtKM(d.sales?.ticket_medio_mes), 'média da venda no mês',                             '#8b5cf6')}
+      ${heroKpi('🏆 Ticket Médio','R$ ' + fmtKM(d.sales?.ticket_medio_mes), 'média da venda no mês',                             '#806d50')}
     </div>
     ${(d.sales?.pipeline_frentes || []).length ? `<div class="tiny muted" style="margin-top:6px">
       📈 Por funil: ${(d.sales.pipeline_frentes).map(([f, n, vgv, sv]) =>
@@ -88,17 +88,17 @@ function render(d, board, prod) {
     <!-- KPIs SECUNDÁRIOS (VGV são comerciais; Tarefas vale pra todos) -->
     <div class="flex gap-3 mt-3" style="flex-wrap:wrap">
       ${comercial ? `
-      ${kpiCard('💰 VGV 30 dias',  'R$ ' + fmtKM(d.sales?.vgv_30d),    `${d.sales?.vendas_30d || 0} vendas`,                  '#16a34a')}
+      ${kpiCard('💰 VGV 30 dias',  'R$ ' + fmtKM(d.sales?.vgv_30d),    `${d.sales?.vendas_30d || 0} vendas`,                  '#239a5b')}
       ${kpiCard('💎 VGV no Ano',   'R$ ' + fmtKM(d.sales?.vgv_ano),    `${d.sales?.vendas_ano || 0} vendas no ano`,           '#806d50')}
-      ${kpiCard('❌ Perdidos mês', 'R$ ' + fmtKM(d.sales?.vgv_perdido_mes), `${d.sales?.perdidos_mes || 0} oportunidades`,    '#dc2626')}` : ''}
-      ${kpiCard('📋 Tarefas',      fmtNum(d.tasks?.pending),          `${d.tasks?.done || 0} feitas / ${d.tasks?.total || 0} total`, '#f59e0b')}
+      ${kpiCard('❌ Perdidos mês', 'R$ ' + fmtKM(d.sales?.vgv_perdido_mes), `${d.sales?.perdidos_mes || 0} oportunidades`,    '#d64545')}` : ''}
+      ${kpiCard('📋 Tarefas',      fmtNum(d.tasks?.pending),          `${d.tasks?.done || 0} feitas / ${d.tasks?.total || 0} total`, '#c7861a')}
     </div>
 
     <!-- KPIs DE APOIO (limpos, sem ruído de sistema) -->
     <div class="flex gap-3 mt-3" style="flex-wrap:wrap">
       ${kpiCard('👥 Equipe',    fmtNum(d.users?.total),         `${d.users?.ativos || 0} ativos`,         '#806d50')}
-      ${kpiCard('💎 Comissões', 'R$ ' + fmtKM(d.commissions?.valor_pendente), `${d.commissions?.pendentes || 0} a pagar`, '#7c3aed')}
-      ${hasFunis ? kpiCard('🔗 Funis RD', fmtNum(d.pipelines?.count_active), `de ${d.pipelines?.count_total} ativos`, '#0d9488') : ''}
+      ${kpiCard('💎 Comissões', 'R$ ' + fmtKM(d.commissions?.valor_pendente), `${d.commissions?.pendentes || 0} a pagar`, '#806d50')}
+      ${hasFunis ? kpiCard('🔗 Funis RD', fmtNum(d.pipelines?.count_active), `de ${d.pipelines?.count_total} ativos`, '#239a5b') : ''}
     </div>
 
     <!-- DISTRIBUIÇÃO POR EQUIPE -->
@@ -119,9 +119,9 @@ function render(d, board, prod) {
         <h3 class="card-title">💎 Resumo de Comissões</h3>
         <div class="flex gap-3" style="flex-wrap:wrap">
           ${kpiMini('Total registrado', 'R$ ' + fmtMoney(d.commissions.valor_total))}
-          ${kpiMini('Pendente',          'R$ ' + fmtMoney(d.commissions.valor_pendente), '#d97706')}
-          ${kpiMini('# pagas',           d.commissions.pagas, '#16a34a')}
-          ${kpiMini('# pendentes',       d.commissions.pendentes, '#d97706')}
+          ${kpiMini('Pendente',          'R$ ' + fmtMoney(d.commissions.valor_pendente), '#c7861a')}
+          ${kpiMini('# pagas',           d.commissions.pagas, '#239a5b')}
+          ${kpiMini('# pendentes',       d.commissions.pendentes, '#c7861a')}
         </div>
       </div>
     ` : ''}
@@ -159,16 +159,16 @@ function metricsRow(d, prod) {
   const metaVgv = d.metas?.meta_vgv || 0, vgvMes = d.sales?.vgv_mes || 0;
   const metaPct = metaVgv > 0 ? (vgvMes / metaVgv * 100) : null;
   const cards = [];
-  if (metaPct !== null) cards.push(gauge('🎯 Meta do mês', metaPct, `R$ ${fmtKM(vgvMes)} de R$ ${fmtKM(metaVgv)}`, metaPct >= 100 ? '#16a34a' : metaPct >= 70 ? '#d4a843' : '#dc2626'));
+  if (metaPct !== null) cards.push(gauge('🎯 Meta do mês', metaPct, `R$ ${fmtKM(vgvMes)} de R$ ${fmtKM(metaVgv)}`, metaPct >= 100 ? '#239a5b' : metaPct >= 70 ? '#806d50' : '#d64545'));
   if (isCorretor) {
-    cards.push(miniMetric('💰 VGV no mês', 'R$ ' + fmtKM(vgvMes), `${d.sales?.vendas_mes || 0} venda(s)`, '#16a34a'));
+    cards.push(miniMetric('💰 VGV no mês', 'R$ ' + fmtKM(vgvMes), `${d.sales?.vendas_mes || 0} venda(s)`, '#239a5b'));
     cards.push(miniMetric('📈 Pipeline', 'R$ ' + fmtKM(d.sales?.pipeline_vgv), `${d.sales?.pipeline_count || 0} aberto(s)`, '#806d50'));
   } else {
     const pct = prod.pct;
     const sub = prod.solicitadas != null && prod.solicitadas > 0
       ? `${prod.concluidas || 0}/${prod.solicitadas} concluídas · ${prod.atrasadas || 0} atrasada(s)`
       : 'sem tarefas atribuídas ainda';
-    cards.push(gauge('⚡ Produtividade', pct, sub, pct == null ? '#94a3b8' : pct >= 80 ? '#16a34a' : pct >= 50 ? '#d4a843' : '#dc2626'));
+    cards.push(gauge('⚡ Produtividade', pct, sub, pct == null ? '#8a8579' : pct >= 80 ? '#239a5b' : pct >= 50 ? '#806d50' : '#d64545'));
   }
   if (!cards.length) return '';
   return `<div class="flex gap-3" style="flex-wrap:wrap;margin-bottom:14px">${cards.join('')}</div>`;
@@ -205,7 +205,7 @@ function salesRow(c, i) {
   return `
     <div style="display:grid;grid-template-columns:34px 30px 1fr auto auto;gap:10px;padding:8px 10px;background:var(--bg-3);border-radius:var(--r-sm);align-items:center;font-size:13px">
       <div style="font-size:16px;text-align:center">${medal}</div>
-      <div style="width:28px;height:28px;border-radius:50%;background:${c.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:11px">${ini}</div>
+      <div style="width:28px;height:28px;border-radius:50%;background:${c.color || '#8a8579'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:11px">${ini}</div>
       <div style="min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(c.name || '—')}</div><div class="tiny muted">${escapeHtml(c.team || 'geral')}</div></div>
       <div style="text-align:right"><div class="tiny muted">vendas</div><div style="font-weight:600;color:var(--info)">${c.vendas || 0}</div></div>
       <div style="text-align:right"><div class="tiny muted">VGV</div><div style="font-weight:600;color:var(--ok)">R$ ${fmtKM(c.vgv)}</div></div>
@@ -287,8 +287,8 @@ export async function injectMeuAcompanhamento(root) {
   } catch (_) { return; }
   if (!card || !root || !root.isConnected) return;
   if (root.querySelector('#dash-fisc')) return;
-  const COR = { verde: '#16a34a', amarelo: '#d97706', vermelho: '#dc2626' };
-  const cor = COR[card.semaforo] || '#64748b';
+  const COR = { verde: '#239a5b', amarelo: '#c7861a', vermelho: '#d64545' };
+  const cor = COR[card.semaforo] || '#8a8579';
   let miolo = '';
   if (card.placar_mes) {
     const p = card.placar_mes;

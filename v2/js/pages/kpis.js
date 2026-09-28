@@ -109,22 +109,22 @@ function renderContent() {
     ${secTitle('📈 Vendas & Meta · ano')}
     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:10px;margin-bottom:18px">
       ${kpi('💰', 'VGV Realizado', fmtKM(realVGV), pct2(pctMeta) + ' da meta', semStatus(pctMeta, [50, 80, 100]))}
-      ${kpi('🎯', 'Meta do Ano', fmtKM(metaVGV), gap > 0 ? 'Falta ' + fmtKM(gap) : '✓ Batida', '#d4a843')}
+      ${kpi('🎯', 'Meta do Ano', fmtKM(metaVGV), gap > 0 ? 'Falta ' + fmtKM(gap) : '✓ Batida', 'var(--accent-ink)')}
       ${kpi('📊', 'Atingimento', pct2(pctMeta), `${vendas} venda(s) no ano`, semStatus(pctMeta, [50, 80, 100]))}
-      ${kpi('🏆', 'Ticket Médio', fmtKM(ticketMedio), 'por venda fechada', '#22c55e')}
-      ${kpi('🔮', 'Fechamento provável', PE ? fmtKM(projAno) : '—', PE ? `${pctProj != null ? pct2(pctProj) + ' da meta · ' : ''}faixa ${fmtKM(PE.conservador.vgv)}–${fmtKM(PE.otimista.vgv)}` : 'projeção oficial indisponível', pctProj == null ? 'var(--ink-muted)' : pctProj >= 100 ? '#22c55e' : pctProj >= 70 ? '#f59e0b' : '#ef4444')}
-      ${PE && PE.por_dia_util_vgv ? kpi('⏱', 'Pra bater a meta', fmtKM(PE.por_dia_util_vgv), `por dia útil · ${pj.horizonte.dias_uteis.restantes} dias úteis restantes`, '#ef4444') : ''}
+      ${kpi('🏆', 'Ticket Médio', fmtKM(ticketMedio), 'por venda fechada', 'var(--ok)')}
+      ${kpi('🔮', 'Fechamento provável', PE ? fmtKM(projAno) : '—', PE ? `${pctProj != null ? pct2(pctProj) + ' da meta · ' : ''}faixa ${fmtKM(PE.conservador.vgv)}–${fmtKM(PE.otimista.vgv)}` : 'projeção oficial indisponível', pctProj == null ? 'var(--ink-muted)' : pctProj >= 100 ? 'var(--ok)' : pctProj >= 70 ? 'var(--warn)' : 'var(--err)')}
+      ${PE && PE.por_dia_util_vgv ? kpi('⏱', 'Pra bater a meta', fmtKM(PE.por_dia_util_vgv), `por dia útil · ${pj.horizonte.dias_uteis.restantes} dias úteis restantes`, 'var(--err)') : ''}
     </div>
 
     <!-- Pipeline & Funil -->
     ${secTitle('🔻 Pipeline & Conversão')}
     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:10px;margin-bottom:18px">
       ${kpi('💼', 'Pipeline Aberto', fmtNum(pipeCount), fmtKM(pipeVgv) + ' em jogo', '#806d50')}
-      ${kpi('🎟', 'Ticket Pipeline', fmtKM(ticketPipe), 'média por negócio', '#a855f7')}
+      ${kpi('🎟', 'Ticket Pipeline', fmtKM(ticketPipe), 'média por negócio', 'var(--accent-ink)')}
       ${coberturaProj != null
-        ? kpi('🛡', 'Cobertura da Meta', pct2(coberturaProj * 100), 'do que falta, a projeção cobre', coberturaProj >= 1 ? '#22c55e' : coberturaProj >= 0.7 ? '#f59e0b' : '#ef4444')
-        : kpi('🛡', 'Cobertura da Meta', cobertura == null ? '✓' : cobertura.toFixed(1) + '×', cobertura == null ? 'meta batida' : 'pipeline ÷ gap', cobertura == null ? '#22c55e' : (cobertura >= 3 ? '#22c55e' : cobertura >= 1.5 ? '#f59e0b' : '#ef4444'))}
-      ${kpi('❌', 'Perdas (mês)', fmtNum(perdMes), fmtKM(perdVgvMes) + ' perdidos', perdMes > 0 ? '#ef4444' : '#22c55e')}
+        ? kpi('🛡', 'Cobertura da Meta', pct2(coberturaProj * 100), 'do que falta, a projeção cobre', coberturaProj >= 1 ? 'var(--ok)' : coberturaProj >= 0.7 ? 'var(--warn)' : 'var(--err)')
+        : kpi('🛡', 'Cobertura da Meta', cobertura == null ? '✓' : cobertura.toFixed(1) + '×', cobertura == null ? 'meta batida' : 'pipeline ÷ gap', cobertura == null ? 'var(--ok)' : (cobertura >= 3 ? 'var(--ok)' : cobertura >= 1.5 ? 'var(--warn)' : 'var(--err)'))}
+      ${kpi('❌', 'Perdas (mês)', fmtNum(perdMes), fmtKM(perdVgvMes) + ' perdidos', perdMes > 0 ? 'var(--err)' : 'var(--ok)')}
       ${kpi('⚡', 'Momentum 30d', fmtKM(vgv30), `${vendas30} venda(s) / 30 dias`, '#806d50')}
     </div>
 
@@ -132,10 +132,10 @@ function renderContent() {
     ${secTitle('👥 Equipe')}
     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:10px;margin-bottom:18px">
       ${kpi('🧑‍💼', 'Corretores Ativos', fmtNum(ativos), '', '#806d50')}
-      ${kpi('🎯', 'Com Meta', fmtNum(comMeta), 'metas definidas', '#64748b')}
-      ${kpi('🥇', pessoasPj ? 'Vão bater a meta' : 'Batendo Meta', fmtNum(batendo), pessoasPj ? 'projeção ≥ 100% da meta do ano' : '≥ 100%', '#22c55e')}
-      ${kpi('🟡', pessoasPj ? 'Atrás' : 'No Caminho', fmtNum(caminho), pessoasPj ? 'projeção 70–99%' : '50–99%', '#f59e0b')}
-      ${kpi('🔴', pessoasPj ? 'Fora' : 'Crítico', fmtNum(critico), pessoasPj ? 'projeção < 70% — ver decisões acima' : '< 50%', '#ef4444')}
+      ${kpi('🎯', 'Com Meta', fmtNum(comMeta), 'metas definidas', 'var(--ink-muted)')}
+      ${kpi('🥇', pessoasPj ? 'Vão bater a meta' : 'Batendo Meta', fmtNum(batendo), pessoasPj ? 'projeção ≥ 100% da meta do ano' : '≥ 100%', 'var(--ok)')}
+      ${kpi('🟡', pessoasPj ? 'Atrás' : 'No Caminho', fmtNum(caminho), pessoasPj ? 'projeção 70–99%' : '50–99%', 'var(--warn)')}
+      ${kpi('🔴', pessoasPj ? 'Fora' : 'Crítico', fmtNum(critico), pessoasPj ? 'projeção < 70% — ver decisões acima' : '< 50%', 'var(--err)')}
     </div>
 
 
@@ -148,10 +148,10 @@ function secTitle(t) {
   return `<div class="card-title" style="font-size:13px;color:var(--psm-gold);text-transform:uppercase;letter-spacing:1px">${t}</div>`;
 }
 function semStatus(v, [c, m, b]) {
-  if (v >= b) return '#22c55e';
-  if (v >= m) return '#f59e0b';
-  if (v >= c) return '#fbbf24';
-  return '#ef4444';
+  if (v >= b) return 'var(--ok)';
+  if (v >= m) return 'var(--warn)';
+  if (v >= c) return 'var(--warn)';
+  return 'var(--err)';
 }
 function kpi(ico, label, value, sub, color, textColor) {
   return `

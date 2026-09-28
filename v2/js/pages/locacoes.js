@@ -3,10 +3,10 @@ import { api, selectableUsers } from '../api.js';
 import { auth } from '../auth.js';
 
 const STATUS = [
-  { id: 'disponivel',   lbl: 'Disponível',    color: '#16a34a', ico: '🟢' },
+  { id: 'disponivel',   lbl: 'Disponível',    color: 'var(--ok)', ico: '🟢' },
   { id: 'ocupado',      lbl: 'Ocupado',       color: '#806d50', ico: '🔵' },
-  { id: 'em_renovacao', lbl: 'Em renovação',  color: '#d97706', ico: '🟡' },
-  { id: 'em_atraso',    lbl: 'Em atraso',     color: '#dc2626', ico: '🔴' },
+  { id: 'em_renovacao', lbl: 'Em renovação',  color: 'var(--warn)', ico: '🟡' },
+  { id: 'em_atraso',    lbl: 'Em atraso',     color: 'var(--err)', ico: '🔴' },
 ];
 
 let _root = null, _items = [], _users = [], _kpis = {}, _filterStatus = '';
@@ -40,12 +40,12 @@ function render() {
       <p class="card-sub">${_kpis.total || 0} contratos · <b style="color:var(--ok)">R$ ${money(_kpis.receita_adm)}/mês</b> de receita de administração (recorrente PSM) · R$ ${money(_kpis.receita_aluguel)} de aluguel sob gestão</p>
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px">
-        ${kpi('💼 Receita ADM/mês', 'R$ ' + money(_kpis.receita_adm), 'recorrente da PSM', '#16a34a')}
+        ${kpi('💼 Receita ADM/mês', 'R$ ' + money(_kpis.receita_adm), 'recorrente da PSM', 'var(--ok)')}
         ${kpi('🔵 Contratos ativos', _kpis.ocupadas || 0, _kpis.ocupacao_pct != null ? pct2(_kpis.ocupacao_pct) + ' de ocupação' : '', '#806d50')}
         ${kpi('🏦 Aluguel sob gestão', 'R$ ' + money(_kpis.receita_aluguel), 'soma dos ativos', '#806d50')}
-        ${kpi('⏰ A vencer 30/60/90d', (_kpis.vence_30d || 0) + ' / ' + (_kpis.vence_60d || 0) + ' / ' + (_kpis.vence_90d || 0), 'renovar contrato', '#d97706')}
-        ${kpi('🔴 Em atraso', _kpis.em_atraso || 0, 'inadimplência', '#dc2626')}
-        ${kpi('🟢 Disponíveis', _kpis.disponiveis || 0, 'sem inquilino', '#64748b')}
+        ${kpi('⏰ A vencer 30/60/90d', (_kpis.vence_30d || 0) + ' / ' + (_kpis.vence_60d || 0) + ' / ' + (_kpis.vence_90d || 0), 'renovar contrato', 'var(--warn)')}
+        ${kpi('🔴 Em atraso', _kpis.em_atraso || 0, 'inadimplência', 'var(--err)')}
+        ${kpi('🟢 Disponíveis', _kpis.disponiveis || 0, 'sem inquilino', 'var(--ink-muted)')}
       </div>
 
       <div class="flex gap-2 mt-3" style="flex-wrap:wrap;align-items:center;padding:10px;background:var(--bg-3);border-radius:var(--r-sm)">

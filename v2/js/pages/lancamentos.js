@@ -7,9 +7,9 @@ import { auth } from '../auth.js';
 const parseD = iso => new Date(String(iso).slice(0, 10) + 'T12:00:00');
 
 const STATUS = [
-  { id: 'ativo',      lbl: 'Ativo',      color: '#16a34a' },
-  { id: 'suspenso',   lbl: 'Suspenso',   color: '#d97706' },
-  { id: 'finalizado', lbl: 'Finalizado', color: '#64748b' },
+  { id: 'ativo',      lbl: 'Ativo',      color: '#239a5b' },
+  { id: 'suspenso',   lbl: 'Suspenso',   color: '#c7861a' },
+  { id: 'finalizado', lbl: 'Finalizado', color: '#8a8579' },
 ];
 const ETAPAS = [
   { id: 'pre-lancamento', lbl: 'Pré-lançamento', ico: '📋' },
@@ -21,7 +21,7 @@ const ETAPAS = [
 // Raias da linha do tempo (marcas/equipes)
 const MARCAS = [
   { id: 'map',       lbl: 'MAP',       color: '#806d50' },
-  { id: 'conquista', lbl: 'Conquista', color: '#16a34a' },
+  { id: 'conquista', lbl: 'Conquista', color: '#239a5b' },
 ];
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 const normMarca = m => (m || '').toString().trim().toLowerCase();
@@ -91,10 +91,10 @@ function render() {
       <p class="card-sub">${_items.length} cadastrados · ${ativos} ativos · linha do tempo por data de lançamento</p>
 
       <div class="flex gap-3 mt-3" style="flex-wrap:wrap">
-        ${kpi('🚀 Ativos',       ativos, _items.length + ' total', '#16a34a')}
-        ${kpi('💰 VGV total',    'R$ ' + money(totVgv), 'soma dos VGV', '#7c3aed')}
+        ${kpi('🚀 Ativos',       ativos, _items.length + ' total', '#239a5b')}
+        ${kpi('💰 VGV total',    'R$ ' + money(totVgv), 'soma dos VGV', '#806d50')}
         ${kpi('🏢 Unidades',     totUnits, totSold + ' vendidas', '#806d50')}
-        ${kpi('📊 % Vendido',    totUnits > 0 ? pct2(totSold/totUnits*100) : '—', 'do total', '#d97706')}
+        ${kpi('📊 % Vendido',    totUnits > 0 ? pct2(totSold/totUnits*100) : '—', 'do total', '#c7861a')}
       </div>
 
       <div class="flex gap-2 mt-3" style="flex-wrap:wrap;align-items:center;padding:10px;background:var(--bg-3);border-radius:var(--r-sm)">

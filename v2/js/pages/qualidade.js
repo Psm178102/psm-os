@@ -65,7 +65,7 @@ export async function pageQualidade(ctx, root) {
 
 function render(issues, counts) {
   issues.sort((a, b) => a.sev - b.sev || a.area.localeCompare(b.area, 'pt-BR'));
-  const sevLbl = { 1: { t: '🔴 Alta', c: '#dc2626', bg: '#fee2e2' }, 2: { t: '🟡 Média', c: '#b45309', bg: '#fef3c7' }, 3: { t: '🔵 Baixa', c: '#806d50', bg: '#dbeafe' } };
+  const sevLbl = { 1: { t: '🔴 Alta', c: 'var(--err)', bg: 'var(--err-soft)' }, 2: { t: '🟡 Média', c: 'var(--warn)', bg: 'var(--warn-soft)' }, 3: { t: '🔵 Baixa', c: '#806d50', bg: 'var(--accent-soft)' } };
   const n1 = issues.filter(i => i.sev === 1).length, n2 = issues.filter(i => i.sev === 2).length, n3 = issues.filter(i => i.sev === 3).length;
   const total = counts.I + counts.S + counts.L + counts.C + counts.V;
 

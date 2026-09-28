@@ -81,9 +81,9 @@ function viewOverview(body) {
   body.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px">
       ${card('Ciclo ativo', ca ? esc(ca.nome) : '—', ca ? `${esc(ca.inicio || '')} → ${esc(ca.fim || '')}` : 'nenhum aberto', '#806d50')}
-      ${card('Minha última nota', ultima && notaEfetiva(ultima) != null ? notaEfetiva(ultima) + '/' + escala() : '—', ultima ? esc(ultima.cargo || '') : 'sem avaliação ainda', '#16a34a')}
-      ${card('Avaliações enviadas', String(enviadas.length), 'no total', '#7c3aed')}
-      ${card('Feedbacks/kudos', String(fbs.length), `${fbs.filter(f => f.publico).length} públicos`, '#f59e0b')}
+      ${card('Minha última nota', ultima && notaEfetiva(ultima) != null ? notaEfetiva(ultima) + '/' + escala() : '—', ultima ? esc(ultima.cargo || '') : 'sem avaliação ainda', '#239a5b')}
+      ${card('Avaliações enviadas', String(enviadas.length), 'no total', '#806d50')}
+      ${card('Feedbacks/kudos', String(fbs.length), `${fbs.filter(f => f.publico).length} públicos`, '#c7861a')}
     </div>
     ${pendAuto ? `<div class="alert alert-warn" style="margin-bottom:12px">📝 Você ainda não fez sua <b>autoavaliação</b> do ciclo <b>${esc(ca.nome)}</b>. <button class="btn btn-sm btn-primary" id="go-auto" style="margin-left:8px">Fazer agora</button></div>` : ''}
     ${isGestao() ? `<div class="card"><div style="font-weight:600;margin-bottom:8px">Distribuição de notas (enviadas)</div>
@@ -356,7 +356,7 @@ function viewNineBox(body) {
   Object.values(porPessoa).forEach(a => { const k = a.potencial + 'x' + a.desempenho; (grid[k] = grid[k] || []).push(a); });
   const cell = (pot, des) => {
     const list = grid[pot + 'x' + des] || [];
-    const cor = pot + des >= 5 ? '#16a34a' : pot + des <= 3 ? '#dc2626' : '#f59e0b';
+    const cor = pot + des >= 5 ? '#239a5b' : pot + des <= 3 ? '#d64545' : '#c7861a';
     return `<div style="border:1px solid var(--bd,var(--border));border-radius:var(--radius-md);padding:6px;min-height:64px;background:${cor}0e">
       ${list.map(a => `<div class="tiny" style="font-weight:600">${esc(uName(a.avaliado_id))}</div>`).join('') || '<span class="tiny muted">—</span>'}</div>`;
   };

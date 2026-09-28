@@ -40,7 +40,7 @@ let _libCat = 'Conquista';
 const _isConquista = () => (auth.user()?.role || '').toLowerCase() === 'corretor_conquista';
 
 const TIPOS = ['Carrossel', 'Estático', 'Vídeo', 'Story / Reels'];
-const TIPO_COR = { 'Carrossel': '#8b5cf6', 'Estático': '#806d50', 'Vídeo': '#ef4444', 'Story / Reels': '#d6249f' };
+const TIPO_COR = { 'Carrossel': '#806d50', 'Estático': '#806d50', 'Vídeo': '#d64545', 'Story / Reels': '#d6249f' };
 const FORMATOS = ['Feed 1:1 (1080×1080)', 'Feed 4:5 (1080×1350)', 'Stories/Reels 9:16 (1080×1920)', 'Paisagem 16:9', 'Outro'];
 const CAMPANHAS = ['Tráfego — Conquista', 'Tráfego — M.A.P', 'Captação', 'Locação', 'Branding', 'Lançamento'];
 const CTAS = ['Saiba mais', 'Enviar mensagem', 'Falar no WhatsApp', 'Cadastre-se', 'Ligar agora', 'Comprar / Tenho interesse'];
@@ -49,15 +49,15 @@ const MAT_TIPOS = ['imagem', 'vídeo', 'pdf', 'link', 'texto'];
 const MAT_ICO = { imagem: '🖼', 'vídeo': '🎞', pdf: '📄', link: '🔗', texto: '📝' };
 
 const STAGES = [
-  { id: 'solicitado', lbl: '📥 Solicitado',       cor: '#f59e0b' },
+  { id: 'solicitado', lbl: '📥 Solicitado',       cor: '#c7861a' },
   { id: 'producao',   lbl: '🎨 Em produção',      cor: '#806d50' },
   // 'revisao' mantém o ID (renomear o id orfanaria os cards já nessa coluna). v81.59
-  { id: 'revisao',    lbl: '👁 Para aprovação',   cor: '#8b5cf6' },
-  { id: 'corrigir',   lbl: '🔁 Corrigir/Refazer', cor: '#ef4444' },
-  { id: 'aprovado',   lbl: '✅ Aprovado',         cor: '#16a34a' },
+  { id: 'revisao',    lbl: '👁 Para aprovação',   cor: '#806d50' },
+  { id: 'corrigir',   lbl: '🔁 Corrigir/Refazer', cor: '#d64545' },
+  { id: 'aprovado',   lbl: '✅ Aprovado',         cor: '#239a5b' },
   { id: 'publicado',  lbl: '🚀 Publicado',        cor: '#806d50' },
 ];
-const stageInfo = id => STAGES.find(s => s.id === id) || { lbl: id || '—', cor: '#64748b' };
+const stageInfo = id => STAGES.find(s => s.id === id) || { lbl: id || '—', cor: '#8a8579' };
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const fmtData = d => d ? String(d).substring(0, 10).split('-').reverse().join('/') : '';
@@ -66,9 +66,9 @@ const hoje = () => hojeISO();
 const dateChips = c => {
   const atrasE = c.data_entrega && c.status !== 'publicado' && c.status !== 'aprovado' && String(c.data_entrega).substring(0, 10) < hoje();
   const mk = (ic, d, lbl, bg, fg) => d ? `<span class="cr-chip" title="${lbl}" style="background:${bg};color:${fg}">${ic} ${esc(fmtData(d))}</span>` : '';
-  const chips = mk('▶', c.data_inicio, 'Início', 'rgba(16,185,129,.14)', '#047857')
+  const chips = mk('▶', c.data_inicio, 'Início', 'rgba(16,185,129,.14)', '#239a5b')
     + (c.data_entrega ? `<span class="cr-chip" title="Entrega" style="background:${atrasE ? 'rgba(239,68,68,.18)' : 'rgba(239,68,68,.10)'};color:var(--err-forte)">📦 ${esc(fmtData(c.data_entrega))}${atrasE ? ' ⚠' : ''}</span>` : '')
-    + mk('📣', c.data_post, 'Post', 'rgba(79,70,229,.14)', '#4f46e5');
+    + mk('📣', c.data_post, 'Post', 'rgba(79,70,229,.14)', '#806d50');
   return chips ? `<div class="flex gap-1" style="flex-wrap:wrap;margin-top:6px">${chips}</div>` : '';
 };
 const brief = c => (c && typeof c.checklist === 'object' && c.checklist) ? c.checklist : {};
@@ -199,7 +199,7 @@ function card(c) {
       <div style="font-weight:600;font-size:13px;line-height:1.3">${esc(c.titulo || 'Sem nome')}</div>
       ${b.headline ? `<div class="tiny muted" style="margin-top:3px;font-style:italic">“${esc(String(b.headline).substring(0, 70))}”</div>` : ''}
       <div class="flex gap-1" style="flex-wrap:wrap;margin-top:6px">
-        ${c.formato ? `<span class="cr-chip" style="background:${(TIPO_COR[c.formato] || '#64748b')}1f;color:${TIPO_COR[c.formato] || 'var(--ink-muted)'}">${esc(c.formato)}</span>` : ''}
+        ${c.formato ? `<span class="cr-chip" style="background:${(TIPO_COR[c.formato] || '#8a8579')}1f;color:${TIPO_COR[c.formato] || 'var(--ink-muted)'}">${esc(c.formato)}</span>` : ''}
         ${c.plataforma ? `<span class="cr-chip" style="background:rgba(148,163,184,.16);color:var(--ink,#475569)">🎯 ${esc(c.plataforma)}</span>` : ''}
       </div>
       ${dateChips(c)}
@@ -452,7 +452,7 @@ function libCard(c) {
   const fid = driveFileId(c.link);
   const folder = driveFolderId(c.link);
   const ativo = isAtivo(c);
-  const fcor = TIPO_COR[c.formato] || '#64748b';
+  const fcor = TIPO_COR[c.formato] || '#8a8579';
   // mídia: arquivo → thumbnail (no erro vira embed que renderiza imagem/vídeo); pasta/sem link → placeholder
   let media;
   if (fid) {

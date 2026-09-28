@@ -133,7 +133,7 @@ function brokerCard(c) {
   return `
     <div data-open="${escapeHtml(c.id)}" style="cursor:pointer;background:var(--bg-2);border:1px solid var(--border);border-left:4px solid ${healthHex(c.health_color)};border-radius:var(--r-md);padding:12px;transition:.15s" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,.08)'" onmouseout="this.style.boxShadow='none'">
       <div class="flex items-center gap-2" style="margin-bottom:8px">
-        <div style="width:40px;height:40px;border-radius:50%;background:${c.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;flex-shrink:0">${escapeHtml((c.ini || (c.name||'?').slice(0,2)).toUpperCase())}</div>
+        <div style="width:40px;height:40px;border-radius:50%;background:${c.color || '#8a8579'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;flex-shrink:0">${escapeHtml((c.ini || (c.name||'?').slice(0,2)).toUpperCase())}</div>
         <div style="min-width:0;flex:1">
           <div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(c.name || c.id)}${c.is_team ? ` <span class="tiny" style="background:color-mix(in srgb, var(--info) 18%, transparent);color:var(--azul-forte);padding:1px 6px;border-radius:var(--radius-full);font-weight:600">👥 equipe</span>` : ''}</div>
           <div class="tiny muted">${escapeHtml(c.team || '—')} · ${(() => { const r = (c.role || '').toLowerCase(); if (isGestorRole(r)) { const lbl = r.startsWith('gerente') ? 'Gerente' : 'Líder'; return c.is_team ? `🛡 ${lbl} · agregado da equipe` : `🛡 ${lbl} · <b>visão individual</b>`; } return '🏠 Corretor'; })()}</div>
@@ -148,7 +148,7 @@ function brokerCard(c) {
           ? `<div class="tiny muted">Meta da equipe: <b>R$ ${moneyShort(c.meta_equipe_vgv)}</b> · aqui só a produção pessoal</div>`
           : '<div class="tiny muted">Sem meta no período</div>'}
       ${(() => { const p = c.projecao || {}; if (p.modo !== 'projecao') return '';
-        const cor = p.no_ritmo == null ? 'var(--ink-muted)' : p.no_ritmo ? '#16a34a' : '#dc2626';
+        const cor = p.no_ritmo == null ? 'var(--ink-muted)' : p.no_ritmo ? '#239a5b' : '#d64545';
         const n = p.norte;
         return `<div style="margin-top:6px;background:var(--bg-3,rgba(0,0,0,.04));border-radius:var(--radius-md);padding:6px 9px">
           <div class="tiny" style="font-weight:600;margin-bottom:2px">📈 Projeção do mês</div>
@@ -476,7 +476,7 @@ function teamMembersPanel(t) {
       <tbody>
       ${ms.map((m, i) => `<tr data-member="${escapeHtml(m.id)}" style="border-bottom:1px solid var(--border);cursor:pointer" onmouseover="this.style.background='var(--bg-3)'" onmouseout="this.style.background='transparent'">
         <td style="padding:6px;color:var(--ink-muted)">${i + 1}</td>
-        <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:22px;height:22px;border-radius:50%;background:${m.color||'#64748b'};color:#fff;font-size:11px;font-weight:600;display:inline-flex;align-items:center;justify-content:center">${escapeHtml((m.ini||(m.name||'?').slice(0,2)).toUpperCase())}</span> ${escapeHtml(m.name)}</span></td>
+        <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:22px;height:22px;border-radius:50%;background:${m.color||'#8a8579'};color:#fff;font-size:11px;font-weight:600;display:inline-flex;align-items:center;justify-content:center">${escapeHtml((m.ini||(m.name||'?').slice(0,2)).toUpperCase())}</span> ${escapeHtml(m.name)}</span></td>
         <td style="text-align:center">${healthEmoji(m.health_color)} ${m.health}</td>
         <td style="text-align:right;font-weight:600">${m.vendas}</td>
         <td style="text-align:right">R$ ${moneyShort(m.vgv)}</td>
@@ -494,7 +494,7 @@ function detailHeader(d, c) {
   const hc = d.health_color, att = d.meta_attainment_pct;
   return `
     <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:var(--bg-3);border-radius:var(--r-md);padding:14px 16px;border-left:5px solid ${healthHex(hc)}">
-      <div style="width:54px;height:54px;border-radius:50%;background:${c.color || '#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:20px;flex-shrink:0">${escapeHtml((c.ini || (c.name||'?').slice(0,2)).toUpperCase())}</div>
+      <div style="width:54px;height:54px;border-radius:50%;background:${c.color || '#8a8579'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:20px;flex-shrink:0">${escapeHtml((c.ini || (c.name||'?').slice(0,2)).toUpperCase())}</div>
       <div style="flex:1;min-width:180px">
         <div style="font-weight:600;font-size:16px">${escapeHtml(c.name || c.id)}</div>
         <div class="tiny muted">${escapeHtml(c.team || '—')} · ${(c.role || '').toLowerCase().startsWith('gerente') ? '🛡 Gerente' : (isGestorRole(c.role) ? '🛡 Líder' : '🏠 Corretor')} · período ${fmtD(d.period.since)}–${fmtD(d.period.until)}</div>
@@ -574,7 +574,7 @@ function kpiVsMeta(d) {
   // realNum = valor numérico (pro %); disp = texto exibido
   const row = (lbl, realNum, meta, disp) => {
     const pct = meta > 0 ? Math.round(realNum / meta * 100) : null;
-    const col = pct == null ? '#64748b' : (pct >= 100 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626');
+    const col = pct == null ? '#8a8579' : (pct >= 100 ? '#239a5b' : pct >= 60 ? '#c7861a' : '#d64545');
     return `<div style="margin-bottom:7px">
       <div class="flex items-center" style="justify-content:space-between;font-size:12px"><span>${lbl}</span><span><b>${disp != null ? disp : realNum}</b>${meta>0?` / ${meta}`:''} ${pct!=null?`<span style="color:${col};font-size:11px;font-weight:600">${pctF(pct)}</span>`:''}</span></div>
       ${meta>0?`<div style="height:6px;background:var(--bg-3);border-radius:var(--radius-sm);overflow:hidden;margin-top:2px"><div style="height:100%;width:${Math.min(100,Math.max(0,pct))}%;background:${col}"></div></div>`:''}
@@ -599,7 +599,7 @@ function adsInvestPanel(d, scope) {
   if (a.invest == null || a.cpl_global == null && a.cpl_team == null) return panel('💸 Investimento em ads', '<div class="tiny muted">Sem gasto Meta no cache pra calcular. Abra o painel de Meta Ads pra popular o cache.</div>');
   const cob = a.cobertura_pct;
   const temFaixa = a.invest_low != null && a.invest_high != null && a.invest_high > a.invest_low;
-  const cb = { alta: ['🟢 Alta', '#dcfce7', '#166534'], media: ['🟡 Média', '#fef3c7', '#92400e'], baixa: ['🔴 Baixa', '#fee2e2', '#b91c1c'] }[a.confianca] || ['—', '#e2e8f0', '#475569'];
+  const cb = { alta: ['🟢 Alta', 'var(--ok-soft)', '#239a5b'], media: ['🟡 Média', 'var(--warn-soft)', '#c7861a'], baixa: ['🔴 Baixa', 'var(--err-soft)', '#d64545'] }[a.confianca] || ['—', '#e2e8f0', '#8a8579'];
   const row = (cor, lbl, n, val, sub) => `
     <div style="display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:var(--radius-md);background:var(--bg-3)">
       <span style="width:9px;height:9px;border-radius:50%;background:${cor};flex:none"></span>
@@ -619,9 +619,9 @@ function adsInvestPanel(d, scope) {
       </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:5px">
-      ${row('#16a34a', '🎯 CPL exato da campanha', a.exato_leads || 0, a.exato_valor || 0, 'cruzado lead × campanha no Meta')}
-      ${(a.conta_leads || 0) > 0 ? row('#d97706', '🛡 CPL da conta ' + escapeHtml(a.acct_label || 'da equipe'), a.conta_leads, a.conta_valor || 0, 'lead pago sem campanha no cache') : ''}
-      ${(a.zero_leads || 0) > 0 ? row('#94a3b8', '🌱 Orgânico / indicação / portal', a.zero_leads, 0, 'não veio de ads Meta → R$ 0') : ''}
+      ${row('#239a5b', '🎯 CPL exato da campanha', a.exato_leads || 0, a.exato_valor || 0, 'cruzado lead × campanha no Meta')}
+      ${(a.conta_leads || 0) > 0 ? row('#c7861a', '🛡 CPL da conta ' + escapeHtml(a.acct_label || 'da equipe'), a.conta_leads, a.conta_valor || 0, 'lead pago sem campanha no cache') : ''}
+      ${(a.zero_leads || 0) > 0 ? row('#8a8579', '🌱 Orgânico / indicação / portal', a.zero_leads, 0, 'não veio de ads Meta → R$ 0') : ''}
     </div>
     <div class="tiny muted" style="margin-top:8px">
       Cada lead recebido no período é cruzado com a campanha de origem (RD) e precificado pelo <b>CPL real daquela campanha no Meta</b> (${presetLbl}).
@@ -657,9 +657,9 @@ function efficiencyPanel(d) {
       ${stat('👀 Visitas/venda', d.visitas_por_venda != null ? d.visitas_por_venda : '—', '#806d50', null, 'Quantas visitas até 1 venda')}
       ${stat('📞 Atend./venda', d.atend_por_venda != null ? d.atend_por_venda : '—', '#806d50', null, 'Atendimentos até 1 venda')}
       ${stat('📆 Dias/venda', d.dias_por_venda != null ? d.dias_por_venda + ' d' : '—', '#a78bfa', null, 'Ritmo: dias do período por venda')}
-      ${stat('🎯 Qualificação', pctF(d.qualificacao_rate), '#16a34a', null, 'Leads que passaram da qualificação')}
-      ${stat('🔁 Follow-up', pctF(d.followup_rate), '#f59e0b', null, 'Leads com +1 interação no RD')}
-      ${stat('🕰 Estagnação', d.estagnacao_dias != null ? Math.round(d.estagnacao_dias) + ' d' : '—', '#ef4444', null, 'Mediana de dias sem atividade (abertos)')}
+      ${stat('🎯 Qualificação', pctF(d.qualificacao_rate), '#239a5b', null, 'Leads que passaram da qualificação')}
+      ${stat('🔁 Follow-up', pctF(d.followup_rate), '#c7861a', null, 'Leads com +1 interação no RD')}
+      ${stat('🕰 Estagnação', d.estagnacao_dias != null ? Math.round(d.estagnacao_dias) + ' d' : '—', '#d64545', null, 'Mediana de dias sem atividade (abertos)')}
       ${stat('💸 Invest. ads', (d.ads_invest && d.ads_invest.invest != null) ? 'R$ ' + moneyShort(d.ads_invest.invest) : '—', '#fb7185', null, (d.ads_invest && d.ads_invest.cobertura_pct != null) ? (d.ads_invest.exato_leads + '/' + d.ads_invest.leads + ' leads com CPL exato da campanha (' + d.ads_invest.cobertura_pct + '%)') : 'Sem gasto Meta no cache')}
     </div>`);
 }
@@ -674,12 +674,12 @@ function ratesPanel(d) {
   const trashN = perd ? Math.round((d.trash_rate || 0) / 100 * perd) : 0;
   return panel('⏱ Taxas & Tempos', `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-      ${stat('Win rate' + (fech ? ` · ${vend}/${fech} fechados` : ''), pctF(d.win_rate), '#16a34a', null, 'Vendas ÷ negócios FECHADOS (ganhos+perdidos) no período')}
-      ${stat('Taxa descarte' + (fech ? ` · ${perd}/${fech} fechados` : ''), pctF(d.descarte_rate), '#dc2626', null, 'Perdas ÷ negócios fechados no período')}
+      ${stat('Win rate' + (fech ? ` · ${vend}/${fech} fechados` : ''), pctF(d.win_rate), '#239a5b', null, 'Vendas ÷ negócios FECHADOS (ganhos+perdidos) no período')}
+      ${stat('Taxa descarte' + (fech ? ` · ${perd}/${fech} fechados` : ''), pctF(d.descarte_rate), '#d64545', null, 'Perdas ÷ negócios fechados no período')}
       ${stat('1º contato', fcTxt, '#806d50', d.primeiro_contato_basis === 'real' ? 'real' : 'sem evento')}
-      ${stat('Ciclo médio', d.ciclo_medio_dias != null ? d.ciclo_medio_dias + ' d' : '—', '#7c3aed', null, 'Dias entre criação e fechamento das vendas ganhas (— se não houve venda no período)')}
-      ${stat('Lixo/descarte' + (perd ? ` · ${trashN}/${perd} perdas` : ''), pctF(d.trash_rate), '#64748b', null, 'Das perdas, quantas foram lixo/sem perfil/duplicado')}
-      ${stat('Parados +14d', d.pendencias.parados_14d, '#d97706', null, 'Negócios abertos sem atividade há +14 dias')}
+      ${stat('Ciclo médio', d.ciclo_medio_dias != null ? d.ciclo_medio_dias + ' d' : '—', '#806d50', null, 'Dias entre criação e fechamento das vendas ganhas (— se não houve venda no período)')}
+      ${stat('Lixo/descarte' + (perd ? ` · ${trashN}/${perd} perdas` : ''), pctF(d.trash_rate), '#8a8579', null, 'Das perdas, quantas foram lixo/sem perfil/duplicado')}
+      ${stat('Parados +14d', d.pendencias.parados_14d, '#c7861a', null, 'Negócios abertos sem atividade há +14 dias')}
     </div>`);
 }
 
@@ -851,7 +851,7 @@ function pipelinePanel(M) {
   const p = M.pipeline;
   if (!p) return '';
   const cob = p.cobertura_pct;
-  const cor = cob == null ? '#64748b' : (cob >= 100 ? '#16a34a' : cob >= 70 ? '#d97706' : '#dc2626');
+  const cor = cob == null ? '#8a8579' : (cob >= 100 ? '#239a5b' : cob >= 70 ? '#c7861a' : '#d64545');
   return panel('🔮 Previsão por pipeline (realista)', `
     <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px">
       <div><div class="tiny muted">Já vendido</div><div style="font-size:16px;font-weight:600;color:var(--ok)">R$ ${moneyShort(p.ja_vendido)}</div></div>
@@ -877,8 +877,8 @@ function matrizConversaoPanel(t) {
   const avg = cols.map((_, j) => { const vals = ms.map(m => m.conv[j]).filter(v => v != null); return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null; });
   const cell = (v, j) => {
     if (v == null) return '<td style="text-align:center;color:#cbd5e1;padding:5px 4px">—</td>';
-    const a = avg[j]; let bg = '#dcfce7', cor = '#166534';
-    if (a != null) { if (v < a * 0.6) { bg = '#fee2e2'; cor = '#b91c1c'; } else if (v < a) { bg = '#fef3c7'; cor = '#92400e'; } }
+    const a = avg[j]; let bg = 'var(--ok-soft)', cor = '#239a5b';
+    if (a != null) { if (v < a * 0.6) { bg = 'var(--err-soft)'; cor = '#d64545'; } else if (v < a) { bg = 'var(--warn-soft)'; cor = '#c7861a'; } }
     return `<td style="text-align:center;padding:5px 4px"><span style="background:${bg};color:${cor};font-weight:600;border-radius:var(--radius-sm);padding:2px 6px;font-size:11px">${pctF(v)}</span></td>`;
   };
   return panel('🔥 Conversão por corretor × etapa (foco de coaching)', `
@@ -1020,7 +1020,7 @@ function nortePanel(d) {
   const rows = stages.map(s => {
     const meta = Number(fm[s.key] || 0);
     const pct = meta > 0 ? (s.n / meta * 100) : null;
-    let cor = pct == null ? '#94a3b8' : pct >= 100 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626';
+    let cor = pct == null ? '#8a8579' : pct >= 100 ? '#239a5b' : pct >= 60 ? '#c7861a' : '#d64545';
     let extra = '';
     if (s.key === 'venda' && fxVenda && pct != null && pct < 100 && s.n >= fxVenda.lo) {
       cor = '#806d50';   // dentro da faixa = normal estatístico, não é alerta
@@ -1040,7 +1040,7 @@ function nortePanel(d) {
 
   const resumoBar = (lbl, real, meta, isMoney, faixa) => {
     const pct = meta > 0 ? real / meta * 100 : null;
-    let cor = pct == null ? '#94a3b8' : pct >= 100 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626';
+    let cor = pct == null ? '#8a8579' : pct >= 100 ? '#239a5b' : pct >= 60 ? '#c7861a' : '#d64545';
     let fxTxt = '';
     if (faixa && pct != null && pct < 100 && real >= faixa.lo) { cor = '#806d50'; fxTxt = ` <span class="tiny" style="color:var(--info)">🎲 ${faixa.lo}–${faixa.hi} normal</span>`; }
     else if (faixa) fxTxt = ` <span class="tiny muted">🎲 ${faixa.lo}–${faixa.hi} normal</span>`;
@@ -1481,8 +1481,8 @@ function simResultado() {
   const r = _simRes;
   if (!r) return panel('📈 Resultado', '<div class="tiny muted">Ajuste o cenário pra simular.</div>');
   const h = r.horas || {}, po = (r.poisson || {});
-  const FAROL = { cabe: ['#16a34a', '✅ cabe na agenda'], apertado: ['#d97706', '⚠️ apertado'], nao_cabe: ['#dc2626', '🚨 NÃO cabe — rebaixe volume ou meta'] };
-  const [fc, fl] = FAROL[h.farol] || ['#94a3b8', '—'];
+  const FAROL = { cabe: ['#239a5b', '✅ cabe na agenda'], apertado: ['#c7861a', '⚠️ apertado'], nao_cabe: ['#d64545', '🚨 NÃO cabe — rebaixe volume ou meta'] };
+  const [fc, fl] = FAROL[h.farol] || ['#8a8579', '—'];
   const atv = r.atividade_mes || {};
   const ATV_LBL = { lead: 'Leads novos', contato: 'Contatos/qualif.', agendamento: 'Agendamentos', visita: 'Visitas realizadas', proposta: 'Propostas', pasta: 'Pastas' };
   const alav = (r.alavancas || []).map((a, i) =>
@@ -1524,7 +1524,7 @@ function simProposta() {
   const reg = (_sim.propostas || {})[q];
   const p = reg && reg.proposta;
   const shadow = !!_sim.shadow;
-  const STATUS = { proposta: ['#64748b', '📝 rascunho (só sócios veem)'], enviada: ['#806d50', '📨 enviada — aguardando aceite'], aceita: ['#16a34a', '✅ aceita pelo corretor'] };
+  const STATUS = { proposta: ['#8a8579', '📝 rascunho (só sócios veem)'], enviada: ['#806d50', '📨 enviada — aguardando aceite'], aceita: ['#239a5b', '✅ aceita pelo corretor'] };
   const st = reg ? (STATUS[reg.status] || STATUS.proposta) : null;
   const ATV_LBL = { lead: 'Leads', contato: 'Contatos', agendamento: 'Agend.', visita: 'Visitas', proposta: 'Propostas', pasta: 'Pastas' };
   return panel('🎯 Transformar em meta (trimestre)', `
@@ -1562,7 +1562,7 @@ function simCalibracao() {
   return `<details style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 14px">
     <summary style="font-weight:600;font-size:13px;cursor:pointer">⚙️ Calibração do motor (global — vale pra todos os corretores) ${_sim.shadow ? '· 🌒 SOMBRA LIGADA' : '· 🌕 sombra desligada'}</summary>
     <div style="margin-top:10px">
-      <label style="display:flex;align-items:center;gap:8px;background:${_sim.shadow ? '#f1f5f9' : 'var(--ok-soft)'};color:#1f2d3d;border:1px solid ${_sim.shadow ? 'var(--border)' : 'var(--border)'};border-radius:var(--radius-md);padding:8px 12px;cursor:pointer;font-size:13px">
+      <label style="display:flex;align-items:center;gap:8px;background:${_sim.shadow ? 'var(--surface-2)' : 'var(--ok-soft)'};color:#1f2d3d;border:1px solid ${_sim.shadow ? 'var(--border)' : 'var(--border)'};border-radius:var(--radius-md);padding:8px 12px;cursor:pointer;font-size:13px">
         <input type="checkbox" id="cal-shadow" ${_sim.shadow ? 'checked' : ''}>
         <span><b>Modo sombra</b> — aba e propostas visíveis SÓ pra sócios; nada é enviado a corretor nem gravado no Norte do Mês até desligar.</span>
       </label>
@@ -1755,7 +1755,7 @@ function reverseFunnelPanel(d) {
   const fonte = fr.usa_taxas === 'individuais' ? 'taxas REAIS deste corretor' : 'benchmark (sem histórico próprio ainda)';
   const rows = linhas.map(([lbl, k]) => {
     const nec = fr.necessario[k] ?? '—', real = fr.realizado[k] ?? 0, falta = fr.faltam[k] ?? 0;
-    const cor = falta > 0 ? '#dc2626' : '#16a34a';
+    const cor = falta > 0 ? '#d64545' : '#239a5b';
     return `<tr>
       <td style="padding:4px 6px;font-weight:600">${lbl}</td>
       <td style="padding:4px 6px;text-align:center">${nec}</td>
@@ -1780,7 +1780,7 @@ function projecaoPanel(d) {
   const temMeta = p.meta_vgv > 0;
   const proj = (p.modo === 'projecao');
   const att = p.atingira_vgv_pct;
-  const cor = p.no_ritmo === true ? '#16a34a' : (p.no_ritmo === false ? '#dc2626' : '#64748b');
+  const cor = p.no_ritmo === true ? '#239a5b' : (p.no_ritmo === false ? '#d64545' : '#8a8579');
   const prov = p.fonte === 'provavel';   // v88.11: mesmo 📈 Provável do card da lista e da Gestão Comercial
   return panel(proj ? (prov ? '📈 Projeção do mês (provável)' : '📈 Projeção do mês (ritmo atual)') : '📈 Realizado do período', `
     <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end">
@@ -1803,7 +1803,7 @@ function bar(pct, hc) {
   return `<div style="height:6px;background:var(--bg-3);border-radius:var(--radius-sm);overflow:hidden"><div style="height:100%;width:${pct}%;background:${healthHex(hc)}"></div></div>`;
 }
 function healthDot(c) { return `<div style="width:14px;height:14px;border-radius:50%;background:${healthHex(c)};margin:0 auto"></div>`; }
-function healthHex(c) { return c === 'verde' ? '#16a34a' : c === 'amarelo' ? '#d97706' : '#dc2626'; }
+function healthHex(c) { return c === 'verde' ? '#239a5b' : c === 'amarelo' ? '#c7861a' : '#d64545'; }
 function healthEmoji(c) { return c === 'verde' ? '🟢' : c === 'amarelo' ? '🟡' : '🔴'; }
 function spinner(t) { return `<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> ${t}</div></div>`; }
 function err(m) { return `<div class="alert alert-err">Erro: ${escapeHtml(m)}</div>`; }
@@ -1856,7 +1856,7 @@ function render360() {
   // auto-preenchimento (pedido recorrente do Paulo): sem cadastro manual de RH,
   // os cards usam o que o funil JÁ calcula (saúde, meta, alertas) — declarado
   const health = _det?.health, metaPct = _det?.meta_attainment_pct;
-  const hCor = health == null ? '#94a3b8' : health >= 70 ? '#16a34a' : health >= 40 ? '#d97706' : '#dc2626';
+  const hCor = health == null ? '#8a8579' : health >= 70 ? '#239a5b' : health >= 40 ? '#c7861a' : '#d64545';
   const autoAtencao = (!((pf.profile || {}).pontos_atencao) && (_det?.alertas || []).length)
     ? _det.alertas.slice(0, 5).map(a => a.txt) : null;
   const box = (titulo, html, cor) => `<div style="background:var(--bg-2);border:1px solid var(--bd,var(--border));border-left:3px solid ${cor};border-radius:var(--radius-md);padding:11px">
@@ -1874,18 +1874,18 @@ function render360() {
           ${cargo.objetivos ? `<div class="tiny" style="margin-top:3px"><b>Objetivos:</b> ${nl(cargo.objetivos)}</div>` : ''}
           ${cargo.tarefas ? `<div class="tiny" style="margin-top:3px"><b>Tarefas:</b> ${nl(cargo.tarefas)}</div>` : ''}
           ${(!cargo.funcoes && !cargo.objetivos && !cargo.tarefas) ? '<div class="muted tiny">Não cadastrado no cargo. <a href="#/rh-funcoes">cadastrar →</a></div>' : ''}
-          ${items.length ? `<div class="tiny muted" style="margin-top:5px">Checklist: <b>${doneN}/${items.length}</b> concluídos</div>` : ''}`, '#7c3aed')}
+          ${items.length ? `<div class="tiny muted" style="margin-top:5px">Checklist: <b>${doneN}/${items.length}</b> concluídos</div>` : ''}`, '#806d50')}
         ${box('🎯 Desempenho & metas', `
           ${score != null
             ? `<div style="font-size:20px;font-weight:600;color:var(--ok)">${score}/${escala}</div>`
             : `<div style="font-size:20px;font-weight:600;color:${hCor}">${health != null ? 'Saúde ' + health + '/100' : '<span style="font-size:13px;color:var(--ink-muted)">sem dado</span>'}</div>
                <div class="tiny muted">automático do funil (sem avaliação formal) · meta atingida: <b>${metaPct != null ? money(metaPct) + '%' : '—'}</b> · ${_det?.ano_vendas || 0} venda(s) no ano</div>`}
           ${prof.meta_produtividade ? `<div class="tiny"><b>Meta produtividade:</b> ${escapeHtml(prof.meta_produtividade)}</div>` : ''}
-          ${prof.meta_resultado ? `<div class="tiny"><b>Meta resultado:</b> ${escapeHtml(prof.meta_resultado)}</div>` : ''}`, '#16a34a')}
+          ${prof.meta_resultado ? `<div class="tiny"><b>Meta resultado:</b> ${escapeHtml(prof.meta_resultado)}</div>` : ''}`, '#239a5b')}
         ${box('⚠️ Pontos de atenção & perfil', `
           <div class="tiny"><b>Atenção:</b> ${prof.pontos_atencao ? nl(prof.pontos_atencao)
             : (autoAtencao ? autoAtencao.map(t => `• ${escapeHtml(t)}`).join('<br>') + ' <span class="muted">(automático do funil)</span>' : '<span class="muted tiny">—</span>')}</div>
-          ${prof.perfil_comportamental ? `<div class="tiny" style="margin-top:3px"><b>Perfil:</b> ${nl(prof.perfil_comportamental)}</div>` : ''}`, '#f59e0b')}
+          ${prof.perfil_comportamental ? `<div class="tiny" style="margin-top:3px"><b>Perfil:</b> ${nl(prof.perfil_comportamental)}</div>` : ''}`, '#c7861a')}
         ${box('💬 Feedbacks', `
           ${fbs.length ? fbs.map(f => `<div class="tiny" style="border-top:1px solid var(--bd,#eee);padding:4px 0"><b>${escapeHtml(uName360(f.de_id))}:</b> ${escapeHtml(f.texto || '')}</div>`).join('') : '<span class="muted tiny">Nenhum feedback registrado.</span>'}
           <div class="tiny muted" style="margin-top:4px"><a href="#/rh-avaliacoes">abrir Avaliações & Feedbacks →</a></div>`, '#806d50')}
@@ -1900,7 +1900,7 @@ function render360() {
             ${r.ajuda_custo != null ? `<div class="tiny"><b>Ajuda de custo:</b> R$ ${money(r.ajuda_custo)}</div>` : ''}
             ${r.obs ? `<div class="tiny muted">${escapeHtml(r.obs)}</div>` : ''}
             ${myLvl >= 7 ? '<button class="btn btn-ghost btn-sm mt-1" id="rh-remun-edit">✏️ Editar remuneração</button>' : ''}
-          ` : '<div class="tiny muted">Remuneração: restrito à gestão.</div>'}`, '#ea580c')}
+          ` : '<div class="tiny muted">Remuneração: restrito à gestão.</div>'}`, '#c7861a')}
       </div>
     </div>`;
   const re = host.querySelector('#rh-remun-edit'); if (re) re.onclick = () => openRemunEditor(uid, name, r);

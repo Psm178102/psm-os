@@ -73,8 +73,8 @@ function render(hub, ov, rec) {
         <h3 class="card-title" style="font-size:14px">🔎 Auditoria — VGV PSM HUB × RD</h3>
         <div class="flex gap-3" style="flex-wrap:wrap">
           ${audCard('PSM HUB (Conquista)', 'R$ ' + fmtKM(vgvHub), `${fmtN(k.totalPastas)} pastas · ${fmtN(k.pastasAprovadas)} aprovadas`, '#806d50')}
-          ${audCard('RD / House PSM', 'R$ ' + fmtKM(vgvRd), `${fmtN(ov?.sales?.vendas_mes)} venda(s) no RD (empresa)`, '#16a34a')}
-          ${audCard('Divergência', diffPct === null ? '—' : (diffPct > 0 ? '+' : '') + pct2(diffPct), bate ? '🟢 batem (±5%)' : (diffPct === null ? 'sem base RD' : '🔴 conferir'), bate ? '#16a34a' : '#dc2626')}
+          ${audCard('RD / House PSM', 'R$ ' + fmtKM(vgvRd), `${fmtN(ov?.sales?.vendas_mes)} venda(s) no RD (empresa)`, '#239a5b')}
+          ${audCard('Divergência', diffPct === null ? '—' : (diffPct > 0 ? '+' : '') + pct2(diffPct), bate ? '🟢 batem (±5%)' : (diffPct === null ? 'sem base RD' : '🔴 conferir'), bate ? '#239a5b' : '#d64545')}
         </div>
         <p class="tiny muted" style="margin:6px 0 0">RD/overview é da empresa toda; PSM HUB é só Conquista. Quando a Conquista domina as vendas do mês, os números convergem. A reconciliação corretor-a-corretor (via rdUserId) é o próximo passo.</p>
       </div>
@@ -82,11 +82,11 @@ function render(hub, ov, rec) {
       <!-- KPIs do PSM HUB -->
       <div class="flex gap-3 mt-3" style="flex-wrap:wrap">
         ${kpi('🎯 Leads', fmtN(k.totalLeads), `${fmtN(k.leadsDescartados)} descartados`, '#806d50')}
-        ${kpi('👁 Visitas', fmtN(k.totalVisitas), 'no mês', '#8b5cf6')}
-        ${kpi('📁 Pastas', fmtN(k.totalPastas), `${fmtN(k.pastasAprovadas)}✓ · ${fmtN(k.pastasReprovadas)}✕ · ${fmtN(k.pastasRepasse)} repasse`, '#f59e0b')}
-        ${kpi('💰 VGV', 'R$ ' + fmtKM(k.vendasVgv), 'ticket ' + 'R$ ' + fmtKM(k.ticketMedio), '#16a34a')}
-        ${kpi('🎯 Meta VGV', 'R$ ' + fmtKM(cfg.metaVgv), metaPct === null ? '' : `${metaPct >= 100 ? '🟢' : metaPct >= 70 ? '🟡' : '🔴'} ${pct2(metaPct)} atingido`, '#d4a843')}
-        ${kpi('📣 Invest. Ads', 'R$ ' + fmtKM(cfg.investimentoAds), cfg.investimentoAds && k.totalLeads ? `CPL R$ ${(cfg.investimentoAds / k.totalLeads).toFixed(2)}` : '', '#dc2626')}
+        ${kpi('👁 Visitas', fmtN(k.totalVisitas), 'no mês', '#806d50')}
+        ${kpi('📁 Pastas', fmtN(k.totalPastas), `${fmtN(k.pastasAprovadas)}✓ · ${fmtN(k.pastasReprovadas)}✕ · ${fmtN(k.pastasRepasse)} repasse`, '#c7861a')}
+        ${kpi('💰 VGV', 'R$ ' + fmtKM(k.vendasVgv), 'ticket ' + 'R$ ' + fmtKM(k.ticketMedio), '#239a5b')}
+        ${kpi('🎯 Meta VGV', 'R$ ' + fmtKM(cfg.metaVgv), metaPct === null ? '' : `${metaPct >= 100 ? '🟢' : metaPct >= 70 ? '🟡' : '🔴'} ${pct2(metaPct)} atingido`, '#806d50')}
+        ${kpi('📣 Invest. Ads', 'R$ ' + fmtKM(cfg.investimentoAds), cfg.investimentoAds && k.totalLeads ? `CPL R$ ${(cfg.investimentoAds / k.totalLeads).toFixed(2)}` : '', '#d64545')}
       </div>
 
       <!-- ESTEIRA POR CORRETOR -->
@@ -163,10 +163,10 @@ function kpi(label, big, sub, cor) {
 
 // badge da BASE do match (quão confiável é o cruzamento daquele corretor)
 const MATCH_BADGE = {
-  'email':     { t: '🟢 e-mail', c: '#16a34a' },
+  'email':     { t: '🟢 e-mail', c: '#239a5b' },
   'rd_id':     { t: '🔵 rd_id',  c: '#806d50' },
-  'nome':      { t: '🟡 nome',   c: '#d4a843' },
-  'sem match': { t: '⚪ s/ match', c: '#94a3b8' },
+  'nome':      { t: '🟡 nome',   c: '#806d50' },
+  'sem match': { t: '⚪ s/ match', c: '#8a8579' },
 };
 function matchBadge(m) {
   const b = MATCH_BADGE[m] || MATCH_BADGE['sem match'];
@@ -176,7 +176,7 @@ function matchBadge(m) {
 function diffCell(r) {
   if (r.rd_zero) return `<span style="color:var(--warn);font-weight:600;white-space:nowrap">🟠 RD sem registro</span>`;
   if (r.diff_pct === null || r.diff_pct === undefined) return `<span class="muted">—</span>`;
-  const cor = r.ok ? '#16a34a' : '#dc2626';
+  const cor = r.ok ? '#239a5b' : '#d64545';
   return `<span style="color:${cor};font-weight:600;white-space:nowrap">${r.ok ? '🟢' : '🔴'} ${r.diff_pct > 0 ? '+' : ''}${pct2(r.diff_pct)}</span>`;
 }
 

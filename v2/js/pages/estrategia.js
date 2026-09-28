@@ -19,7 +19,7 @@ import { renderRecebiveis } from './recebiveis.js';
 let _root = null;
 let _tab = 'plano';
 
-const PALETTE = ['#806d50', '#16a34a', '#d97706', '#dc2626', '#7c3aed', '#806d50', '#db2777', '#475569', '#d4a843'];
+const PALETTE = ['#806d50', '#239a5b', '#c7861a', '#d64545', '#806d50', '#806d50', '#db2777', '#8a8579', '#806d50'];
 const TABS = [
   { id: 'plano', lbl: '🧭 Plano de Resgate' },
   { id: 'recebiveis', lbl: '💰 Radar de Recebíveis' },
@@ -102,11 +102,11 @@ async function openTab(tab) {
    Leitura consolidada aqui (uma fonte só de planejamento); a EDIÇÃO continua no
    quadro original, linkado abaixo — zero duplicação de CRUD. ── */
 const PA_TIPOS = [
-  { id: 'visao',      lbl: 'Visão',       ico: '🎯', color: '#7c3aed' },
+  { id: 'visao',      lbl: 'Visão',       ico: '🎯', color: '#806d50' },
   { id: 'missao',     lbl: 'Missão',      ico: '🚀', color: '#806d50' },
-  { id: 'objetivo',   lbl: 'Objetivos',   ico: '📍', color: '#16a34a' },
-  { id: 'okr',        lbl: 'OKRs',        ico: '✅', color: '#d97706' },
-  { id: 'iniciativa', lbl: 'Iniciativas', ico: '🛠', color: '#dc2626' },
+  { id: 'objetivo',   lbl: 'Objetivos',   ico: '📍', color: '#239a5b' },
+  { id: 'okr',        lbl: 'OKRs',        ico: '✅', color: '#c7861a' },
+  { id: 'iniciativa', lbl: 'Iniciativas', ico: '🛠', color: '#d64545' },
 ];
 let _paAno = new Date().getFullYear();
 async function renderPlanoAnual(c) {
@@ -288,7 +288,7 @@ function drawConnectors() {
     const cEl = byId[n.id], pNode = _ed.nodes.find(m => m.id === n.parent), pEl = byId[n.parent];
     if (!cEl || !pEl || !pNode) continue;
     const a = center(cEl, n), b = center(pEl, pNode);
-    lines += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${n.color || '#94a3b8'}" stroke-width="2.5" stroke-opacity="0.55" />`;
+    lines += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${n.color || '#8a8579'}" stroke-width="2.5" stroke-opacity="0.55" />`;
   }
   svg.innerHTML = lines;
 }
@@ -342,12 +342,12 @@ async function seedOrg() {
     users = (r.users || r || []).filter(u => (u.status || 'ativo') === 'ativo');
   } catch (_) { alert('Não consegui carregar os usuários.'); return; }
   const TIER = { socio: 0, diretor: 0, gerente: 1, lider: 2, corretor: 3, marketing: 3, backoffice: 3, financeiro: 3 };
-  const COR = { socio: '#d4a843', diretor: '#d4a843', gerente: '#7c3aed', lider: '#806d50', corretor: '#16a34a' };
+  const COR = { socio: '#806d50', diretor: '#806d50', gerente: '#806d50', lider: '#806d50', corretor: '#239a5b' };
   const rowCount = {};
   users.forEach(u => {
     const tier = TIER[(u.role || 'corretor').toLowerCase()] ?? 3;
     rowCount[tier] = (rowCount[tier] || 0);
-    addNode({ text: u.name || '—', x: 120 + rowCount[tier] * 200, y: 80 + tier * 150, color: COR[(u.role || '').toLowerCase()] || '#64748b' });
+    addNode({ text: u.name || '—', x: 120 + rowCount[tier] * 200, y: 80 + tier * 150, color: COR[(u.role || '').toLowerCase()] || '#8a8579' });
     rowCount[tier]++;
   });
   paintNodes();
@@ -374,13 +374,13 @@ async function saveBoard(explicit) {
 let _cr = null;
 
 const CR_STATUS = {
-  planejado: { lbl: 'Planejado', cor: '#64748b' },
+  planejado: { lbl: 'Planejado', cor: '#8a8579' },
   andamento: { lbl: 'Em andamento', cor: '#806d50' },
-  pausado: { lbl: 'Pausado', cor: '#a16207' },          // v84.96
-  risco: { lbl: 'Em risco', cor: '#d97706' },
-  concluido: { lbl: 'Concluído', cor: '#16a34a' },
-  atrasado: { lbl: 'Atrasado', cor: '#dc2626' },
-  excluido: { lbl: 'Excluído', cor: '#94a3b8' },        // v84.96 — soft, reversível
+  pausado: { lbl: 'Pausado', cor: '#c7861a' },          // v84.96
+  risco: { lbl: 'Em risco', cor: '#c7861a' },
+  concluido: { lbl: 'Concluído', cor: '#239a5b' },
+  atrasado: { lbl: 'Atrasado', cor: '#d64545' },
+  excluido: { lbl: 'Excluído', cor: '#8a8579' },        // v84.96 — soft, reversível
 };
 // v84.96 — fontes REAIS de progresso (medidas no servidor, mês/ano corrente)
 const CR_FONTES = {
@@ -506,7 +506,7 @@ function cronoCard(i) {
               ? `${fmtReal(i.fonte, pr.real)} de ${fmtReal(i.fonte, pr.alvo)} — ${CR_FONTES[i.fonte] || i.fonte}`
               : (pr ? 'defina o ALVO no ✏️ pra medir' : 'medindo…'))
           : 'informado manualmente';
-        const cor = pct == null ? '#94a3b8' : pct >= 100 ? '#16a34a' : pct >= 60 ? '#806d50' : pct >= 30 ? '#d97706' : '#dc2626';
+        const cor = pct == null ? '#8a8579' : pct >= 100 ? '#239a5b' : pct >= 60 ? '#806d50' : pct >= 30 ? '#c7861a' : '#d64545';
         return `<div style="margin-top:7px">
           <div class="flex" style="justify-content:space-between;font-size:11px;font-weight:600"><span style="color:${cor}">${pct != null ? pct + '%' : '—'}</span><span class="muted" style="font-weight:400">${legenda}</span></div>
           <div style="height:6px;background:var(--bg-3);border-radius:var(--radius-full);margin-top:2px;overflow:hidden"><div style="height:100%;width:${pct || 0}%;background:${cor};border-radius:var(--radius-full)"></div></div>
@@ -715,7 +715,7 @@ async function renderPlanoResgate(c) {
   prPaint(c);
 }
 
-function prBarra(lbl, real, meta, cor = '#16a34a') {
+function prBarra(lbl, real, meta, cor = '#239a5b') {
   const pct = meta ? Math.min(100, Math.round(100 * real / meta)) : 0;
   return `<div class="tiny" style="margin:5px 0">
     <div class="flex" style="justify-content:space-between"><span>${lbl}</span><b>${prMi(real)} / ${prMi(meta)} (${pct}%)</b></div>
@@ -744,7 +744,7 @@ function prPaint(c) {
     /* 🎯 v2.3 — Amortecedor da Semana (regra do positivo) */
     const am = r.amortecedor;
     const amBox = am ? (() => {
-      const cor = am.semaforo === 'verde' ? '#16a34a' : am.semaforo === 'amarelo' ? '#d97706' : '#dc2626';
+      const cor = am.semaforo === 'verde' ? '#239a5b' : am.semaforo === 'amarelo' ? '#c7861a' : '#d64545';
       const emj = am.semaforo === 'verde' ? '🟢' : am.semaforo === 'amarelo' ? '🟡' : '🔴';
       return `<div class="card" style="margin:0 0 10px;border:2px solid ${cor};background:${cor}0d">
         <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
@@ -763,7 +763,7 @@ function prPaint(c) {
     })() : '';
     corpo = amBox + briefBox + `
       <div class="tiny muted">Mês corrente: <b>${prEsc(mesAtual.nome || r.mes_id)}</b> · VGV = vendas GANHAS no CRM (win, mês do fechamento) · frentes pela Central de Frentes</div>
-      ${prBarra('🏆 Conquista (equipe)', vgvC, mesAtual.conquista || 0, '#16a34a')}
+      ${prBarra('🏆 Conquista (equipe)', vgvC, mesAtual.conquista || 0, '#239a5b')}
       ${prBarra('🤝 VGV próprio (MAP + Terceiros)', vgvP, mesAtual.proprio || 0, '#806d50')}
       <div class="tiny mt-2"><b>💰 Contribuição estimada do mês: ${prBrl(contrib)}</b> (Conquista ×${cts.margem_conquista_pct}% + próprio ×${cts.margem_proprio_pct}%)</div>
       ${r.caixa_recebido != null ? `<div class="tiny" style="margin-top:2px"><b>🏦 CAIXA do mês: recebido ${prBrl(r.caixa_recebido)}</b> de ${prBrl(r.caixa_previsto || 0)} previstos${(r.caixa_travado || 0) > 0 ? ` · <span style='color:var(--err);font-weight:600'>⛔ ${prBrl(r.caixa_travado)} travados</span>` : ''} — <span class="muted">competência ≠ caixa: o gap vendido×recebido</span></div>` : ''}
@@ -876,7 +876,7 @@ async function prAds(c) {
   catch (e) { host.innerHTML = `<span class="muted">💸 ads: ${prEsc(e.message)}</span>`; return; }
   if (a.erro_meta || !a.global) { host.innerHTML = `<span class="muted">💸 ads: sem dados do Meta (${prEsc(a.erro_meta || 'vazio')})</span>`; return; }
   const g = a.global;
-  const cor = { '▲': '#16a34a', '⏸': '#d97706', '▼': '#dc2626', '—': '#64748b' };
+  const cor = { '▲': '#239a5b', '⏸': '#c7861a', '▼': '#d64545', '—': '#8a8579' };
   host.innerHTML = `
     <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px 10px">
       <b>💸 Semáforo de ads (mês)</b> — GLOBAL:

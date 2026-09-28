@@ -181,10 +181,10 @@ function renderOut() {
     <!-- resumo -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
       ${kpi('Parcela inicial', fmt(r.parcelaInicial), r.sac ? 'decresce a cada mês' : 'fixa (PRICE)', '#806d50')}
-      ${kpi('Total do contrato', fmt(r.cPago), `${r.cPrazo} meses · ${fmt(r.cJuros)} de juros`, '#64748b')}
-      ${r.temExtra ? kpi('Com amortização', fmt(r.sPago), `${r.sPrazo} meses · ${fmt(r.sJuros)} de juros`, '#16a34a') : ''}
-      ${r.temExtra ? kpi('💚 Economia de juros', fmt(r.economiaJuros), pctEco(r) + ' menos juros', '#16a34a') : ''}
-      ${r.temExtra ? kpi('⏱ Reduz o prazo', mesesLabel(r.reducaoMeses), `quita em ${r.sPrazo} de ${r.cPrazo} meses`, '#d4a843') : ''}
+      ${kpi('Total do contrato', fmt(r.cPago), `${r.cPrazo} meses · ${fmt(r.cJuros)} de juros`, 'var(--ink-muted)')}
+      ${r.temExtra ? kpi('Com amortização', fmt(r.sPago), `${r.sPrazo} meses · ${fmt(r.sJuros)} de juros`, 'var(--ok)') : ''}
+      ${r.temExtra ? kpi('💚 Economia de juros', fmt(r.economiaJuros), pctEco(r) + ' menos juros', 'var(--ok)') : ''}
+      ${r.temExtra ? kpi('⏱ Reduz o prazo', mesesLabel(r.reducaoMeses), `quita em ${r.sPrazo} de ${r.cPrazo} meses`, 'var(--accent-ink)') : ''}
     </div>
     ${r.temExtra ? '' : '<div class="tiny muted" style="margin-top:8px">💡 Preencha “Extra todo mês” ou um aporte pontual pra ver a economia e a redução de prazo.</div>'}
 
@@ -234,10 +234,10 @@ function chart(r) {
   };
   const yTicks = [0, 0.25, 0.5, 0.75, 1].map(f => { const v = maxV * f; return `<line x1="${pad}" y1="${y(v)}" x2="${W - 10}" y2="${y(v)}" stroke="var(--border,#e5e7eb)" stroke-width="1"/><text x="${pad - 5}" y="${y(v) + 3}" font-size="9" fill="var(--ink-muted,#94a3b8)" text-anchor="end">${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</text>`; }).join('');
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">${yTicks}
-    ${line(r.contrato, '#94a3b8')}
-    ${r.temExtra ? line(r.sim, '#16a34a') : ''}
-    <text x="${W - 12}" y="14" font-size="10" fill="#94a3b8" text-anchor="end">— Contrato</text>
-    ${r.temExtra ? `<text x="${W - 12}" y="28" font-size="10" fill="#16a34a" text-anchor="end" font-weight="700">— Com amortização</text>` : ''}
+    ${line(r.contrato, 'var(--ink-muted)')}
+    ${r.temExtra ? line(r.sim, 'var(--ok)') : ''}
+    <text x="${W - 12}" y="14" font-size="10" fill="var(--ink-muted)" text-anchor="end">— Contrato</text>
+    ${r.temExtra ? `<text x="${W - 12}" y="28" font-size="10" fill="var(--ok)" text-anchor="end" font-weight="700">— Com amortização</text>` : ''}
   </svg>`;
 }
 

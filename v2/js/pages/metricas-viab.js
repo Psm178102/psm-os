@@ -96,10 +96,10 @@ const num = v => {
 const fmt = n => 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtC = fmt;   // antes abreviava (30k); agora idêntico ao cheio
 const pct = n => (Number(n) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%';
-const dc = n => (n || 0) >= 0 ? '#16a34a' : '#dc2626';
+const dc = n => (n || 0) >= 0 ? '#239a5b' : '#d64545';
 
 /* ── gráficos (Chart.js sob demanda) v83.4 ── */
-const CHART_PAL = ['#7c3aed', '#806d50', '#806d50', '#d97706', '#16a34a', '#dc2626', '#db2777', '#0d9488', '#ca8a04', '#4f46e5', '#9333ea', '#059669', '#e11d48', '#f59e0b', '#64748b'];
+const CHART_PAL = ['#806d50', '#806d50', '#806d50', '#c7861a', '#239a5b', '#d64545', '#db2777', '#239a5b', '#c7861a', '#806d50', '#806d50', '#239a5b', '#d64545', '#c7861a', '#8a8579'];
 async function mkChart(canvasId, cfg) {
   const el = document.getElementById(canvasId); if (!el) return;
   try {
@@ -225,10 +225,10 @@ const BUCKETS = [
   ['mensal', '🔁 Mensal recorrente', '#806d50', 'bate todo mês — é o custo de operar'],
   ['tri', '📆 Trimestral', '#806d50', 'a cada 3 meses'],
   ['sem', '📆 Semestral', '#806d50', 'a cada 6 meses'],
-  ['anual', '🗓 Anual', '#7c3aed', 'cai inteiro no mês marcado — desembolso de calendário'],
-  ['parcelado', '💳 Parcelado', '#d97706', 'parcela em cada mês listado'],
+  ['anual', '🗓 Anual', '#806d50', 'cai inteiro no mês marcado — desembolso de calendário'],
+  ['parcelado', '💳 Parcelado', '#c7861a', 'parcela em cada mês listado'],
   ['extra', '✨ Extra pontual', '#db2777', 'gasto avulso nos meses marcados'],
-  ['variavel', '📈 Variável (% VGV)', '#16a34a', 'só existe se vender — não é conta fixa'],
+  ['variavel', '📈 Variável (% VGV)', '#239a5b', 'só existe se vender — não é conta fixa'],
 ];
 function valorItemMes(it, m) {
   const base = (it.por_mes && it.por_mes[m] != null && it.por_mes[m] !== '') ? +it.por_mes[m] : (+it.valor || 0);
@@ -333,7 +333,7 @@ function coerenciaBar() {
       ${stat('🏦 Custo do mês', fmt(custoMes), `${fmt(perf.mensal.mes)} recorrente + ${fmt(custoMes - perf.mensal.mes - perf.variavel.mes)} calendário`)}
       ${stat('📣 Tráfego do mês', fmt(traf.totMes[mr]), LIDS.filter(l => traf.por[l][mr] > 0).map(l => (LINHAS.find(x => x.id === l) || {}).icon || l).join(' ') || 'sem verba lançada')}
       ${stat('💰 VGV orçado', fmt(vgv), 'meta do mês')}
-      ${stat('🎯 Conta cheia', fmt((_d.conta_cheia_calc || {})[mr] ?? custoMes), 'lida pelo Amortecedor', '#fbbf24')}
+      ${stat('🎯 Conta cheia', fmt((_d.conta_cheia_calc || {})[mr] ?? custoMes), 'lida pelo Amortecedor', '#c7861a')}
       <div style="flex:none;align-self:center;display:flex;gap:6px;flex-wrap:wrap">${erros.length
         ? `<button class="btn btn-sm" id="viab-div-toggle" style="background:var(--warn-soft);color:var(--ink);font-weight:600;border:none">⚠ ${erros.length} divergência${erros.length > 1 ? 's' : ''}</button>`
         : `<span class="tiny" style="background:var(--ok-soft);color:var(--ok);font-weight:600;padding:5px 10px;border-radius:var(--radius-full)">✅ abas em sincronia</span>`}
@@ -481,7 +481,7 @@ function perfilGastoHTML() {
       <div style="flex:1;min-width:230px;background:var(--accent-soft);border:1px solid var(--accent-ink);border-radius:var(--radius-md);padding:10px 12px">
         <div class="tiny muted">🗓 CALENDÁRIO — anual, semestral, trimestral, parcelas e extras</div>
         <div style="font-size:20px;font-weight:600;color:var(--roxo)">${fmt(calendarioAno)}<span class="tiny muted" style="font-weight:400">/ano</span></div>
-        ${barra(calendarioAno, totFixo, '#7c3aed')}
+        ${barra(calendarioAno, totFixo, '#806d50')}
         <div class="tiny muted mt-1">${calendarioMes ? `<b>${fmt(calendarioMes)}</b> cai em ${MESES_N3[mr - 1]}` : `nada cai em ${MESES_N3[mr - 1]}`} · média diluída ${fmt(calendarioAno / 12)}/mês</div>
       </div>
       <div style="flex:1;min-width:200px;background:var(--ok-soft);border:1px solid var(--ok);border-radius:var(--radius-md);padding:10px 12px">
@@ -746,7 +746,7 @@ function renderOrcado() {
             <tr title="VGV fechado no RD CRM — atualiza sozinho a cada sync"><td style="padding:3px 6px;font-weight:600;color:var(--ok);position:sticky;left:0;background:var(--bg-2)">📡 VGV real</td>${cols.map(c => {
               if (!c.passado) return '<td style="padding:3px 4px;text-align:right;color:var(--ink-muted)">·</td>';
               const at = c.vgv ? c.real.vgv / c.vgv * 100 : null;
-              const cor = at == null ? 'var(--ink-muted)' : at >= 100 ? '#16a34a' : at >= 60 ? '#d97706' : '#dc2626';
+              const cor = at == null ? 'var(--ink-muted)' : at >= 100 ? '#239a5b' : at >= 60 ? '#c7861a' : '#d64545';
               return `<td style="padding:3px 4px;text-align:right;font-weight:600;color:${cor}" title="${c.real.vendas} venda(s)${at != null ? ' · ' + pct(at) + ' da meta do mês' : ''}">${c.real.vgv ? fmtC(c.real.vgv) : '—'}</td>`;
             }).join('')}</tr>
             <tr><td style="padding:3px 6px;font-weight:600;position:sticky;left:0;background:var(--bg-2)">Vendas meta</td>${cols.map(c => `<td style="padding:2px 4px">${inp(c.m, 'vendas', c.vendas)}</td>`).join('')}</tr>
@@ -1031,7 +1031,7 @@ function renderCustosDet() {
       return g.length ? grupoHead(lbl, cor, g, hint) + g.map(rowHTML).join('') : '';
     }).join('');
   } else if (_grupoCustos === 'empresa') {
-    rows = [...LINHAS.map(l => [l.id, l.icon + ' ' + l.nome, l.cor]), ['compartilhado', '⚖️ Compartilhado (rateado)', '#64748b']]
+    rows = [...LINHAS.map(l => [l.id, l.icon + ' ' + l.nome, l.cor]), ['compartilhado', '⚖️ Compartilhado (rateado)', '#8a8579']]
       .map(([id, lbl, cor]) => { const g = visiveis.filter(it => it.aloc === id); return g.length ? grupoHead(lbl, cor, g, '') + g.map(rowHTML).join('') : ''; }).join('');
   } else {
     rows = _cats.map((c, i) => { const g = visiveis.filter(it => it.cat === c); return g.length ? grupoHead('🏷 ' + esc(c), CHART_PAL[i % CHART_PAL.length], g, '') + g.map(rowHTML).join('') : ''; }).join('');
@@ -1070,7 +1070,7 @@ function renderCustosDet() {
       <tbody>${rows || '<tr><td colspan="10" class="tiny muted" style="padding:12px;text-align:center">Nenhum custo — clique em "adicionar custo".</td></tr>'}</tbody>
       <tfoot><tr><td colspan="10" style="padding:0">
         <div class="flex" style="gap:10px;flex-wrap:wrap;background:var(--bg-3);border-radius:0 0 8px 8px;padding:10px 12px;margin-top:2px">
-          ${[['fixo', '📌 Fixo', '#806d50'], ['variavel', '📈 Variável', '#7c3aed'], ['extra', '✨ Extra', '#d97706'], ['parcelado', '📆 Parcelado', '#806d50']].map(([k, lbl, cor]) => `
+          ${[['fixo', '📌 Fixo', '#806d50'], ['variavel', '📈 Variável', '#806d50'], ['extra', '✨ Extra', '#c7861a'], ['parcelado', '📆 Parcelado', '#806d50']].map(([k, lbl, cor]) => `
             <div style="flex:1;min-width:150px">
               <div class="tiny muted">${lbl}</div>
               <div style="font-weight:600;color:${cor}">${fmt(porClasse[k] || 0)}<span class="tiny muted" style="font-weight:400">/ano</span></div>
@@ -1358,7 +1358,7 @@ function wireRealizado() {
       data: { labels: s.lbl, datasets: [
         { type: 'bar', label: 'VGV orçado', data: s.vgvO, backgroundColor: 'rgba(37,99,235,0.30)', borderRadius: 3, order: 3 },
         { type: 'bar', label: 'VGV realizado', data: s.vgvR, backgroundColor: '#806d50', borderRadius: 3, order: 2 },
-        { type: 'line', label: 'Lucro realizado', data: s.lucroR, borderColor: '#16a34a', backgroundColor: '#16a34a', tension: 0.3, borderWidth: 2, pointRadius: 3, yAxisID: 'y1', order: 1 },
+        { type: 'line', label: 'Lucro realizado', data: s.lucroR, borderColor: '#239a5b', backgroundColor: '#239a5b', tension: 0.3, borderWidth: 2, pointRadius: 3, yAxisID: 'y1', order: 1 },
       ] },
       options: darkOpts({
         interaction: { mode: 'index', intersect: false },
@@ -1366,7 +1366,7 @@ function wireRealizado() {
         scales: {
           x: { ticks: { color: DARK_INK, font: { size: 10 } }, grid: { display: false } },
           y: { ticks: { color: DARK_INK, font: { size: 9 }, callback: v => fmtC(v) }, grid: { color: DARK_GRID } },
-          y1: { position: 'right', ticks: { color: '#16a34a', font: { size: 9 }, callback: v => fmtC(v) }, grid: { display: false } },
+          y1: { position: 'right', ticks: { color: '#239a5b', font: { size: 9 }, callback: v => fmtC(v) }, grid: { display: false } },
         },
       }),
     });
@@ -1577,7 +1577,7 @@ function renderBE() {
   const proLab = +_be.proLabore || 0;
   const fixoEf = _beSemPL ? Math.max(0, (+_be.fixo || 0) - proLab) : (+_be.fixo || 0);   // custo fixo considerado (v83.5)
   const resultado = r.total - fixoEf;
-  const cor = resultado >= 0 ? '#4ade80' : '#f87171';
+  const cor = resultado >= 0 ? '#239a5b' : '#d64545';
   const cob = fixoEf ? Math.min(100, r.total / fixoEf * 100) : 0;
   // barra de cobertura LÍQUIDA do fixo + quebra por alavanca com sinal (v83.4.1 — casa com a cobertura%)
   const segs = [
@@ -1587,7 +1587,7 @@ function renderBE() {
   const beScale = Math.max(r.total, fixoEf, 1);
   const fillPct = Math.max(0, Math.min(100, r.total / beScale * 100));
   const fixoPct = Math.min(100, fixoEf / beScale * 100);
-  const barBg = r.total >= fixoEf ? '#22c55e' : (r.total > 0 ? 'linear-gradient(90deg,#f59e0b,#22c55e)' : '#ef4444');
+  const barBg = r.total >= fixoEf ? '#239a5b' : (r.total > 0 ? 'linear-gradient(90deg,#f59e0b,#22c55e)' : '#d64545');
   const torre = `<div style="margin-top:14px">
     <div class="tiny" style="opacity:.8;margin-bottom:6px">🧱 Contribuição líquida das alavancas vs custo fixo <span style="opacity:.7">(tracejado = 100% do fixo ${_beSemPL ? 'SEM' : 'COM'} pró-labore · barra = ${fillPct.toFixed(0)}%)</span></div>
     <div style="position:relative;height:22px;margin-top:16px">
@@ -1630,14 +1630,14 @@ function renderBE() {
 
     ${lever('🏠 Conquista (equipe atual)', '#806d50', bi('conquista', 'vendas', 'Vendas/mês') + bi('conquista', 'ticket', 'Ticket R$', 100) + bi('conquista', 'margem', 'Margem %'), r.conqC, 'Sua base. Subir de 0,33 → 1 venda/corretor já triplica.')}
 
-    ${lever('👑 Sócio vende (alto ticket · comissão fica na casa)', '#a855f7', bi('socio', 'vendas', 'Vendas/mês') + bi('socio', 'ticket', 'Ticket R$', 100) + bi('socio', 'margem', 'Margem %'), r.socioC, 'Você vendendo Terceiros/MAP: retém ~4–5%. Custo fixo zero (já na folha). A alavanca mais rápida.')}
+    ${lever('👑 Sócio vende (alto ticket · comissão fica na casa)', '#806d50', bi('socio', 'vendas', 'Vendas/mês') + bi('socio', 'ticket', 'Ticket R$', 100) + bi('socio', 'margem', 'Margem %'), r.socioC, 'Você vendendo Terceiros/MAP: retém ~4–5%. Custo fixo zero (já na folha). A alavanca mais rápida.')}
 
     ${lever('🤝 Terceiros (parceria · só tráfego)', '#806d50', bi('terceiros', 'vendas', 'Vendas/mês') + bi('terceiros', 'ticket', 'Ticket R$', 100) + bi('terceiros', 'margem', 'Margem %') + bi('terceiros', 'trafego', 'Tráfego/mês R$', 96), r.tercC, 'Comissão pura (40% vendedor / 10% captador / 50% casa). Sem mínimo garantido. A mais barata de religar.')}
 
-    ${lever('🔑 Locação (recorrência + mínimo garantido)', '#d97706', bi('locacao', 'corretores', 'Corretores') + bi('locacao', 'minGar', 'Mín. garant. R$', 96) + bi('locacao', 'capt', 'Captações/mês') + bi('locacao', 'aluguel', 'Aluguel médio R$', 100) + bi('locacao', 'adm', '% adm', 60) + bi('locacao', 'carteira', 'Carteira (contratos)', 110) + bi('locacao', 'trafego', 'Tráfego/mês R$', 96), r.locC,
+    ${lever('🔑 Locação (recorrência + mínimo garantido)', '#c7861a', bi('locacao', 'corretores', 'Corretores') + bi('locacao', 'minGar', 'Mín. garant. R$', 96) + bi('locacao', 'capt', 'Captações/mês') + bi('locacao', 'aluguel', 'Aluguel médio R$', 100) + bi('locacao', 'adm', '% adm', 60) + bi('locacao', 'carteira', 'Carteira (contratos)', 110) + bi('locacao', 'trafego', 'Tráfego/mês R$', 96), r.locC,
       `1º aluguel <b style="color:${dc(r.loc1)}">${fmtC(r.loc1)}</b> + recorrente <b style="color:${dc(r.locRec)}">${fmtC(r.locRec)}</b> − mín. garantido <b style="color:var(--err)">${fmtC(r.locMin)}</b> − tráfego. O piso permanente: a carteira × adm banca a estrutura sozinha (${_be.locacao.aluguel && _be.locacao.adm ? Math.ceil(_be.fixo / (_be.locacao.aluguel * _be.locacao.adm / 100 * 0.92)) : '—'} contratos cobrem 100% do fixo).`)}
 
-    ${lever('🏢 MAP (corretores comissionados + tráfego + gestão)', '#7c3aed', bi('map', 'corretores', 'Corretores') + bi('map', 'vendasCorr', 'Vendas/corr/mês') + bi('map', 'ticket', 'Ticket R$', 100) + bi('map', 'margem', 'Margem %') + bi('map', 'trafego', 'Tráfego/mês R$', 96), r.mapC, 'Margem fina + consome sua energia de gestão + tráfego pago. Deixe por último.')}
+    ${lever('🏢 MAP (corretores comissionados + tráfego + gestão)', '#806d50', bi('map', 'corretores', 'Corretores') + bi('map', 'vendasCorr', 'Vendas/corr/mês') + bi('map', 'ticket', 'Ticket R$', 100) + bi('map', 'margem', 'Margem %') + bi('map', 'trafego', 'Tráfego/mês R$', 96), r.mapC, 'Margem fina + consome sua energia de gestão + tráfego pago. Deixe por último.')}
 
     <div class="flex gap-2 mt-2" style="flex-wrap:wrap;align-items:center">
       <input id="be-nome" class="input" placeholder="nome do cenário" style="max-width:200px">
@@ -1692,10 +1692,10 @@ function resumoInsight(d) {
 function heroStat(lbl, val, cor) { return `<div><div class="tiny" style="opacity:.8">${lbl}</div><div style="font-size:20px;font-weight:600;color:${cor}">${val}</div></div>`; }
 function renderResumo() {
   const d = resumoData();
-  const ok = d.gap <= 0, cor = ok ? '#4ade80' : '#f87171';
+  const ok = d.gap <= 0, cor = ok ? '#239a5b' : '#d64545';
   const cob = Math.min(100, Math.max(0, d.cobertura));
   const passo = (n, ico, t, sub, tabId) => `<button class="btn btn-ghost res-goto" data-goto="${tabId}" style="flex:1;min-width:148px;text-align:left;border:1px solid var(--border);border-radius:var(--radius-md);padding:9px 11px;height:auto"><div class="tiny muted">Passo ${n}</div><div style="font-weight:600;font-size:13px">${ico} ${t}</div><div class="tiny muted">${sub}</div></button>`;
-  const margBadge = f => { const m = f.margemPct, c = m < 0.5 ? '#dc2626' : m < 1.5 ? '#d97706' : '#16a34a'; return `<div style="flex:1;min-width:135px;background:var(--bg-3);border-radius:var(--radius-md);padding:9px 11px;border-left:4px solid ${f.l.cor}"><div class="tiny muted">${f.l.icon} ${f.l.nome}</div><div style="font-size:16px;font-weight:600;color:${c}">${pct(f.margemPct)}</div><div class="tiny muted">${f.vgvMes > 0 ? fmtC(f.vgvMes) + '/mês' : '⏸ pausada'}</div></div>`; };
+  const margBadge = f => { const m = f.margemPct, c = m < 0.5 ? '#d64545' : m < 1.5 ? '#c7861a' : '#239a5b'; return `<div style="flex:1;min-width:135px;background:var(--bg-3);border-radius:var(--radius-md);padding:9px 11px;border-left:4px solid ${f.l.cor}"><div class="tiny muted">${f.l.icon} ${f.l.nome}</div><div style="font-size:16px;font-weight:600;color:${c}">${pct(f.margemPct)}</div><div class="tiny muted">${f.vgvMes > 0 ? fmtC(f.vgvMes) + '/mês' : '⏸ pausada'}</div></div>`; };
   const maxC = Math.max(1, ...d.frentes.map(f => f.custoMes));
   const custoBar = f => `<div style="margin-bottom:6px"><div class="flex" style="justify-content:space-between;font-size:12px"><span>${f.l.icon} ${f.l.nome}</span><b>${fmt(f.custoMes)}/mês</b></div><div style="height:8px;background:var(--bg-3);border-radius:var(--radius-full);overflow:hidden"><div style="height:100%;width:${(f.custoMes / maxC * 100).toFixed(0)}%;background:${f.l.cor}"></div></div></div>`;
   return `
@@ -1708,9 +1708,9 @@ function renderResumo() {
     <div class="card" style="margin:0 0 14px;background:var(--psm-navy);color:#fff">
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
         ${heroStat('🏦 Custo fixo de ' + MESES_N3[d.mr - 1], fmtC(d.fixo), '#cbd5e1')}
-        ${heroStat('💚 Contribuição/mês', fmtC(d.contribTotal), '#4ade80')}
+        ${heroStat('💚 Contribuição/mês', fmtC(d.contribTotal), '#239a5b')}
         ${heroStat(ok ? '🎉 Sobra/mês' : '⚠️ Falta/mês', fmtC(Math.abs(d.gap)), cor)}
-        ${heroStat('📊 Cobertura do fixo', d.cobertura.toFixed(0) + '%', ok ? '#4ade80' : '#fbbf24')}
+        ${heroStat('📊 Cobertura do fixo', d.cobertura.toFixed(0) + '%', ok ? '#239a5b' : '#c7861a')}
       </div>
       <div style="margin-top:12px">
         <div class="tiny" style="opacity:.8;margin-bottom:4px">Break-even — o quanto a contribuição preenche o custo fixo</div>
@@ -1778,7 +1778,7 @@ function eficienciaCard() {
   const cacs = comDados.filter(r => r.cac != null).map(r => r.cac);
   const min = Math.min(...cacs), max = Math.max(...cacs);
   const linhas = comDados.map(r => {
-    const corCac = r.cac == null ? null : (cacs.length > 1 && r.cac === min ? '#16a34a' : (cacs.length > 1 && r.cac === max ? '#dc2626' : null));
+    const corCac = r.cac == null ? null : (cacs.length > 1 && r.cac === min ? '#239a5b' : (cacs.length > 1 && r.cac === max ? '#d64545' : null));
     return `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:4px 8px;white-space:nowrap;font-weight:600;border-left:3px solid ${r.l.cor}">${r.l.icon} ${esc(r.l.nome)}
         ${r.parcial ? `<div class="tiny" style="color:var(--warn);font-weight:600" title="a verba só cobre ${r.mesesComTraf} dos ${r.mesesComVenda} meses com venda — o custo por venda sai menor do que realmente foi">⚠ verba de ${r.mesesComTraf}/${r.mesesComVenda} meses</div>` : ''}</td>
@@ -1789,7 +1789,7 @@ function eficienciaCard() {
       ${cel(r.convLead != null ? pct(r.convLead) : '—')}
       ${cel(r.cac != null ? fmt(r.cac) : '—', corCac)}
       ${cel(r.cacTotal != null ? fmt(r.cacTotal) : '—')}
-      ${cel(r.roas != null ? r.roas.toFixed(2) + '×' : '—', r.roas == null ? null : (r.roas >= 1 ? '#16a34a' : '#dc2626'))}
+      ${cel(r.roas != null ? r.roas.toFixed(2) + '×' : '—', r.roas == null ? null : (r.roas >= 1 ? '#239a5b' : '#d64545'))}
     </tr>`;
   }).join('');
   const tot = comDados.reduce((a, r) => ({ traf: a.traf + r.trafAno, leads: a.leads + r.leads, vendas: a.vendas + r.vendas, receita: a.receita + r.receita }), { traf: 0, leads: 0, vendas: 0, receita: 0 });
@@ -1838,7 +1838,7 @@ function projecaoAnoData() {
 function projecaoAnoCard() {
   const p = projecaoAnoData();
   if (!p) return '';
-  const ok = p.gap <= 0, cor = ok ? '#16a34a' : '#dc2626';
+  const ok = p.gap <= 0, cor = ok ? '#239a5b' : '#d64545';
   const salto = p.mediaMes > 0 ? p.precisaMes / p.mediaMes : null;
   return `<div class="card" style="margin:0 0 14px;border:2px solid ${cor}33">
     <h3 class="card-title">🔮 Ritmo linear de ${_ano} × orçamento <span class="tiny muted" style="font-weight:400">· média dos ${p.ateFechado} mês(es) já fechados · não é a <a href="#/gestao-comercial">projeção oficial</a></span></h3>

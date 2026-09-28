@@ -118,9 +118,9 @@ function blocoFluxo(cx) {
       <div class="tiny" style="font-weight:600;color:${neg ? 'var(--err)' : 'var(--ok)'}">${neg ? '−' : ''}R$ ${kR$(Math.abs(s.acumulado))}</div>
     </div>`;
   }).join('');
-  const STB = { confirmado: ['#16a34a', '✅'], previsto: ['#806d50', '📅'], travado: ['#dc2626', '🔒'] };
+  const STB = { confirmado: ['var(--ok)', '✅'], previsto: ['#806d50', '📅'], travado: ['var(--err)', '🔒'] };
   const prox = (cx.proximos || []).slice(0, 12).map(p => {
-    const [cor, ico] = STB[p.status] || ['#64748b', '•'];
+    const [cor, ico] = STB[p.status] || ['var(--ink-muted)', '•'];
     return `<div style="display:flex;gap:8px;align-items:center;border-left:3px solid ${cor};background:var(--bg-3);border-radius:var(--radius-sm);padding:5px 9px">
       <span class="tiny" style="font-weight:600;white-space:nowrap">${p.data ? dBR(p.data) : '<span style="color:var(--warn)">s/ data</span>'}</span>
       <span class="tiny" style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ico} ${esc(p.desc || '')}${p.corretor ? ' · ' + esc(p.corretor) : ''}${p.bloqueio && p.bloqueio !== 'nenhum' ? ` <b style="color:var(--err)">⛔ ${esc(p.bloqueio)}</b>` : ''}</span>
@@ -155,8 +155,8 @@ function blocoFluxo(cx) {
 
 /* ── 3) BREAK-EVEN — meta mínima do mês ── */
 function blocoBreakeven(be) {
-  const FAROL = { coberto: ['#16a34a', '✅ mês já se paga'], perto: ['#d97706', '⚠️ quase — falta pouco'], descoberto: ['#dc2626', '🚨 abaixo do break-even'] };
-  const [cor, lbl] = FAROL[be.farol] || ['#94a3b8', '—'];
+  const FAROL = { coberto: ['var(--ok)', '✅ mês já se paga'], perto: ['var(--warn)', '⚠️ quase — falta pouco'], descoberto: ['var(--err)', '🚨 abaixo do break-even'] };
+  const [cor, lbl] = FAROL[be.farol] || ['var(--ink-muted)', '—'];
   const pct = Math.min(140, be.cobertura_pct || 0);
   const rows = (be.por_frente || []).map(l => `<tr>
       <td style="font-size:12px;font-weight:600;white-space:nowrap;padding:4px 6px 4px 0">${l.icon} ${esc(l.nome)}</td>

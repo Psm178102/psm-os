@@ -85,8 +85,8 @@ function resumoDe(txt) {
 /* cor semântica de um valor contra limiar (menor_melhor: CPL/freq/DDD; maior_melhor: CTR) */
 function semCor(v, alvo, teto, menorMelhor = true) {
   if (v == null || !isFinite(v)) return 'inherit';
-  if (menorMelhor) return v <= alvo ? 'var(--ok, #22c55e)' : v <= teto ? '#f59e0b' : 'var(--err, #ef4444)';
-  return v >= alvo ? 'var(--ok, #22c55e)' : v >= teto ? '#f59e0b' : 'var(--err, #ef4444)';
+  if (menorMelhor) return v <= alvo ? 'var(--ok, #22c55e)' : v <= teto ? '#c7861a' : 'var(--err, #ef4444)';
+  return v >= alvo ? 'var(--ok, #22c55e)' : v >= teto ? '#c7861a' : 'var(--err, #ef4444)';
 }
 
 const GT_CSS = `
@@ -216,10 +216,10 @@ function renderPainel(body) {
       <div class="gt-card">
         <h4>🪜 Funil do mês (Conquista) <span class="tiny muted">lead → pasta é o jogo</span></h4>
         ${barraFunil('Leads', fun.leads || 0, fun.leads || 0, '#806d50')}
-        ${barraFunil('Em contato', fun.contato || 0, fun.leads || 0, '#6366f1')}
-        ${barraFunil('Visitas', fun.visitas || 0, fun.leads || 0, '#a855f7')}
-        ${barraFunil('Pastas', fun.pastas || 0, fun.leads || 0, '#f97316')}
-        ${barraFunil('Vendas', fun.vendas || 0, fun.leads || 0, '#22c55e')}
+        ${barraFunil('Em contato', fun.contato || 0, fun.leads || 0, '#806d50')}
+        ${barraFunil('Visitas', fun.visitas || 0, fun.leads || 0, '#806d50')}
+        ${barraFunil('Pastas', fun.pastas || 0, fun.leads || 0, '#c7861a')}
+        ${barraFunil('Vendas', fun.vendas || 0, fun.leads || 0, '#239a5b')}
       </div>
       <div class="gt-card" style="border-left:5px solid var(--accent-ink)">
         <h4>🕵️ Vigia de Concorrência — último achado</h4>
@@ -282,7 +282,7 @@ function renderPainel(body) {
 
 function desenharSpark(serie) {
   const cv = document.getElementById('gt-spark');
-  if (!cv || !serie.length) { if (cv) { const c = cv.getContext('2d'); c.font = '12px sans-serif'; c.fillStyle = '#94a3b8'; c.fillText('Sem série diária no cache (o cron aquece a cada ~10min).', 8, 40); } return; }
+  if (!cv || !serie.length) { if (cv) { const c = cv.getContext('2d'); c.font = '12px sans-serif'; c.fillStyle = '#8a8579'; c.fillText('Sem série diária no cache (o cron aquece a cada ~10min).', 8, 40); } return; }
   const W = cv.width = cv.clientWidth * (window.devicePixelRatio || 1);
   const H = cv.height = 110 * (window.devicePixelRatio || 1);
   const ctx = cv.getContext('2d');
@@ -291,7 +291,7 @@ function desenharSpark(serie) {
   const n = serie.length, bw = W / n;
   serie.forEach((d, i) => {
     const h = (spends[i] / maxS) * (H - 18);
-    ctx.fillStyle = spends[i] > 0 ? '#fb923c' : '#33415555';
+    ctx.fillStyle = spends[i] > 0 ? '#c7861a' : '#33415555';
     ctx.fillRect(i * bw + bw * 0.15, H - h - 14, bw * 0.7, Math.max(h, spends[i] > 0 ? 2 : 1));
   });
   ctx.strokeStyle = '#806d50'; ctx.lineWidth = 2 * (window.devicePixelRatio || 1); ctx.beginPath();
@@ -823,7 +823,7 @@ let _relatorios = null;
 const TIPO_LBL = { diario: '📅 Diário (19h)', semanal: '🗓 Semanal (seg 18h)', quinzenal: '📆 Quinzenal (dia 15)', mensal: '📊 Fechamento de mês', vigia: '🕵️ Vigia de Concorrência' };
 
 let _relFiltro = 'todos';
-const TIPO_COR = { diario: '#fb923c', semanal: '#806d50', quinzenal: '#a855f7', mensal: '#22c55e', vigia: '#f43f5e' };
+const TIPO_COR = { diario: '#c7861a', semanal: '#806d50', quinzenal: '#806d50', mensal: '#239a5b', vigia: '#d64545' };
 
 async function renderRelatorios(body) {
   body.innerHTML = '<div class="muted tiny"><span class="spinner"></span> Buscando relatórios…</div>';
@@ -844,7 +844,7 @@ async function renderRelatorios(body) {
     </div>
     ${lista.length ? lista.map((r, i) => {
       const resumo = resumoDe(r.texto);
-      const cor = TIPO_COR[r.tipo] || '#fb923c';
+      const cor = TIPO_COR[r.tipo] || '#c7861a';
       return `
       <div style="background:var(--bg-3);border-left:4px solid ${cor};border-radius:var(--radius-md);padding:12px 16px;margin-bottom:10px">
         <div class="flex" style="align-items:center;gap:8px;cursor:pointer;flex-wrap:wrap" data-rel-tg="${i}">

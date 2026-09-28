@@ -6,8 +6,8 @@ import { api } from '../api.js';
 import { auth } from '../auth.js';
 
 const AGENTS = [
-  { id: 'vera',          name: 'Vera',          ico: '💜', color: '#8b5cf6', tagline: 'Vendas e estratégia comercial' },
-  { id: 'sol',           name: 'Sol',           ico: '☀️', color: '#f59e0b', tagline: 'Marketing e copywriting' },
+  { id: 'vera',          name: 'Vera',          ico: '💜', color: '#806d50', tagline: 'Vendas e estratégia comercial' },
+  { id: 'sol',           name: 'Sol',           ico: '☀️', color: '#c7861a', tagline: 'Marketing e copywriting' },
   { id: 'sr_performance',name: 'Sr. Performance',ico: '🤖', color: '#806d50', tagline: 'Analytics e mídia' },
   { id: 'sr_gerencia',   name: 'Sr. Gerência',  ico: '👔', color: '#0f172a', tagline: 'Liderança e gestão' },
 ];

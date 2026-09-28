@@ -23,7 +23,7 @@ const PGTO = ['PIX', 'Boleto', 'Cartão corporativo', 'Dinheiro', 'Transferênci
 const ST_COMPRA = ['solicitado', 'aprovado', 'comprado', 'recebido', 'cancelado'];
 const ST_COMPRA_LBL = { solicitado: '🟡 Solicitado', aprovado: '🔵 Aprovado', comprado: '🟣 Comprado', recebido: '🟢 Recebido', cancelado: '⚪ Cancelado' };
 const ESTADOS = ['Novo', 'Ótimo', 'Bom', 'Regular', 'Ruim', 'Inservível'];
-const ESTADO_COR = { 'Novo': '#16a34a', 'Ótimo': '#16a34a', 'Bom': '#806d50', 'Regular': '#f59e0b', 'Ruim': '#ef4444', 'Inservível': '#991b1b' };
+const ESTADO_COR = { 'Novo': '#239a5b', 'Ótimo': '#239a5b', 'Bom': '#806d50', 'Regular': '#c7861a', 'Ruim': '#d64545', 'Inservível': '#d64545' };
 const CAT_PATR = ['Mobiliário', 'Informática', 'Eletrônicos', 'Veículos', 'Eletrodomésticos', 'Imóvel', 'Decoração', 'Outro'];
 const TIPO_MANUT = ['Preventiva', 'Corretiva', 'Instalação', 'Reforma'];
 const ST_MANUT = ['solicitada', 'orcamento', 'aprovada', 'em_andamento', 'concluida', 'cancelada'];
@@ -222,7 +222,7 @@ function renderPatrimonio(root) {
   root.querySelectorAll('[data-pt]').forEach(el => el.onclick = () => editPatr(root, p.find(x => x.id === el.dataset.pt)));
 }
 function patrCard(r) {
-  const cor = ESTADO_COR[r.estado_conservacao] || '#64748b';
+  const cor = ESTADO_COR[r.estado_conservacao] || '#8a8579';
   return `<div class="card" style="padding:12px;cursor:pointer;border-left:4px solid ${cor}" data-pt="${esc(r.id)}">
     <div class="flex items-center" style="justify-content:space-between;gap:6px">
       <div style="font-weight:600;font-size:13px">${esc(r.nome || '—')}</div>

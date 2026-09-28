@@ -19,8 +19,8 @@ const ST_LABEL = {
   descartado: '🗑 Descartado', nutricao: '🌱 Nutrição',
 };
 const ST_COR = {
-  novo: '#dc2626', em_atendimento: '#806d50', agendado: '#16a34a',
-  descartado: '#64748b', nutricao: '#a16207',
+  novo: 'var(--err)', em_atendimento: '#806d50', agendado: 'var(--ok)',
+  descartado: 'var(--ink-muted)', nutricao: 'var(--warn)',
 };
 
 export async function pageLeadsLp(ctx, root) {

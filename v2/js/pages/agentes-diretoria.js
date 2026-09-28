@@ -25,7 +25,7 @@ const AGENTS = [
     ],
   },
   {
-    id: 'cfo', name: 'Sr. CFO', ico: '💰', color: '#22c55e',
+    id: 'cfo', name: 'Sr. CFO', ico: '💰', color: '#239a5b',
     line: 'Cérebro financeiro da holding',
     desc: 'Caixa, dívida, margens, break-even, orçado×realizado e gates do Plano de Resgate. Aponta risco, erro e acerto com R$ e prazo.',
     links: [{ nav: '/sr-cfo', lbl: '🧠 Dossiês & Radar de Riscos' }],
@@ -37,7 +37,7 @@ const AGENTS = [
     ],
   },
   {
-    id: 'cmo', name: 'CMO PSM', ico: '📣', color: '#f59e0b',
+    id: 'cmo', name: 'CMO PSM', ico: '📣', color: '#c7861a',
     line: 'Estratégia de marketing integrada',
     desc: 'Budget de mídia por nicho, CAC/ROAS integrado, priorização entre conteúdo × tráfego × base e arbitragem dos executores.',
     links: [{ nav: '/cmo', lbl: '🎯 Relatórios da rotina' }, { nav: '/gestor-trafego', lbl: '🚦 Sr. Gestor de Tráfego' }],
@@ -61,11 +61,11 @@ const REDE_DESTINOS = [
 ];
 const TIPO_META = {
   achado:        { ico: '💡', lbl: 'Achado',        color: '#806d50' },
-  alerta:        { ico: '🚨', lbl: 'Alerta',        color: '#ef4444' },
-  incongruencia: { ico: '⚠️', lbl: 'Incongruência', color: '#f59e0b' },
-  plano:         { ico: '🗺', lbl: 'Plano',         color: '#8b5cf6' },
-  decisao:       { ico: '⚖️', lbl: 'Decisão',       color: '#22c55e' },
-  pergunta:      { ico: '❓', lbl: 'Pergunta',      color: '#64748b' },
+  alerta:        { ico: '🚨', lbl: 'Alerta',        color: '#d64545' },
+  incongruencia: { ico: '⚠️', lbl: 'Incongruência', color: '#c7861a' },
+  plano:         { ico: '🗺', lbl: 'Plano',         color: '#806d50' },
+  decisao:       { ico: '⚖️', lbl: 'Decisão',       color: '#239a5b' },
+  pergunta:      { ico: '❓', lbl: 'Pergunta',      color: '#8a8579' },
   resposta:      { ico: '💬', lbl: 'Resposta',      color: '#806d50' },
 };
 const AUTOR_META = {

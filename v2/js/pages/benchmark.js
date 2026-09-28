@@ -86,9 +86,9 @@ function metricCard(m) {
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
         ${stat('Média', m.format(stats.avg), '#806d50')}
-        ${stat('Mediana', m.format(stats.median), '#8b5cf6')}
-        ${stat('Máximo', m.format(stats.max), '#22c55e')}
-        ${stat('Mínimo', m.format(stats.min), '#ef4444')}
+        ${stat('Mediana', m.format(stats.median), 'var(--accent-ink)')}
+        ${stat('Máximo', m.format(stats.max), 'var(--ok)')}
+        ${stat('Mínimo', m.format(stats.min), 'var(--err)')}
       </div>
       <div style="padding:10px;background:#0a1628;border-radius:var(--radius-sm);border-left:3px solid #fffbea">
         <div style="color:var(--ink-muted);font-size:11px;text-transform:uppercase;font-weight:600">🏆 Líder</div>
@@ -114,7 +114,7 @@ function renderTiers() {
       <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px">
         ${['A', 'B', 'C'].map(tier => {
           const grupo = _concorrentes.filter(c => (c.tier || '').toUpperCase() === tier);
-          const tierColor = tier === 'A' ? '#f59e0b' : tier === 'B' ? '#806d50' : '#64748b';
+          const tierColor = tier === 'A' ? 'var(--warn)' : tier === 'B' ? '#806d50' : 'var(--ink-muted)';
           return `
             <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:14px">
               <div style="color:${tierColor};font-weight:600;margin-bottom:10px;text-transform:uppercase">Tier ${tier} <span style="color:var(--ink-muted);font-weight:400">(${grupo.length})</span></div>

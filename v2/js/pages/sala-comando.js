@@ -29,7 +29,7 @@ const moneyK = money;   // v88.37: não abrevia (era R$ 840k / 1,2M)
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const num = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
 
-const COR = { ok: '#16a34a', warn: '#d97706', bad: '#dc2626', mute: 'var(--ink-muted)' };
+const COR = { ok: 'var(--ok)', warn: 'var(--warn)', bad: 'var(--err)', mute: 'var(--ink-muted)' };
 const farolDot = c => `<span style="color:${c};font-size:13px">●</span>`;
 
 export async function pageSalaComando(ctx, root) {
@@ -100,7 +100,7 @@ function recados() {
   if (!el) return;
   const rs = (_d.recados && _d.recados.recados) || [];
   if (!rs.length) { el.innerHTML = ''; return; }
-  const PRIOR = { critico: ['🔴', '#fee2e2', '#991b1b'], atencao: ['🟡', '#fef3c7', '#92400e'], info: ['🔵', 'var(--bg-3)', 'var(--ink)'] };
+  const PRIOR = { critico: ['🔴', 'var(--err-soft)', 'var(--err)'], atencao: ['🟡', 'var(--warn-soft)', 'var(--warn)'], info: ['🔵', 'var(--bg-3)', 'var(--ink)'] };
   el.innerHTML = rs.slice(0, 3).map(r => {
     const [ico, bg, fg] = PRIOR[r.prioridade] || PRIOR.info;
     return `<div style="background:${bg};color:${fg};border-radius:var(--r-sm);padding:8px 14px;margin-bottom:4px;font-size:13px">

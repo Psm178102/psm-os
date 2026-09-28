@@ -23,17 +23,17 @@ const filaStatus = c => { // 'atrasada' | 'hoje' | 'amanha' | null — qualquer 
   return d < hojeStr() ? 'atrasada' : d === hojeStr() ? 'hoje' : d === amanhaStr() ? 'amanha' : null;
 };
 const PRAZO_UI = {
-  atrasada: ['#dc2626', '⏰ ATRASADO'],
-  hoje: ['#d97706', '📅 VENCE HOJE'],
-  amanha: ['#eab308', '⚠️ VENCE AMANHÃ'],
+  atrasada: ['#d64545', '⏰ ATRASADO'],
+  hoje: ['#c7861a', '📅 VENCE HOJE'],
+  amanha: ['#c7861a', '⚠️ VENCE AMANHÃ'],
 };
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const brl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const BASES = {
-  nps_promotor: ['🌟 Promotor NPS', '#7c3aed'], fechou_12m: ['🏆 Fechou 12m', '#16a34a'],
-  visita_60d: ['👣 Visita 60d', '#d97706'], funil_map: ['🗂 Funil MAP', '#806d50'],
-  manual: ['✍️ Manual', '#64748b'],
+  nps_promotor: ['🌟 Promotor NPS', '#806d50'], fechou_12m: ['🏆 Fechou 12m', '#239a5b'],
+  visita_60d: ['👣 Visita 60d', '#c7861a'], funil_map: ['🗂 Funil MAP', '#806d50'],
+  manual: ['✍️ Manual', '#8a8579'],
 };
 const OBJ = { venda: '🏠 Venda', captacao: '📷 Captação', locacao: '🔑 Locação' };
 const MOTIVOS = ['duplicado', 'não quis indicar', 'não responde'];
@@ -66,7 +66,7 @@ async function post(body, okMsg) {
 }
 
 function tagInfo(id) {
-  return (_d.cfg.etiquetas || []).find(t => t.id === id) || { id, nome: id, cor: '#64748b' };
+  return (_d.cfg.etiquetas || []).find(t => t.id === id) || { id, nome: id, cor: '#8a8579' };
 }
 
 function corretorNome(c) {
@@ -138,11 +138,11 @@ function render() {
       const taxa = abordados ? Math.round(indicou / abordados * 100) : 0;
       const mini = (l, v, cor) => `<div style="flex:1;min-width:110px;background:var(--bg-2);border-radius:var(--radius-md);padding:6px 10px;border-left:3px solid ${cor}"><div class="tiny muted">${l}</div><div style="font-weight:600;font-size:16px">${v}</div></div>`;
       return `<div class="flex mt-2" style="gap:8px;flex-wrap:wrap">
-        ${mini('📥 Estoque a abordar', cs.filter(c => c.coluna === 'a_abordar').length, '#64748b')}
+        ${mini('📥 Estoque a abordar', cs.filter(c => c.coluna === 'a_abordar').length, '#8a8579')}
         ${mini('💬 Já abordados', abordados, '#806d50')}
-        ${mini('🤝 Toparam indicar', topou, '#d97706')}
-        ${mini('🎁 Indicaram', indicou, '#16a34a')}
-        ${mini('📈 Conversão abordado→indicou', taxa + '%', taxa >= 10 ? '#16a34a' : '#d97706')}
+        ${mini('🤝 Toparam indicar', topou, '#c7861a')}
+        ${mini('🎁 Indicaram', indicou, '#239a5b')}
+        ${mini('📈 Conversão abordado→indicou', taxa + '%', taxa >= 10 ? '#239a5b' : '#c7861a')}
       </div>`;
     })()}
     <div class="mt-2" style="display:flex;gap:10px;overflow-x:auto;align-items:flex-start;padding-bottom:8px">
@@ -425,12 +425,12 @@ function abrirCfg() {
   wireDel(); wireMove();
   ov.querySelector('#cg-addcol').onclick = () => {
     const d = document.createElement('div');
-    d.innerHTML = colRow({ id: '', emoji: '📌', nome: '', cor: '#64748b' });
+    d.innerHTML = colRow({ id: '', emoji: '📌', nome: '', cor: '#8a8579' });
     ov.querySelector('#cg-cols').appendChild(d.firstElementChild); wireDel(); wireMove();
   };
   ov.querySelector('#cg-addtag').onclick = () => {
     const d = document.createElement('div');
-    d.innerHTML = tagRow({ id: '', nome: '', cor: '#64748b' });
+    d.innerHTML = tagRow({ id: '', nome: '', cor: '#8a8579' });
     ov.querySelector('#cg-tags').appendChild(d.firstElementChild); wireDel();
   };
   ov.querySelector('#cg-x').onclick = () => ov.remove();

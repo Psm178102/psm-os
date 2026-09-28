@@ -10,7 +10,7 @@ let _root = null, _d = null, _busy = false, _undo = null, _modo = 'gestor';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const brl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const COR = { verde: '#16a34a', amarelo: '#d97706', vermelho: '#dc2626' };
+const COR = { verde: 'var(--ok)', amarelo: 'var(--warn)', vermelho: 'var(--err)' };
 const NOME_TIPO = {
   reativacao_tocada: 'Reativações', avaliacao_agendada: 'Avaliações agendadas',
   captacao_fechada: 'Captações fechadas', doc_aberto: 'Docs recebidos', doc_resolvido: 'Docs resolvidos',
@@ -130,19 +130,19 @@ function botoes(card, podeLogar) {
 }
 
 function cardHtml(card, unico, podeLogar) {
-  const cor = COR[card.semaforo] || '#64748b';
+  const cor = COR[card.semaforo] || 'var(--ink-muted)';
   let corpo = '';
   if (card.placar_mes) {  // Guilherme — placar do MÊS
     const p = card.placar_mes;
     corpo = `<div class="tiny muted">Placar do mês · rampa <b>${esc((card.rampa || '').toUpperCase())}</b></div>
       ${Object.entries(p.metas).map(([f, m]) => barra(NOME_TIPO[f] || f, p.feito[f] || 0, m,
-        f.startsWith('captacao') ? '#16a34a' : f.startsWith('contrato') ? '#806d50' : '#7c3aed')).join('')}`;
+        f.startsWith('captacao') ? 'var(--ok)' : f.startsWith('contrato') ? '#806d50' : 'var(--accent-ink)')).join('')}`;
   } else {
     const m = card.motor_meta || {}, f = card.motor_feito || {};
     corpo = `<div class="tiny muted">${NOME_TIPO[card.motor] || card.motor} · esperado até agora: <b>${card.esperado_agora}</b></div>
       ${barra('🌅 Manhã (meta ' + (m.manha || 0) + ')', f.manha || 0, m.manha || 0)}
       ${barra('🌇 Tarde (meta ' + (m.tarde || 0) + ')', f.tarde || 0, m.tarde || 0)}
-      ${barra('📅 Dia', f.dia || 0, m.dia || 0, '#16a34a')}
+      ${barra('📅 Dia', f.dia || 0, m.dia || 0, 'var(--ok)')}
       <div class="tiny muted">Semana: <b>${f.semana || 0}</b>/${m.semana || '—'} · Mês: <b>${f.mes || 0}</b>/${m.mes || '—'}</div>`;
   }
   let extras = '';
@@ -222,7 +222,7 @@ function bindCards() {
   // 🗑 remover colaborador do painel (só sócio) — 2 cliques pra confirmar, sem diálogo nativo.
   _root.querySelectorAll('.fz-del').forEach(b => b.onclick = async () => {
     if (b.dataset.arm !== '1') {
-      b.dataset.arm = '1'; b.textContent = 'confirmar exclusão?'; b.style.color = '#dc2626';
+      b.dataset.arm = '1'; b.textContent = 'confirmar exclusão?'; b.style.color = 'var(--err)';
       setTimeout(() => { if (b.isConnected) { b.dataset.arm = ''; b.textContent = '🗑'; b.style.color = ''; } }, 5000);
       return;
     }

@@ -234,15 +234,15 @@ function render() {
 
       <!-- 3 pilares -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:10px">
-        ${pillar('📢 Ads (Meta)', 'R$ ' + moneyShort(totalSpend), 'investido no período', '#f59e0b', [
+        ${pillar('📢 Ads (Meta)', 'R$ ' + moneyShort(totalSpend), 'investido no período', '#c7861a', [
           ['Leads', fmtNum((_d.sum && _d.sum.accounts || []).reduce((a, c) => a + (c.results || 0), 0))],
           ['CPL médio', cplMedio()],
         ])}
-        ${pillar('🔗 Marketing', cac(), 'CAC (mídia ÷ vendas de tráfego pago)', '#7c3aed', [
+        ${pillar('🔗 Marketing', cac(), 'CAC (mídia ÷ vendas de tráfego pago)', '#806d50', [
           ['ROAS', roasGlobal()],
           ['Leads fora RP', (_d.geo && _d.geo.pct_outras != null) ? pct2(_d.geo.pct_outras) : '—'],
         ])}
-        ${pillar('🤝 Vendas', fmtNum(g.vendas || 0) + ' vendas', 'R$ ' + moneyShort(g.vgv || 0) + ' VGV', '#16a34a', [
+        ${pillar('🤝 Vendas', fmtNum(g.vendas || 0) + ' vendas', 'R$ ' + moneyShort(g.vgv || 0) + ' VGV', '#239a5b', [
           ['Win rate', g.taxa_conversao != null ? pct2(g.taxa_conversao) : '—'],
           ['Atingimento mês', fc.pct_meta != null ? pct2(fc.pct_meta) : '—'],
         ])}
@@ -282,7 +282,7 @@ function pillar(title, big, sub, color, rows) {
 function forecastPanel(fc) {
   if (fc.indisponivel) return `<div style="margin-top:14px" class="alert alert-warn tiny">🔮 Projeção oficial do mês indisponível agora — sem ela não há previsão nesta tela.</div>`;
   if (!fc.meta && !fc.vgvMes) return '';
-  const col = fc.pct_meta == null ? '#64748b' : fc.pct_meta >= 100 ? '#16a34a' : fc.pct_meta >= 80 ? '#d97706' : '#dc2626';
+  const col = fc.pct_meta == null ? '#8a8579' : fc.pct_meta >= 100 ? '#239a5b' : fc.pct_meta >= 80 ? '#c7861a' : '#d64545';
   return `<div style="margin-top:14px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:14px">
     <div style="font-weight:600;font-size:13px;margin-bottom:8px">🔮 Projeção oficial do mês <span style="font-weight:400;color:var(--ink-muted)">(ritmo × funil, dias úteis — a mesma da Gestão Comercial)</span></div>
     <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end">
@@ -297,9 +297,9 @@ function forecastPanel(fc) {
 }
 
 function insightCard(i) {
-  const sevC = i.sev === 'alto' ? '#dc2626' : i.sev === 'medio' ? '#d97706' : '#64748b';
+  const sevC = i.sev === 'alto' ? '#d64545' : i.sev === 'medio' ? '#c7861a' : '#8a8579';
   const sevI = i.sev === 'alto' ? '🚨' : i.sev === 'medio' ? '⚠️' : 'ℹ️';
-  const pill = { ads: ['📢 Ads', '#f59e0b'], mkt: ['🔗 Marketing', '#7c3aed'], vendas: ['🤝 Vendas', '#16a34a'] }[i.pillar] || ['', '#64748b'];
+  const pill = { ads: ['📢 Ads', '#c7861a'], mkt: ['🔗 Marketing', '#806d50'], vendas: ['🤝 Vendas', '#239a5b'] }[i.pillar] || ['', '#8a8579'];
   return `<div data-link="${i.link}" style="cursor:pointer;background:var(--bg-2);border:1px solid var(--border);border-left:4px solid ${sevC};border-radius:var(--r-md);padding:10px 14px" onmouseover="this.style.background='var(--bg-3)'" onmouseout="this.style.background='var(--bg-2)'">
     <div class="flex items-center gap-2" style="flex-wrap:wrap">
       <span style="font-weight:600;font-size:13px">${sevI} ${escapeHtml(i.title)}</span>

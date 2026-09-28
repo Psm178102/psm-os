@@ -13,7 +13,7 @@ import {
   adsLibraryUrl, instagramUrl, parseSeguidores,
 } from '../data/concorrentes-seed.js';
 
-const TIER_COR = { A: '#dc2626', B: '#d97706', C: '#64748b' };
+const TIER_COR = { A: '#d64545', B: '#c7861a', C: '#8a8579' };
 
 let _root = null;
 let _items = [];
@@ -128,7 +128,7 @@ function render() {
       ${_fromSeed && edit ? `<div class="alert alert-warn" style="margin-top:10px">⏳ Tabela vazia — exibindo a base curada de referência. Clique em <b>Importar base curada</b> pra salvar os ${CONCORRENTES.length} no banco e poder editar/adicionar. (precisa rodar supabase/sprint9_27_concorrentes_rich.sql)</div>` : ''}
 
       <div class="flex gap-3 mt-3" style="flex-wrap:wrap">
-        ${kpi('Monitorados', all.length, 'concorrentes RP', '#7c3aed')}
+        ${kpi('Monitorados', all.length, 'concorrentes RP', '#806d50')}
         ${kpi('🔴 Tier A', tierCount('A'), 'ameaça direta / alto padrão', TIER_COR.A)}
         ${kpi('🟠 Tier B', tierCount('B'), 'relevância média', TIER_COR.B)}
         ${kpi('⚪ Tier C', tierCount('C'), 'baixa relevância', TIER_COR.C)}
@@ -201,7 +201,7 @@ function dispFollow(c) {
 }
 
 function row(c) {
-  const seg = SEGMENTOS[c.seg] || { label: c.seg, cor: '#64748b' };
+  const seg = SEGMENTOS[c.seg] || { label: c.seg, cor: '#8a8579' };
   const ig = c.handle ? `<a href="${instagramUrl(c.handle)}" target="_blank" rel="noopener" data-stop="1" style="color:var(--rosa);text-decoration:none" title="Abrir Instagram">📷 IG</a>` : '';
   const ads = c.fb
     ? `<a href="${adsLibraryUrl(c.fb)}" target="_blank" rel="noopener" data-stop="1" style="color:var(--info);text-decoration:none;font-weight:600" title="Biblioteca de Anúncios Meta">📊 Anúncios</a>`
@@ -217,7 +217,7 @@ function row(c) {
         ${c.bio ? `<div class="tiny muted" style="margin-top:2px;max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(c.bio)}">${escapeHtml(c.bio)}</div>` : ''}
       </td>
       <td style="text-align:center;padding:8px 6px">
-        ${c.tier ? `<span style="background:${TIER_COR[c.tier] || '#64748b'};color:#fff;padding:2px 9px;border-radius:var(--r-full);font-size:11px;font-weight:600">${escapeHtml(c.tier)}</span>` : '<span class="tiny muted">—</span>'}
+        ${c.tier ? `<span style="background:${TIER_COR[c.tier] || '#8a8579'};color:#fff;padding:2px 9px;border-radius:var(--r-full);font-size:11px;font-weight:600">${escapeHtml(c.tier)}</span>` : '<span class="tiny muted">—</span>'}
       </td>
       <td style="padding:8px 6px">
         <span style="background:${seg.cor}22;color:${seg.cor};padding:2px 8px;border-radius:var(--r-full);font-size:11px;font-weight:600">${escapeHtml(c.seg)}</span>

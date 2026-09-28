@@ -16,7 +16,7 @@ const fone = p => { const s = String(p || ''); return s.length >= 12 ? `(${s.sli
 /* v77.32 — 3 máquinas de growth no mesmo motor: reativação, win-back e indicação. */
 const SEGMENTOS = {
   reativacao: {
-    lbl: '🔁 Reativação MAP (fila)', dias: 30, cor: '#7c3aed',
+    lbl: '🔁 Reativação MAP (fila)', dias: 30, cor: 'var(--accent-ink)',
     sub: 'A <b>mesma base da Fila de Reativação</b> (leads MAP parados, ~1.8k) — só quem a Mariane ainda NÃO trabalhou. O envio marca <b>contatado</b> na fila dela; quem responde SIM vira <b>respondeu</b> + 🔥 Quente. Abordagem consultiva, sem oferta.',
     tpl: 'Olá {primeiro_nome}, tudo bem? Aqui é a Leire, da PSM Imóveis 😊\nVocê falou com a gente sobre imóveis um tempo atrás e estou revisando os atendimentos.\nAinda tem interesse em comprar? Responde *SIM* que eu te atualizo — ou *SAIR* pra não receber mais.',
   },
@@ -26,12 +26,12 @@ const SEGMENTOS = {
     tpl: 'Oi {primeiro_nome}! Aqui é da PSM Imóveis 🏠\nApareceu uma oportunidade que combina com o que você procurava:\n\n{OFERTA}\n\nQuer que eu te mande os detalhes e fotos? Responde *SIM* que eu já te envio 👍',
   },
   perdidos: {
-    lbl: '💔 Perdidos (win-back)', dias: 90, cor: '#dc2626',
+    lbl: '💔 Perdidos (win-back)', dias: 90, cor: 'var(--err)',
     sub: 'Reaborda quem <b>não fechou nos últimos 90 dias</b> — condições mudam, juros mudam, estoque muda.',
     tpl: 'Oi {primeiro_nome}! Aqui é da PSM Imóveis 🏠\nSei que da última vez não rolou de seguir com a sua busca — mas as condições mudaram por aqui:\n\n{OFERTA}\n\nQuer dar mais uma olhada, sem compromisso? Responde *SIM* que te mando os detalhes 👍',
   },
   ganhos: {
-    lbl: '🏆 Compradores (indicação + NPS)', dias: 180, cor: '#16a34a',
+    lbl: '🏆 Compradores (indicação + NPS)', dias: 180, cor: 'var(--ok)',
     sub: 'Quem <b>comprou nos últimos 180 dias</b> — pede indicação (o lead mais barato que existe) + mede satisfação.',
     tpl: 'Oi {primeiro_nome}! Aqui é da PSM Imóveis 🏠\nPassando pra saber: como está sendo a experiência com o seu imóvel? 😊\n\nE um pedido: se você conhece alguém procurando imóvel, responde *SIM* que a gente cuida dessa pessoa com o mesmo carinho que cuidamos de você 🤝',
   },
@@ -88,8 +88,8 @@ function render(loading) {
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0">
       ${kpi('🎯 Audiência (c/ telefone)', _aud.length, SEG.cor)}
-      ${kpi('📤 Enviados hoje', enviadosHoje, '#d97706')}
-      ${kpi('🔥 Responderam SIM', quentes.length, '#16a34a')}
+      ${kpi('📤 Enviados hoje', enviadosHoje, 'var(--warn)')}
+      ${kpi('🔥 Responderam SIM', quentes.length, 'var(--ok)')}
     </div>
     ${_audErro ? `<div class="alert alert-warn">⚠️ ${esc(_audErro)} ${/wa_|relation|exist/i.test(_audErro) ? '— rode <b>supabase/sprint_wa_campanha.sql</b>.' : ''}</div>` : ''}
     ${_cfg.pausada ? `

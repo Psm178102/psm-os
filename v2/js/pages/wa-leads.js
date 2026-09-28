@@ -15,8 +15,8 @@ let _busy = false;
 let _tick = null;
 
 const TRILHA_COR = {
-  comprar: '#806d50', captacao: '#b45309', locacao: '#0f766e',
-  conquista: '#15803d', indefinido: '#64748b',
+  comprar: '#806d50', captacao: '#c7861a', locacao: '#0f766e',
+  conquista: '#239a5b', indefinido: '#8a8579',
 };
 const ST_LABEL = {
   novo: '🕐 Na fila', distribuido: '🔔 Aguardando assumir', assumido: '✅ Assumido',
@@ -57,7 +57,7 @@ function tempo(iso) {
 }
 
 function pill(trilha, labels) {
-  const c = TRILHA_COR[trilha] || '#64748b';
+  const c = TRILHA_COR[trilha] || '#8a8579';
   return `<span class="tiny" style="background:${c}1a;color:${c};border:1px solid ${c}55;border-radius:var(--radius-full);padding:1px 8px;white-space:nowrap">${esc((labels || {})[trilha] || trilha)}</span>`;
 }
 

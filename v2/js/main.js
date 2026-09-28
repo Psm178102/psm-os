@@ -526,7 +526,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '88.64';
+const APP_VERSION = '88.65';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -1332,7 +1332,7 @@ async function pageUsuarios(ctx, root) {
 
 function userCard(u) {
   const ini = escapeHtml((u.ini || (u.name || '?').substring(0, 2)).toUpperCase());
-  const color = u.color || '#64748b';
+  const color = u.color || '#8a8579';
   return `
     <div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--bg-3);border-radius:var(--r-md)">
       <div style="width:36px;height:36px;border-radius:var(--r-sm);background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px">${ini}</div>
@@ -1574,7 +1574,7 @@ async function pollHealth() {
 function renderHealthDot(status, count) {
   const dot = document.getElementById('health-dot');
   if (!dot) return;
-  const color = status === 'error' ? '#dc2626' : status === 'warn' ? '#d97706' : '#16a34a';
+  const color = status === 'error' ? '#d64545' : status === 'warn' ? '#c7861a' : '#239a5b';
   dot.style.background = color;
   dot.style.boxShadow = status === 'ok' ? 'none' : `0 0 0 3px ${color}33`;
   const btn = document.getElementById('btn-health');
@@ -1602,7 +1602,7 @@ function renderHealthPanel() {
     ${d.issues.length === 0
       ? '<div style="font-size:13px;color:var(--ok)">Nenhuma falha detectada. Integrações e dados em dia.</div>'
       : d.issues.map(i => {
-          const c = i.severity === 'error' ? '#dc2626' : '#d97706';
+          const c = i.severity === 'error' ? '#d64545' : '#c7861a';
           const ico = i.severity === 'error' ? '🔴' : '⚠️';
           return `<div style="display:flex;gap:8px;padding:8px;border-left:3px solid ${c};background:${c}14;border-radius:var(--radius-sm);margin-bottom:6px;font-size:13px">
             <span>${ico}</span><div><strong style="text-transform:uppercase;font-size:11px;color:${c}">${escapeHtml(i.area)}</strong><br>${escapeHtml(i.message)}</div></div>`;
