@@ -534,7 +534,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '88.88';
+const APP_VERSION = '88.89';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -671,7 +671,7 @@ const APP_VERSION = '88.88';
   router.register('/rotina-conquista', { render: async (ctx, root) => { setHeader('Rotina · PSM Conquista'); highlight('/rotina-conquista'); await pageRotinaConquista(ctx, root); } });
   router.register('/rotina-imoveis', { render: async (ctx, root) => { setHeader('Rotina · PSM Imóveis'); highlight('/rotina-imoveis'); await pageRotinaImoveis(ctx, root); } });
   router.register('/documentos-psm', { render: async (ctx, root) => { setHeader('Documentos PSM'); highlight('/documentos-psm'); await pageDocumentosPsm(ctx, root); } });
-  router.register('/mapa-venda', { render: async (ctx, root) => { setHeader('Mapa da Venda'); highlight('/mapa-venda'); await pageMapaVenda(ctx, root); } });
+  router.register('/mapa-venda', { render: async (ctx, root) => { setHeader('Playbook da Venda'); highlight('/scripts'); await pageMapaVenda(ctx, root); } });
   router.register('/checklist-diretoria', { render: async (ctx, root) => { setHeader('Checklist da Diretoria'); highlight('/checklist-diretoria'); await pageChecklistDiretoria(ctx, root); } });
   router.register('/scorecard', { render: async (ctx, root) => { setHeader('Farol PSM'); highlight('/scorecard'); await pageScorecard(ctx, root); } });
   // v88.72: Norte Estratégico unificado ao Plano Estratégico (virou a 1ª aba) — redirect preserva links antigos
@@ -827,7 +827,7 @@ const APP_VERSION = '88.88';
   router.register('/oportunidades', { render: async (ctx, root) => { setHeader('Oportunidades');     highlight('/oportunidades'); await pageOportunidades(ctx, root); } });
   router.register('/documentos',  { render: async (ctx, root) => { setHeader('📝 Gerar documento');   highlight('/documentos');  await pageDocumentos(ctx, root); } });
   router.register('/cadencia',    { render: async (ctx, root) => { setHeader('Cadência');            highlight('/cadencia');    await pageCadencia(ctx, root); } });
-  router.register('/scripts',     { render: async (ctx, root) => { setHeader('Scripts & Cadências'); highlight('/scripts');     await pageScripts(ctx, root); } });
+  router.register('/scripts',     { render: async (ctx, root) => { setHeader('Playbook da Venda'); highlight('/scripts');     await pageScripts(ctx, root); } });
   router.register('/form-captacao', { render: async (ctx, root) => { setHeader('📝 Formulário de Captação'); highlight('/form-captacao'); await pageFormCaptacao(ctx, root); } });
   router.register('/campanha-wa', { render: async (ctx, root) => { setHeader('Campanha WhatsApp');   highlight('/campanha-wa'); await pageCampanhaWa(ctx, root); } });
   router.register('/sr-gerencia', { render: async (ctx, root) => { setHeader('Sr. Gerência');        highlight('/sr-gerencia'); await pageSrGerencia(ctx, root); } });
@@ -1066,8 +1066,7 @@ function shellHTML(user) {
         <div class="sb-sec">🏘 Imóveis & Vendas</div>
         <button class="sb-link" data-nav="/oportunidades"><span class="sb-ico">💡</span> Oportunidades</button>
         <button class="sb-link" data-nav="/proposta"><span class="sb-ico">📑</span> Apresentação comercial</button>
-        <button class="sb-link" data-nav="/mapa-venda"><span class="sb-ico">🗺</span> Mapa da Venda</button>
-        <button class="sb-link" data-nav="/scripts"><span class="sb-ico">📚</span> Scripts & Cadências</button>
+        <button class="sb-link" data-nav="/scripts"><span class="sb-ico">🧭</span> Playbook da Venda</button>
         <button class="sb-link" data-nav="/form-captacao"><span class="sb-ico">📝</span> Formulário de Captação</button>
         <button class="sb-link" data-nav="/mapa"><span class="sb-ico">🗺</span> Mapa Imóveis</button>
         <button class="sb-link" data-nav="/estoque-kenlo"><span class="sb-ico">🏠</span> Estoque Kenlo</button>

@@ -1,4 +1,4 @@
-/* PSM-OS v2 — 🗺 Mapa da Venda (Imóveis & Vendas) — v88.37
+/* PSM-OS v2 — 🗺 Mapa da Venda (Imóveis & Vendas) — v88.37 · componente desde v88.89
    Pedido do Paulo (24/set): aba onde o PDF do mapa da venda aparece renderizado na
    tela, separado por nicho: Conquista · MAP · Terceiros · Locação · Captações.
    Mesmo motor das Apresentações PSM (coleção 'mapa_venda' em /api/v3/apresentacoes/deck):
@@ -9,7 +9,7 @@ import { api } from '../api.js';
 import { enviarPdfComoSlides } from './apresentacoes.js';
 
 const COLECAO = 'mapa_venda';
-const NICHOS = [
+export const NICHOS = [
   { id: 'conquista', nome: 'Conquista', emoji: '🏆', cor: '#806d50' },
   { id: 'map',       nome: 'MAP',       emoji: '🏢', cor: '#343434' },
   { id: 'terceiros', nome: 'Terceiros', emoji: '🤝', cor: '#b8860b' },
@@ -17,69 +17,47 @@ const NICHOS = [
   { id: 'captacoes', nome: 'Captações', emoji: '📥', cor: '#0f766e' },
 ];
 
-let _root = null;
-let _meta = null;
-let _nicho = 'conquista';
+/* v88.89 — a aba própria saiu do menu: o mapa agora é o passo ② do 🧭 Playbook da Venda
+   (scripts.js). A rota antiga /mapa-venda continua funcionando e abre lá, na visão do mapa. */
+export { pageMapaVenda } from './scripts.js';
+
 const _paginas = {};   // cache das URLs assinadas por nicho (valem 1h)
 
-export async function pageMapaVenda(ctx, root) {
-  _root = root;
-  if (NICHOS.some(n => n.id === ctx?.query?.nicho)) _nicho = ctx.query.nicho;
-  await load();
-}
-
-async function load() {
-  _root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando o mapa da venda…</div></div>';
-  try { _meta = await api.request(`/api/v3/apresentacoes/deck?colecao=${COLECAO}`); }
-  catch (e) { _root.innerHTML = `<div class="alert alert-err">Não carregou: ${esc(e?.message || e)}</div>`; return; }
-  await render();
-}
-
-async function render() {
-  const pode = !!_meta?.pode_anexar;
-  const n = NICHOS.find(x => x.id === _nicho);
-  const d = (_meta?.marcas || {})[_nicho];
-  _root.innerHTML = `
-    <div class="card">
-      <div class="flex items-center gap-2" style="flex-wrap:wrap">
-        <div style="flex:1;min-width:220px">
-          <h2 class="card-title" style="margin:0">🗺 Mapa da Venda</h2>
-          <p class="card-sub" style="margin:2px 0 0">O caminho da venda de cada nicho, do primeiro contato à assinatura.</p>
-        </div>
-        ${pode ? `<button class="btn btn-ghost btn-sm" id="mv-anexar">📤 ${d ? 'Substituir' : 'Anexar'} PDF · ${n.nome}</button>` : ''}
-        ${d ? '<button class="btn btn-primary btn-sm" id="mv-cheia">⛶ Tela cheia</button>' : ''}
-      </div>
-      <div class="flex gap-1" style="margin-top:14px;border-bottom:1px solid var(--border);flex-wrap:wrap">
-        ${NICHOS.map(x => {
-          const on = x.id === _nicho, tem = !!(_meta?.marcas || {})[x.id];
-          return `<button class="btn" data-nicho="${x.id}" style="border-radius:var(--r-sm) var(--r-sm) 0 0;background:${on ? x.cor : 'transparent'};color:${on ? '#fff' : 'var(--ink-muted)'};border-bottom:none">${x.emoji} ${x.nome}${tem ? '' : ' <span style="opacity:.6">·</span>'}</button>`;
-        }).join('')}
-      </div>
-      <div class="tiny" id="mv-prog" style="margin-top:8px"></div>
-      <div id="mv-corpo" style="margin-top:10px">${d
-        ? `<div class="tiny muted" style="margin-bottom:8px">📑 ${d.n_slides} página(s)${d.nome ? ` · ${esc(d.nome)}` : ''} · atualizado em ${new Date(d.ts).toLocaleDateString('pt-BR')}</div><div class="muted tiny"><span class="spinner"></span> Carregando páginas…</div>`
-        : `<div class="muted" style="padding:32px;text-align:center">Ainda não há mapa da venda de <b>${n.nome}</b>.${pode ? ' Clique em “📤 Anexar PDF”.' : ''}</div>`}</div>
+/* Desenha o mapa de um nicho dentro de `box`. meta = GET da coleção (marcas + pode_anexar). */
+export async function renderMapa(box, nicho, meta, { onPublicado, irEtapas } = {}) {
+  const pode = !!meta?.pode_anexar;
+  const n = NICHOS.find(x => x.id === nicho);
+  if (!n) { box.innerHTML = ''; return; }
+  const d = (meta?.marcas || {})[nicho];
+  const info = d ? `📑 ${d.n_slides} página(s)${d.nome ? ` · ${esc(d.nome)}` : ''} · atualizado em ${new Date(d.ts).toLocaleDateString('pt-BR')}` : '';
+  box.innerHTML = `
+    <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:8px">
+      <div class="tiny muted" style="flex:1;min-width:200px">${d ? info : 'O caminho inteiro da venda, numa olhada. Depois, em ③, veja o que falar em cada etapa.'}</div>
+      ${pode ? `<button class="btn btn-ghost btn-sm" data-mv="anexar">📤 ${d ? 'Substituir' : 'Anexar'} PDF · ${n.nome}</button>` : ''}
+      ${d ? '<button class="btn btn-ghost btn-sm" data-mv="cheia">⛶ Tela cheia</button>' : ''}
+      ${irEtapas ? '<button class="btn btn-primary btn-sm" data-mv="etapas">③ Ver o que falar em cada etapa →</button>' : ''}
     </div>
-    <input type="file" id="mv-file" accept="application/pdf" style="display:none">`;
-
-  _root.querySelectorAll('[data-nicho]').forEach(b => b.onclick = () => { _nicho = b.dataset.nicho; render(); });
-  const anexar = _root.querySelector('#mv-anexar');
-  if (anexar) anexar.onclick = () => {
-    const inp = _root.querySelector('#mv-file');
-    inp.onchange = () => { if (inp.files?.length) enviar(inp.files[0]); inp.value = ''; };
+    <div class="tiny" data-mv="prog"></div>
+    <div data-mv="corpo">${d
+      ? '<div class="muted tiny"><span class="spinner"></span> Carregando páginas…</div>'
+      : `<div class="muted" style="padding:32px;text-align:center">Ainda não há mapa da venda de <b>${n.nome}</b>.${pode ? ' Clique em “📤 Anexar PDF”.' : ''}</div>`}</div>
+    <input type="file" accept="application/pdf" data-mv="file" style="display:none">`;
+  const $ = k => box.querySelector(`[data-mv="${k}"]`);
+  if ($('etapas')) $('etapas').onclick = irEtapas;
+  if ($('anexar')) $('anexar').onclick = () => {
+    const inp = $('file');
+    inp.onchange = () => { if (inp.files?.length) enviar(inp.files[0], nicho, $('prog'), onPublicado); inp.value = ''; };
     inp.click();
   };
   if (!d) return;
-  const paginas = await carregarPaginas(_nicho);
-  const corpo = _root.querySelector('#mv-corpo');
-  if (!corpo || _nicho !== n.id) return;   // trocou de aba enquanto carregava
-  corpo.innerHTML = `<div class="tiny muted" style="margin-bottom:8px">📑 ${d.n_slides} página(s)${d.nome ? ` · ${esc(d.nome)}` : ''} · atualizado em ${new Date(d.ts).toLocaleDateString('pt-BR')}</div>`
-    + (paginas.length
-      ? `<div style="display:flex;flex-direction:column;gap:12px;align-items:center">${paginas.map((u, i) =>
-          `<img src="${u}" alt="Página ${i + 1}" loading="lazy" draggable="false" style="width:100%;max-width:1200px;border-radius:var(--radius-sm);box-shadow:var(--shadow-1)">`).join('')}</div>`
-      : '<div class="alert alert-warn">As páginas não carregaram — tente atualizar.</div>');
-  const cheia = _root.querySelector('#mv-cheia');
-  if (cheia) cheia.onclick = () => telaCheia(n, paginas);
+  const paginas = await carregarPaginas(nicho);
+  const corpo = $('corpo');
+  if (!corpo || !box.isConnected) return;   // trocou de aba enquanto carregava
+  corpo.innerHTML = paginas.length
+    ? `<div style="display:flex;flex-direction:column;gap:12px;align-items:center">${paginas.map((u, i) =>
+        `<img src="${u}" alt="Página ${i + 1}" loading="lazy" draggable="false" style="width:100%;max-width:1200px;border-radius:var(--radius-sm);box-shadow:var(--shadow-1)">`).join('')}</div>`
+    : '<div class="alert alert-warn">As páginas não carregaram — tente atualizar.</div>';
+  if ($('cheia')) $('cheia').onclick = () => telaCheia(n, paginas);
 }
 
 async function carregarPaginas(nicho) {
@@ -92,16 +70,14 @@ async function carregarPaginas(nicho) {
   } catch (_) { return []; }
 }
 
-async function enviar(file) {
-  const prog = _root.querySelector('#mv-prog');
+async function enviar(file, nicho, prog, onPublicado) {
   const diga = t => { if (prog) prog.innerHTML = t; };
-  const nicho = _nicho;
   try {
     const n = await enviarPdfComoSlides({ colecao: COLECAO, marca: nicho, file, diga });
     if (!n) return;
     delete _paginas[nicho];
     diga(`✅ Publicado — ${n} página(s).`);
-    setTimeout(load, 900);
+    if (onPublicado) setTimeout(onPublicado, 900);
   } catch (e) { diga('⚠️ Falhou: ' + esc(e?.message || e) + ' — tente de novo.'); }
 }
 
