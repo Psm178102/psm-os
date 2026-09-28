@@ -13,26 +13,20 @@ const PRESETS = [
   { id: 'this_year', lbl: 'Este ano' },
 ];
 
-import { pageIntelDash } from './intel-dash.js';   // absorvido como aba Landscape (v84.5 — fim da duplicação)
-
-let _tab = 'diag';   // diag | ia | landscape
+let _tab = 'diag';   // diag | ia   (v88.82: Landscape foi pra Visão geral do Mercado)
 let _iaResp = null;  // última resposta do "Perguntar à IA"
 
 function tabsBar() {
   const t = (id, lbl) => `<button class="btn ${_tab === id ? 'btn-primary' : 'btn-ghost'} btn-sm" data-ictab="${id}">${lbl}</button>`;
   return `<div class="flex gap-1" style="flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px">
-    ${t('diag', '🎯 Diagnóstico')}${t('ia', '🤖 Perguntar à IA')}${t('landscape', '🔍 Landscape & Concorrência')}
+    ${t('diag', '🎯 Diagnóstico')}${t('ia', '🤖 Perguntar à IA')}
   </div>`;
 }
 function wireTabs() {
   _root.querySelectorAll('[data-ictab]').forEach(b => b.onclick = () => { _tab = b.dataset.ictab; routeTab(); });
 }
 async function routeTab() {
-  if (_tab === 'landscape') {
-    _root.innerHTML = `<div class="card"><h2 class="card-title">🧠 Centro de Inteligência</h2>${tabsBar()}<div id="ic-land"></div></div>`;
-    wireTabs();
-    await pageIntelDash({}, document.getElementById('ic-land'));   // página antiga vira módulo da aba
-  } else if (_tab === 'ia') {
+  if (_tab === 'ia') {
     renderPerguntar();
   } else {
     render();
@@ -41,8 +35,8 @@ async function routeTab() {
 
 export async function pageIntelCentro(ctx, root) {
   _root = root;
-  if ((auth.user()?.lvl || 0) < 5) { root.innerHTML = '<div class="alert alert-warn">🔒 Requer Líder ou acima.</div>'; return; }
-  try { const q = new URLSearchParams((location.hash.split('?')[1] || '')); if (q.get('tab')) _tab = q.get('tab'); } catch (_) {}
+  if ((auth.user()?.lvl || 0) < 10) { root.innerHTML = '<div class="alert alert-warn">🔒 A seção Inteligência é só dos sócios.</div>'; return; }
+  try { const q = new URLSearchParams((location.hash.split('?')[1] || '')); if (['diag', 'ia'].includes(q.get('tab'))) _tab = q.get('tab'); } catch (_) {}
   if (_tab !== 'diag') { await routeTab(); reload(true); return; }   // carrega dados em background pro diag
   await reload();
 }
@@ -181,7 +175,7 @@ const CHIPS = [
 function renderPerguntar() {
   _root.innerHTML = `
     <div class="card">
-      <h2 class="card-title">🧠 Centro de Inteligência</h2>
+      <h2 class="card-title">🧭 Painel de Inteligência</h2>
       ${tabsBar()}
       <div class="alert" style="background:var(--bg-3);border:none;font-size:13px">🤖 Pergunte QUALQUER coisa sobre o negócio. A IA responde com o <b>dossiê completo e real</b> do sistema (custos, break-even, frentes, funil, mídia, reativação, concorrência) — não com achismo.</div>
       <div class="flex gap-1 mt-2" style="flex-wrap:wrap">${CHIPS.map((c, i) => `<button class="btn btn-ghost btn-sm ic-chip" data-i="${i}" style="font-size:11px">${c}</button>`).join('')}</div>
@@ -222,7 +216,7 @@ function render() {
     <div class="card">
       <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:6px">
         <div style="flex:1;min-width:220px">
-          <h2 class="card-title">🧠 Centro de Inteligência</h2>
+          <h2 class="card-title">🧭 Painel de Inteligência</h2>
           <p class="card-sub">Ads × Marketing × Vendas cruzados · ${ins.length} insights (${altos} 🚨 críticos) · dado real do período.</p>
         </div>
         <select id="ic-preset" class="select" style="padding:5px 10px;font-size:12px">
@@ -332,7 +326,7 @@ FORECAST DO MÊS (projeção oficial): ${fc.indisponivel ? 'indisponível' : `R$
 
 FATOS/DIAGNÓSTICOS:
 ${fatos || '(nenhum problema crítico detectado)'}`;
-    const j = await api.request('/api/v3/ia/analyze', { method: 'POST', body: { prompt, max_tokens: 3000, dossie: true } });   // cérebro novo (Sonnet 5 + dossiê) v84.4
+    const j = await api.request('/api/v3/ia/analyze', { method: 'POST', body: { prompt, max_tokens: 3000, dossie: true } });   // cérebro oficial (/ia/analyze + dossiê); o modelo que respondeu vem em model_used
     if (j.ok && j.text) {
       box.innerHTML = `<div style="background:linear-gradient(180deg,rgba(124,58,237,.06),transparent);border:1px solid var(--accent-ink);border-radius:var(--r-md);padding:14px 16px">
         <div style="font-weight:600;font-size:13px;margin-bottom:8px;color:var(--roxo)">🧠 Análise executiva da IA <span class="tiny muted" style="font-weight:400">· ${escapeHtml(j.model_used || 'IA')}</span></div>

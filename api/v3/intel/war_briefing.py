@@ -1,7 +1,9 @@
 """
 GET  /api/v3/intel/war_briefing   → últimos briefings salvos + fatos atuais
 POST /api/v3/intel/war_briefing   → gera um briefing AGORA (compila + IA + salva)
-Header: Authorization: Bearer <token>   (Gerência lvl>=7)
+POST {action:'toggle_ordem', i}                     → marca/desmarca ordem feita (fecha a tarefa ligada)
+POST {action:'delegar', i, tipo, alvo?, prazo?}     → tipo socio|usuario|agente (v88.82)
+Header: Authorization: Bearer <token>   (SÓ sócio, lvl 10 — v88.82)
 
 Briefing de Guerra — o boletim do comandante. Compila concorrência + mídia +
 vendas e a IA escreve a leitura estratégica da semana. Tudo dado real.
@@ -15,6 +17,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import require_user, AuthError, supabase_client, audit, hoje_brt  # type: ignore
 from _briefing_lib import compile_facts, generate_and_store  # type: ignore
+import _ordens_lib as OL  # type: ignore
 
 
 class handler(BaseHTTPRequestHandler):
@@ -35,7 +38,7 @@ class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         try:
-            require_user(self, min_lvl=7)
+            require_user(self, min_lvl=10)   # v88.82: seção Inteligência = só sócio
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
         sb = supabase_client()
@@ -54,20 +57,23 @@ class handler(BaseHTTPRequestHandler):
             facts = {"erro": str(e)}
         ordens = {}
         try:
-            rows = sb.table("shared_kv").select("value").eq("key", "war_ordens").limit(1).execute().data or []
-            ordens = rows[0]["value"] if rows else {}
-            if isinstance(ordens, str):
-                ordens = json.loads(ordens)
+            ordens = OL.sincronizar_status(sb, OL.ler(sb))
         except Exception:
             ordens = {}
+        try:
+            usuarios = OL.usuarios_ativos(sb)
+        except Exception:
+            usuarios = []
         return self._send(200, {"ok": True, "briefings": briefings, "pending": pending,
                                 "facts_atual": facts, "ordens": ordens,
+                                "delegaveis": {"usuarios": usuarios,
+                                               "agentes": [{"id": a, "nome": n} for a, n in OL.AGENTES]},
                                 "hint": ("Rode supabase/sprint9_20_war_briefings.sql pra salvar o histórico."
                                          if pending else None)})
 
     def do_POST(self):
         try:
-            actor = require_user(self, min_lvl=5)
+            actor = require_user(self, min_lvl=10)   # v88.82: só sócio (ordens e geração)
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
         sb = supabase_client()
@@ -78,23 +84,25 @@ class handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(ln).decode("utf-8")) if ln else {}
         except Exception:
             body = {}
-        if (body.get("action") or "") == "toggle_ordem":   # checklist das ordens (v84.6)
+        acao = body.get("action") or ""
+        if acao == "toggle_ordem":   # checklist das ordens (v84.6); v88.82 fecha/reabre a tarefa ligada
             try:
-                i = int(body.get("i"))
-                rows = sb.table("shared_kv").select("value").eq("key", "war_ordens").limit(1).execute().data or []
-                ordens = rows[0]["value"] if rows else {}
-                if isinstance(ordens, str):
-                    ordens = json.loads(ordens)
-                ordens["itens"][i]["feito"] = not ordens["itens"][i].get("feito")
-                sb.table("shared_kv").upsert({"key": "war_ordens", "value": ordens,
-                                              "updated_at": datetime.now(timezone.utc).isoformat()},
-                                             on_conflict="key").execute()
-                audit(self, actor, "intel.ordem_toggle", target_type="shared_kv", target_id=str(i))
+                ordens = OL.marcar_feita(sb, int(body.get("i")))
+                audit(self, actor, "intel.ordem_toggle", target_type="shared_kv", target_id=str(body.get("i")))
                 return self._send(200, {"ok": True, "ordens": ordens})
             except Exception as e:
                 return self._send(400, {"ok": False, "error": str(e)})
-        if (actor.get("lvl") or 0) < 7:
-            return self._send(403, {"ok": False, "error": "gerar briefing requer lvl 7+"})
+        if acao == "delegar":   # v88.82: dono padrão = sócio; delega a usuário ou agente de IA
+            try:
+                ordens = OL.delegar(sb, actor, int(body.get("i")), str(body.get("tipo") or ""),
+                                    str(body.get("alvo") or ""), (str(body.get("prazo")) if body.get("prazo") else None))
+            except (ValueError, IndexError) as e:
+                return self._send(400, {"ok": False, "error": str(e)})
+            except Exception as e:
+                return self._send(502, {"ok": False, "error": str(e)[:300]})
+            audit(self, actor, "intel.ordem_delegar", target_type="shared_kv", target_id=str(body.get("i")),
+                  notes=f"{body.get('tipo')}:{body.get('alvo') or 'eu'}")
+            return self._send(200, {"ok": True, "ordens": ordens})
         try:
             out = generate_and_store(sb, actor_id=actor.get("id"))
         except Exception as e:

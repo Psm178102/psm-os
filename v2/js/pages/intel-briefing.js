@@ -9,8 +9,8 @@ let _root = null, _d = null, _busy = false;
 
 export async function pageIntelBriefing(ctx, root) {
   _root = root;
-  if ((auth.user()?.lvl || 0) < 7) {
-    root.innerHTML = '<div class="alert alert-warn">🔒 Requer Gerência/Diretoria.</div>';
+  if ((auth.user()?.lvl || 0) < 10) {
+    root.innerHTML = '<div class="alert alert-warn">🔒 A seção Inteligência é só dos sócios.</div>';
     return;
   }
   await reload();
@@ -35,8 +35,8 @@ function render() {
     <div class="card">
       <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:6px">
         <div style="flex:1;min-width:240px">
-          <h2 class="card-title">⚔️ Briefing de Guerra</h2>
-          <p class="card-sub">O boletim do comandante — vendas × mídia × concorrência, com a leitura estratégica da IA. Gera automático toda segunda 7h.</p>
+          <h2 class="card-title">📋 Briefing da semana</h2>
+          <p class="card-sub">O boletim do comandante — vendas × mídia × concorrência, com a leitura estratégica da IA. Sai automático toda segunda, 7h.</p>
         </div>
         <button class="btn btn-primary" id="bg-gen">⚔️ Gerar briefing agora</button>
       </div>
@@ -66,21 +66,69 @@ function render() {
     try { const r = await api.request('/api/v3/intel/war_briefing', { method: 'POST', body: { action: 'toggle_ordem', i: +cb.dataset.i } }); if (r && r.ordens) { _d.ordens = r.ordens; render(); } }
     catch (e) { alert('⚠️ ' + e.message); }
   }));
+  _root.querySelectorAll('[data-deleg]').forEach(b => b.addEventListener('click', () => delegar(+b.dataset.i, b.dataset.deleg)));
 }
 
-// ── Ordens da semana rastreáveis (v84.6): a IA da semana seguinte VÊ o status e cobra ──
+// v88.82 (decisão do Paulo): a ordem é do sócio; ele assume ou delega a um usuário ou a um agente de IA.
+async function delegar(i, tipo) {
+  let alvo = '';
+  if (tipo !== 'socio') {
+    const sel = document.getElementById(`bg-alvo-${tipo}-${i}`);
+    alvo = sel ? sel.value : '';
+    if (!alvo) { alert(tipo === 'agente' ? 'Escolha o agente.' : 'Escolha o usuário.'); return; }
+  }
+  const prazo = document.getElementById(`bg-prazo-${i}`)?.value || null;
+  const st = document.getElementById(`bg-st-${i}`);
+  if (st) st.innerHTML = `<span class="spinner"></span> ${tipo === 'agente' ? 'O agente está escrevendo a entrega…' : 'Criando a tarefa…'}`;
+  try {
+    const r = await api.request('/api/v3/intel/war_briefing', { method: 'POST', body: { action: 'delegar', i, tipo, alvo, prazo } });
+    if (r && r.ok && r.ordens) { _d.ordens = r.ordens; render(); }
+    else if (st) st.innerHTML = `<span style="color:var(--err)">⚠️ ${escapeHtml((r && r.error) || 'erro')}</span>`;
+  } catch (e) { if (st) st.innerHTML = `<span style="color:var(--err)">⚠️ ${escapeHtml(e.message)}</span>`; }
+}
+
+// ── Ordens da semana (v84.6 → v88.82): cada ordem tem DONO, PRAZO e vira tarefa na Agenda ──
+const ST_ORDEM = {
+  pendente: ['sem dono', 'var(--ink-muted)'], em_andamento: ['em andamento', 'var(--info)'],
+  atrasada: ['atrasada', 'var(--err)'], aguardando_validacao: ['valide a entrega', 'var(--warn)'], feita: ['feita', 'var(--ok)'],
+};
 function ordensCard() {
   const o = _d.ordens || {};
   const itens = o.itens || [];
   if (!itens.length) return '';
   const feitos = itens.filter(x => x.feito).length;
-  return `<div class="card" style="margin-top:14px;border-left:4px solid var(--err)">
-    <h3 class="card-title">🔥 Ordens da semana <span class="tiny muted" style="font-weight:400">· ${o.semana || ''} · ${feitos}/${itens.length} executadas</span></h3>
-    <div class="tiny muted" style="margin-bottom:8px">Marque o que foi feito — o briefing da próxima semana VÊ este status e cobra o que ficou pra trás.</div>
-    ${itens.map((it, i) => `<label style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer;font-size:13px">
-      <input type="checkbox" class="bg-ordem" data-i="${i}" ${it.feito ? 'checked' : ''} style="margin-top:2px">
-      <span style="${it.feito ? 'text-decoration:line-through;opacity:.55' : ''}">${escapeHtml(it.txt)}</span>
-    </label>`).join('')}
+  const dl = _d.delegaveis || { usuarios: [], agentes: [] };
+  const hoje = new Date(); const sexta = new Date(hoje); sexta.setDate(hoje.getDate() + ((5 - hoje.getDay() + 7) % 7 || 7));
+  const prazoPadrao = `${sexta.getFullYear()}-${String(sexta.getMonth() + 1).padStart(2, '0')}-${String(sexta.getDate()).padStart(2, '0')}`;   // data local (toISOString virava sábado à noite)
+  return `<div class="card" style="margin-top:14px;border-left:4px solid var(--err);border-radius:0">
+    <h3 class="card-title">🔥 Ordens da semana <span class="tiny muted" style="font-weight:400">· ${escapeHtml(o.semana || '')} · ${feitos}/${itens.length} feitas</span></h3>
+    <div class="tiny muted" style="margin-bottom:8px">Cada ordem é sua até você delegar. Delegada, vira tarefa com prazo na Agenda do dono. Agente de IA entrega o plano na hora e você valida. O briefing da semana seguinte cobra o que ficou para trás.</div>
+    ${itens.map((it, i) => {
+      const [stLbl, stCor] = ST_ORDEM[it.status] || ST_ORDEM.pendente;
+      const dono = it.dono ? `${it.dono.tipo === 'agente' ? '🤖 ' : '👤 '}${escapeHtml(it.dono.nome)}` : 'Paulo (padrão)';
+      const podeDelegar = !it.feito && !it.task_id;
+      return `<div style="padding:10px 0;border-bottom:1px solid var(--border)">
+        <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;font-size:13px">
+          <input type="checkbox" class="bg-ordem" data-i="${i}" ${it.feito ? 'checked' : ''} style="margin-top:2px">
+          <span style="flex:1;${it.feito ? 'text-decoration:line-through;opacity:.55' : ''}">${escapeHtml(it.txt)}</span>
+        </label>
+        <div class="flex gap-2 tiny" style="flex-wrap:wrap;align-items:center;margin:6px 0 0 24px">
+          <span style="font-weight:600;color:${stCor}">● ${stLbl}</span>
+          <span class="muted">dono: <b>${dono}</b>${it.prazo ? ` · prazo ${escapeHtml(it.prazo)}` : ''}</span>
+          <span id="bg-st-${i}"></span>
+        </div>
+        ${podeDelegar ? `<div class="flex gap-2" style="flex-wrap:wrap;align-items:center;margin:8px 0 0 24px">
+          <label class="tiny muted">prazo <input id="bg-prazo-${i}" type="date" class="input" value="${prazoPadrao}" style="padding:3px 6px;font-size:12px;width:140px;display:inline-block"></label>
+          <button class="btn btn-sm btn-ghost" data-deleg="socio" data-i="${i}">Assumir</button>
+          <select id="bg-alvo-usuario-${i}" class="select" style="padding:3px 6px;font-size:12px"><option value="">usuário…</option>${(dl.usuarios || []).map(u => `<option value="${escapeHtml(u.id)}">${escapeHtml(u.nome)}${u.papel ? ' · ' + escapeHtml(u.papel) : ''}</option>`).join('')}</select>
+          <button class="btn btn-sm btn-ghost" data-deleg="usuario" data-i="${i}">Delegar</button>
+          <select id="bg-alvo-agente-${i}" class="select" style="padding:3px 6px;font-size:12px"><option value="">agente de IA…</option>${(dl.agentes || []).map(a => `<option value="${escapeHtml(a.id)}">${escapeHtml(a.nome)}</option>`).join('')}</select>
+          <button class="btn btn-sm btn-ghost" data-deleg="agente" data-i="${i}">Delegar ao agente</button>
+        </div>` : ''}
+        ${it.entrega ? `<details style="margin:8px 0 0 24px"><summary class="tiny" style="cursor:pointer;font-weight:600">🤖 Entrega do ${escapeHtml(it.dono?.nome || 'agente')}${it.entrega_modelo ? ' · ' + escapeHtml(it.entrega_modelo) : ''}</summary>
+          <div style="font-size:13px;line-height:1.55;margin-top:6px;background:var(--bg-3);border-radius:var(--r-md);padding:10px 12px">${mdLite(it.entrega)}</div></details>` : ''}
+      </div>`;
+    }).join('')}
   </div>`;
 }
 

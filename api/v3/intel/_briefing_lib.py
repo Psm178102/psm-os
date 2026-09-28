@@ -237,6 +237,24 @@ def salvar_ordens(sb, text, semana):
     if not itens:
         return 0
     try:
+        # v88.82: ordem com dono (delegada) ou já feita NÃO é apagada se o briefing rodar de novo
+        # na mesma semana — antes cada regeração zerava tudo (houve semanas com 2-3 rodadas).
+        atual = sb.table("shared_kv").select("value").eq("key", "war_ordens").limit(1).execute().data or []
+        atual = (atual[0]["value"] if atual else {}) or {}
+        if isinstance(atual, str):
+            atual = json.loads(atual)
+        tocadas = [o for o in (atual.get("itens") or []) if o.get("dono") or o.get("feito")]
+        if str(atual.get("semana")) == str(semana) and tocadas:
+            return 0
+        if atual.get("itens"):   # guarda a semana anterior (com status) antes de trocar
+            hist = sb.table("shared_kv").select("value").eq("key", "war_ordens_hist").limit(1).execute().data or []
+            hist = (hist[0]["value"] if hist else []) or []
+            if isinstance(hist, str):
+                hist = json.loads(hist)
+            hist = ([atual] + [h for h in hist if isinstance(h, dict) and h.get("semana") != atual.get("semana")])[:12]
+            sb.table("shared_kv").upsert({"key": "war_ordens_hist", "value": hist,
+                                          "updated_at": datetime.now(timezone.utc).isoformat()},
+                                         on_conflict="key").execute()
         sb.table("shared_kv").upsert({
             "key": "war_ordens",
             "value": {"semana": str(semana), "itens": [{"txt": t, "feito": False} for t in itens]},

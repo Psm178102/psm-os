@@ -203,8 +203,13 @@ def compile_dossie(sb, frente_of):
                      + (wb[0].get("briefing") or "")[:900])
         ordens = _kv(sb, "war_ordens", {}) or {}
         if ordens.get("itens"):
-            st = "; ".join(f"[{'x' if o.get('feito') else ' '}] {o.get('txt')}" for o in ordens["itens"][:6])
-            L.append(f"\n## Ordens da semana passada (status real)\n- {st}")
+            # v88.82: status real com dono e prazo (a ordem agora vira tarefa com dono)
+            def _ln(o):
+                st = "feita" if o.get("feito") else ("com dono" if o.get("dono") else "sem dono")
+                dono = (o.get("dono") or {}).get("nome") or "ninguém"
+                return f"[{st}] {o.get('txt')} (dono: {dono}{', prazo ' + str(o['prazo']) if o.get('prazo') else ''})"
+            st = "\n- ".join(_ln(o) for o in ordens["itens"][:6])
+            L.append(f"\n## Ordens da semana (status real — cobre o que não foi feito)\n- {st}")
     except Exception:
         pass
 

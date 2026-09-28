@@ -23,6 +23,10 @@ ALLOWED = {
     # {"ano": 2026, "faixas": [{"nome","rendaMax","jurosRef","subsidioRef","cor","nota"}, ...],
     #  "acima": {"nome","jurosRef","subsidioRef","cor","nota"}}
     "sim_conquista_faixas":  "Faixas MCMV do Simulador Conquista (renda máx, juros, subsídio)",
+    # v88.82: custo por criativo/mês que estima a verba dos concorrentes (Mercado · Investimento).
+    # Antes ficava no navegador de cada um (localStorage) — cada sócio via um número diferente.
+    # Formato: {"MCMV": 700, "MAP": 430}
+    "intel_ads_premissas":   "Custo por criativo/mês usado para estimar a verba dos concorrentes",
 }
 MAX_BYTES = 60_000
 

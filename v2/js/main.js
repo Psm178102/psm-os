@@ -100,15 +100,9 @@ import { pageAgentes } from './pages/agentes.js';
 import { pageAgentesDiretoria } from './pages/agentes-diretoria.js';   // v87.31: CEO/CFO/CMO + Rede
 import { pageAgenteVera } from './pages/agente-vera.js';
 import { pageAgenteSol } from './pages/agente-sol.js';
-import { pageTendencias } from './pages/tendencias.js';
-import { pageBenchmark } from './pages/benchmark.js';
-import { pageIntelAds } from './pages/intel-ads.js';
-import { pageIntelCentro } from './pages/intel-centro.js';
 import { pageIntelHub } from './pages/intel-hub.js';
 import { pageCentralLinks } from './pages/central-links.js';
-import { pageBibliotecaAds } from './pages/biblioteca-ads.js';
 import { pageMarketingHistorico } from './pages/marketing-historico.js';
-import { pageDadosMercado } from './pages/dados-mercado.js';
 import { pageIntelVendas } from './pages/intel-vendas.js';
 import { pageIntelBriefing } from './pages/intel-briefing.js';
 import { pageSimuladores } from './pages/simuladores.js';
@@ -281,8 +275,8 @@ export const ROUTE_MIN_LVL = {
                           // líder+ vê e conversa; AÇÕES no Meta e edição do cérebro = só sócio (backend trava).
   '/central-sol': 10,     // Central da Sol (atendente IA WhatsApp) — SÓ sócio enquanto a Sol
                           // está em rodagem (espelha o require_user(min_lvl=10) de api/v3/sol/).
-  '/cerebro-vendas': 5,   // inteligência de vendas (líder+)
-  '/briefing-guerra': 7,  // briefing estratégico (diretoria)
+  // v88.82: seção 🧠 Inteligência inteira = SÓ SÓCIO (decisão do Paulo, 28/09). Trava explícita em canSeeComoCargo.
+  '/inteligencia': 10, '/cerebro-vendas': 10, '/briefing-guerra': 10, '/concorrencia': 10,
   '/academy-studio': 5,   // produção/construção da Academy — só time que constrói (líder+)
   '/config-menu': 10,     // renomear o menu/páginas — só sócio
   // v88.5: Check-in/Check-out do sistema (quem realmente usa o House: login,
@@ -379,6 +373,10 @@ export function cargosDe(user) {
   return out;
 }
 
+// Rotas da seção 🧠 Inteligência (inclui as antigas que hoje só redirecionam). v88.82
+const INTEL_SOCIO = new Set(['/inteligencia', '/cerebro-vendas', '/briefing-guerra', '/concorrencia',
+  '/dados-mercado', '/benchmark', '/tendencias', '/intel-dash', '/intel-ads', '/anuncios-concorrentes']);
+
 function canSee(path, user) {
   const cargos = cargosDe(user);
   if (cargos.length > 1) return cargos.some(r => canSeeComoCargo(path, r, user));
@@ -408,6 +406,10 @@ function canSeeComoCargo(path, role, user) {
   // 📺 TV Diretoria (v88.74): segunda tela em tempo real do Paulo e da Isa — mostra caixa,
   // resultado e o Farol de todos os pilares. SÓ SÓCIO, trava explícita como o Check-in.
   if (base === '/tv-diretoria') return (user?.lvl || 0) >= 10;
+
+  // 🧠 Inteligência (v88.82): Painel, Vendas, Mercado e Briefing — SÓ SÓCIO (lvl 10 = Paulo e Isa).
+  // Trava explícita antes da matriz: nem matriz por papel nem menu_groups liberam pra outro cargo.
+  if (INTEL_SOCIO.has(base)) return (user?.lvl || 0) >= 10;
 
   // 🔒 Consultoria Arch Leg (dado psicológico sensível): SÓ sócio/diretor
   // (lvl>=8) OU quem é da Arch Leg (role consultor_arch_leg). Trava explícita,
@@ -710,15 +712,16 @@ const APP_VERSION = '88.80';
   router.register('/conteudo-conquista', { render: async (ctx, root) => { setHeader('PSM Conquista · Conteúdo'); highlight('/conteudo-conquista'); await pageConteudoConquista(ctx, root); } });
   router.register('/criativos', { render: async (ctx, root) => { setHeader('Solicitações de Criativos'); highlight('/criativos'); await pageCriativos(ctx, root); } });
   router.register('/criativos-download', { render: async (ctx, root) => { setHeader('Criativos para Download'); highlight('/criativos-download'); await pageCriativosDownload(ctx, root); } });
-  router.register('/inteligencia', { render: async (ctx, root) => { setHeader('Centro de Inteligência'); highlight('/inteligencia'); await pageIntelHub(ctx, root); } });
-  router.register('/dados-mercado', { render: async (ctx, root) => { setHeader('Dados de Mercado'); highlight('/dados-mercado'); await pageDadosMercado(ctx, root); } });
+  router.register('/inteligencia', { render: async (ctx, root) => { setHeader('Inteligência · Painel'); highlight('/inteligencia'); await pageIntelHub(ctx, root); } });
+  // v88.82: planilha Dados de Mercado aposentada — os concorrentes dela foram pra base única do Mercado
+  router.register('/dados-mercado', { render: async () => { router.go('/concorrencia?tab=radar'); } });
   // v81.61: "Biblioteca de Anúncios" agora é a dos anúncios DA PSM (criativo + copy).
   router.register('/biblioteca-ads', { render: async (ctx, root) => { setHeader('Biblioteca de Anúncios'); highlight('/biblioteca-ads'); await pageAnunciosPSM(ctx, root); } });
   // v87.14: /anuncios-concorrentes virou aba do hub de Concorrência (redirect retrocompat).
   router.register('/anuncios-concorrentes', { render: async () => { router.go('/concorrencia?tab=ads'); } });
   router.register('/marketing-historico', { render: async (ctx, root) => { setHeader('Histórico Meta'); highlight('/marketing-historico'); await pageMarketingHistorico(ctx, root); } });
-  router.register('/cerebro-vendas', { render: async (ctx, root) => { setHeader('Cérebro de Vendas'); highlight('/cerebro-vendas'); await pageIntelVendas(ctx, root); } });
-  router.register('/briefing-guerra', { render: async (ctx, root) => { setHeader('Briefing de Guerra'); highlight('/briefing-guerra'); await pageIntelBriefing(ctx, root); } });
+  router.register('/cerebro-vendas', { render: async (ctx, root) => { setHeader('Inteligência · Vendas'); highlight('/cerebro-vendas'); await pageIntelVendas(ctx, root); } });
+  router.register('/briefing-guerra', { render: async (ctx, root) => { setHeader('Inteligência · Briefing'); highlight('/briefing-guerra'); await pageIntelBriefing(ctx, root); } });
   router.register('/ia',        { render: async (ctx, root) => { setHeader('IA');        highlight('/ia');        await pageIA(ctx, root); } });
   router.register('/lancamentos', { render: async (ctx, root) => { setHeader('Lançamentos'); highlight('/lancamentos'); await pageLancamentos(ctx, root); } });
   router.register('/locacoes',  { render: async (ctx, root) => { setHeader('Locações');  highlight('/locacoes');  await pageLocacoes(ctx, root); } });
@@ -734,7 +737,7 @@ const APP_VERSION = '88.80';
   router.register('/ranking',     { render: async (ctx, root) => { setHeader('Ranking');      highlight('/ranking');     await pageRanking(ctx, root); } });
   router.register('/imoveis',     { render: async (ctx, root) => { setHeader('Imóveis');      highlight('/imoveis');     await pageImoveis(ctx, root); } });
   router.register('/estoque-kenlo', { render: async (ctx, root) => { setHeader('Estoque Kenlo'); highlight('/estoque-kenlo'); await pageEstoqueKenlo(ctx, root); } });
-  router.register('/concorrencia',{ render: async (ctx, root) => { setHeader('Concorrência'); highlight('/concorrencia');await pageConcorrencia(ctx, root); } });
+  router.register('/concorrencia',{ render: async (ctx, root) => { setHeader('Inteligência · Mercado'); highlight('/concorrencia');await pageConcorrencia(ctx, root); } });
   router.register('/tv-diretoria', { render: async (ctx, root) => { setHeader('TV Diretoria'); highlight('/tv-diretoria'); await pageTVDiretoria(ctx, root); } });
   router.register('/tv',          { render: async (ctx, root) => { setHeader('Modo TV');      highlight('/tv');          await pageTV(ctx, root); } });
   router.register('/central-ops', { render: async (ctx, root) => { setHeader('Central de Operações'); highlight('/central-ops'); await pageCentralOps(ctx, root); } });
@@ -796,10 +799,11 @@ const APP_VERSION = '88.80';
   router.register('/agente-cmo', { render: async (ctx, root) => { setHeader('📣 CMO PSM');  highlight('/agente-cmo'); await pageAgentesDiretoria(ctx, root, 'cmo'); } });
   router.register('/agente-vera', { render: async (ctx, root) => { setHeader('Agente Vera');         highlight('/agente-vera'); await pageAgenteVera(ctx, root); } });
   router.register('/agente-sol',  { render: async (ctx, root) => { setHeader('Agente Sol');          highlight('/agente-sol'); await pageAgenteSol(ctx, root); } });
-  router.register('/tendencias',  { render: async (ctx, root) => { setHeader('Tendências');           highlight('/tendencias'); await pageTendencias(ctx, root); } });
-  router.register('/benchmark',   { render: async (ctx, root) => { setHeader('Benchmark de Mercado'); highlight('/benchmark');  await pageBenchmark(ctx, root); } });
+  // v88.82: Tendências (manual, 0 registros) aposentada; Benchmark virou aba do Mercado
+  router.register('/tendencias',  { render: async () => { router.go('/concorrencia?tab=visao'); } });
+  router.register('/benchmark',   { render: async () => { router.go('/concorrencia?tab=benchmark'); } });
   router.register('/intel-ads',   { render: async () => { router.go('/concorrencia?tab=intel'); } });  // v87.14: virou aba do hub de Concorrência
-  router.register('/intel-dash',  { render: async () => { location.hash = '#/inteligencia?tab=landscape'; } });   // aposentado: virou aba do Centro (v84.5)
+  router.register('/intel-dash',  { render: async () => { router.go('/concorrencia?tab=visao'); } });   // v88.82: Landscape virou a Visão geral do Mercado
   router.register('/simuladores', { render: async (ctx, root) => { setHeader('Simuladores');         highlight('/simuladores'); await pageSimuladores(ctx, root); } });
   router.register('/sim-vpl',     { render: async (ctx, root) => { setHeader('Simulador VPL');       highlight('/sim-vpl'); await pageSimVPL(ctx, root); } });
   router.register('/sim-incc',    { render: async (ctx, root) => { setHeader('Simulador INCC');      highlight('/sim-incc'); await pageSimINCC(ctx, root); } });
@@ -1199,11 +1203,10 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/morimatsu-marca"><span class="sb-ico">🎨</span> Marca</button>
 
         <div class="sb-sec">🧠 Inteligência</div>
-        <button class="sb-link" data-nav="/inteligencia"><span class="sb-ico">🧠</span> Centro de Inteligência</button>
-        <button class="sb-link" data-nav="/cerebro-vendas"><span class="sb-ico">🎯</span> Cérebro de Vendas</button>
-        <button class="sb-link" data-nav="/briefing-guerra"><span class="sb-ico">⚔️</span> Briefing de Guerra</button>
-        <button class="sb-link" data-nav="/concorrencia"><span class="sb-ico">🥊</span> Concorrência</button>
-        <button class="sb-link" data-nav="/dados-mercado"><span class="sb-ico">🌎</span> Dados de Mercado</button>
+        <button class="sb-link" data-nav="/inteligencia"><span class="sb-ico">🧭</span> Painel</button>
+        <button class="sb-link" data-nav="/cerebro-vendas"><span class="sb-ico">🎯</span> Vendas</button>
+        <button class="sb-link" data-nav="/concorrencia"><span class="sb-ico">🏙</span> Mercado</button>
+        <button class="sb-link" data-nav="/briefing-guerra"><span class="sb-ico">📋</span> Briefing</button>
 
 
         <div class="sb-sec">🔑 Locação</div>

@@ -27,7 +27,7 @@ let _marcando = null;
 // conta no item de destino. Lista tirada do main.js (v88.34).
 const ALIAS = {
   '/pontos-atencao': '/cockpit', '/insights': '/cockpit', '/kpis': '/cockpit',
-  '/rh-reunioes': '/reunioes', '/intel-dash': '/inteligencia', '/mapa-ciclos': '/governanca',
+  '/rh-reunioes': '/reunioes', '/intel-dash': '/concorrencia', '/dados-mercado': '/concorrencia', '/benchmark': '/concorrencia', '/tendencias': '/concorrencia', '/mapa-ciclos': '/governanca',
 };
 
 function juntaAlias(por) {

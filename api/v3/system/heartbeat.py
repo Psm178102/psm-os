@@ -213,7 +213,12 @@ class handler(BaseHTTPRequestHandler):
                 continue
             last = ran.get(key)
             if hours is None:  # semanal: roda 1× por semana, a partir de segunda 00:00 UTC
-                if last is None or last < _monday_utc(now):
+                ancora = _monday_utc(now)
+                if key == "war_briefing":   # v88.82: Briefing sai segunda 07h BRT (10h UTC), não domingo 21h
+                    ancora += timedelta(hours=10)
+                    if now < ancora:
+                        ancora -= timedelta(days=7)
+                if last is None or last < ancora:
                     vencidos.append((5.0, key, path))
                 continue
             if last is None:

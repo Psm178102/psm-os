@@ -1,156 +1,156 @@
-/* PSM-OS v2 — 🎯 Raio-X de Anúncios dos Concorrentes (v77.35).
-   Foco 100% no CONCORRENTE (Paulo: "não quero meus dados aqui, quero o volume de
-   anúncios ativos dos concorrentes, média de investimento e tempo de anúncio ativo").
-   REALIDADE (honesta): a Biblioteca do Meta não expõe anúncios imobiliários por API
-   no BR — só por PRINT + IA. E o Meta NÃO publica o gasto de anúncio comercial; então:
-     • Anúncios ativos (volume)  → REAL, lido do print pela IA.
-     • Tempo médio ativo (dias)  → REAL, da data "Veiculação iniciada em" de cada anúncio.
-     • Investimento/mês          → ESTIMATIVA transparente = volume × premissa de custo
-                                    que VOCÊ define (Meta não dá o número real). */
+/* PSM-OS v2 — 🏙 Mercado · Investimento (v88.82; ex-"Intel Ads / Raio-X", v77.35)
+   Quem está anunciando, quanto e o investimento ESTIMADO de cada concorrente.
+     • Anúncios ativos → REAL: o coletor do Vigia atualiza todo dia a partir da Biblioteca
+       do Meta (concorrentes.anuncios_count). O 📷 (print lido pela IA) fica como correção manual.
+     • Investimento/mês → ESTIMATIVA = nº de anúncios × custo por criativo/mês.
+       O Meta não publica gasto de anúncio imobiliário no BR.
+   v88.82: o custo por criativo saiu do navegador (localStorage — cada sócio via um número)
+   e passou a ser um só pra casa, em settings/kv_config 'intel_ads_premissas'. */
 import { api } from '../api.js';
 
 let _root = null, _conc = [], _segFilter = 'all', _pendingPrint = null;
-const SEGMENTOS = ['all', 'MAP', 'MCMV', 'Terceiros', 'Locacao'];
-const PREMISSA_KEY = 'psm.intelads.premissa_mes';
+const SEGMENTOS = ['all', 'MAP', 'MCMV', 'Terceiros', 'Locação'];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const f$ = n => 'R$ ' + (Number(+n || 0) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fNum = n => (+n || 0).toLocaleString('pt-BR');
-// v87.15: premissa POR SEGMENTO, calibrada nas NOSSAS contas (pedido do Paulo):
-//   MCMV  ← conta PSM Conquista (ago/26: R$ 6.269 ÷ 9 campanhas ≈ R$ 700/criativo/mês)
-//   MAP/Terceiros/Locação ← contas PSM Imóveis + Paulo (R$ 4.256 ÷ 10 ≈ R$ 430/criativo/mês)
-// Editáveis na tela; override manual por concorrente segue em investimento_estimado.
-const PREMISSAS_KEY = 'psm.intelads.premissas_v2';
+const semAc = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+// Régua calibrada nas NOSSAS contas (v87.15): MCMV ← conta Conquista (≈ R$ 700/criativo/mês);
+// MAP/Terceiros/Locação ← contas PSM Imóveis + Paulo (≈ R$ 430). Editável na tela (sócio).
 const PREM_DEFAULT = { MCMV: 700, MAP: 430 };
-function premissas() {
-  try { return { ...PREM_DEFAULT, ...JSON.parse(localStorage.getItem(PREMISSAS_KEY) || '{}') }; }
-  catch { return { ...PREM_DEFAULT }; }
+const PREM_LEGACY_KEY = 'psm.intelads.premissas_v2';
+let _prem = { ...PREM_DEFAULT };
+
+const premissaDe = seg => (String(seg || '').toUpperCase() === 'MCMV' ? _prem.MCMV : _prem.MAP);
+function investOf(c) {
+  return (c.investimento_estimado != null && c.investimento_estimado !== '')
+    ? { v: +c.investimento_estimado, manual: true }
+    : { v: (+c.anuncios_count || 0) * premissaDe(c.segmento || c.seg), manual: false };
 }
-function premissaDe(seg) {
-  const p = premissas();
-  return String(seg || '').toUpperCase() === 'MCMV' ? p.MCMV : p.MAP;
-}
-const premissa = () => premissas().MAP;  // retrocompat (não usado no cálculo por linha)
 function adLibUrl(name) {
   return 'https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=BR&q='
     + encodeURIComponent((name || '').replace(/[&]/g, '')) + '&search_type=keyword_unordered';
 }
 function fmtDate(s) { try { return new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }); } catch { return ''; } }
-function investOf(c) { return (c.investimento_estimado != null && c.investimento_estimado !== '') ? { v: +c.investimento_estimado, manual: true } : { v: (+c.anuncios_count || 0) * premissaDe(c.segmento || c.seg), manual: false }; }
+
+async function loadPremissas() {
+  try {
+    const r = await api.request('/api/v3/settings/kv_config?key=intel_ads_premissas');
+    const v = r && r.value;
+    if (v && +v.MCMV > 0 && +v.MAP > 0) { _prem = { MCMV: +v.MCMV, MAP: +v.MAP }; return; }
+  } catch (_) { /* sem valor salvo ainda — usa o padrão (ou o que estava neste navegador) */ }
+  try {
+    const old = JSON.parse(localStorage.getItem(PREM_LEGACY_KEY) || 'null');
+    if (old && +old.MCMV > 0 && +old.MAP > 0) _prem = { MCMV: +old.MCMV, MAP: +old.MAP };
+  } catch (_) {}
+}
+
+async function salvaPremissas() {
+  const m = Math.max(1, parseInt(document.getElementById('ia-prem-mcmv')?.value, 10) || PREM_DEFAULT.MCMV);
+  const a = Math.max(1, parseInt(document.getElementById('ia-prem-map')?.value, 10) || PREM_DEFAULT.MAP);
+  _prem = { MCMV: m, MAP: a };
+  renderContent();
+  try {
+    await api.request('/api/v3/settings/kv_config', { method: 'POST', body: { key: 'intel_ads_premissas', value: _prem } });
+    try { localStorage.removeItem(PREM_LEGACY_KEY); } catch (_) {}
+    setStatus('✅ Custo por criativo salvo para todos os sócios.', 'var(--ok)');
+  } catch (e) { setStatus('⚠️ Não salvou: ' + e.message, 'var(--err)'); }
+}
 
 export async function pageIntelAds(ctx, root) {
   _root = root;
-  render(true);
-  const r = await api.request('/api/v3/concorrentes/list').catch(() => ({ concorrentes: [] }));
+  root.innerHTML = `<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando concorrentes…</div></div>`;
+  const [r] = await Promise.all([
+    api.request('/api/v3/concorrentes/list').catch(() => ({ concorrentes: [] })),
+    loadPremissas(),
+  ]);
   _conc = (r.concorrentes || []).map(c => ({ ...c, anuncios_count: +(c.anuncios_count || 0) }));
-  render(false);
-}
-
-function render(loading) {
-  if (!_root) return;
-  _root.innerHTML = `
-    <div class="card" style="background:#0b1120;color:#e2e8f0;padding:22px;min-height:80vh">
-      <div class="flex" style="align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:6px">
-        <div class="flex" style="align-items:center;gap:14px">
-          <span style="font-size:36px">🎯</span>
-          <div>
-            <h2 style="margin:0;color:#fff;font-size:20px">Raio-X de Anúncios dos Concorrentes</h2>
-            <p style="margin:4px 0 0;color:var(--ink-muted);font-size:13px">Quem está anunciando, quantos anúncios, há quanto tempo e investimento estimado.</p>
-          </div>
+  root.innerHTML = `
+    <div class="card">
+      <div class="flex" style="align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px">
+        <div style="flex:1;min-width:240px">
+          <h2 class="card-title">💰 Investimento dos concorrentes</h2>
+          <p class="card-sub">Quem está anunciando, quanto e a verba estimada de cada um.</p>
         </div>
-        <a href="https://www.facebook.com/ads/library/?country=BR&ad_type=all&active_status=active" target="_blank" rel="noopener" class="btn" style="background:#fffbea;color:#0a1628;font-weight:600">🔗 Meta Ads Library</a>
+        <a href="https://www.facebook.com/ads/library/?country=BR&ad_type=all&active_status=active" target="_blank" rel="noopener" class="btn btn-ghost">🔗 Biblioteca do Meta</a>
       </div>
-      <div id="ads-body">${loading ? '<div class="muted tiny" style="color:var(--ink-muted);padding:20px"><span class="spinner"></span> Carregando concorrentes…</div>' : ''}</div>
+      <div id="ads-body"></div>
     </div>`;
-  if (!loading) renderContent();
+  renderContent();
 }
-
-function kpi(label, value, color, sub) {
-  return `<div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:14px">
-    <div style="color:var(--ink-muted);font-size:11px;text-transform:uppercase;font-weight:600;margin-bottom:4px">${label}</div>
-    <div style="color:${color};font-size:20px;font-weight:600">${value}</div>
-    ${sub ? `<div style="color:var(--ink-muted);font-size:11px;margin-top:2px">${esc(sub)}</div>` : ''}</div>`;
-}
-const tierColor = t => t === 'A' ? 'var(--warn)' : t === 'B' ? '#806d50' : 'var(--ink-muted)';
 
 function renderContent() {
   const body = document.getElementById('ads-body');
-  // v88.60: compara sem acento — o botão é "Locacao" e o cadastro grava "Locação" (o filtro vinha sempre vazio)
-  const semAc = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  const filtered = _segFilter === 'all' ? _conc : _conc.filter(c => semAc(c.segmento) === semAc(_segFilter));
-  filtered.sort((a, b) => (b.anuncios_count - a.anuncios_count) || (b.investimento_estimado || 0) - (a.investimento_estimado || 0));
-
+  if (!body) return;
+  const filtered = (_segFilter === 'all' ? _conc.slice() : _conc.filter(c => semAc(c.segmento) === semAc(_segFilter)))
+    .sort((a, b) => (b.anuncios_count - a.anuncios_count) || (investOf(b).v - investOf(a).v));
   const comAds = filtered.filter(c => c.anuncios_count > 0);
   const totalAds = comAds.reduce((s, c) => s + c.anuncios_count, 0);
   const top = comAds[0];
+  const investTotal = filtered.reduce((s, c) => s + investOf(c).v, 0);
+  const temDias = filtered.some(c => +c.anuncios_dias_medio > 0);
   const diasVals = filtered.map(c => +c.anuncios_dias_medio).filter(v => v > 0);
   const tempoMedio = diasVals.length ? Math.round(diasVals.reduce((a, b) => a + b, 0) / diasVals.length) : null;
-  const investTotal = filtered.reduce((s, c) => s + investOf(c).v, 0);
-  const capturados = comAds.length;
+  const th = (t, al = 'left') => `<th style="padding:8px 10px;text-align:${al};font-size:11px;color:var(--ink-muted)">${t}</th>`;
 
   body.innerHTML = `
-    <div class="tiny" style="color:#cbd5e1;margin-bottom:12px;background:var(--surface-2);padding:10px 12px;border-radius:var(--radius-md);border-left:3px solid #fffbea;line-height:1.6">
-      📡 <b>Como ler:</b> <b>Anúncios</b> e <b>tempo ativo</b> são REAIS (lidos da Biblioteca do Meta por print+IA — clique <b>📷</b> na linha). O Meta <b>não publica</b> o gasto de anúncio imobiliário no BR, então <b>Investimento/mês é ESTIMATIVA</b> = nº de anúncios × sua premissa de custo.
-      <span style="display:inline-flex;align-items:center;gap:6px;margin-left:8px">💰 Premissa/criativo/mês — MCMV (régua: conta Conquista): R$ <input id="ia-prem-mcmv" type="number" value="${premissas().MCMV}" style="width:80px;background:#0b1120;border:1px solid var(--border);color:#fff;border-radius:var(--radius-sm);padding:3px 6px;font-size:12px"></span>
-      <span style="display:inline-flex;align-items:center;gap:6px;margin-left:8px">MAP/Terceiros/Locação (régua: contas Imóveis+Paulo): R$ <input id="ia-prem-map" type="number" value="${premissas().MAP}" style="width:80px;background:#0b1120;border:1px solid var(--border);color:#fff;border-radius:var(--radius-sm);padding:3px 6px;font-size:12px"></span>
-      <span id="ads-status" style="font-weight:600;margin-left:8px"></span>
+    <div class="tiny" style="margin:12px 0;background:var(--bg-3);padding:10px 12px;border-radius:var(--r-md);line-height:1.7">
+      📡 <b>Anúncios ativos</b> são reais: o Vigia atualiza todo dia pela Biblioteca do Meta (📷 corrige um concorrente por print).
+      <b>Investimento/mês é estimativa</b> = anúncios × custo por criativo/mês, porque o Meta não publica a verba.
+      <div class="flex gap-3" style="flex-wrap:wrap;align-items:center;margin-top:6px">
+        <label>MCMV (régua: conta Conquista) R$ <input id="ia-prem-mcmv" class="input" type="number" min="1" value="${_prem.MCMV}" style="width:90px;padding:3px 6px;font-size:12px;display:inline-block"></label>
+        <label>MAP / Terceiros / Locação (régua: Imóveis + Paulo) R$ <input id="ia-prem-map" class="input" type="number" min="1" value="${_prem.MAP}" style="width:90px;padding:3px 6px;font-size:12px;display:inline-block"></label>
+        <span id="ads-status" style="font-weight:600"></span>
+      </div>
     </div>
-
-    <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:14px">
-      ${SEGMENTOS.map(s => `<button class="btn btn-sm ${_segFilter === s ? 'btn-primary' : 'btn-ghost'}" data-seg="${s}" style="font-size:12px">${s === 'all' ? '🌐 Todos' : s}</button>`).join('')}
+    <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:12px">
+      ${SEGMENTOS.map(s => `<button class="btn btn-sm ${_segFilter === s ? 'btn-primary' : 'btn-ghost'}" data-seg="${s}">${s === 'all' ? 'Todos' : s}</button>`).join('')}
     </div>
-
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px">
-      ${kpi('📢 Anúncios ativos (mercado)', fNum(totalAds), 'var(--ok)', capturados + ' concorrentes mapeados')}
-      ${kpi('🔥 Mais agressivo', top ? fNum(top.anuncios_count) : '—', 'var(--err)', top ? top.nome : 'capture um print')}
-      ${kpi('⏱ Tempo médio ativo', tempoMedio != null ? tempoMedio + ' dias' : '—', '#806d50', 'campanhas no ar')}
-      ${kpi('💰 Investimento estimado/mês', f$(investTotal), '#fffbea', '≈ volume × premissa')}
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px">
+      ${kpi('Anúncios ativos (mercado)', fNum(totalAds), comAds.length + ' concorrentes anunciando')}
+      ${kpi('Mais agressivo', top ? fNum(top.anuncios_count) : '—', top ? top.nome : 'sem anúncios capturados')}
+      ${kpi('Verba estimada/mês', f$(investTotal), 'soma do filtro')}
+      ${tempoMedio != null ? kpi('Tempo médio no ar', tempoMedio + ' dias', 'dos anúncios lidos por print') : ''}
     </div>
-
     <div style="overflow-x:auto">
-    <table style="width:100%;border-collapse:collapse;font-size:13px;background:var(--surface-2);border-radius:var(--radius-md);overflow:hidden">
-      <thead><tr style="background:var(--surface-2)">
-        <th style="padding:10px;text-align:left;color:#fffbea;font-size:11px">#</th>
-        <th style="padding:10px;text-align:left;color:#fffbea;font-size:11px">CONCORRENTE</th>
-        <th style="padding:10px;text-align:center;color:#fffbea;font-size:11px">TIER</th>
-        <th style="padding:10px;text-align:left;color:#fffbea;font-size:11px">SEGMENTO</th>
-        <th style="padding:10px;text-align:right;color:#fffbea;font-size:11px">ANÚNCIOS</th>
-        <th style="padding:10px;text-align:right;color:#fffbea;font-size:11px">TEMPO ATIVO</th>
-        <th style="padding:10px;text-align:right;color:#fffbea;font-size:11px">INVEST./MÊS (≈)</th>
-        <th style="padding:10px;text-align:center;color:#fffbea;font-size:11px">ESPIONAR</th>
-      </tr></thead>
-      <tbody>
-        ${filtered.map((c, i) => {
-          const inv = investOf(c);
-          return `<tr style="border-bottom:1px solid var(--border)">
-            <td style="padding:8px 10px;color:var(--ink-muted)">${i + 1}</td>
-            <td style="padding:8px 10px;color:#fff;font-weight:600">${esc(c.nome || '—')}${c.handle ? `<div style="font-size:11px;color:var(--ink-muted)">${esc(c.handle)}</div>` : ''}</td>
-            <td style="padding:8px 10px;text-align:center"><span style="padding:2px 8px;border-radius:var(--radius-sm);background:${tierColor(c.tier)};color:#fff;font-size:11px;font-weight:600">${esc(c.tier || '—')}</span></td>
-            <td style="padding:8px 10px;color:var(--ink-muted)">${esc(c.segmento || '—')}</td>
-            <td style="padding:8px 10px;text-align:right;font-weight:600;color:${c.anuncios_count > 0 ? 'var(--ok)' : 'var(--ink-2)'}">${c.anuncios_count || '—'}${c.ultima_atualizacao && c.anuncios_count ? `<div class="tiny" style="font-weight:400;color:var(--ink-muted)">${fmtDate(c.ultima_atualizacao)}</div>` : ''}</td>
-            <td style="padding:8px 10px;text-align:right;color:${c.anuncios_dias_medio ? '#e2e8f0' : 'var(--ink-2)'}">${c.anuncios_dias_medio ? Math.round(c.anuncios_dias_medio) + 'd' : '—'}</td>
-            <td style="padding:8px 10px;text-align:right;font-weight:600;color:${inv.v ? '#fffbea' : 'var(--ink-2)'}">${inv.v ? '≈ ' + f$(inv.v) : '—'}${inv.manual ? '<div class="tiny" style="font-weight:400;color:var(--ink-muted)">manual</div>' : ''}</td>
-            <td style="padding:8px 10px;text-align:center;white-space:nowrap">
-              <a href="${adLibUrl(c.nome)}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" title="Ver anúncios na Biblioteca Meta" style="font-size:11px">🔗</a>
-              <button class="btn btn-ghost btn-sm" data-print="${c.id}" title="Contar anúncios + tempo por print (IA)" style="font-size:11px">📷</button>
-            </td>
-          </tr>`;
-        }).join('')}
-      </tbody>
-    </table>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:640px">
+        <thead><tr style="border-bottom:2px solid var(--border)">
+          ${th('#')}${th('Concorrente')}${th('Tier', 'center')}${th('Segmento')}${th('Anúncios', 'right')}${temDias ? th('Tempo no ar', 'right') : ''}${th('Verba/mês (≈)', 'right')}${th('', 'center')}
+        </tr></thead>
+        <tbody>
+          ${filtered.map((c, i) => {
+            const inv = investOf(c);
+            return `<tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:8px 10px" class="muted">${i + 1}</td>
+              <td style="padding:8px 10px;font-weight:600">${esc(c.nome || '—')}${c.handle ? `<div class="tiny muted" style="font-weight:400">${esc(c.handle)}</div>` : ''}</td>
+              <td style="padding:8px 10px;text-align:center">${esc(c.tier || '—')}</td>
+              <td style="padding:8px 10px" class="muted">${esc(c.segmento || '—')}</td>
+              <td style="padding:8px 10px;text-align:right;font-weight:600">${c.anuncios_count || '—'}${c.ultima_atualizacao && c.anuncios_count ? `<div class="tiny muted" style="font-weight:400">${fmtDate(c.ultima_atualizacao)}</div>` : ''}</td>
+              ${temDias ? `<td style="padding:8px 10px;text-align:right">${c.anuncios_dias_medio ? Math.round(c.anuncios_dias_medio) + 'd' : '—'}</td>` : ''}
+              <td style="padding:8px 10px;text-align:right;font-weight:600">${inv.v ? '≈ ' + f$(inv.v) : '—'}${inv.manual ? '<div class="tiny muted" style="font-weight:400">manual</div>' : ''}</td>
+              <td style="padding:8px 10px;text-align:center;white-space:nowrap">
+                <a href="${adLibUrl(c.nome)}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" title="Ver anúncios na Biblioteca do Meta">🔗</a>
+                <button class="btn btn-ghost btn-sm" data-print="${c.id}" title="Corrigir por print (a IA conta os anúncios)">📷</button>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
     </div>
     <input type="file" accept="image/*" id="ads-file" style="display:none">`;
 
-  const salvaPrem = () => {
-    const m = Math.max(0, parseInt(document.getElementById('ia-prem-mcmv')?.value) || PREM_DEFAULT.MCMV);
-    const a = Math.max(0, parseInt(document.getElementById('ia-prem-map')?.value) || PREM_DEFAULT.MAP);
-    localStorage.setItem(PREMISSAS_KEY, JSON.stringify({ MCMV: m, MAP: a }));
-    renderContent();
-  };
-  ['ia-prem-mcmv', 'ia-prem-map'].forEach(id => { const el = document.getElementById(id); if (el) el.addEventListener('change', salvaPrem); });
+  ['ia-prem-mcmv', 'ia-prem-map'].forEach(id => { const el = document.getElementById(id); if (el) el.addEventListener('change', salvaPremissas); });
   body.querySelectorAll('[data-seg]').forEach(b => b.addEventListener('click', () => { _segFilter = b.dataset.seg; renderContent(); }));
   body.querySelectorAll('[data-print]').forEach(b => b.addEventListener('click', () => startPrint(b.dataset.print)));
   const fi = document.getElementById('ads-file');
   if (fi) fi.addEventListener('change', onFile);
+}
+
+function kpi(label, value, sub) {
+  return `<div style="background:var(--bg-3);border-radius:var(--r-md);padding:12px 14px">
+    <div class="tiny muted" style="font-weight:600">${label}</div>
+    <div style="font-size:20px;font-weight:600;margin-top:2px">${value}</div>
+    ${sub ? `<div class="tiny muted">${esc(sub)}</div>` : ''}</div>`;
 }
 
 function setStatus(msg, color) { const s = document.getElementById('ads-status'); if (s) { s.textContent = msg || ''; s.style.color = color || 'var(--ok)'; } }
@@ -159,7 +159,7 @@ async function onFile(e) {
   const file = e.target.files && e.target.files[0];
   if (!file || _pendingPrint == null) return;
   const id = _pendingPrint;
-  setStatus('⏳ IA lendo o print (volume + tempo)…', 'var(--warn)');
+  setStatus('⏳ IA lendo o print…', 'var(--warn)');
   try {
     const dataUrl = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(file); });
     const r = await api.request('/api/v3/ia/ad_count', { method: 'POST', body: { id: Number(id), image: dataUrl } });
@@ -167,9 +167,9 @@ async function onFile(e) {
       const c = _conc.find(x => String(x.id) === String(id));
       if (c) { c.anuncios_count = r.count; if (r.dias_medio != null) c.anuncios_dias_medio = r.dias_medio; c.ultima_atualizacao = new Date().toISOString(); }
       renderContent();
-      setStatus(`✅ ${(c && c.nome) || ''}: ${r.count} anúncios${r.dias_medio != null ? ' · ~' + r.dias_medio + 'd ativos' : ''}${r.saved === false ? ' (não salvou)' : ''}`, 'var(--ok)');
+      setStatus(`✅ ${(c && c.nome) || ''}: ${r.count} anúncios${r.dias_medio != null ? ' · ~' + r.dias_medio + 'd no ar' : ''}${r.saved === false ? ' (não salvou)' : ''}`, 'var(--ok)');
     } else {
-      setStatus('⚠️ Não li' + (r && r.error ? ': ' + r.error : '') + '. Print nítido com "~X resultados".', 'var(--err)');
+      setStatus('⚠️ Não li' + (r && r.error ? ': ' + r.error : '') + '. Use um print nítido com "~X resultados".', 'var(--err)');
     }
   } catch (err) { setStatus('⚠️ Erro: ' + err.message, 'var(--err)'); }
 }

@@ -9,7 +9,9 @@ from _auth_lib import supabase_client, require_user, AuthError, audit  # type: i
 
 ALLOWED = ["nome", "segmento", "anuncios_count", "link", "observacoes", "ultima_atualizacao",
            "slug", "handle", "tipo", "tier", "seguidores", "posts", "creci", "fb", "bio",
-           "engajamento", "imoveis_ativos", "anuncios_dias_medio", "investimento_estimado"]
+           "engajamento", "imoveis_ativos", "anuncios_dias_medio", "investimento_estimado",
+           # v88.82: estrutura comercial (ex-planilha Dados de Mercado — base única de concorrentes)
+           "equipes", "corretores", "nichos", "comissao", "salario", "verba_mkt", "vendas_mes", "vendas_ano"]
 
 
 class handler(BaseHTTPRequestHandler):

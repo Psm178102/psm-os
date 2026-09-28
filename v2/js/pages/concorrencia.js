@@ -26,16 +26,21 @@ const canEdit = () => (auth.user()?.lvl || 0) >= 5;
 /* v87.14 — HUB de Concorrência: unifica Radar + Anúncios dos Concorrentes +
    Intel Ads numa página só (pedido do Paulo — as 3 abas estavam dispersas).
    As rotas antigas /anuncios-concorrentes e /intel-ads redirecionam pra cá. */
+/* v88.82 — 🏙 MERCADO (seção Inteligência, só sócio): junta num lugar só o que estava em 7 telas.
+   Visão geral (ex-Landscape) · Radar (base ÚNICA — absorveu a planilha Dados de Mercado) ·
+   Anúncios (coleta diária automática do Vigia) · Investimento (ex-Intel Ads) · Benchmark. */
 const HUB_TABS = [
-  { id: 'radar', lbl: '🥊 Radar' },
-  { id: 'ads',   lbl: '📡 Anúncios dos Concorrentes' },
-  { id: 'intel', lbl: '🎯 Intel Ads (investimento)' },
+  { id: 'visao',     lbl: '🔍 Visão geral' },
+  { id: 'radar',     lbl: '🥊 Radar' },
+  { id: 'ads',       lbl: '📡 Anúncios (Vigia)' },
+  { id: 'intel',     lbl: '💰 Investimento' },
+  { id: 'benchmark', lbl: '📊 Benchmark' },
 ];
-let _hubTab = 'radar';
+let _hubTab = 'visao';
 
 export async function pageConcorrencia(ctx, root) {
-  if ((auth.user()?.lvl || 0) < 5) {
-    root.innerHTML = '<div class="alert alert-warn">🔒 Requer Líder (lvl ≥ 5).</div>';
+  if ((auth.user()?.lvl || 0) < 10) {
+    root.innerHTML = '<div class="alert alert-warn">🔒 A seção Inteligência é só dos sócios.</div>';
     return;
   }
   if (ctx?.query?.tab && HUB_TABS.some(t => t.id === ctx.query.tab)) _hubTab = ctx.query.tab;
@@ -56,6 +61,14 @@ export async function pageConcorrencia(ctx, root) {
   if (_hubTab === 'intel') {
     const { pageIntelAds } = await import('./intel-ads.js');
     return pageIntelAds(ctx, inner);
+  }
+  if (_hubTab === 'visao') {
+    const { pageIntelDash } = await import('./intel-dash.js');
+    return pageIntelDash(ctx, inner);
+  }
+  if (_hubTab === 'benchmark') {
+    const { pageBenchmark } = await import('./benchmark.js');
+    return pageBenchmark(ctx, inner);
   }
   return pageRadarConcorrencia(ctx, inner);
 }
@@ -195,6 +208,21 @@ function render() {
   }
 }
 
+// v88.82: estrutura comercial (ex-planilha Dados de Mercado) + anotações, na própria linha do Radar
+function estrutura(c) {
+  const partes = [];
+  if (c.corretores) partes.push(`${c.corretores} corretores`);
+  if (c.equipes) partes.push(`${c.equipes} equipe${c.equipes > 1 ? 's' : ''}`);
+  if (c.nichos) partes.push(c.nichos);
+  if (c.vendas_mes) partes.push(`${c.vendas_mes} vendas/mês`);
+  if (c.verba_mkt) partes.push(`verba R$ ${Number(c.verba_mkt).toLocaleString('pt-BR')}/mês`);
+  const nota = c.observacoes && c.observacoes !== c.bio
+    ? `<details style="margin-top:3px"><summary class="tiny" style="cursor:pointer;color:var(--ink-muted)">📝 anotações</summary><div class="tiny" style="white-space:pre-wrap;max-width:420px;margin-top:3px;line-height:1.5">${escapeHtml(c.observacoes)}</div></details>`
+    : '';
+  if (!partes.length && !nota) return '';
+  return `${partes.length ? `<div class="tiny" style="margin-top:3px;color:var(--ink-2)">${escapeHtml(partes.join(' · '))}</div>` : ''}${nota}`;
+}
+
 function dispFollow(c) {
   if (c.seguidores == null || c.seguidores === '') return '—';
   return typeof c.seguidores === 'number' ? c.seguidores.toLocaleString('pt-BR') : escapeHtml(c.seguidores);
@@ -215,6 +243,7 @@ function row(c) {
         <div style="font-weight:600">${escapeHtml(c.nome)}</div>
         <div class="tiny muted">${escapeHtml(c.handle || '')}${c.tipo ? ' · ' + (c.tipo === 'corretor' ? '👤 Corretor' : '🏢 Imobiliária') : ''}</div>
         ${c.bio ? `<div class="tiny muted" style="margin-top:2px;max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(c.bio)}">${escapeHtml(c.bio)}</div>` : ''}
+        ${estrutura(c)}
       </td>
       <td style="text-align:center;padding:8px 6px">
         ${c.tier ? `<span style="background:${TIER_COR[c.tier] || '#8a8579'};color:#fff;padding:2px 9px;border-radius:var(--r-full);font-size:11px;font-weight:600">${escapeHtml(c.tier)}</span>` : '<span class="tiny muted">—</span>'}
@@ -270,9 +299,17 @@ function openForm() {
           ${f('cc-posts', 'Posts', c.posts, 'nº', 'number')}
           ${f('cc-creci', 'CRECI', c.creci, '')}
           ${f('cc-fb', 'Page ID Meta (anúncios)', c.fb, 'id da página p/ Biblioteca de Anúncios')}
-          ${f('cc-engaj', 'Engajamento (%)', c.engajamento, '', 'number')}
-          ${f('cc-imoveis', 'Imóveis ativos', c.imoveis_ativos, '', 'number')}
-          <div style="grid-column:1/-1"><label class="tiny muted" style="font-weight:600">Bio / observações</label><textarea id="cc-bio" class="input" rows="2" style="width:100%">${escapeHtml(c.bio || c.observacoes || '')}</textarea></div>
+          <div style="grid-column:1/-1;margin-top:6px" class="tiny muted"><b>Estrutura comercial</b> (antes na planilha Dados de Mercado)</div>
+          ${f('cc-equipes', 'Nº de equipes', c.equipes, '', 'number')}
+          ${f('cc-corretores', 'Nº de corretores', c.corretores, '', 'number')}
+          <div style="grid-column:1/-1">${f('cc-nichos', 'Nichos', c.nichos, 'Ex.: MCMV faixa 1 e 1,5')}</div>
+          ${f('cc-comissao', 'Comissão / split', c.comissao, 'Ex.: 1% lead deles · 60/40')}
+          ${f('cc-salario', 'Salário médio (R$)', c.salario, '', 'number')}
+          ${f('cc-verba', 'Verba de marketing/mês (R$)', c.verba_mkt, '', 'number')}
+          ${f('cc-vmes', 'Vendas/mês', c.vendas_mes, '', 'number')}
+          ${f('cc-vano', 'Vendas/ano', c.vendas_ano, '', 'number')}
+          <div style="grid-column:1/-1"><label class="tiny muted" style="font-weight:600">Bio do perfil</label><textarea id="cc-bio" class="input" rows="2" style="width:100%">${escapeHtml(c.bio || '')}</textarea></div>
+          <div style="grid-column:1/-1"><label class="tiny muted" style="font-weight:600">Anotações de mercado (comissão, níveis, estrutura, números)</label><textarea id="cc-obs" class="input" rows="4" style="width:100%">${escapeHtml(c.observacoes || '')}</textarea></div>
         </div>
         <div id="cc-err" class="tiny" style="color:var(--err);margin-top:8px"></div>
         <div class="flex gap-2 mt-3" style="justify-content:space-between">
@@ -303,8 +340,11 @@ async function save(c) {
     nome, handle: g('cc-handle').value.trim() || null, tipo: g('cc-tipo').value, tier: g('cc-tier').value,
     segmento: g('cc-seg').value, seguidores: numOr('cc-seguidores'), posts: numOr('cc-posts'),
     creci: g('cc-creci').value.trim() || null, fb: g('cc-fb').value.trim() || null,
-    engajamento: numOr('cc-engaj'), imoveis_ativos: numOr('cc-imoveis'),
-    bio: bio || null, observacoes: bio || null,
+    equipes: numOr('cc-equipes'), corretores: numOr('cc-corretores'),
+    nichos: g('cc-nichos').value.trim() || null, comissao: g('cc-comissao').value.trim() || null,
+    salario: numOr('cc-salario'), verba_mkt: numOr('cc-verba'),
+    vendas_mes: numOr('cc-vmes'), vendas_ano: numOr('cc-vano'),
+    bio: bio || null, observacoes: g('cc-obs').value.trim() || null,
   };
   const btn = g('cc-save'); btn.disabled = true; btn.textContent = 'Salvando…';
   try {

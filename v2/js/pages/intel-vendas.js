@@ -2,7 +2,7 @@
    Pontua cada lead aberto (0-100 + probabilidade calibrada por taxa real de
    canal × etapa × recência × engajamento), prioriza o que atacar hoje,
    clusteriza os motivos de perda, projeta o fechamento do mês ponderado pelo
-   pipeline e gera o "plano de ataque" com Opus 4.8 sob demanda.
+   pipeline e gera o "plano de ataque" com a IA oficial (/ia/analyze) sob demanda.
    Tudo dado real do RD — probabilidade é estimativa calibrada, não ML treinado. */
 import { api } from '../api.js';
 import { auth } from '../auth.js';
@@ -18,8 +18,8 @@ const TEMP = {
 
 export async function pageIntelVendas(ctx, root) {
   _root = root;
-  if ((auth.user()?.lvl || 0) < 5) {
-    root.innerHTML = '<div class="alert alert-warn">🔒 Requer Líder ou acima.</div>';
+  if ((auth.user()?.lvl || 0) < 10) {
+    root.innerHTML = '<div class="alert alert-warn">🔒 A seção Inteligência é só dos sócios.</div>';
     return;
   }
   await reload();
@@ -46,7 +46,7 @@ function render() {
     <div class="card">
       <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:6px">
         <div style="flex:1;min-width:240px">
-          <h2 class="card-title">🧠 Cérebro de Vendas</h2>
+          <h2 class="card-title">🎯 Vendas · Cérebro</h2>
           <p class="card-sub">${fmtNum(s.open_total || 0)} negócios abertos pontuados · ${fmtNum(s.quentes || 0)} 🟢 quentes${fc.projecao_oficial ? ` · 📈 provável do mês R$ ${moneyShort(fc.projecao_oficial.provavel.vgv)} (${fmtN1(fc.projecao_oficial.provavel.vendas)} vendas)` : ''} · win rate ${wr.overall_pct != null ? pct2(wr.overall_pct) : '—'}${_d.dados_de_hhmm ? ` · dados de <b title="último sync do RD — o mesmo retrato em todas as telas">${escapeHtml(_d.dados_de_hhmm)}</b>` : ''}</p>
         </div>
         <select id="cv-lb" class="select" style="padding:5px 10px;font-size:12px" title="Janela de análise de fechamentos/perdas">
@@ -99,7 +99,7 @@ function render() {
       </div>
 
       <div class="tiny muted" style="margin-top:14px">
-        ${_d.model ? escapeHtml(_d.model.nota) : ''} A IA escreve o plano de ataque a partir destes fatos — clique em "Plano de ataque (Opus 4.8)".
+        ${_d.model ? escapeHtml(_d.model.nota) : ''} A IA escreve o plano de ataque a partir destes fatos — clique em "Plano de ataque (IA)" — o nome do modelo que respondeu aparece no resultado.
       </div>
     </div>`;
 
@@ -241,7 +241,7 @@ function corretorCard(c) {
   </div>`;
 }
 
-/* ───────────────────────── IA (Opus 4.8) ───────────────────────── */
+/* ───────────────────────── IA (plano de ataque) ───────────────────────── */
 async function runAI() {
   const box = document.getElementById('cv-ai-box');
   if (_aiBusy) return;
@@ -279,7 +279,7 @@ ${corr || '(todos ok)'}
 
 == MOTIVOS DE PERDA (${loss.total || 0} perdas) ==
 ${lossTxt || '(sem dados)'}`;
-    const j = await api.request('/api/v3/ia/analyze', { method: 'POST', body: { prompt, max_tokens: 3500, dossie: true } });   // cérebro novo (Sonnet 5 + dossiê) v84.4
+    const j = await api.request('/api/v3/ia/analyze', { method: 'POST', body: { prompt, max_tokens: 3500, dossie: true } });   // cérebro oficial (/ia/analyze + dossiê); o modelo real vem em model_used
     if (j.ok && j.text) {
       box.innerHTML = `<div style="background:linear-gradient(180deg,rgba(124,58,237,.06),transparent);border:1px solid var(--accent-ink);border-radius:var(--r-md);padding:14px 16px">
         <div style="font-weight:600;font-size:13px;margin-bottom:8px;color:var(--roxo)">🧠 Plano de ataque <span class="tiny muted" style="font-weight:400">· ${escapeHtml(j.model_used || 'IA')}</span></div>

@@ -1816,7 +1816,7 @@ function produtoEficienciaPanel() {
     </tr>`;
   }).filter(Boolean).join('');
   if (!rows) return '';
-  return crmPanelDark('💎 Eficiência por Produto (Meta × CRM)', '(CPL · CPQL · custo/visita · ROAS por comissão — distribua o orçamento pro produto mais rentável)', `
+  return crmPanelDark('💎 Eficiência por Produto (Meta × CRM)', '(CPL · CPQL · custo/visita · retorno s/ comissão — distribua o orçamento pro produto mais rentável)', `
     <div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:760px">
       <thead><tr style="color:var(--ink-muted);font-size:11px;border-bottom:1px solid var(--border)">
         <th style="text-align:left;padding:6px 10px">Produto</th>
@@ -1827,9 +1827,9 @@ function produtoEficienciaPanel() {
         <th style="text-align:right;padding:6px 8px">Visitas</th>
         <th style="text-align:right;padding:6px 8px" title="Custo por Visita Realizada (CPAR)">Custo/Visita</th>
         <th style="text-align:right;padding:6px 8px">Vendas</th><th style="text-align:right;padding:6px 8px">VGV</th>
-        <th style="text-align:right;padding:6px 8px" title="Retorno: comissão (VGV atribuído a mídia paga × 4%) ÷ investido">ROAS</th>
+        <th style="text-align:right;padding:6px 8px" title="Retorno sobre a comissão: VGV atribuído a mídia paga × 4% ÷ investido. Não é o ROAS oficial (VGV ÷ investido, Dicionário §2).">Retorno s/ comissão</th>
       </tr></thead><tbody>${rows}</tbody></table></div>
-    <div style="font-size:11px;color:var(--ink-muted);margin-top:8px">CPQL usa lead qualificado = lead que foi contatado/avançou no funil. ROAS = VGV <b>atribuído a mídia paga</b> × <b>${pct2(OO_COMISSAO_PCT*100)}</b> de comissão ÷ investido no Meta. Investido por produto = soma das contas Meta da marca.</div>`);
+    <div style="font-size:11px;color:var(--ink-muted);margin-top:8px">CPQL usa lead qualificado = lead que foi contatado/avançou no funil. Retorno s/ comissão = VGV <b>atribuído a mídia paga</b> × <b>${pct2(OO_COMISSAO_PCT*100)}</b> de comissão ÷ investido no Meta. Investido por produto = soma das contas Meta da marca.</div>`);
 }
 
 // ─── Ciclo de vendas por formato de criativo (#5 — Lead Ads × CRM) ───────────

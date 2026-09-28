@@ -51,6 +51,8 @@ Origem nova que aparecer no RD e não estiver nesta tabela cai em `nao_classific
 - **Prospecção** (v88.34, Paulo 23/09/2026: "prospecção é a soma de todos") = mesmo número que **Interessados novos**: tudo que entrou no período (aberto, ganho ou perdido), somando todas as origens. É a visão padrão do quadro de origens ("Entraram no período"); "Em andamento agora" virou a segunda visão. Não existe categoria "Ativo" separada: Ativo de rua e Plantão seguem em `carteira`. Campos: `por_origem`, `interessados`, `entradas_sem_origem`. No total da empresa, `por_origem` inclui os negócios sem corretor no House e de quem saiu, então a soma das origens bate com `interessados`. O aviso de sem origem mostra o % do total e o nome de quem precisa preencher.
 - **Uma regra só de origem** (v88.33c): a aba Funil → Fontes & Funil, o histórico mês a mês e o CAC da Gestão Comercial (`api/v3/oo/comercial.py`) usam estas mesmas categorias (`origem_categoria`). A regra antiga por palavra-chave (`channel` em `_oo_lib.py`) não vale mais ali. **Venda de origem paga** (CAC mídia) = só `trafego_pago_psm`.
 - **Perdidos** = `win = false` com `closed_at` no período.
+- **ROAS** (v88.82, decisão do Paulo 28/09/2026: "mantenha sobre VGV") = **VGV das vendas de origem paga (`trafego_pago_psm`) ÷ investimento em mídia** no mesmo período. É a ÚNICA conta que pode se chamar "ROAS" no sistema. O retorno calculado sobre a comissão (VGV pago × % de comissão ÷ investido) continua existindo na Eficiência por Produto do Marketing, mas com o nome **"Retorno s/ comissão"** — nunca "ROAS".
+- **CAC de mídia** = investimento em mídia ÷ nº de vendas de origem paga (`trafego_pago_psm`) no período.
 
 ## 3. Dono do negócio
 

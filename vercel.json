@@ -338,6 +338,9 @@
     },
     "api/v3/marketing/estudio.py": {
       "maxDuration": 240
+    },
+    "api/v3/intel/war_briefing.py": {
+      "maxDuration": 120
     }
   }
 }

@@ -1,16 +1,17 @@
-/* PSM-OS v2 — 🔍 Centro de Inteligência (v77.34, reconstruído).
-   ANTES: KPIs de "anúncios ativos" (0) + tendências manuais (vazias) + banner
-   "IA em breve" (vaporware). Ignorava os seguidores reais dos 46 concorrentes.
-   AGORA: consolida 3 fontes REAIS — (1) landscape de concorrência por seguidores/
-   tier/segmento; (2) seu tráfego Meta (invest/CPL/leads); (3) TENDÊNCIAS AUTOMÁTICAS
-   calculadas do seu histórico Meta (CPL/investimento/leads mês a mês) + as manuais. */
+/* PSM-OS v2 — 🏙 Mercado · Visão geral (v88.82, ex-Landscape do Centro de Inteligência)
+   Consolida o que é REAL e automático:
+     (1) o que o Vigia leu da concorrência (análise diária por IA — gestor_vigia);
+     (2) volume de anúncios do mercado (coleta diária da Biblioteca do Meta — ad_library);
+     (3) seu tráfego Meta e a tendência mês × mês (marketing/history);
+     (4) os maiores players da base única (concorrentes).
+   A lista manual de Tendências (0 registros em 4 meses) foi aposentada. Só sócio (hub). */
 import { api } from '../api.js';
-import { auth } from '../auth.js';
 
 let _root = null;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const f$ = n => 'R$ ' + (Number(+n || 0) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fNum = n => (+n || 0).toLocaleString('pt-BR');
+const fDT = s => { try { return new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch { return ''; } };
 function parseFollowers(v) {
   if (v == null) return 0; if (typeof v === 'number') return v;
   const s = String(v).toLowerCase().replace(/\./g, '').replace(',', '.'); const m = parseFloat(s);
@@ -20,128 +21,113 @@ function parseFollowers(v) {
 
 export async function pageIntelDash(ctx, root) {
   _root = root;
-  if ((auth.user()?.lvl || 0) < 7) { root.innerHTML = '<div class="alert alert-warn">🔒 Requer Sócio (lvl 7+).</div>'; return; }
-  render();
-  const [conc, hist, tend] = await Promise.all([
+  root.innerHTML = `<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Consolidando concorrência, anúncios e seu tráfego…</div></div>`;
+  const [conc, hist, lib, vigia] = await Promise.all([
     api.request('/api/v3/concorrentes/list').catch(() => ({ concorrentes: [] })),
     api.request('/api/v3/marketing/history').catch(() => ({ meses: [] })),
-    api.request('/api/v3/tendencias/list').catch(() => ({ tendencias: [] })),
+    api.request('/api/v3/marketing/ad_library').catch(() => ({})),
+    api.request('/api/v3/marketing/gestor_vigia').catch(() => ({})),
   ]);
   renderContent(
     (conc.concorrentes || []).map(c => ({ ...c, _f: parseFollowers(c.seguidores) })),
     (hist && (hist.meses || hist.history)) || [],
-    tend.tendencias || []
+    lib || {},
+    vigia || {}
   );
 }
 
-function render() {
-  _root.innerHTML = `
-    <div class="card" style="background:var(--surface-2);color:#e2e8f0;padding:24px;min-height:80vh">
-      <div class="flex" style="align-items:center;gap:14px;margin-bottom:20px">
-        <span style="font-size:36px">🔍</span>
-        <div>
-          <h2 style="margin:0;color:#fff;font-size:26px">Centro de Inteligência</h2>
-          <p style="margin:4px 0 0;color:var(--ink-muted);font-size:13px">Concorrência + seu tráfego + tendências calculadas dos seus dados</p>
-        </div>
-      </div>
-      <div id="id-body"><div class="muted tiny" style="color:var(--ink-muted)"><span class="spinner"></span> Consolidando dados reais…</div></div>
-    </div>`;
-}
-
-// Tendências AUTOMÁTICAS: compara o último mês com dado vs o anterior (Meta history).
+// Tendências AUTOMÁTICAS: último mês com gasto vs o anterior (Meta history).
 function autoTrends(meses) {
   const com = (meses || []).filter(m => (+m.spend || 0) > 0);
   if (com.length < 2) return [];
   const ult = com[com.length - 1], pre = com[com.length - 2];
-  const out = [];
   const mk = (titulo, atual, anterior, inverso) => {
     if (!anterior) return null;
     const d = (atual - anterior) / anterior * 100;
-    if (Math.abs(d) < 3) return { titulo, direcao: 'estavel', impacto: 'baixo', delta: d, txt: 'estável vs mês anterior' };
+    if (Math.abs(d) < 3) return { titulo, direcao: 'estavel', txt: 'estável vs mês anterior' };
     const subindo = d > 0;
-    // inverso=true → subir é RUIM (ex.: CPL). impacto alto se |d|>20%.
-    const ruim = inverso ? subindo : !subindo;
-    return { titulo, direcao: subindo ? 'alta' : 'baixa', impacto: Math.abs(d) > 20 ? 'alto' : 'medio',
-             delta: d, ruim, txt: `${subindo ? '+' : ''}${d.toFixed(0)}% vs mês anterior` };
+    return { titulo, direcao: subindo ? 'alta' : 'baixa', ruim: inverso ? subindo : !subindo,
+             txt: `${subindo ? '+' : ''}${d.toFixed(0)}% vs mês anterior` };
   };
   const cplU = +ult.cpl || (ult.leads ? ult.spend / ult.leads : 0);
   const cplP = +pre.cpl || (pre.leads ? pre.spend / pre.leads : 0);
-  [mk('CPL (custo por lead)', cplU, cplP, true),
-   mk('Investimento em tráfego', +ult.spend, +pre.spend, false),
-   mk('Volume de leads', +ult.leads, +pre.leads, false)].forEach(t => t && out.push(t));
-  return out;
+  return [mk('CPL (custo por lead)', cplU, cplP, true),
+          mk('Investimento em tráfego', +ult.spend, +pre.spend, false),
+          mk('Volume de leads', +ult.leads, +pre.leads, false)].filter(Boolean);
 }
 
-function renderContent(concorrentes, meses, tendManual) {
-  const body = document.getElementById('id-body');
-  const totalConc = concorrentes.length;
+function renderContent(concorrentes, meses, lib, vigia) {
   const tierA = concorrentes.filter(c => (c.tier || '').toUpperCase() === 'A').length;
-  const somaFollow = concorrentes.reduce((s, c) => s + c._f, 0);
   const top5 = [...concorrentes].sort((a, b) => b._f - a._f).slice(0, 5);
-
   const com = meses.filter(m => (+m.spend || 0) > 0);
   const ult = com[com.length - 1];
   const cpl = ult ? (+ult.cpl || (ult.leads ? ult.spend / ult.leads : 0)) : 0;
   const trends = autoTrends(meses);
+  const insights = (vigia.insights || []).slice(0, 4);
+  const ultimaColeta = (lib.latest || []).reduce((m, s) => (s.captured_at > m ? s.captured_at : m), '');
 
   const corDir = t => t.direcao === 'estavel' ? 'var(--ink-muted)' : (t.ruim ? 'var(--err)' : 'var(--ok)');
   const icoDir = t => t.direcao === 'alta' ? '📈' : t.direcao === 'baixa' ? '📉' : '➡️';
+  const box = 'background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px';
 
-  body.innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:22px">
-      ${card('🎯 Concorrentes', totalConc, '#806d50')}
-      ${card('🏆 Tier A', tierA, 'var(--warn)')}
-      ${card('👥 Alcance somado', fNum(somaFollow), 'var(--accent-ink)')}
-      ${card('💰 Seu invest/mês', ult ? f$(ult.spend) : '—', 'var(--ok)')}
-      ${card('📉 Seu CPL', ult ? f$(cpl) : '—', 'var(--ok)')}
-      ${card('🎯 Seus leads/mês', ult ? fNum(ult.leads) : '—', '#806d50')}
-    </div>
+  _root.innerHTML = `
+    <div class="card">
+      <h2 class="card-title">🔍 Visão geral do mercado</h2>
+      <p class="card-sub">O que o Vigia leu da concorrência, o volume de anúncios do mercado e o seu tráfego — tudo coletado automaticamente.</p>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
-      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px">
-        <h3 style="color:#fff;margin:0 0 6px;font-size:14px">📊 Tendências dos seus dados (Meta)</h3>
-        <div class="tiny" style="color:var(--ink-muted);margin-bottom:10px">Calculadas automaticamente — último mês vs anterior.</div>
-        ${trends.length === 0 ? '<div class="muted tiny" style="color:var(--ink-muted)">Preciso de ≥2 meses de Meta Ads pra calcular tendência. Abra Histórico Meta e atualize.</div>' :
-          trends.map(t => `
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border)">
-              <span style="color:#fff;font-weight:600;font-size:13px">${icoDir(t)} ${esc(t.titulo)}</span>
-              <span style="color:${corDir(t)};font-weight:600;font-size:13px">${esc(t.txt)}</span>
-            </div>`).join('')}
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px">
+        ${card('Concorrentes', fNum(concorrentes.length), `${tierA} no Tier A`)}
+        ${card('Anúncios ativos (mercado)', fNum(lib.total_ads || 0), `${fNum(lib.total_concorrentes || 0)} anunciantes${ultimaColeta ? ' · coleta ' + fDT(ultimaColeta) : ''}`)}
+        ${card('Seu investimento/mês', ult ? f$(ult.spend) : '—', 'Meta Ads, último mês')}
+        ${card('Seu CPL', ult ? f$(cpl) : '—', ult ? fNum(ult.leads) + ' leads no mês' : '')}
       </div>
 
-      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px">
-        <h3 style="color:#fff;margin:0 0 12px;font-size:14px">🥊 Maiores players (seguidores)</h3>
-        ${top5.length === 0 ? '<div class="muted tiny">Sem dados.</div>' :
-          top5.map((c, i) => `
-            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
-              <span style="color:#fff;font-weight:600;font-size:13px">${i + 1}. ${esc(c.nome)}<span style="color:var(--ink-muted);font-size:11px"> · ${esc(c.tier || '—')}</span></span>
-              <span style="color:var(--lilas);font-weight:600;font-size:13px">${c._f ? fNum(c._f) : '—'}</span>
-            </div>`).join('')}
-        <div class="mt-3 flex gap-2" style="flex-wrap:wrap">
-          <button class="btn btn-ghost btn-sm" onclick="location.hash='/intel-ads'">🎯 Guerra de Tráfego</button>
-          <button class="btn btn-ghost btn-sm" onclick="location.hash='/concorrencia'">🥊 Radar</button>
-          <button class="btn btn-ghost btn-sm" onclick="location.hash='/benchmark'">📊 Benchmark</button>
+      <div style="${box};margin-top:14px">
+        <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:6px">
+          <h3 class="card-title" style="font-size:14px;margin:0">🕵️ Últimos movimentos da concorrência</h3>
+          <span class="tiny muted">Vigia${vigia.last_run && vigia.last_run.ts ? ' · última leitura ' + fDT(vigia.last_run.ts) : ''}</span>
+          <button class="btn btn-ghost btn-sm" data-go="ads" style="margin-left:auto">Ver anúncios →</button>
+        </div>
+        ${insights.length ? insights.map(i => `
+          <div style="padding:10px 0;border-top:1px solid var(--border)">
+            <div class="flex items-center gap-2"><b style="font-size:13px">${esc(i.titulo)}</b><span class="tiny muted" style="margin-left:auto">${fDT(i.ts)}</span></div>
+            ${i.insight ? `<div style="font-size:13px;line-height:1.5;margin-top:3px">${esc(i.insight)}</div>` : ''}
+            ${(i.acoes || []).length ? `<ul style="margin:6px 0 0;padding-left:18px;font-size:12px;line-height:1.5">${i.acoes.map(a => `<li>${esc(a)}</li>`).join('')}</ul>` : ''}
+          </div>`).join('')
+          : '<div class="tiny muted">O Vigia ainda não publicou leituras.</div>'}
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-top:14px">
+        <div style="${box}">
+          <h3 class="card-title" style="font-size:14px;margin:0 0 4px">📊 Seu tráfego mês a mês</h3>
+          <div class="tiny muted" style="margin-bottom:8px">Calculado do histórico do Meta — último mês vs anterior.</div>
+          ${trends.length === 0 ? '<div class="tiny muted">São precisos 2 meses de Meta Ads com gasto para comparar.</div>' :
+            trends.map(t => `
+              <div class="flex" style="justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--border)">
+                <span style="font-weight:600;font-size:13px">${icoDir(t)} ${esc(t.titulo)}</span>
+                <span style="color:${corDir(t)};font-weight:600;font-size:13px">${esc(t.txt)}</span>
+              </div>`).join('')}
+        </div>
+        <div style="${box}">
+          <div class="flex items-center" style="margin-bottom:8px">
+            <h3 class="card-title" style="font-size:14px;margin:0">🥊 Maiores players (seguidores)</h3>
+            <button class="btn btn-ghost btn-sm" data-go="radar" style="margin-left:auto">Radar →</button>
+          </div>
+          ${top5.length === 0 ? '<div class="tiny muted">Sem concorrentes na base.</div>' :
+            top5.map((c, i) => `
+              <div class="flex" style="justify-content:space-between;padding:7px 0;border-top:1px solid var(--border)">
+                <span style="font-weight:600;font-size:13px">${i + 1}. ${esc(c.nome)}<span class="tiny muted"> · Tier ${esc(c.tier || '—')}${c.anuncios_count ? ' · ' + fNum(c.anuncios_count) + ' anúncios' : ''}</span></span>
+                <span style="font-weight:600;font-size:13px">${c._f ? fNum(c._f) : '—'}</span>
+              </div>`).join('')}
         </div>
       </div>
-    </div>
-
-    <div class="mt-4" style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px">
-      <div class="flex" style="justify-content:space-between;align-items:center;margin-bottom:10px">
-        <h3 style="color:#fff;margin:0;font-size:14px">📝 Tendências de mercado (anotadas pela equipe)</h3>
-        <button class="btn btn-ghost btn-sm" onclick="location.hash='/tendencias'">+ Gerenciar</button>
-      </div>
-      ${tendManual.length === 0
-        ? '<div class="muted tiny" style="color:var(--ink-muted)">Nenhuma anotada ainda. Use a tela Tendências pra registrar movimentos do mercado (juros, lançamentos, comportamento) que a IA e a diretoria devem acompanhar.</div>'
-        : `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px">` + tendManual.slice(0, 8).map(t => `
-            <div style="padding:10px;background:var(--surface-2);border-left:3px solid ${t.impacto === 'alto' ? 'var(--err)' : t.impacto === 'medio' ? 'var(--warn)' : 'var(--border-strong)'};border-radius:var(--radius-sm)">
-              <div style="color:#fff;font-weight:600;font-size:13px">${t.direcao === 'alta' ? '📈' : t.direcao === 'baixa' ? '📉' : '➡️'} ${esc(t.titulo)}</div>
-              <div style="color:var(--ink-muted);font-size:11px;margin-top:2px">${esc(t.categoria || '—')}${t.descricao ? ' · ' + esc(String(t.descricao).slice(0, 70)) : ''}</div>
-            </div>`).join('') + `</div>`}
     </div>`;
+  _root.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => { location.hash = '#/concorrencia?tab=' + b.dataset.go; }));
 }
 
-function card(label, value, color) {
-  return `<div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:16px;border-left:4px solid ${color}">
-    <div style="color:var(--ink-muted);font-size:11px;text-transform:uppercase;font-weight:600;margin-bottom:6px">${label}</div>
-    <div style="color:${color};font-size:26px;font-weight:600">${value}</div></div>`;
+function card(label, value, sub) {
+  return `<div style="background:var(--bg-3);border-radius:var(--r-md);padding:12px 14px">
+    <div class="tiny muted" style="font-weight:600">${label}</div>
+    <div style="font-size:22px;font-weight:600;margin-top:2px">${value}</div>
+    ${sub ? `<div class="tiny muted">${sub}</div>` : ''}</div>`;
 }

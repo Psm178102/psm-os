@@ -24,16 +24,16 @@ async function reload() {
 
 function renderList(r) {
   _detail = null;
-  const tip = '📚 Abra a Biblioteca de Anúncios do Meta (facebook.com/ads/library), filtre o concorrente, copie os anúncios e cole aqui pra a IA analisar. Faça de tempos em tempos pra acompanhar a evolução.';
+  const tip = '🕵️ O Vigia coleta os anúncios dos concorrentes na Biblioteca do Meta todo dia e a IA analisa cada um. Use "+ Snapshot manual" só para um concorrente que o Vigia não pegou.';
   _root.innerHTML = `
     <div class="card">
       <div class="flex items-center gap-2" style="flex-wrap:wrap">
         <div style="flex:1;min-width:240px">
-          <h2 class="card-title">📚 Biblioteca de Anúncios · Concorrentes</h2>
-          <p class="card-sub">${(r.total_concorrentes||0)} concorrentes monitorados · ${(r.total_ads||0)} anúncios ativos somados · análise por IA.</p>
+          <h2 class="card-title">📡 Anúncios dos concorrentes</h2>
+          <p class="card-sub">${(r.total_concorrentes||0)} concorrentes · ${(r.total_ads||0)} anúncios ativos somados · <b>coleta automática diária do Vigia</b> com análise da IA.</p>
         </div>
         <a class="btn btn-ghost" href="https://www.facebook.com/ads/library/" target="_blank" rel="noopener">🔎 Abrir Biblioteca do Meta</a>
-        <button class="btn btn-primary" id="bl-new">+ Novo snapshot</button>
+        <button class="btn btn-ghost" id="bl-new">+ Snapshot manual</button>
       </div>
       ${_pending ? `<div class="alert alert-warn mt-3">⏳ Tabela ainda não criada — rode <code>supabase/sprint9_19_ad_library.sql</code> no Supabase pra ativar.</div>` : ''}
       ${(!_latest.length && !_pending) ? `<div class="muted" style="padding:20px;text-align:center">Nenhum snapshot ainda. <br><span class="tiny">${tip}</span></div>` : ''}
@@ -59,7 +59,7 @@ function card(s) {
     ${s.segmento ? `<div class="tiny muted">🏷 ${escapeHtml(s.segmento)}</div>` : ''}
     <div class="flex items-center gap-2" style="margin-top:6px;flex-wrap:wrap">
       <span style="font-size:11px;font-weight:600;color:${inv[0]}">💸 ${inv[1]}</span>
-      <span class="tiny muted" style="margin-left:auto">${fmtD(s.captured_at)}</span>
+      <span class="tiny muted" style="margin-left:auto">${fmtD(s.captured_at)}${s.criado_por === 'vigia-coletor' ? ' · 🕵️ Vigia' : ''}</span>
     </div>
     ${s.ai_analysis ? '<div class="tiny" style="margin-top:6px;color:var(--roxo);font-weight:600">🧠 análise IA disponível</div>' : ''}
   </div>`;

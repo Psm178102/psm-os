@@ -10,7 +10,7 @@ from http.server import BaseHTTPRequestHandler
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, audit, notify_all, lvl_of  # type: ignore
@@ -42,6 +42,21 @@ class handler(BaseHTTPRequestHandler):
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "Supabase indisponível"})
+        # v88.82: 1 briefing automático por semana. Heartbeat + cron do Vercel chamavam os dois e
+        # saíam 2-3 briefings na mesma semana (e o de domingo 21h zerava as ordens). Semana = a partir
+        # de segunda 10h UTC (07h BRT). ?force=1 gera mesmo assim.
+        if "force=1" not in (self.path or ""):
+            agora = datetime.now(timezone.utc)
+            ancora = (agora - timedelta(days=agora.weekday())).replace(hour=10, minute=0, second=0, microsecond=0)
+            if agora < ancora:
+                ancora -= timedelta(days=7)
+            try:
+                ja = (sb.table("war_briefings").select("id").is_("criado_por", "null")
+                      .gte("created_at", ancora.isoformat()).limit(1).execute().data or [])
+            except Exception:
+                ja = []
+            if ja:
+                return self._send(200, {"ok": True, "skipped": "briefing desta semana já saiu", "desde": ancora.isoformat()})
         try:
             out = generate_and_store(sb, actor_id=None)
         except Exception as e:
@@ -53,11 +68,11 @@ class handler(BaseHTTPRequestHandler):
             users = sb.table("users").select("id,role,status").execute().data or []
             alvo = [u.get("id") for u in users
                     if u.get("id") and (u.get("status") or "ativo") == "ativo"
-                    and lvl_of(u.get("role")) >= 7]
+                    and lvl_of(u.get("role")) >= 10]   # v88.82: seção Inteligência = só sócio
             if alvo:
                 notified = notify_all(alvo, "briefing",
-                                      "⚔️ Briefing de Guerra da semana",
-                                      "O boletim do comandante desta semana está pronto.",
+                                      "📋 Briefing da semana",
+                                      "O briefing e as ordens da semana estão prontos. Assuma ou delegue cada ordem.",
                                       link="#/briefing-guerra",
                                       target_type="war_briefing")
         except Exception as e:
