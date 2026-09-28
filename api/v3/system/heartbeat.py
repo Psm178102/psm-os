@@ -73,6 +73,9 @@ JOBS = [
     # 🔔 paridade Meta×RD (v87.53): leads do Meta hoje vs entradas no RD com fonte
     # de mídia paga — se o RD receber < piso (70%), push nos sócios (1x/dia).
     ("gt_paridade",  "/api/v3/marketing/gestor_paridade?cron=1",            1),
+    # 🤖 motor automático do Sr. Tráfego (v88.87): ciclos às 10h/13h/16h/20h BRT pelo cron da Vercel;
+    # aqui é só a rede de segurança — o endpoint roda apenas se um horário venceu e não rodou.
+    ("gt_auto",      "/api/v3/marketing/gestor_auto?cron=1",                1),
     # 🔎 teste noturno dos números entre telas (v88.0): o endpoint só roda a partir das 20h BRT (ou recupera a
     # noite anterior de manhã) e deduplica por dia — de hora em hora aqui é só a rede de segurança do cron.
     ("consistencia", "/api/v3/system/consistency?cron=1",                   1),

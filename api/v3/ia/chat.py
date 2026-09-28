@@ -733,6 +733,33 @@ def _gestor_context(sb):
         "número que justifica) · 🙋 Precisa de você. Sem saudação, sem introdução, sem parágrafo longo. Pergunta "
         "simples = resposta simples em até 5 linhas.")
 
+    # 1e) v88.87 — orçamento do mês (Paulo define mês a mês) + política de autonomia + o que o
+    # motor automático fez hoje. Sem isso o chat recomendaria verba sem saber o teto.
+    try:
+        from datetime import datetime as _dt, timedelta as _td, timezone as _tzz
+        mes_k = (_dt.now(_tzz.utc) - _td(hours=3)).strftime("%Y-%m")
+        orc = ((cfg or {}).get("orcamentos") or {}).get(mes_k) if isinstance(cfg, dict) else None
+        aut = (cfg or {}).get("autonomia") or {} if isinstance(cfg, dict) else {}
+        auto = _kv("gt_auto")
+        linhas = ["ORÇAMENTO DO MÊS %s (teto definido pelo sócio — NUNCA ultrapasse): %s" % (
+            mes_k, ("Conquista R$ %s · Imóveis R$ %s" % (orc.get("conquista", "—"), orc.get("imoveis", "—"))) if orc
+            else "NÃO DEFINIDO — peça ao sócio antes de propor verba")]
+        linhas.append("AUTONOMIA: %s. Você PODE sozinho: pausar, reativar, ajustar e remanejar verba dentro do "
+                      "orçamento; criar público; trocar copy/criativo (do banco aprovado); criar campanha dentro do "
+                      "limite (dia %s / semana %s / mês %s). Só o sócio: aumentar o orçamento total. NUNCA: Advantage, "
+                      "tirar exclusão de corretores, excluir campanha, pagamento, conta pessoal." % (
+                          "LIGADO" if aut.get("ativo") else "MODO SOMBRA (só mostra o que faria)",
+                          (aut.get("campanhas_limite") or {}).get("dia", 1), (aut.get("campanhas_limite") or {}).get("semana", 3),
+                          (aut.get("campanhas_limite") or {}).get("mes", 6)))
+        feitas = ((auto.get("hoje") or {}).get("acoes") or []) if isinstance(auto, dict) else []
+        if feitas:
+            linhas.append("AÇÕES AUTOMÁTICAS DE HOJE: " + "; ".join(
+                "%s %s %s (%s)" % (a.get("estado"), a.get("op"), str(a.get("nome") or "")[:40], str(a.get("motivo") or "")[:80])
+                for a in feitas[:6]))
+        parts.append("\n".join(linhas))
+    except Exception:
+        pass
+
     # 1b) União Vigia+Gestor: últimos achados do Vigia de Concorrência
     vg = _kv("gt_vigia")
     if isinstance(vg, dict):

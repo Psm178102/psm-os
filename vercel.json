@@ -155,6 +155,10 @@
     {
       "path": "/api/v3/wa/roleta?cron=1",
       "schedule": "*/10 11-23 * * *"
+    },
+    {
+      "path": "/api/v3/marketing/gestor_auto?cron=1",
+      "schedule": "0 13,16,19,23 * * *"
     }
   ],
   "rewrites": [
@@ -347,6 +351,9 @@
     },
     "api/v3/ia/analyze.py": {
       "maxDuration": 120
+    },
+    "api/v3/marketing/gestor_auto.py": {
+      "maxDuration": 90
     }
   }
 }

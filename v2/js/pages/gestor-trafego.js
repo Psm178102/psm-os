@@ -203,8 +203,27 @@ function tresBlocos() {
       <span>${o?.leads ?? 0} leads</span>
       <span>CPL <b>${o?.cpl != null ? brl(o.cpl) : '—'}</b></span>
       <span style="color:${cor};font-weight:600">${fora != null ? Math.round(fora) + '% fora do 17' : 'DDD sem dado'}</span>
+      <span class="tiny" style="flex-basis:100%;color:var(--muted)">${o?.orcamento_mes
+        ? `Mês: ${brl(o.gasto_mes || 0)} de ${brl(o.orcamento_mes)} (${Math.round((o.gasto_mes || 0) / o.orcamento_mes * 100)}%)`
+        : 'Mês: orçamento não definido'}</span>
     </div>`;
   };
+  const au = _painel.auto || {};
+  const acoesHoje = (au.hoje?.acoes || []).slice(0, 6);
+  const estAuto = { executada: '✅ feito', sombra: '🌙 eu faria', falhou: '⛔ o Meta recusou', desfeita: '↩️ desfeito', limite_dia: '⏸ limite do dia' };
+  const blocoAuto = `<div style="border:1px solid var(--bd);border-radius:10px;padding:10px 12px;margin-bottom:10px;background:var(--bg-2)">
+      <div class="flex" style="justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+        <b>🤖 Automático: ${au.ativo ? '<span style="color:var(--ok, #22c55e)">LIGADO</span>' : '<span style="color:var(--warn)">MODO SOMBRA</span>'}</b>
+        ${socio ? '<button class="btn btn-ghost btn-sm" id="gt-auto-rodar">Rodar agora</button>' : ''}
+      </div>
+      <div class="tiny muted">${au.ativo ? 'Age sozinho dentro do orçamento do mês e te avisa.' : 'Calcula e mostra o que faria, sem executar. Liga no Cérebro.'}
+        ${au.ultimo_ciclo ? ` Último ciclo: ${esc(String(au.ultimo_ciclo.ts || '').slice(11, 16))}.` : ' Ainda não rodou.'}</div>
+      ${acoesHoje.length ? acoesHoje.map(a => `<div class="tiny" style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--bd)">
+          ${estAuto[a.estado] || esc(a.estado)} · <b>${a.op === 'pause' ? '⏸ pausar' : a.op === 'resume' ? '▶️ reativar' : `💰 ${brl(a.antes)} → ${brl(a.depois)}/dia`}</b> · ${esc(String(a.nome || '').slice(0, 50))}
+          <div class="muted">${esc(a.motivo || '')}</div>
+          ${socio && a.estado === 'executada' ? `<button class="btn btn-ghost btn-sm" data-desfazer="${a.id}" style="margin-top:4px">↩️ Desfazer</button>` : ''}
+        </div>`).join('') : ''}
+    </div>`;
   const opLbl = { pause: '⏸ Pausar', resume: '▶️ Reativar', budget: '💰 Ajustar verba', revisar: '🔧 Revisar' };
   const estLbl = { executada: '✅ executada', bloqueada: '⛔ bloqueada', recusada: '✖ recusada', aprovada_manual: '✅ aprovada (fazer à mão)' };
   return `
@@ -227,6 +246,7 @@ function tresBlocos() {
     </div>
     <div class="gt-card">
       <h3>✅ Recomendo</h3>
+      ${blocoAuto}
       ${recs.length ? recs.map(r => `<div class="gt-rec">
           <div><b>${opLbl[r.op] || r.op}</b> · ${esc(r.campanha || '—')}${r.op === 'budget' && r.orcamento_brl ? ` → <b>${brl(r.orcamento_brl)}/dia</b>` : ''}</div>
           <div class="mot">${esc(r.motivo || '')}${r.numero ? ` · <b>${esc(r.numero)}</b>` : ''}</div>
@@ -264,6 +284,23 @@ function qualidadeTabela() {
 }
 
 function ligaTresBlocos(body) {
+  body.querySelector('#gt-auto-rodar')?.addEventListener('click', async e => {
+    e.target.disabled = true; e.target.textContent = 'rodando…';
+    try {
+      const r = await api.request('/api/v3/marketing/gestor_auto', { method: 'POST', body: { action: 'rodar' } });
+      const n = (r && r.acoes || []).length;
+      alert(n ? `${r.resumo.modo === 'ligado' ? 'Executei' : 'Em modo sombra, eu faria'} ${n} ação(ões). Veja no bloco Automático.` : 'Nada a fazer agora: tudo dentro da régua e do orçamento.');
+    } catch (err) { alert('Falhou: ' + (err.message || err)); }
+    await load();
+  });
+  body.querySelectorAll('[data-desfazer]').forEach(b => b.addEventListener('click', async () => {
+    if (!confirm('Desfazer esta ação no Meta agora?')) return;
+    b.disabled = true;
+    try {
+      await api.request('/api/v3/marketing/gestor_auto', { method: 'POST', body: { action: 'desfazer', id: b.dataset.desfazer } });
+    } catch (err) { alert('Não consegui desfazer: ' + (err.message || err)); }
+    await load();
+  }));
   body.querySelectorAll('[data-ir-tab]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); _tab = a.dataset.irTab; render(); }));
   body.querySelectorAll('[data-rec]').forEach(b => b.addEventListener('click', async () => {
     const dec = b.dataset.dec;
@@ -1000,6 +1037,45 @@ async function renderRelatorios(body) {
 }
 
 /* ───────────────────────── 🧠 Cérebro ───────────────────────── */
+/* v88.87 — orçamento mês a mês (o Paulo define) + política de autonomia do agente. */
+function cerebroOrcamentoAutonomia(cfg, dis) {
+  const hoje = new Date();
+  const mes = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
+  const orc = (cfg.orcamentos || {})[mes] || {};
+  const anteriores = Object.entries(cfg.orcamentos || {}).filter(([m]) => m !== mes).sort().reverse().slice(0, 3);
+  const a = cfg.autonomia || {};
+  const v = (g, m, d) => (a[g] && a[g][m] != null) ? a[g][m] : d;
+  const lim = a.campanhas_limite || {};
+  const inp = (id, val, w = 90) => `<input id="${id}" class="input" type="number" min="0" value="${val}" ${dis} style="width:${w}px">`;
+  return `<div style="display:grid;grid-template-columns:1fr 1.4fr;gap:14px;margin-bottom:14px" class="gt-grid">
+    <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:14px;border-left:4px solid var(--warn)">
+      <div style="font-weight:600">💰 Orçamento do mês — ${mes.slice(5)}/${mes.slice(0, 4)}</div>
+      <div class="tiny muted" style="margin-bottom:8px">Você define mês a mês. O agente divide pelos dias que faltam e <b>nunca passa do total</b>. Sem orçamento, ele não mexe em verba sozinho.</div>
+      <input type="hidden" id="cb-orc-mes" value="${mes}">
+      <label class="tiny">🏠 PSM Conquista (R$/mês)<br>${inp('cb-orc-conq', orc.conquista || '', 140)}</label><br>
+      <label class="tiny">🏢 PSM Imóveis (R$/mês)<br>${inp('cb-orc-imov', orc.imoveis || '', 140)}</label>
+      ${anteriores.length ? `<div class="tiny muted" style="margin-top:8px">Meses anteriores: ${anteriores.map(([m, o]) => `${m.slice(5)}/${m.slice(0, 4)} — Conq. ${brl(o.conquista || 0)} · Imóv. ${brl(o.imoveis || 0)}`).join(' | ')}</div>` : ''}
+    </div>
+    <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:14px">
+      <div style="font-weight:600">🤖 Autonomia do agente</div>
+      <div class="tiny muted" style="margin-bottom:8px">Sozinho: pausar, reativar, ajustar e remanejar verba, sempre dentro do orçamento. Aumentar o orçamento total é só você. Em <b>modo sombra</b> ele só mostra o que faria.</div>
+      <label style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><input type="checkbox" id="cb-auto-ativo" ${a.ativo ? 'checked' : ''} ${dis}> <b>Ligado</b> <span class="tiny muted">(desmarcado = modo sombra)</span></label>
+      <table class="tiny" style="border-collapse:collapse">
+        <tr><td></td><td style="padding:2px 8px"><b>🏠 Conquista</b></td><td style="padding:2px 8px"><b>🏢 Imóveis</b></td></tr>
+        <tr><td>Pausa se gastar no dia sem lead (R$)</td><td style="padding:2px 8px">${inp('cb-auto-q-c', v('queima_sem_lead', 'conquista', 40))}</td><td style="padding:2px 8px">${inp('cb-auto-q-i', v('queima_sem_lead', 'imoveis', 150))}</td></tr>
+        <tr><td>CPL alvo (R$) — reforça quem está abaixo</td><td style="padding:2px 8px">${inp('cb-auto-a-c', v('cpl_alvo', 'conquista', 12))}</td><td style="padding:2px 8px">${inp('cb-auto-a-i', v('cpl_alvo', 'imoveis', 60))}</td></tr>
+        <tr><td>CPL máximo (R$) — corta 20% acima</td><td style="padding:2px 8px">${inp('cb-auto-m-c', v('cpl_max', 'conquista', 18))}</td><td style="padding:2px 8px">${inp('cb-auto-m-i', v('cpl_max', 'imoveis', 110))}</td></tr>
+      </table>
+      <div class="flex tiny" style="gap:14px;flex-wrap:wrap;margin-top:8px">
+        <label>Máx. ações sozinho/dia<br>${inp('cb-auto-max', a.max_acoes_dia ?? 5, 70)}</label>
+        <label>% máx fora do 17 p/ reforçar<br>${inp('cb-auto-fora', a.fora_max_pct ?? 25, 70)}</label>
+        <label>Campanhas novas: dia / semana / mês<br>${inp('cb-auto-cd', lim.dia ?? 1, 50)} ${inp('cb-auto-cs', lim.semana ?? 3, 50)} ${inp('cb-auto-cm', lim.mes ?? 6, 50)}</label>
+      </div>
+      <div class="tiny muted" style="margin-top:6px">Criar campanha sozinho entra na fase 4 (depois de automatizar a combinação do formulário no RD).</div>
+    </div>
+  </div>`;
+}
+
 function renderCerebro(body) {
   if (aguarde(body)) return;
   const cfg = _painel.config || {};
@@ -1022,6 +1098,8 @@ function renderCerebro(body) {
         <textarea id="cb-est-imov" class="input" rows="7" ${dis}>${esc(cfg.estrategia?.imoveis || '')}</textarea>
       </div>
     </div>
+
+    ${cerebroOrcamentoAutonomia(cfg, dis)}
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px" class="gt-grid">
       <div style="background:var(--bg-3);border-radius:var(--radius-md);padding:14px">
@@ -1087,6 +1165,20 @@ function renderCerebro(body) {
       await post('metricas_custom', document.getElementById('cb-metricas').value.split('\n')
         .map(l => l.trim()).filter(Boolean).slice(0, 20)
         .map(l => { const i = l.indexOf(':'); return i > 0 ? { nome: l.slice(0, i).trim(), descricao: l.slice(i + 1).trim() } : { nome: l, descricao: '' }; }));
+      await post('orcamentos', {
+        mes: document.getElementById('cb-orc-mes').value,
+        conquista: parseFloat(document.getElementById('cb-orc-conq').value || '0'),
+        imoveis: parseFloat(document.getElementById('cb-orc-imov').value || '0'),
+      });
+      const nv = id => parseFloat(document.getElementById(id).value || '0');
+      await post('autonomia', {
+        ativo: document.getElementById('cb-auto-ativo').checked,
+        max_acoes_dia: nv('cb-auto-max'), fora_max_pct: nv('cb-auto-fora'),
+        queima_sem_lead: { conquista: nv('cb-auto-q-c'), imoveis: nv('cb-auto-q-i') },
+        cpl_alvo: { conquista: nv('cb-auto-a-c'), imoveis: nv('cb-auto-a-i') },
+        cpl_max: { conquista: nv('cb-auto-m-c'), imoveis: nv('cb-auto-m-i') },
+        campanhas_limite: { dia: nv('cb-auto-cd'), semana: nv('cb-auto-cs'), mes: nv('cb-auto-cm') },
+      });
       await post('guardrails', {
         orcamento_max_brl_dia: parseFloat(document.getElementById('cb-g-orc').value || '500'),
         variacao_max_pct: parseFloat(document.getElementById('cb-g-var').value || '30'),

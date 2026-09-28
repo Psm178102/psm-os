@@ -65,7 +65,8 @@ GUARDRAILS_DEFAULT = {
 }
 
 CONFIG_CHAVES_OK = ("persona_extra", "estrategia", "conhecimento_extra",
-                    "metricas_custom", "guardrails", "metas", "doutrina_competitiva")
+                    "metricas_custom", "guardrails", "metas", "doutrina_competitiva",
+                    "orcamentos", "autonomia")   # v88.87: orçamento mês a mês + política de autonomia
 
 METRICAS_ALERTA = ("cpl", "spend", "leads", "ctr", "frequency", "cpm", "ddd_fora_pct")
 JANELAS_OK = ("last_7d", "last_30d")
@@ -716,6 +717,23 @@ class handler(BaseHTTPRequestHandler):
                     precisa.append({"tipo": "qualidade", "texto": f"{'PSM Conquista' if marca == 'conquista' else 'PSM Imóveis'}: "
                                     f"{o['pct_fora']:.0f}% dos leads fora do DDD 17 (limite {lim_ddd:.0f}%). "
                                     "Revisar localização/raio dos conjuntos."})
+            # v88.87 — orçamento do mês (definido pelo Paulo mês a mês) e motor automático
+            mes_k = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=-3))).strftime("%Y-%m")
+            orc_mes = ((cfg.get("orcamentos") or {}).get(mes_k)) or {}
+            pm, _a, _s = read_cache(sb, build_cache_key("this_month", "", ""), 10 ** 9)
+            gasto_mes = {"conquista": 0.0, "imoveis": 0.0}
+            for a in ((pm or {}).get("accounts") or []) if isinstance(pm, dict) else []:
+                mk = CONTA_MARCA.get(str((a or {}).get("id") or ""))
+                if mk and not a.get("_error"):
+                    gasto_mes[mk] += float(a.get("spend") or 0)
+            for mk in situacao:
+                situacao[mk]["orcamento_mes"] = orc_mes.get(mk)
+                situacao[mk]["gasto_mes"] = round(gasto_mes.get(mk, 0), 2)
+            if not orc_mes:
+                precisa.insert(0, {"tipo": "orcamento", "texto": f"Definir o orçamento de {mes_k[5:]}/{mes_k[:4]} "
+                                   "(Conquista e Imóveis). Sem ele o agente não mexe em verba sozinho.", "ir": "cerebro"})
+            auto_st = kv_get(sb, "gt_auto", {}) or {}
+            auto_cfg = cfg.get("autonomia") or {}
             perm = kv_get(sb, "gt_meta_perm", {}) or {}
             if perm.get("permissoes") and "ads_management" not in perm["permissoes"]:
                 precisa.append({"tipo": "meta", "texto": "O token do House no Meta só LÊ (falta a permissão "
@@ -749,6 +767,9 @@ class handler(BaseHTTPRequestHandler):
                 "recomendacoes": pend[:6],
                 "recomendacoes_recentes": [r for r in recs if r.get("estado") != "pendente"][:6],
                 "precisa_de_voce": precisa,
+                "auto": {"ativo": bool(auto_cfg.get("ativo")), "ultimo_ciclo": auto_st.get("ultimo_ciclo"),
+                         "hoje": auto_st.get("hoje") or {}},
+                "orcamento_mes": {"mes": mes_k, **orc_mes},
                 "qualidade_campanhas": qual_camp[:20],
                 "config": cfg,
                 "guardrails": {**GUARDRAILS_DEFAULT, **(cfg.get("guardrails") or {})},
@@ -885,6 +906,40 @@ class handler(BaseHTTPRequestHandler):
                         return self._send(400, {"ok": False, "error": f"{campo} fora de 0-{teto}"})
                     limpo_m[campo] = v
                 valor = limpo_m
+            elif chave == "orcamentos":
+                # v88.87: o Paulo define o orçamento MÊS A MÊS, por marca. Chega {mes, conquista, imoveis};
+                # guarda mesclando com os meses anteriores (histórico preservado).
+                if not isinstance(valor, dict) or not re.match(r"^20\d\d-(0[1-9]|1[0-2])$", str(valor.get("mes") or "")):
+                    return self._send(400, {"ok": False, "error": "orcamentos = {mes: 'AAAA-MM', conquista, imoveis}"})
+                novo_mes = {}
+                for marca in ("conquista", "imoveis"):
+                    try:
+                        v = float(valor.get(marca) or 0)
+                    except Exception:
+                        return self._send(400, {"ok": False, "error": f"orçamento {marca} precisa ser número"})
+                    if not (0 <= v <= 500000):
+                        return self._send(400, {"ok": False, "error": f"orçamento {marca} fora de 0-500000"})
+                    if v > 0:
+                        novo_mes[marca] = round(v, 2)
+                atual = (kv_get(sb, KV_CONFIG, {}) or {}).get("orcamentos") or {}
+                valor = {**atual, str(valor["mes"]): novo_mes}
+            elif chave == "autonomia":
+                if not isinstance(valor, dict):
+                    return self._send(400, {"ok": False, "error": "autonomia precisa ser objeto"})
+                limpo_a = {"ativo": bool(valor.get("ativo"))}
+                try:
+                    limpo_a["max_acoes_dia"] = max(0, min(20, int(valor.get("max_acoes_dia", 5))))
+                    limpo_a["fora_max_pct"] = max(0.0, min(100.0, float(valor.get("fora_max_pct", 25))))
+                    for grupo in ("queima_sem_lead", "cpl_alvo", "cpl_max"):
+                        g_in = valor.get(grupo) or {}
+                        limpo_a[grupo] = {m: max(0.0, min(5000.0, float(g_in.get(m) or 0)))
+                                          for m in ("conquista", "imoveis") if g_in.get(m) not in (None, "")}
+                    lim = valor.get("campanhas_limite") or {}
+                    limpo_a["campanhas_limite"] = {k: max(0, min(60, int(lim.get(k, d))))
+                                                   for k, d in (("dia", 1), ("semana", 3), ("mes", 6))}
+                except Exception:
+                    return self._send(400, {"ok": False, "error": "valores de autonomia precisam ser números"})
+                valor = limpo_a
             elif chave == "guardrails":
                 if not isinstance(valor, dict):
                     return self._send(400, {"ok": False, "error": "guardrails precisa ser objeto"})
