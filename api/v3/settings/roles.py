@@ -79,6 +79,13 @@ def _write(sb, val):
                                  on_conflict="key").execute()
 
 
+
+def raw_lvl_acima_de_2(raw):
+    try:
+        return raw not in (None, "", "reset") and int(raw) > 2
+    except Exception:
+        return False
+
 class handler(BaseHTTPRequestHandler):
     def _send(self, s, b):
         self.send_response(s); self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -158,6 +165,10 @@ class handler(BaseHTTPRequestHandler):
                 return self._send(400, {"ok": False, "error": "papel fixo desconhecido (custom edita via 'add')"})
             if rid in LOCKED:
                 return self._send(400, {"ok": False, "error": "socio/diretor têm nível travado (proteção anti-lockout)"})
+            if rid.startswith("corretor") and raw_lvl_acima_de_2(body.get("lvl")):
+                # v88.91: corretor fica no nível 2 (só os próprios números) — o que ele
+                # acessa a mais se libera na matriz de menu, não subindo o nível.
+                return self._send(400, {"ok": False, "error": "corretor tem nível travado em 2 (vê só os próprios números). Libere telas pela matriz de menu."})
             ov = _read_lvl_overrides(sb)
             raw = body.get("lvl")
             if raw in (None, "", "reset"):

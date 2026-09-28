@@ -202,8 +202,15 @@ def frente_of(pipeline_name: str) -> str:
 
 def lvl_of(role: str) -> int:
     """Nível do papel. Ordem: override do sócio (shared_kv 'role_lvl_overrides')
-    > ROLE_LVL fixo > papéis CUSTOM ('custom_roles'). Default 2 (corretor). v83.9"""
+    > ROLE_LVL fixo > papéis CUSTOM ('custom_roles'). Default 2 (corretor). v83.9
+    v88.91: papel CORRETOR* é travado no nível 2, com ou sem override. Nível alto
+    (corretor_map estava em 9) fazia o corretor cair na visão global/da equipe
+    (métricas da imobiliária, lista do 1:1, seletor de painel, menu da Arch Leg).
+    Corretor vê SÓ os próprios números — o que ele acessa a mais vem da matriz
+    de menu (role_perms), nunca de nível."""
     r = (role or "").strip().lower()
+    if r.startswith("corretor"):
+        return 2
     ov = _lvl_overrides()
     if r in ov:
         return ov[r]
