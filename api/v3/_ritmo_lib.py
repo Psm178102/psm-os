@@ -177,7 +177,7 @@ def gerar_rotina(sb, cfg, hoje, dry=False):
                                   + (f"\nOnde: {t['link']}" if t.get("link") else "")),
                     "status": "concluida" if feito_kv else "aberta", "prioridade": "media",
                     "categoria": f"Rotina · {un['titulo']}"[:80],
-                    "responsavel": quem[0], "corresponsaveis": quem[1:] or None,
+                    "responsavel": quem[0], "corresponsaveis": quem[1:],   # coluna NOT NULL: lista vazia, nunca None
                     "criado_por": "sistema", "criado_em": int(datetime.now(timezone.utc).timestamp() * 1000),
                     "inicio": hoje.isoformat(), "prazo": prazo_do_periodo(t["cad"], hoje).isoformat(),
                     "historico": [{"ts": datetime.now(timezone.utc).isoformat(), "actor_id": "sistema",
