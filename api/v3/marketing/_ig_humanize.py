@@ -125,11 +125,16 @@ def brand_checks(text, lex=None):
     lex = lex or load_lexicon()
     text = nfc(text)
     hits = []
+    # Fala de CLIENTE entre aspas ("Posso usar meu FGTS?") não é a Sol contando a própria vida:
+    # regras marcadas com ignora_citacao pulam o que está dentro de aspas (Paulo, 27/09/2026).
+    citacoes = [(q.start(), q.end()) for q in re.finditer(r'"[^"\n]{1,300}"|“[^”\n]{1,300}”', text)]
     for m in lex.get("marca", []):
         pat = re.compile(m["regex"])
         near = re.compile(m["salvo_perto"]) if m.get("salvo_perto") else None
         found = []
         for mt in pat.finditer(text):
+            if m.get("ignora_citacao") and any(a <= mt.start() and mt.end() <= b for a, b in citacoes):
+                continue
             if near:
                 # Texto curto (legenda): o disclaimer vale se estiver em qualquer lugar.
                 if len(text) <= SHORT_TEXT and m["id"] == "disclaimer":
