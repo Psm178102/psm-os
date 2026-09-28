@@ -713,6 +713,11 @@ class handler(BaseHTTPRequestHandler):
                     precisa.append({"tipo": "qualidade", "texto": f"{'PSM Conquista' if marca == 'conquista' else 'PSM Imóveis'}: "
                                     f"{o['pct_fora']:.0f}% dos leads fora do DDD 17 (limite {lim_ddd:.0f}%). "
                                     "Revisar localização/raio dos conjuntos."})
+            perm = kv_get(sb, "gt_meta_perm", {}) or {}
+            if perm.get("permissoes") and "ads_management" not in perm["permissoes"]:
+                precisa.append({"tipo": "meta", "texto": "O token do House no Meta só LÊ (falta a permissão "
+                                "ads_management). Enquanto isso, aprovar uma recomendação não executa no Meta — "
+                                "gerar token novo do usuário de sistema com ads_management e trocar no Vercel."})
             if pend:
                 precisa.append({"tipo": "recs", "texto": f"{len(pend)} recomendação(ões) esperando aprovar ou recusar."})
             ult = ((kv_get(sb, KV_LOG, {}) or {}).get("itens") or [None])[0]
@@ -791,6 +796,8 @@ class handler(BaseHTTPRequestHandler):
             if perms.get("ok"):
                 dados = (perms.get("data") or {}).get("data") or []
                 out["permissoes"] = sorted(p.get("permission") for p in dados if p.get("status") == "granted")
+                kv_set(sb, "gt_meta_perm", {"ts": _now_iso(), "quem": (out["quem"].get("data") or {}).get("name"),
+                                            "permissoes": out["permissoes"]})
             else:
                 out["permissoes_erro"] = perms.get("erro")
             out["contas"] = {act: _graph_get_msg(act, {"fields": "name,account_status"}, token) for act in CONTA_MARCA}
