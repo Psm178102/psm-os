@@ -24,6 +24,7 @@ KV_KEY = "scripts_playbook"
 MAX_LINHAS = 30
 MAX_ETAPAS = 80
 MAX_CONT = 200000  # ~200KB por etapa
+MAX_MAPA = 40      # fases do mapa da venda por linha (v88.94)
 
 
 def _read(sb):
@@ -82,12 +83,26 @@ def _clean(data):
                 "ordem": _int(e.get("ordem"), j),
                 "conteudo": str(e.get("conteudo") or "")[:MAX_CONT],
             })
+        # v88.94: MAPA DA VENDA editável — fases do caminho (título, o que acontece,
+        # prazo/cadência e, opcional, a etapa do script que detalha a fase).
+        mapa = []
+        for k, m in enumerate((l.get("mapa") or [])[:MAX_MAPA]):
+            if not isinstance(m, dict):
+                continue
+            mapa.append({
+                "id": str(m.get("id") or f"mb_{k}")[:40],
+                "titulo": str(m.get("titulo") or "Fase")[:120],
+                "descricao": str(m.get("descricao") or "")[:4000],
+                "prazo": str(m.get("prazo") or "")[:80],
+                "etapa": (str(m.get("etapa") or "")[:40] or None),
+            })
         linhas.append({
             "id": str(l.get("id") or f"l_{i}")[:40],
             "nome": str(l.get("nome") or "Linha")[:80],
             "cor": (str(l.get("cor") or "")[:9] or None),
             "ordem": _int(l.get("ordem"), i),
             "etapas": ets,
+            "mapa": mapa,
         })
     return {"linhas": linhas}
 

@@ -1,5 +1,5 @@
 /* ============================================================================
-   PSM-OS v2 — 🧭 Playbook da Venda — v88.89
+   PSM-OS v2 — 🧭 Playbook da Venda — v88.89 · mapa editável v88.94
    Une as antigas abas 📚 Scripts & Cadências (v81.19) e 🗺 Mapa da Venda (v88.37)
    numa tela só, didática, em 3 passos:
      ① escolha o NICHO  →  ② veja o MAPA (o caminho inteiro, PDF)  →
@@ -70,9 +70,10 @@ function render() {
   const E = etapas[_selE];
   const cor = L?.cor || '#5b7fb4';
   const nicho = nichoDaLinha(L);
-  const temMapa = !!nicho;
-  if (!temMapa && _ver === 'mapa') _ver = 'etapas';
-  const mapaPronto = temMapa && !!(_mapaMeta?.marcas || {})[nicho];
+  const temMapa = true;   // v88.94: todo nicho tem mapa editável; o PDF é anexo opcional
+  const nFases = (L?.mapa || []).length;
+  const temPdf = !!nicho && !!(_mapaMeta?.marcas || {})[nicho];
+  const mapaPronto = nFases > 0 || temPdf;
   const nichos = _linhas.map((l, i) => ({ l, i })).filter(x => !ehFundamentos(x.l));
   const fund = _linhas.map((l, i) => ({ l, i })).filter(x => ehFundamentos(x.l));
 
@@ -83,9 +84,9 @@ function render() {
           <h2 class="card-title" style="margin:0">🧭 Playbook da Venda</h2>
           <p class="card-sub" style="margin:2px 0 0">O caminho da venda de cada nicho e o que falar em cada passo — do primeiro contato à assinatura.</p>
         </div>
-        ${_canEdit && _ver === 'etapas' ? `<div class="flex gap-2">
+        ${_canEdit ? `<div class="flex gap-2">
           ${_edit ? `<button class="btn btn-ghost btn-sm" id="sc-cancel">Cancelar</button><button class="btn btn-primary btn-sm" id="sc-save" ${_busy ? 'disabled' : ''}>${_busy ? '⏳' : '💾'} Salvar</button>`
-            : `<button class="btn btn-ghost btn-sm" id="sc-edit">✏️ Editar scripts</button>`}
+            : `<button class="btn btn-ghost btn-sm" id="sc-edit">✏️ Editar ${_ver === 'mapa' ? 'mapa' : 'scripts'}</button>`}
         </div>` : ''}
       </div>
       <div id="sc-msg" class="tiny" style="margin:4px 0;min-height:14px;color:${_msg[0] === '⚠' ? 'var(--err)' : 'var(--ok)'}">${esc(_msg)}</div>
@@ -110,13 +111,15 @@ function render() {
           ${esc(l.nome)} <span class="tiny" style="opacity:.75">· base comum a todos os nichos · ${(l.etapas || []).length} lições</span></button>`).join('')}</div>` : ''}
 
       ${!_linhas.length ? `<div class="muted tiny" style="padding:30px;text-align:center">Nenhuma linha ainda${_canEdit ? ' — clique em ✏️ Editar scripts e ➕ Linha.' : '.'}</div>` : `
-      ${_edit ? linhaEditBar(L, cor) : `
+      ${_edit ? linhaEditBar(L, cor) : ''}
       <!-- ② / ③ VISÃO -->
       <div class="pv-vis">
-        ${temMapa ? `<button class="pv-vis-b ${_ver === 'mapa' ? 'on' : ''}" data-ver="mapa" style="--c:${cor}">② 🗺 O caminho <span class="tiny">(mapa${mapaPronto ? '' : ' · ainda sem PDF'})</span></button>` : ''}
-        <button class="pv-vis-b ${_ver === 'etapas' ? 'on' : ''}" data-ver="etapas" style="--c:${cor}">${temMapa ? '③ ' : ''}📚 O que falar <span class="tiny">(${etapas.length} etapa${etapas.length === 1 ? '' : 's'} · scripts & cadência)</span></button>
-      </div>`}
-      ${_ver === 'mapa' && !_edit ? `<div id="pv-mapa" style="margin-top:12px"></div>` : (_edit ? corpoEdicao(L, E, etapas, cor) : corpoEtapas(L, E, etapas, cor))}`}
+        <button class="pv-vis-b ${_ver === 'mapa' ? 'on' : ''}" data-ver="mapa" style="--c:${cor}">② 🗺 O caminho <span class="tiny">(${nFases ? `mapa · ${nFases} fase${nFases === 1 ? '' : 's'}` : (temPdf ? 'mapa em PDF' : 'mapa · ainda vazio')})</span></button>
+        <button class="pv-vis-b ${_ver === 'etapas' ? 'on' : ''}" data-ver="etapas" style="--c:${cor}">③ 📚 O que falar <span class="tiny">(${etapas.length} etapa${etapas.length === 1 ? '' : 's'} · scripts & cadência)</span></button>
+      </div>
+      ${_ver === 'mapa'
+        ? (_edit ? corpoMapaEdicao(L, etapas, cor) : corpoMapa(L, etapas, cor, nicho, temPdf))
+        : (_edit ? corpoEdicao(L, E, etapas, cor) : corpoEtapas(L, E, etapas, cor))}`}
     </div>
     <style>
       .pv-passos{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0 14px;padding:10px 12px;background:var(--bg-3);border-radius:var(--radius-md)}
@@ -149,13 +152,21 @@ function render() {
       .pv-et .pv-nome{font-size:11.5px;line-height:1.25;text-align:center;color:var(--ink-muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
       .pv-et.on .pv-nome{color:var(--ink);font-weight:600}
       .pv-conteudo{border:1px solid var(--border);border-left:5px solid var(--c);border-radius:var(--radius-md);padding:12px 14px;margin-top:8px}
+      .pv-mapa{position:relative;margin-top:14px;display:grid;gap:10px;max-width:880px}
+      .pv-mapa::before{content:'';position:absolute;left:17px;top:18px;bottom:18px;width:3px;background:var(--c);opacity:.35;border-radius:2px}
+      .pv-fase{display:grid;grid-template-columns:38px 1fr;gap:12px;align-items:start;position:relative}
+      .pv-fase .pv-bola{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;background:var(--c);color:#fff;position:relative;z-index:1;box-shadow:0 0 0 4px var(--bg-1,#fff)}
+      .pv-fase-c{border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 14px;background:var(--bg-2,transparent)}
+      .pv-fase-c h4{margin:0;font-size:15px}
+      .pv-prazo{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--bg-3);color:var(--ink-2);margin-left:6px;vertical-align:middle}
+      .pv-fase-ed{border:1px dashed var(--border);border-left:4px solid var(--c);border-radius:var(--radius-md);padding:10px;display:grid;gap:6px}
       .pv-nav{display:flex;justify-content:space-between;gap:8px;margin-top:12px;flex-wrap:wrap}
       @media(max-width:760px){.sc-grid{grid-template-columns:1fr !important}.sc-grid>div:first-child{border-right:0;border-bottom:1px solid var(--border);padding-bottom:8px}.pv-seta{display:none}.pv-vis{flex-wrap:nowrap}.pv-vis-b{flex:1;padding:8px 6px;font-size:13px}.pv-vis-b .tiny{display:none}}
     </style>`;
   wire(E);
-  if (_ver === 'mapa' && !_edit && temMapa) {
+  if (_ver === 'mapa' && !_edit && nicho) {
     const box = _root.querySelector('#pv-mapa');
-    if (box) renderMapa(box, nicho, _mapaMeta, { onPublicado: () => pageScripts({ query: { ver: 'mapa', nicho } }, _root), irEtapas: () => { _ver = 'etapas'; render(); } });
+    if (box) renderMapa(box, nicho, _mapaMeta, { onPublicado: () => pageScripts({ query: { ver: 'mapa', nicho } }, _root), irEtapas: nFases ? null : () => { _ver = 'etapas'; render(); }, secundario: nFases > 0 });
   }
 }
 
@@ -163,10 +174,11 @@ function cartaoNicho(l, i) {
   const n = nichoDaLinha(l);
   const on = i === _selL;
   const nEt = (l.etapas || []).length;
-  const mapa = n && (_mapaMeta?.marcas || {})[n];
+  const nF = (l.mapa || []).length;
+  const mapa = nF || (n && (_mapaMeta?.marcas || {})[n]);
   return `<button class="pv-nicho ${on ? 'on' : ''}" data-l="${i}" style="--c:${l.cor || '#5b7fb4'}">
     <b>${esc(l.nome)}</b>
-    <span class="pv-sel">${n ? `<span>${mapa ? '🗺 mapa ✓' : '🗺 sem mapa'}</span>` : ''}<span>📚 ${nEt} etapa${nEt === 1 ? '' : 's'}</span></span>
+    <span class="pv-sel"><span>${mapa ? `🗺 mapa ✓${nF ? ` ${nF} fases` : ''}` : '🗺 sem mapa'}</span><span>📚 ${nEt} etapa${nEt === 1 ? '' : 's'}</span></span>
   </button>`;
 }
 
@@ -219,6 +231,54 @@ function corpoEdicao(L, E, etapas, cor) {
       </div>`;
 }
 
+/* ② leitura: o mapa editável (linha do tempo de fases) + o PDF, se houver */
+function corpoMapa(L, etapas, cor, nicho, temPdf) {
+  const fases = L.mapa || [];
+  const vazio = !fases.length && !temPdf;
+  return `
+    ${fases.length ? `<div class="tiny muted" style="margin-top:12px">O caminho inteiro da venda, fase por fase. Clique em “ver o script” para saber o que falar.</div>
+    <div class="pv-mapa" style="--c:${cor}">
+      ${fases.map((f, i) => {
+        const iE = f.etapa ? etapas.findIndex(e => e.id === f.etapa) : -1;
+        return `<div class="pv-fase"><span class="pv-bola">${i + 1}</span><div class="pv-fase-c">
+          <h4>${esc(f.titulo)}${f.prazo ? `<span class="pv-prazo">⏱ ${esc(f.prazo)}</span>` : ''}</h4>
+          ${f.descricao ? `<div style="font-size:13px;margin-top:4px">${mdHTML(f.descricao)}</div>` : ''}
+          ${iE >= 0 ? `<button class="btn btn-ghost btn-sm" data-irE="${iE}" style="margin-top:6px;color:${cor}">📚 Ver o script desta fase →</button>` : ''}
+        </div></div>`;
+      }).join('')}
+    </div>` : ''}
+    ${vazio ? `<div class="muted" style="padding:28px;text-align:center">Ainda não há mapa de <b>${esc(L.nome)}</b>.${_canEdit ? ' Clique em “✏️ Editar mapa” para montar as fases' + (nicho ? ', ou anexe um PDF abaixo.' : '.') : ''}</div>` : ''}
+    ${nicho ? `<div id="pv-mapa" style="margin-top:${fases.length ? 22 : 8}px;${fases.length ? 'border-top:1px solid var(--border);padding-top:12px' : ''}"></div>` : ''}`;
+}
+
+/* ② edição: fases do mapa (título, o que acontece, prazo, etapa do script) */
+function corpoMapaEdicao(L, etapas, cor) {
+  const fases = L.mapa || (L.mapa = []);
+  return `
+    <div class="tiny muted" style="margin-top:12px">Monte o caminho da venda em fases. Cada fase pode apontar para a etapa do script que diz o que falar.</div>
+    ${!fases.length && etapas.length ? `<button class="btn btn-ghost btn-sm" id="mb-gerar" style="margin-top:8px">✨ Começar a partir das ${etapas.length} etapas dos scripts</button>` : ''}
+    <div style="display:grid;gap:8px;margin-top:10px;max-width:880px">
+      ${fases.map((f, i) => `<div class="pv-fase-ed" style="--c:${cor}">
+        <div class="flex gap-2" style="align-items:center;flex-wrap:wrap">
+          <b style="color:${cor};min-width:22px">${i + 1}.</b>
+          <input class="input" data-mb="${i}" data-f="titulo" value="${esc(f.titulo)}" placeholder="Nome da fase (ex.: Primeiro contato)" style="flex:1;min-width:180px;font-weight:600">
+          <input class="input" data-mb="${i}" data-f="prazo" value="${esc(f.prazo || '')}" placeholder="⏱ Prazo / cadência (ex.: em até 5 min)" style="width:230px">
+          <button class="btn btn-ghost btn-sm" data-mbup="${i}" ${i === 0 ? 'disabled' : ''} style="padding:2px 6px">↑</button>
+          <button class="btn btn-ghost btn-sm" data-mbdn="${i}" ${i === fases.length - 1 ? 'disabled' : ''} style="padding:2px 6px">↓</button>
+          <button class="btn btn-ghost btn-sm" data-mbdel="${i}" style="padding:2px 6px;color:var(--err)">✕</button>
+        </div>
+        <textarea class="input" data-mb="${i}" data-f="descricao" rows="3" placeholder="O que acontece nesta fase, quem faz, qual o objetivo…" style="width:100%;font-size:13px;line-height:1.45">${esc(f.descricao || '')}</textarea>
+        <label class="tiny muted flex gap-2" style="align-items:center">📚 Script desta fase:
+          <select class="input" data-mb="${i}" data-f="etapa" style="height:30px;font-size:12.5px;max-width:420px">
+            <option value="">— nenhum —</option>
+            ${etapas.map(e => `<option value="${esc(e.id)}" ${e.id === f.etapa ? 'selected' : ''}>${esc(limpaNome(e.nome))}</option>`).join('')}
+          </select></label>
+      </div>`).join('')}
+      <button class="btn btn-ghost btn-sm" id="mb-nova" style="justify-self:start">➕ Fase</button>
+    </div>
+    <div class="tiny muted" style="margin-top:8px">Dica: no texto, **negrito** e - listas funcionam. O PDF do mapa (se houver) continua aparecendo abaixo das fases.</div>`;
+}
+
 /* "ETAPA 3 — SONDAGEM" → "Sondagem"; "📘 Vendas · 4. Atendimento — …" → "Atendimento — …" (só na trilha) */
 function limpaNome(n) {
   let t = String(n || '').replace(/^ETAPA\s*\d+\s*[—–-]\s*/i, '').replace(/^📘\s*Vendas\s*·\s*\d+\.\s*/, '').trim();
@@ -243,13 +303,23 @@ function wire(E) {
   const $ = id => _root.querySelector('#' + id);
   _root.querySelectorAll('[data-l]').forEach(b => b.onclick = () => { if (_edit) syncContent(); _selL = +b.dataset.l; _selE = 0; render(); });
   _root.querySelectorAll('[data-e]').forEach(b => b.onclick = () => { if (_edit) syncContent(); _selE = +b.dataset.e; render(); });
-  _root.querySelectorAll('[data-ver]').forEach(b => b.onclick = () => { _ver = b.dataset.ver; render(); });
+  _root.querySelectorAll('[data-ver]').forEach(b => b.onclick = () => { if (_edit) syncContent(); _ver = b.dataset.ver; render(); });
   _root.querySelectorAll('[data-pass]').forEach(b => b.onclick = () => { _selE += +b.dataset.pass; render(); _root.querySelector('.pv-conteudo')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); });
   const cp = _root.querySelector('[data-copy]'); if (cp) cp.onclick = () => { try { navigator.clipboard.writeText(E.conteudo || ''); cp.textContent = '✅ Copiado'; setTimeout(() => cp.textContent = '📋 Copiar', 1500); } catch {} };
 
-  if ($('sc-edit')) $('sc-edit').onclick = () => { _edit = true; _ver = 'etapas'; render(); };
+  if ($('sc-edit')) $('sc-edit').onclick = () => { _edit = true; render(); };
   if ($('sc-cancel')) $('sc-cancel').onclick = () => pageScripts(null, _root);
   if ($('sc-save')) $('sc-save').onclick = salvar;
+
+  // mapa: ir ao script da fase / editar fases (v88.94)
+  _root.querySelectorAll('[data-irE]').forEach(b => b.onclick = () => { _selE = +b.dataset.ire; _ver = 'etapas'; render(); });
+  const M = () => (_linhas[_selL].mapa ||= []);
+  _root.querySelectorAll('[data-mb]').forEach(el => el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => { M()[+el.dataset.mb][el.dataset.f] = el.value || (el.dataset.f === 'etapa' ? null : ''); }));
+  if ($('mb-nova')) $('mb-nova').onclick = () => { M().push({ id: 'mb_' + Date.now(), titulo: 'Nova fase', descricao: '', prazo: '', etapa: null }); render(); };
+  if ($('mb-gerar')) $('mb-gerar').onclick = () => { _linhas[_selL].mapa = (_linhas[_selL].etapas || []).map((e, i) => ({ id: 'mb_' + Date.now() + '_' + i, titulo: limpaNome(e.nome), descricao: '', prazo: '', etapa: e.id })); render(); };
+  _root.querySelectorAll('[data-mbup]').forEach(b => b.onclick = () => { const i = +b.dataset.mbup; swap(M(), i, i - 1); render(); });
+  _root.querySelectorAll('[data-mbdn]').forEach(b => b.onclick = () => { const i = +b.dataset.mbdn; swap(M(), i, i + 1); render(); });
+  _root.querySelectorAll('[data-mbdel]').forEach(b => b.onclick = () => { const i = +b.dataset.mbdel; if (confirm('Excluir a fase "' + M()[i].titulo + '"?')) { M().splice(i, 1); render(); } });
 
   // edição estrutural
   if ($('sc-newl')) $('sc-newl').onclick = () => { _linhas.push({ id: 'l_' + Date.now(), nome: 'Nova linha', cor: 'var(--ink-2)', ordem: _linhas.length, etapas: [] }); _selL = _linhas.length - 1; _selE = 0; render(); };

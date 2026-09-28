@@ -24,11 +24,18 @@ export { pageMapaVenda } from './scripts.js';
 const _paginas = {};   // cache das URLs assinadas por nicho (valem 1h)
 
 /* Desenha o mapa de um nicho dentro de `box`. meta = GET da coleção (marcas + pode_anexar). */
-export async function renderMapa(box, nicho, meta, { onPublicado, irEtapas } = {}) {
+export async function renderMapa(box, nicho, meta, { onPublicado, irEtapas, secundario } = {}) {
   const pode = !!meta?.pode_anexar;
   const n = NICHOS.find(x => x.id === nicho);
   if (!n) { box.innerHTML = ''; return; }
   const d = (meta?.marcas || {})[nicho];
+  // v88.94: com o mapa editável preenchido, o PDF vira anexo opcional — sem PDF, só o botão
+  if (!d && secundario) {
+    box.innerHTML = pode ? `<div class="flex items-center gap-2" style="flex-wrap:wrap"><span class="tiny muted" style="flex:1">📑 Mapa em PDF (opcional) — ainda não anexado.</span><button class="btn btn-ghost btn-sm" data-mv="anexar">📤 Anexar PDF · ${n.nome}</button></div><div class="tiny" data-mv="prog"></div><input type="file" accept="application/pdf" data-mv="file" style="display:none">` : '';
+    const inp = box.querySelector('[data-mv="file"]'), bt = box.querySelector('[data-mv="anexar"]');
+    if (bt) bt.onclick = () => { inp.onchange = () => { if (inp.files?.length) enviar(inp.files[0], nicho, box.querySelector('[data-mv="prog"]'), onPublicado); inp.value = ''; }; inp.click(); };
+    return;
+  }
   const info = d ? `📑 ${d.n_slides} página(s)${d.nome ? ` · ${esc(d.nome)}` : ''} · atualizado em ${new Date(d.ts).toLocaleDateString('pt-BR')}` : '';
   box.innerHTML = `
     <div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:8px">
