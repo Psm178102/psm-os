@@ -75,7 +75,7 @@ function render() {
 async function abrirViewer(marca) {
   const info = MARCAS.find(m => m.id === marca);
   const ov = document.createElement('div');
-  ov.style.cssText = 'position:fixed;inset:0;background:#0b0e1a;z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center';
+  ov.style.cssText = 'position:fixed;inset:0;background:#0b0e1a;z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center'; ov.classList.add('force-dark');
   ov.innerHTML = '<div style="color:#fffbea"><span class="spinner"></span> Carregando apresentação…</div>';
   ov.oncontextmenu = (e) => e.preventDefault();
   document.body.appendChild(ov);

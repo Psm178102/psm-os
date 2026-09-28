@@ -224,7 +224,7 @@ function corretorCard(c) {
   const alvo = c.sem_contato_48h > 0 || c.parados_14d > 0;
   return `<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px">
     <div class="flex items-center gap-2" style="margin-bottom:8px">
-      <div style="width:28px;height:28px;border-radius:50%;background:${c.color || 'var(--accent-soft)'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:11px">${escapeHtml(c.ini || (c.name || '?').slice(0, 2).toUpperCase())}</div>
+      <div style="width:28px;height:28px;border-radius:50%;background:${c.color || 'var(--accent-soft)'};color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:11px">${escapeHtml(c.ini || (c.name || '?').slice(0, 2).toUpperCase())}</div>
       <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(c.name || '—')}</div><div class="tiny muted">${escapeHtml(c.team || '')} · ${c.open_count} abertos</div></div>
       ${c.projecao_mes
         ? `<div style="text-align:right" title="projeção oficial do mês · pipeline ponderado R$ ${moneyShort(c.pipeline_ponderado_vgv)} (prioridade)"><div style="font-weight:600;font-size:14px;color:${(PSTATUS[c.projecao_mes.status] || [0, 'var(--roxo)'])[1]}">R$ ${moneyShort(c.projecao_mes.provavel.vgv)}</div><div class="tiny muted">📈 provável · ${fmtN1(c.projecao_mes.provavel.vendas)} vendas</div></div>`

@@ -299,3 +299,18 @@ a:hover { text-decoration: underline; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
 }
+
+/* v88.69: telas de TV (Ranking HUB, Modo TV do Marketing) são sempre escuras —
+   dentro delas os tokens valem os do tema escuro, qualquer que seja o tema do app */
+.force-dark {
+  color-scheme: dark;
+  --bg: #121212; --bg-2: #1a1a1a; --bg-3: #232322; --surface: #1a1a1a; --surface-2: #232322;
+  --border: #2e2d2b; --border-2: #3d3b37; --border-strong: #6e6a63;
+  --ink: #efece4; --ink-2: #c3bfb5; --ink-muted: #969185; --ink-inverted: #121212;
+  --ok: #43c07f; --warn: #e6a93f; --err: #f06464; --info: #bdb8ac;
+  --ok-soft: #15301f; --warn-soft: #33270f; --err-soft: #3a1a1b; --info-soft: #262522;
+  --accent: #f3ebcb; --on-accent: #121212; --accent-ink: #efe3b8; --accent-soft: #2b2820;
+}
+.force-dark[data-marca="conquista"], :root[data-marca="conquista"] .force-dark {
+  --accent: #ff7f0b; --on-accent: #16261a; --accent-ink: #ff9d4d; --accent-soft: #3a2412;
+}

@@ -45,8 +45,8 @@ export async function pageAgentes(ctx, root) {
   const config = AGENTS.filter(a => a.status === 'config').length;
 
   root.innerHTML = `
-    <div class="card" style="background:var(--surface-2);color:#e2e8f0;border-radius:var(--radius-lg);padding:24px">
-      <h2 style="margin:0;font-size:20px;color:#fff">🧠 Central de Agentes PSM</h2>
+    <div class="card" style="background:var(--surface-2);color:var(--ink);border-radius:var(--radius-lg);padding:24px">
+      <h2 style="margin:0;font-size:20px;color:var(--ink)">🧠 Central de Agentes PSM</h2>
       <p style="margin:6px 0 18px;color:var(--ink-muted)">Inteligência artificial a serviço da sua operação imobiliária</p>
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));gap:12px;margin-bottom:24px">
@@ -62,12 +62,12 @@ export async function pageAgentes(ctx, root) {
       </div>
 
       <div style="margin-top:24px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px">
-        <div style="font-weight:600;color:#fff;margin-bottom:12px">⚡ Arquitetura dos Agentes</div>
+        <div style="font-weight:600;color:var(--ink);margin-bottom:12px">⚡ Arquitetura dos Agentes</div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px">
           ${ARCH.map(a => `
             <div style="background:var(--surface-2);border-radius:var(--radius-md);padding:12px">
               <div style="font-size:16px;margin-bottom:6px">${a.ico}</div>
-              <div style="font-weight:600;color:#fff;font-size:12px;margin-bottom:4px">${a.t}</div>
+              <div style="font-weight:600;color:var(--ink);font-size:12px;margin-bottom:4px">${a.t}</div>
               <div style="font-size:11px;color:var(--ink-muted);line-height:1.5">${a.d}</div>
             </div>
           `).join('')}
@@ -97,7 +97,7 @@ function agentCard(a) {
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
         <div style="width:50px;height:50px;border-radius:var(--radius-md);background:${a.color}22;display:flex;align-items:center;justify-content:center;font-size:26px">${a.ico}</div>
         <div style="flex:1">
-          <div style="font-size:16px;font-weight:600;color:#fff">${a.name}</div>
+          <div style="font-size:16px;font-weight:600;color:var(--ink)">${a.name}</div>
           <div style="font-size:11px;color:${a.color};font-weight:600">${a.line}</div>
         </div>
         <span style="font-size:11px;font-weight:600;padding:4px 10px;border-radius:var(--radius-lg);background:${statusColor}22;color:${statusColor}">${status}</span>

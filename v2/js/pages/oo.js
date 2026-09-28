@@ -386,7 +386,7 @@ function gestorHeader(d) {
   const t = d.team, M = t.metrics, hc = M.health_color, att = M.meta_attainment_pct, c = d.corretor;
   return `
     <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:var(--bg-3);border-radius:var(--r-md);padding:14px 16px;border-left:5px solid ${healthHex(hc)}">
-      <div style="width:54px;height:54px;border-radius:50%;background:${c.color || 'var(--accent-soft)'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:20px;flex-shrink:0">${escapeHtml((c.ini || (c.name||'?').slice(0,2)).toUpperCase())}</div>
+      <div style="width:54px;height:54px;border-radius:50%;background:${c.color || 'var(--accent-soft)'};color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:20px;flex-shrink:0">${escapeHtml((c.ini || (c.name||'?').slice(0,2)).toUpperCase())}</div>
       <div style="flex:1;min-width:180px">
         <div style="font-weight:600;font-size:16px">${escapeHtml(c.name)} <span style="font-size:12px;background:color-mix(in srgb, var(--info) 18%, transparent);color:var(--azul-forte);padding:2px 8px;border-radius:var(--radius-full);font-weight:600">🛡 Gestor</span></div>
         <div class="tiny muted">Equipe ${escapeHtml(t.name)} · ${t.members.length} corretores · período ${fmtD(d.period.since)}–${fmtD(d.period.until)}</div>

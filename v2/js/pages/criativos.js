@@ -467,7 +467,7 @@ function libCard(c) {
     <div style="background:var(--bg-1,#fff);border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;box-shadow:var(--shadow-1);display:flex;flex-direction:column">
       <div style="position:relative;aspect-ratio:4/5;background:var(--surface-2);display:flex;align-items:center;justify-content:center;overflow:hidden">
         ${media}
-        <span style="position:absolute;top:8px;left:8px;background:${ativo ? 'var(--ok-soft)' : 'rgba(100,116,139,.92)'};color:#fff;font-size:11px;font-weight:600;padding:3px 9px;border-radius:var(--radius-full);pointer-events:none">${ativo ? '🟢 ATIVO' : '⚪ INATIVO'}</span>
+        <span style="position:absolute;top:8px;left:8px;background:${ativo ? 'var(--ok-soft)' : 'rgba(100,116,139,.92)'};color:var(--ok);font-size:11px;font-weight:600;padding:3px 9px;border-radius:var(--radius-full);pointer-events:none">${ativo ? '🟢 ATIVO' : '⚪ INATIVO'}</span>
         ${_canEdit ? `<button class="lib-edit" data-id="${esc(c.id)}" title="Editar" style="position:absolute;top:6px;right:6px;background:rgba(15,23,42,.6);color:#fff;border:none;border-radius:var(--radius-md);width:28px;height:28px;cursor:pointer;font-size:13px;z-index:2">✏️</button>` : ''}
       </div>
       <div style="padding:10px 12px;display:flex;flex-direction:column;gap:8px;flex:1">
@@ -676,7 +676,7 @@ function anCard(c) {
     <div style="background:var(--bg-1,#fff);border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;box-shadow:var(--shadow-1);display:flex;flex-direction:column">
       <div style="position:relative;aspect-ratio:4/5;background:var(--surface-2);display:flex;align-items:center;justify-content:center;overflow:hidden">
         ${anMedia(c)}
-        <span style="position:absolute;top:8px;left:8px;background:${ativo ? 'var(--ok-soft)' : 'rgba(100,116,139,.92)'};color:#fff;font-size:11px;font-weight:600;padding:3px 9px;border-radius:var(--radius-full)">${ativo ? '🟢 NO AR' : '⚪ PAUSADO'}</span>
+        <span style="position:absolute;top:8px;left:8px;background:${ativo ? 'var(--ok-soft)' : 'rgba(100,116,139,.92)'};color:var(--ok);font-size:11px;font-weight:600;padding:3px 9px;border-radius:var(--radius-full)">${ativo ? '🟢 NO AR' : '⚪ PAUSADO'}</span>
         ${_canEdit ? `<button class="an-edit" data-id="${esc(c.id)}" title="Editar" style="position:absolute;top:6px;right:6px;background:rgba(15,23,42,.6);color:#fff;border:none;border-radius:var(--radius-md);width:28px;height:28px;cursor:pointer;font-size:13px;z-index:2">✏️</button>` : ''}
       </div>
       <div style="padding:10px 12px;display:flex;flex-direction:column;gap:8px;flex:1">

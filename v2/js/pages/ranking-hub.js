@@ -285,7 +285,7 @@ function gongo(nome, vgvDelta) {
   _celeb = { nome, vgvDelta };
   const ov = document.createElement('div');
   ov.id = 'rh-gongo';
-  ov.style.cssText = 'position:fixed;inset:0;z-index:90;background:rgba(5,8,15,.92);display:flex;align-items:center;justify-content:center';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:90;background:rgba(5,8,15,.92);display:flex;align-items:center;justify-content:center'; ov.classList.add('force-dark');
   ov.innerHTML = `
     <div style="text-align:center;animation:rhPop .3s ease">
       <div style="font-size:110px;line-height:1">🔔🎉</div>
@@ -311,7 +311,7 @@ function aberturaDoDia() {
   const lider = ranked()[0];
   const ov = document.createElement('div');
   ov.id = 'rh-abertura';
-  ov.style.cssText = 'position:fixed;inset:0;z-index:85;background:linear-gradient(180deg,#0c1a2e,#0a0d16);display:flex;align-items:center;justify-content:center';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:85;background:linear-gradient(180deg,#0c1a2e,#0a0d16);display:flex;align-items:center;justify-content:center'; ov.classList.add('force-dark');
   ov.innerHTML = `
     <div style="text-align:center;animation:rhPop .4s ease">
       <div style="font-size:90px">☀️</div>
@@ -943,7 +943,7 @@ function showTickerItem(i) {
   document.querySelector('.rh-track')?.style.setProperty('animation-play-state', 'paused');
   const ov = document.createElement('div');
   ov.id = 'rh-overlay';
-  ov.style.cssText = 'position:fixed;inset:0;z-index:70;background:rgba(5,8,15,.88);display:flex;align-items:center;justify-content:center;padding:6vh 6vw';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:70;background:rgba(5,8,15,.88);display:flex;align-items:center;justify-content:center;padding:6vh 6vw'; ov.classList.add('force-dark');
   ov.innerHTML = `
     <div style="max-width:900px;width:100%;border-radius:var(--radius-lg);padding:44px 48px;background:linear-gradient(180deg,${i.cor}24,#0d1120 60%);border:2px solid ${i.cor}88;box-shadow:0 0 80px ${i.cor}33;text-align:center;animation:rhPop .25s ease">
       <div style="font-size:56px">${i.ico}</div>
@@ -1014,7 +1014,7 @@ function shell(body) {
     .rh-item:hover { transform:scale(1.06); box-shadow:var(--shadow-1); }
     @media (prefers-reduced-motion: reduce) { .rh-live { animation:none !important } }
   </style>
-  <div style="position:fixed;inset:0 0 ${_tkOn ? TK_ALTURA : '0'} 0;z-index:50;background:#0a0d16;color:#e2e8f0;display:flex;flex-direction:column;overflow:hidden;font-family:inherit">
+  <div class="force-dark" style="position:fixed;inset:0 0 ${_tkOn ? TK_ALTURA : '0'} 0;z-index:50;background:#0a0d16;color:#e2e8f0;display:flex;flex-direction:column;overflow:hidden;font-family:inherit">
     <div style="display:flex;align-items:center;gap:18px;padding:14px 26px;background:#0d1120;border-bottom:1px solid rgba(71,85,105,.3);position:sticky;top:0;z-index:2">
       <div style="font-weight:600;font-size:16px;color:#f8fafc">🏆 PSM HUB</div>
       <div style="color:var(--ink-2)">|</div>
@@ -1077,7 +1077,7 @@ function abrirConfig() {
   const ligadas = new Set(_cfg.telas);
   const ov = document.createElement('div');
   ov.id = 'rh-cfgov';
-  ov.style.cssText = 'position:fixed;inset:0;z-index:95;background:rgba(5,8,15,.9);display:flex;align-items:center;justify-content:center;padding:4vh';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:95;background:rgba(5,8,15,.9);display:flex;align-items:center;justify-content:center;padding:4vh'; ov.classList.add('force-dark');
   const linha = (t) => `
     <div class="rhc-row" data-tela="${t}" style="display:flex;align-items:center;gap:12px;background:#141a2c;border:1px solid rgba(71,85,105,.4);border-radius:var(--radius-md);padding:10px 14px">
       <input type="checkbox" class="rhc-on" ${ligadas.has(t) ? 'checked' : ''} style="width:18px;height:18px;cursor:pointer">

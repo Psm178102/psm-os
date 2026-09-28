@@ -543,6 +543,7 @@ function enterTV() {
   if (_root) { _root.innerHTML = ''; _root.style.display = 'none'; }  // evita IDs de canvas duplicados
   let ov = document.getElementById('ma-tv');
   if (!ov) { ov = document.createElement('div'); ov.id = 'ma-tv'; document.body.appendChild(ov); }
+  ov.classList.add('force-dark');   // v88.69: TV é sempre escura — tokens do tema escuro
   // Overlay dark + override das variáveis de tema → abas claras (Vendas/Marca/
   // tabelas) viram dark automaticamente, sem reescrever cada uma.
   ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0b1220;color:#e2e8f0;overflow-y:auto;overflow-x:hidden;'

@@ -108,7 +108,7 @@ async function enviar(file) {
 function telaCheia(n, paginas) {
   if (!paginas.length) return;
   const ov = document.createElement('div');
-  ov.style.cssText = 'position:fixed;inset:0;background:#0b0e1a;z-index:1000;display:flex;align-items:center;justify-content:center';
+  ov.style.cssText = 'position:fixed;inset:0;background:#0b0e1a;z-index:1000;display:flex;align-items:center;justify-content:center'; ov.classList.add('force-dark');
   let i = 0;
   const paint = () => {
     ov.innerHTML = `

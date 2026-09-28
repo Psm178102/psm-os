@@ -281,7 +281,7 @@ async function render() {
             : 'Seu Google My Maps com todos os pins, nomes e cores — aqui dentro do sistema.'} Dois mapas separados: <b>MAP</b> e <b>PSM Conquista</b>.</p>
         </div>
         <div class="flex gap-2">
-          <a class="btn btn-primary" href="${esc(earthAtivo)}" target="_blank" rel="noopener" style="background:var(--accent-soft)" title="Abre o Google Earth 3D da fonte ${esc(nomeFonte)}">🌍 Abrir Earth 3D — ${esc(nomeFonte)}</a>
+          <a class="btn btn-primary" href="${esc(earthAtivo)}" target="_blank" rel="noopener" title="Abre o Google Earth 3D da fonte ${esc(nomeFonte)}">🌍 Abrir Earth 3D — ${esc(nomeFonte)}</a>
           ${canEditLinks() ? `<button class="btn btn-ghost" id="map-gkey" title="Chave do Google Maps (satélite + pins)">🔑 Chave Maps</button><button class="btn btn-ghost" id="map-mymaps-edit" title="Editar o link do My Maps da fonte ${esc(nomeFonte)}">⚙️ My Maps (${esc(nomeFonte)})</button>` : ''}
         </div>
       </div>

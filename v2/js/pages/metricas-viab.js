@@ -1611,8 +1611,8 @@ function renderBE() {
     <div class="card" style="margin:0 0 14px;background:var(--surface-2);color:var(--ink)">
       <div class="flex" style="align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
         <div style="display:inline-flex;background:var(--surface-2);border-radius:var(--radius-md);padding:3px">
-          <button class="be-pl" data-pl="0" style="cursor:pointer;border:none;padding:6px 13px;font-size:12px;font-weight:600;border-radius:var(--radius-sm);background:${!_beSemPL ? 'var(--ok-soft)' : 'transparent'};color:#fff">Com pró-labore</button>
-          <button class="be-pl" data-pl="1" style="cursor:pointer;border:none;padding:6px 13px;font-size:12px;font-weight:600;border-radius:var(--radius-sm);background:${_beSemPL ? 'var(--ok-soft)' : 'transparent'};color:#fff">Sem pró-labore</button>
+          <button class="be-pl" data-pl="0" style="cursor:pointer;border:none;padding:6px 13px;font-size:12px;font-weight:600;border-radius:var(--radius-sm);background:${!_beSemPL ? 'var(--ok-soft)' : 'transparent'};color:var(--ok)">Com pró-labore</button>
+          <button class="be-pl" data-pl="1" style="cursor:pointer;border:none;padding:6px 13px;font-size:12px;font-weight:600;border-radius:var(--radius-sm);background:${_beSemPL ? 'var(--ok-soft)' : 'transparent'};color:var(--ok)">Sem pró-labore</button>
         </div>
         <label class="tiny" style="opacity:.9;display:flex;align-items:center;gap:4px">Pró-labore/mês <span style="font-weight:600">R$</span><input class="input be-in" data-g="_root" data-f="proLabore" value="${_be.proLabore ?? 0}" style="width:110px;padding:3px 6px;font-weight:600;text-align:right"></label>
         <span class="tiny" style="opacity:.7;flex:1;min-width:160px">${_beSemPL ? 'descontando a retirada dos sócios — visão operacional pura' : 'contando a retirada dos sócios — visão caixa completa'}</span>
