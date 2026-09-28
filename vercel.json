@@ -354,6 +354,9 @@
     },
     "api/v3/marketing/gestor_auto.py": {
       "maxDuration": 90
+    },
+    "api/v3/marketing/gestor_publicos.py": {
+      "maxDuration": 120
     }
   }
 }

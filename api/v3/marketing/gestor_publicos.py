@@ -38,6 +38,10 @@ from _accounts_lib import resolver_contas  # type: ignore
 from gestor import kv_get, segmentar, log_acao, _contatos_do_raw  # type: ignore
 from _auth_lib import frente_of  # type: ignore
 from datetime import datetime, timezone, timedelta
+import _publicos_kit as kit  # type: ignore  # v88.98: kit automático (fase 2 da autonomia)
+
+# v88.98: contas que o kit mantém (a pessoal do Paulo fica fora do usuário de sistema)
+KIT_CONTAS = {"conquista": "act_1851397782164698", "imoveis": "act_1413862082678408"}
 
 GRAPH = "https://graph.facebook.com/v21.0"
 LOTE = 5000
@@ -93,9 +97,14 @@ def _tokens_da_conta(sb, act_id):
     ids, _labels, tokens = resolver_contas(sb)
     principal = os.environ.get("META_ACCESS_TOKEN") or ""
     out = []
+    # v88.98: o usuário de sistema (META_WRITE_TOKEN, ads_management) vem primeiro — o token
+    # principal é só leitura e não cria público. Falhou nele (ex.: conta pessoal) → cai nos outros.
+    escrita = os.environ.get("META_WRITE_TOKEN") or ""
+    if escrita:
+        out.append(escrita)
     try:
         i = ids.index(act_id)
-        if tokens[i]:
+        if tokens[i] and tokens[i] not in out:
             out.append(tokens[i])
     except ValueError:
         pass
@@ -184,6 +193,31 @@ def _detectar_contatos_lista(linhas):
     return out
 
 
+def rodar_kit(sb, simular=False, forcar_crm=False):
+    """Mantém o kit nas contas do KIT_CONTAS. Só varre o CRM (pesado) quando alguma lista
+    venceu (7 dias) ou não existe — ou quando o sócio força."""
+    estado = kv_get(sb, kit.KV_KIT, {}) or {}
+    agora = datetime.now(timezone.utc)
+    precisa = forcar_crm
+    for marca in KIT_CONTAS:
+        for chave, _t, _r in kit.LISTAS:
+            try:
+                idade = (agora - datetime.fromisoformat(((estado.get(marca) or {}).get(chave) or {}).get("atualizado_em"))).days
+            except Exception:
+                idade = 999
+            precisa = precisa or idade >= kit.REFRESH_LISTA_DIAS
+    crm = kit.varrer_crm(sb, frente_of, agora) if precisa else None
+    tok = lambda act: (_tokens_da_conta(sb, act) or [""])[0]
+    return kit.manter_kit(sb, _graph, KIT_CONTAS, tok, frente_of, simular=simular, agora=agora, crm=crm)
+
+
+def _kit_resumo(rel):
+    cont = {}
+    for r in rel:
+        cont[r["acao"]] = cont.get(r["acao"], 0) + 1
+    return cont
+
+
 class handler(BaseHTTPRequestHandler):
 
     def _send(self, status, body):
@@ -202,15 +236,50 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        params = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
+        action = params.get("action") or "status"
+        # v88.98: rodada diária do kit (heartbeat, CRON_SECRET) — respeita o interruptor do Cérebro
+        if action == "kit" and params.get("cron"):
+            tok = (self.headers.get("Authorization") or "").replace("Bearer ", "").strip()
+            if not (os.environ.get("CRON_SECRET") and tok == os.environ.get("CRON_SECRET")):
+                return self._send(401, {"ok": False, "error": "cron sem segredo"})
+            sb = supabase_client()
+            if not sb:
+                return self._send(503, {"ok": False, "error": "backend indisponível"})
+            aut = ((kv_get(sb, "gt_config", {}) or {}).get("autonomia") or {})
+            if aut.get("publicos_auto") is False:
+                return self._send(200, {"ok": True, "rodou": False, "motivo": "kit de públicos desligado no Cérebro"})
+            ult = (kv_get(sb, kit.KV_KIT, {}) or {}).get("_ultima_rodada") or ""
+            if ult[:10] == datetime.now(timezone.utc).date().isoformat():
+                return self._send(200, {"ok": True, "rodou": False, "motivo": "já rodou hoje"})
+            _est, rel = rodar_kit(sb)
+            erros = [r for r in rel if not r["ok"] and r["acao"] in ("erro",)]
+            log_acao(sb, {"name": "🤖 Sr. Tráfego (automático)"}, "publicos_kit", {"nome": "kit de públicos"},
+                     json.dumps(_kit_resumo(rel), ensure_ascii=False), not erros,
+                     "; ".join(f"{e['marca']}/{e['chave']}: {e['detalhe']}" for e in erros)[:500] or "ok")
+            return self._send(200, {"ok": True, "rodou": True, "resumo": _kit_resumo(rel), "erros": erros})
         try:
             require_user(self, min_lvl=5)
         except AuthError as e:
             return self._send(e.status, {"ok": False, "error": e.message})
-        params = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
-        action = params.get("action") or "status"
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend indisponível"})
+
+        # v88.98: estado do kit (o que existe, tamanho, temperatura, última atualização)
+        if action == "kit":
+            return self._send(200, {"ok": True, "kit": kv_get(sb, kit.KV_KIT, {}) or {}})
+
+        # v88.98: o que o token de escrita consegue fazer com públicos, conta a conta
+        if action == "capacidade":
+            out = {}
+            for marca, act in KIT_CONTAS.items():
+                tk = (_tokens_da_conta(sb, act) or [""])[0]
+                ok, info = _graph("GET", act, {"fields": "name,tos_accepted,account_status"}, tk)
+                out[marca] = {"conta": act, "info": info if ok else {"erro": info},
+                              "fontes": kit.descobrir_fontes(_graph, act, tk)}
+            return self._send(200, {"ok": True, "token": "META_WRITE_TOKEN" if os.environ.get("META_WRITE_TOKEN") else "META_ACCESS_TOKEN",
+                                    "contas": out})
 
         campos = "id,name,subtype,approximate_count_lower_bound,delivery_status,operation_status,time_updated"
 
@@ -269,6 +338,15 @@ class handler(BaseHTTPRequestHandler):
         sb = supabase_client()
         if not sb:
             return self._send(503, {"ok": False, "error": "backend indisponível"})
+
+        # v88.98: kit manual (sócio) — simular=true só mostra o que faria
+        if action == "kit":
+            _est, rel = rodar_kit(sb, simular=bool(body.get("simular")), forcar_crm=bool(body.get("forcar_crm")))
+            if not body.get("simular"):
+                log_acao(sb, actor, "publicos_kit", {"nome": "kit de públicos"},
+                         json.dumps(_kit_resumo(rel), ensure_ascii=False), True, "ok")
+            return self._send(200, {"ok": True, "simulado": bool(body.get("simular")),
+                                    "resumo": _kit_resumo(rel), "itens": rel})
 
         act = str(body.get("conta") or "")
         if not re.match(r"^act_\d+$", act):

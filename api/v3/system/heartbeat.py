@@ -79,6 +79,9 @@ JOBS = [
     # 🤖 motor automático do Sr. Tráfego (v88.87): ciclos às 10h/13h/16h/20h BRT pelo cron da Vercel;
     # aqui é só a rede de segurança — o endpoint roda apenas se um horário venceu e não rodou.
     ("gt_auto",      "/api/v3/marketing/gestor_auto?cron=1",                1),
+    # 👥 kit de públicos do Sr. Tráfego (v88.98): cria o que falta (engajamento/LP, janela rolante do
+    # Meta) e troca as listas do CRM toda semana. 1×/dia; o endpoint deduplica por dia.
+    ("gt_publicos",  "/api/v3/marketing/gestor_publicos?action=kit&cron=1", 24),
     # 🔎 teste noturno dos números entre telas (v88.0): o endpoint só roda a partir das 20h BRT (ou recupera a
     # noite anterior de manhã) e deduplica por dia — de hora em hora aqui é só a rede de segurança do cron.
     ("consistencia", "/api/v3/system/consistency?cron=1",                   1),
