@@ -11,10 +11,12 @@
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 import { NICHOS, renderMapa } from './mapa-venda.js';
+import { playbookHTML, PB_CSS, PB_LEGENDA } from './playbook-render.js';   // v88.96: leitor que separa script × orientação
 
 let _root = null, _linhas = [], _canEdit = false;
 let _selL = 0, _selE = 0, _edit = false, _busy = false, _msg = '';
 let _ver = 'etapas', _mapaMeta = null, _soConquista = false;
+let _soScripts = false, _copias = [];
 
 // linha do playbook ↔ nicho do mapa (pelo id do seed; senão pelo nome)
 const LINHA_NICHO = { conquista: 'conquista', map: 'map', terceiros: 'terceiros', locacao: 'locacao', captacao: 'captacoes' };
@@ -160,6 +162,7 @@ function render() {
       .pv-fase-c h4{margin:0;font-size:15px}
       .pv-prazo{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--bg-3);color:var(--ink-2);margin-left:6px;vertical-align:middle}
       .pv-fase-ed{border:1px dashed var(--border);border-left:4px solid var(--c);border-radius:var(--radius-md);padding:10px;display:grid;gap:6px}
+      ${PB_CSS}
       .pv-nav{display:flex;justify-content:space-between;gap:8px;margin-top:12px;flex-wrap:wrap}
       @media(max-width:760px){.sc-grid{grid-template-columns:1fr !important}.sc-grid>div:first-child{border-right:0;border-bottom:1px solid var(--border);padding-bottom:8px}.pv-seta{display:none}.pv-vis{flex-wrap:nowrap}.pv-vis-b{flex:1;padding:8px 6px;font-size:13px}.pv-vis-b .tiny{display:none}}
     </style>`;
@@ -199,12 +202,23 @@ function corpoEtapas(L, E, etapas, cor) {
         </div>
         <button class="btn btn-ghost btn-sm" data-copy="1">📋 Copiar</button>
       </div>
-      <div id="sc-view" style="max-height:62vh;overflow:auto;font-size:13px;padding:4px 2px">${mdHTML(E.conteudo || '') || '<span class="muted">Sem conteúdo ainda.</span>'}</div>
+      <div class="flex" style="justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;padding-bottom:8px;border-bottom:1px dashed var(--border)">
+        ${PB_LEGENDA}
+        <button class="btn btn-sm ${_soScripts ? 'btn-primary' : 'btn-ghost'}" data-soscr="1">${_soScripts ? '✓ ' : ''}💬 Só os scripts</button>
+      </div>
+      <div id="sc-view" class="pb ${_soScripts ? 'pb-so' : ''}" style="--c:${cor};max-height:66vh;overflow:auto;padding:4px 2px">${lerEtapa(E.conteudo)}</div>
       <div class="pv-nav">
         <button class="btn btn-ghost btn-sm" data-pass="-1" ${_selE === 0 ? 'disabled' : ''}>← ${_selE > 0 ? esc(limpaNome(etapas[_selE - 1].nome)).slice(0, 40) : 'Início'}</button>
         <button class="btn btn-sm" data-pass="1" ${_selE === etapas.length - 1 ? 'disabled' : ''} style="background:${cor};color:${corTexto(cor)};border-color:${cor}">${_selE < etapas.length - 1 ? 'Próxima: ' + esc(limpaNome(etapas[_selE + 1].nome)).slice(0, 40) + ' →' : 'Fim da trilha ✓'}</button>
       </div>
     </div>`;
+}
+
+function lerEtapa(txt) {
+  if (!String(txt || '').trim()) { _copias = []; return '<span class="muted">Sem conteúdo ainda.</span>'; }
+  const r = playbookHTML(txt);
+  _copias = r.copias;
+  return r.html + (_soScripts && !r.copias.length ? '<div class="pb-vazio muted tiny" style="padding:16px;text-align:center">Esta etapa não tem scripts prontos — só orientação. Desligue “💬 Só os scripts” para ler.</div>' : '');
 }
 
 /* modo edição: o layout antigo (lista de etapas + editor), que é o mais prático pra editar */
@@ -225,7 +239,7 @@ function corpoEdicao(L, E, etapas, cor) {
           ${E ? `
             <input class="input" id="sc-ename" value="${esc(E.nome)}" placeholder="Nome da etapa" style="font-weight:600;margin-bottom:8px">
             <textarea class="input" id="sc-cont" rows="22" style="width:100%;font-family:ui-monospace,monospace;font-size:13px;line-height:1.5" placeholder="Regras, scripts, cadência, gatilhos…">${esc(E.conteudo || '')}</textarea>
-            <div class="tiny muted" style="margin-top:4px">Dica: LINHAS EM MAIÚSCULAS viram títulos · **negrito** · - listas.</div>`
+            <div class="tiny muted" style="margin-top:4px">Dica: LINHAS EM MAIÚSCULAS viram títulos · **negrito** · - listas · linha começando com <b>&gt; </b> vira 💬 script · "WhatsApp T01:" / "Script 1:" abrem um script · "POR QUE FUNCIONA:", "DICA:", "PROIBIDO:" viram caixas.</div>`
           : '<div class="muted tiny" style="padding:20px">Sem etapa selecionada.</div>'}
         </div>
       </div>`;
@@ -303,6 +317,12 @@ function wire(E) {
   const $ = id => _root.querySelector('#' + id);
   _root.querySelectorAll('[data-l]').forEach(b => b.onclick = () => { if (_edit) syncContent(); _selL = +b.dataset.l; _selE = 0; render(); });
   _root.querySelectorAll('[data-e]').forEach(b => b.onclick = () => { if (_edit) syncContent(); _selE = +b.dataset.e; render(); });
+  const so = _root.querySelector('[data-soscr]'); if (so) so.onclick = () => { _soScripts = !_soScripts; render(); };
+  _root.querySelectorAll('[data-cp]').forEach(b => b.onclick = () => {
+    Promise.resolve().then(() => navigator.clipboard.writeText(_copias[+b.dataset.cp] || ''))
+      .then(() => { b.textContent = '✅ Copiado'; }, () => { b.textContent = '⚠️ Não copiou'; })
+      .finally(() => setTimeout(() => { b.textContent = '📋 Copiar'; }, 1500));
+  });
   _root.querySelectorAll('[data-ver]').forEach(b => b.onclick = () => { if (_edit) syncContent(); _ver = b.dataset.ver; render(); });
   _root.querySelectorAll('[data-pass]').forEach(b => b.onclick = () => { _selE += +b.dataset.pass; render(); _root.querySelector('.pv-conteudo')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); });
   const cp = _root.querySelector('[data-copy]'); if (cp) cp.onclick = () => { try { navigator.clipboard.writeText(E.conteudo || ''); cp.textContent = '✅ Copiado'; setTimeout(() => cp.textContent = '📋 Copiar', 1500); } catch {} };
