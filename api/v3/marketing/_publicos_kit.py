@@ -55,8 +55,10 @@ LISTAS = [
 ]
 
 # semelhantes (semente → ratio)
-SEMELHANTES = [("lal_1", "semelhante", "Semelhante 1% da semente DDD 17", 0.01),
-               ("lal_3", "semelhante", "Semelhante 3% da semente DDD 17", 0.03)]
+# (chave, temp, rótulo, início, fim) — faixas que NÃO se sobrepõem (0–1% e 1–3%); o Meta recusa
+# "semelhante duplicado" quando duas começam do zero com a mesma origem.
+SEMELHANTES = [("lal_1", "semelhante", "Semelhante 0–1% da semente DDD 17", 0.0, 0.01),
+               ("lal_3", "semelhante", "Semelhante 1–3% da semente DDD 17", 0.01, 0.03)]
 
 
 def nome_publico(marca, rotulo):
@@ -295,8 +297,12 @@ def manter_kit(sb, graph, contas_marca, token_de, frente_of, simular=False, agor
 
         # 3) semelhantes — da semente qualificada
         semente = (estado.get(marca) or {}).get("semente_17") or {}
-        for chave, temp, rotulo, ratio in SEMELHANTES:
+        for chave, temp, rotulo, inicio, ratio in SEMELHANTES:
             nome = nome_publico(marca, rotulo)
+            if chave == "lal_1":   # o 0–1% já nasceu com o nome antigo em 28/09 — reconhece os dois
+                antigo = nome_publico(marca, "Semelhante 1% da semente DDD 17")
+                if antigo in exist:
+                    nome = antigo
             if nome in exist:
                 reg(marca, chave, "ok", "já existe (o Meta renova a partir da semente)",
                     extra={"id": exist[nome]["id"], "nome": nome, "temp": temp})
@@ -305,11 +311,12 @@ def manter_kit(sb, graph, contas_marca, token_de, frente_of, simular=False, agor
                 reg(marca, chave, "pendente", "aguardando a semente DDD 17", extra={"nome": nome, "temp": temp})
                 continue
             if simular:
-                reg(marca, chave, "criaria", f"{int(ratio * 100)}% BR da semente {semente.get('id')}")
+                reg(marca, chave, "criaria", f"{int(inicio * 100)}–{int(ratio * 100)}% BR da semente {semente.get('id')}")
                 continue
             ok, data = graph("POST", f"{act}/customaudiences", {
                 "name": nome, "subtype": "LOOKALIKE", "origin_audience_id": semente["id"],
-                "lookalike_spec": json.dumps({"type": "similarity", "ratio": ratio, "country": "BR"}),
+                "lookalike_spec": json.dumps({"type": "similarity", "country": "BR", "ratio": ratio,
+                                              **({"starting_ratio": inicio} if inicio else {})}),
             }, token)
             # semente recém-subida ainda não pareou → o Meta recusa; tenta de novo na próxima rodada
             reg(marca, chave, "criado" if ok else "pendente", data.get("id") if ok else data, ok,
