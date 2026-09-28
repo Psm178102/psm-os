@@ -115,7 +115,7 @@ function render() {
             <div style="font-size:20px;font-weight:600;color:var(--warn)">Sr. Gestor de Tráfego</div>
             <div style="opacity:.85;font-size:13px">Mídia paga sênior · Meta Ads, públicos, RD Station e estratégia · PSM Conquista + PSM Imóveis · relatórios 19h aos sócios</div>
           </div>
-          <button class="btn btn-ghost" data-nav-mkt style="color:#fff;border-color:#ffffff44">📢 Dashboard Meta completo</button>
+          <button class="btn btn-ghost" data-nav-mkt style="color:var(--ink);border-color:var(--border-strong)">📢 Dashboard Meta completo</button>
         </div>
       </div>
       <div class="flex gap-2" style="flex-wrap:wrap;border-bottom:1px solid var(--bd);padding-bottom:8px;margin-bottom:14px">

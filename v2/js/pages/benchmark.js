@@ -29,11 +29,11 @@ async function load() {
 
 function render() {
   _root.innerHTML = `
-    <div class="card" style="background:var(--surface-2);color:#e2e8f0;padding:24px;min-height:80vh">
+    <div class="card" style="background:var(--surface-2);color:var(--ink);padding:24px;min-height:80vh">
       <div class="flex" style="align-items:center;gap:14px;margin-bottom:20px">
         <span style="font-size:36px;color:#fffbea">📊</span>
         <div>
-          <h2 style="margin:0;color:#fff;font-size:26px">Benchmark de Mercado</h2>
+          <h2 style="margin:0;color:var(--ink);font-size:26px">Benchmark de Mercado</h2>
           <p style="margin:4px 0 0;color:var(--ink-muted);font-size:13px">Análise comparativa de concorrentes</p>
         </div>
       </div>
@@ -80,7 +80,7 @@ function metricCard(m) {
       <div class="flex" style="align-items:flex-start;gap:10px;margin-bottom:14px">
         <span style="font-size:26px">${m.icon}</span>
         <div>
-          <div style="color:#fff;font-weight:600;font-size:14px">${m.label}</div>
+          <div style="color:var(--ink);font-weight:600;font-size:14px">${m.label}</div>
           <div style="color:var(--ink-muted);font-size:11px">${stats.count} dados</div>
         </div>
       </div>
@@ -110,7 +110,7 @@ function stat(label, value, color) {
 function renderTiers() {
   return `
     <div style="background:linear-gradient(135deg,#1e293b,#263549);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px">
-      <h3 style="color:#fff;margin:0 0 14px;font-size:16px">🏆 Ranking por Tier</h3>
+      <h3 style="color:var(--ink);margin:0 0 14px;font-size:16px">🏆 Ranking por Tier</h3>
       <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px">
         ${['A', 'B', 'C'].map(tier => {
           const grupo = _concorrentes.filter(c => (c.tier || '').toUpperCase() === tier);
@@ -121,7 +121,7 @@ function renderTiers() {
               ${grupo.length === 0 ? '<div style="color:var(--ink-muted);font-size:12px;text-align:center;padding:10px">—</div>' :
                 grupo.slice(0, 8).map((c, i) => `
                   <div class="flex" style="justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px">
-                    <span style="color:#fff;font-weight:600">${i + 1}. ${esc(c.nome || '—')}</span>
+                    <span style="color:var(--ink);font-weight:600">${i + 1}. ${esc(c.nome || '—')}</span>
                     <span style="color:var(--ink-muted)">${c.seguidores ? Number(c.seguidores).toLocaleString('pt-BR') : '—'}</span>
                   </div>
                 `).join('')

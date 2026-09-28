@@ -678,8 +678,8 @@ function leadsGeoPanel() {
     const col = c.cidade === 'Não informado' ? '#8a8579' : (c.is_rio_preto ? '#239a5b' : '#c7861a');
     return `<tr style="border-top:1px solid var(--border)">
       <td style="padding:6px 10px;color:${col};font-weight:600">${c.is_rio_preto ? '📍 ' : ''}${escapeHtml(c.cidade)}</td>
-      <td style="padding:6px 8px;position:relative;min-width:120px"><div style="position:absolute;inset:5px auto 5px 0;width:${w}%;background:${col}33;border-radius:var(--radius-sm)"></div><span style="position:relative;font-weight:600;color:#e2e8f0">${fmtNum(c.leads)}</span></td>
-      <td style="text-align:right;padding:6px 10px;color:#cbd5e1">${pct2(c.pct)}</td>
+      <td style="padding:6px 8px;position:relative;min-width:120px"><div style="position:absolute;inset:5px auto 5px 0;width:${w}%;background:${col}33;border-radius:var(--radius-sm)"></div><span style="position:relative;font-weight:600;color:var(--ink)">${fmtNum(c.leads)}</span></td>
+      <td style="text-align:right;padding:6px 10px;color:var(--ink-2)">${pct2(c.pct)}</td>
     </tr>`;
   }).join('');
   const alerts = (g.by_campaign || []).filter(c => c.alerta);
@@ -687,7 +687,7 @@ function leadsGeoPanel() {
     ? `<div style="margin-top:12px;background:var(--err-soft);border:1px solid var(--err);color:var(--err);border-radius:var(--radius-md);padding:10px 14px;font-size:12px"><strong>⚠️ ${pct2(g.pct_outras)} dos leads vêm de FORA da região de Rio Preto (DDD ≠ 17)</strong> — acima do limite de ${g.threshold_pct}% (${g.outras} de ${g.com_cidade} leads com DDD).</div>`
     : (g.pct_outras != null ? `<div style="margin-top:12px;background:var(--ok-soft);border:1px solid var(--ok);color:var(--ok);border-radius:var(--radius-md);padding:10px 14px;font-size:12px">✅ ${pct2(100 - g.pct_outras)} dos leads são da região de Rio Preto (DDD 17) · ${pct2(g.pct_outras)} de fora (dentro do limite de ${g.threshold_pct}%).</div>` : '');
   const campAlerts = alerts.length
-    ? `<div style="margin-top:12px"><div style="font-size:12px;font-weight:600;color:#cbd5e1;margin-bottom:6px">🚨 Campanhas/públicos com >${g.threshold_pct}% de leads de fora</div>
+    ? `<div style="margin-top:12px"><div style="font-size:12px;font-weight:600;color:var(--ink-2);margin-bottom:6px">🚨 Campanhas/públicos com >${g.threshold_pct}% de leads de fora</div>
        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px">
        ${alerts.slice(0, 12).map(c => `<div style="background:var(--err-soft);border:1px solid var(--err);border-radius:var(--radius-md);padding:8px 12px">
           <div style="font-size:12px;color:var(--err);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escapeHtml(c.campanha)}">${escapeHtml(c.campanha)}</div>
@@ -697,20 +697,20 @@ function leadsGeoPanel() {
     : '';
   const brands = g.by_brand || [];
   const brandBlock = brands.length ? `<div style="margin-top:12px">
-    <div style="font-size:12px;font-weight:600;color:#cbd5e1;margin-bottom:6px">🏷 Por marca (% de leads de fora de Rio Preto)</div>
+    <div style="font-size:12px;font-weight:600;color:var(--ink-2);margin-bottom:6px">🏷 Por marca (% de leads de fora de Rio Preto)</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px">
     ${brands.map(b => {
       const al = b.alerta;
       const col = al ? '#d64545' : (b.pct_outras != null && b.pct_outras <= 10 ? '#239a5b' : '#c7861a');
       return `<div style="background:${al ? 'rgba(239,68,68,0.1)' : 'rgba(255,255,255,0.04)'};border:1px solid ${al ? 'var(--err)' : 'var(--border)'};border-radius:var(--radius-md);padding:8px 12px">
-        <div style="font-size:12px;color:#cbd5e1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${al ? '🚨 ' : ''}${escapeHtml(b.marca)}</div>
+        <div style="font-size:12px;color:var(--ink-2);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${al ? '🚨 ' : ''}${escapeHtml(b.marca)}</div>
         <div style="font-size:16px;font-weight:600;color:${col}">${b.pct_outras != null ? pct2(b.pct_outras) + ' fora' : '—'}</div>
         <div style="font-size:11px;color:var(--ink-muted)">${fmtNum(b.leads)} leads · ${fmtNum(b.rio_preto)} RP · ${fmtNum(b.outras)} fora</div></div>`;
     }).join('')}
     </div></div>` : '';
   return `
-  <div style="background:linear-gradient(160deg,#0f172a,#111827);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;color:#e2e8f0;margin-bottom:16px">
-    <div style="font-size:14px;font-weight:600;color:#fff">📍 Leads por Região (DDD do telefone) <span style="font-size:11px;font-weight:600;color:var(--ink-muted)">· ${g.lead_rule === 'trafego_pago' ? 'só tráfego pago' : '⚠️ todas as origens (Dicionário indisponível)'}${g.prospeccao_excluida ? ` — ${fmtNum(g.prospeccao_excluida)} de prospecção fora` : ''}</span></div>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;color:var(--ink);margin-bottom:16px">
+    <div style="font-size:14px;font-weight:600;color:var(--ink)">📍 Leads por Região (DDD do telefone) <span style="font-size:11px;font-weight:600;color:var(--ink-muted)">· ${g.lead_rule === 'trafego_pago' ? 'só tráfego pago' : '⚠️ todas as origens (Dicionário indisponível)'}${g.prospeccao_excluida ? ` — ${fmtNum(g.prospeccao_excluida)} de prospecção fora` : ''}</span></div>
     <div style="font-size:11px;color:var(--ink-muted)">região pelo DDD do telefone do lead (RD) · <b style="color:var(--ok)">DDD 17 = São José do Rio Preto</b> · alerta quando >${g.threshold_pct}% vêm de fora${filterTag()}</div>
     ${banner}
     ${campAlerts}
@@ -756,7 +756,7 @@ function deltaBadge(pct, invert) {
 function heroKpi(label, value, deltaPct, sparkVals, color, invert) {
   return `<div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px 14px 10px">
     <div style="font-size:11px;color:var(--ink-muted);letter-spacing:.4px">${label}</div>
-    <div style="font-size:26px;font-weight:600;color:#f1f5f9;line-height:1.1;margin-top:3px">${value}</div>
+    <div style="font-size:26px;font-weight:600;color:var(--ink);line-height:1.1;margin-top:3px">${value}</div>
     <div style="margin-top:2px">${deltaBadge(deltaPct, invert)}</div>
     <div style="margin-top:6px">${sparkSVG(sparkVals, color)}</div>
   </div>`;
@@ -905,12 +905,12 @@ function heroAlertas() {
   al.active.forEach(c => { const k = classifySemaforo(c); if (buckets[k] != null) buckets[k]++; });
   const stat = (ico, lbl, val, color, sub) => `<div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 12px;border-left:4px solid ${color}">
       <div style="font-size:11px;color:var(--ink-muted)">${ico} ${lbl}</div>
-      <div style="font-size:20px;font-weight:600;color:#f1f5f9">${val}</div>
+      <div style="font-size:20px;font-weight:600;color:var(--ink)">${val}</div>
       ${sub ? `<div style="font-size:11px;color:var(--ink-muted)">${sub}</div>` : ''}</div>`;
   return `
   <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px;margin-top:14px">
     <div class="flex" style="justify-content:space-between;align-items:center;margin-bottom:10px">
-      <div style="font-size:13px;font-weight:600;color:#cbd5e1">⚠️ Alertas & Semáforo de Escala</div>
+      <div style="font-size:13px;font-weight:600;color:var(--ink-2)">⚠️ Alertas & Semáforo de Escala</div>
       <span class="tiny" style="color:var(--ink-muted)">detalhe na aba 📊 Tráfego</span>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
@@ -952,8 +952,8 @@ function tabExecutiva() {
   return `
     ${execHero(t, accounts)}
     ${leadsGeoPanel()}
-    <div style="background:linear-gradient(160deg,#0f172a,#111827);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 18px 20px;color:#e2e8f0;margin-bottom:16px">
-      <div style="font-size:14px;font-weight:600;color:#fff">🔗 Cruzamento com CRM · Meta Ads × RD</div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 18px 20px;color:var(--ink);margin-bottom:16px">
+      <div style="font-size:14px;font-weight:600;color:var(--ink)">🔗 Cruzamento com CRM · Meta Ads × RD</div>
       <div style="font-size:11px;color:var(--ink-muted)">Mídia paga convertida em venda real — CAC, VGV e ROAS cruzam Meta Ads × deals ganhos no RD no mesmo período.${filterTag()}</div>
 
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px">
@@ -1024,10 +1024,10 @@ function googleSection(attr) {
         <th style="text-align:right;padding:6px 8px">Cliques</th><th style="text-align:right;padding:6px 8px">Conv.</th>
       </tr></thead><tbody>
       ${top.map(c => `<tr style="border-top:1px solid var(--border)">
-        <td style="padding:6px 10px;font-weight:600;color:#e2e8f0">${escapeHtml(c.name)}</td>
+        <td style="padding:6px 10px;font-weight:600;color:var(--ink)">${escapeHtml(c.name)}</td>
         <td style="text-align:right;padding:6px 8px;color:var(--err-claro)">R$ ${money(c.spend)}</td>
-        <td style="text-align:right;padding:6px 8px;color:#e2e8f0">${fmtNum(c.clicks)}</td>
-        <td style="text-align:right;padding:6px 8px;color:#e2e8f0">${fmtNum(c.conversions)}</td>
+        <td style="text-align:right;padding:6px 8px;color:var(--ink)">${fmtNum(c.clicks)}</td>
+        <td style="text-align:right;padding:6px 8px;color:var(--ink)">${fmtNum(c.conversions)}</td>
       </tr>`).join('')}
       </tbody></table></div>` : ''}`);
 }
@@ -1051,10 +1051,10 @@ function execBrandRows(byBrand) {
     rows.push(`<tr style="border-top:1px solid var(--border)">
       <td style="padding:6px 10px;font-weight:600;color:${bi.cor}">${escapeHtml(crm?.label || bi.brand)}</td>
       <td style="text-align:right;padding:6px 8px;color:var(--err-claro)">R$ ${money(spend)}</td>
-      <td style="text-align:right;padding:6px 8px;color:#e2e8f0">${fmtNum(leads)}</td>
+      <td style="text-align:right;padding:6px 8px;color:var(--ink)">${fmtNum(leads)}</td>
       <td style="text-align:right;padding:6px 8px;color:var(--ok)">${fmtNum(vendas)}</td>
-      <td style="text-align:right;padding:6px 8px;color:#cbd5e1">${cac ? 'R$ ' + money(cac) : '—'}</td>
-      <td style="text-align:right;padding:6px 8px;font-weight:600;color:#f1f5f9">R$ ${moneyShort(vgv)}</td>
+      <td style="text-align:right;padding:6px 8px;color:var(--ink-2)">${cac ? 'R$ ' + money(cac) : '—'}</td>
+      <td style="text-align:right;padding:6px 8px;font-weight:600;color:var(--ink)">R$ ${moneyShort(vgv)}</td>
       <td style="text-align:right;padding:6px 8px;font-weight:600;color:${roas>=1?'var(--ok)':'var(--warn)'}">${roas ? roas.toFixed(1) + 'x' : '—'}</td>
     </tr>`);
   });
@@ -1216,11 +1216,11 @@ function metaMetricsCockpit() {
   const cplLead = s.leads>0 ? s.spend/s.leads : 0;
   const cpLp = s.lpViews>0 ? s.spend/s.lpViews : 0;
   const vbase = Math.max(s.views, s.v25, 1);
-  const vstage = (lbl, val, color) => { const w = Math.max(5, Math.round(val/vbase*100)); return `<div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink-muted);margin-bottom:2px"><span>${lbl}</span><span style="color:#e2e8f0;font-weight:600">${fmtNum(val)}</span></div><div style="height:14px;border-radius:var(--radius-sm);background:var(--surface-2);overflow:hidden"><div style="height:100%;width:${w}%;background:${color}"></div></div></div>`; };
+  const vstage = (lbl, val, color) => { const w = Math.max(5, Math.round(val/vbase*100)); return `<div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink-muted);margin-bottom:2px"><span>${lbl}</span><span style="color:var(--ink);font-weight:600">${fmtNum(val)}</span></div><div style="height:14px;border-radius:var(--radius-sm);background:var(--surface-2);overflow:hidden"><div style="height:100%;width:${w}%;background:${color}"></div></div></div>`; };
   const grid = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px';
   return `
-    <div style="background:linear-gradient(160deg,#0f172a,#111827);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;color:#e2e8f0;margin-bottom:16px">
-      <div style="font-size:14px;font-weight:600;color:#fff">📊 Cockpit de Métricas Meta</div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;color:var(--ink);margin-bottom:16px">
+      <div style="font-size:14px;font-weight:600;color:var(--ink)">📊 Cockpit de Métricas Meta</div>
       <div style="font-size:11px;color:var(--ink-muted)">${camps.length} campanha(s) no período · entrega · tráfego · engajamento · vídeo · mensagens · leads — tudo em tempo real</div>
 
       ${crmPanelDark('🚀 Entrega & Custo', '', `<div style="${grid}">
@@ -1272,14 +1272,14 @@ function metaMetricsCockpit() {
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
         <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px">
-          <div style="font-size:13px;font-weight:600;color:#cbd5e1;margin-bottom:8px">💬 Mensagens</div>
+          <div style="font-size:13px;font-weight:600;color:var(--ink-2);margin-bottom:8px">💬 Mensagens</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
             ${crmMiniDark('Conversas iniciadas', fmtNum(s.messages), '#239a5b')}
             ${crmMiniDark('Custo/conversa', cplMsg ? 'R$ ' + money(cplMsg) : '—', '#6ee7b7')}
           </div>
         </div>
         <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px">
-          <div style="font-size:13px;font-weight:600;color:#cbd5e1;margin-bottom:8px">🧲 Leads & Conversão</div>
+          <div style="font-size:13px;font-weight:600;color:var(--ink-2);margin-bottom:8px">🧲 Leads & Conversão</div>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
             ${crmMiniDark('Leads', fmtNum(s.leads), '#239a5b')}
             ${crmMiniDark('Custo/lead', cplLead ? 'R$ ' + money(cplLead) : '—', '#6ee7b7')}
@@ -1329,7 +1329,7 @@ function tabTrafego() {
     <div class="mt-4" style="margin-top:18px">
       <div class="flex items-center gap-2" style="margin-bottom:10px">
         <h3 class="card-title" style="margin:0">⚠️ Central de Alertas</h3>
-        <span class="tiny" style="background:${totalAlerts ? 'var(--err-soft)' : 'var(--ok-soft)'};color:#fff;padding:2px 10px;border-radius:var(--r-full);font-weight:600">${totalAlerts}</span>
+        <span class="tiny" style="background:${totalAlerts ? 'var(--err-soft)' : 'var(--ok-soft)'};color:${totalAlerts ? 'var(--err)' : 'var(--ok)'};padding:2px 10px;border-radius:var(--r-full);font-weight:600">${totalAlerts}</span>
         ${verbaRisco > 0 ? `<span class="tiny" style="color:var(--err);font-weight:600;margin-left:6px">🔥 R$ ${money(verbaRisco)} em risco</span>` : ''}
         <button class="btn btn-ghost tiny" id="ma-th" style="margin-left:auto">⚙️ Limiares</button>
       </div>
@@ -1626,10 +1626,10 @@ function attrChannelTable(attr) {
       const col = isUnatt ? '#8a8579' : isPaid ? '#806d50' : '#806d50';
       return `<tr style="border-top:1px solid var(--border)">
         <td style="padding:6px 10px;font-weight:600;color:${col}">${escapeHtml(r.label)}${isPaid ? ' 💳' : ''}</td>
-        <td style="text-align:right;padding:6px 8px;color:#e2e8f0">${fmtNum(r.leads)}</td>
+        <td style="text-align:right;padding:6px 8px;color:var(--ink)">${fmtNum(r.leads)}</td>
         <td style="text-align:right;padding:6px 8px;color:var(--ok)">${fmtNum(r.vendas)}</td>
-        <td style="text-align:right;padding:6px 8px;font-weight:600;color:#f1f5f9">R$ ${moneyShort(r.vgv)}</td>
-        <td style="text-align:right;padding:6px 8px;color:#cbd5e1">${pct2(pct)}</td>
+        <td style="text-align:right;padding:6px 8px;font-weight:600;color:var(--ink)">R$ ${moneyShort(r.vgv)}</td>
+        <td style="text-align:right;padding:6px 8px;color:var(--ink-2)">${pct2(pct)}</td>
       </tr>`;
     }).join('')}
     </tbody></table></div>`;
@@ -1770,7 +1770,7 @@ function crmMiniDark(label, val, color, sub) {
 }
 function crmPanelDark(title, sub, inner) {
   return `<div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px;margin-top:14px">
-    <div style="font-size:13px;font-weight:600;color:#cbd5e1;margin-bottom:8px">${title}${sub ? ` <span style="font-weight:500;color:var(--ink-muted);font-size:11px">${sub}</span>` : ''}</div>
+    <div style="font-size:13px;font-weight:600;color:var(--ink-2);margin-bottom:8px">${title}${sub ? ` <span style="font-weight:500;color:var(--ink-muted);font-size:11px">${sub}</span>` : ''}</div>
     ${inner}
   </div>`;
 }
@@ -1840,11 +1840,11 @@ function creativeCyclePanel() {
       <div style="font-size:12px;color:var(--ink-muted)">⏳ Aguardando captação de Lead Ads. Quando o webhook do Meta estiver ligado (token <code style="color:var(--warn)">leads_retrieval</code> + inscrição <code style="color:var(--warn)">leadgen</code>), esta tabela popula sozinha: leads por formato, conversão e <b>tempo médio até a venda</b> — em tempo real, sem depender de ninguém.</div>`);
   }
   const rows = lc.by_creative.map(c => `<tr style="border-top:1px solid var(--border)">
-    <td style="padding:6px 10px;font-weight:600;color:#e2e8f0">${escapeHtml(c.label)}</td>
+    <td style="padding:6px 10px;font-weight:600;color:var(--ink)">${escapeHtml(c.label)}</td>
     <td style="text-align:right;padding:6px 8px">${fmtNum(c.leads)}</td>
     <td style="text-align:right;padding:6px 8px;color:var(--ok)">${fmtNum(c.vendas)}</td>
     <td style="text-align:right;padding:6px 8px;color:${(c.conv_pct||0)>=2?'var(--ok)':'var(--warn)'}">${c.conv_pct != null ? pct2(c.conv_pct) : '—'}</td>
-    <td style="text-align:right;padding:6px 8px;color:#f1f5f9">R$ ${moneyShort(c.vgv)}</td>
+    <td style="text-align:right;padding:6px 8px;color:var(--ink)">R$ ${moneyShort(c.vgv)}</td>
     <td style="text-align:right;padding:6px 8px;font-weight:600;color:var(--accent-ink)">${c.ciclo_medio_dias != null ? c.ciclo_medio_dias + ' d' : '—'}</td>
   </tr>`).join('');
   return crmPanelDark('🎬 Ciclo de vendas por formato de criativo', `(leads capturados × CRM — ${lc.total_leads} leads no período)`, `
@@ -1871,7 +1871,7 @@ function rejeicaoMotivoPanel() {
     return `<div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 12px">
       <div style="font-weight:600;font-size:13px;color:${bi.cor};margin-bottom:6px">${escapeHtml(c.label)} <span style="color:var(--ink-muted);font-weight:400">· ${c.perdas} perdas</span></div>
       ${mot.map(x => `<div style="margin-bottom:5px">
-        <div class="flex items-center" style="justify-content:space-between;font-size:11px;color:#cbd5e1"><span>${escapeHtml(x.motivo)}</span><b>${x.n}${x.pct?` · ${pct2(x.pct)}`:''}</b></div>
+        <div class="flex items-center" style="justify-content:space-between;font-size:11px;color:var(--ink-2)"><span>${escapeHtml(x.motivo)}</span><b>${x.n}${x.pct?` · ${pct2(x.pct)}`:''}</b></div>
         <div style="height:5px;background:var(--surface-2);border-radius:var(--radius-sm);overflow:hidden;margin-top:2px"><div style="height:100%;width:${Math.max(4, x.n/maxN*100)}%;background:#fb7185"></div></div>
       </div>`).join('')}
     </div>`;
@@ -1883,7 +1883,7 @@ function rejeicaoMotivoPanel() {
 
 function roadmapMini() {
   return `
-    <div style="margin-top:14px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 14px;font-size:12px;color:#cbd5e1">🔌 <strong style="color:#e2e8f0">Ainda no roadmap (precisa de mais integração):</strong>
+    <div style="margin-top:14px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 14px;font-size:12px;color:var(--ink-2)">🔌 <strong style="color:var(--ink)">Ainda no roadmap (precisa de mais integração):</strong>
       <div style="margin-top:6px;display:grid;gap:4px;font-size:11px">
         <div>📋 <b>Drop-off de formulário (Lead Ads)</b> — exige a API de Lead Forms do Meta (aberturas × envios); não vem no insights padrão.</div>
         <div>🎯 <b>Conversão por roteamento inteligente</b> — depende do sistema de distribuição de leads por patente (War Arena); quando existir, cruzamos roteado vs aleatório.</div>
@@ -2274,14 +2274,14 @@ function funilCard(F) {
     const cor = x.ok == null ? '#8a8579' : x.ok ? '#239a5b' : '#d64545';
     const taxa = x.taxaTxt != null ? x.taxaTxt : (x.taxa != null ? pct2(x.taxa) : '—');
     const isG = F.garg && F.garg.x === x;
-    return `<div style="margin:0 auto;width:${w}%;background:linear-gradient(135deg,#0f172a,#1e293b);border:2px solid ${isG ? 'var(--warn)' : 'transparent'};border-left:6px solid ${cor};border-radius:var(--radius-md);padding:8px 12px;margin-bottom:6px;color:#e2e8f0">
+    return `<div style="margin:0 auto;width:${w}%;background:var(--surface-2);border:2px solid ${isG ? 'var(--warn)' : 'transparent'};border-left:6px solid ${cor};border-radius:var(--radius-md);padding:8px 12px;margin-bottom:6px;color:var(--ink)">
       <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap">
         <div><div style="font-size:13px;font-weight:600;letter-spacing:.3px">${escapeHtml(x.t)}${isG ? ' <span style="color:var(--warn)">⚠️ GARGALO</span>' : ''}</div>
           <div style="font-size:11px;color:var(--ink-muted)">${escapeHtml(x.sub)}</div></div>
         <div style="text-align:right"><div style="font-size:16px;font-weight:600">${fmtNum(x.n)}</div>
           <div style="font-size:11px;color:${x.ok == null ? '#cbd5e1' : x.ok ? 'var(--ok)' : 'var(--err)'};font-weight:600">${escapeHtml(x.taxaLbl)}: ${taxa}${x.bench != null ? ` <span style="color:var(--ink-muted);font-weight:600">(ref ${x.bench}%)</span>` : ''}</div></div>
       </div>
-      ${(x.custo != null || x.extra) ? `<div style="font-size:11px;color:var(--ink-muted);margin-top:3px">${x.custo != null ? `${escapeHtml(x.custoLbl || 'custo')}: <b style="color:#e2e8f0">R$ ${money(x.custo)}</b>` : ''}${x.custo != null && x.extra ? ' · ' : ''}${x.extra || ''}</div>` : ''}
+      ${(x.custo != null || x.extra) ? `<div style="font-size:11px;color:var(--ink-muted);margin-top:3px">${x.custo != null ? `${escapeHtml(x.custoLbl || 'custo')}: <b style="color:var(--ink)">R$ ${money(x.custo)}</b>` : ''}${x.custo != null && x.extra ? ' · ' : ''}${x.extra || ''}</div>` : ''}
     </div>`;
   }).join('');
   const o = F.o;

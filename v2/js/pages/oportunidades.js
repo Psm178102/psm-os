@@ -61,54 +61,54 @@ function renderForm() {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div style="grid-column:1/-1">
           <label class="tiny" style="color:var(--ink-muted)">Título *</label>
-          <input id="of-tit" class="input" placeholder="Ex: Investidor procura 3 lotes Damha" value="${esc(ed.titulo || '')}" style="background:var(--surface-2);color:#fff;border-color:var(--border)">
+          <input id="of-tit" class="input" placeholder="Ex: Investidor procura 3 lotes Damha" value="${esc(ed.titulo || '')}" style="background:var(--surface-2);color:var(--ink);border-color:var(--border)">
         </div>
         <div style="grid-column:1/-1">
           <label class="tiny" style="color:var(--ink-muted)">Descrição</label>
-          <textarea id="of-desc" class="input" rows="3" style="background:var(--surface-2);color:#fff;border-color:var(--border)">${esc(ed.descricao || '')}</textarea>
+          <textarea id="of-desc" class="input" rows="3" style="background:var(--surface-2);color:var(--ink);border-color:var(--border)">${esc(ed.descricao || '')}</textarea>
         </div>
         <div>
           <label class="tiny" style="color:var(--ink-muted)">Tipo</label>
-          <select id="of-tipo" class="select" style="background:var(--surface-2);color:#fff">
+          <select id="of-tipo" class="select" style="background:var(--surface-2);color:var(--ink)">
             ${TIPOS.map(t => `<option value="${t}" ${ed.tipo === t ? 'selected' : ''}>${TIPO_ICO[t]} ${t}</option>`).join('')}
           </select>
         </div>
         <div>
           <label class="tiny" style="color:var(--ink-muted)">Valor estimado (R$)</label>
-          <input id="of-valor" type="number" class="input" value="${ed.valor_est || ''}" style="background:var(--surface-2);color:#fff;border-color:var(--border)">
+          <input id="of-valor" type="number" class="input" value="${ed.valor_est || ''}" style="background:var(--surface-2);color:var(--ink);border-color:var(--border)">
         </div>
         <div>
           <label class="tiny" style="color:var(--ink-muted)">Origem</label>
-          <input id="of-origem" class="input" placeholder="Indicação Paulo, Instagram, evento..." value="${esc(ed.origem || '')}" style="background:var(--surface-2);color:#fff;border-color:var(--border)">
+          <input id="of-origem" class="input" placeholder="Indicação Paulo, Instagram, evento..." value="${esc(ed.origem || '')}" style="background:var(--surface-2);color:var(--ink);border-color:var(--border)">
         </div>
         <div>
           <label class="tiny" style="color:var(--ink-muted)">Contato</label>
-          <input id="of-contato" class="input" placeholder="WhatsApp ou email" value="${esc(ed.contato || '')}" style="background:var(--surface-2);color:#fff;border-color:var(--border)">
+          <input id="of-contato" class="input" placeholder="WhatsApp ou email" value="${esc(ed.contato || '')}" style="background:var(--surface-2);color:var(--ink);border-color:var(--border)">
         </div>
         <div>
           <label class="tiny" style="color:var(--ink-muted)">Prazo</label>
-          <input id="of-prazo" type="date" class="input" value="${ed.prazo || ''}" style="background:var(--surface-2);color:#fff;border-color:var(--border)">
+          <input id="of-prazo" type="date" class="input" value="${ed.prazo || ''}" style="background:var(--surface-2);color:var(--ink);border-color:var(--border)">
         </div>
         <div style="grid-column:1/-1;border-top:1px dashed var(--border);margin-top:4px;padding-top:8px"></div>
         <div style="grid-column:1/-1">
           <label class="tiny" style="color:var(--ink-muted)">🔗 Link do Kenlo (anúncio no site PSM)</label>
-          <input id="of-kenlo" class="input" placeholder="https://...psm... ou link do Kenlo" value="${esc(ed.kenlo_link || '')}" style="background:var(--surface-2);color:#fff;border-color:var(--border)">
+          <input id="of-kenlo" class="input" placeholder="https://...psm... ou link do Kenlo" value="${esc(ed.kenlo_link || '')}" style="background:var(--surface-2);color:var(--ink);border-color:var(--border)">
         </div>
         <div style="grid-column:1/-1">
           <label class="tiny" style="color:var(--ink-muted)">🖼 Imagem/Vídeo (cole o link — Drive, YouTube, foto do anúncio)</label>
-          <input id="of-midia" class="input" placeholder="https://... (jpg/png/mp4/youtube)" value="${esc(ed.midia_url || '')}" style="background:var(--surface-2);color:#fff;border-color:var(--border)">
+          <input id="of-midia" class="input" placeholder="https://... (jpg/png/mp4/youtube)" value="${esc(ed.midia_url || '')}" style="background:var(--surface-2);color:var(--ink);border-color:var(--border)">
         </div>
         <div style="grid-column:1/-1">
           <label class="tiny" style="color:var(--ink-muted)">📝 Condições comerciais</label>
-          <textarea id="of-cond" class="input" rows="2" placeholder="Ex: entrada 20%, saldo em 36x, permuta aceita..." style="background:var(--surface-2);color:#fff;border-color:var(--border)">${esc(ed.condicoes || '')}</textarea>
+          <textarea id="of-cond" class="input" rows="2" placeholder="Ex: entrada 20%, saldo em 36x, permuta aceita..." style="background:var(--surface-2);color:var(--ink);border-color:var(--border)">${esc(ed.condicoes || '')}</textarea>
         </div>
         <div>
           <label class="tiny" style="color:var(--ink-muted)">💰 % de comissão</label>
-          <input id="of-comissao" type="number" step="0.01" class="input" placeholder="Ex: 5" value="${ed.comissao_pct != null ? ed.comissao_pct : ''}" style="background:var(--surface-2);color:#fff;border-color:var(--border)">
+          <input id="of-comissao" type="number" step="0.01" class="input" placeholder="Ex: 5" value="${ed.comissao_pct != null ? ed.comissao_pct : ''}" style="background:var(--surface-2);color:var(--ink);border-color:var(--border)">
         </div>
         <div>
           <label class="tiny" style="color:var(--ink-muted)">🏆 Prêmio</label>
-          <input id="of-premio" class="input" placeholder="Ex: R$ 500 + bônus / viagem" value="${esc(ed.premio || '')}" style="background:var(--surface-2);color:#fff;border-color:var(--border)">
+          <input id="of-premio" class="input" placeholder="Ex: R$ 500 + bônus / viagem" value="${esc(ed.premio || '')}" style="background:var(--surface-2);color:var(--ink);border-color:var(--border)">
         </div>
       </div>
       <div class="flex gap-2 mt-3">

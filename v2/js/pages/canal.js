@@ -47,18 +47,18 @@ function renderEnviar() {
     <div style="max-width:640px;margin:0 auto">
       <div style="background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:var(--radius-lg);padding:24px;border:1px solid var(--border)">
         <p style="color:var(--ink-muted);font-size:13px;margin-bottom:16px">
-          Sua mensagem será enviada diretamente para os diretores <b style="color:#f8fafc">Paulo</b> e <b style="color:#f8fafc">Isabella</b>.
+          Sua mensagem será enviada diretamente para os diretores <b style="color:var(--ink)">Paulo</b> e <b style="color:var(--ink)">Isabella</b>.
           Você pode se identificar ou enviar anonimamente.
         </p>
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:#e2e8f0;margin-bottom:14px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--ink);margin-bottom:14px">
           <input type="checkbox" id="ca-id" style="width:18px;height:18px">
           <span>Desejo me identificar</span>
         </label>
         <div id="ca-nome-wrap" style="display:none;margin-bottom:14px">
-          <input type="text" id="ca-nome" placeholder="Seu nome (opcional)" class="input" style="background:var(--surface-2);color:#fff;border-color:var(--border)">
+          <input type="text" id="ca-nome" placeholder="Seu nome (opcional)" class="input" style="background:var(--surface-2);color:var(--ink);border-color:var(--border)">
         </div>
         <label class="tiny" style="color:var(--accent-ink);font-weight:600;display:block;margin-bottom:6px">✍️ Sua mensagem</label>
-        <textarea id="ca-msg" rows="6" class="input" style="background:var(--surface-2);color:#fff;border-color:var(--border)" placeholder="Escreva sua mensagem aqui..."></textarea>
+        <textarea id="ca-msg" rows="6" class="input" style="background:var(--surface-2);color:var(--ink);border-color:var(--border)" placeholder="Escreva sua mensagem aqui..."></textarea>
         <label class="tiny" style="color:var(--accent-ink);font-weight:600;display:block;margin:14px 0 6px">📎 Anexar arquivo (foto/doc — máx 2MB)</label>
         <input type="file" id="ca-file" accept="image/*,.pdf,.doc,.docx" style="font-size:12px;color:var(--ink-muted)">
         <button class="btn btn-primary" id="ca-send" style="width:100%;margin-top:16px;padding:14px;font-size:14px">🚀 Enviar Mensagem</button>
