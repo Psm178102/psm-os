@@ -1,5 +1,5 @@
 /* ============================================================================
-   PSM-OS v2 — Dashboard Diretoria (Recados + Estratégia + KPIs)
+   PSM-OS v2 — Dashboard Diretoria (Recados + KPIs · Norte foi pro Plano Estratégico v88.72)
    Sprint 7.14
 ============================================================================ */
 import { api } from '../api.js';
@@ -9,14 +9,6 @@ import { FRENTES } from '../frentes.js';
 import { heroWrap, heroKpi, miniStat, panel, loadChartLib, darkOpts, DARK_INK, DARK_GRID, pctDelta } from '../premium.js';
 
 let _charts = [];
-
-const TIPOS_EST = [
-  { id: 'visao',      lbl: 'Visão',      ico: '🎯', color: '#806d50' },
-  { id: 'missao',     lbl: 'Missão',     ico: '🚀', color: '#806d50' },
-  { id: 'objetivo',   lbl: 'Objetivos',  ico: '📍', color: '#239a5b' },
-  { id: 'okr',        lbl: 'OKRs',       ico: '✅', color: '#c7861a' },
-  { id: 'iniciativa', lbl: 'Iniciativas',ico: '🛠', color: '#d64545' },
-];
 
 const PRIOR_LBL = {
   info:    { lbl: 'Info',     bg: '#dbeafe', fg: '#806d50', ico: 'ℹ️' },
@@ -31,12 +23,14 @@ let _periodo = 'ano';   // ano | ytd | t1..t4 | m1..m12  (v81.99)
 let _frente = 'todas';  // todas | conquista | map | locacao | terceiros
 let _data = {};
 
-// presetTab: /norte-estrategico e /comunicados abrem direto na aba; ?tab= também vale
+// presetTab: /comunicados abre direto na aba; ?tab= também vale
 // (antes o ?tab era ignorado e todo link caía no Dashboard). v88.12
 export async function pageDiretoria(ctx, root, presetTab) {
   _root = root;
   const pedida = presetTab || ctx?.query?.tab;
-  if (['dashboard', 'recados', 'estrategia'].includes(pedida)) _tab = pedida;
+  // v88.72: a aba Estratégia (Norte) mudou pro Plano Estratégico — link antigo segue pra lá
+  if (pedida === 'estrategia') { location.replace('#/estrategia?tab=norte'); return; }
+  if (['dashboard', 'recados'].includes(pedida)) _tab = pedida;
   await renderShell();
   await loadTab();
 }
@@ -47,13 +41,12 @@ async function renderShell() {
   _root.innerHTML = `
     <div class="card">
       <h2 class="card-title">🏛 Diretoria PSM</h2>
-      <p class="card-sub">Painel executivo: KPIs consolidados, recados pra equipe, estratégia anual.${isSocio ? '' : ' <b>Visualização — edição requer Sócio/Gerente.</b>'}</p>
+      <p class="card-sub">Painel executivo: KPIs consolidados e recados pra equipe (o Norte Estratégico fica no <a href="#/estrategia?tab=norte">Plano Estratégico</a>).${isSocio ? '' : ' <b>Visualização — edição requer Sócio/Gerente.</b>'}</p>
 
       <div id="dir-lo" style="margin-top:14px"></div>
       <div class="flex gap-1" style="margin-top:14px;border-bottom:1px solid var(--border);flex-wrap:wrap">
         ${tabBtn('dashboard', '📊 Dashboard')}
         ${tabBtn('recados',   '📢 Recados')}
-        ${tabBtn('estrategia','🎯 Estratégia')}
       </div>
 
       <div id="dir-body" style="margin-top:14px">
@@ -83,11 +76,6 @@ async function loadTab() {
       _data.recados = r;
       body.innerHTML = renderRecados();
       wireRecados();
-    } else if (_tab === 'estrategia') {
-      const e = await api.request('/api/v3/diretoria/estrategia?ano=' + _ano);
-      _data.est = e;
-      body.innerHTML = renderEstrategia();
-      wireEstrategia();
     }
   } catch (e) {
     body.innerHTML = `<div class="alert alert-err">Erro: ${escapeHtml(e.message)}</div>`;
@@ -479,145 +467,6 @@ function openRecadoModal(rid) {
       await loadTab();
     } catch (e) {
       document.getElementById('rec-msg').innerHTML = `<div class="alert alert-err">${escapeHtml(e.message)}</div>`;
-    }
-  });
-}
-
-// ─── Tab: Estratégia ───────────────────────────────────────────────────
-function renderEstrategia() {
-  const e = _data.est || { groups: {} };
-  const me = auth.user();
-  const isSocio = (me?.lvl || 0) >= 7;
-  return `
-    <div class="flex gap-2" style="align-items:center;margin-bottom:14px">
-      <label class="tiny muted" style="font-weight:600">ANO:</label>
-      <select id="est-ano" class="select" style="padding:5px 10px;font-size:12px">
-        ${[2024, 2025, 2026, 2027].map(a => `<option value="${a}"${a === _ano ? ' selected' : ''}>${a}</option>`).join('')}
-      </select>
-      ${isSocio ? '<button class="btn btn-primary" id="btn-novo-est" style="margin-left:auto">+ Novo item</button>' : ''}
-    </div>
-
-    <div style="display:grid;gap:14px">
-      ${TIPOS_EST.map(t => grupoEst(t, e.groups[t.id] || [], isSocio)).join('')}
-    </div>
-  `;
-}
-
-function grupoEst(tipo, items, isSocio) {
-  return `
-    <div class="card" style="margin:0;border-top:3px solid ${tipo.color}">
-      <h3 class="card-title">${tipo.ico} ${tipo.lbl} <span class="muted tiny" style="font-weight:400">(${items.length})</span></h3>
-      ${items.length === 0 ? '<div class="muted tiny">Nenhum item.</div>' : `
-        <div style="display:grid;gap:6px">
-          ${items.map(i => estItem(i, isSocio)).join('')}
-        </div>
-      `}
-    </div>
-  `;
-}
-
-function estItem(it, isSocio) {
-  return `
-    <div style="background:var(--bg-3);border-radius:var(--r-sm);padding:10px 12px">
-      <div class="flex items-center gap-2">
-        <div style="flex:1">
-          <div style="font-weight:600">${escapeHtml(it.titulo)}</div>
-          ${it.descricao ? `<div class="tiny muted" style="margin-top:2px">${escapeHtml(it.descricao)}</div>` : ''}
-        </div>
-        <span class="tiny" style="background:${it.status === 'concluido' ? '#dcfce7;color:var(--ok-escuro)' : it.status === 'ativo' ? '#dbeafe;color:var(--azul-forte)' : '#fef3c7;color:var(--marrom)'};padding:3px 8px;border-radius:var(--r-full);font-weight:600">${escapeHtml(it.status)}</span>
-        ${isSocio ? `<button class="btn btn-ghost tiny" data-est-edit="${it.id}" style="padding:3px 8px">✏️</button>` : ''}
-        ${isSocio ? `<button class="btn btn-ghost tiny" data-est-del="${it.id}" style="padding:3px 8px">🗑</button>` : ''}
-      </div>
-      ${it.progresso != null ? `
-        <div style="background:var(--bg);height:6px;border-radius:var(--radius-sm);overflow:hidden;margin-top:6px">
-          <div style="background:var(--ok-soft);height:100%;width:${Math.min(100, it.progresso)}%"></div>
-        </div>
-        <div class="tiny muted" style="margin-top:2px">Progresso: ${pct2(it.progresso)}</div>
-      ` : ''}
-    </div>
-  `;
-}
-
-function wireEstrategia() {
-  document.getElementById('est-ano').addEventListener('change', async e => { _ano = parseInt(e.target.value); await loadTab(); });
-  const btnNovo = document.getElementById('btn-novo-est');
-  if (btnNovo) btnNovo.addEventListener('click', () => openEstModal());
-  document.querySelectorAll('[data-est-edit]').forEach(b => b.addEventListener('click', () => openEstModal(parseInt(b.dataset.estEdit))));
-  document.querySelectorAll('[data-est-del]').forEach(b => b.addEventListener('click', async () => {
-    if (!confirm('Apagar este item?')) return;
-    try {
-      await api.request('/api/v3/diretoria/estrategia', { method: 'POST', body: { id: parseInt(b.dataset.estDel), _delete: true } });
-      await loadTab();
-    } catch (e) { alert('Erro: ' + e.message); }
-  }));
-}
-
-function openEstModal(itid) {
-  const it = itid ? (_data.est?.items || []).find(x => x.id === itid) : null;
-  const modal = document.getElementById('dir-modal');
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:5vh 20px 20px;overflow:auto';
-  modal.innerHTML = `
-    <div class="card" style="margin:0;max-width:520px;width:100%">
-      <h3 class="card-title">${it ? '✏️ Editar item' : '➕ Novo item de estratégia'}</h3>
-      <div class="field">
-        <label>Tipo *</label>
-        <select id="est-tipo" class="select">
-          ${TIPOS_EST.map(t => `<option value="${t.id}"${it?.tipo === t.id ? ' selected' : ''}>${t.ico} ${t.lbl}</option>`).join('')}
-        </select>
-      </div>
-      <div class="field">
-        <label>Título *</label>
-        <input id="est-titulo" class="input" value="${it ? escapeHtml(it.titulo) : ''}">
-      </div>
-      <div class="field">
-        <label>Descrição</label>
-        <textarea id="est-desc" class="input" rows="3">${it?.descricao ? escapeHtml(it.descricao) : ''}</textarea>
-      </div>
-      <div class="flex gap-2" style="flex-wrap:wrap">
-        <div class="field" style="flex:1;min-width:140px">
-          <label>Ano</label>
-          <input id="est-ano-i" type="number" class="input" value="${it?.ano || _ano}">
-        </div>
-        <div class="field" style="flex:1;min-width:140px">
-          <label>Status</label>
-          <select id="est-status" class="select">
-            <option value="ativo"${(it?.status || 'ativo')==='ativo'?' selected':''}>Ativo</option>
-            <option value="rascunho"${it?.status==='rascunho'?' selected':''}>Rascunho</option>
-            <option value="concluido"${it?.status==='concluido'?' selected':''}>Concluído</option>
-            <option value="cancelado"${it?.status==='cancelado'?' selected':''}>Cancelado</option>
-          </select>
-        </div>
-        <div class="field" style="flex:1;min-width:140px">
-          <label>Progresso %</label>
-          <input id="est-prog" type="number" min="0" max="100" class="input" value="${it?.progresso || 0}">
-        </div>
-      </div>
-      <div id="est-msg" class="mt-2"></div>
-      <div class="flex gap-2 mt-3" style="justify-content:flex-end">
-        <button class="btn btn-ghost" id="est-cancel">Cancelar</button>
-        <button class="btn btn-primary" id="est-save">${it ? 'Salvar' : 'Criar'}</button>
-      </div>
-    </div>
-  `;
-  modal.style.display = 'flex';
-  document.getElementById('est-cancel').addEventListener('click', () => modal.style.display = 'none');
-  document.getElementById('est-save').addEventListener('click', async () => {
-    const titulo = document.getElementById('est-titulo').value.trim();
-    if (!titulo) { document.getElementById('est-msg').innerHTML = '<div class="alert alert-err">Título obrigatório.</div>'; return; }
-    try {
-      await api.request('/api/v3/diretoria/estrategia', { method: 'POST', body: {
-        id: it?.id,
-        tipo: document.getElementById('est-tipo').value,
-        titulo,
-        descricao: document.getElementById('est-desc').value.trim() || null,
-        ano: parseInt(document.getElementById('est-ano-i').value),
-        status: document.getElementById('est-status').value,
-        progresso: parseInt(document.getElementById('est-prog').value) || 0,
-      } });
-      modal.style.display = 'none';
-      await loadTab();
-    } catch (e) {
-      document.getElementById('est-msg').innerHTML = `<div class="alert alert-err">${escapeHtml(e.message)}</div>`;
     }
   });
 }

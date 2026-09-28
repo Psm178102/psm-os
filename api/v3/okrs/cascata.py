@@ -226,7 +226,7 @@ class handler(BaseHTTPRequestHandler):
         }
         al = saude["alertas"]
         if not norte["visao"] or not norte["missao"]:
-            al.append({"nivel": "alto", "txt": "Norte incompleto: falta " + " e ".join(t for t in ("visão", "missão") if not norte["visao" if t == "visão" else "missao"]), "acao": "#/norte-estrategico"})
+            al.append({"nivel": "alto", "txt": "Norte incompleto: falta " + " e ".join(t for t in ("visão", "missão") if not norte["visao" if t == "visão" else "missao"]), "acao": "#/estrategia?tab=norte"})
         if not obj_out:
             al.append({"nivel": "alto", "txt": f"Nenhum objetivo estratégico cadastrado para {ano}", "acao": "novo-objetivo"})
         for ob in obj_out:

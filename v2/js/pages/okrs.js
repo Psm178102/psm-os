@@ -117,7 +117,7 @@ function norteHTML(n) {
   const cel = (lbl, it) => `<div style="flex:1;min-width:220px;padding:10px 12px;border-radius:var(--radius-md);background:var(--bg-3)">
     <div class="tiny" style="font-weight:600;letter-spacing:1px;text-transform:uppercase;opacity:.6">${lbl}</div>
     ${it ? `<div style="font-weight:600;margin-top:3px">${esc(it.titulo)}</div>${it.descricao ? `<div class="tiny muted">${esc(it.descricao)}</div>` : ''}`
-         : `<div class="tiny" style="margin-top:3px;color:var(--warn)">não definida — <a href="#/norte-estrategico">definir no Norte Estratégico</a></div>`}
+         : `<div class="tiny" style="margin-top:3px;color:var(--warn)">não definida — <a href="#/estrategia?tab=norte">definir no Norte Estratégico</a></div>`}
   </div>`;
   return `<div class="flex gap-2 mb-3" style="flex-wrap:wrap;align-items:stretch">
     <div style="display:flex;align-items:center;font-size:20px" title="Norte">⭐</div>

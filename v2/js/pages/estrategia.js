@@ -21,13 +21,13 @@ let _tab = 'plano';
 
 const PALETTE = ['#806d50', '#239a5b', '#c7861a', '#d64545', '#806d50', '#806d50', '#db2777', '#8a8579', '#806d50'];
 const TABS = [
+  { id: 'norte', lbl: '⭐ Norte Estratégico' },
   { id: 'plano', lbl: '🧭 Plano de Resgate' },
   { id: 'recebiveis', lbl: '💰 Radar de Recebíveis' },
   { id: 'mapa', lbl: '🧠 Mapa Mental' },
   { id: 'org', lbl: '🌳 Organograma' },
   { id: 'crono', lbl: '🗓️ Cronograma' },
   { id: 'okrs', lbl: '🎯 OKRs' },
-  { id: 'anual', lbl: '📆 Plano Anual' },
 ];
 
 export async function pageEstrategia(ctx, root) {
@@ -37,7 +37,8 @@ export async function pageEstrategia(ctx, root) {
     return;
   }
   const qtab = ctx && ctx.query && ctx.query.tab;
-  if (qtab && TABS.some(t => t.id === qtab)) _tab = qtab;
+  if (qtab === 'anual') _tab = 'norte';   // aba antiga (Plano Anual) → Norte
+  else if (qtab && TABS.some(t => t.id === qtab)) _tab = qtab;
   renderShell();
   await openTab(_tab);
 }
@@ -65,7 +66,7 @@ function renderShell() {
       <div class="flex" style="justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
         <div style="flex:1;min-width:240px">
           <h2 class="card-title">♟️ Estratégia</h2>
-          <p class="card-sub">Planejamento da PSM — mapa mental, organograma, cronograma de metas/objetivos e OKRs. A bússola pra virar a maior do estado.</p>
+          <p class="card-sub">Planejamento da PSM — norte (visão, missão, objetivos), mapa mental, organograma, cronograma de metas/objetivos e OKRs. A bússola pra virar a maior do estado.</p>
         </div>
         <button class="btn btn-primary" id="est-ia">🤖 IA Estrategista</button>
       </div>
@@ -93,14 +94,15 @@ async function openTab(tab) {
   if (tab === 'recebiveis') { await renderRecebiveis(c); return; }
   if (tab === 'okrs') { await pageOKRs(null, c); return; }
   if (tab === 'crono') { await renderCronograma(c); return; }
-  if (tab === 'anual') { await renderPlanoAnual(c); return; }
+  if (tab === 'norte' || tab === 'anual') { _tab = 'norte'; setActiveTab(); await renderNorte(c); return; }
   // mapa | org → editor de nós
   await renderBoard(c, tab === 'org' ? 'orgchart' : 'mindmap');
 }
 
-/* ── 📆 PLANO ANUAL (v86.94) — fusão da aba "Estratégia" legada do /diretoria.
-   Leitura consolidada aqui (uma fonte só de planejamento); a EDIÇÃO continua no
-   quadro original, linkado abaixo — zero duplicação de CRUD. ── */
+/* ── ⭐ NORTE ESTRATÉGICO (v88.72) — unificado ao Plano Estratégico.
+   Antes: /norte-estrategico editava Visão/Missão/Objetivos/OKRs/Iniciativas numa aba
+   do /diretoria e aqui havia só uma cópia de leitura ("Plano Anual"). Agora o CRUD
+   mora aqui, numa aba só; /norte-estrategico redireciona pra cá. Mesmo backend. ── */
 const PA_TIPOS = [
   { id: 'visao',      lbl: 'Visão',       ico: '🎯', color: '#806d50' },
   { id: 'missao',     lbl: 'Missão',      ico: '🚀', color: '#806d50' },
@@ -108,28 +110,34 @@ const PA_TIPOS = [
   { id: 'okr',        lbl: 'OKRs',        ico: '✅', color: '#c7861a' },
   { id: 'iniciativa', lbl: 'Iniciativas', ico: '🛠', color: '#d64545' },
 ];
+const PA_STATUS = { concluido: 'background:#dcfce7;color:var(--ok-escuro)', ativo: 'background:#dbeafe;color:var(--azul-forte)' };
 let _paAno = new Date().getFullYear();
-async function renderPlanoAnual(c) {
+let _paItems = [];
+async function renderNorte(c) {
   let e;
   try { e = await api.request('/api/v3/diretoria/estrategia?ano=' + _paAno); }
   catch (err) { c.innerHTML = `<div class="card" style="border-radius:0 10px 10px 10px"><div class="alert alert-err">${esc(err.message)}</div></div>`; return; }
   const groups = (e && e.groups) || {};
+  _paItems = (e && e.items) || [];
+  const podeEditar = (auth.user()?.lvl || 0) >= 7;
   const item = it => `<div style="background:var(--bg-3);border-radius:var(--radius-md);padding:8px 12px">
       <div class="flex items-center gap-2">
         <div style="flex:1"><b style="font-size:13px">${esc(it.titulo || '')}</b>
           ${it.descricao ? `<div class="tiny muted" style="margin-top:2px">${esc(it.descricao)}</div>` : ''}</div>
-        ${it.status ? `<span class="tiny" style="font-weight:600;opacity:.75">${esc(it.status)}</span>` : ''}
+        ${it.status ? `<span class="tiny" style="${PA_STATUS[it.status] || 'background:#fef3c7;color:var(--marrom)'};padding:3px 8px;border-radius:var(--r-full);font-weight:600">${esc(it.status)}</span>` : ''}
+        ${podeEditar ? `<button class="btn btn-ghost tiny" data-pa-edit="${it.id}" style="padding:3px 8px">✏️</button>
+          <button class="btn btn-ghost tiny" data-pa-del="${it.id}" style="padding:3px 8px">🗑</button>` : ''}
       </div>
       ${it.progresso != null ? `<div style="height:5px;background:var(--bg-2);border-radius:var(--radius-sm);margin-top:6px;overflow:hidden"><div style="height:100%;width:${Math.max(0, Math.min(100, Number(it.progresso) || 0))}%;background:var(--ok-soft)"></div></div>` : ''}
     </div>`;
   c.innerHTML = `
     <div class="card" style="border-radius:0 10px 10px 10px">
       <div class="flex gap-2" style="align-items:center;flex-wrap:wrap">
-        <b>📆 Plano Anual</b>
+        <b>⭐ Norte Estratégico</b>
         <select id="pa-ano" class="select" style="width:auto;font-size:12px">${[2024, 2025, 2026, 2027].map(a => `<option value="${a}"${a === _paAno ? ' selected' : ''}>${a}</option>`).join('')}</select>
-        <a class="tiny" href="#/norte-estrategico" style="margin-left:auto">✏️ editar no quadro completo</a>
+        ${podeEditar ? '<button class="btn btn-primary btn-sm" id="pa-novo" style="margin-left:auto">+ Novo item</button>' : ''}
       </div>
-      <div class="tiny muted" style="margin:4px 0 10px">Visão consolidada (leitura) do planejamento anual — a edição continua no quadro original.</div>
+      <div class="tiny muted" style="margin:4px 0 10px">Visão, missão, objetivos, OKRs e iniciativas do ano — o topo do plano: tudo nas outras abas desce daqui.</div>
       <div style="display:grid;gap:12px">
         ${PA_TIPOS.map(t => { const its = groups[t.id] || []; return `
           <div style="border-top:3px solid ${t.color};border-radius:var(--radius-sm);background:var(--bg-2);padding:10px 12px">
@@ -139,7 +147,62 @@ async function renderPlanoAnual(c) {
       </div>
     </div>`;
   const sel = document.getElementById('pa-ano');
-  if (sel) sel.onchange = () => { _paAno = Number(sel.value); renderPlanoAnual(c); };
+  if (sel) sel.onchange = () => { _paAno = Number(sel.value); renderNorte(c); };
+  const novo = document.getElementById('pa-novo');
+  if (novo) novo.onclick = () => openNorteModal(c);
+  c.querySelectorAll('[data-pa-edit]').forEach(b => b.addEventListener('click', () => openNorteModal(c, parseInt(b.dataset.paEdit))));
+  c.querySelectorAll('[data-pa-del]').forEach(b => b.addEventListener('click', async () => {
+    if (!confirm('Apagar este item?')) return;
+    try {
+      await api.request('/api/v3/diretoria/estrategia', { method: 'POST', body: { id: parseInt(b.dataset.paDel), _delete: true } });
+      await renderNorte(c);
+    } catch (err) { alert('Erro: ' + err.message); }
+  }));
+}
+
+function openNorteModal(c, itid) {
+  const it = itid ? _paItems.find(x => x.id === itid) : null;
+  const modal = document.getElementById('est-modal');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:5vh 20px 20px;overflow:auto';
+  const st = it?.status || 'ativo';
+  modal.innerHTML = `
+    <div class="card" style="margin:0;max-width:520px;width:100%">
+      <h3 class="card-title">${it ? '✏️ Editar item' : '➕ Novo item do Norte'}</h3>
+      <div class="field"><label>Tipo *</label>
+        <select id="pa-tipo" class="select">${PA_TIPOS.map(t => `<option value="${t.id}"${it?.tipo === t.id ? ' selected' : ''}>${t.ico} ${t.lbl}</option>`).join('')}</select></div>
+      <div class="field"><label>Título *</label><input id="pa-titulo" class="input" value="${it ? esc(it.titulo) : ''}"></div>
+      <div class="field"><label>Descrição</label><textarea id="pa-desc" class="input" rows="3">${it?.descricao ? esc(it.descricao) : ''}</textarea></div>
+      <div class="flex gap-2" style="flex-wrap:wrap">
+        <div class="field" style="flex:1;min-width:140px"><label>Ano</label><input id="pa-ano-i" type="number" class="input" value="${it?.ano || _paAno}"></div>
+        <div class="field" style="flex:1;min-width:140px"><label>Status</label>
+          <select id="pa-status" class="select">${[['ativo', 'Ativo'], ['rascunho', 'Rascunho'], ['concluido', 'Concluído'], ['cancelado', 'Cancelado']].map(([v, l]) => `<option value="${v}"${st === v ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
+        <div class="field" style="flex:1;min-width:140px"><label>Progresso %</label><input id="pa-prog" type="number" min="0" max="100" class="input" value="${it?.progresso || 0}"></div>
+      </div>
+      <div id="pa-msg" class="mt-2"></div>
+      <div class="flex gap-2 mt-3" style="justify-content:flex-end">
+        <button class="btn btn-ghost" id="pa-cancel">Cancelar</button>
+        <button class="btn btn-primary" id="pa-save">${it ? 'Salvar' : 'Criar'}</button>
+      </div>
+    </div>`;
+  const fechar = () => { modal.style.cssText = ''; modal.innerHTML = ''; };
+  document.getElementById('pa-cancel').onclick = fechar;
+  document.getElementById('pa-save').onclick = async () => {
+    const titulo = document.getElementById('pa-titulo').value.trim();
+    if (!titulo) { document.getElementById('pa-msg').innerHTML = '<div class="alert alert-err">Título obrigatório.</div>'; return; }
+    try {
+      await api.request('/api/v3/diretoria/estrategia', { method: 'POST', body: {
+        id: it?.id,
+        tipo: document.getElementById('pa-tipo').value,
+        titulo,
+        descricao: document.getElementById('pa-desc').value.trim() || null,
+        ano: parseInt(document.getElementById('pa-ano-i').value),
+        status: document.getElementById('pa-status').value,
+        progresso: parseInt(document.getElementById('pa-prog').value) || 0,
+      } });
+      fechar();
+      await renderNorte(c);
+    } catch (err) { document.getElementById('pa-msg').innerHTML = `<div class="alert alert-err">${esc(err.message)}</div>`; }
+  };
 }
 
 /* ════════════════════ EDITOR DE NÓS (mapa mental / organograma) ═══════════ */
