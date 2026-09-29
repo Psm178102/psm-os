@@ -131,9 +131,9 @@ def _graph_retry(method, path, params, sb, act_id):
 def _graph(method, path, params, token):
     """Chamada Graph com erro legível. Retorna (ok, data|msg)."""
     try:
-        if method == "GET":
+        if method in ("GET", "DELETE"):
             qs = urllib.parse.urlencode({**params, "access_token": token})
-            req = urllib.request.Request(f"{GRAPH}/{path}?{qs}")
+            req = urllib.request.Request(f"{GRAPH}/{path}?{qs}", method=method)
         else:
             data = urllib.parse.urlencode({**params, "access_token": token}).encode()
             req = urllib.request.Request(f"{GRAPH}/{path}", data=data, method="POST")
@@ -208,7 +208,8 @@ def rodar_kit(sb, simular=False, forcar_crm=False):
             precisa = precisa or idade >= kit.REFRESH_LISTA_DIAS
     crm = kit.varrer_crm(sb, frente_of, agora) if precisa else None
     tok = lambda act: (_tokens_da_conta(sb, act) or [""])[0]
-    return kit.manter_kit(sb, _graph, KIT_CONTAS, tok, frente_of, simular=simular, agora=agora, crm=crm)
+    return kit.manter_kit(sb, _graph, KIT_CONTAS, tok, frente_of, simular=simular, agora=agora, crm=crm,
+                          forcar=forcar_crm)
 
 
 def _kit_resumo(rel):
@@ -347,6 +348,26 @@ class handler(BaseHTTPRequestHandler):
                          json.dumps(_kit_resumo(rel), ensure_ascii=False), True, "ok")
             return self._send(200, {"ok": True, "simulado": bool(body.get("simular")),
                                     "resumo": _kit_resumo(rel), "itens": rel})
+
+        # v88.98.3: apagar ÓRFÃO do kit (sócio) — só público com o prefixo do kit que NÃO é mais um nome
+        # vigente (ex.: duplicata criada por renomeação). Nunca toca público feito à mão.
+        if action == "kit_apagar":
+            marca = str(body.get("marca") or "")
+            act = KIT_CONTAS.get(marca)
+            pid = str(body.get("publico_id") or "")
+            if not act or not re.match(r"^\d{5,25}$", pid):
+                return self._send(400, {"ok": False, "error": "marca/publico_id inválidos"})
+            tk = (_tokens_da_conta(sb, act) or [""])[0]
+            ok, info = _graph("GET", pid, {"fields": "name,account_id"}, tk)
+            if not ok:
+                return self._send(502, {"ok": False, "error": info})
+            nome_p = str(info.get("name") or "")
+            if (not nome_p.startswith(kit.PREFIXO) or nome_p in kit.nomes_do_kit(marca)
+                    or str(info.get("account_id") or "") != act.replace("act_", "")):
+                return self._send(400, {"ok": False, "error": f"'{nome_p}' não é órfão do kit — não apago"})
+            ok, r = _graph("DELETE", pid, {}, tk)
+            log_acao(sb, actor, "publico_apagar", {"id": pid, "nome": nome_p}, "órfão do kit", ok, r)
+            return self._send(200 if ok else 502, {"ok": ok, "apagado": nome_p if ok else None, "resp": r})
 
         act = str(body.get("conta") or "")
         if not re.match(r"^act_\d+$", act):

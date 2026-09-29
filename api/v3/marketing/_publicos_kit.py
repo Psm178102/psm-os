@@ -49,7 +49,7 @@ ENGAJAMENTO = [
 # listas do CRM (fotos semanais)
 LISTAS = [
     ("crm_quente",   "quente",   "CRM quente (fundo de funil + vendas)"),
-    ("semente_17",   "semente",  "Semente qualificada DDD 17 (chegou a visita/proposta ou comprou)"),
+    ("semente_17",   "semente",  "Semente qualificada DDD 17 (fundo + vendas)"),  # NÃO renomear: o semelhante aponta pra ela
     ("excl_compr",   "exclusao", "EXCLUIR · já compraram"),
     ("excl_leads30", "exclusao", "EXCLUIR · lead dos últimos 30d (campanha fria)"),
 ]
@@ -63,6 +63,15 @@ SEMELHANTES = [("lal_1", "semelhante", "Semelhante 0–1% da semente DDD 17", 0.
 
 def nome_publico(marca, rotulo):
     return f"{PREFIXO} {'Conquista' if marca == 'conquista' else 'Imóveis'} · {rotulo}"[:120]
+
+
+def nomes_do_kit(marca):
+    """Todos os nomes que o kit mantém hoje nesta marca (inclui o nome antigo do 0–1%)."""
+    n = {nome_publico(marca, r) for _c, _t, r, *_x in ENGAJAMENTO}
+    n |= {nome_publico(marca, r) for _c, _t, r in LISTAS}
+    n |= {nome_publico(marca, r) for _c, _t, r, *_x in SEMELHANTES}
+    n.add(nome_publico(marca, "Semelhante 1% da semente DDD 17"))
+    return n
 
 
 def regra_engajamento(tipo, fonte_id, evento, dias):
@@ -202,7 +211,7 @@ def _subir(graph, aud_id, linhas, token, substituir):
     return True, len(linhas)
 
 
-def manter_kit(sb, graph, contas_marca, token_de, frente_of, simular=False, agora=None, crm=None):
+def manter_kit(sb, graph, contas_marca, token_de, frente_of, simular=False, agora=None, crm=None, forcar=False):
     """Cria o que falta e atualiza as listas vencidas. Idempotente.
     contas_marca: {marca: act_id}. token_de(act) → token. Devolve (estado, relatorio[])."""
     agora = agora or datetime.now(timezone.utc)
@@ -263,7 +272,7 @@ def manter_kit(sb, graph, contas_marca, token_de, frente_of, simular=False, agor
                 idade = (agora - datetime.fromisoformat(ant.get("atualizado_em"))).days
             except Exception:
                 idade = 999
-            if nome in exist and idade < REFRESH_LISTA_DIAS:
+            if nome in exist and idade < REFRESH_LISTA_DIAS and not (forcar and crm is not None):
                 reg(marca, chave, "ok", f"atualizada há {idade}d", extra={"id": exist[nome]["id"], "nome": nome,
                     "tamanho": exist[nome].get("approximate_count_lower_bound"), "temp": temp})
                 continue
@@ -315,8 +324,8 @@ def manter_kit(sb, graph, contas_marca, token_de, frente_of, simular=False, agor
                 continue
             ok, data = graph("POST", f"{act}/customaudiences", {
                 "name": nome, "subtype": "LOOKALIKE", "origin_audience_id": semente["id"],
-                "lookalike_spec": json.dumps({"type": "similarity", "country": "BR", "ratio": ratio,
-                                              **({"starting_ratio": inicio} if inicio else {})}),
+                "lookalike_spec": json.dumps({"type": "custom_ratio" if inicio else "similarity", "country": "BR",
+                                              "ratio": ratio, **({"starting_ratio": inicio} if inicio else {})}),
             }, token)
             # semente recém-subida ainda não pareou → o Meta recusa; tenta de novo na próxima rodada
             reg(marca, chave, "criado" if ok else "pendente", data.get("id") if ok else data, ok,
