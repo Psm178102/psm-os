@@ -267,6 +267,48 @@ class handler(BaseHTTPRequestHandler):
         if not sb:
             return self._send(503, {"ok": False, "error": "backend indisponível"})
 
+        # v89.0: interesses do Meta (público frio segmentado) — busca + tamanho no raio de Rio Preto.
+        # ?q=termo1|termo2  → [{id, name, path, tamanho_br}]
+        # ?estimar=ID,ID&raio=25&conta=act_  → alcance estimado no raio (modo original, sem Advantage)
+        if action == "interesses":
+            act = params.get("conta") or KIT_CONTAS["conquista"]
+            tk = (_tokens_da_conta(sb, act) or [""])[0]
+            out = {"ok": True}
+            if params.get("q"):
+                achados = []
+                for termo in [t.strip() for t in params["q"].split("|") if t.strip()][:15]:
+                    ok, d = _graph("GET", "search", {"type": "adinterest", "q": termo, "limit": 8, "locale": "pt_BR"}, tk)
+                    for it in (d.get("data") or []) if ok else []:
+                        achados.append({"termo": termo, "id": it.get("id"), "name": it.get("name"),
+                                        "path": " > ".join(it.get("path") or []),
+                                        "br_min": it.get("audience_size_lower_bound"),
+                                        "br_max": it.get("audience_size_upper_bound")})
+                    if not ok:
+                        achados.append({"termo": termo, "erro": d})
+                out["interesses"] = achados
+            if params.get("estimar"):
+                ok, geo = _graph("GET", "search", {"type": "adgeolocation", "q": "São José do Rio Preto",
+                                                   "location_types": json.dumps(["city"]), "country_code": "BR"}, tk)
+                cidade = next((g for g in (geo.get("data") or []) if "Rio Preto" in str(g.get("name"))), None) if ok else None
+                if not cidade:
+                    return self._send(502, {"ok": False, "error": f"não achei Rio Preto no Meta: {geo}"})
+                raio = max(10, min(80, int(params.get("raio") or 25)))
+                grupos = [[{"id": i.strip()} for i in g.split(",") if i.strip()] for g in params["estimar"].split(";")]
+                estimativas = []
+                for g in grupos:
+                    spec = {"geo_locations": {"cities": [{"key": cidade["key"], "radius": raio, "distance_unit": "kilometer"}]},
+                            "age_min": int(params.get("idade_min") or 22), "age_max": int(params.get("idade_max") or 45),
+                            "flexible_spec": [{"interests": g}],
+                            "targeting_automation": {"advantage_audience": 0}}
+                    ok2, est = _graph("GET", f"{act}/delivery_estimate", {"optimization_goal": "LEAD_GENERATION",
+                                                                           "targeting_spec": json.dumps(spec)}, tk)
+                    d0 = ((est.get("data") or [{}])[0]) if ok2 else {}
+                    estimativas.append({"ids": [x["id"] for x in g], "min": d0.get("estimate_mau_lower_bound"),
+                                        "max": d0.get("estimate_mau_upper_bound"), "erro": None if ok2 else est})
+                out["cidade"] = {"key": cidade["key"], "name": cidade.get("name"), "raio_km": raio}
+                out["estimativas"] = estimativas
+            return self._send(200, out)
+
         # v88.98: estado do kit (o que existe, tamanho, temperatura, última atualização)
         if action == "kit":
             return self._send(200, {"ok": True, "kit": kv_get(sb, kit.KV_KIT, {}) or {}})
