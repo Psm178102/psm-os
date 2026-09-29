@@ -40,7 +40,7 @@ if _V3 not in sys.path:
     sys.path.append(_V3)
 from _metricas_lib import emails_fora  # type: ignore   # v88.95: dono fora das métricas
 
-CACHE_VER = "controle_v1"
+CACHE_VER = "controle_v2"
 BRT = timezone(timedelta(hours=-3))
 
 # Etapas do FUNIL CONQUISTA atual (desde mai/2026) — ids do RD
@@ -63,7 +63,7 @@ NOME_ST = {
 # que passa disso está com o follow-up estourado.
 SLA_FOLLOW = [
     ("qualif", 2), ("oport_mes", 7), ("oport_fut", 30),
-    ("vis_ag", 3), ("vis_real", 1), ("aprov", 3),
+    ("vis_ag", None), ("vis_real", 1), ("aprov", 3),
 ]
 CADENCIA_MIN = 6          # tentativas exigidas antes de perder por "não atendeu"
 TDC_PARADO_DIAS = 5       # mesma régua da penalidade do HUB ("TENT. CONTATO >5d")
@@ -253,7 +253,9 @@ def compute(sb, since_d, until_d):
     # ── 2. cadência de tentativa de contato ─────────────────────────────────
     tdc_abertos = [d for d in _pagina(_base_q(sb).is_("win", "null").eq("stage_id", ST["tdc"]))
                    if not excl(d)]
-    perdidos = [d for d in _pagina(_base_q(sb).eq("win", False).gte("closed_at", t0s).lt("closed_at", t1s))
+    # v89.0.1: perda na Reativação é limpeza de base, não descarte de atendimento
+    perdidos = [d for d in _pagina(_base_q(sb).eq("win", False).gte("closed_at", t0s).lt("closed_at", t1s)
+                                   .neq("stage_id", ST["reativ"]))
                 if not excl(d)]
     cad_p = defaultdict(lambda: defaultdict(int))
 
@@ -266,6 +268,12 @@ def compute(sb, since_d, until_d):
         dt = parse_dt((nt or {}).get("date"))
         return bool(dt and dt < agora)
 
+    # v89.0.1: "parado" conta desde a ENTRADA em Tentativa de contato (evento real);
+    # sem evento, cai na data de criação do lead
+    ent_tdc = {}
+    for did, sid, pos, dt in _eventos(sb, [d["id"] for d in tdc_abertos], stage_ids=[ST["tdc"]]):
+        if did not in ent_tdc or dt > ent_tdc[did]:
+            ent_tdc[did] = dt
     for d in tdc_abertos:
         p = cad_p[dono(d)]
         p["tdc_abertos"] += 1
@@ -273,7 +281,7 @@ def compute(sb, since_d, until_d):
             p["sem_tarefa"] += 1
         elif atrasada(d):
             p["atrasada"] += 1
-        c = parse_dt(d.get("created_at_rd"))
+        c = ent_tdc.get(str(d["id"])) or parse_dt(d.get("created_at_rd"))
         if c and (agora - c).days > TDC_PARADO_DIAS:
             p["parado_5d"] += 1
     for d in perdidos:
@@ -307,7 +315,7 @@ def compute(sb, since_d, until_d):
     fu_ids = [ST[k] for k, _ in SLA_FOLLOW]
     fu_abertos = [d for d in _pagina(_base_q(sb).is_("win", "null").in_("stage_id", fu_ids))
                   if not excl(d)]
-    sla_de = {ST[k]: v for k, v in SLA_FOLLOW}
+    sla_de = {ST[k]: v for k, v in SLA_FOLLOW if v is not None}
     fu_et = defaultdict(lambda: defaultdict(int))
     fu_p = defaultdict(lambda: defaultdict(int))
     for d in fu_abertos:
@@ -316,7 +324,12 @@ def compute(sb, since_d, until_d):
         for x in (e, p):
             x["abertos"] += 1
         la = parse_dt(d.get("la")) or parse_dt(d.get("created_at_rd"))
-        est = bool(la and (agora - la).total_seconds() / 86400.0 > sla_de.get(sid, 999))
+        if sid == ST["vis_ag"]:
+            # v89.0.1: visita marcada pra semana que vem não está "estourada" — o
+            # controle aqui é a tarefa (data da visita) não ter passado sem baixa
+            est = False
+        else:
+            est = bool(la and (agora - la).total_seconds() / 86400.0 > sla_de.get(sid, 999))
         st_ = sem_tarefa(d)
         at_ = (not st_) and atrasada(d)
         for x in (e, p):

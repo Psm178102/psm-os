@@ -89,14 +89,14 @@ function blocoCadencia(c) {
     ${kpi('Em tentativa de contato', fN(e.tdc_abertos), 'abertos agora', 'var(--border-2)')}
     ${kpi('Sem próxima tarefa', fN(e.sem_tarefa), 'lead sem data de nova tentativa', e.sem_tarefa ? ERR : OK)}
     ${kpi('Tarefa atrasada', fN(e.atrasada), 'tentativa agendada que passou', e.atrasada ? ERR : OK)}
-    ${kpi(`Parados há +${r.parado_dias || 5} dias`, fN(e.parado_5d), 'sem sair da tentativa de contato', e.parado_5d ? WARN : OK)}
+    ${kpi(`Parados há +${r.parado_dias || 5} dias`, fN(e.parado_5d), 'desde que entrou em tentativa de contato', e.parado_5d ? WARN : OK)}
     ${kpi('Descartados sem contato', fN(e.sem_contato), `de ${fN(e.perdidos)} perdidos no período`, e.sem_contato ? ERR : OK)}
     ${kpi(`Descartados com menos de ${r.tentativas || 6} tentativas`, fN(e.irregular), `${fN(e.sem_registro)} sem nenhuma tentativa registrada`, e.irregular ? ERR : OK)}
   </div>`;
   const lin = (c.por_corretor || []).map(x => `<tr><td>${nome(x.nome)}</td>${num(x.tdc_abertos)}${bad(x.sem_tarefa)}${bad(x.atrasada)}${bad(x.parado_5d)}${num(x.perdidos)}${bad(x.sem_contato)}${bad(x.sem_registro)}${bad(x.curioso_sem_qualif)}${bad(x.outros)}${bad(x.nao_atendeu_sem_6)}</tr>`);
   return sec('📞 Cadência de tentativa de contato', `regra: ${r.tentativas || 6} tentativas registradas antes de descartar`,
     kp + tabela(['Corretor', 'Em tentativa', 'Sem tarefa', 'Atrasada', `+${r.parado_dias || 5}d`, 'Perdidos', 'Sem contato', 'Sem tentativa registrada', '"Curioso" sem qualificar', '"Outros"', '"Não atendeu" < 6'], lin)
-    + nota('Perdidos = fechados como perdidos no período (qualquer data de entrada). "Sem contato" = perdido em Novo atendimento ou Tentativa de contato. As tentativas vêm do campo "Nº tentativa de contato" do RD — enquanto ele não for preenchido, todo descarte aparece como irregular.'));
+    + nota('Perdidos = fechados como perdidos no período (qualquer data de entrada), sem a limpeza da Reativação. "Sem contato" = perdido em Novo atendimento ou Tentativa de contato. As tentativas vêm do campo "Nº tentativa de contato" do RD — enquanto ele não for preenchido, todo descarte aparece como irregular.'));
 }
 
 /* 🔁 FOLLOW-UP */
@@ -110,13 +110,13 @@ function blocoFollowup(f) {
     ${kpi('Tarefa atrasada', fN(e.atrasada), 'follow-up marcado que não foi feito', e.atrasada ? ERR : OK)}
     ${kpi('Prazo da etapa estourado', fN(e.estourado), 'dias sem atividade acima do limite', e.estourado ? WARN : OK)}
   </div>`;
-  const et = (f.por_etapa || []).map(x => `<tr><td>${esc(x.etapa)}</td><td style="text-align:right">${x.sla_dias} d</td>${num(x.abertos)}${bad(x.sem_tarefa)}${bad(x.atrasada)}${bad(x.estourado)}<td style="text-align:right;color:${OK}">${fN(x.em_dia)}</td></tr>`);
+  const et = (f.por_etapa || []).map(x => `<tr><td>${esc(x.etapa)}</td><td style="text-align:right">${x.sla_dias == null ? 'data da visita' : x.sla_dias + ' d'}</td>${num(x.abertos)}${bad(x.sem_tarefa)}${bad(x.atrasada)}${bad(x.estourado)}<td style="text-align:right;color:${OK}">${fN(x.em_dia)}</td></tr>`);
   const co = (f.por_corretor || []).map(x => `<tr><td>${nome(x.nome)}</td>${num(x.abertos)}${bad(x.sem_tarefa)}${bad(x.atrasada)}${bad(x.estourado)}<td style="text-align:right;color:${OK}">${x.abertos ? Math.round(x.em_dia / x.abertos * 100) + '%' : '—'}</td></tr>`);
   return sec('🔁 Follow-up', 'retrato de agora',
     kp + `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:12px">
       <div>${tabela(['Etapa', 'Prazo sem contato', 'Abertos', 'Sem tarefa', 'Atrasada', 'Estourado', 'Em dia'], et)}</div>
       <div>${tabela(['Corretor', 'Abertos', 'Sem tarefa', 'Atrasada', 'Estourado', '% em dia'], co)}</div></div>`
-    + nota('Regra: nenhum card aberto sem próxima tarefa com data. "Prazo estourado" = dias desde a última atividade no RD acima do limite da etapa. Reativação fica fora (é base, não acompanhamento)' + (f.reativacao_abertos != null ? ` — ${fN(f.reativacao_abertos)} cards lá hoje.` : '.')));
+    + nota('Regra: nenhum card aberto sem próxima tarefa com data. "Prazo estourado" = dias desde a última atividade no RD acima do limite da etapa. Visita agendada é cobrada pela data da visita (tarefa atrasada), não por dias sem atividade. Reativação fica fora (é base, não acompanhamento)' + (f.reativacao_abertos != null ? ` — ${fN(f.reativacao_abertos)} cards lá hoje.` : '.')));
 }
 
 /* 📂 PASTAS */
