@@ -302,7 +302,8 @@ def manter_kit(sb, graph, contas_marca, token_de, frente_of, simular=False, agor
             reg(marca, chave, ("criado" if novo else "atualizado") if ok2 else "erro",
                 f"{r2} contatos" if ok2 else r2, ok2,
                 extra={"id": aud_id, "nome": nome, "temp": temp, "contatos": len(linhas),
-                       **({"atualizado_em": agora.isoformat()} if ok2 else {})})
+                       # falhou (ex.: Meta ainda processando a lista) → vence já; a rodada de amanhã tenta de novo
+                       "atualizado_em": agora.isoformat() if ok2 else None})
 
         # 3) semelhantes — da semente qualificada
         semente = (estado.get(marca) or {}).get("semente_17") or {}
