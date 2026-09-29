@@ -1081,6 +1081,15 @@ async function loadDefasagem() {
     const r = await api.request(`/api/v3/oo/norte?corretor_id=${encodeURIComponent(_selId)}&since=${fmt(s)}&until=${fmt(u)}&realizado=1`);
     const leadsLag = ((r.realizado || {}).kpis || {}).leads;
     if (leadsLag == null) return;
+    // v89.1: corretor que mudou de equipe — a atividade de N meses atrás era de OUTRO funil e não sustenta a venda de agora
+    const rz = r.realizado || {};
+    if (rz.funil_time && rz.criados > 0 && (rz.criados_funil_time || 0) < rz.criados * 0.5) {
+      const mesLag0 = s.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+      host.innerHTML = `<div style="margin-top:8px;background:color-mix(in srgb, var(--info) 12%, transparent);border:1px solid var(--border);border-radius:var(--radius-md);padding:8px 10px;font-size:12px">
+        ⏳ <b>Jornada ~${N} meses:</b> em <b>${escapeHtml(mesLag0)}</b> só ${fmtN(rz.criados_funil_time || 0)} de ${fmtN(rz.criados)} negócios eram do ${escapeHtml(rz.funil_time.toUpperCase())} — o resto era de outro funil (mudança de equipe).
+        Ainda não há ${N} meses nessa equipe pra julgar a venda: cobre a atividade do mês.</div>`;
+      return;
+    }
     const convPct = (_det?.funil_reverso?.taxas?.lead_venda_pct) ?? null;
     const esperadas = convPct != null ? leadsLag * convPct / 100 : null;
     const mesLag = s.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });

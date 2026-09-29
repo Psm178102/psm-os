@@ -191,10 +191,11 @@ def _realizado(sb, cid, since_d, until_d, today):
     """Funil realizado do corretor na janela (mesma conta do cockpit 1:1) —
     usado pelo card Norte do Dia no Meu Painel (o corretor não acessa o 1:1)."""
     try:
-        urows = sb.table("users").select("email").eq("id", cid).limit(1).execute().data or []
+        urows = sb.table("users").select("email,team").eq("id", cid).limit(1).execute().data or []
     except Exception:
         urows = []
     email = ((urows[0].get("email") if urows else "") or "").lower()
+    team = ((urows[0].get("team") if urows else "") or "").lower()
     cols = "id,name,amount,win,closed_at,created_at_rd,updated_at_rd,stage_id,stage_name,pipeline_id,pipeline_name,user_id,user_email,rd_raw"
     deals, seen = [], set()
     for fld, val in (("user_id", cid), ("user_email", email)):
@@ -235,7 +236,13 @@ def _realizado(sb, cid, since_d, until_d, today):
             aplicar_dicionario(m, b, since_d, until_d, today)
     except Exception as e:
         print(f"[oo/norte] motor de métricas indisponível: {e}")
-    return {"funnel": m.get("funnel"), "kpis": m.get("kpis"), "win_rate": m.get("win_rate"), "funil_fonte": m.get("funil_fonte")}
+    # v89.1: negócios criados na janela no funil da EQUIPE ATUAL — quem mudou de equipe (ex.: Rafaela,
+    # Conquista → MAP em ago/26) não pode ter a atividade do funil antigo cobrada como base da venda de agora
+    funil_time = next((f for t, f in (("map", "funil map"), ("conquista", "funil conquista")) if t in team), None)
+    criados = [d for d in deals if (lambda c: c and since_d <= c.date() <= until_d)(parse_dt(d.get("created_at_rd")))]
+    no_funil = [d for d in criados if funil_time and funil_time in (d.get("pipeline_name") or "").lower()]
+    return {"funnel": m.get("funnel"), "kpis": m.get("kpis"), "win_rate": m.get("win_rate"), "funil_fonte": m.get("funil_fonte"),
+            "funil_time": funil_time, "criados": len(criados), "criados_funil_time": len(no_funil) if funil_time else None}
 
 
 def month_fracs(since_d, until_d):
