@@ -185,12 +185,13 @@ def aplicar(sb, u, ym, cfg_motor, hub_rateio, force, quem):
 
 def corretores_conquista(sb):
     try:
-        rows = sb.table("users").select("id,name,email,role,team,status").execute().data or []
+        rows = sb.table("users").select("id,name,email,role,team,status,is_service").execute().data or []
     except Exception:
         return []
     out = []
     for x in rows:
-        if (x.get("status") or "ativo") != "ativo":
+        # v89.1: só gente ATIVA — conta de serviço (comercial, tv) não é corretor (Dicionário §0)
+        if (x.get("status") or "ativo") != "ativo" or x.get("is_service"):
             continue
         if TEAM_SUB not in (x.get("team") or "").strip().lower():
             continue
