@@ -55,6 +55,10 @@ AUTONOMIA_DEFAULT = {
     "campanhas_limite": {"dia": 1, "semana": 3, "mes": 6},   # usado na fase 4 (criar campanha)
 }
 PISO_VERBA = 10.0                   # R$/dia mínimo que o motor deixa num objeto
+# v88.99: campanha NOVA (teste) fica 72h em aprendizado — o motor não corta nem reduz verba dela e só
+# pausa se queimar o DOBRO do limite do dia sem resultado (freio de emergência). Pedido do Paulo 29/09:
+# ele sobe estruturas de teste na mão; o motor não pode matar teste no 1º dia.
+APRENDIZADO_H = 72
 
 
 def autonomia(cfg):
@@ -98,16 +102,18 @@ def planejar(marcas, aut, orc_mes, dias_rest, qual_cod, guard):
             d = c.get("d3") or {}
             return (d.get("spend") or 0) / d["leads"] if d.get("leads") else None
 
-        # R1 — queima sem lead hoje → pausa
+        # R1 — queima sem lead hoje → pausa (teste em aprendizado: só no dobro do limite)
         pausadas = set()
         if queima:
             for c in camps:
                 h = c.get("hoje") or {}
-                if (h.get("spend") or 0) >= queima and not h.get("leads"):
+                limite_c = queima * (2 if c.get("teste") else 1)
+                if (h.get("spend") or 0) >= limite_c and not h.get("leads"):
                     acoes.append({"regra": "R1", "marca": marca, "op": "pause", "tipo": "campaign",
                                   "alvo": c["id"], "nome": c.get("nome"), "antes": "ACTIVE", "depois": "PAUSED",
                                   "motivo": f"gastou R$ {h['spend']:.0f} hoje sem nenhum lead "
-                                            f"(limite {MARCA_LBL[marca]}: R$ {queima:.0f})"})
+                                            f"(limite {MARCA_LBL[marca]}: R$ {limite_c:.0f}"
+                                            f"{' — teste em aprendizado, freio no dobro' if c.get('teste') else ''})"})
                     pausadas.add(c["id"])
         vivos = [c for c in camps if c["id"] not in pausadas]
         mexidos = set()
@@ -126,7 +132,8 @@ def planejar(marcas, aut, orc_mes, dias_rest, qual_cod, guard):
 
             if soma > cabe_dia * 1.05:
                 excesso = soma - cabe_dia
-                for c in sorted(vivos, key=pior, reverse=True):
+                # teste em aprendizado não entra no corte (conta na soma, mas quem cede verba são as maduras)
+                for c in sorted([c for c in vivos if not c.get("teste")], key=pior, reverse=True):
                     for h in c.get("holders") or []:
                         if excesso <= 0.5:
                             break
@@ -165,6 +172,8 @@ def planejar(marcas, aut, orc_mes, dias_rest, qual_cod, guard):
         # R2 — CPL de 3 dias acima do máximo → −20%
         if maxc:
             for c in vivos:
+                if c.get("teste"):
+                    continue          # CPL de 3 dias não vale pra quem ainda está aprendendo
                 v = cpl3(c)
                 gasto3 = (c.get("d3") or {}).get("spend") or 0
                 if v is None or v <= maxc or gasto3 < 2 * maxc:
@@ -223,7 +232,7 @@ def ler_meta(token_r, token_w):
             erros.append(f"{act} gasto do mês: {mtd.get('erro')}")
         if not token_w:
             continue
-        cps = _graph_get_msg(f"{act}/campaigns", {"fields": "id,name,daily_budget,effective_status",
+        cps = _graph_get_msg(f"{act}/campaigns", {"fields": "id,name,daily_budget,effective_status,start_time,created_time",
                                                   "effective_status": '["ACTIVE"]', "limit": 200}, token_w)
         if not cps.get("ok"):
             continue          # conta fora do alcance do token de escrita
@@ -244,8 +253,14 @@ def ler_meta(token_r, token_w):
                 holders = [{"id": cid, "tipo": "campaign", "daily": int(c["daily_budget"]) / 100.0}]
             else:
                 holders = adsets.get(cid, [])          # ABO: verba mora nos conjuntos
+            try:
+                ini = datetime.strptime(str(c.get("start_time") or c.get("created_time")), "%Y-%m-%dT%H:%M:%S%z")
+                idade_h = (datetime.now(timezone.utc) - ini).total_seconds() / 3600
+            except Exception:
+                idade_h = None
             marcas[marca]["camps"].append({
                 "id": cid, "nome": c.get("name"), "conta": act, "holders": holders,
+                "idade_h": idade_h, "teste": idade_h is not None and idade_h < APRENDIZADO_H,
                 "hoje": hoje.get(cid, {"spend": 0.0, "leads": 0}),
                 "d3": d3.get(cid, {"spend": 0.0, "leads": 0}),
             })
