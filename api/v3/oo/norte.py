@@ -150,6 +150,43 @@ def metas_funil(cfg, comp):
     return out
 
 
+# v89.1: pisos de passagem (marco k-1 → k) — mesmos defaults do motor (simulador.CFG_MOTOR_DEFAULT)
+PISOS_PADRAO = {"contato": 0.60, "agendamento": 0.45, "visita": 0.60,
+                "proposta": 0.35, "pasta": 0.50, "venda": 0.85}
+
+
+def derivar_etapas(etapas, pisos, espelho_pasta=False):
+    """v89.1: etapas sem meta (0) ganham meta AUTOMÁTICA a partir das âncoras que existem
+    (atendimentos do plano, metas manuais/oficiais, vendas) — sem isso o 1:1 mostrava
+    "— definir" em todas as etapas de quem só tinha o plano (ex.: MAP, que o norte_auto
+    não cobre). Entre duas âncoras: interpolação geométrica pesada pelos pisos (o funil
+    fecha exatamente nas duas pontas). Antes da 1ª / depois da última: cadeia pelos pisos.
+    Conquista (esteira HUB): pasta espelha proposta (piso 1.0). Devolve (etapas, auto_keys)."""
+    p = {k: _num((pisos or {}).get(k), PISOS_PADRAO.get(k, 0.5)) or PISOS_PADRAO.get(k, 0.5) for k in ETAPAS[1:]}
+    if espelho_pasta:
+        p["pasta"] = 1.0
+    vals = [_num(etapas.get(k)) for k in ETAPAS]
+    anc = [i for i, v in enumerate(vals) if v > 0]
+    if not anc:
+        return dict(etapas), []
+    out, auto = list(vals), []
+    taxa = lambda i: max(0.001, p[ETAPAS[i]])   # passagem que CHEGA na etapa i
+    for i in range(anc[0] - 1, -1, -1):          # antes da 1ª âncora: sobe o funil
+        out[i] = out[i + 1] / taxa(i + 1); auto.append(ETAPAS[i])
+    for i in range(anc[-1] + 1, len(ETAPAS)):    # depois da última: desce o funil
+        out[i] = out[i - 1] * taxa(i); auto.append(ETAPAS[i])
+    for a, b in zip(anc, anc[1:]):               # entre âncoras: fecha nas duas pontas
+        if b - a < 2:
+            continue
+        prod = 1.0
+        for i in range(a + 1, b + 1):
+            prod *= taxa(i)
+        f = ((out[b] / out[a]) / prod) ** (1.0 / (b - a))
+        for i in range(a + 1, b):
+            out[i] = out[i - 1] * taxa(i) * f; auto.append(ETAPAS[i])
+    return {k: round(out[i], 2) for i, k in enumerate(ETAPAS)}, auto
+
+
 def _realizado(sb, cid, since_d, until_d, today):
     """Funil realizado do corretor na janela (mesma conta do cockpit 1:1) —
     usado pelo card Norte do Dia no Meu Painel (o corretor não acessa o 1:1)."""
@@ -266,12 +303,35 @@ class handler(BaseHTTPRequestHandler):
         if not ok_of:
             read_fail = True
 
+        # ⏳ v86.1 (ADITIVO — não muda cálculo nenhum): defasagem venda↔atividade
+        # da equipe do corretor (MAP ~3 meses), lida da config do motor (oo_motor_config).
+        # v89.1: a mesma leitura traz os pisos do motor (metas automáticas por etapa).
+        defasagem, tm, pisos = 1, "", {}
+        try:
+            trs = sb.table("users").select("team").eq("id", cid).limit(1).execute().data or []
+            tm = ((trs[0].get("team") if trs else "") or "").strip().lower()
+            drow = (sb.table("shared_kv").select("value").eq("key", "oo_motor_config")
+                    .limit(1).execute().data or [])
+            dv = (drow[0].get("value") if drow else None) or {}
+            if isinstance(dv, str):
+                dv = json.loads(dv)
+            pisos = (dv.get("pisos") if isinstance(dv, dict) else None) or {}
+            dm = (dv.get("defasagem_meses") if isinstance(dv, dict) else None) or {"map": 3, "conquista": 1}
+            for k, v in dm.items():
+                if k and k in tm:
+                    defasagem = max(1, int(v))
+                    break
+        except Exception:
+            defasagem = 1
+        espelho_pasta = "conquista" in tm
+
         # metas do período = Σ (meta do mês × fração coberta)
         funil_periodo = {k: 0.0 for k in ETAPAS}
         meta_periodo = {"atendimentos": 0.0, "vendas": 0.0, "vgv": 0.0}
         fonte = {"vgv": set(), "vendas": set()}
         meses_com_meta = 0
         tem_meta_mes = {}
+        etapas_auto = set()   # v89.1: etapas cuja meta foi derivada do plano (não digitada)
         for ym, frac in fracs:
             cfg_m = per_month.get(ym)
             of = oficiais.get(ym) or {}
@@ -307,6 +367,12 @@ class handler(BaseHTTPRequestHandler):
                     etapas_m[et] = _num(of.get(campo))
             if of_vendas > 0 or (of_vgv > 0 and vend_m > 0):
                 etapas_m["venda"] = vend_m
+            # v89.1: atendimentos do plano = meta da 1ª etapa (se ninguém definiu outra)
+            if etapas_m["lead"] <= 0 and comp_m and comp_m["atendimentos_mes"] > 0:
+                etapas_m["lead"] = comp_m["atendimentos_mes"]
+                etapas_auto.add("lead")
+            etapas_m, auto_m = derivar_etapas(etapas_m, pisos, espelho_pasta)
+            etapas_auto.update(auto_m)
             for k in ETAPAS:
                 funil_periodo[k] += etapas_m[k] * frac
             meta_periodo["atendimentos"] += (comp_m["atendimentos_mes"] if comp_m else 0) * frac
@@ -347,24 +413,6 @@ class handler(BaseHTTPRequestHandler):
         if params.get("realizado") == "1":
             realizado = _realizado(sb, cid, since_d, until_d, today)
 
-        # ⏳ v86.1 (ADITIVO — não muda cálculo nenhum): defasagem venda↔atividade
-        # da equipe do corretor (MAP ~3 meses), lida da config do motor (oo_motor_config).
-        defasagem = 1
-        try:
-            trs = sb.table("users").select("team").eq("id", cid).limit(1).execute().data or []
-            tm = ((trs[0].get("team") if trs else "") or "").strip().lower()
-            drow = (sb.table("shared_kv").select("value").eq("key", "oo_motor_config")
-                    .limit(1).execute().data or [])
-            dv = (drow[0].get("value") if drow else None) or {}
-            if isinstance(dv, str):
-                dv = json.loads(dv)
-            dm = (dv.get("defasagem_meses") if isinstance(dv, dict) else None) or {"map": 3, "conquista": 1}
-            for k, v in dm.items():
-                if k and k in tm:
-                    defasagem = max(1, int(v))
-                    break
-        except Exception:
-            defasagem = 1
 
         # meta oficial do mês de referência × plano do Norte (o gestor vê se o plano fecha a meta)
         of_ref = oficiais.get(ref_ym) or {}
@@ -394,6 +442,7 @@ class handler(BaseHTTPRequestHandler):
             "computed": comp_ref,
             "metas_funil_ref": metas_funil(cfg_out, comp_ref),
             "funil_meta_periodo": {k: round(v, 2) for k, v in funil_periodo.items()},
+            "funil_meta_auto": sorted(etapas_auto),
             "meta_periodo": {k: round(v, 2) for k, v in meta_periodo.items()},
             "pace": pace,
             "changelog": (cfg_out.get("changelog") or [])[-15:][::-1],

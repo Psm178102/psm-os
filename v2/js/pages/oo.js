@@ -1017,6 +1017,7 @@ function nortePanel(d) {
   // 🎲 venda é ruído no mês (Poisson): dentro da faixa estatística NUNCA pinta vermelho
   const metaVenda = Number(fm.venda || 0);
   const fxVenda = metaVenda > 0 ? poisFaixaJs(metaVenda) : null;
+  const autoKeys = new Set(n.funil_meta_auto || []);   // v89.1: etapas com meta derivada do plano
   const rows = stages.map(s => {
     const meta = Number(fm[s.key] || 0);
     const pct = meta > 0 ? (s.n / meta * 100) : null;
@@ -1030,7 +1031,7 @@ function nortePanel(d) {
     }
     const w = meta > 0 ? Math.min(100, s.n / meta * 100) : 0;
     return `<tr>
-      <td style="font-weight:600;font-size:12px;padding:5px 8px 5px 0;white-space:nowrap">${escapeHtml(s.label)}</td>
+      <td style="font-weight:600;font-size:12px;padding:5px 8px 5px 0;white-space:nowrap">${escapeHtml(s.label)}${autoKeys.has(s.key) && meta > 0 ? ' <span class="tiny muted" style="font-weight:400" title="meta derivada do plano (atendimentos → vendas pelas taxas do motor) — ajuste em Ajustar meta">⚙ auto</span>' : ''}</td>
       <td style="width:100%;padding:5px 0"><div style="height:14px;background:var(--bg-3);border-radius:var(--radius-sm);overflow:hidden">
         <div style="height:100%;width:${w}%;background:${cor};border-radius:var(--radius-sm);transition:.3s"></div></div></td>
       <td style="text-align:right;padding:5px 0 5px 10px;white-space:nowrap;font-size:13px"><b>${fmtN(s.n)}</b> <span class="muted">/ ${meta > 0 ? fmtN(meta) : '—'}</span>${extra}</td>
