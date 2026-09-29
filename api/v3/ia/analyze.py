@@ -192,12 +192,22 @@ class handler(BaseHTTPRequestHandler):
                 res = _gemini(model, system, final, max_tokens)
         else:
             res = _gemini(model, system, final, max_tokens)
+        erro_principal = None
+        if not res.get("ok") and model != GEM_FLASH:
+            # v88.99: o modelo pedido (ex.: 2.5 Pro do Briefing) falhou → tenta o Flash direto, com a mesma chave,
+            # antes do legado. O motivo da falha volta na resposta (erro_principal) e fica gravado no Briefing.
+            erro_principal = f"{model}: {res.get('error')}"
+            print(f"[ia/analyze] {erro_principal} — tentando {GEM_FLASH}")
+            res = _gemini(GEM_FLASH, system, final, max_tokens)
+            if res.get("ok"):
+                res["erro_principal"] = erro_principal
         if not res.get("ok"):
+            erro_principal = erro_principal or f"{model}: {res.get('error')}"
             print(f"[ia/analyze] {model} falhou, indo pro legado: {res.get('error')}")   # v88.83: antes o motivo sumia
             try:
                 leg = _legacy_fallback(final, model, max_tokens)
                 if leg.get("ok") and leg.get("text"):
-                    res = {"ok": True, "text": leg["text"],
+                    res = {"ok": True, "text": leg["text"], "erro_principal": erro_principal,
                            "model_used": (leg.get("model_used") or "legado") + " (fallback)"}
             except Exception:
                 pass
@@ -212,4 +222,4 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             pass
         return self._send(200, {"ok": True, "text": res["text"], "model_used": res.get("model_used"),
-                                "dossie_incluido": bool(dossie_txt)})
+                                "dossie_incluido": bool(dossie_txt), "erro_principal": res.get("erro_principal")})

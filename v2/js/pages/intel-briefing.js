@@ -145,6 +145,7 @@ function briefCard(b) {
       <span style="font-weight:600;font-size:12px;color:var(--roxo)">⚔️ ${fmtDT(b.created_at)}</span>
       <span class="tiny muted" style="margin-left:auto">${escapeHtml(b.model || '')}${b.criado_por ? '' : ' · automático'}</span>
     </div>
+    ${b.facts && b.facts.ia_diag ? `<div class="tiny" style="color:var(--warn);margin-bottom:6px" title="gravado pelo sistema na hora da geração">⚠️ A IA principal não respondeu: ${escapeHtml(b.facts.ia_diag.erro_modelo_principal || b.facts.ia_diag.erro_analyze || '')}</div>` : ''}
     <div style="font-size:13px;line-height:1.55">${mdLite(b.briefing || '')}</div>
   </div>`;
 }

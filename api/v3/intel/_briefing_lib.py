@@ -162,9 +162,13 @@ FATOS REAIS:
 - CONCORRÊNCIA (Biblioteca de Anúncios): {conc}."""
 
 
+_IA_DIAG = {}   # v88.99: o que aconteceu na chamada de IA (gravado nos facts do briefing)
+
+
 def _ai_text(prompt, max_tokens=4000):
     """v84.9 — Briefing de Guerra roda no GEMINI PRO via /api/v3/ia/analyze
     (motor oficial decidido pelo Paulo; Claude dormente). Fallback: legado."""
+    _IA_DIAG.clear()
     cron = os.environ.get("CRON_SECRET", "").strip()
     if cron:
         try:
@@ -176,10 +180,15 @@ def _ai_text(prompt, max_tokens=4000):
                          "Authorization": "Bearer " + cron})
             with urllib.request.urlopen(req, timeout=110) as resp:
                 d = json.loads(resp.read().decode("utf-8"))
+            if d.get("erro_principal"):
+                _IA_DIAG["erro_modelo_principal"] = str(d["erro_principal"])[:400]
             if d.get("ok") and d.get("text"):
                 return d.get("text"), d.get("model_used")
-        except Exception:
-            pass
+            _IA_DIAG["erro_analyze"] = str(d.get("error") or "sem texto")[:400]
+        except Exception as e:
+            _IA_DIAG["erro_analyze"] = f"{type(e).__name__}: {str(e)[:300]}"   # timeout, 401, 5xx...
+    else:
+        _IA_DIAG["erro_analyze"] = "CRON_SECRET ausente — pulou o motor oficial"
     body = json.dumps({"prompt": prompt, "max_tokens": max_tokens}).encode("utf-8")
     req = urllib.request.Request(
         PUBLIC_BASE + "/api/ai-analysis", data=body,
@@ -205,6 +214,8 @@ def generate_and_store(sb, actor_id=None):
     if facts.get("dossie"):
         prompt = facts["dossie"] + "\n\n---\n\n" + prompt
     text, model = _ai_text(prompt)
+    if _IA_DIAG:
+        facts["ia_diag"] = dict(_IA_DIAG)   # v88.99: por que não saiu no modelo principal (se for o caso)
     facts.pop("dossie", None)   # não persiste o dossiê inteiro na linha (só os facts compactos)
     ordens_n = salvar_ordens(sb, text, today)   # checklist rastreável (v84.6)
     row = {"briefing": text, "facts": facts, "model": model, "criado_por": actor_id}
