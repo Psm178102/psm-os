@@ -323,8 +323,11 @@ def dia_util(d):
 
 
 def bate(f, d):
-    """A reunião acontece no dia d? Já com a regra do feriado: caiu em feriado → próximo dia útil."""
+    """A reunião acontece no dia d? Já com a regra do feriado: caiu em feriado → próximo dia útil.
+    v89.25: excecoes[AAAA-MM-DD].cancelada → não acontece naquele dia."""
     if not dia_util(d):
+        return False
+    if ((f.get("excecoes") or {}).get(d.isoformat()) or {}).get("cancelada"):
         return False
     if _bate(f, d):
         return True

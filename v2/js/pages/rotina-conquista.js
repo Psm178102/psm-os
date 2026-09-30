@@ -73,6 +73,7 @@ function feriados(y) {
 const diaUtil = d => d.getDay() !== 0 && d.getDay() !== 6 && !feriados(d.getFullYear()).has(ymd(d));
 function bate(f, d) {
   if (!diaUtil(d)) return false;
+  if (((f.excecoes || {})[ymd(d)] || {}).cancelada) return false;   // v89.25: cancelada só naquele dia
   if (bateBruto(f, d)) return true;
   const x = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1, 12);
   while (!diaUtil(x)) {
