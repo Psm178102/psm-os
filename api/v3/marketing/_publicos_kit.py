@@ -65,10 +65,38 @@ def nome_publico(marca, rotulo):
     return f"{PREFIXO} {'Conquista' if marca == 'conquista' else 'Imóveis'} · {rotulo}"[:120]
 
 
+# v89.31 — REGRA DE NOMENCLATURA do Paulo (30/09): Cod.<marca><tipo><lote><mês>-<n> [DESCRIÇÃO] [data].
+# Chave do kit → nome oficial. Quem não está aqui segue com o nome antigo (prefixo [Sr.Tráfego]).
+# O nome antigo continua reconhecido: se o kit achar só o antigo, ele RENOMEIA no Meta (não duplica).
+NOMES_CODIGO = {
+    "conquista": {
+        "form_enviou_90": "Cod.CQ1O-3 [ENVIOU FORM 90D] [30/09]",
+        "ig_msg_30":      "Cod.CQ1O-4 [DIRECT IG 30D] [30/09]",
+        "lp_14":          "Cod.CQ1O-5 [VISITOU LP 14D] [30/09]",
+        "crm_quente":     "Cod.CQ1O-6 [CRM QUENTE] [30/09]",
+        "pag_msg_30":     "Cod.CQ1O-7 [MENSAGEM PAGINA 30D] [30/09]",
+        "ig_eng_90":      "Cod.CM1O-2 [ENGAJOU IG 90D] [30/09]",
+        "pag_eng_90":     "Cod.CM1O-3 [ENGAJOU PAGINA 90D] [30/09]",
+        "lp_90":          "Cod.CM1O-4 [VISITOU LP 90D] [30/09]",
+        "excl_compr":     "Cod.Exclusao [JA COMPROU] [30/09]",
+        "excl_leads30":   "Cod.Exclusao [LEAD 30D] [30/09]",
+    },
+}
+
+
+def nome_da_chave(marca, chave, rotulo):
+    return (NOMES_CODIGO.get(marca) or {}).get(chave) or nome_publico(marca, rotulo)
+
+
+def _eh_do_kit(nome):
+    return nome.startswith(PREFIXO) or nome.startswith("Cod.")
+
+
 def nomes_do_kit(marca):
     """Todos os nomes que o kit mantém hoje nesta marca (inclui o nome antigo do 0–1%)."""
     n = {nome_publico(marca, r) for _c, _t, r, *_x in ENGAJAMENTO}
     n |= {nome_publico(marca, r) for _c, _t, r in LISTAS}
+    n |= set((NOMES_CODIGO.get(marca) or {}).values())
     n |= {nome_publico(marca, r) for _c, _t, r, *_x in SEMELHANTES}
     n.add(nome_publico(marca, "Semelhante 1% da semente DDD 17"))
     return n
@@ -188,7 +216,24 @@ def _existentes(graph, act, token):
                      {"fields": "id,name,approximate_count_lower_bound,delivery_status", "limit": 200}, token)
     if not ok:
         return None, data
-    return {a.get("name"): a for a in (data.get("data") or []) if str(a.get("name") or "").startswith(PREFIXO)}, None
+    return {a.get("name"): a for a in (data.get("data") or []) if _eh_do_kit(str(a.get("name") or ""))}, None
+
+
+def _resolver_nome(graph, exist, marca, chave, rotulo, token, simular, rel_renomes):
+    """Nome oficial da chave; se no Meta só existe o nome antigo, renomeia (1x) e devolve o oficial."""
+    nome = nome_da_chave(marca, chave, rotulo)
+    antigo = nome_publico(marca, rotulo)
+    if nome == antigo or nome in exist or antigo not in exist:
+        return nome
+    if simular:
+        rel_renomes.append((chave, antigo, nome, "renomearia"))
+        return antigo
+    ok, r = graph("POST", str(exist[antigo]["id"]), {"name": nome}, token)
+    rel_renomes.append((chave, antigo, nome, "renomeado" if ok else f"erro: {r}"))
+    if not ok:
+        return antigo
+    exist[nome] = exist.pop(antigo)
+    return nome
 
 
 def _subir(graph, aud_id, linhas, token, substituir):
@@ -240,8 +285,9 @@ def manter_kit(sb, graph, contas_marca, token_de, frente_of, simular=False, agor
         estado.setdefault(marca, {})["_fontes"] = {k: v for k, v in fontes.items() if k != "obs"}
 
         # 1) engajamento / site — cria uma vez, o Meta rola a janela sozinho
+        renomes = []
         for chave, temp, rotulo, tipo, evento, dias in ENGAJAMENTO:
-            nome = nome_publico(marca, rotulo)
+            nome = _resolver_nome(graph, exist, marca, chave, rotulo, token, simular, renomes)
             if nome in exist:
                 reg(marca, chave, "ok", "já existe (janela rolante)", extra={"id": exist[nome]["id"], "nome": nome,
                     "tamanho": exist[nome].get("approximate_count_lower_bound"), "temp": temp})
@@ -265,7 +311,7 @@ def manter_kit(sb, graph, contas_marca, token_de, frente_of, simular=False, agor
         # 2) listas do CRM — foto semanal
         crm_marca = (crm or {}).get(marca) or {}
         for chave, temp, rotulo in LISTAS:
-            nome = nome_publico(marca, rotulo)
+            nome = _resolver_nome(graph, exist, marca, chave, rotulo, token, simular, renomes)
             linhas = crm_marca.get(chave) or []
             ant = (estado.get(marca) or {}).get(chave) or {}
             try:
@@ -304,6 +350,10 @@ def manter_kit(sb, graph, contas_marca, token_de, frente_of, simular=False, agor
                 extra={"id": aud_id, "nome": nome, "temp": temp, "contatos": len(linhas),
                        # falhou (ex.: Meta ainda processando a lista) → vence já; a rodada de amanhã tenta de novo
                        "atualizado_em": agora.isoformat() if ok2 else None})
+
+        for chave, antigo, novo, res in renomes:
+            rel.append({"marca": marca, "chave": chave, "acao": "renomear", "ok": not res.startswith("erro"),
+                        "detalhe": f"{antigo} → {novo}: {res}"[:300]})
 
         # 3) semelhantes — da semente qualificada
         semente = (estado.get(marca) or {}).get("semente_17") or {}
