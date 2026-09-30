@@ -130,7 +130,8 @@ TAREFAS_IMOVEIS = [
     T("p_capt", "paulo", "semanal", "Aprovar as captações novas e as exclusividades da semana", "#/captacoes"),
     T("p_reativ", "paulo", "semanal", "Conferir a reativação da base MAP (fila da Mariane) e as oportunidades que voltaram", "#/reativacao"),
     T("p_receb", "paulo", "semanal", "Checar recebíveis travados de MAP e Terceiros (nota, assinatura, repasse)", "#/estrategia"),
-    T("p_dev", "paulo", "quinzenal", "1:1 de desenvolvimento com a Rafaela e com a Yara (feedback + próximos passos)", "#/one-on-one"),
+    # 30/09: 1:1 fixo na agenda (série no House + Zoho). Yara fora enquanto afastada.
+    T("p_dev", "paulo", "semanal", "1:1 de terça registrado: João Henrique 10h e Rafaela 11h (feedback + próximos passos)", "#/one-on-one"),
     T("p_funil", "paulo", "quinzenal", "Revisar funil, origem dos leads e verba de tráfego da PSM Imóveis", "#/gestao-comercial"),
     T("p_fech", "paulo", "mensal", "Fechar o mês no Farol PSM (PSM Imóveis) e registrar as decisões", "#/scorecard"),
     T("p_metas", "paulo", "mensal", "Aprovar as metas do próximo mês por corretor e lançar na aba Metas", "#/metas"),
