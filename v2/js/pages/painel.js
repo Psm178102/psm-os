@@ -3,9 +3,10 @@
    Desempenho + Metas (produtividade/resultado) + Perfil + Feedbacks 1:1 + Rotina.
    Para corretor, marketing, adm, financeiro — todos têm painel e metas. v77.50
 ============================================================================ */
-import { api, selectableUsers } from '../api.js';
+import { api, selectableUsers, hojeISO } from '../api.js';
 import { auth } from '../auth.js';
 import { mountDev } from './painel-dev.js';
+import { montarPlanoOO } from './oo-plano.js';   // v89.4 🧭 1:1 novo no Meu Painel
 
 let _root = null;
 let _me = null;
@@ -215,6 +216,16 @@ async function loadForecastCard() {
 async function loadNorteCard() {
   const host = document.getElementById('painel-norte');
   if (!host) return;
+  // v89.4: com plano de canais no mês, o corretor vê o 1:1 novo (resultado no tri, canais, funil da semana, gargalo)
+  try {
+    const ymHoje = hojeISO().slice(0, 7);
+    const pl = await api.request('/api/v3/oo/plano?corretor_id=' + encodeURIComponent(_targetId) + '&ym=' + ymHoje + '&leve=1');
+    if (pl && pl.ok && pl.plano) {
+      host.innerHTML = '<div class="mt-3"></div>';
+      montarPlanoOO(host.firstChild, { corretorId: _targetId, selfView: true, pre: pl });
+      return;
+    }
+  } catch { /* sem plano novo → Norte do Dia antigo */ }
   const t = new Date();
   const fmtD2 = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const since = fmtD2(new Date(t.getFullYear(), t.getMonth(), 1));

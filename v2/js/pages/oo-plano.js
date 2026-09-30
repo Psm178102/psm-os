@@ -29,11 +29,12 @@ const secao = (n, t, sub) => `<div style="display:flex;align-items:baseline;gap:
 
 let _st = { host: null, cid: '', ym: '', selfView: false, r: null, onReuniao: null };
 
-export async function montarPlanoOO(host, { corretorId, selfView, ym, onReuniao }) {
+export async function montarPlanoOO(host, { corretorId, selfView, ym, onReuniao, pre }) {
   if (!host) return;
   const hoje = new Date();
   _st = { host, cid: corretorId, selfView: !!selfView, onReuniao,
     ym: ym || `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`, r: null };
+  if (pre && pre.ok) { _st.r = pre; render(); return; }   // Meu Painel já buscou (v89.4)
   await carregar();
 }
 

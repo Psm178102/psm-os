@@ -353,6 +353,8 @@ class handler(BaseHTTPRequestHandler):
         # ── plano ──
         plano, plano_ym, ok = ler_plano(sb, cid, ym)
         read_fail |= not ok
+        if not plano and params.get("leve") == "1":   # Meu Painel: sem plano → nem calcula (banco frágil)
+            return {"ok": True, "ym": ym, "plano": None, "leve": True}
         mes_ini, mes_fim = _mes_janela(ym)
         dias_mes = (mes_fim - mes_ini).days + 1
         corrido = 1.0 if hoje > mes_fim else (0.0 if hoje < mes_ini else ((hoje - mes_ini).days + 1) / dias_mes)
