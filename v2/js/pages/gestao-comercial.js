@@ -17,6 +17,7 @@ import { loadChartLib } from '../premium.js';
 import { montarDecisoes } from '../decisoes.js';   // v87.92 🧭 Decidir agora
 import { montarLeadsOrigem } from '../leads-origem.js';   // v88.16 📥 leads em andamento × origem × equipe (mínimo de todo painel)
 import { controleHTML, controleLoad, controleResumo } from './gc-controle.js';   // v89.0 🧭 Controle (atendimento · cadência · follow-up · pastas · pós-visita)
+import { eficienciaHTML, eficienciaLoad, eficienciaResumo } from './gc-eficiencia.js';   // v89.13 ⚙️ Eficiência da Esteira (o Notion do Kaue, automático)
 
 let _root = null, _d = null, _v = null, _tab = 'meta', _team = null, _busy = false, _notas = false;
 let _since = null, _until = null, _spendPreset = 'this_month';
@@ -40,7 +41,8 @@ const TEAM_LBL = { conquista: '🏠 Conquista', map: '🏢 MAP', terceiros: '�
 const TEAMS4 = ['conquista', 'map', 'terceiros', 'locacao'];
 const tLbl = t => (TEAM_LBL[t] || t || '').replace(/^..\s/, '');
 let _ctlFresh = false;   // v89.0: 🔄 também recalcula a aba 🧭 Controle
-const GC_TABS = [['meta', '🎯 Meta · Realizado · Projeção'], ['controle', '🧭 Controle'], ['metricas', '📐 Métricas'], ['funil', '⏬ Funil'], ['midia', '💰 Mídia & Custo'], ['pessoas', '👤 Pessoas']];
+let _efiFresh = false;   // v89.13: 🔄 também recalcula a aba ⚙️ Eficiência da Esteira
+const GC_TABS = [['meta', '🎯 Meta · Realizado · Projeção'], ['controle', '🧭 Controle'], ['eficiencia', '⚙️ Eficiência da Esteira'], ['metricas', '📐 Métricas'], ['funil', '⏬ Funil'], ['midia', '💰 Mídia & Custo'], ['pessoas', '👤 Pessoas']];
 // v87.91 — 🎯 Meta · Realizado · Projeção com horizonte escolhido (pedido do Paulo 16/09)
 let _ph = 'mes', _pSince = '', _pUntil = '', _proj = null, _projKey = '', _projErr = '';
 const PH = [['semana', 'Semana'], ['quinzena', 'Quinzena'], ['mes', 'Mês'], ['trimestre', 'Trimestre'], ['semestre', 'Semestre'], ['ano', 'Ano'], ['personalizado', 'Personalizado']];
@@ -229,7 +231,7 @@ function bind(scope) {
     load();
   });
   // v87.86: 🔄 sincroniza o RD agora (fonte) e recalcula — não só a tela
-  q('#gc-fresh') && (q('#gc-fresh').onclick = async () => { try { await api.request('/api/v3/crm/sync_if_stale?hours=0'); } catch (_) {} _proj = null; _projKey = ''; _ctlFresh = true; load(true); });
+  q('#gc-fresh') && (q('#gc-fresh').onclick = async () => { try { await api.request('/api/v3/crm/sync_if_stale?hours=0'); } catch (_) {} _proj = null; _projKey = ''; _ctlFresh = true; _efiFresh = true; load(true); });
   q('#gc-notas') && (q('#gc-notas').onclick = () => { _notas = !_notas; scope.querySelector('.gc')?.classList.toggle('notas', _notas); q('#gc-notas').classList.toggle('on', _notas); });
   q('#gc-tv') && (q('#gc-tv').onclick = enterTV);
   q('#gc-preset') && (q('#gc-preset').onchange = ev => {
@@ -253,13 +255,14 @@ function bind(scope) {
 }
 
 function tabBody() {
-  return { meta: tabMeta, controle: () => controleHTML(_team), metricas: tabMetricas, funil: tabFunil, midia: tabMidia, pessoas: tabPessoas }[_tab]();
+  return { meta: tabMeta, controle: () => controleHTML(_team), eficiencia: () => eficienciaHTML(_team), metricas: tabMetricas, funil: tabFunil, midia: tabMidia, pessoas: tabPessoas }[_tab]();
 }
 function postRender() {
   montarLeadsOrigem(document.getElementById('gc-lo'), { team: _team || '' });
   montarDecisoes(document.getElementById('gc-dec'), { tela: 'gestao', team: _team || '', titulo: '🧭 Decidir agora' + (_team ? ' · ' + tLbl(_team) : '') });
   initCharts(); srPerformance(); if (_tab === 'meta') projLoad();
   if (_tab === 'controle') { const f = _ctlFresh; _ctlFresh = false; controleLoad(_since, _until, f).then(() => { _srCache = {}; srPerformance(); }); }
+  if (_tab === 'eficiencia') { const f = _efiFresh; _efiFresh = false; eficienciaLoad(_until, f).then(() => { _srCache = {}; srPerformance(); }); }
 }
 
 /* ═══════════ 🧭 COCKPIT — "Como está nosso mês?" ═══════════ */
@@ -400,6 +403,7 @@ function resumoTab() {
     }
   }
   else if (_tab === 'controle') { g.controle_conquista = controleResumo(); }
+  else if (_tab === 'eficiencia') { g.eficiencia_esteira = eficienciaResumo(); }
   else if (_tab === 'metricas') { g.metricas_funil = Object.fromEntries(Object.entries(d.metricas || {}).map(([t, m]) => [tLbl(t), m])); g.janela_custo = (d.custos || {}).janela_custo; }
   else if (_tab === 'funil') {
     g.funis_rd = Object.fromEntries(Object.entries(d.funil_rd || {}).map(([t, f]) => [tLbl(t), { pipeline: f.pipeline, lanes: (f.lanes || []).map(l => ({ etapa: l.nome, abertos: l.abertos, alcancaram: l.alcancaram, passagem_pct: l.passagem_pct })) }]));
