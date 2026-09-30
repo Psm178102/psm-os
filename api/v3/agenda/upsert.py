@@ -123,7 +123,8 @@ def _lembrete_ok(v):
 
 ALLOWED_TIPO = {"plantao", "reuniao", "visita", "tarefa", "evento", "outro",
                 # v89.8: tipos que chegam do Zoho (classificados pelo título)
-                "oneonone", "atendimento", "corujao", "treinamento"}
+                "oneonone", "atendimento", "corujao", "treinamento",
+                "ligacao", "assinatura", "captacao", "pessoal"}
 ALLOWED_STATUS = {"agendado", "confirmado", "cancelado", "realizado"}
 
 

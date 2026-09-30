@@ -11,7 +11,8 @@ export const CORES = {
   tarefa: '#806d50', reuniao: 'var(--accent-ink)', visita: 'var(--ok)', plantao: '#806d50', evento: 'var(--err)',
   outro: 'var(--ink-muted)', treino: 'var(--ok)', academy: 'var(--warn)', projeto: 'var(--warn)', captacao: 'var(--warn)',
   criativo: '#d946ef', conteudo: 'var(--accent-ink)', oneonone: '#ec4899',
-  atendimento: 'var(--ok)', corujao: '#6366f1', treinamento: 'var(--ok)',   // v89.8 (tipos do Zoho)
+  atendimento: 'var(--ok)', corujao: '#6366f1', treinamento: 'var(--ok)',
+  ligacao: 'var(--accent-ink)', assinatura: '#16a34a', pessoal: 'var(--ink-muted)',   // v89.8 (tipos do Zoho)
 };
 
 const CSS = `

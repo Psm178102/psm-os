@@ -89,7 +89,46 @@ def estender_series(sb):
     return out
 
 
-def sync_user(sb, conn):
+_PESSOAS = {"em": 0, "mapa": None}
+
+
+def mapa_pessoas(sb):
+    """{email: {id, nome, zoho}} dos usuários ativos — pra convidado do Zoho
+    virar participante no House (v89.9). Cache de 10 min por instância."""
+    import time
+    if _PESSOAS["mapa"] is not None and time.time() - _PESSOAS["em"] < 600:
+        return _PESSOAS["mapa"]
+    mapa = {}
+    try:
+        com_zoho = {str(r["user_id"]) for r in (sb.table("zoho_conexoes").select("user_id")
+                                                 .limit(500).execute().data or [])}
+        for u in (sb.table("users").select("id,name,email,status").limit(500).execute().data or []):
+            if u.get("email") and (u.get("status") or "ativo") == "ativo":
+                mapa[str(u["email"]).strip().lower()] = {
+                    "id": str(u["id"]), "nome": u.get("name") or str(u["id"]),
+                    "zoho": str(u["id"]) in com_zoho}
+    except Exception:
+        return _PESSOAS["mapa"] or {}
+    _PESSOAS.update(em=time.time(), mapa=mapa)
+    return mapa
+
+
+# ⚡ modo rápido (v89.9, Paulo 30/09: "tem que ser em tempo real"). O Zoho
+# Calendar NÃO tem webhook, então o cron de 1 em 1 minuto pergunta só a janela
+# que importa (ontem … +30d = UMA chamada ao Zoho) e compara uma assinatura
+# (uid+etag de tudo que veio). Igual à da rodada anterior → não toca no banco.
+# Só quando algo mudou roda o PULL completo daquela janela. O PUSH não entra:
+# House → Zoho já é na hora (agenda/_zoho_push.py).
+RAPIDO_ATRAS, RAPIDO_FRENTE = 1, 30
+
+
+def _assinatura(zevs):
+    import hashlib
+    base = "|".join(sorted(f"{e.get('uid')}:{e.get('etag')}" for e in zevs if e.get("uid")))
+    return hashlib.md5(base.encode("utf-8")).hexdigest()
+
+
+def sync_user(sb, conn, rapido=False):
     """Sincroniza um usuário. Devolve resumo {puxados, criados_house, enviados, erros}."""
     uid = str(conn.get("user_id"))
     token, _dom = z.access_token(conn)
@@ -105,12 +144,20 @@ def sync_user(sb, conn):
            "enviados": 0, "atualizados_zoho": 0, "erros": 0}
     agora = datetime.now(timezone.utc)
     hoje = agora.date()
-    ini_d = (hoje - timedelta(days=DIAS_ATRAS)).isoformat()
-    fim_d = (hoje + timedelta(days=DIAS_FRENTE)).isoformat()
+    atras, frente = (RAPIDO_ATRAS, RAPIDO_FRENTE) if rapido else (DIAS_ATRAS, DIAS_FRENTE)
+    ini_d = (hoje - timedelta(days=atras)).isoformat()
+    fim_d = (hoje + timedelta(days=frente)).isoformat()
 
     # ── PULL: Zoho → House (fatiado em janelas de 31d — teto da API) ────
-    zevs = z.listar_eventos(token, cal_uid, agora - timedelta(days=DIAS_ATRAS),
-                            agora + timedelta(days=DIAS_FRENTE))
+    zevs = z.listar_eventos(token, cal_uid, agora - timedelta(days=atras),
+                            agora + timedelta(days=frente))
+    assinatura = _assinatura(zevs)
+    if rapido:
+        if not zevs or assinatura == ((conn.get("last_sync_res") or {}).get("assinatura") or ""):
+            return {"sem_mudanca": True}
+        res["modo"] = "rapido"
+    res["assinatura"] = assinatura if rapido else ""
+    pessoas = mapa_pessoas(sb)
     # ÍNDICE do que já existe, casado por zoho_uid e SEM filtro de data (v86.57).
     # O filtro antigo (data entre hoje-7 e hoje+60) era a ORIGEM do loop de
     # duplicação: o Zoho responde por datetime UTC e devolve o evento da borda
@@ -153,7 +200,7 @@ def sync_user(sb, conn):
         if str(zu) in ja_da_casa:
             res["puxados"] += 1
             continue
-        row = z.zoho_to_house_event(ze, uid)
+        row = z.zoho_to_house_event(ze, uid, pessoas)
         if not row.get("data"):
             continue
         cur = existentes.get(str(zu))
@@ -172,7 +219,6 @@ def sync_user(sb, conn):
                     res["erros"] += 1
                     break
                 row["id"] = "evzo_" + uuid.uuid4().hex[:12]
-                row["participantes"] = [uid]
                 sb.table("eventos").insert(row).execute()
                 res["criados_house"] += 1
                 res["puxados"] += 1
@@ -191,8 +237,14 @@ def sync_user(sb, conn):
     if not vivos:
         res["delecao_pulada"] = "Zoho nao devolveu evento nenhum na janela"
         vivos = None
-    del_ini = (hoje - timedelta(days=DIAS_ATRAS + FOLGA_BORDA)).isoformat()
-    del_fim = (hoje + timedelta(days=DIAS_FRENTE + FOLGA_BORDA)).isoformat()
+    # no modo rápido a janela é curta: a folga de borda vira MARGEM DE SEGURANÇA
+    # (só apaga o que está bem dentro do que o Zoho respondeu)
+    if rapido:
+        del_ini = (hoje - timedelta(days=atras - 1)).isoformat()
+        del_fim = (hoje + timedelta(days=frente - FOLGA_BORDA)).isoformat()
+    else:
+        del_ini = (hoje - timedelta(days=atras + FOLGA_BORDA)).isoformat()
+        del_fim = (hoje + timedelta(days=frente + FOLGA_BORDA)).isoformat()
     for zu, cur in (existentes.items() if vivos is not None else []):
         if zu in vivos:
             continue
@@ -203,6 +255,14 @@ def sync_user(sb, conn):
             res["apagados_house"] += 1
         except Exception:
             res["erros"] += 1
+
+    if rapido:
+        try:
+            sb.table("zoho_conexoes").update({"last_sync_at": z.now_iso(), "last_sync_res": res,
+                                              "atualizado_em": z.now_iso()}).eq("user_id", uid).execute()
+        except Exception:
+            pass
+        return res
 
     # ── PUSH: House → Zoho (cria os novos E atualiza os que mudaram) ────
     # NÃO usar .contains() aqui: o cliente PostgREST gera sintaxe de array PG

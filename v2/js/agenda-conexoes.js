@@ -29,13 +29,13 @@ export const prefsAtuais = () => _prefs;
 /* ── Zoho: puxa em segundo plano quando a última sync é velha ─────────────── */
 let _ultimaTentativaZoho = 0;
 export async function sincronizarZohoSeVelho() {
-  if (Date.now() - _ultimaTentativaZoho < 3 * 60 * 1000) return false;
+  if (Date.now() - _ultimaTentativaZoho < 60 * 1000) return false;   // v89.9: tempo real
   _ultimaTentativaZoho = Date.now();
   let st;
   try { st = await api.request('/api/v3/zoho/status'); } catch { return false; }
   if (!st || !st.configurado || !st.conectado) return false;
   const ult = st.last_sync_at ? new Date(st.last_sync_at).getTime() : 0;
-  if (Date.now() - ult < 3 * 60 * 1000) return false;
+  if (Date.now() - ult < 60 * 1000) return false;
   try {
     const r = await api.request('/api/v3/zoho/sync', { method: 'POST', body: {} });
     return ((r.criados_house || 0) + (r.atualizados_house || 0) + (r.apagados_house || 0)) > 0;

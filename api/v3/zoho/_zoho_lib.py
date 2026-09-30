@@ -318,6 +318,12 @@ _TIPO_POR_TITULO = [
     ("plantao", r"\bplant[aã]o"),
     ("treinamento", r"treinament|\btreino\b|onboarding|\baula\b|workshop|\bcapacita"),
     ("reuniao", r"reuni[aã]o|\bmeeting\b|alinhamento|\bdaily\b|\bcall\b"),
+    ("ligacao", r"\bliga[cç][aã]o|\bligar\b|follow.?up|\bretornar\b|\bretorno\b"),
+    ("assinatura", r"assinatura|\bassinar\b|contrato|escritura|\bcartorio"),
+    ("captacao", r"capta[cç][aã]o|\bcaptar\b|avalia[cç][aã]o do imovel|\bfotos?\b do imovel"),
+    ("pessoal", r"barbeir|cinema|consulta|medic|dentist|academia|futevolei|futebol|\bcorrida\b|"
+                r"aniversari|almoco|jantar|\bvisto\b|viagem|voo\b|exame|terapia|biblic|\bculto\b|\bmissa\b|"
+                r"escola|pediatra|salao|manicure|cabelo|\bpessoal\b"),
 ]
 
 
@@ -328,18 +334,60 @@ def classificar_tipo(titulo):
     for tipo, rx in _TIPO_POR_TITULO:
         if re.search(rx, t):
             return tipo
-    return "evento"
+    # não casou nada: é um compromisso de trabalho sem palavra-chave — nunca
+    # "Evento" genérico (Paulo 30/09: "a atividade tem que ser clara")
+    return "outro"
 
 
-def zoho_to_house_event(ze, owner_id):
-    """Evento do Zoho → dict pra tabela eventos (origem=zoho)."""
+def _sem_acento(s):
+    import unicodedata
+    t = unicodedata.normalize("NFKD", str(s or "").lower())
+    return "".join(c for c in t if not unicodedata.combining(c))
+
+
+def emails_do_evento(ze):
+    """E-mails de organizador + convidados de um evento do Zoho."""
+    out = []
+    for a in (ze.get("attendees") or []):
+        e = (a.get("email") if isinstance(a, dict) else a) or ""
+        if "@" in str(e):
+            out.append(str(e).strip().lower())
+    org = ze.get("organizer")
+    org = (org.get("email") if isinstance(org, dict) else org) or ""
+    if "@" in str(org):
+        out.append(str(org).strip().lower())
+    return list(dict.fromkeys(out))
+
+
+def zoho_to_house_event(ze, owner_id, pessoas=None):
+    """Evento do Zoho → dict pra tabela eventos (origem=zoho).
+
+    `pessoas` (v89.9) = {email: {"id", "nome", "zoho"}} dos usuários do House.
+    Convidado do Zoho que é do House vira PARTICIPANTE (se não tem Zoho
+    conectado — quem tem já recebe a própria cópia pelo próprio sync) e o
+    título ganha "com Fulano" quando ainda não cita a pessoa: "ONE ON ONE"
+    sozinho não diz nada; "ONE ON ONE — com João Henrique" diz."""
     dt = ze.get("dateandtime") or {}
     data, hi, all_day = _parse_zoho_dt(dt.get("start"))
     _, hf, _ = _parse_zoho_dt(dt.get("end"))
-    titulo = (ze.get("title") or "Evento Zoho")[:200]
+    titulo = (ze.get("title") or "Compromisso sem título").strip()[:200]
     tipo = classificar_tipo(titulo)
+    participantes, nomes = [str(owner_id)], []
+    for e in emails_do_evento(ze):
+        p = (pessoas or {}).get(e)
+        if not p or p["id"] == str(owner_id):
+            if not p and e.split("@")[0]:
+                nomes.append(e.split("@")[0].split(".")[0].capitalize())
+            continue
+        if not p.get("zoho"):
+            participantes.append(p["id"])
+        nomes.append(p["nome"])
+    t_norm = _sem_acento(titulo)
+    faltam = [n for n in dict.fromkeys(nomes) if n and _sem_acento(n.split()[0]) not in t_norm]
+    if faltam and tipo != "pessoal":
+        titulo = (titulo + " — com " + ", ".join(faltam[:4]))[:200]
     return {
-        "tipo": tipo, "titulo": titulo,
+        "tipo": tipo, "titulo": titulo, "participantes": participantes,
         # visita/atendimento do Zoho pertencem ao dono da agenda — é o que põe
         # na TV de visitas do dia e no filtro por corretor
         **({"corretor_id": str(owner_id)} if tipo in ("visita", "atendimento") else {}),

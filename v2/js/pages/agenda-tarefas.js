@@ -38,6 +38,8 @@ const TIPO_EVT = {
   // v89.8: chegam do Zoho, classificados pelo título
   oneonone: { lbl: 'One-on-One', ico: '👥' }, atendimento: { lbl: 'Atendimento', ico: '🤝' },
   corujao: { lbl: 'Corujão', ico: '🦉' }, treinamento: { lbl: 'Treinamento', ico: '🎓' },
+  ligacao: { lbl: 'Ligação / follow-up', ico: '📞' }, assinatura: { lbl: 'Assinatura', ico: '✍️' },
+  captacao: { lbl: 'Captação', ico: '📥' }, pessoal: { lbl: 'Pessoal', ico: '🙋' },
 };
 const KIND = {
   tarefa: { lbl: 'Tarefa', ico: '📋' }, treino: { lbl: 'Treinamento', ico: '🎓' }, academy: { lbl: 'Academy', ico: '🎬' },
@@ -642,7 +644,16 @@ function ligarEventos(root, mont) {
   document.addEventListener('keydown', tecla);
   // a linha do "agora" anda sozinha na visão Dia de hoje
   const relogio = setInterval(() => { if (vivo() && S.view === 'dia' && S.cursor === hoje() && !S.aberto) renderVisao(); }, 60000);
-  router.onCleanup(() => { document.removeEventListener('keydown', tecla); clearInterval(relogio); fecharDrawer(); fecharPop(); });
+  // ⚡ v89.9 "tem que ser em tempo real": o cron traz o Zoho de 1 em 1 minuto;
+  // com a Agenda aberta (e visível, sem nada sendo editado) ela se recarrega sozinha
+  let recarregando = false;
+  const aoVivo = setInterval(async () => {
+    if (!vivo() || recarregando || S.aberto || document.visibilityState !== 'visible') return;
+    recarregando = true;
+    try { await sincronizarZohoSeVelho(); if (vivo() && !S.aberto) { await carregar({ quiet: true }); if (vivo() && !S.aberto) renderTudo(); } }
+    catch { /* rede caiu: tenta no próximo minuto */ } finally { recarregando = false; }
+  }, 60000);
+  router.onCleanup(() => { document.removeEventListener('keydown', tecla); clearInterval(relogio); clearInterval(aoVivo); fecharDrawer(); fecharPop(); });
 }
 
 function trocarVisao(v) {
