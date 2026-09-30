@@ -65,8 +65,11 @@ class handler(BaseHTTPRequestHandler):
             except Exception as e:
                 out["por_user"][uid] = {"erro": str(e)[:120]}
             out["usuarios"] += 1
-        try:
-            sb.table("shared_kv").delete().eq("key", TRAVA).execute()
+        try:   # solta a trava e deixa o carimbo da última rodada (prova de que o cron roda)
+            sb.table("shared_kv").upsert({"key": TRAVA, "value": {
+                "ts": 0, "ultima": datetime.now(timezone.utc).isoformat(), "modo": out["modo"],
+                "mudou": sorted(u for u, r in out["por_user"].items() if not (r or {}).get("sem_mudanca"))}},
+                on_conflict="key").execute()
         except Exception:
             pass
         self.send_response(200)
