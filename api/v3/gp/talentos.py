@@ -132,6 +132,12 @@ class handler(BaseHTTPRequestHandler):
             return self._mover(sb, actor, body)
         if action == "rd_sync":
             return self._rd_sync(sb)
+        if action == "meta_sync":   # v89.15: leads das campanhas de vagas (Meta) → Interessados
+            import _talentos_meta_lib as TM  # type: ignore
+            try:
+                return self._send(200, TM.sincronizar(sb))
+            except Exception as e:
+                return self._send(500, {"ok": False, "error": str(e)[:300]})
 
         # v89.10: ⭐ da aba "RD ao vivo" — se o negócio já tem ficha, devolve a ficha (sem duplicar)
         rd_id = str(body.get("rd_deal_id") or "").strip()

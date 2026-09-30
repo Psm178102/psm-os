@@ -203,6 +203,16 @@ def reconciliar(sb, deals, pid=None):
             if en in FORA:
                 continue   # nunca cria ficha pelas 2 etapas de fora
             cand = [s for s in soltas if did in (s.get("cenario") or "")]
+            # v89.15: mesmo telefone (8 últimos dígitos) ou mesmo e-mail = mesma pessoa — liga em vez de
+            # duplicar (ex.: lead que o Meta já criou, ou ficha manual com o nome escrito diferente)
+            if not cand:
+                f8 = (_fone(d) or "")[-8:]
+                em = (_email(d) or "").lower()
+                cand = [s for s in soltas
+                        if (len(f8) == 8 and re.sub(r"\D", "", s.get("contato") or "")[-8:] == f8)
+                        or (em and (s.get("email") or "").lower() == em)]
+                if len(cand) > 1:
+                    cand = []   # ambíguo: não chuta
             if not cand:
                 nm = norm(d.get("name"))
                 grupo = por_nome.get(nm) or []

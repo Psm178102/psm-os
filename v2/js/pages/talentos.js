@@ -114,6 +114,7 @@ async function loadManual() {
     return;
   }
   syncRd();
+  syncMeta();
   if (!_syncTimer) {
     _syncTimer = setInterval(() => { if (document.getElementById('tal-body')) syncRd(); }, 60000);
     router.onCleanup(stopSyncTimer);
@@ -138,6 +139,18 @@ async function syncRd() {
     }
   } catch (e) { _syncInfo = { ok: false, aviso: e.message }; }
   if (!_editing) { drawView(); const fn = document.getElementById('tal-funnel'); if (fn) fn.outerHTML = funnelHTML(); syncBadge(); }
+}
+
+// v89.15: puxa leads novos das campanhas de vagas (Meta) ao abrir a tela — o cron faz isso a cada 10 min
+async function syncMeta() {
+  try {
+    const r = await api.request('/api/v3/gp/talentos', { method: 'POST', body: { action: 'meta_sync' } });
+    if (r && r.criadas > 0 && !_editing) {
+      const l = await api.request('/api/v3/gp/talentos');
+      _talentos = l.talentos || _talentos;
+      drawView(); const fn = document.getElementById('tal-funnel'); if (fn) fn.outerHTML = funnelHTML();
+    }
+  } catch (_) { /* silencioso: o cron cobre */ }
 }
 
 function syncBadge() {
