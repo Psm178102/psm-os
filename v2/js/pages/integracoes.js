@@ -58,6 +58,7 @@ async function loadZohoEquipe() {
     ${pend.length ? `<div class="tiny" style="background:var(--accent-soft);padding:8px 10px;border-radius:var(--radius-md);border-left:3px solid var(--accent-ink)">
       <b>Ainda não conectaram (${pend.length}):</b> ${pend.map(u => escapeHtml(u.nome || u.email)).join(' · ')}
       <div class="muted mt-1">Peça pra abrirem a <b>Agenda</b> e clicarem em “🔗 Conectar meu Zoho”. Cada um autoriza a própria conta — ninguém conecta pelo outro.</div>
+      <div class="mt-1"><button class="btn btn-sm" id="zoho-convidar">📨 Reenviar convite (sino + celular + WhatsApp)</button> <span class="muted" id="zoho-convidar-res"></span></div>
     </div>` : '<div class="alert alert-ok tiny">🎉 Todo mundo conectado.</div>'}
     <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:13px">
       <tr class="tiny muted" style="text-align:left"><th style="padding:4px 8px">Pessoa</th><th>Conta Zoho</th><th style="text-align:right">Última sync</th><th style="text-align:right">Status</th></tr>
@@ -71,6 +72,15 @@ async function loadZohoEquipe() {
           : '<span class="tiny muted">— não conectou</span>'}</td>
       </tr>`).join('')}
     </table>`;
+  const bt = host.querySelector('#zoho-convidar');   // v89.16
+  if (bt) bt.onclick = async () => {
+    const out = host.querySelector('#zoho-convidar-res');
+    bt.disabled = true; out.textContent = 'Enviando…';
+    try {
+      const r = await api.request('/api/v3/zoho/equipe', { method: 'POST', body: { acao: 'convidar' } });
+      out.textContent = `✅ Convite enviado a ${r.total}: ` + (r.enviados || []).map(e => `${e.nome} (${e.canais.join(', ')})`).join(' · ');
+    } catch (e) { out.textContent = '❌ ' + (e.message || e); bt.disabled = false; }
+  };
 }
 
 function render() {

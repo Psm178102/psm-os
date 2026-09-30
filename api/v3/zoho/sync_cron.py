@@ -14,8 +14,9 @@ import json, os, sys, time, urllib.parse
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, notify_all  # type: ignore
 from sync import sync_user, estender_series  # type: ignore
+from _convite import processar_fila  # type: ignore
 
 
 class handler(BaseHTTPRequestHandler):
@@ -48,6 +49,12 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             pass
         out = {"ok": True, "modo": "completo" if completo else "rapido", "usuarios": 0, "por_user": {}}
+        try:   # 📨 convite de integração enfileirado (botão em /integracoes ou fila manual)
+            conv = processar_fila(sb, notify_all)
+            if conv:
+                out["convite"] = conv
+        except Exception as e:
+            out["convite"] = {"erro": str(e)[:120]}
         if completo:
             try:   # 🔁 séries semanais sempre com ~120 dias à frente no House
                 out["series"] = estender_series(sb)

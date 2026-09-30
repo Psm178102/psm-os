@@ -13,7 +13,8 @@ import json, os, sys
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
+from _auth_lib import supabase_client, require_user, AuthError, notify_all, audit  # type: ignore
+from _convite import convidar  # type: ignore
 import _zoho_lib as z  # type: ignore
 
 
@@ -34,6 +35,28 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(json.dumps(b, ensure_ascii=False, default=str).encode("utf-8"))
+
+    def do_POST(self):
+        """{acao:"convidar"} — reenvia o convite a quem ainda não conectou (v89.16)."""
+        try:
+            actor = require_user(self, min_lvl=7)
+        except AuthError as e:
+            return self._send(e.status, {"ok": False, "error": e.message})
+        sb = supabase_client()
+        if not sb:
+            return self._send(503, {"ok": False, "error": "backend"})
+        try:
+            body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0) or 0) or b"{}")
+        except Exception:
+            body = {}
+        if body.get("acao") != "convidar":
+            return self._send(400, {"ok": False, "error": "acao inválida"})
+        res = convidar(sb, notify_all, por=actor.get("id"))
+        try:
+            audit(self, actor, "zoho.convite", target_type="zoho", target_id=str(res["total"]))
+        except Exception:
+            pass
+        return self._send(200, {"ok": True, **res})
 
     def do_GET(self):
         try:
