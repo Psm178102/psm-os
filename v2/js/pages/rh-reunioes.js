@@ -193,6 +193,8 @@ function abrirForm(f) {
         <div id="rf-cad" class="mt-1"></div>
         <label class="tiny" style="display:block;margin-top:8px"><input type="checkbox" id="rf-cal" ${f.calendario ? 'checked' : ''}>
           📅 Colocar no calendário de todos os participantes (House + Zoho, com convite)</label>
+        <label class="tiny" style="display:block;margin-top:4px"><input type="checkbox" id="rf-semata" ${f.sem_ata ? 'checked' : ''}>
+          🧱 É bloco de trabalho, não reunião: lembra e vai pro calendário, mas não cobra ata</label>
         ${lbl('Pauta — um item por linha')}
         <textarea class="input" id="rf-pauta" rows="5" style="width:100%" placeholder="Números da semana&#10;Travas&#10;Decisões">${esc((f.pauta || []).join('\n'))}</textarea>
         ${lbl('Painel aberto na tela durante a reunião (opcional)')}
@@ -249,6 +251,6 @@ function abrirForm(f) {
     if (!pauta.length) return (err.textContent = 'Toda reunião tem pauta — escreva pelo menos um item.');
     envia({ action: 'set_formato', formato: { ...f, emoji: v('rf-emoji') || '📋', nome: v('rf-nome'), dono: v('rf-dono'),
       participantes: v('rf-part').split(',').map(x => x.trim()).filter(Boolean), cadencia: cad, hora: v('rf-hora'),
-      dur_min: +v('rf-dur') || 30, pauta, calendario: !!m.querySelector('#rf-cal')?.checked, painel: v('rf-painel'), painel_nome: v('rf-pnome'), obs: v('rf-obs') } }, 'Erro: ');
+      dur_min: +v('rf-dur') || 30, pauta, calendario: !!m.querySelector('#rf-cal')?.checked, sem_ata: !!m.querySelector('#rf-semata')?.checked, painel: v('rf-painel'), painel_nome: v('rf-pnome'), obs: v('rf-obs') } }, 'Erro: ');
   };
 }

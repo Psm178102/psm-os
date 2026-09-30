@@ -192,7 +192,7 @@ UNIDADES = {
                   "titulo": "PSM Conquista"},
     "imoveis": {"kv": "rotina_imoveis", "inicio": date(2026, 9, 24), "quens": ("paulo", "map"),
                 "tarefas": TAREFAS_IMOVEIS, "papeis": PAPEIS_IMOVEIS, "raci": RACI_IMOVEIS,
-                "formatos": ["trafego_pago_semanal", "sucesso_cliente", "fechamento_semanal", "analise_mkt_comercial",
+                "formatos": ["trafego_pago_semanal", "testes_campanhas", "sucesso_cliente", "fechamento_semanal", "analise_mkt_comercial",
                              "rh_semanal", "financeiro_10_20", "mensal_socios", "mensal_geral_equipe"],
                 "scorecard": "un_imoveis", "titulo": "PSM Imóveis"},
 }

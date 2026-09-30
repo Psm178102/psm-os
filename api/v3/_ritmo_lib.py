@@ -542,7 +542,8 @@ def reunioes_sem_ata(sb, cfg, hoje, estado_reun):
         return {}
     feitas = atas_por_formato_dia(sb, ontem)
     msgs = {}
-    for f, d in reunioes_previstas(formatos(sb), ontem, ontem):
+    # v89.27: bloco de trabalho com "sem_ata" (ex.: testes de campanha) lembra e vai pro calendário, mas não cobra ata
+    for f, d in reunioes_previstas([f for f in formatos(sb) if not f.get("sem_ata")], ontem, ontem):
         chave = f"{f.get('id')}|{d.isoformat()}"
         if (f.get("id"), d.isoformat()) in feitas or chave in estado_reun:
             continue

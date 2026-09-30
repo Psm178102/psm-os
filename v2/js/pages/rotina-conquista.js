@@ -174,7 +174,7 @@ function ataDe(fid, d) { return (_f.atas || []).find(a => a.formato_id === fid &
 function semanaStats() {
   let previstas = 0, feitas = 0;
   for (const f of formatosRotina()) for (const d of diasSemana()) {
-    if (!bate(f, d) || ymd(d) > _r.hoje || (f.desde && ymd(d) < f.desde)) continue;
+    if (f.sem_ata || !bate(f, d) || ymd(d) > _r.hoje || (f.desde && ymd(d) < f.desde)) continue;   // v89.27
     previstas++; if (ataDe(f.id, d)) feitas++;
   }
   return { previstas, feitas };
@@ -202,7 +202,8 @@ function celula(f, d) {
   else if (dia < _r.hoje) { ico = '⚠'; cor = COR.vermelho; tit = 'passou sem ata'; }
   else if (dia === _r.hoje) { ico = '●'; cor = COR.amarelo; tit = 'hoje'; }
   else { ico = '⏳'; cor = COR.cinza; tit = 'por vir'; }
-  const pode = _f.pode_ata && !ata && dia <= _r.hoje;
+  if (f.sem_ata && !ata) { ico = dia < _r.hoje ? '•' : ico; cor = dia < _r.hoje ? COR.cinza : cor; tit = 'bloco de trabalho (sem ata)'; }
+  const pode = _f.pode_ata && !ata && dia <= _r.hoje && !f.sem_ata;
   return `<td style="padding:3px;text-align:center"><div title="${tit}" style="border-radius:var(--radius-sm);padding:4px 0;background:${cor}1f;color:${cor};font-weight:600">${ico}
     ${pode ? `<div><a href="javascript:void 0" class="tiny" data-ata="${esc(f.id)}" data-dia="${dia}">registrar ata</a></div>` : ''}</div></td>`;
 }

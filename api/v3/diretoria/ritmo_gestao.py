@@ -144,7 +144,7 @@ class handler(BaseHTTPRequestHandler):
                         P(uid)["rotina_pct"] = ad.get(q)
 
         # reuniões previstas × com ata (30 dias)
-        fs = CAD.formatos(sb)
+        fs = [f for f in CAD.formatos(sb) if not f.get("sem_ata")]   # v89.27: bloco sem ata não conta
         feitas = CAD.atas_por_formato_dia(sb, d30)
         reunioes = {}
         for f, d in CAD.reunioes_previstas(fs, d30, hoje - timedelta(days=1)):
