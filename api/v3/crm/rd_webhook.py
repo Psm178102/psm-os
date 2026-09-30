@@ -17,6 +17,15 @@ from _auth_lib import supabase_client  # type: ignore
 from _captar_lib import create_captacao_from_deal, is_captar_stage, _rd_get_deal  # type: ignore
 
 
+def _talentos_rd():
+    """v89.10: importa o lib do kanban de R&S (api/v3/gp) — ponte com o funil de Parceria."""
+    gp = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "gp")
+    if gp not in sys.path:
+        sys.path.insert(0, gp)
+    import _talentos_rd_lib as RDT  # type: ignore
+    return RDT
+
+
 def _authorized(headers, path):
     # Aceita RD_WEBHOOK_KEY (dedicada, fácil de colar na URL do RD) ou CRON_SECRET.
     secrets = [s for s in (os.environ.get("RD_WEBHOOK_KEY"), os.environ.get("CRON_SECRET")) if s]
@@ -125,6 +134,16 @@ class handler(BaseHTTPRequestHandler):
                     print(f"[webhook] refresh deal falhou: {_e2}")
         except Exception as _e:
             print(f"[webhook] campos personalizados falhou: {_e}")
+
+        # ── v89.10: negócio do funil de Parceria → kanban de R&S na hora ──
+        try:
+            RDT = _talentos_rd()
+            pid = RDT.pipeline_id(sb)
+            dp = (deal.get("deal_pipeline") or {}).get("id") if isinstance(deal.get("deal_pipeline"), dict) else None
+            if did and str(dp or "") == str(pid):
+                RDT.reconciliar(sb, [deal], pid)
+        except Exception as _e:
+            print(f"[webhook] talentos_rd: {_e}")
 
         # ── Etapa CAPTAR IMÓVEL → cria captação na hora (comportamento original) ──
         if not is_captar_stage(deal):

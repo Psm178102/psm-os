@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, audit, can_route  # type: ignore
+import _talentos_rd_lib as RDT  # type: ignore   # v89.10: kanban ⇄ RD funil de Parceria
 
 # v86.67: a alçada desta tela é decidida pela MATRIZ por papel (como no menu), não só por nível.
 _GATE_ROUTES = ['/talentos', '/rh-recrutamento']
@@ -107,7 +108,7 @@ class handler(BaseHTTPRequestHandler):
         sb = supabase_client()
         if not sb: return self._send(503, {"ok": False, "error": "backend"})
         try:
-            rows = sb.table("gp_talentos").select("*").order("criado_em", desc=True).limit(500).execute().data or []
+            rows = sb.table("gp_talentos").select("*").order("criado_em", desc=True).limit(3000).execute().data or []
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)})
         _anexar_cnd(sb, rows)
@@ -129,6 +130,32 @@ class handler(BaseHTTPRequestHandler):
             return self._avaliar(sb, actor, body)
         if action == "mover":
             return self._mover(sb, actor, body)
+        if action == "rd_sync":
+            return self._rd_sync(sb)
+
+        # v89.10: ⭐ da aba "RD ao vivo" — se o negócio já tem ficha, devolve a ficha (sem duplicar)
+        rd_id = str(body.get("rd_deal_id") or "").strip()
+        if rd_id and not body.get("id"):
+            try:
+                ja = sb.table("gp_talentos").select("*").eq("rd_deal_id", rd_id).limit(1).execute().data or []
+            except Exception:
+                ja = []
+            if ja:
+                return self._send(200, {"ok": True, "row": ja[0], "existente": True})
+
+        # v89.10: ficha ligada ao RD com etapa trocada pelo formulário → move no RD também
+        rd_patch = {}
+        if body.get("id") and (body.get("etapa") or "").strip():
+            try:
+                cur = sb.table("gp_talentos").select("etapa,rd_deal_id,rd_etapa").eq("id", body["id"]).limit(1).execute().data or []
+            except Exception:
+                cur = []
+            if cur and cur[0].get("rd_deal_id") and cur[0].get("etapa") != body["etapa"].strip():
+                nova_rd, err = RDT.empurrar_etapa(sb, os.environ.get("RD_API_TOKEN"), cur[0], body["etapa"].strip())
+                if err:
+                    return self._send(502, {"ok": False, "error": "O RD não aceitou a mudança de etapa: " + err})
+                if nova_rd:
+                    rd_patch = {"rd_etapa": nova_rd}
 
         nome = (body.get("nome") or "").strip()
         if not nome: return self._send(400, {"ok": False, "error": "nome obrigatório"})
@@ -185,6 +212,9 @@ class handler(BaseHTTPRequestHandler):
             "criado_por": actor.get("id"),
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
+        row.update(rd_patch)
+        if rd_id and not body.get("id"):
+            row["rd_deal_id"] = rd_id
         try:
             r, dropped = _safe_upsert(sb, "gp_talentos", row)
         except Exception as e:
@@ -238,10 +268,16 @@ class handler(BaseHTTPRequestHandler):
         tid = body.get("id"); etapa = (body.get("etapa") or "").strip()[:60]
         if not tid or not etapa: return self._send(400, {"ok": False, "error": "id e etapa"})
         try:
-            cur = sb.table("gp_talentos").select("etapa,historico").eq("id", tid).limit(1).execute().data or []
+            cur = sb.table("gp_talentos").select("etapa,historico,rd_deal_id,rd_etapa").eq("id", tid).limit(1).execute().data or []
         except Exception:
             cur = []
         de = (cur[0].get("etapa") if cur else None) or ""
+        # v89.10: card ligado ao RD indo pra coluna que existe no RD → move o negócio lá primeiro
+        nova_rd = None
+        if cur and cur[0].get("rd_deal_id"):
+            nova_rd, err = RDT.empurrar_etapa(sb, os.environ.get("RD_API_TOKEN"), cur[0], etapa)
+            if err:
+                return self._send(502, {"ok": False, "error": "O RD não aceitou a mudança de etapa: " + err})
         hist = (cur[0].get("historico") if cur else None) or []
         if isinstance(hist, str):
             try: hist = json.loads(hist)
@@ -251,6 +287,8 @@ class handler(BaseHTTPRequestHandler):
                      "at": datetime.now(timezone.utc).isoformat()})
         patch = {"etapa": etapa, "historico": hist,
                  "updated_at": datetime.now(timezone.utc).isoformat()}
+        if nova_rd:
+            patch["rd_etapa"] = nova_rd
         try:
             n, _ = _safe_update(sb, "gp_talentos", tid, patch)
             if n == 0:
@@ -258,7 +296,26 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)})
         audit(self, actor, "gp.talento.mover", target_type="gp_talentos", target_id=tid, notes=etapa)
-        return self._send(200, {"ok": True, "etapa": etapa, "historico": hist})
+        return self._send(200, {"ok": True, "etapa": etapa, "historico": hist, "rd_etapa": nova_rd})
+
+    # ── v89.10: puxa o funil de Parceria do RD (ao vivo; espelho se o RD falhar) ──
+    def _rd_sync(self, sb):
+        token = os.environ.get("RD_API_TOKEN")
+        pid = RDT.pipeline_id(sb)
+        fonte, aviso = "rd", None
+        try:
+            if not token:
+                raise RuntimeError("RD_API_TOKEN não configurado")
+            deals = RDT.deals_ao_vivo(token, pid)
+        except Exception as e:
+            fonte, aviso = "espelho", str(e)[:200]
+            deals = RDT.deals_do_espelho(sb, pid)
+        try:
+            r = RDT.reconciliar(sb, deals, pid)
+        except Exception as e:
+            return self._send(500, {"ok": False, "error": str(e)[:300]})
+        return self._send(200, {"ok": True, "fonte": fonte, "aviso": aviso, **r,
+                                "at": datetime.now(timezone.utc).isoformat()})
 
     def do_DELETE(self):
         try: actor = _gate(self, 2)

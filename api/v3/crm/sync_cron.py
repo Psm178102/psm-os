@@ -105,6 +105,15 @@ def _deal_to_row(d, users_by_email, pipe_id=None, pipe_name=None):
     }
 
 
+def _talentos_rd():
+    """v89.10: importa o lib do kanban de R&S (api/v3/gp) — ponte com o funil de Parceria."""
+    gp = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "gp")
+    if gp not in sys.path:
+        sys.path.insert(0, gp)
+    import _talentos_rd_lib as RDT  # type: ignore
+    return RDT
+
+
 def _verify_cron(headers) -> tuple[bool, str]:
     """Vercel cron envia Authorization: Bearer ${CRON_SECRET}.
     Se CRON_SECRET não configurado, recusa.
@@ -241,6 +250,15 @@ class handler(BaseHTTPRequestHandler):
             except Exception as e:
                 errors.append(f"upsert final: {e}")
 
+        # v89.10: kanban de R&S acompanha o funil de Parceria (espelho recém-gravado)
+        talentos_rd = None
+        try:
+            RDT = _talentos_rd()
+            pid = RDT.pipeline_id(sb)
+            talentos_rd = RDT.reconciliar(sb, RDT.deals_do_espelho(sb, pid), pid)
+        except Exception as e:
+            talentos_rd = {"erro": str(e)[:200]}
+
         if total_fetched:   # v88.40: RD respondeu → registra o frescor mesmo sem nada novo
             marcar_sync(sb, ("cron_inc" if modo_inc else "cron"), total_fetched, upserted)
         duration = round(time.time() - t0, 2)
@@ -274,6 +292,7 @@ class handler(BaseHTTPRequestHandler):
             "pipes_done": pipes_done,
             "errors": errors,
             "captar_import": captar,
+            "talentos_rd": talentos_rd,
             "duration_s": duration,
             "synced_at": datetime.now(timezone.utc).isoformat(),
         })

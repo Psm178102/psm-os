@@ -43,8 +43,10 @@ const _isCorretor = v => /corretor/i.test(v || '');
 const catArr = v => String(v || '').split(/[,;/]+/).map(s => s.trim()).filter(Boolean);
 
 // ── ATS / Pipeline R&S (v81.87) ──
-const ETAPAS = ['Triagem', 'Entrevista RH', 'Entrevista Gestor', 'Avaliação interna', 'Due Diligence', 'Proposta', 'Contratado', 'Banco de Talentos'];
-const ETAPA_COR = { 'Triagem': '#8a8579', 'Entrevista RH': '#806d50', 'Entrevista Gestor': '#806d50', 'Avaliação interna': '#c7861a', 'Due Diligence': '#d64545', 'Proposta': '#806d50', 'Contratado': '#239a5b', 'Banco de Talentos': '#8a8579' };
+// v89.10: colunas com 🔗 existem no RD (funil de Parceria) — mover o card move o negócio lá.
+const ETAPAS = ['Interessados', 'Em contato', 'Triagem', 'Entrevista marcada', 'Entrevista RH', 'Entrevista Gestor', 'Avaliação interna', 'Due Diligence', 'Proposta', 'Contratado', 'Parceiros', 'Banco de Talentos'];
+const ETAPAS_RD = new Set(['Interessados', 'Em contato', 'Entrevista marcada', 'Parceiros', 'Banco de Talentos']);
+const ETAPA_COR = { 'Interessados': '#8a8579', 'Em contato': '#806d50', 'Triagem': '#8a8579', 'Entrevista marcada': '#806d50', 'Entrevista RH': '#806d50', 'Entrevista Gestor': '#806d50', 'Avaliação interna': '#c7861a', 'Due Diligence': '#d64545', 'Proposta': '#806d50', 'Contratado': '#239a5b', 'Parceiros': '#239a5b', 'Banco de Talentos': '#8a8579' };
 const CANAIS = ['Indicação', 'Indicação interna', 'Prospecção ativa', 'Campanha / Anúncio', 'LinkedIn', 'Instagram', 'Site / Trabalhe conosco', 'RD Station', 'Banco de Talentos', 'Headhunter', 'Evento / Feira', 'Outro'];
 const DECISOES = ['Em andamento', 'Aprovado', 'Reprovado', 'Standby'];
 const VOTOS = ['Aprovo', 'Reprovo', 'Standby'];
@@ -54,6 +56,8 @@ const DISC = ['Dominância (D)', 'Influência (I)', 'Estabilidade (S)', 'Conform
 let _viewMode = 'kanban';   // kanban | lista
 let _search = '', _fEtapa = '', _fSetor = '', _fCanal = '', _fResp = '', _fDecisao = '', _fCategoria = '';
 let _cargosCfg = { recrutamento: {}, offboarding: {} };   // requisitos/impeditivos por cargo (v81.92)
+let _verPerdidos = false;   // v89.10: negócios PERDIDOS no RD ficam escondidos por padrão
+let _syncTimer = null, _syncInfo = null;
 
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function waLink(phone) { const d = String(phone || '').replace(/\D/g, ''); return d ? `https://wa.me/${d}` : null; }
@@ -85,7 +89,7 @@ function render() {
   _root.innerHTML = `
     <div class="card">
       <h2 class="card-title">🌟 Recrutamento & Seleção</h2>
-      <p class="card-sub">ATS completo — pipeline da triagem ao onboarding, conectado ao RD Station (funil de Parceria · etapa Banco de Talentos) + base interna com ficha rica e avaliação interna.</p>
+      <p class="card-sub">ATS completo — o kanban acompanha o funil de Parceria do RD em tempo real (todas as etapas, menos Negócios em potencial e Conexão negócio com parceiro), com ficha rica e avaliação interna.</p>
       <div class="flex gap-2 mt-3" style="flex-wrap:wrap">
         ${canSeeResource('talentos_rd', _talPerms) ? `<button class="btn ${_tab === 'rd' ? 'btn-primary' : 'btn-ghost'}" data-tab="rd">🟢 RD ao vivo</button>` : ''}
         ${canSeeResource('talentos_manual', _talPerms) ? `<button class="btn ${_tab === 'manual' ? 'btn-primary' : 'btn-ghost'}" data-tab="manual">📋 Pipeline R&S</button>` : ''}
@@ -97,7 +101,7 @@ function render() {
     if (_tab === b.dataset.tab) return;
     _tab = b.dataset.tab;
     _editing = null;
-    stopRdTimer();
+    stopRdTimer(); stopSyncTimer();
     render();
     if (_tab === 'rd') loadRd(); else loadManual();
   }));
@@ -198,7 +202,7 @@ function renderRd(r) {
       const saved = await api.request('/api/v3/gp/talentos', { method: 'POST', body: {
         nome: t.name || t.contato || 'Talento', contato: t.phone || '', email: t.email || '',
         instagram: cp.Instagram || cp.instagram || cp.IG || cp.ig || '',
-        responsavel: t.owner || '',
+        responsavel: t.owner || '', rd_deal_id: t.id,
         cenario: 'Importado do RD (funil Parceiros · Base de Talentos).' + (t.rd_url ? ' ' + t.rd_url : ''),
         status: 'em análise', origem: 'rd', canal: 'RD Station', etapa: 'Triagem',
       } });
@@ -231,7 +235,44 @@ async function loadManual() {
     renderManual();
   } catch (e) {
     body.innerHTML = `<div class="alert alert-err">${esc(e.message)}</div>`;
+    return;
   }
+  syncRd();
+  if (!_syncTimer) {
+    _syncTimer = setInterval(() => { if (_tab === 'manual' && document.getElementById('tal-body')) syncRd(); }, 60000);
+    router.onCleanup(stopSyncTimer);
+  }
+}
+
+/* ── v89.10: funil de Parceria do RD → kanban (a cada 60 s enquanto a tela está aberta) ── */
+function stopSyncTimer() { if (_syncTimer) { clearInterval(_syncTimer); _syncTimer = null; } }
+
+async function syncRd() {
+  try {
+    const r = await api.request('/api/v3/gp/talentos', { method: 'POST', body: { action: 'rd_sync' } });
+    _syncInfo = r;
+    if ((r.novos || 0) + (r.alterados || 0) > 0) {
+      const l = await api.request('/api/v3/gp/talentos');
+      _talentos = l.talentos || _talentos;
+      if (_editing && _editing.id) {   // ficha aberta: só atualiza os selos do RD, não mexe no que está sendo digitado
+        const f = _talentos.find(x => x.id === _editing.id);
+        if (f) Object.assign(_editing, { rd_etapa: f.rd_etapa, rd_status: f.rd_status });
+        return;
+      }
+    }
+  } catch (e) { _syncInfo = { ok: false, aviso: e.message }; }
+  if (!_editing) { drawView(); const fn = document.getElementById('tal-funnel'); if (fn) fn.outerHTML = funnelHTML(); syncBadge(); }
+}
+
+function syncBadge() {
+  const el = document.getElementById('tal-sync');
+  if (!el) return;
+  const r = _syncInfo;
+  if (!r) { el.innerHTML = '<span class="spinner"></span> ligando ao RD…'; return; }
+  const hh = r.at ? new Date(r.at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—';
+  el.innerHTML = r.ok === false
+    ? `<span style="color:var(--err)">⚠️ RD: ${esc(r.aviso || 'falhou')}</span>`
+    : `🟢 RD · funil de Parceria · ${r.lidos ?? '—'} negócios · ${hh}${r.fonte === 'espelho' ? ' <span title="' + esc(r.aviso || '') + '">(cópia do House — RD fora)</span>' : ''}`;
 }
 
 function renderManual() {
@@ -244,6 +285,8 @@ function renderManual() {
     <div class="flex items-center gap-2 mb-2" style="flex-wrap:wrap">
       <button class="btn btn-primary btn-sm" id="tal-new">➕ Novo candidato</button>
       ${(auth.user()?.lvl || 0) >= 5 ? '<button class="btn btn-ghost btn-sm" id="tal-cargos-req">📋 Requisitos por cargo</button>' : ''}
+      <span id="tal-sync" class="tiny muted"></span>
+      <label class="tiny muted" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="f-perdidos"${_verPerdidos ? ' checked' : ''}> perdidos no RD</label>
       <div class="flex gap-1" style="margin-left:auto">
         <button class="btn ${_viewMode === 'kanban' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-vm="kanban">▦ Kanban</button>
         <button class="btn ${_viewMode === 'lista' ? 'btn-primary' : 'btn-ghost'} btn-sm" data-vm="lista">☰ Lista</button>
@@ -272,21 +315,24 @@ function renderManual() {
   document.getElementById('f-canal').addEventListener('change', e => { _fCanal = e.target.value; reF(); });
   document.getElementById('f-resp').addEventListener('change', e => { _fResp = e.target.value; reF(); });
   document.getElementById('f-decisao').addEventListener('change', e => { _fDecisao = e.target.value; reF(); });
+  document.getElementById('f-perdidos').addEventListener('change', e => { _verPerdidos = e.target.checked; reF(); const fn = document.getElementById('tal-funnel'); if (fn) fn.outerHTML = funnelHTML(); });
+  syncBadge();
   drawView();
 }
 
 function funnelHTML() {
   const counts = {};
   ETAPAS.forEach(e => counts[e] = 0);
-  _talentos.forEach(t => { const e = t.etapa || 'Triagem'; if (e in counts) counts[e]++; });
+  _talentos.forEach(t => { if (!_verPerdidos && t.rd_status === 'perdido') return; const e = t.etapa || 'Triagem'; if (e in counts) counts[e]++; });
   return `<div id="tal-funnel" class="flex gap-1" style="flex-wrap:wrap;font-size:11px">
-    ${ETAPAS.map(e => `<span style="background:${ETAPA_COR[e]}1a;color:${ETAPA_COR[e]};font-weight:600;padding:2px 8px;border-radius:var(--radius-sm)">${esc(e)}: ${counts[e]}</span>`).join('')}
+    ${ETAPAS.map(e => `<span style="background:${ETAPA_COR[e]}1a;color:${ETAPA_COR[e]};font-weight:600;padding:2px 8px;border-radius:var(--radius-sm)">${ETAPAS_RD.has(e) ? '🔗 ' : ''}${esc(e)}: ${counts[e]}</span>`).join('')}
   </div>`;
 }
 
 function filterManual() {
   const q = (_search || '').toLowerCase();
   return _talentos.filter(t => {
+    if (!_verPerdidos && t.rd_status === 'perdido') return false;
     if (_fEtapa && (t.etapa || 'Triagem') !== _fEtapa) return false;
     if (_fSetor && (t.setor || '') !== _fSetor) return false;
     if (_fCategoria && !catArr(t.categoria).includes(_fCategoria)) return false;
@@ -311,7 +357,7 @@ function renderKanban(items) {
     ${ETAPAS.map(et => {
       const col = items.filter(t => (t.etapa || 'Triagem') === et);
       return `<div style="min-width:228px;max-width:240px;flex:0 0 auto;background:var(--bg-3);border-radius:var(--radius-md);padding:8px">
-        <div style="font-weight:600;font-size:11px;color:${ETAPA_COR[et]};display:flex;justify-content:space-between;align-items:center"><span>${esc(et)}</span><span style="background:${ETAPA_COR[et]}22;border-radius:var(--radius-full);padding:1px 7px">${col.length}</span></div>
+        <div style="font-weight:600;font-size:11px;color:${ETAPA_COR[et]};display:flex;justify-content:space-between;align-items:center"><span${ETAPAS_RD.has(et) ? ' title="Etapa ligada ao RD — mover aqui move o negócio no funil de Parceria"' : ''}>${ETAPAS_RD.has(et) ? '🔗 ' : ''}${esc(et)}</span><span style="background:${ETAPA_COR[et]}22;border-radius:var(--radius-full);padding:1px 7px">${col.length}</span></div>
         <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
           ${col.map(cardHTML).join('') || '<div class="tiny muted" style="text-align:center;padding:10px">—</div>'}
         </div>
@@ -332,6 +378,7 @@ function cardHTML(t) {
     <div class="tiny muted">${esc(t.cargo || t.funcao || '—')}${t.setor ? ' · ' + esc(t.setor) : ''}</div>
     ${atv ? `<div class="tiny muted" style="margin-top:2px">💼 ${esc(atv)}</div>` : ''}
     <div style="margin-top:5px;display:flex;gap:4px;flex-wrap:wrap;align-items:center">
+      ${rdChip(t)}
       ${chip(t.canal, '#806d50')}
       ${cats.map(c => chip(c, '#d6249f')).join('')}
       ${t.score ? `<span class="tiny" style="color:var(--warn)" title="Score">${stars(t.score)}</span>` : ''}
@@ -349,6 +396,16 @@ function cardHTML(t) {
       </select>
     </div>
   </div>`;
+}
+
+/* v89.10: selo do vínculo com o RD — mostra a etapa de lá quando difere da coluna daqui */
+function rdChip(t) {
+  if (!t.rd_deal_id) return '';
+  const url = 'https://crm.rdstation.com/app/deals/' + encodeURIComponent(t.rd_deal_id);
+  const perdido = t.rd_status === 'perdido', ganho = t.rd_status === 'ganho';
+  const cor = perdido ? '#d64545' : '#239a5b';
+  const txt = 'RD' + (perdido ? ' · perdido' : ganho ? ' · ganho' : '') + (t.rd_etapa && t.rd_etapa.toLowerCase().indexOf((t.etapa || '').toLowerCase()) !== 0 ? ' · ' + t.rd_etapa : '');
+  return `<a href="${url}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Abrir no RD — etapa lá: ${esc(t.rd_etapa || '—')}" style="text-decoration:none;display:inline-block;background:${cor}1a;color:${cor};font-size:11px;font-weight:600;padding:2px 7px;border-radius:var(--radius-full);white-space:nowrap">🔗 ${esc(txt)}</a>`;
 }
 
 /* ── ponte com o módulo CND's (categoria Interno) — v86.56 ─────────────────
@@ -392,7 +449,7 @@ function renderLista(items) {
           const et = t.etapa || 'Triagem';
           return `
           <tr style="border-bottom:1px solid var(--bd)">
-            <td style="padding:8px"><div style="font-weight:600">${esc(t.nome)}${t.origem === 'rd' ? ' <span class="tiny" style="color:var(--ok)">🟢RD</span>' : ''}</div>${sub ? `<div class="tiny muted">${esc(sub)}</div>` : ''}</td>
+            <td style="padding:8px"><div style="font-weight:600">${esc(t.nome)} ${rdChip(t)}</div>${sub ? `<div class="tiny muted">${esc(sub)}</div>` : ''}</td>
             <td style="padding:8px">${chip(et, ETAPA_COR[et] || '#8a8579')}</td>
             <td style="padding:8px">${esc(cargo) || '—'}${t.setor ? `<div class="tiny muted">${esc(t.setor)}</div>` : ''}</td>
             <td style="padding:8px">${chip(t.canal, '#806d50') || '—'}</td>
@@ -429,8 +486,8 @@ function bindView() {
 
 async function moverEtapa(id, etapa) {
   try {
-    await api.request('/api/v3/gp/talentos', { method: 'POST', body: { action: 'mover', id, etapa } });
-    const t = _talentos.find(x => x.id === id); if (t) t.etapa = etapa;
+    const r = await api.request('/api/v3/gp/talentos', { method: 'POST', body: { action: 'mover', id, etapa } });
+    const t = _talentos.find(x => x.id === id); if (t) { t.etapa = etapa; if (r && r.rd_etapa) t.rd_etapa = r.rd_etapa; }
     drawView();
     const fn = document.getElementById('tal-funnel'); if (fn) fn.outerHTML = funnelHTML();
   } catch (e) { alert('Erro ao mover: ' + e.message); loadManual(); }
