@@ -61,7 +61,7 @@ function render() {
 
   _root.innerHTML = `
     <div class="card">
-      <h2 class="card-title">🔁 Ritmo da Gestão</h2>
+      <h2 class="card-title">🔁 Alertas & cobrança <span class="tiny muted" style="font-weight:400">(Ritmo da Gestão)</span></h2>
       <p class="card-sub">Se o combinado está virando rotina. Toda reunião sai com tarefa (dono + prazo), toda rotina ligada vira tarefa a cada período,
         e tarefa vencida sobe sozinha: <b>véspera → dono</b> · <b>+${d.config.escada.gestor} dias → gestor</b> · <b>+${d.config.escada.socios} dias → os dois sócios</b>.</p>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px" class="mt-2">
@@ -122,7 +122,7 @@ function render() {
     <div class="card mt-3">
       <h3 class="card-title" style="font-size:16px">🔁 Rotinas que viram tarefa</h3>
       <p class="tiny muted" style="margin-top:-4px">Ligada = cada item vira uma tarefa com prazo no fim do período (dia, semana, quinzena, mês, trimestre) e entra na escada.
-        Diária não feita fecha como "não feita" no dia seguinte. Os itens de cada rotina ficam em <a href="#/reunioes?tab=conquista">Ritos &amp; Reuniões → Rotina · Conquista</a> e <a href="#/reunioes?tab=imoveis">Rotina · Imóveis</a>.</p>
+        Diária não feita fecha como "não feita" no dia seguinte. Os itens de cada rotina se editam nas abas <a href="#/reunioes?tab=imoveis">🏠 Rotina · PSM Imóveis</a> e <a href="#/reunioes?tab=conquista">🎯 Rotina · PSM Conquista</a>.</p>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px">
         ${d.rotinas.map(r => `<label style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;display:flex;gap:10px;align-items:flex-start;cursor:${d.pode_editar ? 'pointer' : 'default'}">
           <input type="checkbox" data-rot="${esc(r.chave)}" ${r.ativa ? 'checked' : ''} ${d.pode_editar ? '' : 'disabled'} style="margin-top:3px">

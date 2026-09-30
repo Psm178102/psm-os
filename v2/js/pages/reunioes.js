@@ -13,6 +13,7 @@
 import { api, hojeISO } from '../api.js';
 import { auth } from '../auth.js';
 import { pageRotinaConquista, pageRotinaImoveis } from './rotina-conquista.js';
+import { pageRitmoGestao } from './ritmo-gestao.js';   // v89.19: 🔁 Ritmo da Gestão virou aba daqui
 
 let _root = null, _tab = null;   // v89.18: null = abre na 1ª aba visível (a rotina de quem tem uma)
 
@@ -42,6 +43,7 @@ const ABAS = [
   { id: 'conquista', lbl: '🎯 Rotina · PSM Conquista', para: 'O que a Isa e o Kaue fazem todo dia, semana e mês. Marque ✓ quando fizer — o % mostra se a rotina está rodando.', ve: () => podeRotina('conquista') },
   { id: 'agenda', lbl: '📅 Agenda de reuniões', para: 'As reuniões fixas da empresa: quando acontecem, quem conduz e a pauta. Depois da reunião, clique em "Registrar reunião".' },
   { id: 'reunioes', lbl: '📝 Atas & combinados', para: 'O histórico de todas as reuniões e o que ficou combinado — com dono e prazo, e cobrança até ser feito.' },
+  { id: 'ritmo', lbl: '🔁 Alertas & cobrança', para: 'O "piloto automático" da gestão: liga as rotinas que viram tarefa, e tarefa atrasada sobe sozinha — primeiro pro dono, depois pro gestor, depois pros sócios.', ve: () => ((auth.user() || {}).lvl || 0) >= 7 },
   { id: 'formatos', lbl: '📚 Modelos de pauta', para: 'Modelos de reunião (objetivo, pauta, checklist e arquivos) para consultar ou criar reuniões novas.' },
 ];
 const TAB_ANTIGA = { rotina: 'agenda' };   // links antigos (?tab=rotina)
@@ -83,6 +85,7 @@ function renderTabs() {
 function renderTab() {
   if (_tab === 'formatos') return loadFormatos();
   if (_tab === 'agenda') return loadRotina();
+  if (_tab === 'ritmo') return loadRitmo();
   if (_tab === 'imoveis' || _tab === 'conquista') return loadRotinaUnidade(_tab);
   return loadReunioes(!_loadedR);
 }
@@ -96,6 +99,15 @@ async function loadRotina() {
   } catch (e) {
     body().innerHTML = `<div class="alert alert-err">Erro ao carregar a rotina: ${esc(e.message || e)}</div>`;
   }
+}
+
+/* v89.19: Ritmo da Gestão (antes menu solto) — mesma tela, agora como aba */
+async function loadRitmo() {
+  const box = document.createElement('div');
+  box.className = 'mt-3';
+  body().innerHTML = '';
+  body().appendChild(box);
+  await pageRitmoGestao(null, box);
 }
 
 /* v89.18: rotina da unidade (antes menus soltos) — mesma tela, agora como aba */

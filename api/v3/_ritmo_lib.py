@@ -420,7 +420,7 @@ def entregar(msgs, users_by_id, notify_all):
         corpo = "\n".join(linhas[:15]) + (f"\n… e mais {len(linhas) - 15}" if len(linhas) > 15 else "")
         canais = []
         try:
-            notify_all([uid], "cadencia", titulo, corpo, link="#/ritmo-gestao", target_type="cadencia", target_id=hoje_brt().isoformat())
+            notify_all([uid], "cadencia", titulo, corpo, link="#/reunioes?tab=ritmo", target_type="cadencia", target_id=hoje_brt().isoformat())
             canais.append("sino+push")
         except Exception as e:
             print(f"[cadencia] notify {uid}: {e}")
