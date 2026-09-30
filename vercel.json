@@ -355,6 +355,10 @@
     "api/v3/marketing/vigia_nuvem.py": {
       "maxDuration": 300
     },
+    "api/v3/intel/monitor_caixa.py": {
+      "regions": ["gru1"],
+      "maxDuration": 60
+    },
     "api/v3/marketing/gestor_auto.py": {
       "maxDuration": 90
     },

@@ -8,6 +8,7 @@ na nuvem sempre que possível). Uma vez por dia, sem navegador e sem login:
   2. Lê as notícias recentes (Google Notícias RSS) sobre edital/credenciamento de corretores e imobiliárias
      da Caixa → notícia NOVA dos últimos 15 dias vira aviso aos sócios (sino + push), uma vez por link.
 Estado em shared_kv 'monitor_caixa'; carimbo cron_state 'nuvem:monitor_caixa' (Central de Operações).
+v89.6: a Caixa bloqueia (403) acesso de fora do Brasil → esta função roda em São Paulo (vercel.json regions gru1).
 """
 from http.server import BaseHTTPRequestHandler
 import io
