@@ -124,7 +124,19 @@ def _kv_set(sb, key, value):
 
 
 def _hoje_bate(f, now):
-    """O formato acontece HOJE? (BRT)"""
+    """O formato acontece HOJE? (BRT) — v89.22: com a regra do feriado (próximo dia útil) do Motor do Ritmo."""
+    try:
+        _v3 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if _v3 not in sys.path:
+            sys.path.append(_v3)
+        import _ritmo_lib as CAD  # type: ignore
+        return CAD.bate(f, now.date())
+    except Exception as e:
+        print(f"[reunioes] feriado indisponível, sem ajuste: {e}")
+    return _hoje_bate_bruto(f, now)
+
+
+def _hoje_bate_bruto(f, now):
     c = f.get("cadencia") or {}
     wd = now.weekday()
     t = c.get("tipo")

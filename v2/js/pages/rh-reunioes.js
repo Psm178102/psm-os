@@ -61,7 +61,7 @@ function render() {
       </div>
       <div class="alert" style="background:var(--bg-3);border:none;font-size:12px;margin-top:8px;line-height:1.6">
         <b>Regras universais:</b> toda reunião tem <b>DONO, PAUTA FIXA e PAINEL ABERTO NA TELA</b> (dado, não opinião) ·
-        começa e termina no horário · ata de 3 linhas no ato · <b>pendência sem dono+prazo não existe</b> ·
+        começa e termina no horário · <b>caiu em feriado, vai pro próximo dia útil</b> · ata de 3 linhas no ato · <b>pendência sem dono+prazo não existe</b> ·
         reunião sem painel/pauta = cancelada. <span class="muted">Anti-inflação: formato novo só entra se outro sair ou justificar contra a carga acima.</span>
       </div>
       ${pend.length ? `<div class="card" style="margin:10px 0 0;background:var(--err-soft);border:1px solid var(--err)">

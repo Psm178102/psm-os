@@ -292,6 +292,50 @@ def escalonar(sb, cfg, hoje, users_by_id, estado):
     return msgs
 
 
+# ─── feriados (v89.22): reunião que cai em feriado vai pro PRÓXIMO dia útil ───
+def _pascoa(y):
+    a, b, c = y % 19, y // 100, y % 100
+    d, e = b // 4, b % 4
+    g = (8 * b + 13) // 25
+    h = (19 * a + b - d - g + 15) % 30
+    i, k = c // 4, c % 4
+    l = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * l) // 451
+    mes = (h + l - 7 * m + 114) // 31
+    return date(y, mes, (h + l - 7 * m + 114) % 31 + 1)
+
+
+_FER = {}
+
+
+def feriados(y):
+    """Nacionais + SP (09/07) + São José do Rio Preto (19/03) + Carnaval, Sexta Santa e Corpus Christi."""
+    if y not in _FER:
+        p = _pascoa(y)
+        fixos = [(1, 1), (3, 19), (4, 21), (5, 1), (7, 9), (9, 7), (10, 12), (11, 2), (11, 15), (11, 20), (12, 25)]
+        _FER[y] = {date(y, m, d) for m, d in fixos} | {p - timedelta(days=48), p - timedelta(days=47),
+                                                        p - timedelta(days=2), p + timedelta(days=60)}
+    return _FER[y]
+
+
+def dia_util(d):
+    return d.weekday() < 5 and d not in feriados(d.year)
+
+
+def bate(f, d):
+    """A reunião acontece no dia d? Já com a regra do feriado: caiu em feriado → próximo dia útil."""
+    if not dia_util(d):
+        return False
+    if _bate(f, d):
+        return True
+    x = d - timedelta(days=1)
+    while not dia_util(x):
+        if x.weekday() < 5 and _bate(f, x):   # feriado em dia de semana logo antes de d
+            return True
+        x -= timedelta(days=1)
+    return False
+
+
 # ─── 4. reuniões sem ata + tarefas sem prazo ──────────────────────────────
 def _bate(f, d):
     c = f.get("cadencia") or {}
@@ -371,7 +415,7 @@ def reunioes_previstas(fs, ini, fim):
             desde = _d(f.get("desde"))
             if desde and d < desde:
                 continue
-            if _bate(f, d):
+            if bate(f, d):
                 out.append((f, d))
         d += timedelta(days=1)
     return out

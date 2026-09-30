@@ -53,7 +53,35 @@ async function load() {
 
 /* ─── datas / cadência (mesma regra do lembrete em gp/reunioes_formatos) ─── */
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+/* v89.22 — feriado (nacional, SP, Rio Preto, Carnaval, Sexta Santa, Corpus Christi): a reunião vai pro próximo dia útil.
+   Mesma regra de api/v3/_ritmo_lib.py (feriados/bate). */
+function pascoa(y) {
+  const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, g = Math.floor((8 * b + 13) / 25);
+  const h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451), n = h + l - 7 * m + 114;
+  return new Date(y, Math.floor(n / 31) - 1, (n % 31) + 1, 12);
+}
+const _fer = {};
+function feriados(y) {
+  if (!_fer[y]) {
+    const p = pascoa(y), mv = k => { const x = new Date(p); x.setDate(x.getDate() + k); return ymd(x); };
+    _fer[y] = new Set([...['01-01', '03-19', '04-21', '05-01', '07-09', '09-07', '10-12', '11-02', '11-15', '11-20', '12-25'].map(md => `${y}-${md}`),
+      mv(-48), mv(-47), mv(-2), mv(60)]);
+  }
+  return _fer[y];
+}
+const diaUtil = d => d.getDay() !== 0 && d.getDay() !== 6 && !feriados(d.getFullYear()).has(ymd(d));
 function bate(f, d) {
+  if (!diaUtil(d)) return false;
+  if (bateBruto(f, d)) return true;
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1, 12);
+  while (!diaUtil(x)) {
+    if (x.getDay() !== 0 && x.getDay() !== 6 && bateBruto(f, x)) return true;
+    x.setDate(x.getDate() - 1);
+  }
+  return false;
+}
+function bateBruto(f, d) {
   const c = f.cadencia || {}, wd = (d.getDay() + 6) % 7;
   if (c.tipo === 'semanal') return (c.dias || []).includes(wd) && !(c.pular_1a && d.getDate() <= 7);   // v89.21
   if (c.tipo === 'quinzenal') {
