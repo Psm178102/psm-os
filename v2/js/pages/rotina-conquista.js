@@ -63,6 +63,12 @@ function bate(f, d) {
   }
   if (c.tipo === 'mensal_nth') return wd === c.dia && Math.floor((d.getDate() - 1) / 7) + 1 === Number(c.nth || 1);
   if (c.tipo === 'mensal_ultima') return wd === c.dia && d.getDate() > new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate() - 7;
+  if (c.tipo === 'mensal_dias') return (c.dias_mes || []).some(n => {   // v89.20: 10/20/último; fim de semana → sexta
+    const ult = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    const x = new Date(d.getFullYear(), d.getMonth(), Math.min(+n, ult), 12);
+    while (x.getDay() === 0 || x.getDay() === 6) x.setDate(x.getDate() - 1);
+    return ymd(x) === ymd(d);
+  });
   return false;
 }
 const dataBRT = iso => new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });   // AAAA-MM-DD

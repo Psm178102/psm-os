@@ -307,7 +307,18 @@ def _bate(f, d):
         return wd == c.get("dia") and (d.day - 1) // 7 + 1 == int(c.get("nth") or 1)
     if t == "mensal_ultima":
         return wd == c.get("dia") and d.day > calendar.monthrange(d.year, d.month)[1] - 7
-    return False
+    if t == "mensal_dias":   # v89.20: dia 10/20/último (fim de semana → sexta anterior)
+        ult = calendar.monthrange(d.year, d.month)[1]
+        for n in c.get("dias_mes") or []:
+            try:
+                x = date(d.year, d.month, min(int(n), ult))
+            except Exception:
+                continue
+            while x.weekday() >= 5:
+                x -= timedelta(days=1)
+            if x == d:
+                return True
+    return False   # sob_demanda não entra na conta de ata
 
 
 def formatos(sb):

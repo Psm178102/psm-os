@@ -90,7 +90,7 @@ PAPEIS = {
                 "Desenvolve o gerente: 1:1 de gestão semanal, 1:1 de desenvolvimento quinzenal, avaliação trimestral.",
                 "Garante que os rituais aconteçam e deixem ata — sem ata, o rito não aconteceu.",
                 "Dona do OKR da Academy / 2ª equipe (16–18 corretores no Q1/2027).",
-                "Reporta ao Paulo: Placar de Segunda, Quinzenal Diretoria e relatório de fechamento do mês.",
+                "Reporta ao Paulo: Fechamento Semanal (seg), Análise Marketing × Comercial (qua) e relatório de fechamento do mês.",
             ]},
     "kaue": {"nome": "Kaue Bordini", "cargo": "Gerente da equipe Conquista",
              "mandato": [
@@ -116,7 +116,10 @@ RACI = [
     ("Relatório mensal ao Paulo", "R", "C"),
 ]
 FORMATOS_ROTINA = ["conq_checkin", "conq_1a1_gestao", "conq_funil", "conq_dev_kaue", "conq_fechamento",
-                   "daily_conquista", "placar_segunda", "quinzenal_diretoria", "mensal_rh"]
+                   "daily_conquista",
+                   # v89.20: agenda Paulo × Isa definida em 30/09 (substituiu Placar de Segunda, Quinzenal Diretoria etc.)
+                   "sucesso_cliente", "fechamento_semanal", "analise_mkt_comercial", "rh_semanal", "financeiro_10_20",
+                   "mkt_conteudo_conquista"]
 
 
 # ═══ PSM IMÓVEIS (v88.37) — Paulo (diretor, sócio) × equipe MAP (Rafaela e Yara) ═══════════
@@ -191,7 +194,8 @@ UNIDADES = {
                   "titulo": "PSM Conquista"},
     "imoveis": {"kv": "rotina_imoveis", "inicio": date(2026, 9, 24), "quens": ("paulo", "map"),
                 "tarefas": TAREFAS_IMOVEIS, "papeis": PAPEIS_IMOVEIS, "raci": RACI_IMOVEIS,
-                "formatos": ["semanal_map", "placar_segunda", "quinzenal_diretoria", "mensal_rh"],
+                "formatos": ["semanal_map", "sucesso_cliente", "fechamento_semanal", "analise_mkt_comercial",
+                             "rh_semanal", "financeiro_10_20"],
                 "scorecard": "un_imoveis", "titulo": "PSM Imóveis"},
 }
 for _u in UNIDADES.values():

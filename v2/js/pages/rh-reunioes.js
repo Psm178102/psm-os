@@ -30,6 +30,8 @@ function cadenciaTxt(f) {
   if (c.tipo === 'quinzenal') return `quinzenal (${DIAS[c.dia]})`;
   if (c.tipo === 'mensal_nth') return `${c.nth}ª ${DIAS[c.dia]} do mês`;
   if (c.tipo === 'mensal_ultima') return `última semana (${DIAS[c.dia]})`;
+  if (c.tipo === 'mensal_dias') return 'dia ' + (c.dias_mes || []).map(n => +n >= 31 ? 'último' : n).join(', ').replace(/, ([^,]*)$/, ' e $1') + ' do mês';
+  if (c.tipo === 'sob_demanda') return 'quando precisar';
   return '—';
 }
 
@@ -40,7 +42,8 @@ function cargaSemanal(formatos) {
     const c = f.cadencia || {}; const d = f.dur_min || 30;
     if (c.tipo === 'semanal') tot += d * (c.dias || []).length;
     else if (c.tipo === 'quinzenal') tot += d / 2;
-    else tot += d / 4.3;
+    else if (c.tipo === 'mensal_dias') tot += d * (c.dias_mes || []).length / 4.3;
+    else if (c.tipo !== 'sob_demanda') tot += d / 4.3;
   });
   return Math.round(tot);
 }
@@ -179,6 +182,8 @@ function abrirForm(f) {
             <option value="quinzenal" ${c.tipo === 'quinzenal' ? 'selected' : ''}>A cada 15 dias</option>
             <option value="mensal_nth" ${c.tipo === 'mensal_nth' ? 'selected' : ''}>Uma vez por mês (ex.: 2ª terça)</option>
             <option value="mensal_ultima" ${c.tipo === 'mensal_ultima' ? 'selected' : ''}>Na última semana do mês</option>
+            <option value="mensal_dias" ${c.tipo === 'mensal_dias' ? 'selected' : ''}>Em dias fixos do mês (ex.: 10, 20 e último)</option>
+            <option value="sob_demanda" ${c.tipo === 'sob_demanda' ? 'selected' : ''}>Quando precisar (sem data fixa)</option>
           </select>
           <span class="tiny muted">às</span><input class="input" id="rf-hora" type="time" value="${esc(f.hora || '09:00')}" style="width:auto">
           <span class="tiny muted">duração</span><input class="input" id="rf-dur" type="number" min="5" step="5" value="${f.dur_min || 30}" style="width:80px"><span class="tiny muted">min</span>
@@ -204,6 +209,8 @@ function abrirForm(f) {
     const box = m.querySelector('#rf-cad');
     if (t === 'semanal') box.innerHTML = `<div class="flex gap-2 tiny" style="flex-wrap:wrap">${DIAS.slice(0, 6).map((d, i) => `<label><input type="checkbox" class="rf-dia" value="${i}" ${(c.dias || []).includes(i) ? 'checked' : ''}> ${d}</label>`).join('')}</div>`;
     else if (t === 'quinzenal') box.innerHTML = `<span class="tiny muted">no dia</span> ${diaSel('rf-dia1', c.dia ?? 0)} <span class="tiny muted">começando em</span> <input class="input" type="date" id="rf-ref" value="${esc(c.ref || '')}" style="width:auto">`;
+    else if (t === 'mensal_dias') box.innerHTML = `<span class="tiny muted">dias do mês</span> <input class="input" id="rf-dmes" value="${esc((c.dias_mes || [10, 20, 31]).map(n => +n >= 31 ? 'último' : n).join(', '))}" style="width:180px"> <span class="tiny muted">(escreva "último" pro último dia; sábado/domingo passa pra sexta antes)</span>`;
+    else if (t === 'sob_demanda') box.innerHTML = '<span class="tiny muted">Sem data fixa: fica na agenda pra registrar a ata quando acontecer, sem lembrete nem cobrança.</span>';
     else if (t === 'mensal_nth') box.innerHTML = `<select class="input" id="rf-nth" style="width:auto">${[1, 2, 3, 4].map(n => `<option value="${n}" ${Number(c.nth || 1) === n ? 'selected' : ''}>${n}ª</option>`).join('')}</select> ${diaSel('rf-dia1', c.dia ?? 0)} <span class="tiny muted">do mês</span>`;
     else box.innerHTML = `<span class="tiny muted">no dia</span> ${diaSel('rf-dia1', c.dia ?? 0)}`;
   };
@@ -224,11 +231,14 @@ function abrirForm(f) {
     if (tipo === 'semanal') cad = { tipo, dias: [...m.querySelectorAll('.rf-dia:checked')].map(x => +x.value) };
     else if (tipo === 'quinzenal') cad = { tipo, dia: +v('rf-dia1'), ref: v('rf-ref') };
     else if (tipo === 'mensal_nth') cad = { tipo, dia: +v('rf-dia1'), nth: +v('rf-nth') };
+    else if (tipo === 'mensal_dias') cad = { tipo, dias_mes: v('rf-dmes').split(/[,\s]+/).map(x => /[uú]lt/i.test(x) ? 31 : parseInt(x, 10)).filter(n => n >= 1 && n <= 31) };
+    else if (tipo === 'sob_demanda') cad = { tipo };
     else cad = { tipo, dia: +v('rf-dia1') };
     const err = m.querySelector('#rf-err');
     if (!v('rf-nome')) return (err.textContent = 'Dê um nome à reunião.');
     if (!v('rf-dono')) return (err.textContent = 'Toda reunião tem um dono — quem conduz.');
     if (tipo === 'semanal' && !cad.dias.length) return (err.textContent = 'Escolha pelo menos um dia da semana.');
+    if (tipo === 'mensal_dias' && !cad.dias_mes.length) return (err.textContent = 'Escreva pelo menos um dia do mês (ex.: 10, 20, último).');
     if (tipo === 'quinzenal' && !cad.ref) return (err.textContent = 'Diga a data da primeira reunião (para contar os 15 dias).');
     const pauta = v('rf-pauta').split('\n').map(x => x.trim()).filter(Boolean);
     if (!pauta.length) return (err.textContent = 'Toda reunião tem pauta — escreva pelo menos um item.');

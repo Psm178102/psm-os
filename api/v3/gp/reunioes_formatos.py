@@ -34,6 +34,8 @@ KV_F, KV_A, KV_S = "reunioes_formatos", "reunioes_atas", "reunioes_lembretes_sta
 
 # cadencia: semanal {dias:[0..4]} · quinzenal {dia, ref: data-âncora ISO} ·
 # mensal_nth {nth:1, dia:3=quinta} · mensal_ultima {dia}
+# v89.20: mensal_dias {dias_mes:[10,20,31]} (31 = último dia; fim de semana antecipa pra sexta)
+#         sob_demanda {} — fica na agenda pra registrar ata, mas não lembra nem cobra
 SEED_FORMATOS = [
     {"id": "placar_segunda", "emoji": "📊", "nome": "Placar de Segunda (Estratégia)", "dono": "Paulo",
      "participantes": ["paulo", "Isabella Morimatsu"], "cadencia": {"tipo": "semanal", "dias": [0]}, "hora": "08:00", "dur_min": 15,
@@ -140,6 +142,25 @@ def _hoje_bate(f, now):
     if t == "mensal_ultima":
         import calendar
         return wd == c.get("dia") and now.day > calendar.monthrange(now.year, now.month)[1] - 7
+    if t == "mensal_dias":
+        return bate_mensal_dias(c, now.date())
+    return False   # sob_demanda: nunca lembra
+
+
+def bate_mensal_dias(c, d):
+    """v89.20 — dias fixos do mês (31 = último dia); sábado/domingo antecipa pra sexta anterior."""
+    import calendar
+    from datetime import date as _date
+    ult = calendar.monthrange(d.year, d.month)[1]
+    for n in c.get("dias_mes") or []:
+        try:
+            x = _date(d.year, d.month, min(int(n), ult))
+        except Exception:
+            continue
+        while x.weekday() >= 5:
+            x -= timedelta(days=1)
+        if x == d:
+            return True
     return False
 
 
