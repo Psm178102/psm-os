@@ -18,6 +18,7 @@ import re
 import sys
 import urllib.parse
 import urllib.request
+import urllib.error
 import zipfile
 from datetime import datetime, timezone, timedelta
 from email.utils import parsedate_to_datetime
@@ -27,6 +28,7 @@ from _auth_lib import require_user, AuthError, supabase_client, audit, notify, s
 
 KV = "monitor_caixa"
 ZIP = "https://venda-imoveis.caixa.gov.br/listaweb/lista_corretores.zip"
+HTML = "https://venda-imoveis.caixa.gov.br/listaweb/lista_corretores.html"   # mesma lista, em página comum
 RSS = ("https://news.google.com/rss/search?q=" + urllib.parse.quote('Caixa edital credenciamento corretores imobiliárias')
        + "&hl=pt-BR&gl=BR&ceid=BR:pt-419")
 RE_RELEVANTE = re.compile(r"credencia", re.I)
@@ -38,6 +40,29 @@ def _get(url, timeout=30):
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (PSM-OS monitor)"})
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return r.read()
+
+
+def _lista_via_firecrawl():
+    """v89.7: a Caixa recusa (403) servidor de datacenter mesmo em São Paulo — lê a página da lista pelo
+    Firecrawl (localização BR). 1 crédito/dia do plano gratuito."""
+    key = os.environ.get("FIRECRAWL_API_KEY", "").strip()
+    if not key:
+        raise RuntimeError("sem FIRECRAWL_API_KEY")
+    body = json.dumps({"url": HTML, "formats": ["markdown"], "onlyMainContent": False, "maxAge": 0,
+                       "location": {"country": "BR", "languages": ["pt-BR"]}}).encode("utf-8")
+    for api in ("https://api.firecrawl.dev/v2/scrape", "https://api.firecrawl.dev/v1/scrape"):
+        req = urllib.request.Request(api, data=body, method="POST",
+                                     headers={"Content-Type": "application/json", "Authorization": "Bearer " + key})
+        try:
+            with urllib.request.urlopen(req, timeout=50) as r:
+                md = ((json.loads(r.read().decode("utf-8")).get("data") or {}).get("markdown")) or ""
+            if len(md) > 10000:   # a lista tem ~1 MB; menos que isso é página de erro
+                return md.upper()
+            raise RuntimeError("lista veio incompleta")
+        except urllib.error.HTTPError as e:
+            if e.code != 404:
+                raise
+    raise RuntimeError("firecrawl indisponível")
 
 
 def _socios(sb):
@@ -53,10 +78,15 @@ def rodar(sb):
 
     # 1) lista oficial de credenciados
     try:
-        z = zipfile.ZipFile(io.BytesIO(_get(ZIP, 40)))
-        html = z.read(z.namelist()[0]).decode("latin-1").upper()
+        try:
+            z = zipfile.ZipFile(io.BytesIO(_get(ZIP, 40)))
+            html = z.read(z.namelist()[0]).decode("latin-1").upper()
+            via = "direto"
+        except Exception:
+            html = _lista_via_firecrawl()
+            via = "firecrawl"
         achou = ("MORIMATSU" in html) or re.search(r"\bPSM\b", html) is not None
-        nota.append("lista: PSM " + ("CONSTA" if achou else "não consta"))
+        nota.append("lista: PSM " + ("CONSTA" if achou else "não consta") + f" ({via})")
         if achou and not st.get("credenciada_avisado"):
             avisos.append(("✅ Caixa: a PSM aparece na lista de credenciados",
                            "O credenciamento saiu — venda de imóveis retomados com comissão paga pela Caixa está liberada."))
