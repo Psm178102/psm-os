@@ -5,6 +5,7 @@ import { montarBlocoOO } from './treinamentos.js';   // 🎓 treinos + habilidad
 import { montarDecisoes } from '../decisoes.js';     // v87.92 🧭 pauta do 1:1 = decisões abertas da pessoa
 import { competidoresVgv } from '../ranking-regras.js';   // v88.11 régua única do Ranking
 import { montarRotinaOO } from './oo-rotina.js';          // v88.44 🧭 rotina & plano do corretor no 1:1
+import { montarPlanoOO } from './oo-plano.js';            // v89.4 🧭 1:1 novo: resultado no tri · canais · gargalo
 
 let _root = null;
 let _view = 'list';            // 'list' | 'detail'
@@ -232,7 +233,8 @@ function renderDetail() {
       ${detailHeader(d, c)}
       <div id="oo-dec-p" style="margin-top:12px"></div>
       ${ooTabBar()}
-      <div style="margin-top:14px">${nortePanel(d)}</div>
+      <div id="oo-plano" style="margin-top:14px"></div>
+      ${_norte && _norte.ok && _norte.meses_com_meta ? `<details style="margin-top:10px"><summary class="tiny muted" style="cursor:pointer">Norte do Mês (modelo antigo, sai quando todos tiverem plano de canais)</summary><div style="margin-top:8px">${nortePanel(d)}</div></details>` : ''}
       <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-top:14px;align-items:start">
         <div>${funnelPanel(d)}</div>
         <div>${kpiVsMeta(d)}</div>
@@ -330,6 +332,8 @@ function wireDetailCommon() {
   });
   wirePeriod(loadDetail);
   loadDefasagem();   // ⏳ MAP: venda de hoje ↔ atividade de N meses atrás (v86.1)
+  const hPl = document.getElementById('oo-plano');   // 🧭 1:1 novo (v89.4)
+  if (hPl && _det && _det.corretor) montarPlanoOO(hPl, { corretorId: _det.corretor.id, selfView: isSelfView(), ym: _norte?.ref_ym, onReuniao: () => openMeeting() });
   loadOORanking();   // 🏅 ranking geral + da equipe do corretor (v86.3)
   const hTr = document.getElementById('oo-treinos');   // 🎓 treinos + habilidade prioritária (v87.77)
   if (hTr && _det && _det.corretor) montarBlocoOO(hTr, { det: _det, gestor: !isSelfView() });
