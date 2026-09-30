@@ -258,8 +258,9 @@ class handler(BaseHTTPRequestHandler):
             for f in fkv.get("formatos") or []:
                 if state.get(f["id"]) == hoje or not _hoje_bate(f, now):
                     continue
+                hora = ((f.get("excecoes") or {}).get(hoje) or {}).get("hora") or f.get("hora")   # v89.24: exceção do dia
                 try:
-                    hh, mm = (f.get("hora") or "08:00").split(":")
+                    hh, mm = (hora or "08:00").split(":")
                     alvo = now.replace(hour=int(hh), minute=int(mm), second=0)
                 except Exception:
                     continue
@@ -268,7 +269,7 @@ class handler(BaseHTTPRequestHandler):
                     continue
                 ids = _resolver_ids(sb, f)
                 if ids:
-                    notify(ids, "reuniao", f"{f.get('emoji', '📋')} {f['nome']} às {f.get('hora')} ({f.get('dur_min')}min)",
+                    notify(ids, "reuniao", f"{f.get('emoji', '📋')} {f['nome']} às {hora} ({f.get('dur_min')}min)",
                            f"Dono: {f.get('dono')} · Painel: {f.get('painel_nome')} · Pauta: " + " · ".join((f.get("pauta") or [])[:3]) + "…",
                            link="#/rh-reunioes", target_type="reuniao", target_id=f["id"])
                 state[f["id"]] = hoje

@@ -78,6 +78,7 @@ function render() {
               <span class="tiny" style="background:var(--bg-3);border-radius:var(--radius-full);padding:2px 9px;font-weight:600;white-space:nowrap">${cadenciaTxt(f)} · ${esc(f.hora)} · ${f.dur_min}min</span>
             </div>
             ${f.calendario ? '<div class="tiny" style="margin-top:4px;color:var(--ok,#239a5b)">📅 no calendário (House + Zoho)</div>' : ''}
+            ${Object.entries(f.excecoes || {}).filter(([d]) => d >= new Date().toISOString().slice(0, 10)).map(([d, x]) => `<div class="tiny" style="margin-top:2px">🔀 ${d.split('-').reverse().slice(0, 2).join('/')}: às ${esc(x.hora)} (só neste dia)</div>`).join('')}
             <div class="tiny muted" style="margin-top:4px">👑 ${esc(f.dono)} · 👥 ${(f.participantes || []).map(esc).join(', ')}${(f.papeis || []).length ? ' + ' + f.papeis.map(p => p === '*' ? 'empresa inteira' : esc(p)).join(', ') : ''}${f.obs ? ` · <i>${esc(f.obs)}</i>` : ''}</div>
             <div class="tiny" style="margin-top:4px">🖥 Painel: <a href="${esc(f.painel)}" style="color:var(--info)">${esc(f.painel_nome)}</a></div>
             <ol class="tiny" style="margin:6px 0 0 16px;line-height:1.5">${(f.pauta || []).map(p => `<li>${esc(p)}</li>`).join('')}</ol>

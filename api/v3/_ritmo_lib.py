@@ -454,6 +454,11 @@ def _hora_fim(hora, dur):
     return f"{min(t // 60, 23):02d}:{t % 60:02d}"
 
 
+def hora_do_dia(f, iso):
+    """v89.24: exceção pontual de horário — formato.excecoes = {"AAAA-MM-DD": {"hora": "14:00"}}."""
+    return ((f.get("excecoes") or {}).get(iso) or {}).get("hora") or f.get("hora")
+
+
 def materializar_ritos(sb, hoje, dry=False):
     out = {"criados": 0, "atualizados": 0, "apagados": 0, "erros": 0}
     fs = [f for f in formatos(sb) if f.get("calendario") and f.get("hora")
@@ -478,7 +483,8 @@ def materializar_ritos(sb, hoje, dry=False):
                 "descricao": (f"Reunião fixa da Agenda (Ritos & Reuniões) · conduz: {f.get('dono') or '—'}\n"
                               f"Pauta:\n{pauta}" + (f"\nPainel: {f.get('painel_nome')}" if f.get("painel_nome") else "")
                               + "\nDepois da reunião: registrar a ata no House (Ritos & Reuniões → Agenda)."),
-                "data": d.isoformat(), "hora_inicio": f["hora"], "hora_fim": _hora_fim(f["hora"], f.get("dur_min")),
+                "data": d.isoformat(), "hora_inicio": hora_do_dia(f, d.isoformat()),
+                "hora_fim": _hora_fim(hora_do_dia(f, d.isoformat()), f.get("dur_min")),
                 "all_day": False, "participantes": part, "owner_id": dono, "criado_por": dono,
                 "origem": "rito", "status": "agendado", "local": f.get("local") or None,
             }
