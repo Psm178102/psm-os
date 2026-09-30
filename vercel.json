@@ -352,6 +352,9 @@
     "api/v3/ia/analyze.py": {
       "maxDuration": 120
     },
+    "api/v3/marketing/vigia_nuvem.py": {
+      "maxDuration": 300
+    },
     "api/v3/marketing/gestor_auto.py": {
       "maxDuration": 90
     },

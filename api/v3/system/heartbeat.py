@@ -58,6 +58,9 @@ JOBS = [
     ("war_briefing", "/api/v3/intel/war_briefing_cron",     None),  # semanal (lógica própria)
     # 🎯 placares da Inteligência (v89.2): foto diária da projeção + foto semanal das notas (idempotente)
     ("intel_placar", "/api/v3/intel/placar?cron=1",          12),
+    # ☁️ v89.3: rotinas que saíram do PC Windows pra NUVEM (pedido do Paulo, 30/09)
+    ("vigia_nuvem",  "/api/v3/marketing/vigia_nuvem?cron=1", 1),    # 8 concorrentes/rodada até cobrir o dia
+    ("monitor_caixa", "/api/v3/intel/monitor_caixa?cron=1",   24),
     # 🎯 amortecedor v2.3 (semanal, converge segunda de manhã): push do VGV próprio necessário
     ("amortecedor",  "/api/v3/diretoria/amortecedor_cron",   None),
     # 🚨 ritmo do mês (v85.11): avisa a diretoria NO dia 10/20/25 quando o VGV está
@@ -216,7 +219,7 @@ class handler(BaseHTTPRequestHandler):
         CRITICOS = ("sync_rd_inc", "visitas_rd")
         # v88.29: rodando 24h, as rotinas que mandam push/WhatsApp pro time esperam o dia (22h–7h BRT
         # fora). As silenciosas (sync, backup, cache, relatórios idempotentes) rodam de madrugada.
-        AVISAM = ("recebiveis", "leads_lp", "sr_agente", "lembrete_dia", "viab_ritmo", "amortecedor", "gt_vigia")
+        AVISAM = ("recebiveis", "leads_lp", "sr_agente", "lembrete_dia", "viab_ritmo", "amortecedor", "gt_vigia", "monitor_caixa")
         noite = not (7 <= now.astimezone(timezone(timedelta(hours=-3))).hour < 22)
         vencidos = []  # (fator_de_atraso, key, path)
         for key, path, hours in JOBS:
