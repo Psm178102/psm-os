@@ -410,15 +410,31 @@ def _brt_date(ts):
         return None
 
 
-def reunioes_previstas(fs, ini, fim):
-    """[(formato, dia)] que deviam ter acontecido entre ini e fim (inclusive), respeitando 'desde'."""
+def _vale(f, d):
+    desde = _d(f.get("desde"))
+    return not (desde and d < desde) and bate(f, d)
+
+
+def bate_na_agenda(f, d, todos):
+    """bate() + v89.29 "cede_para": [ids] — se alguma dessas reuniões acontece no mesmo dia, esta sai
+    daquele dia (ex.: Conteúdo MAP cede pro Financeiro; Treinamento MAP cede pro Treinamento geral)."""
+    if not bate(f, d):
+        return False
+    ced = set(f.get("cede_para") or [])
+    return not (ced and any(g.get("id") in ced and _vale(g, d) for g in (todos or [])))
+
+
+def reunioes_previstas(fs, ini, fim, todos=None):
+    """[(formato, dia)] que deviam ter acontecido entre ini e fim (inclusive), respeitando 'desde'
+    e o "cede_para" (procurado em `todos`, ou em `fs` se não vier)."""
+    todos = todos if todos is not None else fs
     out, d = [], ini
     while d <= fim:
         for f in fs:
             desde = _d(f.get("desde"))
             if desde and d < desde:
                 continue
-            if bate(f, d):
+            if bate_na_agenda(f, d, todos):
                 out.append((f, d))
         d += timedelta(days=1)
     return out
@@ -464,7 +480,8 @@ def hora_do_dia(f, iso):
 
 def materializar_ritos(sb, hoje, dry=False):
     out = {"criados": 0, "atualizados": 0, "apagados": 0, "erros": 0}
-    fs = [f for f in formatos(sb) if f.get("calendario") and f.get("hora")
+    todos = formatos(sb)
+    fs = [f for f in todos if f.get("calendario") and f.get("hora")
           and (f.get("cadencia") or {}).get("tipo") not in (None, "sob_demanda")]
     try:
         us = sb.table("users").select("id,name,role,status,is_service").execute().data or []
@@ -479,7 +496,7 @@ def materializar_ritos(sb, hoje, dry=False):
             continue
         dono = "paulo" if "paulo" in part else (dono_formato(f) if dono_formato(f) in part else part[0])
         pauta = "\n".join(f"{i + 1}. {p}" for i, p in enumerate(f.get("pauta") or []))
-        for fd, d in reunioes_previstas([f], hoje, fim):
+        for fd, d in reunioes_previstas([f], hoje, fim, todos):
             eid = f"rito_{f['id']}_{d.strftime('%Y%m%d')}"
             desejados[eid] = {
                 "id": eid, "tipo": "reuniao", "titulo": f"{f.get('emoji') or '📋'} {f.get('nome')}"[:200],
@@ -543,7 +560,8 @@ def reunioes_sem_ata(sb, cfg, hoje, estado_reun):
     feitas = atas_por_formato_dia(sb, ontem)
     msgs = {}
     # v89.27: bloco de trabalho com "sem_ata" (ex.: testes de campanha) lembra e vai pro calendário, mas não cobra ata
-    for f, d in reunioes_previstas([f for f in formatos(sb) if not f.get("sem_ata")], ontem, ontem):
+    _todos = formatos(sb)
+    for f, d in reunioes_previstas([f for f in _todos if not f.get("sem_ata")], ontem, ontem, _todos):
         chave = f"{f.get('id')}|{d.isoformat()}"
         if (f.get("id"), d.isoformat()) in feitas or chave in estado_reun:
             continue

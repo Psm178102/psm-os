@@ -71,7 +71,12 @@ function feriados(y) {
   return _fer[y];
 }
 const diaUtil = d => d.getDay() !== 0 && d.getDay() !== 6 && !feriados(d.getFullYear()).has(ymd(d));
-function bate(f, d) {
+function bate(f, d) {   // v89.29: + "cede_para" (sai do dia em que a outra reunião acontece)
+  if (!baseBate(f, d)) return false;
+  const ced = f.cede_para || [];
+  return !ced.length || !(_f?.formatos || []).some(g => ced.includes(g.id) && !(g.desde && ymd(d) < g.desde) && baseBate(g, d));
+}
+function baseBate(f, d) {
   if (!diaUtil(d)) return false;
   if (((f.excecoes || {})[ymd(d)] || {}).cancelada) return false;   // v89.25: cancelada só naquele dia
   if (bateBruto(f, d)) return true;

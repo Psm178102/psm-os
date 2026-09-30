@@ -123,14 +123,14 @@ def _kv_set(sb, key, value):
                                  on_conflict="key").execute()
 
 
-def _hoje_bate(f, now):
+def _hoje_bate(f, now, todos=None):
     """O formato acontece HOJE? (BRT) — v89.22: com a regra do feriado (próximo dia útil) do Motor do Ritmo."""
     try:
         _v3 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         if _v3 not in sys.path:
             sys.path.append(_v3)
         import _ritmo_lib as CAD  # type: ignore
-        return CAD.bate(f, now.date())
+        return CAD.bate_na_agenda(f, now.date(), todos or [])   # v89.29: + "cede_para"
     except Exception as e:
         print(f"[reunioes] feriado indisponível, sem ajuste: {e}")
     return _hoje_bate_bruto(f, now)
@@ -256,7 +256,7 @@ class handler(BaseHTTPRequestHandler):
             hoje = now.strftime("%Y-%m-%d")
             disparados = []
             for f in fkv.get("formatos") or []:
-                if state.get(f["id"]) == hoje or not _hoje_bate(f, now):
+                if state.get(f["id"]) == hoje or not _hoje_bate(f, now, fkv.get("formatos")):
                     continue
                 hora = ((f.get("excecoes") or {}).get(hoje) or {}).get("hora") or f.get("hora")   # v89.24: exceção do dia
                 try:
