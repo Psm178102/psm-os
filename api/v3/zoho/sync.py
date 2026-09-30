@@ -39,6 +39,56 @@ def _page(make_q, cap=4000):
     return out
 
 
+SERIE_DIAS_FRENTE = 120
+_BYDAY = {"MO": 0, "TU": 1, "WE": 2, "TH": 3, "FR": 4, "SA": 5, "SU": 6}
+
+
+def estender_series(sb):
+    """🔁 v89.1.3 — mantém cada série semanal com ocorrências no House até
+    hoje+120d (a Agenda lista por data, então precisa de uma linha por semana).
+    Só FREQ=WEEKLY por enquanto. Copia a mestra; ocorrência nova nasce sem
+    zoho_uid e nunca é enviada sozinha (a mestra já é recorrente no Zoho)."""
+    out = {"series": 0, "criadas": 0}
+    try:
+        mestras = (sb.table("eventos").select("*").not_.is_("rrule", "null")
+                   .neq("status", "cancelado").limit(200).execute().data or [])
+    except Exception as e:
+        return {"erro": str(e)[:120]}
+    ate = (datetime.now(timezone.utc) - timedelta(hours=3)).date() + timedelta(days=SERIE_DIAS_FRENTE)
+    for m in mestras:
+        regra = dict(p.split("=", 1) for p in str(m.get("rrule") or "").split(";") if "=" in p)
+        sid = m.get("serie_id")
+        if regra.get("FREQ") != "WEEKLY" or not sid or not m.get("data"):
+            continue
+        out["series"] += 1
+        passo = timedelta(weeks=int(regra.get("INTERVAL") or 1))
+        try:
+            ult = (sb.table("eventos").select("data").eq("serie_id", sid)
+                   .order("data", desc=True).limit(1).execute().data or [])
+            d = datetime.fromisoformat(str(ult[0]["data"])[:10]).date() if ult else None
+        except Exception:
+            continue
+        if not d:
+            continue
+        novas = []
+        while d + passo <= ate and len(novas) < 60:
+            d = d + passo
+            if regra.get("BYDAY") and _BYDAY.get(regra["BYDAY"][:2]) != d.weekday():
+                continue
+            novas.append({k: m.get(k) for k in ("tipo", "titulo", "descricao", "hora_inicio", "hora_fim",
+                                                 "all_day", "corretor_id", "participantes", "local", "cor",
+                                                 "criado_por", "owner_id", "origem", "serie_id")}
+                         | {"id": f"{sid}_{d.strftime('%Y%m%d')}", "data": d.isoformat(),
+                            "status": "agendado", "aceites": {}})
+        if novas:
+            try:
+                sb.table("eventos").upsert(novas, on_conflict="id", ignore_duplicates=True).execute()
+                out["criadas"] += len(novas)
+            except Exception:
+                pass
+    return out
+
+
 def sync_user(sb, conn):
     """Sincroniza um usuário. Devolve resumo {puxados, criados_house, enviados, erros}."""
     uid = str(conn.get("user_id"))
@@ -82,9 +132,26 @@ def sync_user(sb, conn):
     # completa. Montá-la dentro do loop faria a fase de deleção enxergar como
     # sumido tudo que ainda não tinha sido processado — e apagar agenda viva.
     vivos = {str(ze.get("uid")) for ze in zevs if ze.get("uid")}
+    # v89.1.3: uid que já é de um evento do HOUSE e não deve voltar como linha
+    # nova/atualizada: (a) mestra de série — o Zoho devolve a ocorrência da
+    # janela e sobrescreveria data da mestra; (b) convite que o House mandou pra
+    # agenda de OUTRA pessoa (attendee) — viraria cópia duplicada na agenda dela.
+    ja_da_casa = set()
+    if vivos:
+        try:
+            for r in (sb.table("eventos").select("zoho_uid,owner_id,serie_id,origem")
+                      .in_("zoho_uid", list(vivos)[:300]).neq("origem", "zoho")
+                      .execute().data or []):
+                if r.get("serie_id") or str(r.get("owner_id") or "") != uid:
+                    ja_da_casa.add(str(r["zoho_uid"]))
+        except Exception:
+            pass
     for ze in zevs:
         zu = ze.get("uid")
         if not zu:
+            continue
+        if str(zu) in ja_da_casa:
+            res["puxados"] += 1
             continue
         row = z.zoho_to_house_event(ze, uid)
         if not row.get("data"):
@@ -162,8 +229,15 @@ def sync_user(sb, conn):
         # é dono/responsável não tem marca, então passa direto
         if (ev.get("aceites") or {}).get(uid) in ("pendente", "recusado"):
             continue
+        # série (v89.1.3): só a mestra vai, e só pelo calendário do DONO — os
+        # outros participantes recebem como convidados (attendees)
+        if z.serie_fora_do_zoho(ev):
+            continue
+        if ev.get("rrule") and (ev.get("owner_id") or ev.get("criado_por")) != uid:
+            continue
         try:
-            ed = z.house_to_zoho_event(ev)
+            conv = z.emails_convidados(sb, ev, uid) if ev.get("rrule") else None
+            ed = z.house_to_zoho_event(ev, conv)
             if not ev.get("zoho_uid"):
                 new_uid, etag = z.criar_evento(token, cal_uid, ed)
                 if new_uid:

@@ -142,6 +142,10 @@ def hash_evento(ev):
     'já sincronizado e intocado' — sem isso o PUSH só criaria, nunca atualizaria."""
     base = "|".join(str(ev.get(k) or "") for k in
                     ("titulo", "descricao", "local", "data", "hora_inicio", "hora_fim", "all_day"))
+    # rrule só entra quando existe: mudar a base de TODOS os eventos faria o push
+    # re-enviar a agenda inteira de uma vez
+    if ev.get("rrule"):
+        base += "|" + str(ev["rrule"])
     return hashlib.md5(base.encode("utf-8")).hexdigest()
 
 
@@ -238,8 +242,29 @@ def _fmt_zoho_dt(data_str, hora_str, all_day):
     return f"{d}T{hh}", False
 
 
-def house_to_zoho_event(ev):
-    """Monta o dict eventdata do Zoho a partir de um evento do House."""
+def serie_fora_do_zoho(ev):
+    """Ocorrência de série que NÃO é a mestra: nunca vai pro Zoho sozinha — a
+    mestra já está lá como evento recorrente (v89.1.3)."""
+    return bool(ev.get("serie_id")) and not ev.get("rrule")
+
+
+def emails_convidados(sb, ev, dono):
+    """E-mails dos participantes (menos o dono do calendário) pra irem como
+    attendees — é o que põe o evento no Zoho de cada um, mesmo de quem não
+    conectou o Zoho no House."""
+    outros = [p for p in (ev.get("participantes") or []) if p and p != dono]
+    if not outros:
+        return []
+    try:
+        rows = sb.table("users").select("id,email").in_("id", outros).execute().data or []
+        return [r["email"] for r in rows if r.get("email")]
+    except Exception:
+        return []
+
+
+def house_to_zoho_event(ev, convidados=None):
+    """Monta o dict eventdata do Zoho a partir de um evento do House.
+    `convidados` (e-mails) e `rrule` só são usados pela mestra de uma série."""
     all_day = bool(ev.get("all_day")) or not ev.get("hora_inicio")
     start, _ = _fmt_zoho_dt(ev.get("data"), ev.get("hora_inicio"), all_day)
     end, _ = _fmt_zoho_dt(ev.get("data"), ev.get("hora_fim") or ev.get("hora_inicio"), all_day)
@@ -251,6 +276,10 @@ def house_to_zoho_event(ev):
         ed["description"] = str(ev["descricao"])[:2000]
     if ev.get("local"):
         ed["location"] = str(ev["local"])[:250]
+    if ev.get("rrule"):
+        ed["rrule"] = str(ev["rrule"])
+    if convidados:
+        ed["attendees"] = [{"email": e, "permission": 1, "attendance": 1} for e in convidados]
     return ed
 
 

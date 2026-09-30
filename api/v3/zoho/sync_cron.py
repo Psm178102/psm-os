@@ -9,7 +9,7 @@ import json, os, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
-from sync import sync_user  # type: ignore
+from sync import sync_user, estender_series  # type: ignore
 
 
 class handler(BaseHTTPRequestHandler):
@@ -27,6 +27,10 @@ class handler(BaseHTTPRequestHandler):
             self.send_response(503); self.end_headers()
             self.wfile.write(b'{"ok":false,"error":"backend"}'); return
         out = {"ok": True, "usuarios": 0, "por_user": {}}
+        try:   # 🔁 séries semanais sempre com ~120 dias à frente no House
+            out["series"] = estender_series(sb)
+        except Exception as e:
+            out["series"] = {"erro": str(e)[:120]}
         try:
             conns = sb.table("zoho_conexoes").select("*").limit(500).execute().data or []
         except Exception as e:

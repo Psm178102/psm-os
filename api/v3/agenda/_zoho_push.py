@@ -54,11 +54,14 @@ def push_evento(sb, ev, user_id):
     z = _lib()
     if not z or (ev.get("origem") or "house") == "zoho" or not ev.get("data"):
         return {}
+    if z.serie_fora_do_zoho(ev):   # ocorrência de série: a mestra já está no Zoho
+        return {}
     conn, token, cal = _conn_de(sb, z, user_id)
     if not (token and cal):
         return {}
     try:
-        ed = z.house_to_zoho_event(ev)
+        conv = z.emails_convidados(sb, ev, user_id) if ev.get("rrule") else None
+        ed = z.house_to_zoho_event(ev, conv)
         if ev.get("zoho_uid"):
             etag = z.atualizar_evento(token, cal, ev["zoho_uid"], ed, ev.get("zoho_etag"))
             return {"zoho_etag": etag or ev.get("zoho_etag"), "zoho_hash": z.hash_evento(ev)}
