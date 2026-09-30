@@ -44,8 +44,8 @@ class handler(BaseHTTPRequestHandler):
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
         try:
-            us = sb.table("users").select("id,name,email,role,status").limit(500).execute().data or []
-            us = [u for u in us if (u.get("status") or "").lower() == "ativo"]
+            us = sb.table("users").select("id,name,email,role,status,is_service").limit(500).execute().data or []
+            us = [u for u in us if (u.get("status") or "").lower() == "ativo" and not z.dispensado_zoho(u)]
             conns = sb.table("zoho_conexoes").select(
                 "user_id,zoho_email,conectado_em,last_sync_at,last_sync_res").limit(500).execute().data or []
             porid = {str(c["user_id"]): c for c in conns}

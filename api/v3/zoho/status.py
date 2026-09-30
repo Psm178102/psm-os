@@ -32,8 +32,8 @@ class handler(BaseHTTPRequestHandler):
         conn = z.get_conn(sb, user.get("id"))
         return self._send(200, {"ok": True, "configurado": z.configured(),
                                 "conectado": bool(conn),
-                                # v89.2: conta de serviço não passa pelo portão do Zoho
-                                "servico": bool(user.get("is_service")),
+                                # v89.2: conta de serviço / dispensado não passa pelo portão do Zoho
+                                "servico": z.dispensado_zoho(user),
                                 "zoho_email": (conn or {}).get("zoho_email"),
                                 "last_sync_at": (conn or {}).get("last_sync_at"),
                                 "last_sync_res": (conn or {}).get("last_sync_res")})

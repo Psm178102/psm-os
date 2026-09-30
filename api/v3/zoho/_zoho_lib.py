@@ -242,6 +242,15 @@ def _fmt_zoho_dt(data_str, hora_str, all_day):
     return f"{d}T{hh}", False
 
 
+# v89.2.1: quem NÃO precisa integrar o Zoho (não vê o portão nem conta como
+# pendente em /integracoes). Decisão do Paulo 30/09: Marcos Anderson (consultor).
+DISPENSADOS_ZOHO = {"marcos_anderson"}
+
+
+def dispensado_zoho(u):
+    return bool((u or {}).get("is_service")) or str((u or {}).get("id") or "") in DISPENSADOS_ZOHO
+
+
 def serie_fora_do_zoho(ev):
     """Ocorrência de série que NÃO é a mestra: nunca vai pro Zoho sozinha — a
     mestra já está lá como evento recorrente (v89.1.3)."""
