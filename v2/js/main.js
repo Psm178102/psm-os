@@ -119,7 +119,7 @@ import { pageScorecard } from './pages/scorecard.js';
 import { pageChecklistDiretoria } from './pages/checklist-diretoria.js';   // ✅ Checklist da Diretoria (tarefas por setor) v88.41
 import { pageHistoricoNotion } from './pages/historico-notion.js';   // 📜 Histórico Notion (gestão antiga + vendas 2023–26) — só sócio v88.35
 import { pageRitmoGestao } from './pages/ritmo-gestao.js';   // 🔁 Ritmo da Gestão: reunião→tarefa, rotina→tarefa, escada de atraso v88.97
-import { pageRotinaConquista, pageRotinaImoveis } from './pages/rotina-conquista.js';   // 🏠 + Rotina · PSM Imóveis (Paulo × equipe MAP) v88.37
+// v89.18: Rotina · PSM Conquista / PSM Imóveis agora são abas de Ritos & Reuniões (pages/reunioes.js);   // 🏠 + Rotina · PSM Imóveis (Paulo × equipe MAP) v88.37
 import { pageDocumentosPsm } from './pages/documentos-psm.js';   // 📂 Jurídico · Documentos PSM v88.37
 import { pageMapaVenda } from './pages/mapa-venda.js';   // 🗺 Imóveis & Vendas · Mapa da Venda v88.37   // 🎯 Rotina de Gestão · PSM Conquista (Isa × Kaue) v88.33   // 📊 Scorecards padrão da Diretoria v88.26
 import { pageOKRs } from './pages/okrs.js';
@@ -541,7 +541,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '89.17';
+const APP_VERSION = '89.18';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -678,9 +678,9 @@ const APP_VERSION = '89.17';
   router.register('/diretoria', { render: async (ctx, root) => { setHeader('Dashboard Diretoria'); highlight('/diretoria'); await pageDiretoria(ctx, root); } });
   // v88.12: Visão/Missão e Recados só existiam dentro do /diretoria, fora do menu — ganham rota própria
   router.register('/historico-notion', { render: async (ctx, root) => { setHeader('Histórico Notion'); highlight('/historico-notion'); await pageHistoricoNotion(ctx, root); } });
-  router.register('/rotina-conquista', { render: async (ctx, root) => { setHeader('Rotina · PSM Conquista'); highlight('/rotina-conquista'); await pageRotinaConquista(ctx, root); } });
+  router.register('/rotina-conquista', { render: async () => { location.replace('#/reunioes?tab=conquista'); } });   // v89.18: virou aba de Ritos & Reuniões
   router.register('/ritmo-gestao', { render: async (ctx, root) => { setHeader('Ritmo da Gestão'); highlight('/ritmo-gestao'); await pageRitmoGestao(ctx, root); } });
-  router.register('/rotina-imoveis', { render: async (ctx, root) => { setHeader('Rotina · PSM Imóveis'); highlight('/rotina-imoveis'); await pageRotinaImoveis(ctx, root); } });
+  router.register('/rotina-imoveis', { render: async () => { location.replace('#/reunioes?tab=imoveis'); } });   // v89.18: virou aba de Ritos & Reuniões
   router.register('/documentos-psm', { render: async (ctx, root) => { setHeader('Documentos PSM'); highlight('/documentos-psm'); await pageDocumentosPsm(ctx, root); } });
   router.register('/mapa-venda', { render: async (ctx, root) => { setHeader('Playbook da Venda'); highlight('/scripts'); await pageMapaVenda(ctx, root); } });
   router.register('/checklist-diretoria', { render: async (ctx, root) => { setHeader('Checklist da Diretoria'); highlight('/checklist-diretoria'); await pageChecklistDiretoria(ctx, root); } });
@@ -788,7 +788,7 @@ const APP_VERSION = '89.17';
   router.register('/rh-clima', { render: async (ctx, root) => { setHeader('Clima Interno'); highlight('/rh-clima'); await pageRhClima(ctx, root); } });
   router.register('/rh-avaliacoes', { render: async (ctx, root) => { setHeader('Avaliações & Feedbacks'); highlight('/rh-avaliacoes'); await pageRhAvaliacoes(ctx, root); } });
   // v86.49: /rh-reunioes unificado em /reunioes (aba Rotina oficial) — rota antiga redireciona
-  router.register('/rh-reunioes', { render: async () => { location.hash = '#/reunioes'; } });
+  router.register('/rh-reunioes', { render: async () => { location.hash = '#/reunioes?tab=agenda'; } });
   router.register('/rh-arch-leg', { render: async (ctx, root) => { setHeader('Consultoria Arch Leg'); highlight('/rh-arch-leg'); await pageArchLeg(ctx, root); } });
   router.register('/rh-funcoes',    { render: async (ctx, root) => { setHeader('Funções & Organograma'); highlight('/rh-funcoes'); await pageRhCargos(ctx, root); } });
   router.register('/cs-onboarding', { render: async (ctx, root) => { setHeader('Onboarding do Cliente'); highlight('/cs-onboarding'); await pageSCOnboarding(ctx, root); } });
@@ -1173,8 +1173,6 @@ function shellHTML(user) {
         <div class="sb-subsec">Governança</div>
         <button class="sb-link" data-nav="/ritmo-gestao"><span class="sb-ico">🔁</span> Ritmo da Gestão</button>
         <button class="sb-link" data-nav="/reunioes"><span class="sb-ico">🤝</span> Ritos & Reuniões</button>
-        <button class="sb-link" data-nav="/rotina-conquista"><span class="sb-ico">🎯</span> Rotina · PSM Conquista</button>
-        <button class="sb-link" data-nav="/rotina-imoveis"><span class="sb-ico">🏠</span> Rotina · PSM Imóveis</button>
         <button class="sb-link" data-nav="/comunicados"><span class="sb-ico">📢</span> Comunicados</button>
         <div class="sb-subsec">Conselho IA</div>
         <button class="sb-link" data-nav="/diretoria-ceo"><span class="sb-ico">🎩</span> CEO · Diretrizes & Dossiês</button>

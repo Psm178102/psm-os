@@ -6,10 +6,15 @@
         histórico filtrável + combinados (checklist + "virar tarefa" cobrada) +
         próxima reunião/recorrência que cai na Agenda. Resolve: perder histórico,
         combinado não cumprido, prazo de rotina.
+   v89.18 — UMA casa só pra gestão (pedido do Paulo, 30/set): as Rotinas da PSM Imóveis e da
+   PSM Conquista saíram do menu e viraram abas daqui. Abas com nome simples + "para que serve".
+   #/rotina-imoveis e #/rotina-conquista redirecionam pra cá (?tab=imoveis / ?tab=conquista).
 ============================================================================ */
 import { api, hojeISO } from '../api.js';
+import { auth } from '../auth.js';
+import { pageRotinaConquista, pageRotinaImoveis } from './rotina-conquista.js';
 
-let _root = null, _tab = 'reunioes';
+let _root = null, _tab = null;   // v89.18: null = abre na 1ª aba visível (a rotina de quem tem uma)
 
 // Formatos (aba existente)
 let _items = [], _canEditF = false, _editingF = null, _busyF = false, _drive = {}, _driveEdit = false;
@@ -24,13 +29,35 @@ const fmtData = d => d ? String(d).substring(0, 10).split('-').reverse().join('/
 const hoje = () => hojeISO();
 const body = () => _root.querySelector('#rn-body');
 
+/* quem vê cada rotina — espelha _pode_ver de api/v3/diretoria/rotina.py */
+function podeRotina(un) {
+  const u = auth.user() || {}, role = u.role || '';
+  if (role === 'socio' || role === 'diretor') return true;
+  if (un === 'imoveis') return ['gerente_map', 'corretor_map'].includes(role) || ['rafaela', 'yara'].includes(u.id);
+  return u.id === 'kbordini' || role === 'gerente_conquista';
+}
+
+const ABAS = [
+  { id: 'imoveis', lbl: '🏠 Rotina · PSM Imóveis', para: 'O que o Paulo e a equipe MAP fazem todo dia, semana e mês. Marque ✓ quando fizer — o % mostra se a rotina está rodando.', ve: () => podeRotina('imoveis') },
+  { id: 'conquista', lbl: '🎯 Rotina · PSM Conquista', para: 'O que a Isa e o Kaue fazem todo dia, semana e mês. Marque ✓ quando fizer — o % mostra se a rotina está rodando.', ve: () => podeRotina('conquista') },
+  { id: 'agenda', lbl: '📅 Agenda de reuniões', para: 'As reuniões fixas da empresa: quando acontecem, quem conduz e a pauta. Depois da reunião, clique em "Registrar reunião".' },
+  { id: 'reunioes', lbl: '📝 Atas & combinados', para: 'O histórico de todas as reuniões e o que ficou combinado — com dono e prazo, e cobrança até ser feito.' },
+  { id: 'formatos', lbl: '📚 Modelos de pauta', para: 'Modelos de reunião (objetivo, pauta, checklist e arquivos) para consultar ou criar reuniões novas.' },
+];
+const TAB_ANTIGA = { rotina: 'agenda' };   // links antigos (?tab=rotina)
+
 export async function pageReunioes(ctx, root) {
   _root = root; _editingF = null; _editingR = null;
+  const pedida = TAB_ANTIGA[ctx?.query?.tab] || ctx?.query?.tab;
+  const visiveis = ABAS.filter(a => !a.ve || a.ve());
+  if (pedida && visiveis.some(a => a.id === pedida)) _tab = pedida;
+  else if (!visiveis.some(a => a.id === _tab)) _tab = visiveis[0].id;
   root.innerHTML = `
     <div class="card">
-      <h2 class="card-title" style="margin:0">🤝 Reuniões da PSM</h2>
-      <p class="tiny muted" style="margin:2px 0 10px">Modelos de reunião + registro de tudo que foi combinado, com prazos e cobrança.</p>
-      <div class="flex gap-1" id="rn-tabs" style="border-bottom:1px solid var(--bd,var(--border))"></div>
+      <h2 class="card-title" style="margin:0">🤝 Ritos & Reuniões</h2>
+      <p class="tiny muted" style="margin:2px 0 10px">Tudo da gestão num lugar só: <b>a rotina</b> de cada um, <b>as reuniões</b> fixas e <b>o que foi combinado</b> nelas.</p>
+      <div class="flex gap-1" id="rn-tabs" style="border-bottom:1px solid var(--bd,var(--border));flex-wrap:wrap"></div>
+      <div id="rn-para" class="tiny" style="margin-top:10px;padding:8px 12px;background:var(--bg-3);border-radius:var(--radius-md)"></div>
     </div>
     <div id="rn-body"><div class="card mt-3"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando…</div></div></div>`;
   renderTabs();
@@ -38,20 +65,25 @@ export async function pageReunioes(ctx, root) {
 }
 
 function renderTabs() {
-  // v86.49: aba "Rotina oficial" absorve o antigo menu 📋 Formatos de Reunião
-  // (rh-reunioes) — unificação pedida pelo Paulo, 18/ago
-  const tabs = [['reunioes', '🗓️ Reuniões & Combinados'], ['formatos', '📋 Formatos'], ['rotina', '📆 Rotina oficial (v2.3)']];
+  // v86.49: aba "Rotina oficial" absorve o antigo menu 📋 Formatos de Reunião (hoje: 📅 Agenda de reuniões)
+  const tabs = ABAS.filter(a => !a.ve || a.ve()).map(a => [a.id, a.lbl]);
   const el = _root.querySelector('#rn-tabs');
+  const para = _root.querySelector('#rn-para');
+  if (para) para.innerHTML = '💡 <b>Para que serve:</b> ' + esc((ABAS.find(a => a.id === _tab) || {}).para || '');
   el.innerHTML = tabs.map(([id, lbl]) => {
     const on = id === _tab;
     return `<button class="rn-tab" data-tab="${id}" style="background:none;border:none;padding:9px 14px;cursor:pointer;font-weight:600;font-size:13px;border-bottom:3px solid ${on ? 'var(--psm-navy,#806d50)' : 'transparent'};color:${on ? 'var(--ink,#0f172a)' : 'var(--ink-muted,#64748b)'}">${lbl}</button>`;
   }).join('');
-  el.querySelectorAll('.rn-tab').forEach(b => b.onclick = () => { _tab = b.dataset.tab; renderTabs(); renderTab(); });
+  el.querySelectorAll('.rn-tab').forEach(b => b.onclick = () => {
+    _tab = b.dataset.tab; renderTabs(); renderTab();
+    history.replaceState(null, '', '#/reunioes?tab=' + _tab);   // link da aba pode ser compartilhado
+  });
 }
 
 function renderTab() {
   if (_tab === 'formatos') return loadFormatos();
-  if (_tab === 'rotina') return loadRotina();
+  if (_tab === 'agenda') return loadRotina();
+  if (_tab === 'imoveis' || _tab === 'conquista') return loadRotinaUnidade(_tab);
   return loadReunioes(!_loadedR);
 }
 
@@ -64,6 +96,15 @@ async function loadRotina() {
   } catch (e) {
     body().innerHTML = `<div class="alert alert-err">Erro ao carregar a rotina: ${esc(e.message || e)}</div>`;
   }
+}
+
+/* v89.18: rotina da unidade (antes menus soltos) — mesma tela, agora como aba */
+async function loadRotinaUnidade(un) {
+  const box = document.createElement('div');
+  box.className = 'mt-3';
+  body().innerHTML = '';
+  body().appendChild(box);
+  await (un === 'imoveis' ? pageRotinaImoveis(null, box) : pageRotinaConquista(null, box));
 }
 
 /* ═══════════════════════ ABA REUNIÕES (nova) ═══════════════════════ */
@@ -492,7 +533,7 @@ function renderFormatos() {
     <div class="card mt-3">
       <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:10px">
         <div>
-          <h3 class="card-title" style="margin:0;font-size:16px">📋 Formatos de Reunião</h3>
+          <h3 class="card-title" style="margin:0;font-size:16px">📚 Modelos de pauta</h3>
           <p class="tiny muted" style="margin:2px 0 0;max-width:680px">Modelos/pautas das reuniões da PSM. ${_canEditF ? 'Edite a pauta, o objetivo, o checklist e anexe arquivos (links do Drive).' : 'Somente leitura.'}</p>
         </div>
         ${_canEditF ? `<button class="btn btn-primary btn-sm" id="rn-new">➕ Novo formato</button>` : ''}

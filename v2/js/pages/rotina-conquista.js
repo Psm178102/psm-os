@@ -79,26 +79,29 @@ function render() {
       <div class="flex" style="justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
         <h2 class="card-title">${_un === 'imoveis' ? '🏠' : '🎯'} Rotina de Gestão · ${esc(r.titulo || 'PSM Conquista')}</h2>
         ${r.eu?.socio && !_ed ? `<button class="btn btn-ghost btn-sm" id="rc-editar">✏️ Editar rotina</button>` : ''}</div>
-      <p class="card-sub"><b>${esc(r.papeis[qa].nome)}</b> — ${esc(r.papeis[qa].cargo)} × <b>${esc(r.papeis[qb].nome)}</b> — ${esc(r.papeis[qb].cargo)}.
-        Reuniões com pauta e ata, tarefas com dono e cadência, e o placar que diz se está funcionando.</p>
+      <p class="card-sub"><b>${esc(r.papeis[qa].nome)}</b> — ${esc(r.papeis[qa].cargo)} × <b>${esc(r.papeis[qb].nome)}</b> — ${esc(r.papeis[qb].cargo)}.</p>
+      <div class="tiny" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:6px;margin-top:6px">
+        <div><b>1.</b> Fez a tarefa? <b>Marque ✓</b> na sua lista abaixo.</div>
+        <div><b>2.</b> Teve reunião? <b>Registre a ata</b> no quadro da semana.</div>
+        <div><b>3.</b> Combinou algo? Vira <b>pendência</b> com dono e prazo.</div>
+      </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px" class="mt-2">
-        ${tile('Aderência da semana', pct(a.semana.pct), `${esc(primeiro(qa))} ${pct(a.semana[qa])} · ${esc(primeiro(qb))} ${pct(a.semana[qb])}`, corPct(a.semana.pct))}
-        ${tile('Aderência do mês', pct(a.mes.pct), `${a.mes.feito}/${a.mes.esperado} tarefas`, corPct(a.mes.pct))}
-        ${tile('Pendências abertas', pend.length, venc ? `${venc} vencida(s)` : 'nenhuma vencida', venc ? COR.vermelho : pend.length ? COR.amarelo : COR.verde)}
+        ${tile('Rotina cumprida · semana', pct(a.semana.pct), `${esc(primeiro(qa))} ${pct(a.semana[qa])} · ${esc(primeiro(qb))} ${pct(a.semana[qb])}`, corPct(a.semana.pct))}
+        ${tile('Rotina cumprida · mês', pct(a.mes.pct), `${a.mes.feito}/${a.mes.esperado} tarefas`, corPct(a.mes.pct))}
+        ${tile('Combinados em aberto', pend.length, venc ? `${venc} vencida(s)` : 'nenhuma vencida', venc ? COR.vermelho : pend.length ? COR.amarelo : COR.verde)}
         ${tile('Reuniões da semana', semanaStats().feitas + '/' + semanaStats().previstas, 'com ata registrada', corPct(semanaStats().previstas ? semanaStats().feitas / semanaStats().previstas * 100 : null))}
       </div>
       ${trilhaHTML()}
     </div>
-    ${_ed ? editorHTML() : ''}
-    ${semanaHTML()}
-    <div id="rc-ata"></div>
-    ${_ed ? '' : `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px" class="mt-3">
+    ${_ed ? editorHTML() : `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px" class="mt-3">
       ${tarefasHTML(qa)}
       ${tarefasHTML(qb)}
     </div>`}
-    <div class="card mt-3"><div style="font-weight:600">📊 Acompanhamento — Farol ${esc(r.titulo || 'PSM Conquista')}</div>
-      <div id="rc-placar" class="mt-2">${_sc ? placarHTML() : '<div class="tiny muted"><span class="spinner"></span> Carregando o placar…</div>'}</div></div>
+    ${semanaHTML()}
+    <div id="rc-ata"></div>
     ${pendenciasHTML(pend)}
+    <div class="card mt-3"><div style="font-weight:600">📊 Placar da unidade — Farol ${esc(r.titulo || 'PSM Conquista')}</div>
+      <div id="rc-placar" class="mt-2">${_sc ? placarHTML() : '<div class="tiny muted"><span class="spinner"></span> Carregando o placar…</div>'}</div></div>
     ${_ed ? '' : funcoesHTML()}`;
   bind();
   if (_ed) bindEditor();
@@ -115,7 +118,7 @@ const corPct = v => v == null ? COR.cinza : v >= 80 ? COR.verde : v >= 50 ? COR.
 function trilhaHTML() {
   const s = _r.semanas || [];
   if (!s.length) return '';
-  return `<div class="tiny muted mt-2">Aderência das últimas 8 semanas (a rotina vale desde ${_r.inicio ? _r.inicio.split('-').reverse().join('/') : '—'}):</div>
+  return `<div class="tiny muted mt-2">Rotina cumprida nas últimas 8 semanas (vale desde ${_r.inicio ? _r.inicio.split('-').reverse().join('/') : '—'}):</div>
     <div class="flex gap-1" style="align-items:flex-end;height:46px;margin-top:4px">
       ${s.map(w => `<div title="semana de ${w.semana.split('-').reverse().slice(0, 2).join('/')}: ${pct(w.pct)}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
         <div style="width:100%;max-width:38px;height:${w.pct == null ? 3 : Math.max(3, w.pct * 0.34)}px;background:${w.pct == null ? 'var(--bg-3)' : corPct(w.pct)};border-radius:3px 3px 0 0"></div>
@@ -247,7 +250,7 @@ function pendencias() {
 }
 function pendenciasHTML(pend) {
   const nome = id => ((_f.formatos || []).find(f => f.id === id) || {}).nome || id;
-  return `<div class="card mt-3"><div style="font-weight:600">📌 Pendências abertas das reuniões (${pend.length})</div>
+  return `<div class="card mt-3"><div style="font-weight:600">📌 Combinados em aberto das reuniões (${pend.length})</div>
     ${pend.length ? pend.sort((a, b) => String(a.prazo).localeCompare(String(b.prazo))).map(p => `<div class="flex gap-2" style="align-items:center;padding:5px 0;border-top:1px dashed var(--border);font-size:13px;flex-wrap:wrap">
       <span style="flex:1;min-width:200px">${esc(p.txt)}<div class="tiny muted">${esc(nome(p.formato_id))}</div></span>
       <span class="tiny">👤 ${esc(p.dono)}</span>
@@ -264,14 +267,14 @@ function funcoesHTML() {
   const tag = v => !COL[v] ? '<span class="muted">—</span>' : `<span title="${COL[v][0]}" style="display:inline-block;min-width:26px;text-align:center;font-weight:600;border-radius:var(--radius-sm);padding:2px 6px;background:${COL[v][1]}22;color:${COL[v][1]}">${v}</span>`;
   const mand = q => `<div><div style="font-weight:600">${esc(p[q].nome)}</div><div class="tiny muted">${esc(p[q].cargo)}</div>
     <ul style="margin:6px 0 0 18px;font-size:13px;line-height:1.6">${(p[q].mandato || []).map(m => `<li>${esc(m)}</li>`).join('')}</ul></div>`;
-  return `<div class="card mt-3"><div style="font-weight:600">🧭 Funções e responsabilidades</div>
+  return `<details class="card mt-3"><summary style="font-weight:600;cursor:pointer">🧭 Funções e responsabilidades <span class="tiny muted" style="font-weight:400">— quem faz e quem decide o quê (clique para abrir)</span></summary>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:8px">${mand(qa)}${mand(qb)}</div>
     <div style="font-weight:600;margin-top:14px">Quem decide o quê</div>
     <div class="tiny muted">R = executa · A = aprova e responde pelo resultado · C = é consultado antes · I = é informado depois</div>
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:6px;min-width:420px">
       <thead><tr class="tiny muted"><th style="text-align:left;padding:4px 6px">Assunto</th><th style="padding:4px">${esc(primeiro(qa))}</th><th style="padding:4px">${esc(qb === 'map' ? 'Equipe MAP' : primeiro(qb))}</th></tr></thead>
       <tbody>${_r.raci.map(x => `<tr style="border-top:1px solid var(--border)"><td style="padding:5px 6px">${esc(x.assunto)}</td><td style="text-align:center">${tag(x[qa])}</td><td style="text-align:center">${tag(x[qb])}</td></tr>`).join('')}</tbody>
-    </table></div></div>`;
+    </table></div></details>`;
 }
 
 /* ─── v89.17 · edição da rotina (só sócio) ───────────────────────────── */
@@ -281,6 +284,7 @@ function abrirEditor() {
     tarefas: _r.tarefas.map(t => ({ id: t.id, quem: t.quem, cad: t.cad, txt: t.txt, porque: t.porque || '', link: t.link || '' })),
     papeis: Object.fromEntries([qa, qb].map(q => [q, { nome: _r.papeis[q].nome, cargo: _r.papeis[q].cargo || '', mandato: [...(_r.papeis[q].mandato || [])] }])),
     raci: _r.raci.map(x => ({ assunto: x.assunto, [qa]: x[qa] || '', [qb]: x[qb] || '' })),
+    formatos: [...(_r.formatos || [])],
   };
   render();
   document.getElementById('rc-editor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -318,8 +322,13 @@ function editorHTML() {
         <button class="btn btn-primary btn-sm" id="rc-ed-ok">💾 Salvar rotina</button></div></div>
     <div class="tiny muted">Os checks já marcados continuam valendo. Remover uma tarefa tira ela da aderência daqui pra frente.
       ${_r.editada && _r.config_por ? `Última edição: ${esc(_r.config_por)} em ${new Date(_r.config_ts).toLocaleString('pt-BR')}.` : ''}
-      As reuniões da semana são editadas em <a href="#/reunioes">Reuniões</a>.</div>
+      Horário e pauta das reuniões se mudam na aba <a href="#/reunioes?tab=agenda">📅 Agenda de reuniões</a>.</div>
     ${tarefas(qa)}${tarefas(qb)}
+    <div style="font-weight:600;margin-top:16px">📅 Reuniões desta rotina</div>
+    <div class="tiny muted">Marque as reuniões que aparecem no quadro "Esta semana".</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:4px;margin-top:6px">
+      ${(_f.formatos || []).map(f => `<label class="tiny flex gap-1" style="align-items:center"><input type="checkbox" data-fmt="${esc(f.id)}" ${_ed.formatos.includes(f.id) ? 'checked' : ''}> ${esc(f.emoji || '📋')} ${esc(f.nome)}</label>`).join('')}
+    </div>
     <div style="font-weight:600;margin-top:16px">🧭 Funções e responsabilidades</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:6px">${papel(qa)}${papel(qb)}</div>
     <div style="font-weight:600;margin-top:16px">Quem decide o quê (RACI)</div>
@@ -356,6 +365,10 @@ function bindEditor() {
   ed.querySelectorAll('[data-pc]').forEach(el => el.addEventListener('input', () => { _ed.papeis[el.dataset.pc].cargo = el.value; }));
   ed.querySelectorAll('[data-pm]').forEach(el => el.addEventListener('input', () => { _ed.papeis[el.dataset.pm].mandato = el.value.split('\n'); }));
   ed.querySelectorAll('[data-r]').forEach(el => el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => { _ed.raci[+el.dataset.i][el.dataset.r] = el.value; }));
+  ed.querySelectorAll('[data-fmt]').forEach(el => el.addEventListener('change', () => {
+    _ed.formatos = _ed.formatos.filter(x => x !== el.dataset.fmt);
+    if (el.checked) _ed.formatos.push(el.dataset.fmt);
+  }));
   ed.querySelectorAll('[data-rdel]').forEach(b => b.addEventListener('click', () => { _ed.raci.splice(+b.dataset.rdel, 1); render(); }));
   document.getElementById('rc-ed-radd').onclick = () => { const [qa, qb] = _r.quens; _ed.raci.push({ assunto: '', [qa]: '', [qb]: '' }); render(); };
   document.getElementById('rc-ed-x').onclick = () => { _ed = null; render(); };
@@ -372,7 +385,7 @@ function bindEditor() {
     const raci = _ed.raci.filter(x => x.assunto.trim());
     ev.target.disabled = true;
     try {
-      await api.request('/api/v3/diretoria/rotina', { method: 'POST', body: { action: 'config', unidade: _un, tarefas, papeis, raci } });
+      await api.request('/api/v3/diretoria/rotina', { method: 'POST', body: { action: 'config', unidade: _un, tarefas, papeis, raci, formatos: _ed.formatos } });
       _ed = null; await load();
     } catch (e) { alert('Erro: ' + e.message); ev.target.disabled = false; }
   };

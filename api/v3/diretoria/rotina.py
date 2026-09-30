@@ -16,7 +16,7 @@ GET  (Isa, Paulo, Kaue)  → papéis, tarefas com o estado do período atual, ad
                             da semana/mês e das últimas 8 semanas
 POST {action:'check', item, feito:bool, nota?}  → marca/desmarca no período ATUAL
      (tarefa da Isa: sócio; tarefa do Kaue: Kaue ou sócio)
-POST {action:'config', unidade, tarefas?, papeis?, raci?}  → v89.17: sócio edita a rotina na tela
+POST {action:'config', unidade, tarefas?, papeis?, raci?, formatos?}  → v89.17: sócio edita a rotina na tela
 POST {action:'restaurar', unidade}                         → volta ao padrão deste arquivo
 Dados: shared_kv rotina_conquista {checks: {periodo: {item: {ts, por, nota}}}, config?: {tarefas, papeis, raci}}
 v89.17 — o que está neste arquivo é só o PADRÃO; o que o sócio salvar em config vale por cima
@@ -235,6 +235,8 @@ def efetiva(un, data):
         out["raci"] = [(_txt(x.get("assunto"), 160), x.get(quens[0]) or "", x.get(quens[1]) or "")
                        for x in cfg["raci"] if isinstance(x, dict) and _txt(x.get("assunto"), 160)
                        and x.get(quens[0], "") in RACI_OK and x.get(quens[1], "") in RACI_OK]
+    if isinstance(cfg.get("formatos"), list):   # v89.18: quais reuniões da agenda entram no quadro da semana
+        out["formatos"] = [_txt(f, 60) for f in cfg["formatos"] if _txt(f, 60)]
     out["idx"] = {t["id"]: t for t in out["tarefas"]}
     out["editada"] = bool(cfg)
     return out
@@ -429,7 +431,7 @@ class handler(BaseHTTPRequestHandler):
                 data.pop("config", None)
             else:
                 cfg = dict(data.get("config") or {})
-                for k in ("tarefas", "papeis", "raci"):
+                for k in ("tarefas", "papeis", "raci", "formatos"):
                     if k in body: cfg[k] = body[k]
                 ids = [t.get("id") for t in cfg.get("tarefas") or [] if isinstance(t, dict)]
                 if len(ids) != len(set(ids)): return self._send(400, {"ok": False, "error": "tarefa com id repetido"})

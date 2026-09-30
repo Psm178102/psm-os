@@ -122,7 +122,7 @@ function render() {
     <div class="card mt-3">
       <h3 class="card-title" style="font-size:16px">🔁 Rotinas que viram tarefa</h3>
       <p class="tiny muted" style="margin-top:-4px">Ligada = cada item vira uma tarefa com prazo no fim do período (dia, semana, quinzena, mês, trimestre) e entra na escada.
-        Diária não feita fecha como "não feita" no dia seguinte. Os itens de cada rotina ficam em <a href="#/rotina-conquista">Rotina · Conquista</a> e <a href="#/rotina-imoveis">Rotina · Imóveis</a>.</p>
+        Diária não feita fecha como "não feita" no dia seguinte. Os itens de cada rotina ficam em <a href="#/reunioes?tab=conquista">Ritos &amp; Reuniões → Rotina · Conquista</a> e <a href="#/reunioes?tab=imoveis">Rotina · Imóveis</a>.</p>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px">
         ${d.rotinas.map(r => `<label style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;display:flex;gap:10px;align-items:flex-start;cursor:${d.pode_editar ? 'pointer' : 'default'}">
           <input type="checkbox" data-rot="${esc(r.chave)}" ${r.ativa ? 'checked' : ''} ${d.pode_editar ? '' : 'disabled'} style="margin-top:3px">
