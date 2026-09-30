@@ -77,6 +77,7 @@ function render() {
               <b>${f.emoji || '📋'} ${esc(f.nome)}</b>
               <span class="tiny" style="background:var(--bg-3);border-radius:var(--radius-full);padding:2px 9px;font-weight:600;white-space:nowrap">${cadenciaTxt(f)} · ${esc(f.hora)} · ${f.dur_min}min</span>
             </div>
+            ${f.calendario ? '<div class="tiny" style="margin-top:4px;color:var(--ok,#239a5b)">📅 no calendário (House + Zoho)</div>' : ''}
             <div class="tiny muted" style="margin-top:4px">👑 ${esc(f.dono)} · 👥 ${(f.participantes || []).map(esc).join(', ')}${(f.papeis || []).length ? ' + ' + f.papeis.map(p => p === '*' ? 'empresa inteira' : esc(p)).join(', ') : ''}${f.obs ? ` · <i>${esc(f.obs)}</i>` : ''}</div>
             <div class="tiny" style="margin-top:4px">🖥 Painel: <a href="${esc(f.painel)}" style="color:var(--info)">${esc(f.painel_nome)}</a></div>
             <ol class="tiny" style="margin:6px 0 0 16px;line-height:1.5">${(f.pauta || []).map(p => `<li>${esc(p)}</li>`).join('')}</ol>
@@ -189,6 +190,8 @@ function abrirForm(f) {
           <span class="tiny muted">duração</span><input class="input" id="rf-dur" type="number" min="5" step="5" value="${f.dur_min || 30}" style="width:80px"><span class="tiny muted">min</span>
         </div>
         <div id="rf-cad" class="mt-1"></div>
+        <label class="tiny" style="display:block;margin-top:8px"><input type="checkbox" id="rf-cal" ${f.calendario ? 'checked' : ''}>
+          📅 Colocar no calendário de todos os participantes (House + Zoho, com convite)</label>
         ${lbl('Pauta — um item por linha')}
         <textarea class="input" id="rf-pauta" rows="5" style="width:100%" placeholder="Números da semana&#10;Travas&#10;Decisões">${esc((f.pauta || []).join('\n'))}</textarea>
         ${lbl('Painel aberto na tela durante a reunião (opcional)')}
@@ -245,6 +248,6 @@ function abrirForm(f) {
     if (!pauta.length) return (err.textContent = 'Toda reunião tem pauta — escreva pelo menos um item.');
     envia({ action: 'set_formato', formato: { ...f, emoji: v('rf-emoji') || '📋', nome: v('rf-nome'), dono: v('rf-dono'),
       participantes: v('rf-part').split(',').map(x => x.trim()).filter(Boolean), cadencia: cad, hora: v('rf-hora'),
-      dur_min: +v('rf-dur') || 30, pauta, painel: v('rf-painel'), painel_nome: v('rf-pnome'), obs: v('rf-obs') } }, 'Erro: ');
+      dur_min: +v('rf-dur') || 30, pauta, calendario: !!m.querySelector('#rf-cal')?.checked, painel: v('rf-painel'), painel_nome: v('rf-pnome'), obs: v('rf-obs') } }, 'Erro: ');
   };
 }

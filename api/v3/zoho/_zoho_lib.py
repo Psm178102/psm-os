@@ -251,6 +251,13 @@ def dispensado_zoho(u):
     return bool((u or {}).get("is_service")) or str((u or {}).get("id") or "") in DISPENSADOS_ZOHO
 
 
+def convida(ev):
+    """Evento que vai pro Zoho SÓ pelo calendário do dono, com os demais como
+    convidados (attendees): mestra de série (v89.1.3) e reunião da Agenda (origem
+    'rito', v89.23)."""
+    return bool(ev.get("rrule")) or ev.get("origem") == "rito"
+
+
 def serie_fora_do_zoho(ev):
     """Ocorrência de série que NÃO é a mestra: nunca vai pro Zoho sozinha — a
     mestra já está lá como evento recorrente (v89.1.3)."""

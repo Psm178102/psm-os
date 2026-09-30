@@ -213,7 +213,8 @@ def sync_user(sb, conn, rapido=False):
             for r in (sb.table("eventos").select("zoho_uid,owner_id,serie_id,origem")
                       .in_("zoho_uid", list(vivos)[:300]).neq("origem", "zoho")
                       .execute().data or []):
-                if r.get("serie_id") or str(r.get("owner_id") or "") != uid:
+                # v89.23: (c) reunião da Agenda (origem 'rito') — quem manda é a Agenda do House
+                if r.get("serie_id") or r.get("origem") == "rito" or str(r.get("owner_id") or "") != uid:
                     ja_da_casa.add(str(r["zoho_uid"]))
         except Exception:
             pass
@@ -322,10 +323,10 @@ def sync_user(sb, conn, rapido=False):
         # outros participantes recebem como convidados (attendees)
         if z.serie_fora_do_zoho(ev):
             continue
-        if ev.get("rrule") and (ev.get("owner_id") or ev.get("criado_por")) != uid:
+        if z.convida(ev) and (ev.get("owner_id") or ev.get("criado_por")) != uid:
             continue
         try:
-            conv = z.emails_convidados(sb, ev, uid) if ev.get("rrule") else None
+            conv = z.emails_convidados(sb, ev, uid) if z.convida(ev) else None
             ed = z.house_to_zoho_event(ev, conv)
             if not ev.get("zoho_uid"):
                 new_uid, etag = z.criar_evento(token, cal_uid, ed)

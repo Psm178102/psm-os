@@ -421,6 +421,110 @@ def reunioes_previstas(fs, ini, fim):
     return out
 
 
+# ─── 5. agenda → calendário (v89.23) ─────────────────────────────────────
+# Reunião da Agenda com "calendario": true vira compromisso de verdade em `eventos`
+# (id rito_<formato>_<AAAAMMDD>, origem 'rito'), ~5 semanas à frente e já com a regra do
+# feriado. O dono do calendário é o organizador (Paulo, se estiver na reunião): o sync do
+# Zoho manda cada ocorrência pro Zoho DELE com os demais como convidados (attendees) —
+# assim chega a quem não conectou o Zoho. Data que sumiu (feriado, agenda editada, reunião
+# removida) é apagada no House e no Zoho.
+RITO_DIAS = 35
+
+
+def _ids_participantes(f, ativos):
+    ids = []
+    for m in (f.get("participantes") or []):
+        m = str(m or "").strip().lower()
+        if not m:
+            continue
+        exato = [u for u in ativos if u["id"] == m]   # id exato ganha do nome ("paulo" ≠ "João Paulo")
+        for u in (exato or [u for u in ativos if m in (u.get("name") or "").lower()]):
+            if u["id"] not in ids:
+                ids.append(u["id"])
+    for p in (f.get("papeis") or []):
+        for u in ativos:
+            if (p == "*" or (u.get("role") or "") == p) and u["id"] not in ids:
+                ids.append(u["id"])
+    return ids
+
+
+def _hora_fim(hora, dur):
+    hh, mm = (int(x) for x in str(hora).split(":")[:2])
+    t = hh * 60 + mm + int(dur or 60)
+    return f"{min(t // 60, 23):02d}:{t % 60:02d}"
+
+
+def materializar_ritos(sb, hoje, dry=False):
+    out = {"criados": 0, "atualizados": 0, "apagados": 0, "erros": 0}
+    fs = [f for f in formatos(sb) if f.get("calendario") and f.get("hora")
+          and (f.get("cadencia") or {}).get("tipo") not in (None, "sob_demanda")]
+    try:
+        us = sb.table("users").select("id,name,role,status,is_service").execute().data or []
+    except Exception:
+        us = sb.table("users").select("id,name,role,status").execute().data or []
+    ativos = [u for u in us if (u.get("status") or "ativo") == "ativo" and not u.get("is_service")]
+    fim = hoje + timedelta(days=RITO_DIAS)
+    desejados = {}
+    for f in fs:
+        part = _ids_participantes(f, ativos)
+        if not part:
+            continue
+        dono = "paulo" if "paulo" in part else (dono_formato(f) if dono_formato(f) in part else part[0])
+        pauta = "\n".join(f"{i + 1}. {p}" for i, p in enumerate(f.get("pauta") or []))
+        for fd, d in reunioes_previstas([f], hoje, fim):
+            eid = f"rito_{f['id']}_{d.strftime('%Y%m%d')}"
+            desejados[eid] = {
+                "id": eid, "tipo": "reuniao", "titulo": f"{f.get('emoji') or '📋'} {f.get('nome')}"[:200],
+                "descricao": (f"Reunião fixa da Agenda (Ritos & Reuniões) · conduz: {f.get('dono') or '—'}\n"
+                              f"Pauta:\n{pauta}" + (f"\nPainel: {f.get('painel_nome')}" if f.get("painel_nome") else "")
+                              + "\nDepois da reunião: registrar a ata no House (Ritos & Reuniões → Agenda)."),
+                "data": d.isoformat(), "hora_inicio": f["hora"], "hora_fim": _hora_fim(f["hora"], f.get("dur_min")),
+                "all_day": False, "participantes": part, "owner_id": dono, "criado_por": dono,
+                "origem": "rito", "status": "agendado", "local": f.get("local") or None,
+            }
+    try:
+        atuais = (sb.table("eventos").select("id,data,hora_inicio,hora_fim,titulo,descricao,participantes,owner_id,zoho_uid,zoho_etag")
+                  .like("id", "rito_%").gte("data", hoje.isoformat()).limit(1000).execute().data or [])
+    except Exception as e:
+        return {"erro": str(e)[:120]}
+    atuais = {a["id"]: a for a in atuais}
+    if dry:
+        return {"dry": True, "criar": sorted(set(desejados) - set(atuais)), "apagar": sorted(set(atuais) - set(desejados))}
+    for eid, ev in desejados.items():
+        cur = atuais.get(eid)
+        try:
+            if not cur:
+                sb.table("eventos").insert({**ev, "aceites": {}}).execute()
+                out["criados"] += 1
+            else:
+                mud = {k: ev[k] for k in ("titulo", "descricao", "hora_inicio", "hora_fim", "participantes", "owner_id")
+                       if str(cur.get(k) or "")[:5 if k.startswith("hora") else None] != str(ev[k] or "")[:5 if k.startswith("hora") else None]}
+                if mud:   # o sync do Zoho percebe pelo hash e atualiza lá
+                    sb.table("eventos").update(mud).eq("id", eid).execute()
+                    out["atualizados"] += 1
+        except Exception as e:
+            out["erros"] += 1
+            print(f"[ritos] {eid}: {e}")
+    for eid, cur in atuais.items():
+        if eid in desejados:
+            continue
+        try:
+            if cur.get("zoho_uid"):
+                _ag = os.path.join(_HERE, "agenda")
+                if _ag not in sys.path:
+                    sys.path.append(_ag)
+                import _zoho_push as ZP  # type: ignore
+                if not ZP.delete_evento(sb, cur, cur.get("owner_id")):
+                    out["erros"] += 1   # não apaga no House sem apagar no Zoho: tenta de novo na próxima rodada
+                    continue
+            sb.table("eventos").delete().eq("id", eid).execute()
+            out["apagados"] += 1
+        except Exception as e:
+            out["erros"] += 1
+            print(f"[ritos] apagar {eid}: {e}")
+    return out
+
+
 def reunioes_sem_ata(sb, cfg, hoje, estado_reun):
     if not (cfg.get("avisos") or {}).get("reuniao_sem_ata"):
         return {}
@@ -503,6 +607,10 @@ def rodar(sb, notify_all, dry=False, hoje=None):
     estado.setdefault("tarefas", {})
     estado.setdefault("reunioes", {})
     rot = gerar_rotina(sb, cfg, hoje, dry=dry)
+    try:
+        ritos = materializar_ritos(sb, hoje, dry=dry)   # v89.23: agenda → calendário (House + Zoho)
+    except Exception as e:
+        ritos = {"erro": str(e)[:120]}
     msgs = {}
     for fonte in (escalonar(sb, cfg, hoje, users_by_id, estado["tarefas"]),
                   reunioes_sem_ata(sb, cfg, hoje, estado["reunioes"]),
@@ -513,11 +621,11 @@ def rodar(sb, notify_all, dry=False, hoje=None):
     corte = (hoje - timedelta(days=60)).isoformat()
     estado["reunioes"] = {k: v for k, v in estado["reunioes"].items() if v >= corte}
     if dry:
-        return {"ok": True, "dry": True, "rotina": rot, "mensagens": msgs}
+        return {"ok": True, "dry": True, "rotina": rot, "ritos": ritos, "mensagens": msgs}
     estado["sem_prazo_dia"] = hoje.isoformat() if hoje.weekday() == 0 else estado.get("sem_prazo_dia")
     enviados = entregar(msgs, users_by_id, notify_all)
     try:
         _kv_set(sb, KV_ALERTAS, estado)
     except Exception as e:
         print(f"[cadencia] salvar estado: {e}")
-    return {"ok": True, "rotina": rot, "enviados": enviados}
+    return {"ok": True, "rotina": rot, "ritos": ritos, "enviados": enviados}

@@ -60,7 +60,7 @@ def push_evento(sb, ev, user_id):
     if not (token and cal):
         return {}
     try:
-        conv = z.emails_convidados(sb, ev, user_id) if ev.get("rrule") else None
+        conv = z.emails_convidados(sb, ev, user_id) if z.convida(ev) else None
         ed = z.house_to_zoho_event(ev, conv)
         if ev.get("zoho_uid"):
             etag = z.atualizar_evento(token, cal, ev["zoho_uid"], ed, ev.get("zoho_etag"))
