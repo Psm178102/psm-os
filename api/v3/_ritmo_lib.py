@@ -296,8 +296,8 @@ def escalonar(sb, cfg, hoje, users_by_id, estado):
 def _bate(f, d):
     c = f.get("cadencia") or {}
     wd, t = d.weekday(), c.get("tipo")
-    if t == "semanal":
-        return wd in (c.get("dias") or [])
+    if t == "semanal":   # v89.21: pular_1a = não acontece na 1ª semana do mês
+        return wd in (c.get("dias") or []) and not (c.get("pular_1a") and d.day <= 7)
     if t == "quinzenal":
         try:
             return wd == c.get("dia") and ((d - date.fromisoformat(c.get("ref"))).days // 7) % 2 == 0

@@ -36,6 +36,7 @@ KV_F, KV_A, KV_S = "reunioes_formatos", "reunioes_atas", "reunioes_lembretes_sta
 # mensal_nth {nth:1, dia:3=quinta} · mensal_ultima {dia}
 # v89.20: mensal_dias {dias_mes:[10,20,31]} (31 = último dia; fim de semana antecipa pra sexta)
 #         sob_demanda {} — fica na agenda pra registrar ata, mas não lembra nem cobra
+# v89.21: semanal {pular_1a: true} — pula a 1ª ocorrência do mês (dia 1–7)
 SEED_FORMATOS = [
     {"id": "placar_segunda", "emoji": "📊", "nome": "Placar de Segunda (Estratégia)", "dono": "Paulo",
      "participantes": ["paulo", "Isabella Morimatsu"], "cadencia": {"tipo": "semanal", "dias": [0]}, "hora": "08:00", "dur_min": 15,
@@ -127,8 +128,8 @@ def _hoje_bate(f, now):
     c = f.get("cadencia") or {}
     wd = now.weekday()
     t = c.get("tipo")
-    if t == "semanal":
-        return wd in (c.get("dias") or [])
+    if t == "semanal":   # v89.21: pular_1a = não acontece na 1ª semana do mês (dá lugar à mensal)
+        return wd in (c.get("dias") or []) and not (c.get("pular_1a") and now.day <= 7)
     if t == "quinzenal":
         if wd != c.get("dia"):
             return False

@@ -115,11 +115,9 @@ RACI = [
     ("Academy: seleção e campo assistido", "A", "R"),
     ("Relatório mensal ao Paulo", "R", "C"),
 ]
-FORMATOS_ROTINA = ["conq_checkin", "conq_1a1_gestao", "conq_funil", "conq_dev_kaue", "conq_fechamento",
-                   "daily_conquista",
-                   # v89.20: agenda Paulo × Isa definida em 30/09 (substituiu Placar de Segunda, Quinzenal Diretoria etc.)
-                   "sucesso_cliente", "fechamento_semanal", "analise_mkt_comercial", "rh_semanal", "financeiro_10_20",
-                   "mkt_conteudo_conquista"]
+# v89.21: agenda enxuta definida pelo Paulo em 30/09 — só as reuniões que ele citou (o resto saiu da agenda)
+FORMATOS_ROTINA = ["conq_1a1_gestao", "sucesso_cliente", "fechamento_semanal", "analise_mkt_comercial", "rh_semanal",
+                   "financeiro_10_20", "mkt_conteudo_conquista", "mensal_socios", "mensal_geral_equipe"]
 
 
 # ═══ PSM IMÓVEIS (v88.37) — Paulo (diretor, sócio) × equipe MAP (Rafaela e Yara) ═══════════
@@ -194,8 +192,8 @@ UNIDADES = {
                   "titulo": "PSM Conquista"},
     "imoveis": {"kv": "rotina_imoveis", "inicio": date(2026, 9, 24), "quens": ("paulo", "map"),
                 "tarefas": TAREFAS_IMOVEIS, "papeis": PAPEIS_IMOVEIS, "raci": RACI_IMOVEIS,
-                "formatos": ["semanal_map", "sucesso_cliente", "fechamento_semanal", "analise_mkt_comercial",
-                             "rh_semanal", "financeiro_10_20"],
+                "formatos": ["sucesso_cliente", "fechamento_semanal", "analise_mkt_comercial", "rh_semanal",
+                             "financeiro_10_20", "mensal_socios", "mensal_geral_equipe"],
                 "scorecard": "un_imoveis", "titulo": "PSM Imóveis"},
 }
 for _u in UNIDADES.values():

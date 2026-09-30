@@ -55,7 +55,7 @@ async function load() {
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 function bate(f, d) {
   const c = f.cadencia || {}, wd = (d.getDay() + 6) % 7;
-  if (c.tipo === 'semanal') return (c.dias || []).includes(wd);
+  if (c.tipo === 'semanal') return (c.dias || []).includes(wd) && !(c.pular_1a && d.getDate() <= 7);   // v89.21
   if (c.tipo === 'quinzenal') {
     if (wd !== c.dia || !c.ref) return false;
     const ref = new Date(c.ref + 'T12:00:00');

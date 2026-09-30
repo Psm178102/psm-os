@@ -26,7 +26,7 @@ function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;
 
 function cadenciaTxt(f) {
   const c = f.cadencia || {};
-  if (c.tipo === 'semanal') return (c.dias || []).length === 5 ? 'seg–sex' : (c.dias || []).map(d => DIAS[d]).join('/');
+  if (c.tipo === 'semanal') return ((c.dias || []).length === 5 ? 'seg–sex' : (c.dias || []).map(d => DIAS[d]).join('/')) + (c.pular_1a ? ' (menos na 1ª do mês)' : '');
   if (c.tipo === 'quinzenal') return `quinzenal (${DIAS[c.dia]})`;
   if (c.tipo === 'mensal_nth') return `${c.nth}ª ${DIAS[c.dia]} do mês`;
   if (c.tipo === 'mensal_ultima') return `última semana (${DIAS[c.dia]})`;
@@ -207,7 +207,8 @@ function abrirForm(f) {
   const cadBox = () => {
     const t = m.querySelector('#rf-tipo').value;
     const box = m.querySelector('#rf-cad');
-    if (t === 'semanal') box.innerHTML = `<div class="flex gap-2 tiny" style="flex-wrap:wrap">${DIAS.slice(0, 6).map((d, i) => `<label><input type="checkbox" class="rf-dia" value="${i}" ${(c.dias || []).includes(i) ? 'checked' : ''}> ${d}</label>`).join('')}</div>`;
+    if (t === 'semanal') box.innerHTML = `<div class="flex gap-2 tiny" style="flex-wrap:wrap">${DIAS.slice(0, 6).map((d, i) => `<label><input type="checkbox" class="rf-dia" value="${i}" ${(c.dias || []).includes(i) ? 'checked' : ''}> ${d}</label>`).join('')}
+      <label style="margin-left:8px"><input type="checkbox" id="rf-pula1" ${c.pular_1a ? 'checked' : ''}> não acontece na 1ª semana do mês</label></div>`;
     else if (t === 'quinzenal') box.innerHTML = `<span class="tiny muted">no dia</span> ${diaSel('rf-dia1', c.dia ?? 0)} <span class="tiny muted">começando em</span> <input class="input" type="date" id="rf-ref" value="${esc(c.ref || '')}" style="width:auto">`;
     else if (t === 'mensal_dias') box.innerHTML = `<span class="tiny muted">dias do mês</span> <input class="input" id="rf-dmes" value="${esc((c.dias_mes || [10, 20, 31]).map(n => +n >= 31 ? 'último' : n).join(', '))}" style="width:180px"> <span class="tiny muted">(escreva "último" pro último dia; sábado/domingo passa pra sexta antes)</span>`;
     else if (t === 'sob_demanda') box.innerHTML = '<span class="tiny muted">Sem data fixa: fica na agenda pra registrar a ata quando acontecer, sem lembrete nem cobrança.</span>';
@@ -228,7 +229,7 @@ function abrirForm(f) {
     const v = id => m.querySelector('#' + id)?.value?.trim() || '';
     const tipo = v('rf-tipo');
     let cad;
-    if (tipo === 'semanal') cad = { tipo, dias: [...m.querySelectorAll('.rf-dia:checked')].map(x => +x.value) };
+    if (tipo === 'semanal') cad = { tipo, dias: [...m.querySelectorAll('.rf-dia:checked')].map(x => +x.value), ...(m.querySelector('#rf-pula1')?.checked ? { pular_1a: true } : {}) };
     else if (tipo === 'quinzenal') cad = { tipo, dia: +v('rf-dia1'), ref: v('rf-ref') };
     else if (tipo === 'mensal_nth') cad = { tipo, dia: +v('rf-dia1'), nth: +v('rf-nth') };
     else if (tipo === 'mensal_dias') cad = { tipo, dias_mes: v('rf-dmes').split(/[,\s]+/).map(x => /[uú]lt/i.test(x) ? 31 : parseInt(x, 10)).filter(n => n >= 1 && n <= 31) };
