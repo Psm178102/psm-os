@@ -29,6 +29,11 @@ from _auth_lib import require_user, AuthError, supabase_client, audit, hoje_brt 
 import _adlib_parse as AP  # type: ignore
 
 LOTE = 8
+# v89.4: plano GRATUITO do Firecrawl (~1.000 créditos/mês, decisão do Paulo 30/09) → teto diário de
+# leituras. Prioridade = dias sem coleta × peso (Tier A / anunciando valem mais). Os principais saem
+# a cada 1–2 dias; os menores a cada 3–4. Para coletar todos todo dia: subir COTA_DIA (plano pago).
+COTA_DIA = int(os.environ.get("VIGIA_COTA_DIA") or 30)
+KV_USO = "vigia_nuvem_uso"
 URL_PAG = "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=BR&view_all_page_id={}"
 FC_URLS = ("https://api.firecrawl.dev/v2/scrape", "https://api.firecrawl.dev/v1/scrape")
 
@@ -67,15 +72,53 @@ def _inicio_dia_utc():
     return datetime(h.year, h.month, h.day, 3, 0, tzinfo=timezone.utc)   # 00:00 BRT
 
 
+def _peso(c):
+    p = 1.0
+    if (c.get("tier") or "").upper() == "A":
+        p += 1.0
+    if (c.get("anuncios_count") or 0) > 0:
+        p += 1.0
+    if c.get("segmento") in ("MCMV", "MAP"):
+        p += 0.5
+    return p
+
+
 def _pendentes(sb):
-    cc = sb.table("concorrentes").select("id,nome,segmento,tier,fb").neq("fb", "").execute().data or []
+    cc = sb.table("concorrentes").select("id,nome,segmento,tier,fb,anuncios_count").neq("fb", "").execute().data or []
     cc = [c for c in cc if str(c.get("fb") or "").strip()]
-    hoje = sb.table("ad_library_snapshots").select("concorrente").gte("captured_at", _inicio_dia_utc().isoformat()).execute().data or []
-    feitos = {r["concorrente"] for r in hoje}
-    ordem = {"MCMV": 0, "MAP": 1}
+    ini = _inicio_dia_utc()
+    rec = sb.table("ad_library_snapshots").select("concorrente,captured_at") \
+        .gte("captured_at", (ini - timedelta(days=14)).isoformat()).execute().data or []
+    ultimo = {}
+    for r in rec:
+        if r["concorrente"] not in ultimo or r["captured_at"] > ultimo[r["concorrente"]]:
+            ultimo[r["concorrente"]] = r["captured_at"]
+    feitos = {n for n, ts in ultimo.items() if ts >= ini.isoformat()}
+    agora = datetime.now(timezone.utc)
+
+    def idade(c):
+        ts = ultimo.get(c["nome"])
+        if not ts:
+            return 15.0
+        try:
+            return max(0.0, (agora - datetime.fromisoformat(str(ts).replace("Z", "+00:00"))).total_seconds() / 86400)
+        except ValueError:
+            return 15.0
+
     pend = [c for c in cc if c["nome"] not in feitos]
-    pend.sort(key=lambda c: (ordem.get(c.get("segmento"), 2), c.get("tier") or "Z", c["id"]))
+    pend.sort(key=lambda c: -(idade(c) * _peso(c)))
     return cc, feitos, pend
+
+
+def _uso_hoje(sb):
+    rows = sb.table("shared_kv").select("value").eq("key", KV_USO).limit(1).execute().data or []
+    v = (rows[0].get("value") if rows else None) or {}
+    return v if v.get("dia") == hoje_brt().isoformat() else {"dia": hoje_brt().isoformat(), "leituras": 0}
+
+
+def _gravar_uso(sb, uso):
+    sb.table("shared_kv").upsert({"key": KV_USO, "value": uso, "updated_at": datetime.now(timezone.utc).isoformat()},
+                                 on_conflict="key").execute()
 
 
 def _analise(p, anterior):
@@ -101,10 +144,14 @@ def _analise(p, anterior):
 def coletar(sb, key, lote=LOTE):
     cc, feitos, pend = _pendentes(sb)
     feitos_agora, falhas = [], []
+    uso = _uso_hoje(sb)
     t0 = time.time()
     for c in pend[:lote]:
         if time.time() - t0 > 240:   # margem antes do limite da função
             break
+        if uso["leituras"] >= COTA_DIA:   # cota diária do plano gratuito
+            break
+        uso["leituras"] += 1             # falha também consome crédito
         try:
             md = _firecrawl(_url(c["fb"]), key)
             p = AP.parse(md, hoje_brt())
@@ -132,11 +179,13 @@ def coletar(sb, key, lote=LOTE):
             upd["anuncios_dias_medio"] = round(sum(dias) / len(dias), 1)
         sb.table("concorrentes").update(upd).eq("id", c["id"]).execute()
         feitos_agora.append(c["nome"])
+    _gravar_uso(sb, uso)
     cobertos = len(feitos) + len(feitos_agora)
-    nota = f"cobertura {cobertos}/{len(cc)} hoje · +{len(feitos_agora)} nesta rodada" + (f" · falhas: {'; '.join(falhas)[:180]}" if falhas else "")
+    nota = f"cobertura {cobertos}/{len(cc)} hoje · +{len(feitos_agora)} nesta rodada · cota {uso['leituras']}/{COTA_DIA}" + (f" · falhas: {'; '.join(falhas)[:180]}" if falhas else "")
     sb.table("cron_state").upsert({"key": "nuvem:vigia_coletor", "ran_at": datetime.now(timezone.utc).isoformat(),
                                    "note": nota[:300]}, on_conflict="key").execute()
-    return {"ok": True, "coletados": feitos_agora, "falhas": falhas, "cobertura": f"{cobertos}/{len(cc)}"}
+    return {"ok": True, "coletados": feitos_agora, "falhas": falhas, "cobertura": f"{cobertos}/{len(cc)}",
+            "cota": f"{uso['leituras']}/{COTA_DIA}"}
 
 
 class handler(BaseHTTPRequestHandler):
