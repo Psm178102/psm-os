@@ -43,9 +43,9 @@ RD_PARA_HOUSE = {
     "em contato vaga corretor": "Em contato",
     "entrevista marcada": "Entrevista marcada",
     "banco de talentos": "Banco de Talentos",
-    "parceiros": "Parceiros",
 }
-FORA = {"negocios em potencial", "conexao negocio com parceiro"}
+# v89.14: "Parceiros" também fica fora (pedido do Paulo — é outra coisa, não recrutamento)
+FORA = {"negocios em potencial", "conexao negocio com parceiro", "parceiros"}
 HOUSE_PARA_RD = {v: k for k, v in RD_PARA_HOUSE.items()}   # coluna → etapa RD (normalizada)
 CAMPOS = "id,nome,contato,email,instagram,etapa,historico,decisao,cenario,rd_deal_id,rd_etapa,rd_status"
 
@@ -63,7 +63,8 @@ def _get(url, timeout=25):
 def pipeline_id(sb):
     try:
         for p in sb.table("rd_pipelines").select("id,name").execute().data or []:
-            if PIPE_NOME in norm(p.get("name")):
+            n = norm(p.get("name"))
+            if PIPE_NOME in n or "contrata" in n:   # 30/09: renomeado no RD p/ "FUNIL DE CONTRATAÇÃO"
                 return str(p["id"])
     except Exception:
         pass
@@ -286,5 +287,4 @@ def empurrar_etapa(sb, token, ficha, etapa_nova):
 NOME_RD = {"interessados vaga corretor": "Interessados vaga corretor",
            "em contato vaga corretor": "Em contato vaga corretor",
            "entrevista marcada": "Entrevista marcada",
-           "banco de talentos": "Banco de talentos",
-           "parceiros": "Parceiros"}
+           "banco de talentos": "Banco de talentos"}

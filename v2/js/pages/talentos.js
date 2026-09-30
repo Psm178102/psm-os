@@ -1,8 +1,8 @@
 /* ============================================================================
    PSM-OS v2 — Recrutamento & Seleção (ATS) · v81.87
    ----------------------------------------------------------------------------
-   • 🟢 RD ao vivo — deals do funil "Parceiros" / etapa "Base de Talentos" do
-     RD Station CRM, em tempo real (auto-refresh 60s + botão atualizar).
+   • v89.14: abre direto no kanban; a aba "RD ao vivo" saiu — o próprio kanban
+     acompanha o funil de contratação do RD (ex-"Parceria") nos 2 sentidos.
    • 📋 Pipeline R&S — base interna (gp_talentos) como ATS completo: kanban por
      etapa (triagem → onboarding), filtros, ficha rica do candidato (origem,
      currículo, perfil comportamental, due diligence jurídica/comercial,
@@ -15,11 +15,8 @@ import { getResourcePerms, canSeeResource } from '../links.js';
 let _talPerms = {};   // resource_perms (visibilidade das abas RD/manual). v81.85
 
 let _root = null;
-let _tab = 'rd';
 let _talentos = [];   // manuais
 let _editing = null;  // candidato aberto na ficha
-let _rdTimer = null;
-let _lastRd = null;
 let _users = [];      // pra escolher o responsável
 let _deepId = null;   // candidato a abrir direto (#/talentos?id=…)
 
@@ -44,8 +41,8 @@ const catArr = v => String(v || '').split(/[,;/]+/).map(s => s.trim()).filter(Bo
 
 // ── ATS / Pipeline R&S (v81.87) ──
 // v89.10: colunas com 🔗 existem no RD (funil de Parceria) — mover o card move o negócio lá.
-const ETAPAS = ['Interessados', 'Em contato', 'Triagem', 'Entrevista marcada', 'Entrevista RH', 'Entrevista Gestor', 'Avaliação interna', 'Due Diligence', 'Proposta', 'Contratado', 'Parceiros', 'Banco de Talentos'];
-const ETAPAS_RD = new Set(['Interessados', 'Em contato', 'Entrevista marcada', 'Parceiros', 'Banco de Talentos']);
+const ETAPAS = ['Interessados', 'Em contato', 'Triagem', 'Entrevista marcada', 'Entrevista RH', 'Entrevista Gestor', 'Avaliação interna', 'Due Diligence', 'Proposta', 'Contratado', 'Banco de Talentos'];
+const ETAPAS_RD = new Set(['Interessados', 'Em contato', 'Entrevista marcada', 'Banco de Talentos']);   // v89.14: Parceiros é outra coisa — fora
 const ETAPA_COR = { 'Interessados': '#8a8579', 'Em contato': '#806d50', 'Triagem': '#8a8579', 'Entrevista marcada': '#806d50', 'Entrevista RH': '#806d50', 'Entrevista Gestor': '#806d50', 'Avaliação interna': '#c7861a', 'Due Diligence': '#d64545', 'Proposta': '#806d50', 'Contratado': '#239a5b', 'Parceiros': '#239a5b', 'Banco de Talentos': '#8a8579' };
 const CANAIS = ['Indicação', 'Indicação interna', 'Prospecção ativa', 'Campanha / Anúncio', 'LinkedIn', 'Instagram', 'Site / Trabalhe conosco', 'RD Station', 'Banco de Talentos', 'Headhunter', 'Evento / Feira', 'Outro'];
 const DECISOES = ['Em andamento', 'Aprovado', 'Reprovado', 'Standby'];
@@ -70,147 +67,26 @@ export async function pageTalentos(ctx, root) {
   _root = root;
   // #/talentos?id=<gpt_…> — vem do dossiê de CND interno (v86.56)
   _deepId = ((ctx && ctx.query) || {}).id || null;
-  if (_deepId) _tab = 'manual';
   if ((auth.user()?.lvl || 0) < 5) {
     root.innerHTML = '<div class="alert alert-warn">🔒 Requer Líder/Diretoria (lvl 5+).</div>';
     return;
   }
   try { _talPerms = await getResourcePerms(); } catch (_) { _talPerms = {}; }
-  const canRd = canSeeResource('talentos_rd', _talPerms);
-  const canMan = canSeeResource('talentos_manual', _talPerms);
-  if (_tab === 'rd' && !canRd) _tab = canMan ? 'manual' : 'rd';
-  if (_tab === 'manual' && !canMan) _tab = canRd ? 'rd' : 'manual';
+  // quem tinha só a antiga aba "RD ao vivo" (talentos_rd) continua vendo o kanban
+  const pode = canSeeResource('talentos_manual', _talPerms) || canSeeResource('talentos_rd', _talPerms);
   render();
-  if (!canRd && !canMan) { const b = document.getElementById('tal-body'); if (b) b.innerHTML = '<div class="alert alert-warn">Você não tem acesso às abas da Base de Talentos. Fale com o sócio.</div>'; return; }
-  if (_tab === 'rd') loadRd(); else loadManual();
+  if (!pode) { const b = document.getElementById('tal-body'); if (b) b.innerHTML = '<div class="alert alert-warn">Você não tem acesso à Base de Talentos. Fale com o sócio.</div>'; return; }
+  loadManual();
 }
 
 function render() {
   _root.innerHTML = `
     <div class="card">
       <h2 class="card-title">🌟 Recrutamento & Seleção</h2>
-      <p class="card-sub">ATS completo — o kanban acompanha o funil de Parceria do RD em tempo real (todas as etapas, menos Negócios em potencial e Conexão negócio com parceiro), com ficha rica e avaliação interna.</p>
-      <div class="flex gap-2 mt-3" style="flex-wrap:wrap">
-        ${canSeeResource('talentos_rd', _talPerms) ? `<button class="btn ${_tab === 'rd' ? 'btn-primary' : 'btn-ghost'}" data-tab="rd">🟢 RD ao vivo</button>` : ''}
-        ${canSeeResource('talentos_manual', _talPerms) ? `<button class="btn ${_tab === 'manual' ? 'btn-primary' : 'btn-ghost'}" data-tab="manual">📋 Pipeline R&S</button>` : ''}
-      </div>
+      <p class="card-sub">ATS completo — o kanban acompanha o funil de contratação do RD em tempo real (menos Parceiros, Negócios em potencial e Conexão negócio com parceiro), com ficha rica e avaliação interna.</p>
       <div id="tal-body" class="mt-4"></div>
     </div>
   `;
-  _root.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => {
-    if (_tab === b.dataset.tab) return;
-    _tab = b.dataset.tab;
-    _editing = null;
-    stopRdTimer(); stopSyncTimer();
-    render();
-    if (_tab === 'rd') loadRd(); else loadManual();
-  }));
-}
-
-/* ─────────────────── RD ao vivo ─────────────────── */
-function stopRdTimer() { if (_rdTimer) { clearInterval(_rdTimer); _rdTimer = null; } }
-
-async function loadRd(refresh = false) {
-  const body = document.getElementById('tal-body');
-  if (!body) return;
-  if (!_lastRd) body.innerHTML = '<div class="muted tiny"><span class="spinner"></span> Conectando ao RD…</div>';
-  try {
-    const r = await api.request('/api/v3/crm/talentos' + (refresh ? '?refresh=1' : ''));
-    _lastRd = r;
-    renderRd(r);
-  } catch (e) {
-    const d = e.data || {};
-    if (d.funis_disponiveis || d.etapas_disponiveis) {
-      body.innerHTML = `
-        <div class="alert alert-warn">⚠️ ${esc(e.message)}</div>
-        ${d.funis_disponiveis ? `<div class="tiny muted mt-2">Funis no RD: ${d.funis_disponiveis.map(esc).join(' · ') || '—'}</div>` : ''}
-        ${d.etapas_disponiveis ? `<div class="tiny muted mt-2">Etapas no funil ${esc(d.funil || '')}: ${d.etapas_disponiveis.map(esc).join(' · ') || '—'}</div>` : ''}
-        <button class="btn btn-ghost mt-3" id="rd-retry">🔄 Tentar de novo</button>`;
-      document.getElementById('rd-retry')?.addEventListener('click', () => loadRd(true));
-    } else {
-      body.innerHTML = `<div class="alert alert-err">Erro ao ler o RD: ${esc(e.message)}</div>
-        <button class="btn btn-ghost mt-3" id="rd-retry">🔄 Tentar de novo</button>`;
-      document.getElementById('rd-retry')?.addEventListener('click', () => loadRd(true));
-    }
-  }
-  if (!_rdTimer) {
-    _rdTimer = setInterval(() => { if (_tab === 'rd' && document.getElementById('tal-body')) loadRd(true); }, 60000);
-    router.onCleanup(stopRdTimer);
-  }
-}
-
-function renderRd(r) {
-  const body = document.getElementById('tal-body');
-  if (!body) return;
-  const ts = r.fetched_at ? new Date(r.fetched_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '—';
-  const list = r.talentos || [];
-  body.innerHTML = `
-    <div class="flex items-center gap-2 mb-3" style="flex-wrap:wrap">
-      <span class="badge" style="background:var(--ok-soft);color:var(--ok);font-weight:600">🟢 ${list.length} talento(s)</span>
-      <span class="tiny muted">${esc(r.pipeline?.name || 'FUNIL DE PARCERIA – PAULO')} · ${esc(r.stage?.name || 'BANCO DE TALENTOS')}</span>
-      <span class="tiny muted" style="margin-left:auto">Atualizado ${ts} · auto a cada 60s</span>
-      <button class="btn btn-ghost btn-sm" id="rd-refresh">🔄 Atualizar</button>
-    </div>
-    ${r.error_parcial ? `<div class="alert alert-warn tiny mb-2">Aviso do RD: ${esc(r.error_parcial)}</div>` : ''}
-    ${list.length === 0 ? '<div class="muted tiny" style="text-align:center;padding:24px">Nenhum talento nessa etapa do RD agora.</div>' : `
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
-        <thead><tr style="background:var(--bg-3)">
-          <th style="text-align:left;padding:8px">Nome</th>
-          <th style="text-align:left;padding:8px">Contato</th>
-          <th style="text-align:left;padding:8px">Responsável</th>
-          <th style="text-align:left;padding:8px">Na etapa há</th>
-          <th></th>
-        </tr></thead>
-        <tbody>
-          ${list.map(t => {
-            const wa = waLink(t.phone);
-            const ig = igLink((t.campos || {}).Instagram || (t.campos || {}).instagram || (t.campos || {}).IG);
-            const camposTxt = Object.entries(t.campos || {}).slice(0, 3).map(([k, v]) => `${esc(k)}: ${esc(v)}`).join(' · ');
-            return `
-            <tr style="border-bottom:1px solid var(--bd)">
-              <td style="padding:8px">
-                <div style="font-weight:600">${esc(t.name || t.contato || '—')}</div>
-                ${t.contato && t.contato !== t.name ? `<div class="tiny muted">${esc(t.contato)}</div>` : ''}
-                ${camposTxt ? `<div class="tiny muted">${camposTxt}</div>` : ''}
-              </td>
-              <td style="padding:8px">
-                ${t.phone ? `<div>${esc(t.phone)}</div>` : ''}
-                ${t.email ? `<div class="tiny muted">${esc(t.email)}</div>` : ''}
-                ${!t.phone && !t.email ? '<span class="muted">—</span>' : ''}
-              </td>
-              <td style="padding:8px">${esc(t.owner || '—')}</td>
-              <td style="padding:8px">${t.dias_na_etapa != null ? t.dias_na_etapa + 'd' : '—'}</td>
-              <td style="padding:8px;text-align:right;white-space:nowrap">
-                ${ig ? `<a class="btn btn-ghost btn-sm" href="${ig}" target="_blank" rel="noopener" title="Instagram">📷</a>` : ''}
-                ${wa ? `<a class="btn btn-ghost btn-sm" href="${wa}" target="_blank" rel="noopener" title="WhatsApp">💬</a>` : ''}
-                <a class="btn btn-ghost btn-sm" href="${esc(t.rd_url)}" target="_blank" rel="noopener" title="Abrir no RD">🔗</a>
-                <button class="btn btn-ghost btn-sm" data-add-manual="${esc(t.id)}" title="Trazer pro pipeline interno">⭐</button>
-              </td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
-    `}
-  `;
-  document.getElementById('rd-refresh')?.addEventListener('click', () => loadRd(true));
-  body.querySelectorAll('[data-add-manual]').forEach(b => b.addEventListener('click', async () => {
-    const t = list.find(x => x.id === b.dataset.addManual);
-    if (!t) return;
-    b.textContent = '…'; b.disabled = true;
-    const cp = t.campos || {};
-    try {
-      const saved = await api.request('/api/v3/gp/talentos', { method: 'POST', body: {
-        nome: t.name || t.contato || 'Talento', contato: t.phone || '', email: t.email || '',
-        instagram: cp.Instagram || cp.instagram || cp.IG || cp.ig || '',
-        responsavel: t.owner || '', rd_deal_id: t.id,
-        cenario: 'Importado do RD (funil Parceiros · Base de Talentos).' + (t.rd_url ? ' ' + t.rd_url : ''),
-        status: 'em análise', origem: 'rd', canal: 'RD Station', etapa: 'Triagem',
-      } });
-      b.textContent = '✓ ficha';
-      _editing = saved.row || null;
-      _tab = 'manual'; stopRdTimer(); render(); await loadManual();
-    } catch (e) { b.textContent = '✕'; b.disabled = false; alert('Erro: ' + e.message); }
-  }));
 }
 
 /* ─────────────────── Pipeline R&S (gp_talentos) ─────────────────── */
@@ -239,7 +115,7 @@ async function loadManual() {
   }
   syncRd();
   if (!_syncTimer) {
-    _syncTimer = setInterval(() => { if (_tab === 'manual' && document.getElementById('tal-body')) syncRd(); }, 60000);
+    _syncTimer = setInterval(() => { if (document.getElementById('tal-body')) syncRd(); }, 60000);
     router.onCleanup(stopSyncTimer);
   }
 }
@@ -272,7 +148,7 @@ function syncBadge() {
   const hh = r.at ? new Date(r.at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—';
   el.innerHTML = r.ok === false
     ? `<span style="color:var(--err)">⚠️ RD: ${esc(r.aviso || 'falhou')}</span>`
-    : `🟢 RD · funil de Parceria · ${r.lidos ?? '—'} negócios · ${hh}${r.fonte === 'espelho' ? ' <span title="' + esc(r.aviso || '') + '">(cópia do House — RD fora)</span>' : ''}`;
+    : `🟢 RD · funil de contratação · ${r.lidos ?? '—'} negócios · ${hh}${r.fonte === 'espelho' ? ' <span title="' + esc(r.aviso || '') + '">(cópia do House — RD fora)</span>' : ''}`;
 }
 
 function renderManual() {
