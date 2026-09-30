@@ -56,6 +56,8 @@ JOBS = [
     # 🛟 backup automático interno (v84.90): snapshot diário → Storage, rotação 30d
     ("backup_auto",  "/api/v3/backup/auto",                 24),
     ("war_briefing", "/api/v3/intel/war_briefing_cron",     None),  # semanal (lógica própria)
+    # 🎯 placares da Inteligência (v89.2): foto diária da projeção + foto semanal das notas (idempotente)
+    ("intel_placar", "/api/v3/intel/placar?cron=1",          12),
     # 🎯 amortecedor v2.3 (semanal, converge segunda de manhã): push do VGV próprio necessário
     ("amortecedor",  "/api/v3/diretoria/amortecedor_cron",   None),
     # 🚨 ritmo do mês (v85.11): avisa a diretoria NO dia 10/20/25 quando o VGV está

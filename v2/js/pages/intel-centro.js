@@ -244,6 +244,9 @@ function render() {
       <!-- v88.83: o que exige ação vem primeiro — dono, prazo, tarefa e cobrança -->
       <div id="ic-dec" style="margin-top:10px"></div>
 
+      <!-- v89.2: 🎯 placares — o sistema mede se ACERTA (projeção, nota, decisões, qualidade do dado) -->
+      <div id="ic-placar" style="margin-top:14px"></div>
+
       <!-- 3 pilares -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:10px">
         ${pillar('📢 Ads (Meta)', 'R$ ' + moneyShort(totalSpend), 'investido no período', '#c7861a', [
@@ -279,6 +282,7 @@ function render() {
   document.getElementById('ic-preset').addEventListener('change', e => { _preset = e.target.value; reload(); });
   document.getElementById('ic-ai').addEventListener('click', runAI);
   montarDecisoes(document.getElementById('ic-dec'), { tela: 'painel', max: 8, titulo: '🧭 Decidir agora', usuarios: _usuarios || null });
+  montarPlacares(document.getElementById('ic-placar'));
   wireTabs();   // abas do Centro (v84.5)
   _root.querySelectorAll('[data-link]').forEach(el => el.addEventListener('click', () => { location.hash = el.dataset.link; }));
 }
@@ -357,6 +361,64 @@ ${fatos || '(nenhum problema crítico detectado)'}`;
   } catch (e) {
     box.innerHTML = `<div class="alert alert-err">Erro na análise: ${escapeHtml(e.message)}</div>`;
   } finally { _aiBusy = false; }
+}
+
+/* ─────────────── 🎯 PLACARES (v89.2): o sistema passa a medir se acerta ─────────────── */
+async function montarPlacares(el, fresh) {
+  if (!el) return;
+  el.innerHTML = `<div style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px" class="tiny muted"><span class="spinner"></span> Montando os placares…</div>`;
+  let p;
+  try { p = await api.request('/api/v3/intel/placar' + (fresh ? '?fresh=1' : '')); }
+  catch (e) { el.innerHTML = `<div class="alert alert-warn tiny">Placares indisponíveis: ${escapeHtml(e.message)}</div>`; return; }
+  const box = 'background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px';
+  const th = t => `<th style="text-align:right;padding:4px 6px;font-size:11px;color:var(--ink-muted);white-space:nowrap">${t}</th>`;
+  const td = (v, b) => `<td style="text-align:right;padding:4px 6px${b ? ';font-weight:600' : ''}">${v == null ? '—' : v}</td>`;
+  const dec = p.decisoes || {}, dt = dec.totais || {}, q = p.qualidade || {}, qt = q.totais || {};
+  const fmtD = s => { if (!s) return ''; const [y, m, d] = String(s).slice(0, 10).split('-'); return `${d}/${m}`; };
+  const pctD = qt.entraram ? (qt.descartados_cedo / qt.entraram * 100).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + '%' : '—';
+  const status = (x, nome) => x && x.status === 'ok' ? '' : `<div class="tiny muted" style="margin-top:4px">${escapeHtml((x && x.texto) || (nome + ': coletando'))}</div>`;
+  el.innerHTML = `<div style="${box}">
+    <div class="flex items-center gap-2" style="flex-wrap:wrap">
+      <h3 class="card-title" style="font-size:15px;margin:0">🎯 Placares — o sistema acerta?</h3>
+      <span class="tiny muted">cada semana mais preciso: o que foi previsto × o que aconteceu</span>
+      <button class="btn btn-ghost btn-sm" id="ic-pl-fresh" style="margin-left:auto" title="recalcular">🔄</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:10px">
+      <div style="background:var(--bg-3);border-radius:var(--r-md);padding:10px 12px">
+        <div class="tiny muted" style="font-weight:600">🧭 Decisões ${dec.desde ? `(desde ${fmtD(dec.desde)})` : ''}</div>
+        <div style="font-size:18px;font-weight:600;margin-top:2px">${dt.com_tarefa || 0} de ${dt.total || 0} viraram tarefa</div>
+        <div class="tiny muted">${dt.resolvidas || 0} sumiram · ${dt.abertas || 0} seguem abertas</div>
+      </div>
+      <div style="background:var(--bg-3);border-radius:var(--r-md);padding:10px 12px">
+        <div class="tiny muted" style="font-weight:600">🧹 Leads descartados no 1º degrau</div>
+        <div style="font-size:18px;font-weight:600;margin-top:2px">${pctD}</div>
+        <div class="tiny muted">${qt.descartados_cedo || 0} de ${qt.entraram || 0} (entraram há 2–30 dias) · ${qt.sem_interacao || 0} sem nenhuma interação</div>
+      </div>
+      <div style="background:var(--bg-3);border-radius:var(--r-md);padding:10px 12px">
+        <div class="tiny muted" style="font-weight:600">🔮 Projeção do mês</div>
+        <div style="font-size:14px;font-weight:600;margin-top:2px">${(p.projecao || {}).status === 'ok' ? 'com resultado' : 'fotografando'}</div>
+        ${status(p.projecao, 'Projeção')}
+      </div>
+      <div style="background:var(--bg-3);border-radius:var(--r-md);padding:10px 12px">
+        <div class="tiny muted" style="font-weight:600">🌡 Nota dos leads</div>
+        <div style="font-size:14px;font-weight:600;margin-top:2px">${(p.notas || {}).status === 'ok' ? (p.notas.veredito || '') + (p.notas.lift_quente_frio ? ` (quentes ${p.notas.lift_quente_frio}× os frios)` : '') : 'fotografando'}</div>
+        ${status(p.notas, 'Nota')}
+      </div>
+    </div>
+    <details style="margin-top:10px"><summary class="tiny" style="cursor:pointer;font-weight:600">Decisões por tipo — quanto tempo o problema fica aberto</summary>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:6px">
+        <thead><tr><th style="text-align:left;padding:4px 6px;font-size:11px;color:var(--ink-muted)">Tipo</th>${th('Apareceram')}${th('Viraram tarefa')}${th('Sumiram')}${th('Dias p/ sumir')}${th('Abertas')}${th('Idade média (d)')}</tr></thead>
+        <tbody>${(dec.tipos || []).map(t => `<tr style="border-top:1px solid var(--border)"><td style="padding:4px 6px">${escapeHtml(t.tipo)}</td>${td(t.total)}${td(t.com_tarefa, true)}${td(t.resolvidas)}${td(t.dias_para_resolver)}${td(t.abertas)}${td(t.idade_media_abertas, true)}</tr>`).join('')}</tbody>
+      </table></div>
+    </details>
+    <details style="margin-top:6px"><summary class="tiny" style="cursor:pointer;font-weight:600">Qualidade por corretor — o lead foi trabalhado ou descartado cedo?</summary>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:6px">
+        <thead><tr><th style="text-align:left;padding:4px 6px;font-size:11px;color:var(--ink-muted)">Corretor</th>${th('Entraram')}${th('Descartados cedo')}${th('%')}${th('Sem interação')}${th('Parados 1º degrau')}${th('Avançaram')}<th style="text-align:left;padding:4px 6px;font-size:11px;color:var(--ink-muted)">Motivo mais usado</th></tr></thead>
+        <tbody>${(q.corretores || []).filter(c => c.entraram >= 3).map(c => `<tr style="border-top:1px solid var(--border)"><td style="padding:4px 6px">${escapeHtml(c.nome)}</td>${td(c.entraram)}${td(c.descartados_cedo, true)}${td(c.descartados_pct != null ? c.descartados_pct.toLocaleString('pt-BR') + '%' : null)}${td(c.sem_interacao)}${td(c.parados_1o)}${td(c.avancaram)}<td style="padding:4px 6px" class="tiny">${escapeHtml(((c.motivos_top || [])[0] || {}).motivo || '—')}</td></tr>`).join('')}</tbody>
+      </table></div>
+    </details>
+  </div>`;
+  document.getElementById('ic-pl-fresh')?.addEventListener('click', () => montarPlacares(el, true));
 }
 
 /* ─── helpers ─── */
