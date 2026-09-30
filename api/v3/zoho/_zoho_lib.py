@@ -359,14 +359,18 @@ def emails_do_evento(ze):
     return list(dict.fromkeys(out))
 
 
-def zoho_to_house_event(ze, owner_id, pessoas=None):
+def zoho_to_house_event(ze, owner_id, pessoas=None, irmaos=None):
     """Evento do Zoho → dict pra tabela eventos (origem=zoho).
 
     `pessoas` (v89.9) = {email: {"id", "nome", "zoho"}} dos usuários do House.
     Convidado do Zoho que é do House vira PARTICIPANTE (se não tem Zoho
     conectado — quem tem já recebe a própria cópia pelo próprio sync) e o
     título ganha "com Fulano" quando ainda não cita a pessoa: "ONE ON ONE"
-    sozinho não diz nada; "ONE ON ONE — com João Henrique" diz."""
+    sozinho não diz nada; "ONE ON ONE — com João Henrique" diz.
+
+    `irmaos` = nomes de quem tem ESTE MESMO evento (zoho_uid) na agenda do
+    House. Necessário porque o Zoho não devolve os convidados na listagem da
+    agenda de quem ORGANIZOU — o 1:1 do Kauê saía só "ONE ON ONE" do lado dele."""
     dt = ze.get("dateandtime") or {}
     data, hi, all_day = _parse_zoho_dt(dt.get("start"))
     _, hf, _ = _parse_zoho_dt(dt.get("end"))
@@ -382,6 +386,7 @@ def zoho_to_house_event(ze, owner_id, pessoas=None):
         if not p.get("zoho"):
             participantes.append(p["id"])
         nomes.append(p["nome"])
+    nomes += list(irmaos or [])
     t_norm = _sem_acento(titulo)
     faltam = [n for n in dict.fromkeys(nomes) if n and _sem_acento(n.split()[0]) not in t_norm]
     if faltam and tipo != "pessoal":

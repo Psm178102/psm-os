@@ -122,10 +122,31 @@ def mapa_pessoas(sb):
 RAPIDO_ATRAS, RAPIDO_FRENTE = 1, 30
 
 
-def _assinatura(zevs):
+def _assinatura(zevs, irmaos=None):
     import hashlib
-    base = "|".join(sorted(f"{e.get('uid')}:{e.get('etag')}" for e in zevs if e.get("uid")))
+    base = "|".join(sorted(f"{e.get('uid')}:{e.get('etag')}:{','.join(sorted((irmaos or {}).get(str(e.get('uid')), [])))}"
+                           for e in zevs if e.get("uid")))
     return hashlib.md5(base.encode("utf-8")).hexdigest()
+
+
+def _irmaos(sb, uid, uids):
+    """{zoho_uid: [owner_id, ...]} de OUTRAS pessoas do House com o mesmo evento
+    do Zoho na agenda (= quem participa) + {zoho_uid: zoho_hash} das linhas
+    do próprio usuário. Uma consulta leve por lote de 150 uids."""
+    outros, meus = {}, {}
+    lst = list(uids)
+    for i in range(0, len(lst), 150):
+        try:
+            for r in (sb.table("eventos").select("owner_id,zoho_uid,zoho_hash")
+                      .in_("zoho_uid", lst[i:i + 150]).eq("origem", "zoho").limit(2000).execute().data or []):
+                zu, dono = str(r.get("zoho_uid")), str(r.get("owner_id") or "")
+                if dono == uid:
+                    meus[zu] = r.get("zoho_hash") or ""
+                elif dono:
+                    outros.setdefault(zu, set()).add(dono)
+        except Exception:
+            pass
+    return {k: sorted(v) for k, v in outros.items()}, meus
 
 
 def sync_user(sb, conn, rapido=False):
@@ -151,13 +172,16 @@ def sync_user(sb, conn, rapido=False):
     # ── PULL: Zoho → House (fatiado em janelas de 31d — teto da API) ────
     zevs = z.listar_eventos(token, cal_uid, agora - timedelta(days=atras),
                             agora + timedelta(days=frente))
-    assinatura = _assinatura(zevs)
+    vivos_uids = {str(e.get("uid")) for e in zevs if e.get("uid")}
+    irmaos, hash_meu = _irmaos(sb, uid, vivos_uids)
+    assinatura = _assinatura(zevs, irmaos)
     if rapido:
         if not zevs or assinatura == ((conn.get("last_sync_res") or {}).get("assinatura") or ""):
             return {"sem_mudanca": True}
         res["modo"] = "rapido"
     res["assinatura"] = assinatura if rapido else ""
     pessoas = mapa_pessoas(sb)
+    nome_de = {p["id"]: p["nome"] for p in pessoas.values()}
     # ÍNDICE do que já existe, casado por zoho_uid e SEM filtro de data (v86.57).
     # O filtro antigo (data entre hoje-7 e hoje+60) era a ORIGEM do loop de
     # duplicação: o Zoho responde por datetime UTC e devolve o evento da borda
@@ -200,13 +224,18 @@ def sync_user(sb, conn, rapido=False):
         if str(zu) in ja_da_casa:
             res["puxados"] += 1
             continue
-        row = z.zoho_to_house_event(ze, uid, pessoas)
+        nomes_irmaos = [nome_de.get(o, o) for o in irmaos.get(str(zu), [])]
+        row = z.zoho_to_house_event(ze, uid, pessoas, nomes_irmaos)
+        # zoho_hash não tem uso em linha vinda do Zoho: guarda quem mais tem o
+        # evento, pra reescrever o "com Fulano" quando alguém entra/sai
+        row["zoho_hash"] = ",".join(irmaos.get(str(zu), []))
         if not row.get("data"):
             continue
         cur = existentes.get(str(zu))
         try:
             if cur:
-                if str(cur.get("zoho_etag") or "") != row["zoho_etag"]:
+                if (str(cur.get("zoho_etag") or "") != row["zoho_etag"]
+                        or hash_meu.get(str(zu), "") != row["zoho_hash"]):
                     sb.table("eventos").update(row).eq("id", cur["id"]).execute()
                     res["atualizados_house"] += 1
                 res["puxados"] += 1
