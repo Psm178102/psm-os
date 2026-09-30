@@ -77,6 +77,13 @@ HEARTBEAT = [
 # ─── Crons do vercel.json SEM heartbeat, com a evidência de que rodaram ──────────
 # evid: ("kv", key) = shared_kv.updated_at · ("tab", tabela, coluna) = max(coluna)
 #       None = o job não deixa rastro → aparece como "sem registro" (não alerta)
+# Kenlo em STANDBY por decisão do Paulo (30/09/2026): a API responde 403 (AccessDenied) desde
+# o fim de julho e a correção da integração não entra agora. Aparece como ⏸ pausado, sem alerta
+# e sem auto-cura. Pra reativar: KENLO_STANDBY = False (e o mesmo em api/v3/kenlo/sync.py).
+KENLO_STANDBY = True
+KENLO_STANDBY_TXT = ("Em standby por decisão do Paulo (30/09) — correção da API da Kenlo (erro 403) "
+                     "fica pra depois. Não gera alerta.")
+
 # (id, nome, o que faz, agenda legível, evid, max_h_warn, max_h_err, link)
 VERCEL = [
     ("sentinela",   "Sentinela (uptime)",       "Checa banco + site a cada 5 min e alerta no ntfy.", "a cada 5 min",
@@ -335,6 +342,10 @@ def coletar_rotinas(sb, col, now):
             v = col.kv_value("uptime_state") or {}
             if v.get("estado") == "down":
                 st, det = "error", "Sentinela detectou queda: " + "; ".join(v.get("problemas") or [])[:200]
+        if id_ == "kenlo" and KENLO_STANDBY:
+            itens.append(_item("vc:" + id_, "rotinas", nome, desc, "paused", KENLO_STANDBY_TXT, ult, link, agenda))
+            itens[-1]["herda"] = "pausa_intencional"
+            continue
         if id_ == "kenlo" and st != "ok":
             try:
                 ks = (sb.table("cron_state").select("ran_at,note").eq("key", "kenlo_status").limit(1).execute().data or [])
@@ -543,7 +554,11 @@ def coletar_integracoes(sb, col, now, live=True):
         pass
 
     # Kenlo
-    if not (_env("KENLO_OPEN_CLIENT_ID") or _env("KENLO_OPEN_TOKEN") or _env("KENLO_OPEN_API_KEY")
+    if KENLO_STANDBY:
+        add("kenlo", "Kenlo Imob", "Estoque de imóveis.", "paused", KENLO_STANDBY_TXT,
+            col.tab_max("kenlo_estoque_snapshots", "criado_em"), "#/estoque-kenlo", "🏠")
+        itens[-1]["herda"] = "pausa_intencional"
+    elif not (_env("KENLO_OPEN_CLIENT_ID") or _env("KENLO_OPEN_TOKEN") or _env("KENLO_OPEN_API_KEY")
             or any(k.startswith("KENLO_OPEN") and os.environ.get(k) for k in os.environ)):
         add("kenlo", "Kenlo Imob", "Estoque de imóveis.", "paused", "Credenciais KENLO_OPEN_* ausentes.", link="#/estoque-kenlo", ico="🏠")
     else:
@@ -752,8 +767,10 @@ def diff_alertas(itens, anterior, silencio, now, relembra_h=RELEMBRA_H, ignorar=
                     relembrar.append(it)
                     ent["avisado_em"] = now.isoformat()
         novo[id_] = ent
+    # pausa intencional (decisão do sócio) não é "resolvido" — sai do alerta calado
+    pausados = {i["id"] for i in itens if i.get("herda") == "pausa_intencional"}
     for id_, prev in anterior.items():
-        if id_ not in atuais and id_ not in ignorar and prev.get("avisado_em"):
+        if id_ not in atuais and id_ not in ignorar and id_ not in pausados and prev.get("avisado_em"):
             resolvidos.append(id_)
     return novo, novos, relembrar, resolvidos
 

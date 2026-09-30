@@ -17,6 +17,9 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError  # type: ignore
 
+# Standby por decisão do Paulo (30/09/2026): API da Kenlo em 403; o cron diário não chama. Reativar: False
+# (e KENLO_STANDBY em api/v3/system/ops_central.py).
+KENLO_STANDBY = True
 BASE = os.environ.get("KENLO_OPEN_BASE", "https://imob-api.kenlo-open.com").rstrip("/")
 
 
@@ -160,6 +163,9 @@ class handler(BaseHTTPRequestHandler):
     def _run(self):
         auth_hdr = (self.headers.get("Authorization") or "").replace("Bearer ", "").strip()
         cron = os.environ.get("CRON_SECRET", "").strip()
+        if cron and auth_hdr == cron and KENLO_STANDBY:
+            # standby (decisão do Paulo 30/09): o cron diário não bate na Kenlo; o botão manual segue funcionando
+            return self._send(200, {"ok": True, "standby": True, "msg": "Kenlo em standby — sync automático desligado."})
         if not (cron and auth_hdr == cron):
             try:
                 require_user(self, min_lvl=5)
