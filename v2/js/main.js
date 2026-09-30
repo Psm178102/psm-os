@@ -30,6 +30,7 @@ import { pageEstrategia } from './pages/estrategia.js';
 import { pageAcademy } from './pages/academy.js';
 import { pageAcademyStudio } from './pages/academy-studio.js';
 import { initNotifs, refreshNotifs } from './notifs.js';
+import { portaoZoho } from './zoho-gate.js';   // v89.2: todo login integrado ao Zoho
 import { sounds } from './sounds.js';
 import { pageConfiguracoes } from './pages/configuracoes.js';
 import { pageLogins } from './pages/logins.js';
@@ -595,6 +596,9 @@ const APP_VERSION = '89.2';
 
   // 3.1c) Minimizar/expandir categorias do menu (estado salvo por usuário)
   initSectionCollapse();
+
+  // 3.1b) 📮 v89.2: quem ainda não conectou o Zoho Calendar vê o portão (1 clique)
+  portaoZoho(user).catch(() => {});
 
   // 3.1d) 🏛️ Diretoria: ponto de "dossiê novo" no menu — SÓ sócio (a função
   // checa lvl>=10 e falha em silêncio; nada de push/sino — regra da Diretoria). v87.31
