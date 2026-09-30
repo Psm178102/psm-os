@@ -234,7 +234,7 @@ def reconciliar(sb, deals, pid=None):
                 "rd_deal_id": did, "rd_etapa": etapa_rd, "rd_status": _status(d), "rd_sync_at": agora,
                 "historico": [{"de": "", "para": RD_PARA_HOUSE.get(en, "Interessados"),
                                "by": "RD (importação)", "at": agora}],
-                "criado_por": "rd_sync", "updated_at": agora,
+                "criado_por": None, "updated_at": agora,   # FK p/ users — quem criou é o RD (ver historico)
             })
             continue
 
