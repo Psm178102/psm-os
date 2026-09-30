@@ -35,6 +35,9 @@ const hoje = () => iso(new Date());
 const TIPO_EVT = {
   reuniao: { lbl: 'Reunião', ico: '💼' }, visita: { lbl: 'Visita', ico: '🏠' }, plantao: { lbl: 'Plantão', ico: '🛡' },
   evento: { lbl: 'Evento', ico: '🎉' }, outro: { lbl: 'Compromisso', ico: '📅' }, tarefa: { lbl: 'Tarefa', ico: '✅' },
+  // v89.8: chegam do Zoho, classificados pelo título
+  oneonone: { lbl: 'One-on-One', ico: '👥' }, atendimento: { lbl: 'Atendimento', ico: '🤝' },
+  corujao: { lbl: 'Corujão', ico: '🦉' }, treinamento: { lbl: 'Treinamento', ico: '🎓' },
 };
 const KIND = {
   tarefa: { lbl: 'Tarefa', ico: '📋' }, treino: { lbl: 'Treinamento', ico: '🎓' }, academy: { lbl: 'Academy', ico: '🎬' },
@@ -50,7 +53,7 @@ const FILTROS = [
   ['tudo', 'Tudo', 'var(--ink-muted)', () => true],
   ['tarefas', 'Tarefas', CORES.tarefa, i => i.kind === 'tarefa'],
   ['compromissos', 'Compromissos', CORES.reuniao, i => i.kind === 'evento' && i.tipo !== 'plantao'],
-  ['visitas', 'Visitas', CORES.visita, i => i.kind === 'evento' && i.tipo === 'visita'],
+  ['visitas', 'Visitas', CORES.visita, i => i.kind === 'evento' && (i.tipo === 'visita' || i.tipo === 'atendimento')],
   ['plantoes', 'Plantões', CORES.plantao, i => i.kind === 'plantao' || (i.kind === 'evento' && i.tipo === 'plantao')],
   ['treinos', 'Treinamentos', CORES.treino, i => i.kind === 'treino'],
   ['outros', 'Outros módulos', CORES.captacao, i => ['captacao', 'criativo', 'conteudo', 'academy', 'projeto', 'oneonone'].includes(i.kind)],
@@ -210,7 +213,7 @@ const achar = key => S.itens.find(i => i.key === key) || S.convites.find(i => i.
 /* ═══════════════════════════ helpers de item ═══════════════════════════ */
 const corDe = i => i.kind === 'evento' ? (CORES[i.tipo] || CORES.evento) : (CORES[i.kind] || CORES.outro);
 const icoDe = i => i.kind === 'evento' ? (TIPO_EVT[i.tipo] || TIPO_EVT.outro).ico : (KIND[i.kind] || {}).ico || '•';
-const rotuloDe = i => i.kind === 'evento' ? (i.fonte === 'zoho' ? 'Zoho' : (TIPO_EVT[i.tipo] || TIPO_EVT.outro).lbl) : (KIND[i.kind] || {}).lbl || i.origem || '';
+const rotuloDe = i => i.kind === 'evento' ? ((TIPO_EVT[i.tipo] || TIPO_EVT.outro).lbl + (i.fonte === 'zoho' ? ' · Zoho' : '')) : (KIND[i.kind] || {}).lbl || i.origem || '';
 const horario = i => (!i.hora_inicio || (i.kind === 'evento' && i.all_day)) ? '' : i.hora_inicio + (i.hora_fim && i.hora_fim > i.hora_inicio ? '–' + i.hora_fim : '');
 const atrasado = i => !i.done && ATRASAVEL[i.kind] && i.data && i.data < hoje();
 const concluivel = i => !!(i.pode && i.pode.concluir) && i.kind !== 'evento' && i.kind !== 'treino' && i.kind !== 'oneonone';

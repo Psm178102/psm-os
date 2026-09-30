@@ -306,13 +306,43 @@ def _parse_zoho_dt(s):
     return data, hora, False
 
 
+# v89.8: o Zoho não tem "tipo" — quem cria lá só escreve o título. O House lê
+# o título e classifica, pra que 1:1, visita, atendimento, corujão etc. criados
+# no Zoho entrem na Agenda (e na TV de visitas) com o tipo certo, não como
+# "Evento" genérico. Ordem importa: o primeiro que casar vence.
+_TIPO_POR_TITULO = [
+    ("oneonone", r"\bone\s*(on|a|to)\s*one\b|\b1\s*[:x]\s*1\b|\b1on1\b|\bum\s*a\s*um\b"),
+    ("corujao", r"coruj"),
+    ("visita", r"\bvisita"),
+    ("atendimento", r"\batendiment|\batender\b"),
+    ("plantao", r"\bplant[aã]o"),
+    ("treinamento", r"treinament|\btreino\b|onboarding|\baula\b|workshop|\bcapacita"),
+    ("reuniao", r"reuni[aã]o|\bmeeting\b|alinhamento|\bdaily\b|\bcall\b"),
+]
+
+
+def classificar_tipo(titulo):
+    import re, unicodedata
+    t = unicodedata.normalize("NFKD", str(titulo or "").lower())
+    t = "".join(c for c in t if not unicodedata.combining(c))
+    for tipo, rx in _TIPO_POR_TITULO:
+        if re.search(rx, t):
+            return tipo
+    return "evento"
+
+
 def zoho_to_house_event(ze, owner_id):
     """Evento do Zoho → dict pra tabela eventos (origem=zoho)."""
     dt = ze.get("dateandtime") or {}
     data, hi, all_day = _parse_zoho_dt(dt.get("start"))
     _, hf, _ = _parse_zoho_dt(dt.get("end"))
+    titulo = (ze.get("title") or "Evento Zoho")[:200]
+    tipo = classificar_tipo(titulo)
     return {
-        "tipo": "evento", "titulo": (ze.get("title") or "Evento Zoho")[:200],
+        "tipo": tipo, "titulo": titulo,
+        # visita/atendimento do Zoho pertencem ao dono da agenda — é o que põe
+        # na TV de visitas do dia e no filtro por corretor
+        **({"corretor_id": str(owner_id)} if tipo in ("visita", "atendimento") else {}),
         "descricao": (ze.get("description") or None),
         "data": data, "hora_inicio": (None if all_day else hi),
         "hora_fim": (None if all_day else hf), "all_day": all_day,
