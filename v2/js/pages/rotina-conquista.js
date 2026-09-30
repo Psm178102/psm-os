@@ -8,13 +8,16 @@
    Reuniões = formatos da rotina v2.3 (/api/v3/gp/reunioes_formatos: lembrete, ata, pendência);
    tarefas/aderência = /api/v3/diretoria/rotina; placar = /api/v3/diretoria/scorecard.
    v88.37: a MESMA tela serve a Rotina · PSM Imóveis (Paulo × equipe MAP) — pageRotinaImoveis
-   passa unidade='imoveis'; papéis, tarefas, reuniões e placar vêm do backend. */
+   passa unidade='imoveis'; papéis, tarefas, reuniões e placar vêm do backend.
+   v89.17: a rotina deixou de ser engessada — sócio clica ✏️ Editar rotina e muda tarefas (texto,
+   cadência, dono, porquê, tela), papéis/mandato e a matriz RACI; "Restaurar padrão" volta ao original. */
 import { api } from '../api.js';
 
 let _root = null;
 let _r = null, _f = null, _sc = null;
 let _ataAberta = null;
 let _un = 'conquista';
+let _ed = null;   // v89.17: rascunho da edição {tarefas, papeis, raci} — null = modo leitura
 const qs = () => (_un === 'conquista' ? '' : `?unidade=${_un}`);
 const primeiro = q => String(_r?.papeis?.[q]?.nome || q).split(/[ —]/)[0];
 
@@ -29,7 +32,7 @@ export async function pageRotinaConquista(ctx, root) { return pageRotina(root, '
 export async function pageRotinaImoveis(ctx, root) { return pageRotina(root, 'imoveis'); }
 
 async function pageRotina(root, unidade) {
-  _root = root; _un = unidade; _sc = null;
+  _root = root; _un = unidade; _sc = null; _ed = null;
   _root.innerHTML = '<div class="card"><div class="muted tiny"><span class="spinner"></span> Carregando a rotina…</div></div>';
   await load();
 }
@@ -73,7 +76,9 @@ function render() {
   const venc = pend.filter(p => p.prazo && p.prazo < r.hoje).length;
   _root.innerHTML = `
     <div class="card">
-      <h2 class="card-title">${_un === 'imoveis' ? '🏠' : '🎯'} Rotina de Gestão · ${esc(r.titulo || 'PSM Conquista')}</h2>
+      <div class="flex" style="justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
+        <h2 class="card-title">${_un === 'imoveis' ? '🏠' : '🎯'} Rotina de Gestão · ${esc(r.titulo || 'PSM Conquista')}</h2>
+        ${r.eu?.socio && !_ed ? `<button class="btn btn-ghost btn-sm" id="rc-editar">✏️ Editar rotina</button>` : ''}</div>
       <p class="card-sub"><b>${esc(r.papeis[qa].nome)}</b> — ${esc(r.papeis[qa].cargo)} × <b>${esc(r.papeis[qb].nome)}</b> — ${esc(r.papeis[qb].cargo)}.
         Reuniões com pauta e ata, tarefas com dono e cadência, e o placar que diz se está funcionando.</p>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px" class="mt-2">
@@ -84,17 +89,19 @@ function render() {
       </div>
       ${trilhaHTML()}
     </div>
+    ${_ed ? editorHTML() : ''}
     ${semanaHTML()}
     <div id="rc-ata"></div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px" class="mt-3">
+    ${_ed ? '' : `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px" class="mt-3">
       ${tarefasHTML(qa)}
       ${tarefasHTML(qb)}
-    </div>
+    </div>`}
     <div class="card mt-3"><div style="font-weight:600">📊 Acompanhamento — Farol ${esc(r.titulo || 'PSM Conquista')}</div>
-      <div id="rc-placar" class="mt-2"><div class="tiny muted"><span class="spinner"></span> Carregando o placar…</div></div></div>
+      <div id="rc-placar" class="mt-2">${_sc ? placarHTML() : '<div class="tiny muted"><span class="spinner"></span> Carregando o placar…</div>'}</div></div>
     ${pendenciasHTML(pend)}
-    ${funcoesHTML()}`;
+    ${_ed ? '' : funcoesHTML()}`;
   bind();
+  if (_ed) bindEditor();
 }
 
 function tile(lbl, val, sub, cor) {
@@ -254,9 +261,9 @@ function funcoesHTML() {
   const p = _r.papeis;
   const [qa, qb] = _r.quens || ['isa', 'kaue'];
   const COL = { R: ['Executa', COR.info], A: ['Aprova / responde', COR.verde], C: ['Consultado', COR.amarelo], I: ['Informado', COR.cinza] };
-  const tag = v => `<span title="${COL[v][0]}" style="display:inline-block;min-width:26px;text-align:center;font-weight:600;border-radius:var(--radius-sm);padding:2px 6px;background:${COL[v][1]}22;color:${COL[v][1]}">${v}</span>`;
+  const tag = v => !COL[v] ? '<span class="muted">—</span>' : `<span title="${COL[v][0]}" style="display:inline-block;min-width:26px;text-align:center;font-weight:600;border-radius:var(--radius-sm);padding:2px 6px;background:${COL[v][1]}22;color:${COL[v][1]}">${v}</span>`;
   const mand = q => `<div><div style="font-weight:600">${esc(p[q].nome)}</div><div class="tiny muted">${esc(p[q].cargo)}</div>
-    <ul style="margin:6px 0 0 18px;font-size:13px;line-height:1.6">${p[q].mandato.map(m => `<li>${esc(m)}</li>`).join('')}</ul></div>`;
+    <ul style="margin:6px 0 0 18px;font-size:13px;line-height:1.6">${(p[q].mandato || []).map(m => `<li>${esc(m)}</li>`).join('')}</ul></div>`;
   return `<div class="card mt-3"><div style="font-weight:600">🧭 Funções e responsabilidades</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:8px">${mand(qa)}${mand(qb)}</div>
     <div style="font-weight:600;margin-top:14px">Quem decide o quê</div>
@@ -267,8 +274,114 @@ function funcoesHTML() {
     </table></div></div>`;
 }
 
+/* ─── v89.17 · edição da rotina (só sócio) ───────────────────────────── */
+function abrirEditor() {
+  const [qa, qb] = _r.quens;
+  _ed = {
+    tarefas: _r.tarefas.map(t => ({ id: t.id, quem: t.quem, cad: t.cad, txt: t.txt, porque: t.porque || '', link: t.link || '' })),
+    papeis: Object.fromEntries([qa, qb].map(q => [q, { nome: _r.papeis[q].nome, cargo: _r.papeis[q].cargo || '', mandato: [...(_r.papeis[q].mandato || [])] }])),
+    raci: _r.raci.map(x => ({ assunto: x.assunto, [qa]: x[qa] || '', [qb]: x[qb] || '' })),
+  };
+  render();
+  document.getElementById('rc-editor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+const primeiroEd = q => String(_ed?.papeis?.[q]?.nome || _r.papeis?.[q]?.nome || q).split(/[ —]/)[0];
+
+function editorHTML() {
+  const [qa, qb] = _r.quens;
+  const opt = (v, cur) => `<option value="${v}" ${v === cur ? 'selected' : ''}>`;
+  const cadSel = (i, cur) => `<select class="input" data-e="cad" data-i="${i}" style="flex:0 0 150px">${CAD.map(c => `${opt(c.id, cur)}${c.lbl}</option>`).join('')}</select>`;
+  const quemSel = (i, cur) => `<select class="input" data-e="quem" data-i="${i}" style="flex:0 0 150px" title="de quem é a tarefa">${[qa, qb].map(q => `${opt(q, cur)}${esc(primeiroEd(q))}</option>`).join('')}</select>`;
+  const racSel = (i, q, cur) => `<select class="input" data-r="${q}" data-i="${i}" style="width:64px">${['', 'R', 'A', 'C', 'I'].map(v => `${opt(v, cur)}${v || '—'}</option>`).join('')}</select>`;
+  const tarefas = q => `<div class="mt-3"><div style="font-weight:600">✅ Tarefas — ${esc(_ed.papeis[q].nome)}</div>
+    ${_ed.tarefas.map((t, i) => t.quem !== q ? '' : `<div style="border-top:1px dashed var(--border);padding:6px 0">
+      <div class="flex gap-1" style="flex-wrap:wrap">
+        <input class="input" style="flex:3;min-width:220px" data-e="txt" data-i="${i}" value="${esc(t.txt)}" placeholder="O que fazer">
+        ${cadSel(i, t.cad)} ${quemSel(i, t.quem)}
+        <button class="btn btn-ghost btn-sm" data-del="${i}" title="remover tarefa">🗑</button></div>
+      <div class="flex gap-1 mt-1" style="flex-wrap:wrap">
+        <input class="input tiny" style="flex:2;min-width:180px" data-e="porque" data-i="${i}" value="${esc(t.porque)}" placeholder="Por quê (opcional)">
+        <input class="input tiny" style="flex:1;min-width:140px" data-e="link" data-i="${i}" value="${esc(t.link)}" placeholder="Tela, ex. #/scorecard (opcional)"></div>
+    </div>`).join('')}
+    <button class="btn btn-ghost btn-sm mt-1" data-add="${q}">➕ tarefa de ${esc(primeiroEd(q))}</button></div>`;
+  const papel = q => `<div><input class="input" data-pn="${q}" value="${esc(_ed.papeis[q].nome)}" placeholder="Nome">
+    <input class="input mt-1" data-pc="${q}" value="${esc(_ed.papeis[q].cargo)}" placeholder="Cargo">
+    <label class="tiny muted mt-1" style="display:block">Mandato — uma responsabilidade por linha</label>
+    <textarea class="input" data-pm="${q}" rows="6">${esc(_ed.papeis[q].mandato.join('\n'))}</textarea></div>`;
+  return `<div class="card mt-3" id="rc-editor" style="border:2px solid var(--psm-navy,var(--accent-ink))">
+    <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+      <div style="font-weight:600">✏️ Editando a rotina · ${esc(_r.titulo)}</div>
+      <div class="flex gap-1">
+        ${_r.editada ? '<button class="btn btn-ghost btn-sm" id="rc-ed-rest">↺ Restaurar padrão</button>' : ''}
+        <button class="btn btn-ghost btn-sm" id="rc-ed-x">Cancelar</button>
+        <button class="btn btn-primary btn-sm" id="rc-ed-ok">💾 Salvar rotina</button></div></div>
+    <div class="tiny muted">Os checks já marcados continuam valendo. Remover uma tarefa tira ela da aderência daqui pra frente.
+      ${_r.editada && _r.config_por ? `Última edição: ${esc(_r.config_por)} em ${new Date(_r.config_ts).toLocaleString('pt-BR')}.` : ''}
+      As reuniões da semana são editadas em <a href="#/reunioes">Reuniões</a>.</div>
+    ${tarefas(qa)}${tarefas(qb)}
+    <div style="font-weight:600;margin-top:16px">🧭 Funções e responsabilidades</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:6px">${papel(qa)}${papel(qb)}</div>
+    <div style="font-weight:600;margin-top:16px">Quem decide o quê (RACI)</div>
+    <div class="tiny muted">R = executa · A = aprova e responde · C = consultado · I = informado</div>
+    ${_ed.raci.map((x, i) => `<div class="flex gap-1 mt-1" style="align-items:center">
+      <input class="input" style="flex:1" data-r="assunto" data-i="${i}" value="${esc(x.assunto)}" placeholder="Assunto">
+      <span class="tiny muted">${esc(primeiroEd(qa))}</span>${racSel(i, qa, x[qa])}
+      <span class="tiny muted">${esc(primeiroEd(qb))}</span>${racSel(i, qb, x[qb])}
+      <button class="btn btn-ghost btn-sm" data-rdel="${i}" title="remover linha">🗑</button></div>`).join('')}
+    <button class="btn btn-ghost btn-sm mt-1" id="rc-ed-radd">➕ linha na RACI</button>
+  </div>`;
+}
+
+function bindEditor() {
+  const ed = document.getElementById('rc-editor');
+  ed.querySelectorAll('[data-e]').forEach(el => el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => {
+    _ed.tarefas[+el.dataset.i][el.dataset.e] = el.value;
+    if (el.dataset.e === 'quem') render();
+  }));
+  ed.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
+    const t = _ed.tarefas[+b.dataset.del];
+    if (t.txt.trim() && !confirm(`Remover a tarefa "${t.txt}"?`)) return;
+    _ed.tarefas.splice(+b.dataset.del, 1); render();
+  }));
+  ed.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => {
+    const q = b.dataset.add;
+    _ed.tarefas.push({ id: `${q[0]}_${Date.now().toString(36)}`, quem: q, cad: 'semanal', txt: '', porque: '', link: '' });
+    render();
+    const ins = document.querySelectorAll('#rc-editor [data-e="txt"]');
+    const alvo = [...ins].find(x => _ed.tarefas[+x.dataset.i].txt === '' && _ed.tarefas[+x.dataset.i].quem === q);
+    alvo?.focus();
+  }));
+  ed.querySelectorAll('[data-pn]').forEach(el => el.addEventListener('input', () => { _ed.papeis[el.dataset.pn].nome = el.value; }));
+  ed.querySelectorAll('[data-pc]').forEach(el => el.addEventListener('input', () => { _ed.papeis[el.dataset.pc].cargo = el.value; }));
+  ed.querySelectorAll('[data-pm]').forEach(el => el.addEventListener('input', () => { _ed.papeis[el.dataset.pm].mandato = el.value.split('\n'); }));
+  ed.querySelectorAll('[data-r]').forEach(el => el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => { _ed.raci[+el.dataset.i][el.dataset.r] = el.value; }));
+  ed.querySelectorAll('[data-rdel]').forEach(b => b.addEventListener('click', () => { _ed.raci.splice(+b.dataset.rdel, 1); render(); }));
+  document.getElementById('rc-ed-radd').onclick = () => { const [qa, qb] = _r.quens; _ed.raci.push({ assunto: '', [qa]: '', [qb]: '' }); render(); };
+  document.getElementById('rc-ed-x').onclick = () => { _ed = null; render(); };
+  const rest = document.getElementById('rc-ed-rest');
+  if (rest) rest.onclick = async () => {
+    if (!confirm('Voltar a rotina ao padrão original? As edições somem (os checks continuam).')) return;
+    try { await api.request('/api/v3/diretoria/rotina', { method: 'POST', body: { action: 'restaurar', unidade: _un } }); _ed = null; await load(); }
+    catch (e) { alert('Erro: ' + e.message); }
+  };
+  document.getElementById('rc-ed-ok').onclick = async ev => {
+    const tarefas = _ed.tarefas.filter(t => t.txt.trim());
+    if (!tarefas.length) return alert('A rotina precisa de pelo menos uma tarefa.');
+    const papeis = Object.fromEntries(Object.entries(_ed.papeis).map(([q, p]) => [q, { ...p, mandato: p.mandato.map(m => m.trim()).filter(Boolean) }]));
+    const raci = _ed.raci.filter(x => x.assunto.trim());
+    ev.target.disabled = true;
+    try {
+      await api.request('/api/v3/diretoria/rotina', { method: 'POST', body: { action: 'config', unidade: _un, tarefas, papeis, raci } });
+      _ed = null; await load();
+    } catch (e) { alert('Erro: ' + e.message); ev.target.disabled = false; }
+  };
+}
+
+
 /* ─── eventos ────────────────────────────────────────────────────────── */
 function bind() {
+  document.getElementById('rc-editar')?.addEventListener('click', abrirEditor);
   _root.querySelectorAll('[data-t]').forEach(cb => cb.addEventListener('change', async () => {
     cb.disabled = true;
     try { await api.request('/api/v3/diretoria/rotina', { method: 'POST', body: { action: 'check', unidade: _un, item: cb.dataset.t, feito: cb.checked } }); await load(); }

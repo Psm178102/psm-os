@@ -150,7 +150,9 @@ def gerar_rotina(sb, cfg, hoje, dry=False):
         papeis = [q for q in un["quens"] if ativas.get(f"{unidade}:{q}")]
         if not papeis or hoje < un["inicio"]:
             continue
-        checks = (_kv(sb, un["kv"], {"checks": {}}) or {}).get("checks") or {}
+        _data = _kv(sb, un["kv"], {"checks": {}}) or {}
+        un = R.efetiva(un, _data)   # v89.17: a rotina editada na tela vale por cima do padrão
+        checks = _data.get("checks") or {}
         dirty = False
         for t in un["tarefas"]:
             if t["quem"] not in papeis:

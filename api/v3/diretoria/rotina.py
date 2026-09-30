@@ -16,7 +16,11 @@ GET  (Isa, Paulo, Kaue)  → papéis, tarefas com o estado do período atual, ad
                             da semana/mês e das últimas 8 semanas
 POST {action:'check', item, feito:bool, nota?}  → marca/desmarca no período ATUAL
      (tarefa da Isa: sócio; tarefa do Kaue: Kaue ou sócio)
-Dados: shared_kv rotina_conquista {checks: {periodo: {item: {ts, por, nota}}}}
+POST {action:'config', unidade, tarefas?, papeis?, raci?}  → v89.17: sócio edita a rotina na tela
+POST {action:'restaurar', unidade}                         → volta ao padrão deste arquivo
+Dados: shared_kv rotina_conquista {checks: {periodo: {item: {ts, por, nota}}}, config?: {tarefas, papeis, raci}}
+v89.17 — o que está neste arquivo é só o PADRÃO; o que o sócio salvar em config vale por cima
+(efetiva()). O Motor do Ritmo (_ritmo_lib) lê a mesma versão efetiva.
 Período: D:AAAA-MM-DD · W:AAAA-Www · Q:AAAA-Www(par) · M:AAAA-MM · T:AAAA-Qn
 """
 from http.server import BaseHTTPRequestHandler
@@ -194,6 +198,48 @@ for _u in UNIDADES.values():
     _u["idx"] = {t["id"]: t for t in _u["tarefas"]}
 
 
+CADS = ("diario", "semanal", "quinzenal", "mensal", "trimestral")
+RACI_OK = ("R", "A", "C", "I", "")
+
+
+def _txt(v, n):
+    return str(v or "").strip()[:n]
+
+
+def efetiva(un, data):
+    """v89.17 — a unidade com a config salva pelo sócio aplicada por cima do padrão do arquivo."""
+    cfg = (data or {}).get("config") or {}
+    out = dict(un)
+    quens = un["quens"]
+    if isinstance(cfg.get("tarefas"), list):
+        ts = []
+        for t in cfg["tarefas"]:
+            if not isinstance(t, dict) or not t.get("id") or not _txt(t.get("txt"), 300): continue
+            if t.get("quem") not in quens or t.get("cad") not in CADS: continue
+            ts.append(T(_txt(t["id"], 40), t["quem"], t["cad"], _txt(t["txt"], 300),
+                        _txt(t.get("link"), 120) or None, _txt(t.get("porque"), 200) or None))
+        out["tarefas"] = ts
+    if isinstance(cfg.get("papeis"), dict):
+        pp = {}
+        for q in quens:
+            base = dict(un["papeis"][q])
+            c = cfg["papeis"].get(q)
+            if isinstance(c, dict):
+                if _txt(c.get("nome"), 120): base["nome"] = _txt(c["nome"], 120)
+                if "cargo" in c: base["cargo"] = _txt(c.get("cargo"), 120)
+                if isinstance(c.get("mandato"), list):
+                    base["mandato"] = [_txt(m, 400) for m in c["mandato"] if _txt(m, 400)]
+            pp[q] = base
+        out["papeis"] = pp
+    if isinstance(cfg.get("raci"), list):
+        out["raci"] = [(_txt(x.get("assunto"), 160), x.get(quens[0]) or "", x.get(quens[1]) or "")
+                       for x in cfg["raci"] if isinstance(x, dict) and _txt(x.get("assunto"), 160)
+                       and x.get(quens[0], "") in RACI_OK and x.get(quens[1], "") in RACI_OK]
+    out["idx"] = {t["id"]: t for t in out["tarefas"]}
+    out["editada"] = bool(cfg)
+    return out
+
+
 def _hoje():
     return (datetime.now(timezone.utc) - timedelta(hours=3)).date()
 
@@ -291,6 +337,7 @@ class handler(BaseHTTPRequestHandler):
         if not sb: return self._send(503, {"ok": False, "error": "backend"})
         try: data = _kv(sb, un["kv"])
         except Exception as e: return self._send(500, {"ok": False, "error": str(e)})
+        un = efetiva(un, data)
         checks = data.get("checks") or {}
         hoje = _hoje()
         seg = hoje - timedelta(days=hoje.weekday())
@@ -315,6 +362,8 @@ class handler(BaseHTTPRequestHandler):
             "semanas": semanas,
             "eu": {"id": u.get("id"), "socio": (u.get("role") or "") in ("socio", "diretor")},
             "inicio": un["inicio"].isoformat(),
+            "editada": un["editada"], "cads": list(CADS),
+            "config_por": (data.get("config_meta") or {}).get("por"), "config_ts": (data.get("config_meta") or {}).get("ts"),
         })
 
     def do_POST(self):
@@ -325,15 +374,20 @@ class handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(n).decode("utf-8") if n > 0 else "{}")
         except Exception:
             return self._send(400, {"ok": False, "error": "JSON inválido"})
-        if body.get("action") != "check": return self._send(400, {"ok": False, "error": "action inválida"})
+        action = body.get("action")
+        if action not in ("check", "config", "restaurar"): return self._send(400, {"ok": False, "error": "action inválida"})
         unidade = str(body.get("unidade") or "conquista")
         un = UNIDADES.get(unidade)
         if not un: return self._send(400, {"ok": False, "error": "unidade inválida"})
+        if action in ("config", "restaurar"):
+            return self._config(u, body, unidade, un)
+        sb = supabase_client()
+        if not sb: return self._send(503, {"ok": False, "error": "backend"})
+        try: un = efetiva(un, _kv(sb, un["kv"]))
+        except Exception as e: return self._send(500, {"ok": False, "error": str(e)})
         t = un["idx"].get(body.get("item"))
         if not t: return self._send(400, {"ok": False, "error": "tarefa desconhecida"})
         if not _pode_marcar(u, t, unidade): return self._send(403, {"ok": False, "error": "essa tarefa é de outra pessoa"})
-        sb = supabase_client()
-        if not sb: return self._send(503, {"ok": False, "error": "backend"})
         try:
             data = _kv(sb, un["kv"])
             p = periodo(t["cad"], _hoje())
@@ -362,3 +416,30 @@ class handler(BaseHTTPRequestHandler):
         audit(self, u, "rotina.check", target_type=un["kv"], target_id=t["id"],
               notes=f"{p} {'feito' if body.get('feito') else 'desmarcado'}")
         return self._send(200, {"ok": True, "periodo": p})
+
+    def _config(self, u, body, unidade, un):
+        """v89.17 — sócio edita tarefas, papéis/mandato e RACI da rotina (ou restaura o padrão)."""
+        if (u.get("role") or "") not in ("socio", "diretor"):
+            return self._send(403, {"ok": False, "error": "só sócio edita a rotina"})
+        sb = supabase_client()
+        if not sb: return self._send(503, {"ok": False, "error": "backend"})
+        try:
+            data = _kv(sb, un["kv"])
+            if body.get("action") == "restaurar":
+                data.pop("config", None)
+            else:
+                cfg = dict(data.get("config") or {})
+                for k in ("tarefas", "papeis", "raci"):
+                    if k in body: cfg[k] = body[k]
+                ids = [t.get("id") for t in cfg.get("tarefas") or [] if isinstance(t, dict)]
+                if len(ids) != len(set(ids)): return self._send(400, {"ok": False, "error": "tarefa com id repetido"})
+                data["config"] = cfg
+                if not efetiva(un, data)["tarefas"]:
+                    return self._send(400, {"ok": False, "error": "a rotina ficaria sem nenhuma tarefa"})
+            data["config_meta"] = {"por": u.get("name"), "ts": datetime.now(timezone.utc).isoformat()}
+            sb.table("shared_kv").upsert({"key": un["kv"], "value": data, "updated_at": datetime.now(timezone.utc).isoformat()},
+                                         on_conflict="key").execute()
+        except Exception as e:
+            return self._send(500, {"ok": False, "error": str(e)})
+        audit(self, u, "rotina." + body.get("action"), target_type=un["kv"], target_id=unidade)
+        return self._send(200, {"ok": True})
