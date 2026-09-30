@@ -331,6 +331,8 @@ def bate(f, d):
         return False
     if _bate(f, d):
         return True
+    if f.get("feriado_pula"):   # v89.30: bloco que NÃO muda de dia — no feriado simplesmente não acontece
+        return False
     x = d - timedelta(days=1)
     while not dia_util(x):
         if x.weekday() < 5 and _bate(f, x):   # feriado em dia de semana logo antes de d

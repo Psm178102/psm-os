@@ -80,6 +80,7 @@ function baseBate(f, d) {
   if (!diaUtil(d)) return false;
   if (((f.excecoes || {})[ymd(d)] || {}).cancelada) return false;   // v89.25: cancelada só naquele dia
   if (bateBruto(f, d)) return true;
+  if (f.feriado_pula) return false;   // v89.30: no feriado não muda de dia, só não acontece
   const x = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1, 12);
   while (!diaUtil(x)) {
     if (x.getDay() !== 0 && x.getDay() !== 6 && bateBruto(f, x)) return true;
