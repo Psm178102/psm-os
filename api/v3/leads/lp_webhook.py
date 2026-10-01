@@ -64,8 +64,12 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        return self._send(200, {"ok": True, "service": "lp_webhook",
-                                "configured": bool(os.environ.get("HOUSE_WEBHOOK_SECRET"))})
+        # digital = 10 hex do SHA-256 da chave (não revela a chave; serve só p/ conferir se LP e Vercel batem)
+        sec = (os.environ.get("HOUSE_WEBHOOK_SECRET") or "").strip()
+        import hashlib
+        return self._send(200, {"ok": True, "service": "lp_webhook", "configured": bool(sec),
+                                "digital": hashlib.sha256(sec.encode("utf-8")).hexdigest()[:10] if sec else None,
+                                "tamanho": len(sec)})
 
     def do_POST(self):
         secret = (os.environ.get("HOUSE_WEBHOOK_SECRET") or "").strip()
