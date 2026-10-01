@@ -99,6 +99,7 @@ import { pageSimConquista } from './pages/sim-conquista.js';
 import { pagePremiacoes } from './pages/premiacoes.js';
 import { pageAgentes } from './pages/agentes.js';
 import { pageAgentesDiretoria } from './pages/agentes-diretoria.js';   // v87.31: CEO/CFO/CMO + Rede
+import { pageConselho } from './pages/conselho.js';   // v89.31: 🦉 Conselho (6 cadeiras de IA + Mesa + Atas)
 import { pageAgenteVera } from './pages/agente-vera.js';
 import { pageAgenteSol } from './pages/agente-sol.js';
 import { pageIntelHub } from './pages/intel-hub.js';
@@ -183,6 +184,8 @@ export const ROUTE_GROUP = {
   '/pontos-atencao': 'diretoria', '/insights': 'diretoria', '/estrategia': 'diretoria',
   // Agentes Diretoria (v87.31): CEO/CFO/CMO + Rede de Agentes — C-level IA
   '/agentes-diretoria': 'diretoria', '/agente-ceo': 'diretoria', '/agente-cfo': 'diretoria', '/agente-cmo': 'diretoria',
+  // 🦉 Conselho (v89.31): grupo PRÓPRIO, fora de todo ROLE_ALLOWED — só sócio/diretor ('*').
+  '/conselho': 'conselho', '/conselho-jobs': 'conselho', '/conselho-bezos': 'conselho', '/conselho-hormozi': 'conselho', '/conselho-altman': 'conselho', '/conselho-buffett': 'conselho', '/conselho-dalio': 'conselho', '/conselho-atas': 'conselho',
   // 🏯 Morimatsu & Associados (v87.51): grupo PRÓPRIO — escritório de gestão patrimonial do Paulo
   // (leilão/venda direta Caixa → gestão → saída pela PSM). Fora de TODO ROLE_ALLOWED: só sócio/diretor ('*').
   '/morimatsu': 'morimatsu', '/morimatsu-investidores': 'morimatsu', '/morimatsu-honorarios': 'morimatsu',
@@ -303,6 +306,8 @@ export const ROUTE_MIN_LVL = {
   // relatórios do CMO (diretoria/cmo).
   // Abrir pra diretor = baixar pra 8 AQUI e no backend juntos.
   '/agentes-diretoria': 10, '/agente-ceo': 10, '/agente-cfo': 10, '/agente-cmo': 10,
+  // v89.31: 🦉 Conselho — SÓ sócio (espelha a trava de ia/chat [cons_*] e de ia/conselho).
+  '/conselho': 10, '/conselho-jobs': 10, '/conselho-bezos': 10, '/conselho-hormozi': 10, '/conselho-altman': 10, '/conselho-buffett': 10, '/conselho-dalio': 10, '/conselho-atas': 10,
   '/cmo': 10, '/sr-cfo': 10, '/diretoria-ceo': 10,
   // v87.51: 🏯 Morimatsu & Associados — SÓ sócio (honorários, funil de investidor, notas do sócio;
   // espelha o require_user(min_lvl=10) de api/v3/morimatsu/state). Abrir = baixar aqui E no backend.
@@ -541,7 +546,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '89.30';
+const APP_VERSION = '89.31';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -808,6 +813,14 @@ const APP_VERSION = '89.30';
   router.register('/agente-ceo', { render: async (ctx, root) => { setHeader('🎩 CEO PSM');  highlight('/agente-ceo'); await pageAgentesDiretoria(ctx, root, 'ceo'); } });
   router.register('/agente-cfo', { render: async (ctx, root) => { setHeader('💰 Sr. CFO');  highlight('/agente-cfo'); await pageAgentesDiretoria(ctx, root, 'cfo'); } });
   router.register('/agente-cmo', { render: async (ctx, root) => { setHeader('📣 CMO PSM');  highlight('/agente-cmo'); await pageAgentesDiretoria(ctx, root, 'cmo'); } });
+  router.register('/conselho', { render: async (ctx, root) => { setHeader('🦉 Mesa do Conselho'); highlight('/conselho'); await pageConselho(ctx, root, 'mesa'); } });
+  router.register('/conselho-jobs', { render: async (ctx, root) => { setHeader('📦 Jobs · Produto'); highlight('/conselho-jobs'); await pageConselho(ctx, root, 'jobs'); } });
+  router.register('/conselho-bezos', { render: async (ctx, root) => { setHeader('👥 Bezos · Cliente'); highlight('/conselho-bezos'); await pageConselho(ctx, root, 'bezos'); } });
+  router.register('/conselho-hormozi', { render: async (ctx, root) => { setHeader('📊 Hormozi · Monetização'); highlight('/conselho-hormozi'); await pageConselho(ctx, root, 'hormozi'); } });
+  router.register('/conselho-altman', { render: async (ctx, root) => { setHeader('🧠 Altman · Estratégia'); highlight('/conselho-altman'); await pageConselho(ctx, root, 'altman'); } });
+  router.register('/conselho-buffett', { render: async (ctx, root) => { setHeader('💰 Buffett · Capital'); highlight('/conselho-buffett'); await pageConselho(ctx, root, 'buffett'); } });
+  router.register('/conselho-dalio', { render: async (ctx, root) => { setHeader('⚠️ Dalio · Risco'); highlight('/conselho-dalio'); await pageConselho(ctx, root, 'dalio'); } });
+  router.register('/conselho-atas', { render: async (ctx, root) => { setHeader('📜 Atas do Conselho'); highlight('/conselho-atas'); await pageConselho(ctx, root, 'atas'); } });
   router.register('/agente-vera', { render: async (ctx, root) => { setHeader('Agente Vera');         highlight('/agente-vera'); await pageAgenteVera(ctx, root); } });
   router.register('/agente-sol',  { render: async (ctx, root) => { setHeader('Agente Sol');          highlight('/agente-sol'); await pageAgenteSol(ctx, root); } });
   // v88.82: Tendências (manual, 0 registros) aposentada; Benchmark virou aba do Mercado
@@ -1150,6 +1163,21 @@ function shellHTML(user) {
 <!-- v87.14: Anúncios dos Concorrentes e Intel Ads viraram ABAS de 🥊 Concorrência (seção Inteligência) -->
         <button class="sb-link" data-nav="/sim-leads"><span class="sb-ico">📈</span> Simulador Leads/CAC</button>
         <button class="sb-link" data-nav="/sim-trafego"><span class="sb-ico">📣</span> Simulador de Tráfego</button>
+
+<!-- v89.31: 🦉 CONSELHO — menu PRÓPRIO, antes da Diretoria (pedido do Paulo, 30/set): conselho
+     consultivo de IA com 6 cadeiras inspiradas em referências de negócio. A Mesa leva uma pauta a
+     todos e fecha a ata; cada cadeira também conversa sozinha. Só sócio (contexto = caixa e plano). -->
+        <div class="sb-sec">🦉 Conselho</div>
+        <button class="sb-link" data-nav="/conselho"><span class="sb-ico">🏛</span> Mesa do Conselho</button>
+        <div class="sb-subsec">Conselheiros</div>
+        <button class="sb-link" data-nav="/conselho-jobs"><span class="sb-ico">📦</span> Jobs · Produto</button>
+        <button class="sb-link" data-nav="/conselho-bezos"><span class="sb-ico">👥</span> Bezos · Cliente</button>
+        <button class="sb-link" data-nav="/conselho-hormozi"><span class="sb-ico">📊</span> Hormozi · Monetização</button>
+        <button class="sb-link" data-nav="/conselho-altman"><span class="sb-ico">🧠</span> Altman · Estratégia</button>
+        <button class="sb-link" data-nav="/conselho-buffett"><span class="sb-ico">💰</span> Buffett · Capital</button>
+        <button class="sb-link" data-nav="/conselho-dalio"><span class="sb-ico">⚠️</span> Dalio · Risco</button>
+        <div class="sb-subsec">Registro</div>
+        <button class="sb-link" data-nav="/conselho-atas"><span class="sb-ico">📜</span> Atas do Conselho</button>
 
         <div class="sb-sec">🏛 Diretoria</div>
 <!-- v88.12: Diretoria reorganizada pelo ciclo de gestão (pedido do Paulo, 23/set: "menu
