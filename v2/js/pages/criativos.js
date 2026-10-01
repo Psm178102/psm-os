@@ -33,6 +33,7 @@ const _boardLib = 'criativos_lib';   // biblioteca de DOWNLOAD (criativos pronto
 let _lib = [];
 let _fLibFmt = '';
 let _fLibStatus = '';
+let _fLibMes = '';              // v89.34: filtro por mês da campanha (AAAA-MM)
 // Categoria/equipe do criativo de download — guardada na coluna `plataforma` do card
 // (livre p/ este board). Abas: MAP+Terceiros / Locação / Conquista. v81.61
 const LIB_CATS = ['Conquista', 'MAP+Terceiros', 'Locação'];
@@ -393,6 +394,10 @@ const driveEmbed = id => id ? `https://drive.google.com/file/d/${id}/preview` : 
 const driveDownload = id => id ? `https://drive.google.com/uc?export=download&id=${id}` : '';
 const driveView = (url, id) => id ? `https://drive.google.com/file/d/${id}/view` : (url || '#');
 const isAtivo = c => (c.status || 'ativo') !== 'inativo';
+// v89.34: mês do criativo = data_ref (mês da campanha, editável) ou, na falta, o mês em que foi anexado
+const libMes = c => String(c.data_ref || c.created_at || '').slice(0, 7);
+const MES_NOME = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+const mesLabel = ym => { const m = /^(\d{4})-(\d{2})$/.exec(ym || ''); return m ? `${MES_NOME[+m[2] - 1] || m[2]} ${m[1]}` : 'Sem mês'; };
 
 async function loadLib() {
   body().innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando biblioteca…</div></div>';
@@ -415,6 +420,7 @@ function libFiltered() {
     if (conquista) { if (cat !== 'Conquista') return false; }
     else if (cat !== _libCat && cat !== '') return false;
     return (_fLibFmt === '' || (c.formato || '') === _fLibFmt) &&
+      (_fLibMes === '' || libMes(c) === _fLibMes) &&
       (_fLibStatus === '' || (isAtivo(c) ? 'ativo' : 'inativo') === _fLibStatus);
   });
 }
@@ -422,8 +428,26 @@ function libFiltered() {
 function renderDownload() {
   const cats = _isConquista() ? ['Conquista'] : LIB_CATS;   // Conquista vê só a aba Conquista
   if (!cats.includes(_libCat)) _libCat = cats[0];
+  // meses existentes na aba atual (pra montar o filtro), do mais novo pro mais antigo
+  const meses = [...new Set(_lib.filter(c => (c.plataforma || '') === _libCat || (!_isConquista() && (c.plataforma || '') === '')).map(libMes).filter(Boolean))].sort().reverse();
+  if (_fLibMes && !meses.includes(_fLibMes)) _fLibMes = '';
   const list = libFiltered();
   const nAtivos = list.filter(isAtivo).length;
+  // agrupa por mês (mais novo primeiro); dentro do mês, ativos antes dos inativos
+  const grupos = {};
+  list.forEach(c => { (grupos[libMes(c)] = grupos[libMes(c)] || []).push(c); });
+  const ordemMes = Object.keys(grupos).sort().reverse();
+  const gridMes = ym => {
+    const itens = grupos[ym].slice().sort((a, b) => (isAtivo(b) - isAtivo(a)) || String(a.titulo || '').localeCompare(String(b.titulo || ''), 'pt-BR'));
+    const at = itens.filter(isAtivo).length;
+    return `<div style="margin-bottom:22px">
+      <div class="flex items-center gap-2" style="margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)">
+        <div style="font-size:15px;font-weight:600">📅 ${esc(mesLabel(ym))}</div>
+        <span class="tiny muted">${itens.length} criativo(s) · ${at} ativo(s)${itens.length - at ? ` · ${itens.length - at} inativo(s)` : ''}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px">${itens.map(libCard).join('')}</div>
+    </div>`;
+  };
   body().innerHTML = `
     <div class="flex items-center" style="justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
       <div>
@@ -438,13 +462,15 @@ function renderDownload() {
     <div class="flex gap-2" style="flex-wrap:wrap;align-items:flex-end;margin-bottom:14px">
       <div><label class="tiny muted">Formato</label>
         <select id="lib-ffmt" class="select"><option value="">Todos os formatos</option>${TIPOS.map(t => `<option value="${esc(t)}"${_fLibFmt === t ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></div>
+      <div><label class="tiny muted">Mês</label>
+        <select id="lib-fmes" class="select"><option value="">Todos os meses</option>${meses.map(m => `<option value="${esc(m)}"${_fLibMes === m ? ' selected' : ''}>${esc(mesLabel(m))}</option>`).join('')}</select></div>
       <div><label class="tiny muted">Status em campanha</label>
         <select id="lib-fstatus" class="select"><option value="">Todos</option><option value="ativo"${_fLibStatus === 'ativo' ? ' selected' : ''}>🟢 Ativos</option><option value="inativo"${_fLibStatus === 'inativo' ? ' selected' : ''}>⚪ Inativos</option></select></div>
       <span class="tiny muted" style="margin-left:auto;align-self:center">${_lib.length} criativo(s) · ${nAtivos} ativo(s)</span>
     </div>
     ${!list.length
       ? `<div class="card muted tiny" style="text-align:center;padding:34px">${_lib.length ? 'Nenhum criativo com esse filtro.' : 'Biblioteca vazia.' + (_canEdit ? ' Clique em <b>+ Anexar criativo</b> e cole o link do Drive.' : ' O marketing ainda não anexou criativos.')}</div>`
-      : `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px">${list.map(libCard).join('')}</div>`}`;
+      : ordemMes.map(gridMes).join('')}`;
   bindDownload();
 }
 
@@ -487,6 +513,7 @@ function bindDownload() {
   body().querySelectorAll('[data-libcat]').forEach(b => b.onclick = () => { _libCat = b.dataset.libcat; renderDownload(); });
   const ff = body().querySelector('#lib-ffmt'); if (ff) ff.onchange = () => { _fLibFmt = ff.value; renderDownload(); };
   const fs = body().querySelector('#lib-fstatus'); if (fs) fs.onchange = () => { _fLibStatus = fs.value; renderDownload(); };
+  const fm = body().querySelector('#lib-fmes'); if (fm) fm.onchange = () => { _fLibMes = fm.value; renderDownload(); };
   const nw = body().querySelector('#lib-new'); if (nw) nw.onclick = () => openLibEditor(null);
   body().querySelectorAll('.lib-edit').forEach(b => b.onclick = e => { e.stopPropagation(); openLibEditor(_lib.find(c => c.id === b.dataset.id)); });
 }
@@ -513,6 +540,8 @@ function openLibEditor(c0) {
         <div style="flex:1"><label class="tiny muted">Status em campanha</label>
           <select id="lb-status" class="select"><option value="ativo"${isAtivo(c) ? ' selected' : ''}>🟢 Ativo</option><option value="inativo"${!isAtivo(c) ? ' selected' : ''}>⚪ Inativo</option></select></div>
       </div>
+      <label class="tiny muted">Mês da campanha — define em qual mês o criativo aparece</label>
+      <input id="lb-mes" type="month" class="input" value="${esc(libMes(c) || new Date().toISOString().slice(0, 7))}" style="margin-bottom:10px">
       <label class="tiny muted">Categoria (equipe) — define em qual aba aparece</label>
       <select id="lb-cat" class="select" style="margin-bottom:10px"><option value="">— sem categoria (aparece em todas) —</option>${LIB_CATS.map(cat => `<option value="${esc(cat)}"${(c.plataforma || '') === cat ? ' selected' : ''}>${esc(cat)}</option>`).join('')}</select>
       <label class="tiny muted">🔗 Link do <b>ARQUIVO</b> no Google Drive *</label>
@@ -533,7 +562,8 @@ function openLibEditor(c0) {
     const titulo = ov.querySelector('#lb-titulo').value.trim();
     const link = ov.querySelector('#lb-link').value.trim();
     if (!titulo) { ov.querySelector('#lb-titulo').focus(); return; }
-    const payload = { action: 'upsert', board: _boardLib, id: c.id || undefined, titulo, formato: ov.querySelector('#lb-fmt').value, status: ov.querySelector('#lb-status').value, link, plataforma: ov.querySelector('#lb-cat').value };
+    const payload = { action: 'upsert', board: _boardLib, id: c.id || undefined, titulo, formato: ov.querySelector('#lb-fmt').value, status: ov.querySelector('#lb-status').value, link, plataforma: ov.querySelector('#lb-cat').value,
+      data_ref: (ov.querySelector('#lb-mes').value || new Date().toISOString().slice(0, 7)) + '-01' };
     ov.querySelector('#lb-save').disabled = true;
     try { await api.request('/api/v3/paulo/cards', { method: 'POST', body: payload }); ov.remove(); await loadLib(); }
     catch (e) { alert('Erro ao salvar: ' + e.message); ov.querySelector('#lb-save').disabled = false; }
