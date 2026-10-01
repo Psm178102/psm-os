@@ -114,7 +114,7 @@ export async function pageConselho(ctx, root, preset) {
     if (!_st.mesa || !Array.isArray(_st.mesa.rodadas)) _st.mesa = mesaNova();
     // rodada que ficou "pensando" numa sessão anterior não volta: vira falha visível
     _st.mesa.rodadas.forEach(r => {
-      Object.values(r.pareceres || {}).forEach(p => { if (p.status === 'pensando') { p.status = 'erro'; p.txt = 'A página foi fechada antes da resposta.'; } });
+      Object.values(r.pareceres || {}).forEach(p => { if (p.status === 'pensando' || p.status === 'fila') { p.status = 'erro'; p.txt = 'A página foi fechada antes da resposta.'; } });
       if (r.sintese && r.sintese.status === 'pensando') { r.sintese.status = 'erro'; r.sintese.txt = 'A página foi fechada antes da ata.'; }
     });
   }
@@ -197,7 +197,7 @@ function renderMesa() {
         </div>
         <div class="flex gap-2" style="margin-top:14px;align-items:center;flex-wrap:wrap">
           <button class="btn btn-primary" id="mesa-convocar">Convocar o conselho</button>
-          <span class="tiny muted">${m.ativos.length} conselheiro(s) · leva cerca de 1 minuto</span>
+          <span class="tiny muted">${m.ativos.length} conselheiro(s) · falam um de cada vez, leva de 1 a 2 minutos</span>
         </div>
         <div class="tiny muted" style="margin:16px 0 6px">Ou comece por uma destas</div>
         <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start">
@@ -280,7 +280,9 @@ function parecerCard(c, p, i) {
         </div>
         ${p.status === 'ok' && cor.lbl ? `<span style="margin-left:auto;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:${cor.cor}22;color:${cor.cor};white-space:nowrap">${cor.lbl}</span>` : ''}
       </div>
-      ${p.status === 'pensando'
+      ${p.status === 'fila'
+        ? '<div class="muted tiny">aguardando a vez…</div>'
+        : p.status === 'pensando'
         ? '<div class="muted tiny"><span class="spinner"></span> analisando os dados…</div>'
         : p.status === 'erro'
           ? `<div class="tiny" style="color:var(--err)">⚠ ${esc(p.txt)}</div><button class="btn btn-ghost tiny" data-retry="${c.id}" data-rodada="${i}" style="margin-top:8px">Tentar de novo</button>`
@@ -299,15 +301,21 @@ function veredito(txt) {
   return { cor: 'var(--bd)', lbl: '' };
 }
 
+const limite = e => /429|too many|quota|rate|sem resposta|nenhum provider|50[234]/i.test(String(e && e.message || e));
+const erroAmigavel = e => limite(e)
+  ? 'A IA está no limite de chamadas por minuto. Espere 1 minuto e toque em "Tentar de novo".'
+  : (e && e.message) || 'falha';
+
 async function chamar(agent, messages) {
+  const esperas = [12000, 25000];   // limite por minuto do provedor: espera e tenta de novo
   let ultimo;
-  for (let t = 0; t < 2; t++) {   // 1 nova tentativa: 6 chamadas em paralelo às vezes batem no limite do provedor
+  for (let t = 0; t <= esperas.length; t++) {
     try {
       const r = await api.request('/api/v3/ia/chat', { method: 'POST', body: { agent, messages } });
       if (r && r.reply) return r.reply;
       ultimo = new Error('sem resposta');
-    } catch (e) { ultimo = e; }
-    if (t === 0) await new Promise(ok => setTimeout(ok, 2500));
+    } catch (e) { ultimo = e; if (!limite(e)) break; }
+    if (t < esperas.length) await new Promise(ok => setTimeout(ok, esperas[t]));
   }
   throw ultimo || new Error('falha');
 }
@@ -328,13 +336,15 @@ async function convocar(texto) {
   const n = m.rodadas.length;
   if (n === 0) m.pauta = pergunta;
   const rodada = { pergunta, pareceres: {}, sintese: null };
-  m.ativos.forEach(id => { rodada.pareceres[id] = { status: 'pensando', txt: '' }; });
+  m.ativos.forEach(id => { rodada.pareceres[id] = { status: 'fila', txt: '' }; });
   m.rodadas.push(rodada);
   _st.busy = true;
   saveMesa(); renderBody();
 
   const prompt = promptRodada(m, pergunta, n);
-  await Promise.all(m.ativos.map(id => parecer(m, rodada, id, prompt)));
+  // Um por vez, de propósito: o provedor de IA limita chamadas por minuto e 6 em
+  // paralelo estouravam o limite (429) — metade da mesa voltava com erro.
+  for (const id of m.ativos) await parecer(m, rodada, id, prompt);
   await fecharAta(m, rodada, n);
   _st.busy = false;
   saveMesa();
@@ -346,13 +356,15 @@ async function parecer(m, rodada, id, prompt) {
   const c = byId(id);
   const th = (m.threads[id] = m.threads[id] || []);
   th.push({ role: 'user', content: prompt });
+  rodada.pareceres[id] = { status: 'pensando', txt: '' };
+  if (_st.mesa === m && _st.tab === 'mesa') renderBody();
   try {
     const txt = await chamar(c.agent, th.slice(-12));
     th.push({ role: 'assistant', content: txt });
     rodada.pareceres[id] = { status: 'ok', txt };
   } catch (e) {
     th.pop();   // a pergunta sem resposta sai do fio, senão a próxima rodada manda 2 turnos seguidos do usuário
-    rodada.pareceres[id] = { status: 'erro', txt: e.message || 'falha' };
+    rodada.pareceres[id] = { status: 'erro', txt: erroAmigavel(e) };
   }
   saveMesa();
   if (_st.mesa === m && _st.tab === 'mesa') renderBody();
@@ -372,7 +384,7 @@ async function fecharAta(m, rodada, n) {
   try {
     rodada.sintese = { status: 'ok', txt: await chamar('cons_mesa', [{ role: 'user', content: msg }]) };
   } catch (e) {
-    rodada.sintese = { status: 'erro', txt: e.message || 'falha ao fechar a ata' };
+    rodada.sintese = { status: 'erro', txt: erroAmigavel(e) };
   }
 }
 
@@ -382,8 +394,6 @@ async function refazer(i, quem) {
   if (!rodada) return;
   _st.busy = true;
   if (quem !== 'mesa') {
-    rodada.pareceres[quem] = { status: 'pensando', txt: '' };
-    renderBody();
     await parecer(m, rodada, quem, promptRodada(m, rodada.pergunta, i));
   }
   await fecharAta(m, rodada, i);

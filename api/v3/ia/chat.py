@@ -586,7 +586,7 @@ for _k, (_nome, _ico, _cad, _ref, _lente) in _CONSELHEIROS.items():
         "name": f"{_nome} · {_cad}", "ico": _ico,
         "tagline": f"Conselho PSM — cadeira de {_cad} (IA inspirada nos princípios públicos de {_ref})",
         "system": _cons_system(_ref, _cad, _lente),
-        "primary": "gemini", "max_tokens": 2200,
+        "primary": "gemini", "max_tokens": 8000,   # folga: o raciocínio do Gemini 2.5 gasta do mesmo limite e cortava o parecer no meio
     }
 AGENTS["cons_mesa"] = {
     "name": "Presidente da Mesa", "ico": "⚖️",
@@ -612,7 +612,7 @@ AGENTS["cons_mesa"] = {
         "der.\n"
         "Máximo de 280 palavras."
     ),
-    "primary": "gemini", "max_tokens": 2600,
+    "primary": "gemini", "max_tokens": 8000,
 }
 CONSELHO = set(_CONSELHEIROS) | {"cons_mesa"}
 
