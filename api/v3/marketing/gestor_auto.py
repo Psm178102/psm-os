@@ -51,6 +51,9 @@ AUTONOMIA_DEFAULT = {
     "queima_sem_lead": {"conquista": 40.0, "imoveis": 150.0},
     "cpl_alvo": {"conquista": 12.0, "imoveis": 60.0},
     "cpl_max": {"conquista": 18.0, "imoveis": 110.0},
+    # v89.35: teto do custo por lead DO RAIO (DDD 17) = CPL ÷ (1 − %fora). Regra do Paulo 02/10:
+    # Conquista lead geral ~R$14 e lead do 17 até R$25. 0 = desligado (Imóveis ainda sem régua).
+    "cpl17_max": {"conquista": 25.0, "imoveis": 0},
     "fora_max_pct": 25.0,
     "campanhas_limite": {"dia": 1, "semana": 3, "mes": 6},   # usado na fase 4 (criar campanha)
 }
@@ -93,6 +96,7 @@ def planejar(marcas, aut, orc_mes, dias_rest, qual_cod, guard):
         maxc = float(aut["cpl_max"].get(marca) or 0) or None
         queima = float(aut["queima_sem_lead"].get(marca) or 0) or None
         fora_max = float(aut.get("fora_max_pct") or 25)
+        c17max = float((aut.get("cpl17_max") or {}).get(marca) or 0) or None
         camps = m.get("camps") or []
 
         def fora(c):
@@ -101,6 +105,12 @@ def planejar(marcas, aut, orc_mes, dias_rest, qual_cod, guard):
         def cpl3(c):
             d = c.get("d3") or {}
             return (d.get("spend") or 0) / d["leads"] if d.get("leads") else None
+
+        def cpl17(c):
+            v, f = cpl3(c), fora(c)
+            if v is None or f is None:
+                return None
+            return v / (1 - f / 100) if f < 100 else float("inf")
 
         # R1 — queima sem lead hoje → pausa (teste em aprendizado: só no dobro do limite)
         pausadas = set()
@@ -152,7 +162,8 @@ def planejar(marcas, aut, orc_mes, dias_rest, qual_cod, guard):
                 folga = cabe_dia - soma
                 boas = [c for c in vivos
                         if (c.get("d3") or {}).get("leads", 0) >= 3 and cpl3(c) is not None and cpl3(c) <= alvo
-                        and (fora(c) is None or fora(c) <= fora_max)]
+                        and (fora(c) is None or fora(c) <= fora_max)
+                        and (not c17max or cpl17(c) is None or cpl17(c) <= c17max)]
                 for c in sorted(boas, key=pior):
                     for h in c.get("holders") or []:
                         if folga <= 0.5:
@@ -169,15 +180,25 @@ def planejar(marcas, aut, orc_mes, dias_rest, qual_cod, guard):
                         mexidos.add(h["id"])
                         folga -= aum
 
-        # R2 — CPL de 3 dias acima do máximo → −20%
-        if maxc:
+        # R2 — CPL de 3 dias acima do máximo (ou lead do raio acima do teto) → −20%
+        if maxc or c17max:
             for c in vivos:
                 if c.get("teste"):
                     continue          # CPL de 3 dias não vale pra quem ainda está aprendendo
                 v = cpl3(c)
                 gasto3 = (c.get("d3") or {}).get("spend") or 0
-                if v is None or v <= maxc or gasto3 < 2 * maxc:
+                if v is None:
                     continue
+                v17 = cpl17(c)
+                estourou_geral = bool(maxc) and v > maxc and gasto3 >= 2 * maxc
+                estourou_17 = bool(c17max) and v17 is not None and v17 > c17max and gasto3 >= 2 * c17max
+                if not (estourou_geral or estourou_17):
+                    continue
+                if estourou_geral:
+                    motivo = f"CPL dos últimos 3 dias em R$ {v:.2f}, acima do máximo de R$ {maxc:.0f}"
+                else:
+                    motivo = (f"lead do DDD 17 custando R$ {v17:.2f} nos últimos 3 dias (CPL R$ {v:.2f} com "
+                              f"{fora(c):.0f}% fora do raio), acima do teto de R$ {c17max:.0f}")
                 for h in c.get("holders") or []:
                     if h["id"] in mexidos:
                         continue
@@ -186,8 +207,7 @@ def planejar(marcas, aut, orc_mes, dias_rest, qual_cod, guard):
                         continue
                     acoes.append({"regra": "R2", "marca": marca, "op": "budget", "tipo": h["tipo"],
                                   "alvo": h["id"], "nome": c.get("nome"), "antes": round(h["daily"], 2),
-                                  "depois": novo,
-                                  "motivo": f"CPL dos últimos 3 dias em R$ {v:.2f}, acima do máximo de R$ {maxc:.0f}"})
+                                  "depois": novo, "motivo": motivo})
                     mexidos.add(h["id"])
     ordem = {"R1": 0, "R3": 1, "R2": 2, "R4": 3}
     return sorted(acoes, key=lambda a: ordem.get(a["regra"], 9))
