@@ -541,7 +541,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '89.35';
+const APP_VERSION = '89.36';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -1075,6 +1075,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/meu-cerebro"><span class="sb-ico">🎯</span> Meu Cérebro de Vendas</button>
 
         <div class="sb-sec">🏘 Imóveis & Vendas</div>
+        <button class="sb-link" data-nav="/rh-treinamentos"><span class="sb-ico">🎓</span> Treinamentos</button>
         <button class="sb-link" data-nav="/oportunidades"><span class="sb-ico">💡</span> Oportunidades</button>
         <button class="sb-link" data-nav="/proposta"><span class="sb-ico">📑</span> Apresentação comercial</button>
         <button class="sb-link" data-nav="/scripts"><span class="sb-ico">🧭</span> Playbook da Venda</button>
@@ -1115,7 +1116,6 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/manutencoes"><span class="sb-ico">🛠</span> Manutenções</button>
 
         <div class="sb-sec">🧑‍💼 Gestão de Pessoas & RH</div>
-        <button class="sb-link" data-nav="/rh-treinamentos"><span class="sb-ico">🎓</span> Treinamentos</button>
         <button class="sb-link" data-nav="/onboarding"><span class="sb-ico">🚀</span> Onboarding</button>
         <button class="sb-link" data-nav="/offboarding"><span class="sb-ico">👋</span> Offboarding</button>
         <button class="sb-link" data-nav="/rh-recrutamento"><span class="sb-ico">🧲</span> Recrutamento & Seleção</button>
