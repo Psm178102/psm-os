@@ -280,6 +280,7 @@ function cardHTML(t) {
       ${wa ? `<a class="btn btn-ghost btn-sm" href="${wa}" target="_blank" rel="noopener" title="WhatsApp" onclick="event.stopPropagation()">💬</a>` : ''}
       ${ln ? `<a class="btn btn-ghost btn-sm" href="${esc(ln)}" target="_blank" rel="noopener" title="LinkedIn" onclick="event.stopPropagation()">in</a>` : ''}
       ${cv ? `<a class="btn btn-ghost btn-sm" href="${esc(cv)}" target="_blank" rel="noopener" title="Currículo" onclick="event.stopPropagation()">📄</a>` : ''}
+      ${(t.documentos || []).length ? `<span class="tiny muted" title="Documentos anexados na ficha">📎${t.documentos.length}</span>` : ''}
       <select class="select tal-move" data-id="${t.id}" title="Mover de etapa" style="margin-left:auto;font-size:11px;padding:2px;max-width:118px" onclick="event.stopPropagation()">
         ${ETAPAS.map(e => `<option value="${esc(e)}"${(t.etapa || 'Triagem') === e ? ' selected' : ''}>${esc(e)}</option>`).join('')}
       </select>
@@ -449,6 +450,8 @@ function renderDetail(e) {
       ${fArea('tal-experiencia', 'Experiência', e.experiencia, 'Tempo de mercado, onde trabalhou, resultados…', 2)}
     `)}
 
+    ${sec('📎 Documentação do candidato', docsHTML(e))}
+
     ${sec('🗣 Entrevista & perfil comportamental', `
       ${fArea('tal-feedback', 'Feedback da entrevista', e.feedback_entrevista, 'Como foi, pontos fortes, atenção, fit cultural…', 3)}
       ${fArea('tal-perfil', 'Perfil comportamental (após entrevista)', e.perfil_comportamental, `DISC: ${DISC.join(' · ')} — descreva o perfil, âncoras, motivadores…`, 2)}
@@ -496,6 +499,98 @@ function renderDetail(e) {
   `;
 }
 
+/* Documentação do candidato (v89.35). Arquivos ficam em pasta PRIVADA: cada
+   "Abrir" pede ao backend um link que vale 5 min. Sobe na hora (não depende do
+   "Salvar ficha"); por isso só aparece em ficha que já existe. */
+const DOC_TIPOS = ['RG / CNH', 'CPF', 'Comprovante de residência', 'CRECI', 'Currículo', 'Certidão', 'Carteira de trabalho', 'Diploma / Certificado', 'Dados bancários', 'Contrato assinado', 'Outro'];
+const DOC_MAX = 3 * 1024 * 1024;
+const docTam = n => !n ? '' : n < 1024 * 1024 ? Math.max(1, Math.round(n / 1024)) + ' KB' : (n / 1024 / 1024).toFixed(1).replace('.', ',') + ' MB';
+
+function docsHTML(e) {
+  if (!e.id) return '<div class="tiny muted">Crie o candidato primeiro — depois é só abrir a ficha e anexar os documentos aqui.</div>';
+  const docs = Array.isArray(e.documentos) ? e.documentos : [];
+  return `
+    ${docs.length ? `<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">${docs.map(d => `
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;border:1px solid var(--bd);border-radius:var(--radius-md);padding:7px 9px;background:var(--bg-3)">
+        <span>${/^image\//.test(d.mime || '') ? '🖼' : '📄'}</span>
+        <div style="min-width:0;flex:1">
+          <div style="font-size:12px"><b>${esc(d.tipo || 'Documento')}</b> · <span style="word-break:break-all">${esc(d.nome || '')}</span></div>
+          <div class="tiny muted">${[docTam(d.size), d.by ? 'por ' + esc(d.by) : '', d.at ? new Date(d.at).toLocaleDateString('pt-BR') : ''].filter(Boolean).join(' · ')}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm tal-doc-abrir" type="button" data-doc="${esc(d.id)}">Abrir</button>
+        <button class="btn btn-ghost btn-sm tal-doc-del" type="button" data-doc="${esc(d.id)}" style="color:var(--err)" title="Excluir documento">🗑️</button>
+      </div>`).join('')}</div>` : '<div class="tiny muted" style="margin-bottom:8px">Nenhum documento anexado ainda.</div>'}
+    <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+      <label class="tiny muted" style="min-width:185px">Tipo do documento<select id="tal-doc-tipo" class="select">${DOC_TIPOS.map(o => `<option>${esc(o)}</option>`).join('')}</select></label>
+      <button class="btn btn-primary btn-sm" id="tal-doc-add" type="button">📎 Anexar arquivo</button>
+      <input id="tal-doc-file" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.doc,.docx" style="display:none">
+      <span class="tiny muted" id="tal-doc-msg"></span>
+    </div>
+    <div class="tiny muted" style="margin-top:6px">PDF, foto ou Word, até 3 MB cada (foto maior é reduzida sozinha). Pode escolher vários de uma vez. Só quem tem acesso ao Recrutamento consegue abrir.</div>`;
+}
+
+const _fileToB64 = file => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(file); });
+
+/* Foto de celular passa fácil de 3 MB: reduz pra 2000 px / JPEG antes de subir. */
+async function _encolherFoto(file) {
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size <= 1024 * 1024) return file;
+  try {
+    const img = await createImageBitmap(file);
+    const k = Math.min(1, 2000 / Math.max(img.width, img.height));
+    const cv = document.createElement('canvas'); cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+    cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+    const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.85));
+    if (!blob || blob.size >= file.size) return file;
+    return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+  } catch (_) { return file; }
+}
+
+async function enviarDocs(input) {
+  const files = Array.from(input.files || []); input.value = '';
+  if (!files.length || !_editing?.id) return;
+  const tipo = document.getElementById('tal-doc-tipo')?.value || 'Outro';
+  const msg = t => { const m = document.getElementById('tal-doc-msg'); if (m) m.textContent = t; };
+  const btn = document.getElementById('tal-doc-add'); if (btn) btn.disabled = true;
+  const erros = []; let ok = 0;
+  for (let i = 0; i < files.length; i++) {
+    msg(`⏳ enviando ${i + 1} de ${files.length}…`);
+    try {
+      const f = await _encolherFoto(files[i]);
+      if (f.size > DOC_MAX) { erros.push(`${files[i].name}: acima de 3 MB`); continue; }
+      const r = await api.request('/api/v3/gp/talentos', { method: 'POST', body: { action: 'doc_upload', id: _editing.id, tipo, filename: f.name, content_b64: await _fileToB64(f) } });
+      _editing.documentos = r.documentos || _editing.documentos || []; ok++;
+    } catch (err) { erros.push(`${files[i].name}: ${err.message}`); }
+  }
+  _docsAtualizou();
+  if (erros.length) alert((ok ? `${ok} arquivo(s) anexado(s).\n\n` : '') + 'Não subiu:\n• ' + erros.join('\n• '));
+}
+
+function _docsAtualizou() {
+  const t = _talentos.find(x => x.id === _editing.id); if (t) t.documentos = _editing.documentos;
+  captureDetail();   // preserva edições não salvas da ficha
+  renderManual();
+}
+
+async function abrirDoc(docId, btn) {
+  const w = window.open('', '_blank');   // abre já no clique (senão o navegador bloqueia o pop-up)
+  if (btn) btn.disabled = true;
+  try {
+    const r = await api.request('/api/v3/gp/talentos', { method: 'POST', body: { action: 'doc_link', id: _editing.id, doc_id: docId } });
+    if (w) w.location = r.url; else location.href = r.url;
+  } catch (err) { if (w) w.close(); alert('Erro ao abrir: ' + err.message); }
+  if (btn) btn.disabled = false;
+}
+
+async function excluirDoc(docId) {
+  const d = (_editing.documentos || []).find(x => x.id === docId);
+  if (!confirm(`Excluir o documento "${d?.nome || ''}"?\n\nO arquivo é apagado de vez.`)) return;
+  try {
+    const r = await api.request('/api/v3/gp/talentos', { method: 'POST', body: { action: 'doc_del', id: _editing.id, doc_id: docId } });
+    _editing.documentos = r.documentos || [];
+    _docsAtualizou();
+  } catch (err) { alert('Erro ao excluir: ' + err.message); }
+}
+
 /* Painel das CNDs na ficha (v86.56). Quando existe dossiê, o campo "situação"
    vira ESPELHO (só leitura): quem manda é o dossiê, e o backend o atualiza a
    cada certidão marcada. Sem dossiê, segue o texto livre de antes. */
@@ -539,7 +634,7 @@ async function criarDossieCnd() {
     // salva a ficha ANTES: se o CPF acabou de ser digitado aqui, o dossiê já
     // nasce com ele (é o campo que a emissão realmente precisa).
     const payload = { ..._editing, id: _editing.id, origem: _editing.origem || 'manual' };
-    delete payload.avaliacoes; delete payload.historico; delete payload.cnd_dossie;
+    delete payload.avaliacoes; delete payload.historico; delete payload.cnd_dossie; delete payload.documentos;
     await api.request('/api/v3/gp/talentos', { method: 'POST', body: payload });
     const r = await api.request('/api/v3/juridico/dossies', { method: 'POST', body: { action: 'from_talento', talento_id: _editing.id } });
     if (r.ja_existia) alert('📁 Este candidato já tinha dossiê — abrindo o que existe.');
@@ -574,6 +669,13 @@ function bindDetail() {
   if (avAdd) avAdd.addEventListener('click', addAvaliacao);
   const cndNovo = document.getElementById('tal-cnd-novo');
   if (cndNovo) cndNovo.addEventListener('click', criarDossieCnd);
+  const docFile = document.getElementById('tal-doc-file');
+  if (docFile) {
+    document.getElementById('tal-doc-add').addEventListener('click', () => docFile.click());
+    docFile.addEventListener('change', () => enviarDocs(docFile));
+  }
+  document.querySelectorAll('.tal-doc-abrir').forEach(b => b.addEventListener('click', () => abrirDoc(b.dataset.doc, b)));
+  document.querySelectorAll('.tal-doc-del').forEach(b => b.addEventListener('click', () => excluirDoc(b.dataset.doc)));
 }
 
 function captureDetail() {
@@ -608,6 +710,7 @@ async function saveDetail(contratar) {
   const payload = { ...(_editing.id ? { id: _editing.id } : {}), ..._editing, origem: _editing.origem || 'manual' };
   delete payload.avaliacoes; delete payload.historico;   // gerenciados pelo backend
   delete payload.cnd_dossie;                             // só leitura (vem do módulo CND's)
+  delete payload.documentos;                             // anexos: geridos pelas actions doc_*
   try {
     await api.request('/api/v3/gp/talentos', { method: 'POST', body: payload });
     _editing = null;

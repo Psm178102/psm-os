@@ -5,7 +5,7 @@ POST:   upsert (lvl>=5)
 DELETE: ?id=X (lvl>=5)
 """
 from http.server import BaseHTTPRequestHandler
-import json, os, re, sys, urllib.parse
+import base64, json, os, re, sys, urllib.parse
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -92,6 +92,38 @@ def _anexar_cnd(sb, rows):
         }
 
 
+# ── v89.35: documentação do candidato (anexos da ficha) ──
+# Bucket PRIVADO: RG, CPF, comprovante… são dado pessoal — nada de URL pública.
+# O arquivo só abre por link assinado de 5 min, pedido por quem passa no _gate.
+DOC_BUCKET = "talentos-docs"
+DOC_MAX_BYTES = 3_200_000   # o corpo do Vercel corta em ~4,5 MB e o base64 infla 33%
+DOC_MAX_POR_FICHA = 40
+DOC_MIME = {
+    "pdf": "application/pdf", "png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
+    "webp": "image/webp", "heic": "image/heic",
+    "doc": "application/msword",
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
+
+
+def _doc_nome(name):
+    name = (name or "arquivo").strip().replace(" ", "_")
+    name = re.sub(r"[^A-Za-z0-9._-]", "", name) or "arquivo"
+    return name[-80:]
+
+
+def _docs_da_ficha(sb, tid):
+    """(lista de documentos, ficha existe?). Erro de coluna ausente sobe pra quem chamou."""
+    cur = sb.table("gp_talentos").select("documentos").eq("id", tid).limit(1).execute().data or []
+    if not cur:
+        return [], False
+    docs = cur[0].get("documentos") or []
+    if isinstance(docs, str):
+        try: docs = json.loads(docs)
+        except Exception: docs = []
+    return (docs if isinstance(docs, list) else []), True
+
+
 class handler(BaseHTTPRequestHandler):
     def _send(self, s, b):
         self.send_response(s); self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -132,6 +164,12 @@ class handler(BaseHTTPRequestHandler):
             return self._mover(sb, actor, body)
         if action == "rd_sync":
             return self._rd_sync(sb)
+        if action == "doc_upload":
+            return self._doc_upload(sb, actor, body)
+        if action == "doc_link":
+            return self._doc_link(sb, actor, body)
+        if action == "doc_del":
+            return self._doc_del(sb, actor, body)
         if action == "meta_sync":   # v89.15: leads das campanhas de vagas (Meta) → Interessados
             import _talentos_meta_lib as TM  # type: ignore
             try:
@@ -304,6 +342,98 @@ class handler(BaseHTTPRequestHandler):
         audit(self, actor, "gp.talento.mover", target_type="gp_talentos", target_id=tid, notes=etapa)
         return self._send(200, {"ok": True, "etapa": etapa, "historico": hist, "rd_etapa": nova_rd})
 
+    # ── v89.35: documentação do candidato ──
+    def _doc_upload(self, sb, actor, body):
+        tid = str(body.get("id") or "").strip()
+        if not tid: return self._send(400, {"ok": False, "error": "salve a ficha antes de anexar documentos"})
+        filename = _doc_nome(body.get("filename"))
+        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+        if ext not in DOC_MIME:
+            return self._send(400, {"ok": False, "error": "Tipo de arquivo não aceito. Envie PDF, imagem (JPG/PNG/WEBP/HEIC) ou Word."})
+        raw = body.get("content_b64") or ""
+        if "," in raw and raw.strip().lower().startswith("data:"):
+            raw = raw.split(",", 1)[1]
+        try:
+            data = base64.b64decode(raw)
+        except Exception:
+            return self._send(400, {"ok": False, "error": "conteúdo do arquivo inválido"})
+        if not data: return self._send(400, {"ok": False, "error": "arquivo vazio"})
+        if len(data) > DOC_MAX_BYTES:
+            return self._send(413, {"ok": False, "error": "Arquivo acima de 3 MB. Reduza o PDF (ou envie foto) e tente de novo."})
+        try:
+            docs, existe = _docs_da_ficha(sb, tid)
+        except Exception as e:
+            if "documentos" in str(e):
+                return self._send(503, {"ok": False, "error": "coluna 'documentos' ainda não existe — rode a migração supabase/gp_talentos_documentos_v89_35.sql"})
+            return self._send(500, {"ok": False, "error": str(e)[:300]})
+        if not existe:
+            return self._send(404, {"ok": False, "error": "ficha não encontrada — recarregue a página (F5) e tente de novo"})
+        if len(docs) >= DOC_MAX_POR_FICHA:
+            return self._send(400, {"ok": False, "error": f"limite de {DOC_MAX_POR_FICHA} documentos por candidato"})
+        try:
+            sb.storage.create_bucket(DOC_BUCKET, options={"public": False})
+        except Exception:
+            pass   # já existe
+        agora = datetime.now(timezone.utc)
+        doc_id = f"doc_{int(agora.timestamp()*1000)}"
+        path = f"{re.sub(r'[^A-Za-z0-9_-]', '', tid)}/{doc_id}_{filename}"
+        try:
+            sb.storage.from_(DOC_BUCKET).upload(path, data, {"content-type": DOC_MIME[ext]})
+        except Exception as e:
+            return self._send(502, {"ok": False, "error": f"upload falhou: {str(e)[:160]}"})
+        docs.append({
+            "id": doc_id, "tipo": (body.get("tipo") or "Outro").strip()[:60],
+            "nome": (body.get("filename") or filename).strip()[:120], "path": path,
+            "mime": DOC_MIME[ext], "size": len(data),
+            "by": actor.get("name") or actor.get("email") or "—", "at": agora.isoformat(),
+        })
+        try:
+            n, dropped = _safe_update(sb, "gp_talentos", tid, {"documentos": docs, "updated_at": agora.isoformat()})
+        except Exception as e:
+            n, dropped = 0, [str(e)[:200]]
+        if n == 0 or "documentos" in dropped:
+            try: sb.storage.from_(DOC_BUCKET).remove([path])   # não deixa arquivo órfão
+            except Exception: pass
+            return self._send(500, {"ok": False, "error": "não consegui registrar o documento na ficha — tente de novo"})
+        audit(self, actor, "gp.talento.doc_upload", target_type="gp_talentos", target_id=tid,
+              notes=f"{docs[-1]['tipo']} · {filename} · {len(data)} bytes")
+        return self._send(200, {"ok": True, "documentos": docs})
+
+    def _doc_link(self, sb, actor, body):
+        tid = str(body.get("id") or "").strip(); doc_id = str(body.get("doc_id") or "").strip()
+        try:
+            docs, _ = _docs_da_ficha(sb, tid)
+        except Exception as e:
+            return self._send(500, {"ok": False, "error": str(e)[:300]})
+        d = next((x for x in docs if x.get("id") == doc_id), None)   # só abre o que está NESTA ficha
+        if not d: return self._send(404, {"ok": False, "error": "documento não encontrado"})
+        try:
+            r = sb.storage.from_(DOC_BUCKET).create_signed_url(d["path"], 300)
+            url = r.get("signedURL") or r.get("signedUrl") or r.get("signed_url")
+        except Exception as e:
+            return self._send(502, {"ok": False, "error": f"não consegui abrir o arquivo: {str(e)[:160]}"})
+        if not url: return self._send(502, {"ok": False, "error": "não consegui abrir o arquivo"})
+        audit(self, actor, "gp.talento.doc_abrir", target_type="gp_talentos", target_id=tid, notes=d.get("nome", "")[:80])
+        return self._send(200, {"ok": True, "url": url})
+
+    def _doc_del(self, sb, actor, body):
+        tid = str(body.get("id") or "").strip(); doc_id = str(body.get("doc_id") or "").strip()
+        try:
+            docs, _ = _docs_da_ficha(sb, tid)
+        except Exception as e:
+            return self._send(500, {"ok": False, "error": str(e)[:300]})
+        d = next((x for x in docs if x.get("id") == doc_id), None)
+        if not d: return self._send(404, {"ok": False, "error": "documento não encontrado"})
+        docs = [x for x in docs if x.get("id") != doc_id]
+        try:
+            _safe_update(sb, "gp_talentos", tid, {"documentos": docs, "updated_at": datetime.now(timezone.utc).isoformat()})
+        except Exception as e:
+            return self._send(500, {"ok": False, "error": str(e)[:300]})
+        try: sb.storage.from_(DOC_BUCKET).remove([d["path"]])
+        except Exception as e: print(f"[gp_talentos] doc_del storage: {e}")
+        audit(self, actor, "gp.talento.doc_del", target_type="gp_talentos", target_id=tid, notes=d.get("nome", "")[:80])
+        return self._send(200, {"ok": True, "documentos": docs})
+
     # ── v89.10: puxa o funil de Parceria do RD (ao vivo; espelho se o RD falhar) ──
     def _rd_sync(self, sb):
         token = os.environ.get("RD_API_TOKEN")
@@ -333,9 +463,17 @@ class handler(BaseHTTPRequestHandler):
         if not tid: return self._send(400, {"ok": False, "error": "id obrigatório"})
         sb = supabase_client()
         if not sb: return self._send(503, {"ok": False, "error": "backend"})
+        try:   # v89.35: ficha excluída leva os documentos junto (dado pessoal não fica órfão)
+            docs, _ = _docs_da_ficha(sb, tid)
+        except Exception:
+            docs = []
         try:
             sb.table("gp_talentos").delete().eq("id", tid).execute()
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)})
+        paths = [d.get("path") for d in docs if d.get("path")]
+        if paths:
+            try: sb.storage.from_(DOC_BUCKET).remove(paths)
+            except Exception as e: print(f"[gp_talentos] delete docs storage: {e}")
         audit(self, actor, "gp.talento.delete", target_type="gp_talentos", target_id=tid)
         return self._send(200, {"ok": True})
