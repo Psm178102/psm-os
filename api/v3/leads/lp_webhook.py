@@ -29,6 +29,7 @@ from _capi_lib import lead_recebido as capi_lead_recebido  # type: ignore
 from _lp_lib import (norm_phone, faixa_label, get_cfg, atendentes_ids,  # type: ignore
                      gestores_ids, broadcast_change, FAIXA_NUTRICAO)
 from _vitrine_rd import criar_negocio  # type: ignore
+from _vitrine_rdmkt import registrar_conversao  # type: ignore
 
 UTM_KEYS = ("utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term")
 RE_LEAD_ID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
@@ -177,6 +178,13 @@ class handler(BaseHTTPRequestHandler):
             except Exception:
                 pass
             _log(sb, bool(deal_id), 200, f"rd_map: {motivo_rd}"[:200], lead_id, ip)
+            # v89.38.2: e conversão no RD Marketing (só com e-mail); falha aqui não derruba o lead
+            try:
+                ok_mkt, resumo_mkt = registrar_conversao(sb, row, faixa_label(faixa))
+                if ok_mkt is not None:
+                    _log(sb, bool(ok_mkt), 200, f"rd_mkt: {resumo_mkt}"[:200], lead_id, ip)
+            except Exception:
+                pass
 
         # ── Lead pelo servidor pro Meta (dedupe com o fbq da landing pelo lead_id); nunca derruba o lead ──
         try:
