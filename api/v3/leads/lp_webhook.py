@@ -26,7 +26,7 @@ from datetime import datetime, timezone, timedelta
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, notify, send_web_push, lvl_of  # type: ignore
 from _lp_lib import (norm_phone, faixa_label, get_cfg, atendentes_ids,  # type: ignore
-                     broadcast_change, FAIXA_NUTRICAO)
+                     gestores_ids, broadcast_change, FAIXA_NUTRICAO)
 
 UTM_KEYS = ("utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term")
 RE_LEAD_ID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
@@ -69,7 +69,9 @@ class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         secret = (os.environ.get("HOUSE_WEBHOOK_SECRET") or "").strip()
-        if not secret:
+        # v89.37: a vitrine psmempreendimentos.com.br entrega aqui com segredo próprio
+        secret_vitrine = (os.environ.get("VITRINE_WEBHOOK_SECRET") or "").strip()
+        if not secret and not secret_vitrine:
             return self._send(503, {"ok": False, "error": "HOUSE_WEBHOOK_SECRET não configurado no servidor"})
         auth = self.headers.get("Authorization") or ""
         tok = auth[7:].strip() if auth.lower().startswith("bearer ") else ""
@@ -77,7 +79,7 @@ class handler(BaseHTTPRequestHandler):
         if not sb:
             return self._send(503, {"ok": False, "error": "backend"})
         ip = _ip(self)
-        if tok != secret:
+        if not tok or tok not in (secret, secret_vitrine):
             _log(sb, False, 401, "secret inválido", None, ip)
             return self._send(401, {"ok": False, "error": "não autorizado"})
 
@@ -161,9 +163,15 @@ class handler(BaseHTTPRequestHandler):
         if not nutricao:
             try:
                 cfg = get_cfg(sb)
-                ids = atendentes_ids(sb, cfg, lvl_of)
                 camp = row["utms"].get("utm_campaign") or row["origem"]
-                titulo = f"📥 Lead LP: {nome} — {faixa_label(faixa)}"
+                if row["origem"] == "lp_psmempreendimentos":
+                    # lead da PSM Imóveis não vai pros atendentes da Conquista: avisa os gestores
+                    ids = gestores_ids(sb, cfg, lvl_of)
+                    interesse = f" · {row['pagina_ancora']}" if row.get("pagina_ancora") else ""
+                    titulo = f"🏙️ Lead PSM Imóveis: {nome} — {faixa_label(faixa)}{interesse}"
+                else:
+                    ids = atendentes_ids(sb, cfg, lvl_of)
+                    titulo = f"📥 Lead LP: {nome} — {faixa_label(faixa)}"
                 corpo = f"WhatsApp wa.me/{whatsapp} · {camp} · responda em até {cfg.get('sla_min', 5)}min"
                 notify(ids, "lead_lp", titulo, corpo, link="#/leads-lp",
                        target_type="lead_lp", target_id=lead_id)
