@@ -5,7 +5,9 @@ Roda via heartbeat (~30min) + cron Vercel (belt & suspenders). Idempotente.
 
   ?job=recon  → casa leads_lp × deals RD (telefone, janela 72h)
   ?job=sla    → 🔴 lead quente sem 1ª resposta > alerta_min (horário comercial) → gestores
-  ?job=all    → (default) recon + sla + saúde do webhook + paridade do dia
+  ?job=capi   → etapas do funil (RD) dos leads da landing → API de Conversões do Meta (v89.37.1)
+  ?job=capi_diag → só confere se o token enxerga o pixel (não envia nada)
+  ?job=all    → (default) recon + sla + capi + saúde do webhook + paridade do dia
 
 Alertas por alçada (nunca broadcast):
   🔴 SLA estourado           → gestores  (dedupe: notifications tipo=sla_lp)
@@ -24,6 +26,7 @@ from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, require_user, AuthError, notify, send_web_push, lvl_of  # type: ignore
+from _capi_lib import funil as capi_funil, diagnostico as capi_diag  # type: ignore
 from _lp_lib import (get_cfg, kv_get, kv_set, KV_STATE, reconciliar, paridade_janela,  # type: ignore
                      gestores_ids, horario_comercial, faixa_label, BRT)
 
@@ -147,6 +150,13 @@ class handler(BaseHTTPRequestHandler):
             out["recon"] = reconciliar(sb)
         if job in ("sla", "all"):
             out["sla"] = _sla(sb, cfg, now)
+        if job == "capi_diag":
+            out["capi_diag"] = capi_diag()
+        if job in ("capi", "all"):
+            try:
+                out["capi"] = capi_funil(sb)
+            except Exception as e:
+                out["capi"] = {"error": str(e)[:120]}
         if job == "all":
             state = kv_get(sb, KV_STATE, {}) or {}
             out["webhook"] = _saude_webhook(sb, state, now)

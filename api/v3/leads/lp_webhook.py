@@ -25,6 +25,7 @@ from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _auth_lib import supabase_client, notify, send_web_push, lvl_of  # type: ignore
+from _capi_lib import lead_recebido as capi_lead_recebido  # type: ignore
 from _lp_lib import (norm_phone, faixa_label, get_cfg, atendentes_ids,  # type: ignore
                      gestores_ids, broadcast_change, FAIXA_NUTRICAO)
 
@@ -147,6 +148,11 @@ class handler(BaseHTTPRequestHandler):
             "status_atendimento": "nutricao" if nutricao else "novo",
             "historico": [{"ts": now, "ev": "recebido_lp"}],
         }
+        # v89.37.1: identificadores do navegador p/ a API de Conversões do Meta (só o que a landing manda)
+        meta_ids = {k: str(body.get(k) or "").strip()[:500] for k in ("fbp", "fbc", "url") if body.get(k)}
+        meta_ids["ip"] = ip[:60]
+        meta_ids["ua"] = (self.headers.get("User-Agent") or "")[:300]
+        row["historico"][0]["meta"] = meta_ids
         try:
             sb.table("leads_lp").insert(row).execute()
         except Exception as e:
@@ -158,6 +164,14 @@ class handler(BaseHTTPRequestHandler):
             return self._send(500, {"ok": False, "error": "falha ao gravar"})
 
         _log(sb, True, 200, "nutricao" if nutricao else "ok", lead_id, ip)
+
+        # ── Lead pelo servidor pro Meta (dedupe com o fbq da landing pelo lead_id); nunca derruba o lead ──
+        try:
+            ok_capi, resumo = capi_lead_recebido(row, meta_ids)
+            if ok_capi is False:
+                _log(sb, False, 200, f"capi: {resumo}", lead_id, ip)
+        except Exception:
+            pass
 
         # ── nutrição NÃO dispara atendimento; lead quente notifica na hora ──
         if not nutricao:
