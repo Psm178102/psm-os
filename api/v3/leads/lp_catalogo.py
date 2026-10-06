@@ -7,6 +7,7 @@ Fonte da verdade: a "Tabela de Lançamentos PSM" nativa do House (shared_kv
 (valores, condições, entra/sai produto) e a LP se atualiza sozinha por aqui.
 
 Endpoint PÚBLICO (vitrine — sem auth), CORS *, cache 5 min.
+?lotes=1 → só a(s) tabela(s) de loteamentos (categoria com "lote"); sem o parâmetro elas ficam de fora.
 Parser tolerante a colunas livres: identifica por nome de cabeçalho
 (empreendimento/nome, construtora/incorporadora, valor/preço, renda,
 entrega/previsão, foto/imagem, obs/condição). Colunas extras vão em `extras`.
@@ -30,7 +31,7 @@ KV_KEY = "tabelas_lancamentos"
 
 # mapeamento header normalizado -> campo canônico (primeira coluna que casar vence)
 HEADER_MAP = (
-    ("nome",        ("empreendimento", "empreend", "produto", "nome")),
+    ("nome",        ("empreendimento", "empreend", "loteamento", "produto", "nome")),
     ("construtora", ("construtora", "incorporadora", "inc.", "incorp")),
     ("valor",       ("valor", "preco", "a partir", "apartir")),
     ("renda",       ("renda",)),
@@ -111,9 +112,14 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)}, cache=False)
 
+        # v89.38.1: tabela de LOTES da Conquista (categoria com "lote") fica fora do catálogo
+        # de casas/apês; a landing busca os loteamentos com ?lotes=1.
+        so_lotes = "lotes=1" in (self.path.split("?", 1)[1] if "?" in self.path else "")
         itens, updated = [], None
         for t in tabelas:
             if (t.get("marca") or "") != "conquista":
+                continue
+            if ("lote" in _norm(t.get("categoria"))) != so_lotes:
                 continue
             upd = t.get("atualizado_em")
             if upd and (not updated or str(upd) > str(updated)):
