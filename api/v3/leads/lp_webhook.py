@@ -28,6 +28,7 @@ from _auth_lib import supabase_client, notify, send_web_push, lvl_of  # type: ig
 from _capi_lib import lead_recebido as capi_lead_recebido  # type: ignore
 from _lp_lib import (norm_phone, faixa_label, get_cfg, atendentes_ids,  # type: ignore
                      gestores_ids, broadcast_change, FAIXA_NUTRICAO)
+from _vitrine_rd import criar_negocio  # type: ignore
 
 UTM_KEYS = ("utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term")
 RE_LEAD_ID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
@@ -164,6 +165,18 @@ class handler(BaseHTTPRequestHandler):
             return self._send(500, {"ok": False, "error": "falha ao gravar"})
 
         _log(sb, True, 200, "nutricao" if nutricao else "ok", lead_id, ip)
+
+        # v89.38: lead da vitrine também vira negócio no FUNIL MAP (Novo atendimento, dono Paulo)
+        if row["origem"] == "lp_psmempreendimentos":
+            deal_id, motivo_rd = criar_negocio(sb, row, faixa_label(faixa))
+            try:
+                sb.table("leads_lp").update({
+                    "rd_deal_ref": deal_id,
+                    "historico": row["historico"] + [{"ts": now, "ev": "rd_map", "obs": motivo_rd}],
+                }).eq("lead_id", lead_id).execute()
+            except Exception:
+                pass
+            _log(sb, bool(deal_id), 200, f"rd_map: {motivo_rd}"[:200], lead_id, ip)
 
         # ── Lead pelo servidor pro Meta (dedupe com o fbq da landing pelo lead_id); nunca derruba o lead ──
         try:

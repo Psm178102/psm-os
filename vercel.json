@@ -320,6 +320,9 @@
     }
   ],
   "functions": {
+    "api/v3/leads/lp_webhook.py": {
+      "maxDuration": 60
+    },
     "api/v3/diretoria/cfo_cron.py": {
       "maxDuration": 120
     },
