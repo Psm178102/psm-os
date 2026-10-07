@@ -17,6 +17,8 @@ Saída:
                entrega, status, dorms, suites, vagas, regiao,
                condicao, fluxo, ato } ] }
   status: pronto | entrega_proxima (≤12 meses) | em_obras | pre_lancamento | ""
+  espelhos: [ { nome, vigencia, unidades: [ {unidade, andar, m2, vagas, status, valor, valor_num} ] } ]
+    — tabelas de categoria "<EMPREENDIMENTO> · ESPELHO ..." (uma linha por unidade).
 """
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
@@ -154,6 +156,50 @@ def montar(tabelas, hoje=None, loteamentos=False):
     return itens, updated
 
 
+# espelho de unidades: header normalizado -> campo (lista fechada, como o HEADER_MAP)
+ESPELHO_MAP = (
+    ("unidade", ("unidade",)),
+    ("andar",   ("andar",)),
+    ("m2",      ("area", "m²", "m2", "metragem")),
+    ("vagas",   ("vaga",)),
+    ("status",  ("status", "situacao")),
+    ("valor",   ("valordaunidade", "valor", "preco")),
+)
+
+
+def espelhos(tabelas):
+    """Tabelas "<EMPREENDIMENTO> · ESPELHO ..." da marca → lista por empreendimento. Puro."""
+    out = []
+    for t in sorted(tabelas, key=lambda x: x.get("ordem") or 0):
+        categoria = str(t.get("categoria") or "").strip()
+        if (t.get("marca") or "") != MARCA or "espelho" not in _norm(categoria):
+            continue
+        normed = [_hkey(c) for c in (t.get("colunas") or [])]
+        idx = {}
+        for campo, keys in ESPELHO_MAP:
+            for i, h in enumerate(normed):
+                # "R$/M²" é preço por metro, não a área nem o valor da unidade
+                if i in idx.values() or "r$" in h:
+                    continue
+                if any(k in h for k in keys):
+                    idx[campo] = i
+                    break
+        if "unidade" not in idx:
+            continue
+        unidades = []
+        for linha in (t.get("linhas") or []):
+            u = {campo: (str(linha[i]).strip() if i < len(linha) and linha[i] is not None else "")
+                 for campo, i in idx.items()}
+            if not u.get("unidade"):
+                continue
+            u["valor_num"] = _num(u.get("valor") or "")
+            unidades.append(u)
+        if unidades:
+            out.append({"nome": re.split(r"\s+[·\-–—|]\s+", categoria)[0].strip(),
+                        "vigencia": str(t.get("vigencia") or ""), "unidades": unidades})
+    return out
+
+
 class handler(BaseHTTPRequestHandler):
     def _send(self, s, b, cache=True):
         self.send_response(s)
@@ -191,4 +237,5 @@ class handler(BaseHTTPRequestHandler):
                    "count": sum(1 for i in itens if i["faixa"] == fid)}
                   for fid, lbl, _teto in FAIXAS]
         return self._send(200, {"ok": True, "updated_at": updated,
-                                "count": len(itens), "faixas": faixas, "itens": itens})
+                                "count": len(itens), "faixas": faixas, "itens": itens,
+                                "espelhos": espelhos(tabelas)})
