@@ -117,13 +117,51 @@ function renderList() {
         ${periodSel()}
       </div>
       <div id="oo-dec" style="margin-top:12px"></div>
-      ${gestores.length ? `<div style="font-size:12px;font-weight:600;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.5px;margin-top:14px">🛡 Gestores · visão de equipe</div>${grid(gestores)}` : ''}
-      <div style="font-size:12px;font-weight:600;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.5px;margin-top:16px">🏠 Corretores · individual</div>
-      ${corretores.length ? grid(corretores) : '<div class="muted text-center" style="padding:30px">Sem corretores com dados no período.</div>'}
+      ${cs.length ? equipesDoOO(cs).map(g => blocoEquipe(g, grid)).join('') : '<div class="muted text-center" style="padding:30px">Sem corretores com dados no período.</div>'}
     </div>`;
   wirePeriod(loadList);
   montarDecisoes(document.getElementById('oo-dec'), { tela: 'oo', titulo: '🧭 Quem precisa de 1:1 e de ação agora', max: 6 });
   _root.querySelectorAll('[data-open]').forEach(el => el.addEventListener('click', () => { _selId = el.dataset.open; loadDetail(); }));
+}
+
+/* Lista dividida por GESTOR e a equipe dele: um bloco por equipe, gestor em cima
+   e os corretores embaixo. Quem não tem equipe (ou a equipe não tem gestor) cai
+   num bloco próprio no fim, em vez de se misturar. */
+// Equipe sem gerente cadastrado: quem faz o 1:1 dela é o sócio.
+const GESTOR_SOCIO_OO = { map: 'Paulo Morimatsu' };
+const teamKeyOO = (t) => { t = String(t || '').trim().toLowerCase(); return t.includes('conquista') ? 'conquista' : t.includes('map') ? 'map' : t; };
+
+function equipesDoOO(cs) {
+  const m = new Map();
+  cs.forEach(c => {
+    const k = teamKeyOO(c.team);
+    if (!m.has(k)) m.set(k, { key: k, nome: (c.team || '').trim(), gestores: [], corretores: [] });
+    m.get(k)[isGestorRole(c.role) ? 'gestores' : 'corretores'].push(c);
+  });
+  const peso = (g) => !g.key ? 2 : g.gestores.length ? 0 : 1;   // com gestor → sem gestor → sem equipe
+  return [...m.values()].sort((a, b) => peso(a) - peso(b) || b.corretores.length - a.corretores.length || a.nome.localeCompare(b.nome));
+}
+
+function blocoEquipe(g, grid) {
+  const vendas = g.corretores.reduce((a, c) => a + (c.vendas || 0), 0);
+  const vgv = g.corretores.reduce((a, c) => a + (c.vgv || 0), 0);
+  const atencao = g.corretores.filter(c => c.health_color === 'vermelho').length;
+  const nomes = g.gestores.map(c => escapeHtml(c.name || c.id)).join(' · ') || escapeHtml(GESTOR_SOCIO_OO[g.key] || '');
+  const primeiro = ((g.gestores[0] && g.gestores[0].name) || GESTOR_SOCIO_OO[g.key] || '').split(' ')[0];
+  const sub = (txt) => `<div style="font-size:11px;font-weight:600;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.5px;margin-top:12px">${txt}</div>`;
+  return `
+    <section style="margin-top:18px;border:1px solid var(--border);border-radius:var(--r-md);padding:14px;background:var(--bg-3,rgba(0,0,0,.02))">
+      <div class="flex items-center gap-2" style="flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:10px">
+        <div style="flex:1;min-width:200px">
+          <div style="font-weight:600;font-size:16px">${g.key ? '🛡 Equipe ' + escapeHtml(g.key === 'map' ? 'MAP' : g.key === 'conquista' ? 'Conquista' : g.nome) : '👤 Sem equipe definida'}</div>
+          <div class="tiny muted">${nomes ? 'Gestor: <b>' + nomes + '</b>' : (g.key ? 'Sem gestor cadastrado nesta equipe' : 'Cadastre a equipe destes usuários pra entrarem no bloco certo')}</div>
+        </div>
+        <div class="tiny muted" style="text-align:right">${g.corretores.length} corretor(es) · ${vendas} vendas · R$ ${moneyShort(vgv)} VGV${atencao ? ` · <b style="color:var(--err)">${atencao}</b> em atenção 🔴` : ''}</div>
+      </div>
+      ${g.gestores.length ? sub('Gestor') + grid(g.gestores) : ''}
+      ${sub(primeiro ? 'Equipe de ' + escapeHtml(primeiro) : 'Corretores')}
+      ${g.corretores.length ? grid(g.corretores) : '<div class="tiny muted" style="padding:10px 0">Nenhum corretor ativo nesta equipe no período.</div>'}
+    </section>`;
 }
 
 function brokerCard(c) {

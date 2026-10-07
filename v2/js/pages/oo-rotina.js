@@ -254,7 +254,7 @@ function secMes1(p) {
   const itens = (p.mes1 || []).map(s => `<div style="display:flex;gap:12px;padding:8px 0;border-top:1px solid var(--border)">
       <div style="width:120px;flex:none"><b>${esc(s.semana)}</b><div class="tiny" style="color:var(--info);font-weight:800">${esc(s.foco)}</div></div>
       <div style="font-size:13px">${esc(s.entregas)}</div></div>`).join('');
-  return sec('rt-mes1', 9, 'O primeiro mês', 'Semana a semana até o ritmo das 3 vendas', itens + (p.rampa ? dica('📈 ' + esc(p.rampa), 'var(--info)') : ''));
+  return sec('rt-mes1', 9, 'O primeiro mês', 'Semana a semana até o ritmo da meta do mês', itens + (p.rampa ? dica('📈 ' + esc(p.rampa), 'var(--info)') : ''));
 }
 
 function wire(host, cid) {
