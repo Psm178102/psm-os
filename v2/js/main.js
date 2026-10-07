@@ -131,6 +131,8 @@ import { pageOportunidades } from './pages/oportunidades.js';
 import { pageCadencia } from './pages/cadencia.js';
 import { pageDocumentos } from './pages/documentos.js';   // v88.14: 📝 gerador de proposta/contrato em Word
 import { pageScripts } from './pages/scripts.js';
+import { pagePlacarDiario } from './pages/placar-diario.js';   // 📊 Placar do dia do time M.A.P (v89.40)
+import { pagePauloSemana } from './pages/paulo-semana.js';     // 🧭 Minha semana — só o Paulo, de hora em hora e por papel (v89.40)
 import { pageSrGerencia } from './pages/sr-gerencia.js';
 import { pageSrPerformance } from './pages/sr-performance.js';
 import { pageMapa } from './pages/mapa.js';
@@ -156,7 +158,7 @@ export const ROUTE_GROUP = {
   // Comercial (v86.52): CRM House PSM (piloto F2 do CRM próprio) + Gestão Comercial
   '/crm-house': 'vendas', '/central-sol': 'vendas',
   // Imóveis & Vendas (+ Metas/Equipes/Plantões e simuladores VPL/INCC/Repasse/Energia migrados)
-  '/crm': 'vendas', '/mapa-venda': 'vendas', '/oportunidades': 'vendas', '/documentos': 'vendas', '/cadencia': 'vendas', '/scripts': 'vendas', '/form-captacao': 'vendas',
+  '/crm': 'vendas', '/mapa-venda': 'vendas', '/oportunidades': 'vendas', '/documentos': 'vendas', '/cadencia': 'vendas', '/scripts': 'vendas', '/placar-diario': 'vendas', '/minha-semana': 'inicio', '/form-captacao': 'vendas',
   '/imoveis': 'vendas', '/mapa': 'vendas', '/estoque-kenlo': 'vendas', '/tabela-imoveis': 'vendas', '/tabela-conquista': 'vendas', '/tabela-map': 'vendas', '/tabela-sp-capital': 'vendas', '/lancamentos': 'vendas',
   '/metas': 'vendas', '/equipe': 'vendas', '/plantoes': 'vendas',
   '/sim-vpl': 'vendas', '/sim-incc': 'vendas', '/proposta': 'vendas', '/sim-repasse': 'vendas', '/sim-energia': 'vendas', '/sim-amortizacao': 'vendas',
@@ -263,6 +265,7 @@ export const ROUTE_MIN_LVL = {
   '/locacao-dash': 2, '/locacao-estoque': 2,  // Locação: dashboard + estoque (leitura, corretor+)
   '/fiscalizacao': 7,     // Painel de Fiscalização (Diretoria): os 3 cards — só gestão
   '/ponte': 7,            // Carteira MAP - Paulo (ex-Fila da Ponte): fechamento próprio Paulo/Isa
+  '/placar-diario': 2,    // Placar do dia: o corretor lança o próprio; gestão vê o time (v89.40)
   '/minha-producao': 2,   // Meu Acompanhamento: o colaborador vê SÓ o próprio card/semáforo
   '/campanha-wa': 5,      // disparo de campanha — não p/ corretor
   '/one-on-one': 2,       // v86.3: corretor vê o 1:1 DELE (gestor lvl>=5 vê todos; sensível some no backend)
@@ -405,6 +408,11 @@ function canSeeComoCargo(path, role, user) {
   // aceita uma lista de e-mails (shared_kv ops_central_cfg.admins).
   if (base === '/central-ops') return (user?.lvl || 0) >= 10;
 
+  // 🧭 Minha semana (v89.40): a agenda do Paulo por papel (gestor · CEO · corretor) — uso pessoal, só ele.
+  if (base === '/minha-semana') return user?.id === 'paulo';
+  // 📊 Placar do dia (v89.40): time M.A.P lança o próprio dia; sócio/diretor acompanham.
+  if (base === '/placar-diario') return ['corretor_map', 'gerente_map'].includes(role) || (user?.lvl || 0) >= 8;
+
   // 📺 TV Diretoria (v88.74): segunda tela em tempo real do Paulo e da Isa — mostra caixa,
   // resultado e o Farol de todos os pilares. SÓ SÓCIO, trava explícita como o Check-in.
   if (base === '/tv-diretoria') return (user?.lvl || 0) >= 10;
@@ -541,7 +549,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '89.39';
+const APP_VERSION = '89.40';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -839,6 +847,8 @@ const APP_VERSION = '89.39';
   router.register('/documentos',  { render: async (ctx, root) => { setHeader('📝 Gerar documento');   highlight('/documentos');  await pageDocumentos(ctx, root); } });
   router.register('/cadencia',    { render: async (ctx, root) => { setHeader('Cadência');            highlight('/cadencia');    await pageCadencia(ctx, root); } });
   router.register('/scripts',     { render: async (ctx, root) => { setHeader('Playbook da Venda'); highlight('/scripts');     await pageScripts(ctx, root); } });
+  router.register('/placar-diario', { render: async (ctx, root) => { setHeader('Placar do dia'); highlight('/placar-diario'); await pagePlacarDiario(ctx, root); } });
+  router.register('/minha-semana',  { render: async (ctx, root) => { setHeader('Minha semana');  highlight('/minha-semana');  await pagePauloSemana(ctx, root); } });
   router.register('/form-captacao', { render: async (ctx, root) => { setHeader('📝 Formulário de Captação'); highlight('/form-captacao'); await pageFormCaptacao(ctx, root); } });
   router.register('/campanha-wa', { render: async (ctx, root) => { setHeader('Campanha WhatsApp');   highlight('/campanha-wa'); await pageCampanhaWa(ctx, root); } });
   router.register('/sr-gerencia', { render: async (ctx, root) => { setHeader('Sr. Gerência');        highlight('/sr-gerencia'); await pageSrGerencia(ctx, root); } });
@@ -1056,6 +1066,7 @@ function shellHTML(user) {
 
         <div class="sb-sec">🏠 Início</div>
         <button class="sb-link on" data-nav="/"><span class="sb-ico">📅</span> Agenda & Tarefas</button>
+        <button class="sb-link" data-nav="/minha-semana"><span class="sb-ico">🧭</span> Minha semana</button>
         <button class="sb-link" data-nav="/painel"><span class="sb-ico">👤</span> Meu Painel</button>
         <button class="sb-link" data-nav="/ranking"><span class="sb-ico">🏆</span> Ranking</button>
         <button class="sb-link" data-nav="/one-on-one"><span class="sb-ico">👥</span> One-on-One</button>
@@ -1079,6 +1090,7 @@ function shellHTML(user) {
         <button class="sb-link" data-nav="/oportunidades"><span class="sb-ico">💡</span> Oportunidades</button>
         <button class="sb-link" data-nav="/proposta"><span class="sb-ico">📑</span> Apresentação comercial</button>
         <button class="sb-link" data-nav="/scripts"><span class="sb-ico">🧭</span> Playbook da Venda</button>
+        <button class="sb-link" data-nav="/placar-diario"><span class="sb-ico">📊</span> Placar do dia</button>
         <button class="sb-link" data-nav="/form-captacao"><span class="sb-ico">📝</span> Formulário de Captação</button>
         <button class="sb-link" data-nav="/mapa"><span class="sb-ico">🗺</span> Mapa Imóveis</button>
         <button class="sb-link" data-nav="/estoque-kenlo"><span class="sb-ico">🏠</span> Estoque Kenlo</button>

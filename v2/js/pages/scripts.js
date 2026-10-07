@@ -11,7 +11,8 @@
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 import { NICHOS, renderMapa } from './mapa-venda.js';
-import { playbookHTML, PB_CSS, PB_LEGENDA } from './playbook-render.js';   // v88.96: leitor que separa script × orientação
+import { playbookHTML, PB_CSS, PB_LEGENDA } from './playbook-render.js';
+import { montarRotinaTime } from './rotina-time.js';   // v89.40: passo ④ — a rotina do time, de hora em hora   // v88.96: leitor que separa script × orientação
 
 let _root = null, _linhas = [], _canEdit = false;
 let _selL = 0, _selE = 0, _edit = false, _busy = false, _msg = '';
@@ -35,7 +36,7 @@ const ehFundamentos = l => l?.id === 'psm' || /fundament/i.test(l?.nome || '');
 
 export async function pageScripts(ctx, root) {
   _root = root; _selE = 0; _edit = false; _msg = '';
-  _ver = ctx?.query?.ver === 'mapa' ? 'mapa' : (ctx ? 'etapas' : _ver);
+  _ver = ['mapa', 'rotina'].includes(ctx?.query?.ver) ? ctx.query.ver : (ctx ? 'etapas' : _ver);
   root.innerHTML = '<div class="card"><div class="flex items-center gap-2 muted"><span class="spinner"></span> Carregando o playbook da venda…</div></div>';
   const [pb, mp] = await Promise.allSettled([
     api.request('/api/v3/scripts/playbook'),
@@ -88,7 +89,7 @@ function render() {
         </div>
         ${_canEdit ? `<div class="flex gap-2">
           ${_edit ? `<button class="btn btn-ghost btn-sm" id="sc-cancel">Cancelar</button><button class="btn btn-primary btn-sm" id="sc-save" ${_busy ? 'disabled' : ''}>${_busy ? '⏳' : '💾'} Salvar</button>`
-            : `<button class="btn btn-ghost btn-sm" id="sc-edit">✏️ Editar ${_ver === 'mapa' ? 'mapa' : 'scripts'}</button>`}
+            : (_ver === 'rotina' ? '' : `<button class="btn btn-ghost btn-sm" id="sc-edit">✏️ Editar ${_ver === 'mapa' ? 'mapa' : 'scripts'}</button>`)}
         </div>` : ''}
       </div>
       <div id="sc-msg" class="tiny" style="margin:4px 0;min-height:14px;color:${_msg[0] === '⚠' ? 'var(--err)' : 'var(--ok)'}">${esc(_msg)}</div>
@@ -101,6 +102,8 @@ function render() {
         <div class="pv-passo ${_ver === 'mapa' ? 'on' : ''}"><span class="pv-n">2</span><div><b>Veja o mapa</b><div class="tiny muted">o caminho inteiro</div></div></div>
         <div class="pv-seta">→</div>
         <div class="pv-passo ${_ver === 'etapas' ? 'on' : ''}"><span class="pv-n">3</span><div><b>Siga as etapas</b><div class="tiny muted">o que falar em cada passo</div></div></div>
+        <div class="pv-seta">→</div>
+        <div class="pv-passo ${_ver === 'rotina' ? 'on' : ''}"><span class="pv-n">4</span><div><b>Viva a rotina</b><div class="tiny muted">o que fazer a cada hora</div></div></div>
       </div>`}
 
       <!-- ① NICHOS -->
@@ -118,8 +121,9 @@ function render() {
       <div class="pv-vis">
         <button class="pv-vis-b ${_ver === 'mapa' ? 'on' : ''}" data-ver="mapa" style="--c:${cor}">② 🗺 O caminho <span class="tiny">(${nFases ? `mapa · ${nFases} fase${nFases === 1 ? '' : 's'}` : (temPdf ? 'mapa em PDF' : 'mapa · ainda vazio')})</span></button>
         <button class="pv-vis-b ${_ver === 'etapas' ? 'on' : ''}" data-ver="etapas" style="--c:${cor}">③ 📚 O que falar <span class="tiny">(${etapas.length} etapa${etapas.length === 1 ? '' : 's'} · scripts & cadência)</span></button>
+        ${_edit || ehFundamentos(L) ? '' : `<button class="pv-vis-b ${_ver === 'rotina' ? 'on' : ''}" data-ver="rotina" style="--c:${cor}">④ 🗓 A rotina <span class="tiny">(a semana de hora em hora)</span></button>`}
       </div>
-      ${_ver === 'mapa'
+      ${_ver === 'rotina' && !_edit && !ehFundamentos(L) ? '<div id="pv-rotina"></div>' : _ver === 'mapa'
         ? (_edit ? corpoMapaEdicao(L, etapas, cor) : corpoMapa(L, etapas, cor, nicho, temPdf))
         : (_edit ? corpoEdicao(L, E, etapas, cor) : corpoEtapas(L, E, etapas, cor))}`}
     </div>
@@ -167,6 +171,8 @@ function render() {
       @media(max-width:760px){.sc-grid{grid-template-columns:1fr !important}.sc-grid>div:first-child{border-right:0;border-bottom:1px solid var(--border);padding-bottom:8px}.pv-seta{display:none}.pv-vis{flex-wrap:nowrap}.pv-vis-b{flex:1;padding:8px 6px;font-size:13px}.pv-vis-b .tiny{display:none}}
     </style>`;
   wire(E);
+  const rtHost = _root.querySelector('#pv-rotina');
+  if (rtHost) montarRotinaTime(rtHost, { linha: L.id, nome: L.nome, cor });
   if (_ver === 'mapa' && !_edit && nicho) {
     const box = _root.querySelector('#pv-mapa');
     if (box) renderMapa(box, nicho, _mapaMeta, { onPublicado: () => pageScripts({ query: { ver: 'mapa', nicho } }, _root), irEtapas: nFases ? null : () => { _ver = 'etapas'; render(); }, secundario: nFases > 0 });

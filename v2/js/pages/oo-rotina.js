@@ -3,6 +3,7 @@
    próprio 1:1, pra ele não "perder a folha". Conteúdo por pessoa em
    GET /api/v3/oo/rotina (atrás de login: tem taxas e pontos fracos do corretor). */
 import { api } from '../api.js';
+import { gradeHora, legendaModos, diaDeHoje } from './rotina-hora.js';   // v89.40: o dia em faixas de 1 hora, por dia da semana
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const brl = (v) => 'R$ ' + (Number(v) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
@@ -23,6 +24,7 @@ export async function montarRotinaOO(host, { corretorId, nome, selfView }) {
     return;
   }
   const p = r && r.plano;
+  _plano = p || null;
   const primeiro = String(nome || '').split(' ')[0];
   if (!p) {
     host.innerHTML = box(`<div style="text-align:center;padding:18px 8px">
@@ -131,7 +133,13 @@ function secPlacar(p) {
       <tbody>${taxas}</tbody></table>`);
 }
 
+let _diaSel = null, _plano = null;
 function secDia(p) {
+  if (p.dias) {   // v89.40: cada dia da semana tem a sua grade de hora em hora
+    _diaSel = _diaSel || diaDeHoje();
+    return sec('rt-dia', 2, 'Seu dia, de hora em hora', 'Escolha o dia da semana; a faixa em que você está agora aparece destacada',
+      `<div id="rt-dias">${legendaModos()}${gradeHora(p.dias, _diaSel)}</div>` + (p.dia_nota ? dica('⭐ ' + esc(p.dia_nota)) : ''));
+  }
   const agora = new Date(); const hm = agora.getHours() * 60 + agora.getMinutes();
   const mins = (s) => { const [h, m] = String(s).split(':').map(Number); return h * 60 + (m || 0); };
   const util = agora.getDay() >= 1 && agora.getDay() <= 5;
@@ -250,6 +258,9 @@ function secMes1(p) {
 }
 
 function wire(host, cid) {
+  const reDias = () => { const h = host.querySelector('#rt-dias'); if (!h || !_plano?.dias) return; h.innerHTML = legendaModos() + gradeHora(_plano.dias, _diaSel);
+    h.querySelectorAll('[data-rh-dia]').forEach(b => b.onclick = () => { _diaSel = b.dataset.rhDia; reDias(); }); };
+  reDias();
   host.querySelectorAll('[data-rt-go]').forEach(b => b.addEventListener('click', () => {
     document.getElementById(b.dataset.rtGo)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }));
