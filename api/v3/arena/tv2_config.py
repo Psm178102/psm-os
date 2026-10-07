@@ -39,12 +39,13 @@ DEFAULT = {
 
 
 def _listas_users(sb):
-    """v87.89 — quem some sozinho e quem nunca pode sumir, direto do cadastro."""
-    auto, prot = [], []
+    """v87.89 — quem some sozinho e quem nunca pode sumir, direto do cadastro.
+    07/out/26 (Paulo): + inativos → quem saiu (status inativo/pausado) some da TV mesmo que o HUB ainda liste."""
+    auto, prot, inat, hub, fora = [], [], [], [], []
     try:
-        users = sb.table("users").select("id,name,role,status,is_service,hide_from_ranking").execute().data or []
+        users = sb.table("users").select("id,name,role,team,status,is_service,hide_from_ranking").execute().data or []
     except Exception:
-        return auto, prot
+        return auto, prot, inat, hub, fora
     for u in users:
         nome = (u.get("name") or "").strip()
         if not nome:
@@ -55,7 +56,14 @@ def _listas_users(sb):
         elif (u.get("status") or "ativo") == "ativo" and not u.get("hide_from_ranking") \
                 and (role.startswith("corretor") or role.startswith("gerente") or role.startswith("lider")):
             prot.append(nome)
-    return auto, prot
+            # 07/out/26 (Paulo): o HUB é só da Conquista. Corretor ativo da Conquista aparece na TV mesmo
+            # sem linha no HUB (zerado); corretor de outra equipe (MAP) sai das telas que vêm do HUB.
+            if role.startswith("corretor"):
+                eh_conq = role.endswith("conquista") or (u.get("team") or "").strip().lower() == "conquista"
+                (hub if eh_conq else fora).append(nome)
+        elif (u.get("status") or "ativo") != "ativo":
+            inat.append(nome)
+    return auto, prot, inat, hub, fora
 
 
 def _norm(v):
@@ -106,7 +114,7 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             v = {}
         cfg = _norm(v)
-        cfg["ocultar_auto"], cfg["protegidos"] = _listas_users(sb)
+        cfg["ocultar_auto"], cfg["protegidos"], cfg["inativos"], cfg["corretores_hub"], cfg["fora_hub"] = _listas_users(sb)
         return self._send(200, {"ok": True, "config": cfg, "can_edit": (user.get("lvl") or 0) >= 5})
 
     def do_POST(self):

@@ -29,7 +29,7 @@ const REFRESH_MS = 30000;
    volta a cada N" vêm do /api/v3/arena/tv2_config (shared_kv) — calibra sem
    deploy; a TV pega no próximo poll. (87.26 = hotfix: a definição não tinha
    entrado no 87.25 e a TV quebrou com CICLO_ATUAL undefined.) */
-let _cfg = { slide_s: 20, telas: ['recado', 'duelo', 'doc', 'aten', 'prosp', 'placar', 'cronograma', 'corrida', 'premiacoes'], ocultar_nomes: ['Isabella Morimatsu', 'Paulo Morimatsu', 'comercial', 'Yara Fetti'], ocultar_auto: [], protegidos: [] };
+let _cfg = { slide_s: 20, telas: ['recado', 'duelo', 'doc', 'aten', 'prosp', 'placar', 'cronograma', 'corrida', 'premiacoes'], ocultar_nomes: ['Isabella Morimatsu', 'Paulo Morimatsu', 'comercial', 'Yara Fetti'], ocultar_auto: [], protegidos: [], inativos: [], corretores_hub: [], fora_hub: [] };
 let _cfgCanEdit = false, _cfgAt = 0;
 const SLIDE_MS = () => _cfg.slide_s * 1000;
 // v87.73: ranking geral abre a volta e NÃO volta no meio (Paulo: "2 telas gerais")
@@ -153,8 +153,7 @@ function agendaRotacao() {
       if (!temConteudo(id)) continue;
       _screen = id; break;
     }
-    render();
-    agendaRotacao();
+    try { render(); } finally { agendaRotacao(); }   // 07/out: a rotação nunca morre por erro de desenho
   }, SLIDE_MS());
 }
 
@@ -164,7 +163,7 @@ function temConteudo(id) {
   if (id === 'recado') return _recados.some(r => r.tv);
   if (id === 'premiacoes') return _oport.length > 0;
   if (id === 'criativos') return _criativos.length > 0;
-  if (id === 'duelo') return ranked().length >= 2;
+  if (id === 'duelo') return ranked().filter(a => (a.totalPoints || 0) > 0).length >= 2;
   if (id === 'corrida') return corridaLanes().length > 0;
   return true;
 }
@@ -223,10 +222,12 @@ async function reload() {
     _ritmoAt = Date.now();
     const ini = new Date(); ini.setDate(1);
     api.request(`/api/v3/oo/comercial?since=${ini.toISOString().slice(0, 10)}&until=${hojeISO()}`).then(r => {
+      // 07/out: guarda o nome INTEIRO (sem acento) — a chave pelo 1º nome misturava homônimos
       const m = {};
       ((r && r.ritmo_vendas && r.ritmo_vendas.corretores) || []).forEach(c => {
-        const key = String(c.nome || '').split(' ')[0].toLowerCase();
-        if (!(key in m) || (c.dias_desde_ultima_venda != null && c.dias_desde_ultima_venda < m[key])) m[key] = c.dias_desde_ultima_venda;
+        const key = normNome(c.nome);
+        if (!key || c.dias_desde_ultima_venda == null) return;
+        if (!(key in m) || c.dias_desde_ultima_venda < m[key]) m[key] = c.dias_desde_ultima_venda;
       });
       _ritmo = m;
     }).catch(() => {});
@@ -237,7 +238,7 @@ async function reload() {
     const ATIV_LBL = { prosp: 'Prospecção', agend: 'Visita agendada', aten: 'Visita realizada', doc: 'Pasta/Proposta' };
     const atual = {};
     // ocultos da TV (sócios, conta comercial…) também não tocam o gongo nem entram no letreiro
-    _data.ranking.filter(a => !ocultoNaTV(a.agentName)).forEach(a => {
+    _data.ranking.filter(a => !ocultoNaTV(a.agentName) && !foraDoHub(a.agentName)).forEach(a => {
       const cats = { v: 0, vgv: a.vgvReal || 0, prosp: 0, agend: 0, aten: 0, doc: 0 };
       (a.ruleBreakdown || []).forEach(rb => {
         const k = classifyRule(rb);
@@ -265,7 +266,7 @@ async function reload() {
   aberturaDoDia();
 
   // só re-renderiza se o DADO mudou — senão o letreiro reiniciava a cada 30s
-  const sig = JSON.stringify([_data, _est, _recados.map(x => x.id + (x.texto || '')), _oport.map(x => x.id + (x.titulo || '')), _err, _estErr]);
+  const sig = JSON.stringify([_data, _est, _cfg.corretores_hub, _cfg.fora_hub, _cfg.inativos, _recados.map(x => x.id + (x.texto || '')), _oport.map(x => x.id + (x.titulo || '')), _err, _estErr]);
   if (sig !== _sig) { _sig = sig; render(); }
   else { const el = document.getElementById('rh-upd'); if (el && _fetchedAt) el.textContent = _err ? `⚠️ HUB fora do ar — dados de ${_fetchedAt.toLocaleTimeString('pt-BR')}` : `Atualizado às ${_fetchedAt.toLocaleTimeString('pt-BR')}`; }
 }
@@ -396,6 +397,7 @@ function corridaLanes() {
   // sócio/diretor NUNCA na TV da Arena (Paulo, 05/set: 'retire ela daquilo imediatamente')
   return ((_metas && _metas.por_corretor) || []).filter(c => !c.inativo && (c.meta_vgv || 0) > 0
     && !/socio|diretor/i.test(String(c.role || '')) && !ocultoNaTV(c.name))
+    .filter(c => _team === 'GERAL' || !c.team || normNome(_team).includes(normNome(c.team)))   // 07/out: segue a aba de equipe
     .map(c => ({ ...c, pct: Math.min(120, Math.round((c.vgv_atingido || 0) / c.meta_vgv * 100)) }))
     .sort((a, b2) => b2.pct - a.pct).slice(0, 8);
 }
@@ -470,7 +472,7 @@ function teams() {
   return [...set];
 }
 function shortTeam(t) { return t.replace(/^EQUIPE\s+/i, '').toUpperCase(); }
-function ocultoNaTV(nome) {
+function ocultoNaTV(nome, historico) {
   /* sócios (e quem mais a gestão listar na ⚙) nunca aparecem na TV pública.
      v87.89 (Paulo 16/set): o filtro era só pelo 1º nome e "Isabella" (sócia)
      escondia a corretora nova Isabella Cassim. Regra agora, com as listas que
@@ -488,12 +490,46 @@ function ocultoNaTV(nome) {
   if (alvos.some(a => normNome(a) === n)) return true;
   if (prot.some(p => normNome(p) === n)) return false;
   const nf = first(n);
+  /* 07/out (Paulo): quem saiu da empresa (cadastro inativo/pausado) não aparece na TV mesmo que o
+     HUB ainda o liste. Mais conservador que o filtro dos sócios: pelo 1º nome só some se nenhum
+     corretor ativo tiver esse 1º nome. `historico` = base de conversão dos meses fechados, onde
+     a produção de quem saiu continua valendo. */
+  if (!historico) {
+    const inat = _cfg.inativos || [];
+    if (inat.some(a => normNome(a) === n)) return true;
+    if (inat.some(a => first(a) === nf) && !prot.some(p => first(p) === nf)) return true;
+  }
   if (!alvos.some(a => first(a) === nf)) return false;
   return n.indexOf(' ') < 0 || !prot.some(p => first(p) === nf);
 }
+/* 07/out (Paulo): o HUB é só da Conquista.
+   • foraDoHub: corretor ativo de outra equipe (ex.: João Henrique, que foi pro MAP) sai das telas
+     que vêm do HUB, mesmo que o HUB ainda o liste. A Corrida da Meta (House) não usa este filtro.
+   • faltamNoHub: corretor ativo da Conquista que o HUB ainda não lista (ex.: Mateus Silva) entra
+     zerado. "Está no HUB" = mesmo nome, ou um nome é o começo do outro ("Kadu" × "Kadu Ozorio"). */
+const mesmoNome = (a, b) => { const x = normNome(a), y = normNome(b); return !!x && !!y && (x === y || x.startsWith(y + ' ') || y.startsWith(x + ' ')); };
+function foraDoHub(nome) { return (_cfg.fora_hub || []).some(f => normNome(f) === normNome(nome)); }
+function faltamNoHub(lista) {
+  return (_cfg.corretores_hub || []).filter(n => !ocultoNaTV(n) && !lista.some(a => mesmoNome(a.agentName, n)));
+}
+function equipeHub() {   // equipe mais comum do ranking do HUB — é onde entra quem ainda não está lá
+  const c = {};
+  (_data?.ranking || []).forEach(a => { const t = (a.teamName || '').trim(); if (t) c[t] = (c[t] || 0) + 1; });
+  return Object.keys(c).sort((a, b) => c[b] - c[a])[0] || '';
+}
+function metaHouseMes(nome) {   // meta do mês na aba Metas do House (quem não está no HUB não tem vgvMeta)
+  const m = new Date().getMonth();
+  const g = ((_metas && _metas.grid) || []).find(x => normNome((x.user || {}).name) === normNome(nome));
+  return g ? (((g.cells || [])[m] || {}).meta_vgv || 0) : 0;
+}
+function rankingHub() {   // ranking do HUB já sem ocultos/outra equipe e com os zerados que faltam
+  const list = (_data?.ranking || []).filter(a => !ocultoNaTV(a.agentName) && !foraDoHub(a.agentName));
+  const eq = equipeHub();
+  return [...list, ...faltamNoHub(list).map(n => ({ agentName: n, teamName: eq, totalPoints: 0, vgvReal: 0, vgvMeta: metaHouseMes(n), ruleBreakdown: [], _semHub: true }))];
+}
 // ranking do HUB (pontos) — tela geral, duelo e a meta individual (vgvMeta) do placar
 function ranked() {
-  let list = (_data?.ranking || []).filter(a => !ocultoNaTV(a.agentName));
+  let list = rankingHub();
   if (_team !== 'GERAL') list = list.filter(a => (a.teamName || '').trim() === _team);
   return [...list].sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0)).map((a, i) => ({ ...a, pos: i + 1 }));
 }
@@ -502,11 +538,12 @@ function ranked() {
 const normNome = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
 function noRanking(row) {
   // a esteira não traz equipe nem meta: herda do ranking do HUB (agentId; senão nome)
-  return (_data?.ranking || []).find(a => (row.agentId != null && a.agentId != null && String(a.agentId) === String(row.agentId))
+  return rankingHub().find(a => (row.agentId != null && a.agentId != null && String(a.agentId) === String(row.agentId))
     || normNome(a.agentName) === normNome(row.agentName));
 }
 function estRows() {
-  let list = ((_est && _est.rows) || []).filter(r => !ocultoNaTV(r.agentName));
+  let list = ((_est && _est.rows) || []).filter(r => !ocultoNaTV(r.agentName) && !foraDoHub(r.agentName));
+  list = [...list, ...faltamNoHub(list).map(n => ({ agentName: n, prospeccao: 0, qualificacao: 0, agendamento: 0, atendimento: 0, pasta: 0, vendaCount: 0, vendaTotal: 0 }))];
   if (_team !== 'GERAL') list = list.filter(r => ((noRanking(r) || {}).teamName || '').trim() === _team);
   return list;
 }
@@ -538,14 +575,20 @@ function render() {
     bind(); return;
   }
   let corpo;
-  if (_screen === 'criativos') corpo = telaCriativos();
-  else if (_screen === 'recado') corpo = telaRecado();
-  else if (_screen === 'duelo') corpo = telaDuelo();
-  else if (_screen === 'corrida') corpo = telaCorrida();
-  else if (_screen === 'premiacoes') corpo = telaPremiacoes();
-  else if (_screen === 'placar') corpo = telaPlacar();
-  else if (_screen === 'cronograma') corpo = telaCronograma();
-  else corpo = telaRanking(_screen === 'vendas' ? null : _screen);
+  // 07/out: erro numa tela não pode parar a TV — mostra o aviso e a rotação segue pra próxima
+  try {
+    if (_screen === 'criativos') corpo = telaCriativos();
+    else if (_screen === 'recado') corpo = telaRecado();
+    else if (_screen === 'duelo') corpo = telaDuelo();
+    else if (_screen === 'corrida') corpo = telaCorrida();
+    else if (_screen === 'premiacoes') corpo = telaPremiacoes();
+    else if (_screen === 'placar') corpo = telaPlacar();
+    else if (_screen === 'cronograma') corpo = telaCronograma();
+    else corpo = telaRanking(_screen === 'vendas' ? null : _screen);
+  } catch (e) {
+    console.error('[ranking-hub] tela', _screen, e);
+    corpo = vazio('⚠️', `Esta tela está com erro (${e.message}) — a TV segue para a próxima.`);
+  }
   _root.innerHTML = shell(corpo);
   bind();
 }
@@ -639,7 +682,7 @@ function telaCronograma() {
   const agora = new Date();
   const hojeIdx = agora.getDay() - 1;                 // seg=0 … sáb=5 (domingo: nenhum)
   const hm = `${String(agora.getHours()).padStart(2, '0')}:${String(agora.getMinutes()).padStart(2, '0')}`;
-  const th = (dia, i) => `<div style="padding:8px 8px;text-align:center;font-size:16px;font-weight:600;letter-spacing:.06em;border-radius:var(--radius-md);${i === hojeIdx ? 'background:var(--warn-soft);color:#1c1917' : 'background:#141a2c;color:#cbd5e1'}">${dia.toUpperCase()}${i === hojeIdx ? ' · HOJE' : ''}</div>`;
+  const th = (dia, i) => `<div style="padding:8px 8px;text-align:center;font-size:16px;font-weight:600;letter-spacing:.06em;border-radius:var(--radius-md);${i === hojeIdx ? 'background:var(--warn);color:#1c1917' : 'background:#141a2c;color:#cbd5e1'}">${dia.toUpperCase()}${i === hojeIdx ? ' · HOJE' : ''}</div>`;
   const cel = (c, i, emCurso) => {
     const hoje = i === hojeIdx;
     if (!c) return `<div style="border-radius:var(--radius-md);background:${hoje ? 'rgba(234,179,8,.06)' : 'rgba(30,41,59,.25)'};border:1px dashed rgba(71,85,105,.35)"></div>`;
@@ -687,7 +730,7 @@ const FOCO_ETAPA = { agendamento: 'encher a agenda (Sala de Ligação e Corujão
 function calcTaxas(meses) {
   const ok = meses.filter(x => Array.isArray(x.rows));
   const soma = { vendaCount: 0, vendaTotal: 0, agendamento: 0, atendimento: 0, pasta: 0 };
-  ok.forEach(x => x.rows.filter(r => !ocultoNaTV(r.agentName))
+  ok.forEach(x => x.rows.filter(r => !ocultoNaTV(r.agentName, true))
     .forEach(r => Object.keys(soma).forEach(k => { soma[k] += Number(r[k]) || 0; })));
   const r = {};
   ETAPAS_PROJ.forEach(([k]) => { if (soma.vendaCount > 0 && soma[k] > 0) r[k] = Math.min(1, soma.vendaCount / soma[k]); });
@@ -724,6 +767,7 @@ function telaPlacar() {
   // (diasMes/dia): no dia 1 a produção era multiplicada por ~30 e o placar prometia um mês irreal.
   const hj = new Date();
   const fimMes = new Date(hj.getFullYear(), hj.getMonth() + 1, 0);
+  const dia = hj.getDate(), diasMes = fimMes.getDate();   // 07/out: sumiram na v88.47 e a tela quebrava (TV travava aqui)
   let uteisTot = 0, uteisDec = 0, uteis = 0;
   for (let d = new Date(hj.getFullYear(), hj.getMonth(), 1); d <= fimMes; d.setDate(d.getDate() + 1)) {
     if (d.getDay() === 0) continue;
@@ -799,10 +843,10 @@ function telaPlacar() {
       <span style="font-size:13px;color:var(--ink-muted)">dia ${dia}/${diasMes} · ${uteis} dia(s) útil(eis) restando · ${EST_HUB}</span>
     </div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:8px 36px 0">
-      ${kpi('VENDIDO', fmtMi(vendido), `${nVend} venda(s) · ${pct}% da meta`, 'var(--surface-2)')}
+      ${kpi('VENDIDO', fmtMi(vendido), `${nVend} venda(s) · ${pct}% da meta`, '#f8fafc')}
       ${tx.ticket ? kpi('PROJEÇÃO DO MÊS', fmtMi(proj), `${pctProj}% da meta · pelo funil`, farol(pctProj))
         : kpi('PROJEÇÃO DO MÊS', `≈ ${projVendas.toFixed(1).replace('.', ',')} vendas`, 'pelo funil · sem ticket médio no histórico pra virar R$', '#c7861a')}
-      ${kpi('META DO MÊS', fmtMi(metaMes), metaHub ? 'soma das metas do HUB' : 'meta anual ÷ 12', '#cbd5e1')}
+      ${kpi('META DO MÊS', fmtMi(metaMes), metaHub ? 'soma das metas do HUB' : 'metas do mês na aba Metas', '#cbd5e1')}
       ${kpi('FALTA VENDER', falta > 0 ? fmtMi(falta) : '✅', falta > 0 ? `${tx.ticket ? `≈ ${Math.ceil(falta / tx.ticket)} venda(s) · ` : ''}${uteis ? `${fmtMi(falta / uteis)}/dia útil` : ''}` : 'meta batida — agora é recorde', '#c7861a')}
     </div>
     <div style="padding:8px 36px 0">
@@ -844,7 +888,10 @@ function podiumCard(a, cat) {
 }
 
 function streakChip(a) {
-  const d = _ritmo[String(a.agentName || '').split(' ')[0].toLowerCase()];
+  // nome igual ao do House; senão, o nome do HUB ("Kadu") tem que ser o começo de UM só nome do House
+  const n = normNome(a.agentName);
+  let d = _ritmo[n];
+  if (d == null && n) { const ks = Object.keys(_ritmo).filter(k => k.startsWith(n + ' ')); if (ks.length === 1) d = _ritmo[ks[0]]; }
   if (d == null) return '';
   if (d <= 7) return `<span style="padding:3px 10px;border-radius:var(--radius-full);font-size:12px;font-weight:600;background:var(--ok-soft);color:var(--ok)">🔥 vendeu há ${d}d</span>`;
   if (d >= 21) return `<span style="padding:3px 10px;border-radius:var(--radius-full);font-size:12px;font-weight:600;background:var(--err-soft);color:var(--err)">⏰ ${d}d sem venda</span>`;
@@ -923,7 +970,7 @@ function syncTicker() {
   const chunk = its.map(tkChip).join('');
   el.innerHTML = `
     <div style="flex:none;display:flex;align-items:center;gap:8px;padding:0 18px;background:linear-gradient(90deg,#1c1917,#0d1120);border-right:1px solid var(--warn)">
-      <span style="width:10px;height:10px;border-radius:var(--radius-full);background:var(--err-soft);animation:rhTkLive 1.4s ease infinite"></span>
+      <span style="width:10px;height:10px;border-radius:var(--radius-full);background:var(--err);animation:rhTkLive 1.4s ease infinite"></span>
       <span style="font-size:13px;font-weight:600;letter-spacing:.14em;color:var(--warn)">AGORA</span>
     </div>
     <div style="flex:1;min-width:0;display:flex;align-items:center;overflow:hidden">
@@ -952,7 +999,7 @@ function showTickerItem(i) {
       ${i.desc ? `<div style="font-size:20px;color:#cbd5e1;line-height:1.5;margin-top:12px">${escapeHtml(i.desc)}</div>` : ''}
       ${i.extra ? `<div style="font-size:26px;font-weight:600;color:${i.kind === 'oportunidade' ? 'var(--ok)' : 'var(--ink-muted)'};margin-top:12px">${escapeHtml(i.extra)}</div>` : ''}
       <div style="display:flex;gap:12px;justify-content:center;margin-top:26px">
-        ${i.kind === 'oportunidade' ? `<button id="rh-ov-go" style="cursor:pointer;border:0;border-radius:var(--radius-md);padding:12px 22px;font-size:16px;font-weight:600;background:var(--ok-soft);color:#052e16">💡 Abrir Oportunidades</button>` : ''}
+        ${i.kind === 'oportunidade' ? `<button id="rh-ov-go" style="cursor:pointer;border:0;border-radius:var(--radius-md);padding:12px 22px;font-size:16px;font-weight:600;background:var(--ok);color:#052e16">💡 Abrir Oportunidades</button>` : ''}
         <button id="rh-ov-x" style="cursor:pointer;border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 22px;font-size:16px;font-weight:600;background:transparent;color:#e2e8f0">Fechar ✕</button>
       </div>
     </div>`;
@@ -996,7 +1043,7 @@ function shell(body) {
     : (_data ? `Ranking — ${meses[_data.month] || ''} ${_data.year}` : 'Ranking — PSM HUB');
   const CICLO = CICLO_ATUAL();
   const dots = `<span style="display:inline-flex;gap:5px;margin-left:10px;align-items:center">
-    ${CICLO.map((id, i) => `<span style="width:8px;height:8px;border-radius:var(--radius-full);background:${i === ((_secIdx % CICLO.length) + CICLO.length) % CICLO.length ? 'var(--warn-soft)' : '#8a8579'}"></span>`).join('')}</span>`;
+    ${CICLO.map((id, i) => `<span style="width:8px;height:8px;border-radius:var(--radius-full);background:${i === ((_secIdx % CICLO.length) + CICLO.length) % CICLO.length ? 'var(--warn)' : '#57534e'}"></span>`).join('')}</span>`;
   const tabs = ['GERAL', ...teams()];
   return `
   <style>
@@ -1023,7 +1070,7 @@ function shell(body) {
         ${tabs.map(t => {
           const key = t === 'GERAL' ? 'GERAL' : t;
           const on = _team === key;
-          return `<button data-team="${escapeHtml(key)}" style="border:0;cursor:pointer;padding:6px 14px;border-radius:var(--radius-md);font-weight:600;font-size:12px;letter-spacing:.05em;background:${on ? 'var(--warn-soft)' : 'transparent'};color:${on ? '#1c1917' : 'var(--ink-muted)'}">${escapeHtml(t === 'GERAL' ? 'GERAL' : shortTeam(t))}</button>`;
+          return `<button data-team="${escapeHtml(key)}" style="border:0;cursor:pointer;padding:6px 14px;border-radius:var(--radius-md);font-weight:600;font-size:12px;letter-spacing:.05em;background:${on ? 'var(--warn)' : 'transparent'};color:${on ? '#1c1917' : 'var(--ink-muted)'}">${escapeHtml(t === 'GERAL' ? 'GERAL' : shortTeam(t))}</button>`;
         }).join('')}
       </div>
       <div style="margin-left:auto;text-align:right">
@@ -1101,7 +1148,7 @@ function abrirConfig() {
       <div id="rhc-list" style="display:grid;gap:8px">${todas.map(linha).join('')}</div>
       <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:20px">
         <button id="rhc-cancel" style="border:1px solid var(--border);background:transparent;color:#e2e8f0;border-radius:var(--radius-md);padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer">Cancelar</button>
-        <button id="rhc-save" style="border:0;background:var(--warn-soft);color:#1c1917;border-radius:var(--radius-md);padding:10px 22px;font-size:14px;font-weight:600;cursor:pointer">Salvar pra todas as TVs</button>
+        <button id="rhc-save" style="border:0;background:var(--warn);color:#1c1917;border-radius:var(--radius-md);padding:10px 22px;font-size:14px;font-weight:600;cursor:pointer">Salvar pra todas as TVs</button>
       </div>
       <div id="rhc-msg" style="font-size:13px;color:var(--err);margin-top:8px;min-height:16px"></div>
     </div>`;
@@ -1123,7 +1170,7 @@ function abrirConfig() {
     ov.querySelector('#rhc-save').disabled = true;
     try {
       const r = await api.request('/api/v3/arena/tv2_config', { method: 'POST', body: { config: cfg } });
-      if (r && r.ok) { _cfg = r.config; _cfgAt = Date.now(); fecha(); _secIdx = 0; _screen = 'vendas'; render(); agendaRotacao(); }
+      if (r && r.ok) { _cfg = { ..._cfg, ...r.config }; _cfgAt = Date.now(); fecha(); _secIdx = 0; _screen = 'vendas'; render(); agendaRotacao(); }
       else { ov.querySelector('#rhc-msg').textContent = (r && r.error) || 'erro ao salvar'; ov.querySelector('#rhc-save').disabled = false; }
     } catch (e) { ov.querySelector('#rhc-msg').textContent = e.message; ov.querySelector('#rhc-save').disabled = false; }
   };
