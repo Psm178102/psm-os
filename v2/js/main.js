@@ -549,7 +549,7 @@ function initSectionCollapse() {
 
 // Versão do CÓDIGO embarcado neste bundle. Comparada com /version.json pra detectar
 // quando a aba está rodando um JS antigo (cache/SW) e oferecer "Atualizar agora". v77.99
-const APP_VERSION = '89.41';
+const APP_VERSION = '89.42';
 
 // ─── Boot ──────────────────────────────────────────────────────────────
 (async function boot() {
@@ -1062,6 +1062,11 @@ function shellHTML(user) {
           <img class="sb-logo so-escuro" src="/v2/img/logo-psm-imoveis-creme.png" alt="PSM Imóveis" loading="lazy">
           <img class="sb-logo so-claro" src="/v2/img/logo-psm-imoveis-doc.png" alt="PSM Imóveis" loading="lazy">
           <img class="sb-logo sb-logo-conquista" src="/v2/img/logo-psm-conquista.png" alt="PSM Conquista" loading="lazy">
+          <nav class="sb-sites" aria-label="Sites da PSM">
+            <a href="https://psmimoveis.com" target="_blank" rel="noopener">psmimoveis.com</a>
+            <a href="https://psmconquista.com.br" target="_blank" rel="noopener">psmconquista.com.br</a>
+            <a href="https://psmempreendimentos.com.br" target="_blank" rel="noopener">psmempreendimentos.com.br</a>
+          </nav>
         </div>
 
         <div class="sb-sec">🏠 Início</div>
