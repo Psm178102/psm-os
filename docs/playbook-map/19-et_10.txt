@@ -1,0 +1,271 @@
+NOME: 📞 Scripts de 1ª abordagem — por nicho e canal
+
+OBJETIVO: Estabelecer uma comunicação acolhedora e profissional, qualificar o lead para entender sua intenção de compra e, com base nas respostas, conduzir o atendimento para as próximas etapas, como o agendamento de visita ou a apresentação de outras opções de imóveis.
+
+## Antes de começar — objetivo e princípios
+Este material contém um roteiro estruturado para o primeiro contato com o lead, direcionado a corretores que atuam em diferentes nichos e utilizam múltiplos canais de captação.
+Trata-se de um roteiro sugerido de primeiro contato com o lead, desenvolvido para auxiliar corretores e imobiliárias na abordagem inicial ao cliente em potencial.
+Este script serve como uma estrutura base, permitindo ajustes conforme o perfil do cliente ou o estilo de atendimento do corretor ou da imobiliária.
+### Objetivo da primeira abordagem
+- Criar conexão de forma natural e profissional.
+- Qualificar o lead, entendendo sua real intenção de compra.
+- Direcionar a conversa para uma ação concreta (agendamento de visita, envio de opções ou próxima etapa de atendimento).
+### Princípios da abordagem
+- Acolhedora: para o cliente sentir segurança na conversa.
+- Objetiva: comunicação direta e eficiente.
+- Gradual: respeitando o ritmo do cliente, sem parecer insistente.
+
+# Script base (para qualquer nicho ou canal)
+
+## Mensagem inicial
+@ Primeiro contato · WhatsApp
+
+>> WhatsApp · Mensagem inicial
+> Olá, [NOME]! Tudo bem?
+>
+> Sou [SEU NOME], corretor de imóveis da PSM.
+>
+> Vi que você demonstrou interesse no imóvel [LINK DO IMÓVEL].
+>
+> Você está buscando um imóvel como este para compra?
+
+## Se o lead responder positivamente
+@ Após a resposta · WhatsApp
+
+>> WhatsApp · Se o lead responder positivamente
+> Ótimo! O que mais chamou sua atenção nesse imóvel?
+>
+> Foi a localização, o valor ou algum outro detalhe específico?
+
+## Se houver alinhamento
+@ Após a resposta · WhatsApp
+
+>> WhatsApp · Se houver alinhamento
+> Perfeito! Esse imóvel é para você ou está buscando algo para investir ou para alguém da sua família?
+
+## Se o lead demonstrar interesse real
+@ Após a resposta · WhatsApp
+
+>> WhatsApp · Se o lead demonstrar interesse real
+> Ótimo! Como está sua disponibilidade para fazermos uma visita?
+>
+> Tenho certeza de que conhecer o imóvel pessoalmente será essencial para sua decisão.
+
+## Abordagem alternativa — caso o cliente não queira marcar a visita
+@ Cliente não quer marcar visita · WhatsApp
+Se o cliente não estiver pronto para marcar uma visita, ofereça enviar mais opções de imóveis:
+
+>> WhatsApp · Oferecer mais opções
+> Entendido, [NOME]. Caso prefira, posso separar algumas opções de imóveis no mesmo perfil deste, com características semelhantes.
+>
+> Há algo específico que você procura, como localização, tamanho ou diferenciais? Assim, consigo sugerir alternativas alinhadas ao que você busca.
+
+## Após a resposta do cliente
+@ Depois que ele disser o que procura · WhatsApp
+
+>> WhatsApp · Após a resposta do cliente
+> Ótimo! Vou selecionar algumas opções que se encaixam no que você procura e te envio em breve. Caso queira comentar mais algum detalhe, é só me avisar!
+
+# Variações por canal de aquisição · 1) Lead Digital — Imóvel específico (site ou portal)
+
+## Mensagem inicial — site ou portal
+@ Primeiro contato · WhatsApp
+📌 O lead demonstrou interesse em um imóvel ao navegar em um portal imobiliário ou no site da imobiliária.
+
+>> WhatsApp · Mensagem inicial (site ou portal)
+> Olá, [NOME]! Vi que você acessou nosso site e demonstrou interesse no imóvel [LINK DO IMÓVEL].
+>
+> Gostaria de saber se esse imóvel atende ao que você procura ou se prefere que eu te apresente algumas opções semelhantes?
+
+# Variações por canal de aquisição · 2) Lead Digital — Imóvel específico (redes sociais)
+
+## Mensagem inicial — redes sociais
+@ Primeiro contato · WhatsApp
+📌 O lead clicou em um anúncio de imóvel no Instagram, Facebook ou outra rede social.
+
+>> WhatsApp · Mensagem inicial (redes sociais)
+> Oi, [NOME]! Vi que você demonstrou interesse no imóvel que anunciamos nas redes sociais.
+>
+> Esse imóvel tem características bem interessantes, como [DIFERENCIAL DO IMÓVEL]. Podemos conversar para entender melhor o que você busca e ver se essa opção faz sentido para você?
+
+# Variações por canal de aquisição · 3) Lead Digital — Geral (cidade ou categoria de imóveis)
+
+## Mensagem inicial — anúncio amplo
+@ Primeiro contato · WhatsApp
+📌 O lead clicou em um anúncio amplo, sem escolher um imóvel específico.
+
+>> WhatsApp · Mensagem inicial (anúncio amplo)
+> Olá, [NOME]! Vi que você demonstrou interesse em imóveis na região de [CIDADE/BAIRRO].
+>
+> Me conta: você já tem algo específico em mente ou gostaria que eu separasse algumas sugestões para você avaliar?
+
+# Variações por canal de aquisição · 4) Lead Placa (atendimento telefônico)
+
+## Atendimento ao atender a ligação
+@ Primeiro contato · Ligação
+📌 O lead viu uma placa de venda/aluguel e entrou em contato por telefone ou WhatsApp.
+
+>> Ligação · Ao atender a ligação
+> Olá, meu nome é [SEU NOME], corretor da PSM, tudo bem? Você viu a placa do imóvel em [ENDEREÇO]? Gostaria de mais informações sobre ele ou tem alguma dúvida específica?
+
+## Se o cliente demonstrar interesse
+@ Durante a ligação · Ligação
+
+>> Ligação · Se o cliente demonstrar interesse
+> O imóvel está disponível e possui as seguintes características: [DIFERENCIAIS DO IMÓVEL].
+>
+> Você gostaria de agendar uma visita para conhecer melhor?
+
+## Se o cliente não demonstrar firmeza na decisão
+@ Durante a ligação · Ligação
+
+>> Ligação · Se o cliente não demonstrar firmeza na decisão
+> Se precisar de outras opções parecidas na mesma região, posso te ajudar a encontrar algo que atenda melhor às suas necessidades. Tem algo específico que esteja buscando?
+
+# Variações por canal de aquisição · 5) Lead Estande (atendimento presencial — início da conversa)
+
+## Primeiro contato presencial
+@ Primeiro contato · Presencial
+📌 O lead visitou um estande de vendas ou entrou na imobiliária espontaneamente.
+
+>> Presencial · Primeiro contato
+> Olá, seja bem-vindo(a)! Meu nome é [SEU NOME], sou corretor da PSM. Como posso te ajudar hoje?
+
+## Se o cliente já tiver um imóvel em mente
+@ Durante a conversa · Presencial
+
+>> Presencial · Se o cliente já tiver um imóvel em mente
+> Ótimo! Esse imóvel tem características muito interessantes. Você gostaria de mais detalhes ou prefere agendar uma visita para conhecê-lo pessoalmente?
+
+## Se o cliente estiver apenas pesquisando
+@ Durante a conversa · Presencial
+
+>> Presencial · Se o cliente estiver apenas pesquisando
+> Entendido! Você tem alguma preferência específica, como localização, metragem ou faixa de valor? Assim, posso te apresentar opções alinhadas ao que você busca.
+
+# Variações por canal de aquisição · 6) Lead Indicação
+
+## Mensagem inicial — indicação
+@ Primeiro contato · WhatsApp
+📌 O lead foi indicado por um cliente ou parceiro de negócios.
+
+>> WhatsApp · Mensagem inicial (indicação)
+> Oi, [NOME]! Tudo bem? Sou [SEU NOME], corretor da PSM.
+>
+> O [NOME DA PESSOA QUE INDICOU] comentou comigo que você está em busca de um imóvel. Podemos conversar para entender melhor o que você procura e encontrar as melhores opções para você?
+
+# Fluxo de cadência em caso de NÃO RESPOSTA
+
+## Resumo do fluxo de cadência
+| TOQUE | QUANDO | O QUE FAZER |
+| 1 | Turno seguinte (mesmo dia) | Reconheça que o cliente ainda não respondeu e pergunte sobre o melhor horário para conversar. |
+| 2 | Dia seguinte (turno intercalado) | Pergunte diretamente se o imóvel atende às expectativas e ofereça alternativas semelhantes. |
+| 3 | Três dias após o primeiro contato | Reforce a sua autoridade e o compromisso da imobiliária ou corretor em encontrar o imóvel ideal, perguntando como pode ajudar. |
+| 4 | Uma semana após o primeiro contato | Relembre o imóvel de interesse e pergunte se o cliente ainda está em busca de um imóvel. |
+| 5 | Um mês após o primeiro contato | Mensagem final de encerramento, pedindo desculpas por qualquer falha e deixando o corretor ou imobiliária à disposição. |
+
+## 1) Turno seguinte (mesmo dia, outro turno)
+@ Mesmo dia, outro turno · WhatsApp
+Reconheça que o cliente ainda não respondeu e pergunte sobre o melhor horário para conversar.
+
+>> WhatsApp · Turno seguinte
+> Oi, [NOME]!
+>
+> Percebi que você ainda não conseguiu responder. Qual o melhor horário para conversarmos?
+
+## 2) Dia seguinte (turno intercalado)
+@ Dia seguinte, turno intercalado · WhatsApp
+Pergunte diretamente se o imóvel atende às expectativas e ofereça alternativas semelhantes.
+
+>> WhatsApp · Dia seguinte
+> Oi, [NOME]!
+>
+> Este imóvel ainda te interessa ou deseja que eu separe outras opções semelhantes?
+
+## 3) Três dias após o primeiro contato
+@ 3 dias após o primeiro contato · WhatsApp
+Reforce a sua autoridade e o compromisso da imobiliária ou corretor em encontrar o imóvel ideal, perguntando como pode ajudar.
+
+>> WhatsApp · Três dias depois
+> Oi, [NOME]!
+>
+> Sou [SEU NOME], corretor da PSM. Nosso compromisso é encontrar o imóvel certo para cada cliente. Como posso te ajudar nesta busca?
+
+## 4) Uma semana após o primeiro contato
+@ 1 semana após o primeiro contato · WhatsApp
+Relembre o imóvel de interesse e pergunte se o cliente ainda está em busca de um imóvel.
+
+>> WhatsApp · Uma semana depois
+> Oi, [NOME]!
+>
+> Gostaria de relembrar o imóvel que você demonstrou interesse [LINK DO IMÓVEL]. Você ainda está em busca de um imóvel para compra?
+
+## 5) Um mês após o primeiro contato — encerramento
+@ 1 mês após o primeiro contato · WhatsApp
+Mensagem final de encerramento, pedindo desculpas por qualquer falha e deixando o corretor ou imobiliária à disposição.
+
+>> WhatsApp · Encerramento (um mês depois)
+> Oi, [NOME]!
+>
+> Espero que tenha encontrado o que procurava. Caso ainda precise de ajuda, estarei sempre à disposição. Sucesso na sua busca!
+
+# Perguntas para diagnóstico do cliente
+
+## Quando fazer o diagnóstico e para quê
+@ Depois da primeira abordagem bem-sucedida
+Agora que a primeira abordagem foi bem-sucedida e o cliente demonstrou interesse em continuar a conversa, o corretor deve conduzir um diagnóstico detalhado para entender melhor suas necessidades e qualificá-lo da maneira correta.
+### O objetivo dessa etapa é:
+- Compreender o perfil do cliente e o que ele realmente busca.
+- Validar se o imóvel de interesse está alinhado ou se outras opções precisam ser apresentadas.
+- Identificar fatores de decisão que podem influenciar a compra.
+- Criar um vínculo e demonstrar autoridade, mostrando que o corretor está preparado para atender às necessidades do cliente.
+
+## 1) Perguntas iniciais — entendendo o momento do cliente
+- O que te motivou a buscar um imóvel agora?
+- Você já está em processo de compra ou ainda está na fase de pesquisa?
+- Você já visitou outros imóveis ou esse é o primeiro que está analisando?
+- Você está comprando para morar ou para investimento?
+- O imóvel será apenas para você ou para mais alguém (família, sócio, filhos)?
+- Você já possui algum imóvel ou essa será sua primeira compra?
+
+## 2) Perguntas sobre o tipo de imóvel e características desejadas
+- O que é essencial para você em um imóvel? Localização, tamanho, vista, estrutura do condomínio?
+- Você busca um imóvel pronto para morar ou aceita um que precise de reformas?
+- Prefere um andar alto ou baixo, caso seja um apartamento?
+- O que considera indispensável no imóvel? (Exemplo: número de vagas de garagem, varanda gourmet, suíte, lazer completo, home office)
+- Você tem preferência por um imóvel mobiliado ou pretende personalizar do seu jeito?
+
+## 3) Perguntas sobre localização e infraestrutura
+- Você já tem uma região ou bairro específico onde gostaria de morar/investir?
+- O que é mais importante para você na localização? Proximidade com trabalho, escolas, comércio, segurança, lazer?
+- Se for para morar, já conhece bem a região ou gostaria de mais informações sobre ela?
+- Você prioriza imóveis em condomínio fechado ou edifícios com áreas de lazer?
+- A mobilidade na região é um fator importante para você? Precisa de fácil acesso a transporte público ou rodovias?
+
+## 4) Perguntas sobre capacidade de investimento e financiamento
+- Você já definiu um valor máximo para investir neste imóvel?
+- Você pretende financiar, usar recursos próprios ou está analisando outras formas de pagamento?
+- Se precisar de financiamento, já conversou com algum banco ou gostaria que eu te ajudasse a simular valores?
+- Você tem um imóvel para vender e utilizar esse valor como parte do pagamento?
+- Alguma condição especial que precise ser considerada, como entrada reduzida ou prazo para pagamento?
+
+## 5) Perguntas sobre urgência e prazo para compra
+- Você tem um prazo para fechar essa compra ou está analisando sem pressa?
+- Você pretende se mudar logo ou pode esperar um tempo até encontrar o imóvel ideal?
+- Se precisar de um imóvel pronto para morar, qual a sua expectativa para mudança?
+- Algum fator externo pode influenciar sua decisão agora? (Exemplo: mudança de trabalho, escola dos filhos, transição de cidade).
+
+## 6) Perguntas para construção de relacionamento e engajamento
+- Você já teve alguma experiência comprando um imóvel antes? Como foi esse processo?
+- O que te faria tomar a decisão mais rápido: preço, condições de pagamento ou diferencial do imóvel?
+- Tem alguma referência de imóvel que gostou muito e quer algo parecido?
+- Qual seria o imóvel dos seus sonhos e o que ele precisaria ter?
+- Como posso facilitar esse processo para você?
+
+# Dicas extras para melhorar o atendimento
+
+## Dicas extras para melhorar o atendimento
+DICA: **1) Adapte o tom da conversa ao perfil do cliente.** Clientes mais diretos preferem respostas curtas e objetivas, enquanto outros podem gostar de mais detalhes.
+DICA: **2) Se o cliente enviar um áudio, responda com um áudio.** Caso precise explicar algo, envie uma mensagem antes contextualizando.
+DICA: **3) Esteja preparado para objeções.** Se o cliente disser que não pode visitar agora, pergunte qual seria um bom momento ou ofereça um vídeo do imóvel.
+DICA: **4) Não force a venda.** O objetivo é construir confiança para que o cliente se sinta confortável em avançar no processo.

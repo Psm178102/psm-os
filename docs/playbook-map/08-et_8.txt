@@ -1,0 +1,68 @@
+NOME: ETAPA 8 — PROPOSTA / APROVAÇÃO DE CRÉDITO
+
+QUANDO: Lead quer avançar. Hora de sentar, negociar e fechar.
+OBJETIVO: Proposta formalizada + aprovação + assinatura
+SLA: 5 dias para decisão/andamento
+CANAIS: Presencial + WhatsApp + Ligação + E-mail
+MÉTODO: SPIN + Plano de Compra + Checkpoints proativos
+
+## Técnicas de fechamento
+@ Na mesa · Presencial
+- Próximo Passo: "O próximo passo seria a proposta formal. Podemos?" (não pergunte se quer comprar)
+- Escassez Real: Dado REAL de unidades restantes no andar/vista escolhido
+- Escalada de Compromissos: Cada "sim" pequeno leva ao "sim" final (já concordou com região, planta, faixa...)
+- Ancoragem: Apresente preço cheio primeiro, depois a condição especial = parece desconto
+- SPIN: Situação > Problema > Implicação ("se não comprar agora, o que acontece?") > Necessidade de solução
+- Empatia Tática: "Entendo sua preocupação com [X]. Vamos resolver isso juntos."
+- Storytelling: história de outro cliente que tinha a mesma dúvida e resolveu
+
+>> Presencial · Próximo passo
+> O próximo passo seria a proposta formal. Podemos?
+
+>> Presencial · SPIN — Implicação
+> Se não comprar agora, o que acontece?
+
+>> Presencial · Empatia tática
+> Entendo sua preocupação com [X]. Vamos resolver isso juntos.
+
+PROIBIDO: Nunca negocie antes da hora. Nunca dê desconto sem algo em troca. ELE tem que falar quanto quer pagar. Não esqueça: data entrada, data mensais, data balões.
+
+# Cadência de acompanhamento
+
+| DIA | AÇÃO | CANAL | DETALHE |
+| D0 | Mesa: valores + coletar docs (mín. CNH) | Presencial | Papel e caneta. Ancoragem. Silêncio. |
+| D1 | Retorno proposta/contraproposta | WA+Lig | "Parabéns! Nosso compromisso começa agora." |
+| D2 | Acompanhar aprovação crédito | WhatsApp | "Estou acompanhando. Te atualizo quando sair." |
+| D3 | Checkpoint proativo | Ligação | "Te retorno até [X]h com atualização." |
+| D4 | Destravar pendências (docs, banco) | WA+Lig | Ligação curta pra cada pendência |
+| D5 | Fechamento ou renegociação | Presencial | Objeção final + ajuste se necessário |
+
+## D0 — Mesa: valores + coletar docs
+@ D0 · Presencial
+Mesa: valores + coletar docs (mín. CNH). Papel e caneta. Ancoragem. Silêncio.
+
+## D1 — Retorno da proposta/contraproposta
+@ D1 · WhatsApp + Ligação
+
+>> WhatsApp · D1 Retorno da proposta
+> Parabéns! Nosso compromisso começa agora.
+
+## D2 — Acompanhar aprovação de crédito
+@ D2 · WhatsApp
+
+>> WhatsApp · D2 Acompanhamento do crédito
+> Estou acompanhando. Te atualizo quando sair.
+
+## D3 — Checkpoint proativo
+@ D3 · Ligação
+
+>> Ligação · D3 Checkpoint proativo
+> Te retorno até [X]h com atualização.
+
+## D4 — Destravar pendências (docs, banco)
+@ D4 · WhatsApp + Ligação
+Ligação curta pra cada pendência.
+
+## D5 — Fechamento ou renegociação
+@ D5 · Presencial
+Objeção final + ajuste se necessário.

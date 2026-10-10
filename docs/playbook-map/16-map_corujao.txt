@@ -1,0 +1,199 @@
+NOME: 🌙 Corujão, mailing e leads descartados
+
+OBJETIVO: Reativar interesse ou apresentar novo lançamento.
+
+Fluxo completo para ações ativas: corujões (plantões noturnos/eventos), listas de mailing, leads descartados e base fria.
+
+## Conceitos e diferenças
+| TIPO | O QUE É |
+| Corujão | Plantão especial (noturno/fim de semana) com condição exclusiva. Lead recebe convite direto para evento com deadline. |
+| Ativo/Mailing | Lista comprada, parceiros, indicação fria ou base do CRM. Lead NÃO espera seu contato — precisa de abordagem diferenciada. |
+| Lead Descartado | Passou pelo funil e foi descartado (T05/T09). Já conhece a PSM. Oportunidade: novo lançamento ou condição que muda o cenário. |
+| Represado Frio | Lead no CRM há >60 dias sem interação. Precisa de reaquecimento antes de qualquer oferta. |
+
+PROIBIDO: NUNCA ligue ou mande áudio pra lead frio sem antes enviar mensagem de texto e esperar reação. Ligação fria sem contexto = bloqueio.
+
+## Fase 0 — Preparação
+@ Antes da ação
+POR QUE FUNCIONA: **Preparação é 80% do resultado.** Corretor que liga pra lista sem preparar = telemarketing. Corretor que segmenta, prepara gatilho e personaliza = consultor que converte.
+### Checklist pré-ação
+- Definir o MOTIVO do contato (lançamento novo? condição especial? corujão? evento?)
+- Segmentar a lista: separar por perfil (moradia vs investimento), por histórico (descartado vs mailing), por região de interesse
+- Preparar GATILHO: algo novo que justifique o contato (lançamento, preço, condição, evento, mudança de mercado)
+- Personalizar: se lead já passou pelo funil, buscar no CRM o motivo do descarte e o que interessava
+- Definir meta: quantos contatos, quantos agendamentos, deadline da ação
+- Preparar material: PDF do empreendimento, link da localização, fotos/vídeo do decorado, tabela de preços
+
+# Cadência 1 — Corujão / evento especial
+
+DICA: **Diferencial do Corujão.** Tem URGÊNCIA natural (data fixa) e EXCLUSIVIDADE (condição só pra quem for). Use esses dois gatilhos em CADA mensagem.
+
+## D-7 a D-5 — Primeiro convite
+@ D-7 a D-5 · WhatsApp
+
+>> WhatsApp · Convite Corujão (lead quente/morno) | MIX
+> [NOME], tudo bem?
+>
+> Vou te contar uma coisa em primeira mão: dia [DATA] vai ter um evento EXCLUSIVO no [EMPREENDIMENTO] — condições que só existem nessa noite.
+>
+> Lembra que você se interessou por [REGIÃO/TIPO]? Esse pode ser o momento ideal.
+>
+> Posso reservar um horário pra você? Vagas limitadas.
+
+>> WhatsApp · Convite Corujão (lead descartado) | MIX
+> [NOME], quanto tempo! Espero que esteja bem.
+>
+> Sei que na época não rolou, mas surgiu algo que pode mudar o cenário: dia [DATA] tem um evento exclusivo com condição especial no [EMPREENDIMENTO].
+>
+> Condição diferente de tudo que tinha antes. Vale 15 minutos do seu tempo?
+>
+> Se tiver interesse, me avisa que garanto sua vaga.
+
+## D-3 — Reforço + urgência
+@ D-3 · WhatsApp
+
+>> WhatsApp · Reforço (quem não respondeu) | MIX
+> [NOME], só reforçando: o evento de [DATA] já tem [X] pessoas confirmadas e as condições são por ordem de chegada.
+>
+> Não quero que você perca essa oportunidade.
+>
+> Me confirma até [DIA] que eu reservo seu lugar?
+
+## D-1 — Confirmação final
+@ D-1 · WhatsApp
+
+>> WhatsApp · Confirmação (quem confirmou) | MIX
+> [NOME], amanhã é o grande dia!
+>
+> Confirmando: [EMPREENDIMENTO], [ENDEREÇO]
+> Horário: [HORÁRIO]
+>
+> Estou te esperando. Qualquer dúvida, me liga.
+> Vai ser uma noite especial!
+
+>> WhatsApp · Última chance (quem não respondeu) | MIX
+> [NOME], amanhã à noite tem o evento no [EMPREENDIMENTO] e ainda dá tempo de garantir sua vaga.
+>
+> Depois de amanhã a condição volta ao normal.
+>
+> Quer que eu reserve?
+
+## D+1 — Pós-Corujão
+@ D+1 · WhatsApp
+
+>> WhatsApp · Pós-evento (quem foi) | MIX
+> [NOME], que bom ter você ontem!
+>
+> O que achou? Alguma unidade chamou mais sua atenção?
+>
+> Lembrando que a condição do evento vale até [DATA LIMITE]. Me conta o que está pensando que a gente avança.
+
+>> WhatsApp · Pós-evento (quem NÃO foi) | MIX
+> [NOME], ontem foi incrível — [X] unidades vendidas só na noite.
+>
+> Ainda restam [X] unidades com a condição do evento até [DATA LIMITE]. Se quiser, posso te apresentar as que sobraram antes que acabe.
+>
+> Tem 15 minutos essa semana?
+
+# Cadência 2 — Ativo / lista de mailing
+
+PROIBIDO: Lead de mailing NÃO te conhece. Primeira mensagem NUNCA pode ser oferta direta. Abordagem: CONTEXTO primeiro, OFERTA depois.
+
+## D1 — Abordagem inicial (texto curto)
+@ D1 · WhatsApp
+
+>> WhatsApp · Primeiro contato mailing
+> Oi [NOME], tudo bem? Sou [SEU NOME] da PSM Assessoria Imobiliária.
+>
+> Estou entrando em contato porque surgiu uma oportunidade na região de [REGIÃO] que pode fazer sentido pra você.
+>
+> Você está buscando imóvel no momento? (Moradia ou investimento, qualquer um)
+
+DICA: **Técnica: Pergunta Aberta Curta.** Não descreva o imóvel ainda. A pergunta 'você está buscando?' filtra quem tem e quem não tem interesse — economiza seu tempo e evita parecer spam.
+
+## D2 — Se não respondeu: gatilho de curiosidade
+@ D2 · WhatsApp · Gatilho: Curiosidade
+
+>> WhatsApp · Follow-up mailing D2
+> [NOME], entendo que pode estar corrido.
+>
+> Só pra contextualizar: essa oportunidade é [1 FRASE SOBRE O DIFERENCIAL — ex: 'apto 2Q com lazer completo a partir de R$ XX']
+>
+> Se não fizer sentido, sem problema nenhum. Mas se fizer, vale a conversa.
+
+## D4 — Tentativa com áudio (30s MÁX)
+@ D4 · Áudio
+
+>> Áudio · Follow-up mailing D4
+> [NOME], aqui é [SEU NOME] da PSM, tô mandando esse áudio rápido porque acho que essa oportunidade pode te interessar. É um [TIPO IMÓVEL] na [REGIÃO], com uma condição especial que tá rolando agora. Se você tiver pensando em comprar — moradia ou investimento — me responde aqui que te explico melhor. Sem compromisso nenhum. Valeu!
+
+## D7 — Última tentativa
+@ D7 · WhatsApp
+
+>> WhatsApp · Encerramento mailing
+> [NOME], como não tive retorno, vou entender que não é o momento.
+>
+> Caso mude de ideia ou surja interesse no futuro, pode me chamar aqui: sou [SEU NOME], especialista na região de [REGIÃO].
+>
+> Fico à disposição!
+
+POR QUE FUNCIONA: **Técnica do 'Portfólio de Saída'.** Na última mensagem, inclua seu nome + especialidade + região. Isso planta uma semente. Quando o lead precisar, lembra de você — porque você foi educado e não insistente.
+
+# Cadência 3 — Leads descartados (reativação por lançamento)
+
+Quando a construtora lança um novo empreendimento ou surge uma condição diferenciada, essa é a hora de reativar descartados. O GATILHO é o lançamento, não você.
+
+DICA: **Regra de Ouro da Reativação.** O lead foi descartado por um motivo. Sua mensagem deve RECONHECER isso e mostrar que algo MUDOU. Se nada mudou, não tem porque contatar.
+
+## Passo 1 — Consultar CRM antes de contatar
+@ Antes do D1 · CRM
+- Buscar no CRM: por que foi descartado?
+- O que ele buscava? (região, tipo, valor, perfil)
+- O novo lançamento resolve a objeção anterior?
+Se a resposta for NÃO → não contate. Respeite o lead.
+
+## D1 — Mensagem de reativação
+@ D1 · WhatsApp
+
+>> WhatsApp · Reativação por lançamento (descartado) | MIX
+> [NOME], tudo bem? Aqui é [SEU NOME] da PSM.
+>
+> Na época que conversamos, lembro que você buscava [O QUE BUSCAVA] mas não rolou por [MOTIVO RESUMIDO].
+>
+> Surgiu um lançamento novo que é bem diferente do que tinha antes: [EMPREENDIMENTO] na [REGIÃO] com [DIFERENCIAL QUE RESOLVE A OBJEÇÃO].
+>
+> Faz sentido eu te contar mais? Sem compromisso.
+
+>> WhatsApp · Reativação por condição (descartado) | MIX
+> [NOME], quanto tempo! Espero que esteja bem.
+>
+> Lembro que valor era um ponto importante pra você. Por isso estou te avisando: o [EMPREENDIMENTO] lançou uma condição nova com [DIFERENCIAL DE PREÇO/ENTRADA/PARCELA].
+>
+> Pode ser que agora feche a conta. Quer que eu simule pra você?
+
+## D3 — Follow-up com prova social
+@ D3 · WhatsApp · Gatilho: Prova social
+
+>> WhatsApp · Follow-up descartado D3 | MIX
+> [NOME], só pra você ter uma ideia: desde o lançamento já vendemos [X]% das unidades.
+>
+> Ainda tem opções boas, mas está indo rápido.
+>
+> Se quiser dar uma olhada, me avisa que separo as melhores pra você.
+
+## D7 — Encerramento respeitoso
+@ D7 · WhatsApp
+
+>> WhatsApp · Encerramento descartado | MIX
+> [NOME], como não tive retorno, vou respeitar seu momento.
+>
+> Se no futuro surgir interesse, pode contar comigo. Sou [SEU NOME], especialista em [REGIÃO/TIPO].
+>
+> Abraço!
+
+# Resumo das 3 cadências
+
+| CADÊNCIA | TIMELINE | MSGS | CANAL | GATILHO |
+| Corujão | D-7 a D+1 | 5-7 | WhatsApp+Ligação | Evento com data fixa + condição exclusiva |
+| Mailing | D1 a D7 | 4 | WhatsApp+Áudio | Oportunidade + pergunta de filtro |
+| Descartado | D1 a D7 | 3-4 | WhatsApp | Lançamento novo / condição que resolve objeção antiga |

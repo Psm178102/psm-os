@@ -1,0 +1,212 @@
+NOME: ETAPA 4 — QUALIFICADO > AGENDAMENTO
+
+QUANDO: 4Ps completos. Você sabe o que o lead quer. Agora precisa da visita.
+OBJETIVO: Converter em visita agendada com compromisso REAL
+SLA: Até 48h pra virar agendamento. Após: follow-up 14 dias
+CANAIS: Ligação (SEMPRE prioritário) + WhatsApp + Vídeo + Evento
+REGRA DE OURO: LIGAÇÃO pra agendar. 2 horários. Local permitido.
+
+ATENÇÃO: **Esta é a etapa mais crítica do funil.** A maioria das vendas morre aqui: lead qualificado que não agenda. Se você resolver esse gargalo, o resto do funil flui. Por isso essa etapa tem o MÁXIMO de estratégias, scripts e técnicas. Domine essa etapa e você domina suas vendas.
+ATENÇÃO: Taxa de conversão por ligação é 3x maior que por WhatsApp. SEMPRE tente ligar primeiro.
+
+# 7 tentativas de agendamento — cadência oficial
+
+| TENT. | GATILHO MENTAL | CANAL | AÇÃO | SCRIPT RESUMIDO |
+| T01 | AUTORIDADE + RESUMO | Ligação | Resumo perfil + 2 horários + local | "Seu perfil: [X]. Tenho [H1] e [H2]. Qual confirma?" |
+| T02 | PROVA SOCIAL | WhatsApp | Foto vendas/stand/depoimento | "Olha o que os compradores estão dizendo." |
+| T03 | ANTECIPAÇÃO | WhatsApp | Condição especial em primeira mão | "Condição especial sai esse mês. Quer ver antes?" |
+| T04 | EXCLUSIVIDADE | WhatsApp | Condição só presencial + prazo | "Só apresentada presencialmente. Vale até fim do mês." |
+| T05 | PRATICIDADE + ONLINE | Ligação | Reunião online como PONTE | "Investidores de [CIDADE] conhecem por vídeo. 17h23 ou 9h35?" |
+| T06 | DADO + ESCASSEZ REAL | WA+Lig | Valorização + últimas unidades | "Região valorizou Y%. Unidades caminhando pras últimas." |
+| T07 | ÚLTIMO APELO | WA+Lig | Prova social + virada de tabela | "Fechamos X contratos. Virada vem aí. Vamos antes?" |
+
+## T01 — Script principal
+@ T01 · Ligação · Gatilho: Autoridade + Resumo
+Script principal (após 4Ps). Ação: resumo perfil + 2 horários + local.
+
+>> Ligação · T01 Script principal (ideal)
+> [NOME], entendi perfeitamente seu perfil.
+> Separei opções de [TIPOLOGIA] na região [REGIÃO], dentro da faixa que conversamos.
+> Pra te apresentar com detalhes, preciso de 15 min presencial. Posso te atender na sede da PSM (Georgina Business) às [H1] ou no stand do [EMPREENDIMENTO] às [H2]. Qual funciona?
+
+>> WhatsApp · T01 Script principal
+> [NOME], montei uma seleção com base no que você me disse: [TIPOLOGIA] na [REGIÃO], faixa de [FAIXA].
+>
+> Tenho opções que encaixam perfeitamente.
+>
+> Pra te apresentar, preciso de 15 min presencial. Sede PSM (Georgina) às [H1] ou stand do [EMPREENDIMENTO] às [H2]. Qual confirma?
+
+## T02 — Prova Social
+@ T02 · WhatsApp · Gatilho: Prova social
+Gatilho: VALIDAÇÃO SOCIAL. O lead precisa ver que OUTRAS PESSOAS estão comprando.
+Ação: foto vendas/stand/depoimento.
+
+>> WhatsApp · T02 Prova Social
+> [NOME], olha o movimento que tá tendo no [EMPREENDIMENTO]:
+> (Envie 1 foto: espelho de vendas com unidades marcadas, stand com pessoas, mesa de negociação, ou foto de contrato (sem dados pessoais))
+> O mercado tá acelerando nessa região.
+>
+> Que tal conhecer presencialmente? [H1] ou [H2]?
+
+## T03 — Antecipação
+@ T03 · WhatsApp · Gatilho: Antecipação
+Gatilho: EXCLUSIVIDADE + NOVIDADE. Faz o lead sentir que está recebendo algo antes dos outros.
+Ação: condição especial em primeira mão.
+
+>> WhatsApp · T03 Antecipação | MORADIA
+> [NOME], surgiu uma condição especial para o [EMPREENDIMENTO] que vale até o fim do mês.
+>
+> É o tipo de coisa que só quem visita presencialmente tem acesso. Separei pra te mostrar em primeira mão.
+>
+> Consigo te atender [H1] ou [H2]. Qual prefere?
+
+>> WhatsApp · T03 Antecipação | INVESTIMENTO
+> [NOME], a incorporadora liberou uma condição de entrada que muda a conta do investimento.
+>
+> Só apresento presencialmente porque envolve simulação personalizada.
+>
+> [H1] ou [H2] — qual funciona?
+
+## T04 — Exclusividade
+@ T04 · WhatsApp · Gatilho: Exclusividade
+Ação: condição só presencial + prazo.
+
+>> WhatsApp · T04 Exclusividade (script resumido)
+> Só apresentada presencialmente. Vale até fim do mês.
+
+## T05 — Praticidade + Online
+@ T05 · Ligação · Gatilho: Praticidade + Online
+Ação: reunião online como PONTE.
+
+>> Ligação · T05 Praticidade + Online (script resumido)
+> Investidores de [CIDADE] conhecem por vídeo. 17h23 ou 9h35?
+
+## T06 — Dado + Escassez real
+@ T06 · WhatsApp + Ligação · Gatilho: Dado + Escassez real
+Ação: valorização + últimas unidades.
+
+>> WhatsApp · T06 Dado + Escassez real (script resumido)
+> Região valorizou Y%. Unidades caminhando pras últimas.
+
+## T07 — Último apelo
+@ T07 · WhatsApp + Ligação · Gatilho: Último apelo
+Ação: prova social + virada de tabela.
+
+>> WhatsApp · T07 Último apelo (script resumido)
+> Fechamos X contratos. Virada vem aí. Vamos antes?
+
+# Estratégias avançadas para destravar o agendamento
+
+Use essas técnicas quando as 7 tentativas padrão não funcionaram ou quando o lead trava. Cada uma resolve um tipo diferente de resistência.
+
+## Estratégia 1 — Vídeo personalizado
+@ Vídeo + WhatsApp · Gatilho: Reciprocidade
+### Como funciona
+Você vai até o stand/decorado/obra e grava um vídeo de 30-45 segundos mostrando o empreendimento PENSANDO NO PERFIL DO LEAD. Não é vídeo genérico — é personalizado. Envie com a frase "tomei a liberdade de ir até o local pensando no que você me disse".
+POR QUE FUNCIONA: **Reciprocidade.** Você investiu TEMPO e ESFORÇO por ele. Isso cria obrigação social de responder. Além disso, vídeo curto é o formato com maior taxa de visualização no WhatsApp.
+### Quando usar
+Lead qualificado que não responde texto. Lead que demonstrou interesse mas trava no agendamento. Lead de perfil alto (investidor).
+
+>> WhatsApp · Mensagem que acompanha o vídeo
+> [NOME], tomei a liberdade de ir até o [EMPREENDIMENTO] pensando no que você me contou.
+>
+> Gravei esse vídeo rápido de 30 segundos pra você ter uma ideia.
+> (Envie o vídeo)
+> Se fizer sentido, consigo te levar presencialmente em [H1] ou [H2]. Quer conhecer de perto?
+
+## Estratégia 2 — Micro-compromisso progressivo
+@ WhatsApp · Gatilho: Escada de compromissos
+POR QUE FUNCIONA: **Escada de compromissos.** Em vez de pedir a visita direto (compromisso grande), você pede pequenos "sims" que vão construindo o caminho: 1) "Posso te mandar 2 opções?" (sim fácil) > 2) "Qual te chamou mais atenção?" (engajamento) > 3) "Quer que eu te mostre a planta/vídeo?" (curiosidade) > 4) "Pra ver pessoalmente são 15 min. [H1] ou [H2]?" (compromisso final). Cada sim anterior torna o próximo mais provável.
+
+>> WhatsApp · Passo 1 — Permissão
+> [NOME], separei 2 opções que combinam com o que você me contou. Posso te mandar?
+
+>> WhatsApp · Passo 2 — Engajamento (após ele dizer sim)
+> (Enviar apresentação padrão PSM - 1 msg cada)
+> Qual dessas te chamou mais atenção?
+> Me diz que eu aprofundo nessa.
+
+>> WhatsApp · Passo 3 — Ponte para visita
+> [NOME], essa opção [X] tem um detalhe que só dá pra sentir pessoalmente: [DECORADO/VISTA/PLANTA].
+>
+> 15 minutos presenciais valem mais que 100 fotos.
+>
+> [H1] ou [H2] — qual funciona?
+
+## Estratégia 3 — Reunião online como PONTE
+@ Vídeo · Ponte, não desistência
+Reunião online como PONTE (não como desistência).
+DICA: **Mentalidade correta.** Reunião online NÃO é substituto da visita. É uma PONTE. O objetivo da videochamada é gerar interesse suficiente pra ele querer ir presencialmente. Na videochamada, mostre o MÍNIMO necessário pra gerar curiosidade, e termine com: "Pra sentir o espaço e ver as condições especiais, preciso te atender presencialmente. [H1] ou [H2]?"
+
+>> WhatsApp · Script videochamada
+> [NOME], sei que a agenda fica corrida.
+>
+> Que tal uma videochamada de 10 minutos? Te mostro as opções filtradas e você decide se vale a visita.
+>
+> [H1] ou [H2] — qual prefere?
+
+>> Vídeo · Na videochamada, termine com
+> (NA VIDEOCHAMADA, TERMINE COM:)
+> O que eu te mostrei é 30% do que você vai sentir presencialmente. O decorado/espaço muda tudo.
+> Consigo te levar [DIA] às [HORA]. Funciona?
+
+## Estratégia 4 — Oferta-isca presencial
+@ WhatsApp · Motivo concreto que só existe presencialmente
+Crie um motivo CONCRETO que só existe presencialmente. Não é mentira — é uma condição real que só é apresentada no stand/sede.
+
+>> WhatsApp · Script oferta-isca
+> [NOME], a incorporadora liberou uma condição que não consigo detalhar por mensagem (envolve parcelamento especial do ato + escolha de unidade).
+>
+> Só apresento presencialmente porque cada caso é personalizado.
+>
+> Tenho [H1] e [H2]. Qual confirma?
+
+PROIBIDO: A oferta-isca precisa ser REAL. Se o lead chegar e não houver nada especial, você perde toda credibilidade. Sempre tenha algo preparado.
+
+## Estratégia 5 — Convite para evento/experiência
+@ WhatsApp · Evento
+Transforme a visita em algo MAIOR que uma visita. Café, coquetel, abertura exclusiva, dia de portas abertas.
+
+>> WhatsApp · Script convite | MORADIA
+> [NOME], esse [DIA DA SEMANA] vamos abrir o decorado do [EMPREENDIMENTO] com café da manhã pra um grupo seleto de interessados.
+>
+> É uma forma descontraída de conhecer o espaço sem compromisso. Posso reservar uma vaga pra você?
+>
+> Horário: [HORÁRIO]. Confirma?
+
+>> WhatsApp · Script convite | INVESTIMENTO
+> [NOME], organizamos uma apresentação exclusiva dos números de valorização e rentabilidade do [EMPREENDIMENTO] para investidores.
+>
+> 15 minutos, dados reais, sem enrolação.
+>
+> [H1] ou [H2]. Consigo reservar?
+
+## Estratégia 6 — Abordagem diferenciada por perfil
+O MOTIVADOR de visita é completamente diferente para moradia vs investimento. Use o certo.
+
+| PERFIL | O QUE MOTIVA A VISITA | O QUE NÃO FUNCIONA |
+| MORADIA | Emoção: decorado, espaço, vizinhança, segurança, escola dos filhos | Números frios de valorização, rentabilidade, cap rate |
+| INVESTIMENTO | Racional: dados de valorização, rentabilidade líquida, comparativo financeiro | Decorado bonito, lazer do condomínio, "imagina você morando aqui" |
+| MIX | Combinar: segurança + valorização, qualidade de vida + patrimônio | Focar só em um ângulo. Alterne entre emocional e racional |
+
+# Follow-up de 14 dias
+
+## Qualificado que não agenda
+@ 14 dias · Após as 7 tentativas + estratégias avançadas
+Se após as 7 tentativas + estratégias avançadas o lead não agendou mas tem perfil, aplique o fluxo de 14 dias:
+
+| DIA | TEMA | GATILHO | O QUE ENVIAR |
+| 1 | Reforço do criativo original | FAMILIARIDADE | Mesmo anúncio que atraiu o lead + posicionamento PSM |
+| 2 | Prova social com dados reais | VALIDAÇÃO | "X unidades vendidas este mês" / notícia do mercado / dado de vendas |
+| 3 | Diferencial + oferta | NOVIDADE | 1 diferencial forte que ele ainda não viu + condição do mês |
+| 4 | Ângulo diferente + oferta nova | SURPRESA | Outro benefício: planta, lazer, vista. MUDE a oferta (entrada/parcelamento) |
+| 5 | Comparativo com prova social | COMPARAÇÃO | Compare 2 opções da mesma faixa + depoimento ou dado de comprador |
+| 6 | Lifestyle: lazer + localização | DESEJO | A vida naquela região: conveniências, lazer, vizinhança. EMOCIONAL + CTA |
+| 7 | Convite: evento/café/abertura | RECIPROCIDADE | Café no stand, evento, abertura de fase. Sem pressão, com experiência |
+| 8 | Contornar objeção provável | FACILIDADE | "Parcelamos ato em 3x" / "aceitamos veículo" / "entrada de R$[X]" |
+| 9 | Oferta com valor final do mês | ANCORAGEM | Valor claro + condição exclusiva + prazo limite |
+| 10 | Escassez + facilidade | URGÊNCIA | "X unidades saíram. Ato parcelado em 3x." Divida a objeção |
+| 11 | Fluxo de pagamento visual | CLAREZA | VPL foto ou fluxo emojis. Mostre que CABE no bolso + CTA |
+| 12 | Tabela vai virar | MEDO PERDER | "Avisando: condições mudam dia X. Quero garantir a sua." |
+| 13 | Contagem regressiva | URGÊNCIA MÁX | "X dias. Plantão sábado 9h ou 14h?" |
+| 14 | Última chance | FECHAMENTO | Fechar ou mover pra CARTEIRA com retorno programado (30-45 dias) |

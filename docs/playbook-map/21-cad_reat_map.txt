@@ -1,0 +1,59 @@
+NOME: 🔄 Cadência de reativação (base antiga)
+
+PERFIS: 🎯 Pra quem: base ANTIGA do M.A.P (6–24 meses parado; a fila de reativação). A pessoa OLHOU algo específico um dia — esse é o fio. O motivo do contato é o que aconteceu com aquilo que ela olhou: fase da obra, valorização, unidades, infraestrutura entregue.
+
+## Como usar (leia 1x, aplique sempre)
+Estes fluxos usam 6 mecanismos de persuasão REAIS — nada de frase pronta:
+1) MOTIVO VERDADEIRO: todo toque carrega uma informação nova e verificável (preço, obra, taxa, imóvel novo). "Passando pra saber se você viu minha mensagem" está PROIBIDO — quem liga sem motivo treina o cliente a ignorar.
+2) ESPECIFICIDADE: número, rua, data e nome. "Ótima oportunidade" não move ninguém; "o lote de esquina de 250m² que você olhou subiu R$ 7.000,00 na virada de tabela de 01/08" move.
+3) CUSTO DA INAÇÃO EM R$: a pessoa não compara "comprar vs não comprar" — ela compara "decidir vs adiar". Mostre o preço do adiar (aluguel pago, INCC, tabela que vira).
+4) PORTA DE SAÍDA: dar permissão explícita de dizer NÃO ("se não fizer mais sentido, me diz que eu encerro por aqui") DOBRA resposta — ninguém responde quem parece que vai grudar.
+5) PROVA LOCAL: caso real do MESMO bairro/empreendimento, com número. Prova genérica é ruído.
+6) LOOP ABERTO: a mensagem levanta uma pergunta que só se fecha na resposta ("descobri uma coisa sobre o seu crédito — posso te contar?").
+### Regras duras
+REGRA: Máx. 2 tentativas de ligação por dia de toque (horários diferentes).
+REGRA: WhatsApp: máx. 4 linhas, SEM bloco de texto (mata conversão — regra da casa).
+REGRA: SMS: até 160 caracteres, 1 ideia, assinado.
+REGRA: Registrar TODO toque no CRM.
+REGRA: Cliente respondeu = SAI da cadência e vira atendimento.
+REGRA: Pediu pra parar = para NA HORA e registra.
+
+## Dia 0 — Toque 1: atualização real
+@ Dia 0 · WhatsApp · Toque 1
+
+>> WhatsApp · Toque 1 — Atualização real
+> {Nome}, {seu nome} da PSM. Em {mês/ano} você se interessou pelo {empreendimento/lote específico}.
+> Atualização real de lá: {fato — 'o asfalto foi entregue', 'a fase 2 abriu', 'a quadra que você olhou valorizou {X}% e restam {N} lotes'}.
+> O cenário que você avaliou mudou — quer a foto de hoje? Mando em 2 linhas.
+
+DICA: **Dissonância.** O gatilho é dissonância: a decisão dele foi tomada sobre um cenário que NÃO existe mais.
+
+## Dia 3 — Toque 2: dois números que mudam a conversa
+@ Dia 3 · Ligação (2 tentativas) · Toque 2
+
+>> Ligação · Toque 2 — Dois números
+> {Nome}, é sobre o {empreendimento} que você acompanhou. Dois números que mudam a conversa: {preço então} → {preço hoje}, e {entrega/infra}. Se aquele plano ainda existe — mesmo adormecido — vale 10 minutos. Se não existe mais, me diz e te tiro da lista com todo respeito.
+
+DICA: **Se não atender.** WhatsApp com os 2 números + "me responde FICA ou SAI que eu respeito."
+
+## Dia 7 — Toque 3: mudou de fase
+@ Dia 7 · SMS · Toque 3
+
+>> SMS · Toque 3 — Mudou de fase
+> {Nome}, {seu nome}/PSM: o {empreendimento} que vc acompanhou mudou de fase. Interessa a atualização? SIM/NAO por aqui resolve. Obrigado!
+
+REGRA: 🛑 3 toques e para (volta pra base de 6 meses). Base antiga é ativo — não vira spam.
+
+# Objeções-chave
+
+## "Nem lembro disso"
+@ Objeção
+
+>> WhatsApp · Resposta a "Nem lembro disso"
+> Normal — foi há {tempo}. Em 1 linha: você buscava {objetivo da época}. Isso ainda é um plano ou a vida mudou? Os dois são respostas boas pra mim.
+
+## "Já resolvi com outro"
+@ Objeção
+
+>> WhatsApp · Resposta a "Já resolvi com outro"
+> Parabéns! Fica só o canal aberto: se um dia pensar em INVESTIR (lote pra valorizar, renda), a mesma base que te mostrei serve pra isso — e indicação premiada aqui paga até R$ 2.500,00.

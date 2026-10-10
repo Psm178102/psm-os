@@ -1,0 +1,147 @@
+NOME: ETAPA 6 — VISITA REALIZADA
+
+QUANDO: Visita aconteceu. Hora de converter em proposta.
+OBJETIVO: Feedback + proposta OU 2ª visita em até 3 dias
+SLA: 3 dias pra virar proposta, quentes ou requalificação
+CANAIS: Presencial + WhatsApp + Ligação
+REGRA DE OURO: NUNCA encerre atendimento sem agendar o próximo passo
+
+# Durante a visita
+
+## Roteiro de condução da visita (presencial)
+@ Presencial · Roteiro de condução + mesa
+A visita não é um passeio. É uma apresentação estratégica com objetivo de AVANÇAR. Siga essa sequência:
+
+## Fase 1 — Conexão
+@ Primeiros 5 minutos · Presencial
+- ESPELHAMENTO: Adapte linguagem corporal, tom de voz, ritmo e energia ao cliente. Se ele é reservado, seja calmo. Se é animado, acompanhe. Confiança no ALTO NÍVEL — se você estiver desanimado, o cliente sente.
+- DEIXE ELE FALAR: Nunca dê sua opinião. Pergunte sobre coisas do interesse dele pra ele desarmar e entregar mais informações. Quanto mais ele fala, mais você entende como ele pensa, decide e interpreta.
+- NÃO ACREDITE 100% NO QUE ELE DISSE POR MENSAGEM: Presencialmente é hora de VALIDAR. Faça perguntas abertas e observe reações.
+
+## Fase 2 — Apresentação do produto
+@ 15-20 minutos · Presencial
+- Comece pelo que ELE disse que era importante (não pelo que você quer mostrar)
+- Observe a reação dele a cada item. Se não reagiu, pergunte: "Isso é importante pra você?"
+- Se ele não se animou com algo, pule. Não force.
+### Perguntas abertas durante a visita
+
+>> Presencial · Perguntas abertas
+> Há quanto tempo está pesquisando?
+> O que faltou nas opções que você já viu?
+> Em relação à localização, atendeu sua expectativa?
+> O que achou da planta? Faltou algo?
+> O prazo de entrega está dentro do que precisa?
+> Qual andar e vista teriam mais interesse?
+
+## Fase 3 — Mesa de negociação
+@ OBRIGATÓRIA na 1ª visita · Presencial
+PROIBIDO: O cliente NÃO pode sair sem conhecer DISPONIBILIDADE + FLUXO. Se saiu sem isso, a visita não foi completa.
+### Roteiro de mesa — passo a passo
+1) VALORES VIGENTES: Apresente os valores do mês + unidades disponíveis. Papel e caneta na mão — tente fazer o CLIENTE anotar (quando ele escreve, internaliza).
+2) ATO (ANCORAGEM): Comece pelo valor cheio. Depois mostre o parcelamento.
+
+>> Presencial · Passo 2 — Ato (ancoragem)
+> Pra bloquear o aumento do próximo mês, o ato seria de [VALOR CHEIO].
+
+3) MENSAIS + SEMESTRAIS: Observe quem pede pra mudar = quem manda no orçamento.
+
+>> Presencial · Passo 3 — Mensais + semestrais
+> Podemos personalizar conforme seu fluxo de caixa. Sugestão: [X MENSAIS + Y SEMESTRAIS]. Esses valores estão dentro ou quer ajustar?
+
+4) SALDO: Enfatize o PRAZO longo — parece menos pesado.
+
+>> Presencial · Passo 4 — Saldo
+> Só daqui [X MESES]. Até lá toda valorização a seu favor. Pode usar consórcio, financiamento ou até revender.
+
+5) SILÊNCIO: Pare. Fique em silêncio. Deixe o cliente processar. Não fale. O primeiro que fala perde. Depois retome pelos pontos que ELE elogiou.
+6) PROPOSTA: Se disser sim: peça CNH + documentação.
+
+>> Presencial · Passo 6 — Proposta
+> Faria sentido avançarmos pra proposta formal? Assim seguramos a unidade e a condição desse mês.
+
+REGRA: **Regra final.** Sem documentação (mínimo CNH) = sem reserva. Sem próximo passo agendado = visita incompleta.
+
+## Fase 4 — Fechamento da visita
+@ Antes de encerrar · Presencial
+Antes de encerrar, SEMPRE defina o próximo passo com data e compromisso:
+
+>> Presencial · Na saída da visita
+> [NOME], agradeço muito pela visita. Pra avançarmos, quando vocês conseguem me dar um retorno sobre o que viram hoje? [DIA]?
+
+>> Presencial · Se disser "vou pensar"
+> Entendo perfeitamente. Até [DIA] te ligo pra saber a decisão. Se surgir alguma dúvida antes, me chama.
+
+>> Presencial · Se tiver cônjuge/sócio que não veio
+> Que tal trazer [PESSOA] na próxima? Consigo apresentar focando nos pontos que são prioridade dele(a). [H1] ou [H2]?
+
+# Depois da visita
+
+| DIA | AÇÃO | CANAL | DETALHE |
+| D0 | Na saída: definir próximo passo com DATA | Presencial | "Quando consegue retornar? [DIA]?" — COMPROMISSO |
+| D0 | Agradecimento + 3 perguntas de feedback | WhatsApp | Script de feedback abaixo — enviar no MESMO DIA |
+| D1 | Cobrar feedback conforme COMBINADO | WA/Lig | "[NOME], conforme combinamos, preciso do retorno." |
+| D2 | Se objeção: enviar opção B ou comparativo | WhatsApp | Apresentação padrão PSM da alternativa |
+| D3 | Ligação de destrave | Ligação | "Preciso saber: avançamos com proposta ou ajusto opções?" |
+
+## D0 — Na saída: definir próximo passo com data
+@ D0 · Presencial · COMPROMISSO
+Na saída: definir próximo passo com DATA.
+
+>> Presencial · Próximo passo com data
+> Quando consegue retornar? [DIA]?
+
+## D0 — Agradecimento + 3 perguntas de feedback
+@ D0 · WhatsApp · Obrigatório — enviar no MESMO DIA
+Script de feedback (obrigatório — enviar no D0).
+
+POR QUE FUNCIONA: **Por que 3 perguntas?** O feedback estruturado faz o lead VERBALIZAR o que gostou — e isso reforça a decisão de compra na cabeça dele. Também expõe a objeção REAL, que você trata AGORA, antes que vire um "vou pensar" eterno.
+
+>> WhatsApp · Feedback da visita
+> [NOME], agradeço demais o tempo de vocês na visita!
+>
+> Preciso do seu feedback em 3 pontos rápidos pra ajustar tudo certinho:
+>
+> 1) O imóvel atendeu suas expectativas? Algo que gostou especialmente ou que poderia ser diferente?
+> 2) Valor e condições: dentro do esperado?
+> 3) Como foi o atendimento? Informações claras?
+>
+> Me conta que eu ajusto os próximos passos com base nisso.
+
+## D1 — Cobrar feedback conforme combinado
+@ D1 · WhatsApp / Ligação
+Cobrar feedback conforme COMBINADO.
+
+>> WhatsApp · Cobrar o retorno combinado
+> [NOME], conforme combinamos, preciso do retorno.
+
+## D2 — Se objeção: opção B ou comparativo
+@ D2 · WhatsApp
+Se objeção: enviar opção B ou comparativo. Apresentação padrão PSM da alternativa.
+
+## D3 — Ligação de destrave
+@ D3 · Ligação
+
+>> Ligação · Destrave
+> Preciso saber: avançamos com proposta ou ajusto opções?
+
+# Follow-up de 14 dias
+
+## Pós-visita sem decisão
+@ Após 3 dias sem avançar pra proposta · 14 dias
+Se após 3 dias não avançou pra proposta, aplique o fluxo. A diferença aqui é que você tem MUNIÇÃO: sabe o que ele viu, elogiou e criticou.
+
+| DIA | TEMA | O QUE ENVIAR |
+| 1 | Relembrar a visita | Foto/vídeo do decorado, fachada ou vista que ele viu. "Lembra dessa vista?" |
+| 2 | Prova social pós-visita | "Desde sua visita, mais X unidades foram vendidas nesse empreendimento." |
+| 3 | Diferencial que ELE elogiou + oferta | Relembre o que ELE disse que gostou + condição especial do mês |
+| 4 | Opção B (se houve objeção) | Se o problema foi preço/tamanho, apresente alternativa que RESOLVE |
+| 5 | Comparativo: opção dele vs mercado | Mostre que custo-benefício é superior ao que existe na região |
+| 6 | Lifestyle: vida naquela região | Lazer, conveniências, vizinhança. EMOCIONAL de morar/investir ali |
+| 7 | Convite 2ª visita ou evento | "Que tal revisitar com [CÔNJUGE/SÓCIO]? Preparei algo especial." |
+| 8 | Contornar objeção do feedback | Responda DIRETAMENTE o que ele disse no feedback que incomodou |
+| 9 | Oferta final do mês | VPL foto ou fluxo emojis + prazo limite claro |
+| 10 | Escassez real | "Restam X unidades no andar/vista que você gostou." |
+| 11 | Fluxo pagamento facilitado | Parcelamento ato, entrada leve, sem burocracia + CTA |
+| 12 | Aviso virada de tabela | "Valores mudam dia X. Quero garantir sua condição." |
+| 13 | Contagem regressiva | "Restam X dias. Plantão sábado 9h ou 14h?" |
+| 14 | Última chance ou reclassificar | Mover pra Quentes (se tem sinal) ou Carteira (retorno 30-45 dias) |

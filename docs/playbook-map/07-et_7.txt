@@ -1,0 +1,85 @@
+NOME: ETAPA 7 — QUENTES DO MÊS
+
+QUANDO: Lead visitou, gostou, mas não decidiu. Está "quase lá".
+OBJETIVO: Proposta ou fechamento em até 7 dias
+SLA: 7 dias. Após: follow-up 14 dias ou mover pra Carteira
+CANAIS: WhatsApp + Ligação + Presencial
+MÉTODOS: AIDA, Feel-Felt-Found, SPIN, Status Real de Unidade
+
+POR QUE FUNCIONA: **Quente esfria em 48h.** O erro clássico é relaxar porque "ele gostou". Lead quente perde momentum em 48h se você não conduz. Cada dia sem ação é uma chance a menos. Você não está pressionando — está ajudando ele a decidir antes que o mercado decida por ele.
+
+# Cadência de 7 dias
+
+| DIA | AÇÃO | CANAL | TÉCNICA | SCRIPT |
+| D1 | Ligação consultiva | Ligação | SPIN: Situação | "O que falta pra você tomar a decisão?" |
+| D2 | VPL personalizada ou fluxo visual | WhatsApp | ANCORAGEM | Foto VPL + emojis + INCC + CTA |
+| D3 | Status real: unidades vendidas | WhatsApp | ESCASSEZ | "Andar que gostou: restam X unidades." |
+| D4 | História de comprador similar | WhatsApp | FEEL-FELT-FOUND | "Tive cliente com mesma dúvida..." |
+| D5 | Ligação de destrave + opção B | Ligação | SPIN completo | Implique consequência. Ofereça solução. |
+| D6 | Oferta final com prazo | WA+Lig | URGÊNCIA REAL | "Condição válida até [DATA]." |
+| D7 | Fechamento ou reclassificação | Ligação | DECISÃO | Proposta formal ou Carteira |
+
+## D1 — Ligação consultiva
+@ D1 · Ligação · Técnica: SPIN (Situação)
+
+>> Ligação · D1 Consultiva
+> O que falta pra você tomar a decisão?
+
+## D2 — VPL personalizada ou fluxo visual
+@ D2 · WhatsApp · Técnica: Ancoragem
+Foto VPL + emojis + INCC + CTA.
+
+>> WhatsApp · D2 Fluxo visual | MIX
+> [NOME], montei a simulação do [EMPREENDIMENTO] com base no que conversamos:
+>
+> Entrada: R$ [X] (parcelada em [N]x)
+> Mensais: [N]x de R$ [X]
+> Saldo na entrega: R$ [X]
+>
+> Isso cabe no seu planejamento?
+> Se quiser ajustar, me fala que eu refaço.
+
+## D3 — Status real: unidades vendidas
+@ D3 · WhatsApp · Técnica: Escassez
+
+>> WhatsApp · D3 Status real de unidade
+> Andar que gostou: restam X unidades.
+
+## D4 — História de comprador similar
+@ D4 · WhatsApp · Técnica: Feel-Felt-Found
+
+>> WhatsApp · D4 Feel-Felt-Found | MIX
+> [NOME], essa semana fechei com um cliente que estava na mesma situação.
+>
+> Ele também achava que [OBJEÇÃO DO LEAD].
+> Quando revisou os números com calma, percebeu que [SOLUÇÃO/DADO].
+> Hoje já assinou e está tranquilo.
+>
+> Quer que a gente revise juntos?
+
+## D5 — Ligação de destrave + opção B
+@ D5 · Ligação · Técnica: SPIN completo
+Implique consequência. Ofereça solução.
+
+## D6 — Oferta final com prazo
+@ D6 · WhatsApp + Ligação · Técnica: Urgência real
+
+>> WhatsApp · D6 Oferta final | MIX
+> [NOME], preciso te avisar:
+>
+> A condição que conversamos (ato em [N]x, mensais de R$ [X]) é válida até [DATA].
+> Após essa data, tabela nova + reajuste.
+>
+> Quer que eu segure essa condição pra você?
+> Preciso da sua confirmação até [DIA].
+
+## D7 — Fechamento ou reclassificação
+@ D7 · Ligação · Técnica: Decisão
+Proposta formal ou Carteira.
+
+# Follow-up de 14 dias
+
+## Quentes que não fecham
+@ Após os 7 dias · 14 dias
+Mesma estrutura de 14 dias, agora com pressão estratégica progressiva. Use TUDO que você sabe da visita e das conversas anteriores. Personalize cada toque.
+Consulte a tabela de 14 dias da Etapa 4 e adapte com dados reais do lead.

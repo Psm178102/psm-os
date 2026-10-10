@@ -4,6 +4,8 @@
    numa tela só, didática, em 3 passos:
      ① escolha o NICHO  →  ② veja o MAPA (o caminho inteiro, PDF)  →
      ③ siga as ETAPAS (o que falar em cada passo: scripts & cadência).
+   v89.43: ③ ganhou o formato "etapa → momento → mensagem pronta" (ver playbook-render.js):
+   a trilha mostra só as etapas do funil (ETAPA 1…9) e o material de apoio vira uma faixa à parte.
    Os dados continuam nos mesmos lugares: linhas/etapas em /api/v3/scripts/playbook
    e o PDF do mapa na coleção 'mapa_venda' de /api/v3/apresentacoes/deck.
    Todos veem (corretores também); gestão (lvl≥5) edita os scripts; sócio anexa o mapa.
@@ -157,6 +159,11 @@ function render() {
       .pv-et.on .pv-bola{background:var(--c);border-color:var(--c);color:#fff;transform:scale(1.12)}
       .pv-et .pv-nome{font-size:11.5px;line-height:1.25;text-align:center;color:var(--ink-muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
       .pv-et.on .pv-nome{color:var(--ink);font-weight:600}
+      .pv-apoio{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0 2px;padding:8px 10px;border-radius:var(--radius-md);background:var(--bg-3)}
+      .pv-apoio-t{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-muted);margin-right:4px}
+      .pv-ap{border:1px solid var(--border);background:var(--bg-1,#fff);color:var(--ink);font:inherit;font-size:12.5px;padding:4px 11px;border-radius:999px;cursor:pointer}
+      .pv-ap:hover{border-color:var(--c)}
+      .pv-ap.on{background:var(--c);border-color:var(--c);color:#fff;font-weight:600}
       .pv-conteudo{border:1px solid var(--border);border-left:5px solid var(--c);border-radius:var(--radius-md);padding:12px 14px;margin-top:8px}
       .pv-mapa{position:relative;margin-top:14px;display:grid;gap:10px;max-width:880px}
       .pv-mapa::before{content:'';position:absolute;left:17px;top:18px;bottom:18px;width:3px;background:var(--c);opacity:.35;border-radius:2px}
@@ -194,19 +201,30 @@ function cartaoNicho(l, i) {
 /* ③ leitura: trilha numerada (a jornada) + conteúdo da etapa + anterior/próxima */
 function corpoEtapas(L, E, etapas, cor) {
   if (!etapas.length) return `<div class="muted tiny" style="padding:24px;text-align:center">Esta linha ainda não tem etapas${_canEdit ? ' — clique em ✏️ Editar scripts.' : '.'}</div>`;
+  // v89.43: linha com etapas numeradas ("ETAPA 3 — …") separa o FUNIL (trilha) do material de APOIO (faixa).
+  const todas = etapas.map((e, i) => ({ e, i, n: numEtapa(e.nome) }));
+  const funil = todas.filter(x => x.n);
+  const separa = funil.length >= 3 && funil.length < todas.length;
+  const naTrilha = separa ? funil : todas;
+  const apoio = separa ? todas.filter(x => !x.n) : [];
+  const atual = todas[_selE];
+  const posFunil = funil.findIndex(x => x.i === _selE);
+  const rotulo = !separa ? `Etapa ${_selE + 1} de ${etapas.length}` : atual.n ? `Etapa ${atual.n} de ${funil.length} do funil` : 'Apoio · vale em qualquer etapa';
   return `
-    <div class="tiny muted" style="margin-top:12px">Clique numa etapa da trilha — ela está na ordem em que a venda acontece.</div>
+    <div class="tiny muted" style="margin-top:12px">Clique numa etapa da trilha — ela está na ordem em que a venda acontece.${separa ? ' Dentro de cada etapa, os <b>momentos</b> vêm na ordem em que você age, com a mensagem pronta pra copiar.' : ''}</div>
     <div class="pv-trilha" style="--c:${cor}">
-      ${etapas.map((e, i) => `<button class="pv-et ${i === _selE ? 'on' : ''} ${i < _selE ? 'feito' : ''}" data-e="${i}" title="${esc(e.nome)}">
-        <span class="pv-bola">${i + 1}</span><span class="pv-nome">${esc(limpaNome(e.nome))}</span></button>`).join('')}
+      ${naTrilha.map(({ e, i, n }, k) => `<button class="pv-et ${i === _selE ? 'on' : ''} ${(separa ? (posFunil >= 0 && k < posFunil) : i < _selE) ? 'feito' : ''}" data-e="${i}" title="${esc(e.nome)}">
+        <span class="pv-bola">${separa ? n : i + 1}</span><span class="pv-nome">${esc(limpaNome(e.nome))}</span></button>`).join('')}
     </div>
+    ${apoio.length ? `<div class="pv-apoio" style="--c:${cor}"><span class="pv-apoio-t">🧰 Apoio · use em qualquer etapa</span>
+      ${apoio.map(({ e, i }) => `<button class="pv-ap ${i === _selE ? 'on' : ''}" data-e="${i}" title="${esc(e.nome)}">${esc(e.nome)}</button>`).join('')}</div>` : ''}
     <div class="pv-conteudo" style="--c:${cor}">
       <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
         <div>
-          <div class="tiny muted" style="font-weight:600;text-transform:uppercase">Etapa ${_selE + 1} de ${etapas.length} · ${esc(L.nome)}</div>
+          <div class="tiny muted" style="font-weight:600;text-transform:uppercase">${rotulo} · ${esc(L.nome)}</div>
           <h3 style="margin:2px 0 0;font-size:16px">${esc(E.nome)}</h3>
         </div>
-        <button class="btn btn-ghost btn-sm" data-copy="1">📋 Copiar</button>
+        <button class="btn btn-ghost btn-sm" data-copy="1" title="Copia o texto inteiro desta etapa">📋 Copiar a etapa inteira</button>
       </div>
       <div class="flex" style="justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;padding-bottom:8px;border-bottom:1px dashed var(--border)">
         ${PB_LEGENDA}
@@ -245,7 +263,7 @@ function corpoEdicao(L, E, etapas, cor) {
           ${E ? `
             <input class="input" id="sc-ename" value="${esc(E.nome)}" placeholder="Nome da etapa" style="font-weight:600;margin-bottom:8px">
             <textarea class="input" id="sc-cont" rows="22" style="width:100%;font-family:ui-monospace,monospace;font-size:13px;line-height:1.5" placeholder="Regras, scripts, cadência, gatilhos…">${esc(E.conteudo || '')}</textarea>
-            <div class="tiny muted" style="margin-top:4px">Dica: LINHAS EM MAIÚSCULAS viram títulos · **negrito** · - listas · linha começando com <b>&gt; </b> vira 💬 script · "WhatsApp T01:" / "Script 1:" abrem um script · "POR QUE FUNCIONA:", "DICA:", "PROIBIDO:" viram caixas.</div>`
+            <div class="tiny muted" style="margin-top:4px;line-height:1.6"><b>Como escrever:</b> <code>## Nome do momento</code> abre um cartão · na linha de baixo, <code>@ D1 · WhatsApp · Gatilho: X</code> vira as etiquetas · <code>&gt;&gt; WhatsApp · Nome | MORADIA</code> abre uma mensagem pronta e cada linha dela começa com <code>&gt; </code> (linha <code>&gt; (entre parênteses)</code> é instrução e não vai no copiar) · <code># Título</code> separa blocos · <code>QUANDO: …</code>, <code>OBJETIVO: …</code>, <code>SLA: …</code> seguidos viram a ficha · <code>DICA:</code>, <code>POR QUE FUNCIONA:</code>, <code>PROIBIDO:</code>, <code>ATENÇÃO:</code>, <code>REGRA:</code> viram caixas · <code>| a | b |</code> vira tabela · <code>- </code> lista · <code>**negrito**</code>.</div>`
           : '<div class="muted tiny" style="padding:20px">Sem etapa selecionada.</div>'}
         </div>
       </div>`;
@@ -300,6 +318,8 @@ function corpoMapaEdicao(L, etapas, cor) {
 }
 
 /* "ETAPA 3 — SONDAGEM" → "Sondagem"; "📘 Vendas · 4. Atendimento — …" → "Atendimento — …" (só na trilha) */
+const numEtapa = n => +((String(n || '').match(/^ETAPA\s*(\d+)\b/i) || [])[1] || 0);
+
 function limpaNome(n) {
   let t = String(n || '').replace(/^ETAPA\s*\d+\s*[—–-]\s*/i, '').replace(/^📘\s*Vendas\s*·\s*\d+\.\s*/, '').trim();
   if (t && t === t.toUpperCase()) t = t.charAt(0) + t.slice(1).toLowerCase();
@@ -325,13 +345,18 @@ function wire(E) {
   _root.querySelectorAll('[data-e]').forEach(b => b.onclick = () => { if (_edit) syncContent(); _selE = +b.dataset.e; render(); });
   const so = _root.querySelector('[data-soscr]'); if (so) so.onclick = () => { _soScripts = !_soScripts; render(); };
   _root.querySelectorAll('[data-cp]').forEach(b => b.onclick = () => {
-    Promise.resolve().then(() => navigator.clipboard.writeText(_copias[+b.dataset.cp] || ''))
+    copiar(_copias[+b.dataset.cp] || '')
       .then(() => { b.textContent = '✅ Copiado'; }, () => { b.textContent = '⚠️ Não copiou'; })
       .finally(() => setTimeout(() => { b.textContent = '📋 Copiar'; }, 1500));
   });
+  _root.querySelectorAll('[data-pbgo]').forEach(b => b.onclick = () => {
+    const m = _root.querySelector('#pbm-' + b.dataset.pbgo); if (!m) return;
+    m.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    m.classList.add('pb-alvo'); setTimeout(() => m.classList.remove('pb-alvo'), 1600);
+  });
   _root.querySelectorAll('[data-ver]').forEach(b => b.onclick = () => { if (_edit) syncContent(); _ver = b.dataset.ver; render(); });
   _root.querySelectorAll('[data-pass]').forEach(b => b.onclick = () => { _selE += +b.dataset.pass; render(); _root.querySelector('.pv-conteudo')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); });
-  const cp = _root.querySelector('[data-copy]'); if (cp) cp.onclick = () => { try { navigator.clipboard.writeText(E.conteudo || ''); cp.textContent = '✅ Copiado'; setTimeout(() => cp.textContent = '📋 Copiar', 1500); } catch {} };
+  const cp = _root.querySelector('[data-copy]'); if (cp) cp.onclick = () => { try { navigator.clipboard.writeText(E.conteudo || ''); cp.textContent = '✅ Copiado'; setTimeout(() => cp.textContent = '📋 Copiar a etapa inteira', 1500); } catch {} };
 
   if ($('sc-edit')) $('sc-edit').onclick = () => { _edit = true; render(); };
   if ($('sc-cancel')) $('sc-cancel').onclick = () => pageScripts(null, _root);
@@ -365,6 +390,17 @@ function wire(E) {
   _root.querySelectorAll('[data-eup]').forEach(b => b.onclick = () => { syncContent(); const i = +b.dataset.eup; swap(_linhas[_selL].etapas, i, i - 1); if (_selE === i) _selE--; else if (_selE === i - 1) _selE++; render(); });
   _root.querySelectorAll('[data-edn]').forEach(b => b.onclick = () => { syncContent(); const i = +b.dataset.edn; swap(_linhas[_selL].etapas, i, i + 1); if (_selE === i) _selE++; else if (_selE === i + 1) _selE--; render(); });
   _root.querySelectorAll('[data-edel]').forEach(b => b.onclick = () => { const i = +b.dataset.edel; if (confirm('Excluir a etapa "' + _linhas[_selL].etapas[i].nome + '"?')) { _linhas[_selL].etapas.splice(i, 1); _selE = 0; render(); } });
+}
+
+/* copia pro WhatsApp; se o navegador negar a área de transferência (webview, http), cai no jeito antigo */
+function copiar(txt) {
+  return Promise.resolve().then(() => navigator.clipboard.writeText(txt)).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = txt; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+    document.body.appendChild(ta); ta.select();
+    const ok = document.execCommand('copy'); ta.remove();
+    if (!ok) throw new Error('não copiou');
+  });
 }
 
 function syncContent() {

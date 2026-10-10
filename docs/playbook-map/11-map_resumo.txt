@@ -1,0 +1,17 @@
+NOME: 📊 Resumo rápido — prazos e canais por etapa
+
+Tabela de consulta rápida. Deixe perto do CRM.
+
+| ETAPA | SLA | CANAL | SE NÃO AVANÇAR | DESTINO |
+| 1. Novo Atendimento | 15 min | Lig+WA+SMS | Vai pra Etapa 2 | Tentativa |
+| 2. Tentativa (T01-T05) | T01-T04 em D1-D3 + T05 em D10 | Lig+WA+SMS | Depois da T05: Carteira (perfil forte) OU Descarte (perfil fraco) | Carteira/Descarte |
+| 2b. Carteira (depois da T05) | Retorno a cada 30-45 dias | WA+Lig+Direct IG (Direct só depois da T05) | 3 contatos sem resposta (90 dias): descartar ou mover pra Reativação | Descarte/Reativação |
+| 3. Sondagem 4Ps | 2 dias | Lig+WA | Insistir ou descartar | Qualificado |
+| 4. Agendamento | 48h + FU14 | Lig+WA+Vídeo | 7 tentativas + estratégias | Visita/Carteira |
+| 5. Visita Agendada | 3 dias | WA+SMS+Agenda | Anti-no-show / remarcar | Visita |
+| 6. Visita Realizada | 3 dias + FU14 | WA+Lig | Feedback + opção B | Proposta/Quentes |
+| 7. Quentes | 7 dias + FU14 | WA+Lig+Presencial | SPIN + escassez | Proposta/Carteira |
+| 8. Proposta | 5 dias | Presencial+WA+Lig | Renegociar | Contrato |
+| 9. Contrato | Imediato | WA+E-mail+Lig | Pós-venda | Indicação |
+
+PSM Assessoria Imobiliária · Equipe MAP · v3.0 · Abril 2026

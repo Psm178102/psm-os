@@ -1,0 +1,67 @@
+NOME: ETAPA 3 — SONDAGEM + QUALIFICAÇÃO
+
+QUANDO: Lead respondeu. Agora você precisa entender o perfil dele.
+OBJETIVO: Mapear Produto, Praça, Preço e Prazo + identificar travas e decisor
+SLA: Concluir em até 2 dias após o primeiro contato efetivo
+CANAIS: Ligação (ideal) ou WhatsApp consultivo
+MÉTODO: 4Ps
+REGRA DE OURO: NÃO entregue valores, fluxos ou book antes de qualificar. Sem exceção.
+
+POR QUE FUNCIONA: **O erro mais caro dessa etapa.** O corretor fica animado com a resposta e manda tudo: book, VPL, fotos, vídeo. O lead olha, acha caro/barato/diferente, e some. Você perdeu o controle. A INFORMAÇÃO é sua moeda de troca — só entregue depois de qualificar. Quem qualifica primeiro, apresenta depois, vende mais.
+
+# As 4 perguntas obrigatórias
+
+| P | PERGUNTA | O QUE DESCOBRIR | COMO PERGUNTAR |
+| PRODUTO | Tipologia, quartos, vagas, varanda, suíte | O que precisa vs o que quer | "Busca algo com quantos quartos? Vaga é importante?" |
+| PRAÇA | Regiões desejadas e as que evita | Onde vive/trabalha, por que aquela região | "Qual região te interessa? Tem alguma que descarta?" |
+| PREÇO | Faixa, entrada, forma de pagamento | Capacidade real vs expectativa | Técnica do preço indireto (abaixo) |
+| PRAZO | Pronto, obra, lançamento. Quando decide | Urgência real vs "estou pesquisando" | "Precisa pra quando? Pronto ou pode ser obra?" |
+
+# Scripts de sondagem
+
+## Sondagem por ligação
+@ Ligação · Ideal
+Ideal — maior taxa de qualificação.
+
+>> Ligação · Roteiro de ligação
+> [NOME], aqui é [SEU NOME] da PSM.
+> Você solicitou informações sobre [EMPREENDIMENTO].
+> No cadastro colocou [MORADIA/INVESTIMENTO], correto?
+> (AGUARDE RESPOSTA)
+> Entendi. Pra ganharmos tempo, 3 perguntas rápidas:
+> 1) Você viu alguma outra opção? Qual?
+> 2) O que não te agradou / por que não fechou?
+> 3) Você tem prazo pra essa decisão?
+> (APÓS RESPOSTAS — VÁ PRO AGENDAMENTO)
+> [NOME], pra te mostrar com detalhes preciso de 15 min presencial. Sede da PSM (Georgina) às [H1] ou stand do [EMPREENDIMENTO] às [H2]. Qual prefere?
+
+## Sondagem por WhatsApp
+@ WhatsApp
+
+>> WhatsApp · Sondagem | MIX
+> [NOME], que bom que respondeu!
+>
+> Pra te atender de forma certeira, preciso de 3 informações rápidas:
+>
+> 1) Busca pra morar ou investir?
+> 2) Qual região te interessa mais?
+> 3) Prefere pronto ou pode ser em obra?
+>
+> Com isso já consigo filtrar as melhores opções.
+
+## Perguntas complementares
+Importantes.
+- Histórico: "Já visitou ou conversou sobre outro empreendimento? Qual?" — pra não repetir e entender objeção
+- Objeção prévia: "O que não te agradou nessa opção?" — descobre a dor real
+- Decisor: "Você decide sozinho(a) ou alguém participa?" — mapeia quem manda
+- Financeiro: "Como costuma fazer a parte financeira? Tem imóvel/carro pra dar de entrada?" — capacidade real
+
+## Técnica do preço indireto
+Quando o lead não quer abrir valor, não insista. Use comparação:
+
+>> WhatsApp · Preço indireto
+> Posso te mandar 2 opções bem diferentes: uma com entrada mais leve e outra um pouco acima mas pronta.
+>
+> Você me diz qual te chama mais atenção e eu entendo sua faixa sem te mandar coisa aleatória. Pode ser?
+
+DICA: **Quando usar o preço indireto.** Use SEMPRE que o lead resistir a falar valor. Funciona porque ele não precisa revelar renda — só precisa escolher entre A e B. A escolha dele te diz tudo: se pedir a mais barata, a faixa é até X. Se disser "as duas", a faixa é acima de Y.

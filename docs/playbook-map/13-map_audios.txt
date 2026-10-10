@@ -1,0 +1,72 @@
+NOME: 🎙 Roteiros de áudio (20–40s)
+
+Áudio curto é uma das ferramentas mais poderosas do WhatsApp. Humaniza, transmite confiança e tem taxa de escuta superior a texto. Mas precisa ser ESTRUTURADO.
+
+## Regras de áudio PSM
+- Duração: 20 a 40 segundos (MÁXIMO 50s). Mais que isso = lead não ouve.
+- Estrutura: SAUDAÇÃO (3s) + CONTEÚDO (15-25s) + CTA (5-10s)
+- Tom: Sorrindo. Energia média-alta. Sem pressa mas sem enrolar.
+- Quando usar: Tentativa 03, pós-visita, quentes, reativação. Quando texto não funcionou.
+
+## Áudio: Tentativa de Contato (T03)
+@ Tentativa 03 · Áudio · ~25 segundos
+
+>> Áudio · Tentativa de Contato T03 (~25s)
+> (Saudação)
+> [NOME], tudo bem? Aqui é [SEU NOME] da PSM.
+>
+> (Conteúdo)
+> Te mandei uma mensagem sobre o [EMPREENDIMENTO/REGIÃO] e queria te contar: saiu uma condição especial esse mês que vale a pena você conhecer.
+>
+> (CTA)
+> Me responde aqui quando puder que eu te explico em 2 minutos. Abraço!
+
+## Áudio: Agendamento (quando texto não funcionou)
+@ Quando texto não funcionou · Áudio · ~30 segundos
+
+>> Áudio · Agendamento (~30s)
+> [NOME], aqui é [SEU NOME] da PSM. Tudo certo?
+>
+> Olha, tomei a liberdade de separar umas opções que combinam certinho com o que você me contou. Tem coisa interessante que só dá pra ver presencialmente — o decorado, a vista, a sensação do espaço.
+>
+> Me fala: [DIA 1] ou [DIA 2], qual funciona melhor pra você? Abraço!
+
+## Áudio: Pós-Visita (feedback)
+@ Pós-visita · Áudio · ~30 segundos
+
+>> Áudio · Pós-Visita — feedback (~30s)
+> [NOME], aqui é [SEU NOME]. Queria agradecer pela visita de [HOJE/ONTEM], foi muito bom te receber.
+>
+> Preciso do seu feedback rápido pra ajustar tudo: o que você achou do imóvel em si e das condições? Se tiver algo que poderia ser diferente, me conta que eu busco alternativas.
+>
+> Me responde quando puder! Abraço.
+
+## Áudio: Quentes do Mês (pressão com empatia)
+@ Quentes do mês · Áudio · ~35 segundos
+
+>> Áudio · Quentes do Mês — pressão com empatia (~35s)
+> [NOME], tudo bem? Aqui é [SEU NOME].
+>
+> Estou te ligando porque essa semana fechamos mais [X] unidades no [EMPREENDIMENTO] e o andar que você gostou tá ficando com poucas opções.
+>
+> Não quero te pressionar, mas também não quero que você perca. Vamos revisar os números juntos? Consigo te atender [H1] ou [H2].
+>
+> Me retorna quando puder. Abraço!
+
+## Áudio: Reativação
+@ Reativação · Áudio · ~25 segundos
+
+>> Áudio · Reativação (~25s)
+> [NOME], aqui é [SEU NOME] da PSM. Tudo certo?
+>
+> Faz um tempo que conversamos sobre imóveis e surgiu uma oportunidade que lembrei do seu perfil. Condições especiais esse mês.
+>
+> Você ainda está na busca? Me responde aqui que eu te conto. Abraço!
+
+## Áudio: Vídeo Personalizado (acompanha o vídeo)
+@ Acompanha o vídeo · Áudio · ~20 segundos
+
+>> Áudio · Vídeo Personalizado (~20s)
+> [NOME], aqui é [SEU NOME]. Olha, tomei a liberdade de ir até o [EMPREENDIMENTO] pensando no que você me contou.
+>
+> Gravei esse vídeo rápido pra você ter uma ideia. Se fizer sentido, a gente marca pra você ver de perto. Me fala o que achou!

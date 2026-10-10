@@ -1,0 +1,76 @@
+NOME: ✍️ Antes e depois — evolução de mensagens
+
+Abaixo, mensagens reais do dia a dia comparadas com a versão otimizada. Use como referência de treinamento para a equipe.
+
+## Mensagem 1: Captação de Imóvel
+Antes (como era enviada): "NOME* boa tarde, tudo bem? Estou subindo o site da imobiliária e alinhando campanhas para portais e google. Você tem algum imóvel para venda ou locação para nós trabalharmos e oferecermos para nossa carteira de clientes? Aguardo retorno, até logo"
+ATENÇÃO: **Problemas.** Mistura 2 assuntos (site + captação). Não deixa claro o benefício pra ele. "Aguardo retorno" é passivo.
+### Depois (versão otimizada)
+
+>> WhatsApp · Captação v4 (versão otimizada)
+> [NOME], boa tarde!
+> Aqui é o [SEU NOME] da PSM Assessoria.
+>
+> Temos uma carteira ativa de compradores buscando imóveis na região de [REGIÃO]. Você tem algum imóvel disponível pra venda ou locação?
+>
+> Consigo te dar um retorno rápido sobre viabilidade e valor de mercado.
+>
+> Posso te ligar pra alinhar?
+
+## Mensagem 2: Retorno de Lead (Legacy)
+Antes (como era enviada): "Sou o Paulo da PSM Assessoria Imobiliária. Retorno o seu contato sobre o seu interesse no lançamento do LEGACY que você viu no instagram. Podemos falar por aqui ou prefere que eu te ligue?"
+ATENÇÃO: **Problemas.** Falta posicionamento PSM (assessoria de todas incorporadoras). "Podemos falar por aqui ou ligue" dá 2 opções fracas — nenhuma conduz.
+### Depois (versão otimizada)
+
+>> WhatsApp · Retorno Lead v4 (versão otimizada)
+> [NOME], tudo bem? Aqui é o [SEU NOME] da PSM.
+>
+> Vi seu interesse no Legacy pelo Instagram. Trabalho com todas as incorporadoras de Rio Preto + imóveis prontos — consigo te mostrar se o Legacy é realmente a melhor opção pro seu perfil.
+>
+> Pra te ajudar certeiro, me confirma: seria pra morar ou pra investir?
+
+## Mensagem 3: Atualizar Status (Tentativa)
+Antes (como era enviada): "Poderia me ajudar a atualizar o status de atendimento? Não quero te pressionar ou ficar incomodando mandando mensagens, apenas queria entender seu momento de busca no imóvel, assim poderei atualizar nosso atendimento. Há algum tempo conversamos a respeito das opções que filtrei para você. Poderia me falar se ainda há interesse ou se deseja conhecer outras opções? Agradeço a atenção e fico no aguardo"
+ATENÇÃO: **Problemas.** 7 linhas (textão). Tom apologético demais ("não quero incomodar"). "Fico no aguardo" é passivo. Poderia ser 3 linhas.
+### Depois (versão otimizada)
+
+>> WhatsApp · Atualização v4 (versão otimizada)
+> [NOME], preciso organizar meus atendimentos.
+>
+> Você permanece com interesse ou prefere que eu encerre por aqui?
+>
+> Sem problema nenhum se não for o momento.
+
+## Mensagem 4: Última Tentativa (remover)
+Antes (como era enviada): "Tentei contato com você algumas vezes para lhe apresentar o que você clicou.. Os empreendimentos disponíveis em Rio Preto; e se precisar nosso estoque de imóveis prontos. Você quer conhecer as opções de empreendimentos filtrados para sua busca ou posso te remover dos interessados? Fico no aguardo e agradeço a atenção"
+ATENÇÃO: **Problemas.** Longo, confuso (mistura assuntos). "Fico no aguardo" de novo. Bom conceito (remover) mas mal executado.
+### Depois (versão otimizada)
+
+>> WhatsApp · Última tentativa v4 (versão otimizada)
+> [NOME], passando pra finalizar por aqui.
+>
+> Se ainda estiver na busca, me responde "quero" que te mando 2 opções filtradas pro seu perfil.
+>
+> Se não for o momento, encerro sem problema.
+> Obrigado pela atenção até aqui.
+
+## Mensagem 5: Sondagem (3 perguntas)
+Antes (como era enviada): "Compreendi seu objetivo (NOME), em nosso anúncio você selecionou a faixa valores entre 310.000 a 370.000, mas antes disso preciso que você me informe também: 1) Qual seu prazo para análise e decisão para esse investimento? 2) Precisa vender algum imóvel para realizar o investimento? 3) Você busca imóvel apenas no formato Studio ou outras tipologias dentro desses valores também seriam opção?"
+Pontos positivos: Boas perguntas, referencia dados do anúncio.
+ATENÇÃO: **Melhorar.** Tom de "formulário". Mandar 1 pergunta por vez é mais consultivo.
+### Depois (versão otimizada)
+
+>> WhatsApp · Sondagem v4 — pergunta 1 (versão otimizada)
+> [NOME], entendi seu interesse! Faixa de R$ 310 a R$ 370 mil, certo?
+>
+> Pra filtrar certinho, me responde uma coisa: você busca só studio ou outras tipologias nessa faixa também seriam opção?
+> (Após resposta, mande a próxima:)
+
+>> WhatsApp · Sondagem v4 — pergunta 2 (versão otimizada)
+> E quanto ao prazo: você tem urgência ou está analisando com calma?
+> (Após resposta:)
+
+>> WhatsApp · Sondagem v4 — pergunta 3 (versão otimizada)
+> Última: precisa vender algum imóvel antes? Pergunto porque trabalhamos com isso também.
+
+DICA: **Regra: 1 pergunta por vez.** Mandar 3 perguntas juntas parece interrogatório. Mande uma, espere resposta, mande outra. Flui melhor, parece conversa, e você consegue reagir a cada resposta.

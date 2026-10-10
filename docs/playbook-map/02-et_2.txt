@@ -1,0 +1,83 @@
+NOME: ETAPA 2 — TENTATIVA DE CONTATO
+
+QUANDO: Lead não respondeu ao primeiro contato. D1 em diante (D1 a D10).
+OBJETIVO: Obter resposta. Qualquer resposta. Abrir diálogo.
+SLA: 5 tentativas: 4 em 3 dias + a T05 uma semana depois. Depois da T05: CARTEIRA (perfil forte) ou DESCARTE (perfil fraco)
+CANAIS: Ligação + WhatsApp + SMS. Direct IG somente depois da T05.
+REGRA DE OURO: Cada toque com GATILHO DIFERENTE. Nunca repetir abordagem.
+
+POR QUE FUNCIONA: **Mentalidade dessa etapa.** Você NÃO está tentando vender. Está tentando obter UMA resposta. Qualquer "sim", "não", "agora não" já é vitória porque abre diálogo. O erro mais comum é repetir a mesma mensagem. Cada toque traz algo NOVO: um dado, um ângulo, uma pergunta diferente.
+
+# Visão geral — T01 a T04 (D1 a D3) + T05 (D10)
+
+| DIA | TENT. | CANAL | AÇÃO + GATILHO | SCRIPT RESUMIDO |
+| D1 | T01 | Lig + WA | Ligação + WhatsApp de DIFERENCIAÇÃO | "Somos assessoria. Quero entender seu objetivo na busca." |
+| D1 | T02 | Ligação | Ligação período inverso | Se ligou de manhã, tente na 2ª rodada (fim da tarde) ou no GOLD. Mude o horário. |
+| D2 | T03 | WhatsApp | Formato diferente: áudio curto OU dado numérico | Curiosidade: dado de valorização, % vendido, novidade |
+| D3 | T04 | Lig + WA | Ligação + WhatsApp na 2ª rodada (fim da tarde). Em dia de GOLD (terça e quinta): após 18h15 | Horário que as pessoas estão mais disponíveis |
+| D10 | T05 | Lig + WA | 8 ou 80: "permanece interesse ou removo?" | Gatilho de PERDA. Ninguém gosta de ser removido. |
+
+# As 5 tentativas
+
+## T01 — Diferenciação
+@ D1 · Ligação + WhatsApp · Gatilho: Autoridade
+Mostre que você é diferente de todos que já mandaram mensagem.
+
+>> WhatsApp · T01 Diferenciação
+> [NOME], tudo bem?
+> Sou [SEU NOME] da PSM Assessoria.
+>
+> Diferente de um corretor comum, aqui eu trabalho com TODAS as incorporadoras + imóveis prontos.
+>
+> Quero entender o que você busca pra te apontar a melhor opção. Podemos conversar por aqui?
+
+## T02 — Ligação no período inverso
+@ D1 · Ligação
+Se ligou de manhã, tente na 2ª rodada (fim da tarde) ou no GOLD. Mude o horário.
+
+## T03 — Dado / curiosidade
+@ D2 · WhatsApp · Gatilho: Curiosidade + dado real
+Formato diferente: áudio curto OU dado numérico. Traga um número que gere interesse: dado de valorização, % vendido, novidade.
+
+>> WhatsApp · T03 Dado rápido | MORADIA
+> [NOME], só uma informação rápida:
+>
+> Na região que você demonstrou interesse, saiu uma opção com [DIFERENCIAL: entrega antecipada / condição especial / última unidade com vista X].
+>
+> Quer que eu te mande os detalhes?
+
+>> WhatsApp · T03 Dado rápido | INVESTIMENTO
+> [NOME], dado rápido:
+>
+> A região do [EMPREENDIMENTO] valorizou [X]% nos últimos 18 meses e já vendeu [Y]%.
+>
+> Seu objetivo seria valorização ou renda com aluguel? Muda completamente a estratégia.
+
+## T04 — Ligação + WhatsApp na 2ª rodada
+@ D3 · Ligação + WhatsApp · Fim da tarde
+Ligação + WhatsApp na 2ª rodada (fim da tarde). Em dia de GOLD (terça e quinta): após 18h15. É o horário em que as pessoas estão mais disponíveis.
+
+REGRA: **Chegou na T04 sem resposta? PARE 7 DIAS.** A pausa faz a T05 chegar como novidade.
+
+## T05 — 8 ou 80
+@ D10 (uma semana depois da T04) · Ligação + WhatsApp · Gatilho: Perda + respeito
+Funciona porque ninguém gosta de ser "removido" de uma lista.
+
+>> WhatsApp · T05 8 ou 80
+> [NOME], não quero ficar insistindo.
+>
+> Preciso organizar meus atendimentos da semana. Você permanece com interesse ou prefere que eu encerre por aqui?
+>
+> Sem problema nenhum se não for o momento.
+
+DICA: **Quando o T05 funciona.** Muitos leads respondem exatamente nessa tentativa. O gatilho de "remoção" ativa o medo de perder algo. Se ele responder "agora não", agradeça e mova pra Carteira com retorno em 30 dias. Se responder "ainda tenho interesse", vá direto pra Sondagem.
+
+## Decisão após a T05
+@ Depois do D10
+- Respondeu? Avança para a Etapa 3 (Sondagem).
+- Não respondeu + perfil fraco? CAMINHO A: DESCARTAR com motivo "Sem resposta após 5 tentativas". O lead sai do seu funil. Pode voltar via Reativação futura (distribuição interna).
+- Não respondeu + perfil forte? CAMINHO B: MOVER PARA CARTEIRA. Use quando o lead tem perfil forte ou veio de campanha qualificada. Novo contato a cada 30 a 45 dias, sempre com motivo novo.
+
+ATENÇÃO: Não existe mais T06 a T09: depois da T05 é carteira ou descarte.
+
+PROIBIDO: Não mande "oi", "???", "viu?", "conseguiu ver?". Isso desvaloriza você e irrita o lead. Cada toque TEM que ter conteúdo novo.

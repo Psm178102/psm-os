@@ -1,0 +1,80 @@
+NOME: 🔁 Cadência de follow-up (lead morno)
+
+PERFIS: 🎯 Pra quem: lead M.A.P (loteamento, casa/apto pronto, terreno) que visitou, recebeu tabela ou proposta e esfriou. Perfil: família em upgrade OU pequeno investidor. Decide mais devagar que o Conquista, compara mais, a entrada é maior — o jogo é CONSTÂNCIA com informação nova, não pressa.
+
+## Como usar (leia 1x, aplique sempre)
+Estes fluxos usam 6 mecanismos de persuasão REAIS — nada de frase pronta:
+1) MOTIVO VERDADEIRO: todo toque carrega uma informação nova e verificável (preço, obra, taxa, imóvel novo). "Passando pra saber se você viu minha mensagem" está PROIBIDO — quem liga sem motivo treina o cliente a ignorar.
+2) ESPECIFICIDADE: número, rua, data e nome. "Ótima oportunidade" não move ninguém; "o lote de esquina de 250m² que você olhou subiu R$ 7.000,00 na virada de tabela de 01/08" move.
+3) CUSTO DA INAÇÃO EM R$: a pessoa não compara "comprar vs não comprar" — ela compara "decidir vs adiar". Mostre o preço do adiar (aluguel pago, INCC, tabela que vira).
+4) PORTA DE SAÍDA: dar permissão explícita de dizer NÃO ("se não fizer mais sentido, me diz que eu encerro por aqui") DOBRA resposta — ninguém responde quem parece que vai grudar.
+5) PROVA LOCAL: caso real do MESMO bairro/empreendimento, com número. Prova genérica é ruído.
+6) LOOP ABERTO: a mensagem levanta uma pergunta que só se fecha na resposta ("descobri uma coisa sobre o seu crédito — posso te contar?").
+### Regras duras
+REGRA: Máx. 2 tentativas de ligação por dia de toque (horários diferentes).
+REGRA: WhatsApp: máx. 4 linhas, SEM bloco de texto (mata conversão — regra da casa).
+REGRA: SMS: até 160 caracteres, 1 ideia, assinado.
+REGRA: Registrar TODO toque no CRM.
+REGRA: Cliente respondeu = SAI da cadência e vira atendimento.
+REGRA: Pediu pra parar = para NA HORA e registra.
+
+## Dia 0 — Pós-visita/tabela
+@ Dia 0 · WhatsApp
+
+>> WhatsApp · Dia 0 — Pós-visita/tabela
+> {Nome}, obrigado pelo tempo hoje. Do que você viu, anotei que pesou {ponto real que a pessoa falou — ex: 'a distância da escola' / 'o valor do m²'}.
+> Vou levantar {informação prometida — ex: 'as 2 escolas num raio de 1km' / 'o histórico de valorização da quadra'} e te trago até {dia}. Combinado?
+
+DICA: **Uma promessa, cumprida na data.** Prometa UMA coisa útil e cumpra na data. Isso te separa de todo corretor que só cobra resposta.
+
+## Dia 2 — Entrega da promessa
+@ Dia 2 · Ligação
+
+>> Ligação · Dia 2 — Entrega da promessa
+> {Nome}, trouxe o que prometi: {entrega objetiva}. E uma coisa que descobri no caminho: {dado extra — ex: 'a quadra 12 teve 3 vendas este mês, sobraram 2 lotes de esquina'}. Isso muda algo na sua análise?
+
+DICA: **Entregou + surpreendeu.** A pergunta final é aberta de propósito: deixa ELE falar a objeção real.
+
+## Dia 6 — Custo de espera com número
+@ Dia 6 · WhatsApp
+
+>> WhatsApp · Dia 6 — Custo de espera com número
+> {Nome}, dado concreto: a tabela do {empreendimento} corrige por INCC (~{X}% a.m.). No lote de {R$ V}, cada mês de espera custa ~{R$ V×X%}.
+> Não é urgência inventada — é o contrato da construtora.
+> Se a dúvida é outra coisa (e geralmente é), me fala qual que eu ataco ela.
+
+DICA: **Só com INCC de verdade.** Só use se corrigir por INCC DE VERDADE. Escassez falsa aqui destrói as próximas 10 vendas.
+
+## Dia 10 — Rota alternativa
+@ Dia 10 · Ligação
+
+>> Ligação · Dia 10 — Rota alternativa
+> Pensei no seu caso: se {objeção real} é o travamento, tem {alternativa concreta — outro produto/quadra/condição de entrada parcelada}. É diferente do que você viu — te mostro em 20 minutos, e se não fizer sentido eu mesmo te digo.
+
+## Dia 15 — Porta de saída
+@ Dia 15 · WhatsApp
+
+>> WhatsApp · Dia 15 — Porta de saída
+> {Nome}, vou tirar você da minha lista de acompanhamento — a menos que faça sentido continuar.
+> Se a compra saiu do plano, me diz e encerro numa boa.
+> Se segue no plano mas o timing é outro ({3/6 meses}), me diz o prazo que eu volto SÓ na data, com o cenário atualizado. Qual dos dois?
+
+## Dia 15 — Sem resposta
+@ Dia 15 (sem resposta) · SMS
+
+>> SMS · Dia 15 — Sem resposta
+> {Nome}, {seu nome}/PSM: encerro seu acompanhamento do {empreendimento}? Responda FICA ou ENCERRA. Obrigado!
+
+# Objeções-chave
+
+## "Vou esperar baixar"
+@ Objeção
+
+>> WhatsApp · Resposta a "Vou esperar baixar"
+> Justo. Só te mostro o histórico: {empreendimento/região} nos últimos 24 meses foi {+X%}. Esperar tem custo aqui — diferente de outros mercados. Quer ver a série?
+
+## "Acho que consigo melhor de outro jeito"
+@ Objeção
+
+>> WhatsApp · Resposta a "Acho que consigo melhor de outro jeito"
+> Pode ser — e eu te digo com franqueza se for. Me manda o que você achou que eu te devolvo uma comparação honesta, item a item.

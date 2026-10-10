@@ -1,0 +1,67 @@
+NOME: ETAPA 9 — CONTRATO + PÓS-VENDA
+
+QUANDO: Negociação aceita. Hora de formalizar.
+OBJETIVO: Contrato assinado + ato pago + indicação
+SLA: Imediato. Cada dia = risco de desistência.
+LEMBRETE: VENDA FEITA = CONTRATO ASSINADO + ATO PAGO. Antes disso, não comemore.
+
+# Cadência de fechamento
+
+| MOMENTO | AÇÃO | CANAL | SCRIPT |
+| Contrato aceito | Parabenizar + pedir docs completos | WA+Lig | "Parabéns pela conquista! Compromisso começa agora." |
+| Produção do contrato | Avisar prazo do contrato | WhatsApp | "Logo estará no seu e-mail. Te aviso!" |
+| Contrato enviado | Orientar assinatura digital | WA+E-mail | "Contrato enviado. Dúvidas, me chama." |
+| Contrato assinado | Orientar boleto do ato | WhatsApp | "Boleto no mesmo e-mail. Me envia comprovante." |
+| Ato pago | Parabenizar + lembrança emocional | WA+Lig | "PARABÉNS! Essa conquista é merecida." |
+| D5-7 | Pedir indicação | WhatsApp | Script abaixo |
+| D30 | Follow-up pós-venda | WA/Lig | Como está? Abrir porta pra indicações |
+
+## Contrato aceito
+@ Contrato aceito · WhatsApp + Ligação
+Parabenizar + pedir docs completos.
+
+>> WhatsApp · Contrato aceito
+> Parabéns pela conquista! Compromisso começa agora.
+
+## Produção do contrato
+@ Produção do contrato · WhatsApp
+Avisar prazo do contrato.
+
+>> WhatsApp · Prazo do contrato
+> Logo estará no seu e-mail. Te aviso!
+
+## Contrato enviado
+@ Contrato enviado · WhatsApp + E-mail
+Orientar assinatura digital.
+
+>> WhatsApp · Contrato enviado
+> Contrato enviado. Dúvidas, me chama.
+
+## Contrato assinado
+@ Contrato assinado · WhatsApp
+Orientar boleto do ato.
+
+>> WhatsApp · Boleto do ato
+> Boleto no mesmo e-mail. Me envia comprovante.
+
+## Ato pago
+@ Ato pago · WhatsApp + Ligação
+Parabenizar + lembrança emocional.
+
+>> WhatsApp · Ato pago
+> PARABÉNS! Essa conquista é merecida.
+
+## D5-7 — Pedir indicação
+@ D5-7 · WhatsApp
+
+>> WhatsApp · Indicação (natural)
+> [NOME], fico muito feliz com essa conquista!
+>
+> Você conhece alguém — amigo, familiar, colega — que também esteja buscando imóvel ou pensando em investir?
+>
+> Adoraria atender com a mesma dedicação.
+> Se lembrar de alguém, me indica!
+
+## D30 — Follow-up pós-venda
+@ D30 · WhatsApp / Ligação
+Como está? Abrir porta pra indicações.

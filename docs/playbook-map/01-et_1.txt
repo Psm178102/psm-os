@@ -1,0 +1,73 @@
+NOME: ETAPA 1 — NOVO ATENDIMENTO
+
+QUANDO: Lead acabou de entrar (D0). Você tem 15 minutos.
+OBJETIVO: Abrir conversa + conduzir pra qualificação (não vender imóvel)
+SLA: Contato em até 15 MINUTOS. Cada minuto a mais = lead esfriando
+CANAIS: 1º Ligação | 2º Ligação (outro período) | 3º WhatsApp | 4º SMS
+REGRA DE OURO: Não entregue tudo. Gere curiosidade. Venda o próximo passo.
+
+POR QUE FUNCIONA: **15 minutos.** A chance de qualificar um lead cai 80% após os primeiros 5 minutos. A primeira empresa que liga tem 50% mais chance de converter. Velocidade é a vantagem mais simples e barata que existe. Quem liga primeiro, domina.
+
+# Sequência de ações
+
+| ORDEM | AÇÃO | CANAL | DETALHE |
+| 1 | Ligar imediatamente | Ligação | Roteiro PSM. Se atendeu: sondagem rápida (morar/investir, região, prazo) |
+| 2 | Ligar novamente (período inverso) | Ligação | Ligou manhã? Tente no fim da tarde (2ª rodada). Em dia de GOLD (terça e quinta), tente após 18h |
+| 3 | WhatsApp personalizado | WhatsApp | APÓS as 2 ligações. Nunca antes. Escolha 1 dos 4 scripts abaixo |
+| 4 | SMS (se não visualizou) | SMS | Curto: "[NOME], tentei te ligar sobre [empreendimento]. Me retorna?" |
+
+## 1 — Ligar imediatamente
+@ Até 15 min · Ligação
+Roteiro PSM. Se atendeu: sondagem rápida (morar/investir, região, prazo).
+
+## 2 — Ligar novamente, no período inverso
+@ Mesmo dia · Ligação
+Ligou de manhã? Tente no fim da tarde (2ª rodada). Em dia de GOLD (terça e quinta), tente após 18h.
+
+## 3 — WhatsApp personalizado
+@ Só DEPOIS das 2 ligações · WhatsApp
+Nunca antes das ligações. Copie, adapte nome/empreendimento, envie. Escolha 1 dos 4 scripts — o que combina com a origem do lead.
+
+>> WhatsApp · Script 1 Consultivo | MORADIA
+> [NOME], tudo bem? Aqui é [SEU NOME] da PSM.
+>
+> Atuo com todas as incorporadoras de Rio Preto e também com imóveis prontos. Recebi seu contato sobre [EMPREENDIMENTO/REGIÃO].
+>
+> Pra te ajudar de forma certeira, me confirma: seria pra morar ou pra investir?
+> E qual região te interessa mais?
+
+>> WhatsApp · Script 2 Autoridade | INVESTIMENTO
+> [NOME], aqui é [SEU NOME] da PSM.
+>
+> Trabalho com uma carteira selecionada e preciso entender seu objetivo: busca rentabilidade (renda com aluguel) ou valorização patrimonial?
+>
+> Com essa informação consigo filtrar as melhores opções em um único atendimento.
+
+>> WhatsApp · Script 3 Humanizado | MIX
+> Oi [NOME]! Sou [SEU NOME] da PSM.
+>
+> Vi que você se interessou por [EMPREENDIMENTO]. Aqui na PSM eu consigo te atender como assessoria — vejo todas as opções do mercado pra você.
+>
+> Me conta: você prefere algo pronto ou pode ser em obra/lançamento?
+
+>> WhatsApp · Script 4 Direto ao ponto | MIX
+> [NOME], sou [SEU NOME] da PSM.
+>
+> Trabalho direto com esse tipo de produto e consigo te mostrar as melhores opções em 15 minutos.
+>
+> Tenho dois horários: [H1] ou [H2]. Qual funciona melhor pra você?
+
+## 4 — SMS, se não visualizou o WhatsApp
+@ Depois do WhatsApp · SMS
+Curto, uma ideia só.
+
+>> SMS · Tentei te ligar
+> [NOME], tentei te ligar sobre [EMPREENDIMENTO]. Me retorna?
+
+## Se não respondeu a nada
+@ Fim do D0
+O lead avança para a ETAPA 2 no dia seguinte.
+
+## Lead que entrou fora do expediente
+@ Largada do dia seguinte
+É o primeiro contato da largada do dia seguinte, antes de qualquer outra tarefa.

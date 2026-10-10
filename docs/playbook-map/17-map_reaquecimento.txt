@@ -1,0 +1,97 @@
+NOME: 🔥 Reaquecimento de leads — 6 técnicas
+
+Quando o lead esfriou — parou de responder, sumiu, ou está no CRM há semanas sem interação — você precisa reaquecer antes de ofertar. Essas técnicas transformam lead frio em lead morno sem parecer desesperado.
+
+POR QUE FUNCIONA: **Princípio do Reaquecimento.** Lead frio não quer ouvir oferta. Quer saber que você LEMBRA dele, que tem algo NOVO, e que você NÃO é insistente. A ordem é: reconhecer → agregar valor → perguntar.
+
+## 1. Técnica do 'Lembrei de Você'
+@ Use quando: lead sumiu há 15-30 dias. Ainda está morno, só precisa de um empurrão.
+
+>> WhatsApp · Lembrei de Você
+> [NOME], tudo bem?
+>
+> Estava analisando alguns imóveis novos na região de [REGIÃO] e lembrei de você.
+>
+> Surgiu uma opção que combina bastante com o que você me falou. Quer que eu mande os detalhes?
+
+DICA: **Por que funciona.** Mostra que você lembra do lead individualmente (não é disparo em massa). Oferece algo novo sem pressionar. Pede permissão antes de enviar material.
+
+## 2. Técnica do 'Conteúdo de Valor'
+@ Use quando: lead sumiu há 30-60 dias. Precisa de valor antes de qualquer oferta.
+
+>> WhatsApp · Conteúdo de Valor
+> [NOME], achei que você ia gostar disso:
+> (Compartilhar: matéria sobre valorização da região / dados do mercado / vídeo do bairro / comparativo de investimento)
+>
+> Me lembrou da conversa que tivemos sobre [INTERESSE DELE]. O cenário está bem interessante agora.
+
+POR QUE FUNCIONA: **Conteúdo que funciona pra reaquecimento.** Matéria de portal (Valor Econômico, InfoMoney) sobre mercado | Vídeo mostrando evolução da obra | Notícia sobre nova infraestrutura no bairro | Dados de valorização dos últimos meses | Foto real do empreendimento (não render).
+
+## 3. Técnica do 'Evento/Notícia Como Gancho'
+@ Use quando: aconteceu algo relevante no mercado, na região ou no empreendimento.
+
+>> WhatsApp · Notícia como Gancho
+> [NOME], você viu que [NOTÍCIA/EVENTO]?
+> (Ex: 'a taxa de juros caiu pra [X]% e isso muda muito o cenário de financiamento')
+> (Ex: 'confirmaram o novo shopping na [REGIÃO] e os imóveis da área já estão valorizando')
+>
+> Lembro que você tinha interesse na região. Quer que eu atualize os números pra você?
+
+DICA: **Banco de Ganchos.** Mantenha uma lista de notícias/eventos que podem servir de gancho: redução de taxa SELIC, lançamento de obra pública, novo comércio no bairro, mudança no MCMV, aumento do teto de financiamento. Quando sair uma dessas — é sua chance de reaquecer.
+
+## 4. Técnica da 'Exclusividade/Escassez Real'
+@ Use quando: realmente existe uma condição limitada. NUNCA use falsa urgência.
+
+>> WhatsApp · Escassez Real
+> [NOME], preciso te avisar de algo rápido:
+>
+> [CENÁRIO REAL — ex: 'restam 3 unidades no bloco A do [EMPREENDIMENTO] e a construtora reajusta tabela dia [DATA]']
+>
+> Sei que você estava avaliando. Se ainda faz sentido, esse é o melhor momento.
+>
+> Posso te ligar 5 minutos?
+
+PROIBIDO: NUNCA invente urgência. Se o lead descobrir que a 'última unidade' de ontem ainda está disponível hoje, você perde credibilidade PRA SEMPRE.
+
+## 5. Técnica da 'Pesquisa Consultiva'
+@ Use quando: lead sumiu há 60+ dias. Abordagem indireta que não parece venda.
+
+>> WhatsApp · Pesquisa Consultiva
+> [NOME], tudo bem?
+>
+> Estou fazendo um levantamento rápido com clientes que buscaram imóvel nos últimos meses pra entender como está o mercado.
+>
+> Você ainda está buscando ou já encontrou?
+
+- Se respondeu 'ainda buscando' → oferecer ajuda
+- Se respondeu 'já comprou' → pedir indicação
+- Se respondeu 'desisti' → entender motivo
+
+POR QUE FUNCIONA: **Desdobramento da Pesquisa Consultiva.** Essa técnica é poderosa porque QUALQUER resposta te dá abertura: se ainda busca, você oferece. Se comprou, pede indicação. Se desistiu, entende o motivo e pode contornar. Não existe resposta ruim.
+
+## 6. Técnica do 'Vídeo Personalizado'
+@ Use quando: lead era quente e esfriou. Máximo impacto, máximo esforço.
+### Gravar vídeo de 30-40s mostrando:
+- O empreendimento por fora
+- O decorado / unidade disponível
+- Falar o nome do lead
+- Mostrar a vista/localização
+- Fechar com: 'queria te mostrar pessoalmente'
+
+>> WhatsApp · Vídeo Personalizado
+> [NOME], gravei esse vídeo rápido pensando em você.
+>
+> O que acha? Vale uma visita rápida?
+
+DICA: **Impacto do Vídeo Personalizado.** Taxa de resposta de vídeo personalizado é 3-5x maior que texto. O lead percebe que você investiu tempo nele. Funciona especialmente bem com leads que já visitaram ou demonstraram interesse forte.
+
+# Matriz de reaquecimento — qual técnica usar
+
+| TEMPO FRIO | TEMPERATURA | TÉCNICA IDEAL | ESFORÇO | TAXA RESP. |
+| 15-30 dias | Morno | 1. Lembrei de Você | Baixo | Alta (30-40%) |
+| 30-60 dias | Frio | 2. Conteúdo ou 3. Notícia | Médio | Média (15-25%) |
+| 60+ dias | Muito Frio | 5. Pesquisa Consultiva | Baixo | Média (15-20%) |
+| Qualquer | Se QUENTE antes | 6. Vídeo Personalizado | Alto | Muito Alta (40-50%) |
+| Qualquer | Com gatilho real | 4. Escassez Real | Baixo | Alta (25-35%) |
+
+PROIBIDO: Regra dos 3 NÃOs: Se o lead disse NÃO 3 vezes (3 cadências diferentes), respeite. Mova para 'Arquivo' no CRM e só reative se ele mesmo entrar em contato ou se passar 6+ meses.

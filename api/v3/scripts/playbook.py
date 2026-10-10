@@ -20,11 +20,30 @@ try:
 except Exception:
     SEED = {"linhas": []}
 
+try:
+    from _seed_map import MAP_V2  # type: ignore   # v89.43: M.A.P no formato etapa → momento → mensagem
+except Exception:
+    MAP_V2 = None
+
 KV_KEY = "scripts_playbook"
 MAX_LINHAS = 30
 MAX_ETAPAS = 80
 MAX_CONT = 200000  # ~200KB por etapa
 MAX_MAPA = 40      # fases do mapa da venda por linha (v88.94)
+
+
+def _map_v2(data):
+    """v89.43: o "O que falar" do M.A.P foi reorganizado (etapa → momento → mensagem pronta).
+    O conteúdo novo vem versionado em _seed_map.py; ele substitui as etapas do M.A.P UMA vez,
+    enquanto a `rev` gravada na linha for menor que a do código. Depois disso, o que a gestão
+    editar pela tela é o que vale (a linha salva já carrega a rev). O mapa (fases) não muda."""
+    if not MAP_V2:
+        return data
+    for l in (data.get("linhas") or []):
+        if isinstance(l, dict) and l.get("id") == "map" and _int(l.get("rev"), 0) < MAP_V2["rev"]:
+            l["etapas"] = [dict(e) for e in MAP_V2["etapas"]]
+            l["rev"] = MAP_V2["rev"]
+    return data
 
 
 def _read(sb):
@@ -36,7 +55,7 @@ def _read(sb):
     except Exception:
         v = None
     if not isinstance(v, dict) or not v.get("linhas"):
-        return SEED            # primeira vez: serve a baseline inteira
+        return _map_v2(json.loads(json.dumps(SEED)))   # primeira vez: serve a baseline inteira
     # merge não-destrutivo: anexa linhas da SEED cujo id ainda não existe no salvo
     # (não sobrescreve nada já editado; só traz linhas novas pré-carregadas).
     try:
@@ -52,7 +71,7 @@ def _read(sb):
                 v["linhas"].append(sl)
     except Exception:
         pass
-    return v
+    return _map_v2(v)
 
 
 def _write(sb, data):
@@ -103,6 +122,7 @@ def _clean(data):
             "ordem": _int(l.get("ordem"), i),
             "etapas": ets,
             "mapa": mapa,
+            **({"rev": _int(l.get("rev"), 0)} if l.get("rev") else {}),
         })
     return {"linhas": linhas}
 

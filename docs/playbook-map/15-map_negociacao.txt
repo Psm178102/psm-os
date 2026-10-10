@@ -1,0 +1,80 @@
+NOME: 🤝 Técnicas de negociação — guia prático
+
+Técnicas que os melhores corretores usam, explicadas passo a passo. Não é teoria — é aplicação prática pra mesa de negociação e WhatsApp.
+
+## 1. SPIN Selling (passo a passo)
+POR QUE FUNCIONA: **O que é SPIN.** SPIN é uma técnica de venda consultiva em 4 etapas: Situação > Problema > Implicação > Necessidade de Solução. Em vez de EMPURRAR o produto, você faz o CLIENTE perceber que PRECISA comprar. Ele se convence sozinho.
+
+| ETAPA | O QUE FAZER | EXEMPLO PRÁTICO |
+| S - SITUAÇÃO | Perguntas pra entender onde o lead está | "Há quanto tempo está pesquisando? Já visitou algo? O que viu?" |
+| P - PROBLEMA | Perguntas que revelam a DOR | "O que não te agradou nas opções que viu? O que falta?" |
+| I - IMPLICAÇÃO | Perguntas que mostram a CONSEQUÊNCIA de não agir | "Se você esperar mais 6 meses, o preço sobe pelo menos [X]%. O que acontece se perder essa condição?" |
+| N - NECESSIDADE | Perguntas que fazem ELE verbalizar a solução | "Se eu te mostrar uma opção que resolve [DOR] dentro de [PREÇO], faria sentido avançar?" |
+
+### SPIN na prática (ligação)
+
+>> Ligação · SPIN — Situação
+> [NOME], me conta: há quanto tempo você está pesquisando? Já visitou algum empreendimento?
+
+>> Ligação · SPIN — Problema
+> E o que não te agradou nessas opções? O que faltou pra fechar?
+
+>> Ligação · SPIN — Implicação
+> Entendo. E se você continuar pesquisando mais 3-6 meses, o que acontece com os preços? Só nesse empreendimento já subiram [X]% em [N] meses.
+
+>> Ligação · SPIN — Necessidade
+> Se eu te apresentar uma opção que resolve [DOR DELE] dentro da faixa que você me disse, você estaria pronto pra decidir?
+
+## 2. Ancoragem de Preço
+POR QUE FUNCIONA: **Como funciona.** Você apresenta o valor CHEIO primeiro. Depois mostra a condição especial. O cérebro do lead compara automaticamente: "era 500 mil, mas com a condição fica 460 mil". Mesmo que 460 fosse o preço normal, parece desconto. A primeira informação de preço ANCORA toda a percepção.
+### Ancoragem na mesa
+
+>> Presencial · Passo 1
+> O valor de tabela dessa unidade é R$ [VALOR CHEIO].
+
+>> Presencial · Passo 2
+> (Pausa)
+> Mas pra esse mês a incorporadora liberou uma condição especial: entrada parcelada em [N]x e mensais a partir de R$ [VALOR MENOR].
+
+>> Presencial · Passo 3
+> Essa condição é válida até [DATA]. No próximo mês o valor sobe [X]% (INCC).
+
+Passo 4: SILÊNCIO. Deixe o cliente processar.
+
+## 3. Como lidar com "Me manda o desconto"
+PROIBIDO: NUNCA dê desconto sem receber algo em troca. NUNCA comece a negociar antes da hora. ELE tem que falar quanto quer pagar primeiro.
+### Quando pedir desconto
+
+>> WhatsApp · Quando pedir desconto
+> Entendo que você quer a melhor condição possível. Eu também quero te ajudar nisso.
+>
+> Me fala: qual valor de entrada seria confortável pra você? E qual parcela mensal cabe no seu planejamento?
+> (Ele fala o valor. Agora você tem poder:)
+
+>> WhatsApp · Depois que ele falar o valor
+> Ok. Vou levar essa proposta pra incorporadora. Mas pra eles levarem a sério, preciso da sua documentação (CNH + [DOCS]). Com documento em mãos, consigo negociar de igual pra igual.
+> (Documentação = compromisso. Sem docs = não é sério)
+
+## 4. Técnica do Silêncio
+POR QUE FUNCIONA: **A arma mais subestimada.** Após apresentar o valor ou a proposta, CALE-SE. O primeiro que fala perde poder. O silêncio cria desconforto produtivo: o lead precisa preencher o vazio e acaba revelando o que realmente pensa. Se você fala antes dele, está negociando contra si mesmo.
+- Apresentou o valor? Fique em silêncio.
+- Fez a pergunta de fechamento? Fique em silêncio.
+- Ele fez cara de "caro"? Fique em silêncio. Espere ele verbalizar.
+- Conte até 10 mentalmente se precisar. Não quebre o silêncio.
+
+## 5. Fechamento por Alternativa
+Nunca pergunte "você quer comprar?" — pergunte "qual dos dois?". Isso pressupõe que ele vai comprar e só precisa escolher.
+
+>> Presencial · Alternativa — unidade
+> Você prefere o 8º andar com vista leste ou o 12º com vista norte?
+
+>> Presencial · Alternativa — entrada
+> Entrada à vista com desconto ou parcelada em 3x?
+
+>> Presencial · Alternativa — assinatura
+> Assinamos hoje ou amanhã de manhã?
+
+>> Presencial · Alternativa — local e horário
+> Sede da PSM ou stand? 10h ou 17h?
+
+DICA: **Quando usar.** Use no FINAL da negociação, quando o lead já disse que gostou e só falta o empurrão. Se usar cedo demais, parece pressão.

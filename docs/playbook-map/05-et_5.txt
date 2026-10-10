@@ -1,0 +1,140 @@
+NOME: ETAPA 5 — VISITA AGENDADA
+
+QUANDO: Lead confirmou visita. Agora você precisa GARANTIR que ele vá.
+OBJETIVO: Lead comparecer com seriedade. Você preparado pra converter.
+SLA: Visita em até 3 dias após agendar
+CANAIS: WhatsApp + SMS + Google Agenda + Localização ao vivo
+MÉTODO: Protocolo anti-no-show
+REGRA DE OURO: Protocolo de seriedade OBRIGATÓRIO. Sem atalhos.
+
+ATENÇÃO: **Esta é a segunda etapa mais crítica do funil.** Agendar é só metade. O lead COMPARECER é a outra metade. Cada no-show desperdiçado é tempo, gasolina e moral. O protocolo abaixo reduz no-show em até 40%. Siga à risca.
+
+POR QUE FUNCIONA: **Seriedade gera compromisso.** Quando você manda confirmação, lembrete, localização e foto no local, o lead percebe 3 coisas: 1) você é organizado, 2) você leva a sério, 3) faltar seria desrespeitoso. Isso cria vergonha social de faltar. Google Agenda sozinho já reduz no-show em 30%.
+
+# Protocolo de confirmação — passo a passo
+
+| QUANDO | AÇÃO | CANAL | POR QUÊ |
+| Ao agendar | Pesquisar cliente: Google, Insta, LinkedIn | Pesquisa | Personalizar visita + saber quem é antes de encontrar |
+| Ao agendar | Google Agenda com endereço + nome corretor | Email/WA | Compromisso formal. Aparece no celular dele como lembrete |
+| D-1 (véspera) | Mensagem de confirmação + empolgação | WhatsApp | Relembrar sem parecer cobrança. Gerar expectativa |
+| 1h antes | WhatsApp/SMS: "estou terminando, a caminho" | WA+SMS | Criar sensação de que VOCÊ está indo. Ele sente obrigação |
+| 20 min antes | Msg "a caminho" (mesmo sem ter saído ainda) | WhatsApp | Ancoragem de compromisso. Ele não vai sumir agora |
+| No local | Localização ao vivo (1h) + foto no local | WhatsApp | Prova de presença. Profissionalismo. Facilita acesso |
+| Se atrasar | Mensagem "sem pressa, estou aqui aguardando" | WhatsApp | Educação + manter o compromisso vivo |
+
+## Ao agendar
+@ Ao agendar · Pesquisa + E-mail/WhatsApp
+1) Pesquisar cliente: Google, Insta, LinkedIn — personalizar visita + saber quem é antes de encontrar.
+2) Google Agenda com endereço + nome corretor (E-mail/WhatsApp) — compromisso formal. Aparece no celular dele como lembrete.
+
+## Véspera (D-1)
+@ D-1 (véspera) · WhatsApp
+Mensagem de confirmação + empolgação. Relembrar sem parecer cobrança. Gerar expectativa.
+
+>> WhatsApp · Confirmação D-1
+> [NOME], tudo certo pra amanhã!
+>
+> Te espero às [HORÁRIO] no [LOCAL].
+>
+> Separei tudo que conversamos pra te apresentar.
+>
+> Se precisar ajustar o horário, me avisa que eu reorganizo. Até amanhã!
+
+## 1 hora antes
+@ 1h antes · WhatsApp + SMS
+WhatsApp/SMS: "estou terminando, a caminho". Criar sensação de que VOCÊ está indo. Ele sente obrigação.
+
+>> WhatsApp · 1h antes
+> [NOME], estou finalizando um atendimento aqui e já saindo pro [LOCAL].
+>
+> Chegando lá te mando a localização!
+>
+> Nos vemos às [HORÁRIO].
+
+## 20 minutos antes
+@ 20 min antes · WhatsApp
+Msg "a caminho" (mesmo sem ter saído ainda). Ancoragem de compromisso. Ele não vai sumir agora.
+
+>> WhatsApp · 20 min antes
+> A caminho
+
+## No local
+@ No local · WhatsApp
+Localização ao vivo (1h) + foto no local. Prova de presença. Profissionalismo. Facilita acesso.
+
+>> WhatsApp · No local
+> Já estou aqui no [LOCAL] aguardando!
+>
+> Entrada pela [REFERÊNCIA].
+> Estacionamento: [INFO VAGA/ACESSO]
+> (Compartilhar localização em tempo real - 1h)
+> Te espero aqui.
+
+## Se atrasar
+@ Se atrasar · WhatsApp
+Mensagem "sem pressa, estou aqui aguardando". Educação + manter o compromisso vivo.
+
+>> WhatsApp · Se atrasar
+> Sem pressa, estou aqui aguardando
+
+# Cenários críticos: o que fazer quando...
+
+## Cenário 1 — Lead cancela na véspera
+@ Véspera · WhatsApp
+
+>> WhatsApp · Resposta ao cancelamento
+> [NOME], sem problema! Entendo que a agenda muda.
+>
+> Tenho [H1 NOVO] e [H2 NOVO] essa semana. Qual funciona melhor pra remarcar?
+>
+> Quero garantir que você conheça — vai valer a pena.
+
+DICA: **Não aceite "depois a gente marca".** Se o lead disser "depois vejo", responda: "Sem problema. Só pra eu organizar minha semana, ficaria melhor [DIA 1] ou [DIA 2]?" Sempre feche com 2 opções. "Depois" vira "nunca".
+
+## Cenário 2 — Lead não confirma 1h antes
+@ 1h antes · WhatsApp + Ligação
+
+>> WhatsApp · Se não respondeu à confirmação
+> [NOME], te mandei uma mensagem mais cedo sobre nosso encontro de [HORÁRIO].
+>
+> Está confirmado? Estou organizando minha rota.
+>
+> Me responde quando puder!
+
+PROIBIDO: Se não respondeu: NÃO VÁ. Ligue. Se não atendeu a ligação, mande: "Não consegui confirmar. Vou reagendar. [H1] ou [H2]?" Só vá se tiver confirmação.
+
+## Cenário 3 — Lead deu no-show (não apareceu)
+@ No mesmo dia · WhatsApp
+
+>> WhatsApp · Pós no-show (envie no mesmo dia)
+> [NOME], passei no [LOCAL] conforme combinamos mas não conseguimos nos encontrar.
+>
+> Imagino que surgiu algo. Sem problema.
+>
+> Tenho [H1] e [H2] pra remarcarmos. Me avisa qual funciona?
+
+POR QUE FUNCIONA: **Depois do 2º no-show.** Se deu no-show 2 vezes, o lead não está comprometido. Ofereça VIDEOCHAMADA como filtro: "Sei que a agenda tá corrida. Que tal 10 min por vídeo pra você ver se vale a visita presencial?" Se nem o vídeo aceitar, mova pra Carteira.
+
+## Cenário 4 — Lead quer remarcar várias vezes
+@ Após 2ª remarcação · WhatsApp
+
+>> WhatsApp · Após 2ª remarcação
+> [NOME], entendo que tá corrido. Pra facilitar, que tal uma videochamada de 10 minutos?
+>
+> Te mostro o essencial e você decide se vale a visita presencial. Sem compromisso.
+>
+> [H1] ou [H2]?
+
+DICA: **Regra dos 3 reagendamentos.** Após 3 reagendamentos sem visita: mova para Carteira com retorno em 15-30 dias. Não gaste mais energia agora. Quando retornar, use estratégia de vídeo personalizado (Etapa 4, Estratégia 1).
+
+# Preparação pré-visita
+
+## Checklist de preparação pré-visita
+@ Antes da visita · Checklist
+- Revisar 4Ps do cliente e anotar pontos-chave
+- Pesquisar cliente (Google, Insta, LinkedIn) se ainda não pesquisou
+- Preparar OPÇÃO A (principal) + OPÇÃO B (alternativa/contingência)
+- VPL pré-pronta ou fluxo de pagamento separado
+- Conferir disponibilidade de unidades ATUALIZADA no dia
+- Se houve objeção prévia: preparar resposta com dados
+- Levar papel e caneta (pra mesa de negociação)

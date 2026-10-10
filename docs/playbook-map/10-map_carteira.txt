@@ -1,0 +1,111 @@
+NOME: 💼 Carteira, Reativação e Represamento
+
+PERFIS: 1) Lead T05+ sem resposta mas perfil forte | 2) Precisa vender imóvel | 3) Perfil pra lançamentos futuros | 4) Captação
+OBJETIVO: Manter relacionamento ativo e reativar quando houver oportunidade real
+FREQUÊNCIA: Contato a cada 30-45 dias OU quando surgir opção aderente
+CANAIS: WhatsApp + Ligação (quando houver opção real)
+REGRA: Contato LEVE e INTELIGENTE. Não é insistência. É relacionamento.
+
+POR QUE FUNCIONA: **Carteira é ouro a longo prazo.** Muitos corretores ignoram a Carteira. Mas é daqui que saem vendas "surpresa" — leads que não estavam prontos mas amadureceram. A chave é: contato com MOTIVO, não com "oi, tudo bem?". Sempre traga uma NOVIDADE, um DADO, uma OPORTUNIDADE.
+
+# Cadência mensal de Carteira
+
+| QUANDO | AÇÃO | CANAL | GATILHO |
+| Dia 1 (mensal) | Contato consultivo: novidade do mercado | WA/Lig | "Surgiu opção que combina com o que conversamos" |
+| Dia 15 | Conteúdo de valor: dado, lançamento, taxa | WhatsApp | Info relevante pro perfil dele. Sem pressão. |
+| Quando surgir | Oportunidade real: lançamento/condição/produto | Ligação | "Lembrei de você quando vi essa opção. Posso contar?" |
+| Trimestral | Check-in leve: "Como está a busca?" | WhatsApp | Atualizar status no CRM. Se mudou, requalificar. |
+
+## Dia 1 (mensal) — Contato consultivo
+@ Dia 1 (mensal) · WhatsApp / Ligação
+Contato consultivo: novidade do mercado.
+
+>> WhatsApp · Novidade do mercado
+> Surgiu opção que combina com o que conversamos
+
+## Dia 15 — Conteúdo de valor
+@ Dia 15 · WhatsApp
+Conteúdo de valor: dado, lançamento, taxa. Info relevante pro perfil dele. Sem pressão.
+
+## Quando surgir — Oportunidade real
+@ Quando surgir · Ligação
+Oportunidade real: lançamento/condição/produto.
+
+>> Ligação · Oportunidade real
+> Lembrei de você quando vi essa opção. Posso contar?
+
+## Trimestral — Check-in leve
+@ Trimestral · WhatsApp
+Atualizar status no CRM. Se mudou, requalificar.
+
+>> WhatsApp · Check-in leve
+> Como está a busca?
+
+# Scripts de Carteira
+
+## Contato mensal com motivo
+@ Mensal · WhatsApp
+
+>> WhatsApp · Carteira mensal
+> [NOME], tudo bem? Aqui é [SEU NOME] da PSM.
+>
+> Surgiu uma oportunidade que lembrei do seu perfil: [NOVIDADE: LANÇAMENTO, CONDIÇÃO NOVA, PRODUTO ADERENTE].
+>
+> Combina com o que você me contou na época.
+> Quer que eu te mande os detalhes?
+
+## Reaquecimento com dado
+@ WhatsApp
+
+>> WhatsApp · Carteira com dado | MIX
+> [NOME], dado rápido do mercado de Rio Preto:
+>
+> [DADO: VALORIZAÇÃO DA REGIÃO, TAXA DE JUROS CAIU, LANÇAMENTO NA REGIÃO DELE, % VENDIDO DE ALGO QUE ELE VIU].
+>
+> Lembrei da nossa conversa. Faz sentido retomar?
+
+## Quando o lead precisa vender primeiro
+@ WhatsApp
+
+>> WhatsApp · Lead que precisa vender
+> [NOME], tudo bem?
+>
+> Como está a situação do seu imóvel? Conseguiu evoluir na venda?
+>
+> Se precisar de apoio nisso também, trabalhamos com terceiros e consigo te ajudar. Me conta como está.
+
+## Critérios de saída da Carteira
+- Lead respondeu com interesse = volta pro funil na etapa adequada (Sondagem ou Agendamento)
+- Lead disse que não quer mais = Descartar com motivo
+- 3 contatos sem resposta (90 dias) = Descartar ou mover pra Reativação
+- Lead mudou de perfil = Requalificar e atualizar CRM
+
+# Reativação (pool / distribuição)
+
+## Reativação
+@ 5 a 10 leads/dia · Ligação ativa + WhatsApp · 5 dias de tentativa
+- PERFIS: Leads antigos, descartados, redistribuídos, mailing
+- VOLUME: 5 a 10 leads/dia por corretor
+- OBRIGATÓRIO: LIGAÇÃO ATIVA (não só mensagem). Sempre sai venda daqui.
+- SLA: 5 dias de tentativa. Se não responde: descartar definitivamente
+
+>> WhatsApp · Reativação
+> [NOME], aqui é [SEU NOME] da PSM.
+>
+> Você demonstrou interesse em imóveis há um tempo.
+> Estou com condições especiais esse mês e lembrei do seu perfil.
+>
+> Ainda está na busca?
+
+# Represamento (pré-lançamento)
+
+## Aviso prioritário
+@ Pré-lançamento · WhatsApp
+
+>> WhatsApp · Aviso prioritário
+> [NOME], você está na minha lista prioritária.
+>
+> As vendas do [EMPREENDIMENTO] abrem dia [DATA].
+> Quem entra agora tem melhor condição e escolha de unidade.
+>
+> Quer garantir? Te explico em 5 minutos.
